@@ -7,6 +7,7 @@ export {
   CardDescription,
   CardFooter,
   CardHeader,
+  CardIcon,
   CardTitle,
 } from './components/card';
 export {
