@@ -79,7 +79,10 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U mocks" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
+      # Local dev defaults come from .env.example (as in the package scripts); the job
+      # environment takes precedence, so DATABASE_URL points at the service container.
       DATABASE_URL: postgres://mocks:mocks_dev@localhost:5432/mocks
+      UV_ENV_FILE: .env.example
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
