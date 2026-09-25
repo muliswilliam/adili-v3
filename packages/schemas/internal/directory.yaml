@@ -1,0 +1,445 @@
+openapi: 3.1.0
+info:
+  title: directory API - Commission provisioning (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 01. The directory service's Swagger document becomes the
+    source of truth once implemented and is exported to packages/schemas/internal;
+    this file is what the backend converges to and what the console builds against.
+servers:
+  - url: http://localhost:4001
+security:
+  - bearer: []
+tags:
+  - name: commissions
+  - name: reference
+paths:
+  /v1/commissions:
+    post:
+      tags: [commissions]
+      operationId: createCommission
+      summary: Create a Responsible Commission and provision its workspace
+      description: platform-admin only. Idempotent per Idempotency-Key.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommission'
+      responses:
+        '201':
+          description: Commission created with policy version 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commission'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Tenant key or name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    get:
+      tags: [commissions]
+      operationId: listCommissions
+      summary: List Responsible Commissions
+      description: |
+        platform-admin, eacc-analyst and eacc-supervisor see every Commission.
+        Other staff see only their own tenant's Commission.
+      parameters:
+        - name: search
+          in: query
+          description: Case-insensitive match on name or slug
+          schema:
+            type: string
+            maxLength: 100
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/CommissionType'
+        - name: reportingOfficer
+          in: query
+          description: Filter by current reporting officer state; `none` means no assignment yet
+          schema:
+            type: string
+            enum: [none, invited, activated]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Page of Commissions ordered by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Commission'
+                  nextCursor:
+                    type: [string, 'null']
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/commissions/{slug}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [commissions]
+      operationId: getCommission
+      summary: One Commission with its reporting officer and roster summary
+      responses:
+        '200':
+          description: The Commission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commission'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/reporting-officer:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    put:
+      tags: [commissions]
+      operationId: assignReportingOfficer
+      summary: Assign or replace the Commission's reporting officer
+      description: |
+        platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account,
+        grants the reporting-officer role and sends exactly one activation email.
+        If an active assignment exists it is marked replaced and the previous account is
+        disabled. Idempotent per Idempotency-Key.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignReportingOfficer'
+      responses:
+        '200':
+          description: Commission with the new assignment in state `invited`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commission'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Commission not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: The email belongs to an account in another tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/reporting-officer/resend-invitation:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [commissions]
+      operationId: resendReportingOfficerInvitation
+      summary: Send the activation email again
+      description: platform-admin only. Allowed while the assignment is `invited`.
+      responses:
+        '202':
+          description: Email requested
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Commission not found or no assignment
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Assignment is not in state `invited`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/reference/officer-categories:
+    get:
+      tags: [reference]
+      operationId: listOfficerCategories
+      summary: Statutory categories of public officers (Act s.32, Regs r.5)
+      responses:
+        '200':
+          description: Seeded list, stable order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfficerCategory'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Slug'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID, unique per logical request; reuse on retry
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    Slug:
+      type: string
+      description: |
+        Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars.
+        Upper-cased it is the issuer code in reference numbers. `platform` is reserved.
+      pattern: '^[a-z][a-z0-9]{1,19}$'
+      examples: [psc, tsc, cpsb047, naeth]
+    CommissionType:
+      type: string
+      enum: [hosted, federated]
+    OfficerCategoryCode:
+      type: string
+      description: One paragraph of Act s.32 or Regs r.5
+      enum:
+        - act-s32-2
+        - act-s32-3
+        - act-s32-4
+        - act-s32-5
+        - act-s32-6
+        - act-s32-7
+        - act-s32-8
+        - act-s32-9
+        - act-s32-10
+        - act-s32-11
+        - act-s32-12
+        - act-s32-13
+        - act-s32-14
+        - regs-r5-a
+        - regs-r5-b
+        - regs-r5-c
+        - regs-r5-d
+        - regs-r5-e
+        - regs-r5-f
+    OfficerCategory:
+      type: object
+      required: [code, citation, description]
+      properties:
+        code:
+          $ref: '#/components/schemas/OfficerCategoryCode'
+        citation:
+          type: string
+          examples: ['Act s.32(10)']
+        description:
+          type: string
+          examples: ['Registered teachers']
+    CreateCommission:
+      type: object
+      required: [slug, name, type, categories]
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          examples: ['Teachers Service Commission']
+        type:
+          $ref: '#/components/schemas/CommissionType'
+        categories:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/OfficerCategoryCode'
+    AssignReportingOfficer:
+      type: object
+      required: [name, email, phone]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          description: E.164
+          pattern: '^\+[1-9][0-9]{6,14}$'
+          examples: ['+254712345678']
+    ReportingOfficerState:
+      type: string
+      enum: [invited, activated, replaced]
+    ReportingOfficer:
+      type: object
+      required: [id, name, email, phone, state, invitedAt, activatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        state:
+          $ref: '#/components/schemas/ReportingOfficerState'
+        invitedAt:
+          type: string
+          format: date-time
+        activatedAt:
+          type: [string, 'null']
+          format: date-time
+    RosterSummary:
+      description: Only `none` is produced by slice 01; slice 02 adds `imported`
+      oneOf:
+        - type: object
+          required: [status]
+          properties:
+            status:
+              const: none
+        - type: object
+          required: [status, expectedDeclarants, onboardedDeclarants, lastImportAt]
+          properties:
+            status:
+              const: imported
+            expectedDeclarants:
+              type: integer
+            onboardedDeclarants:
+              type: integer
+            lastImportAt:
+              type: string
+              format: date-time
+    Commission:
+      type: object
+      required:
+        - id
+        - slug
+        - issuerCode
+        - name
+        - type
+        - categories
+        - status
+        - policyVersion
+        - reportingOfficer
+        - roster
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: slug upper-cased
+          examples: [TSC]
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/CommissionType'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficerCategory'
+        status:
+          type: string
+          enum: [active]
+        policyVersion:
+          type: integer
+          description: Current policy version; 1 after provisioning
+        reportingOfficer:
+          oneOf:
+            - $ref: '#/components/schemas/ReportingOfficer'
+            - type: 'null'
+          description: Current assignment (`invited` or `activated`); null when none
+        roster:
+          $ref: '#/components/schemas/RosterSummary'
+        createdAt:
+          type: string
+          format: date-time
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
