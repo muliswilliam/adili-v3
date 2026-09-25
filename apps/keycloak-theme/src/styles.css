@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+@import '@adili/ui/styles.css';
+
+@source './';
+
+/* Markup rendered by Keycloakify's default pages that has no class hook. */
+@layer components {
+  #kc-content a:not([class]) {
+    color: var(--color-primary);
+    font-weight: 500;
+    text-underline-offset: 4px;
+  }
+
+  #kc-content a:not([class]):hover {
+    text-decoration: underline;
+  }
+
+  #kc-content input[type='checkbox'],
+  #kc-content input[type='radio'] {
+    accent-color: var(--color-primary);
+  }
+}
