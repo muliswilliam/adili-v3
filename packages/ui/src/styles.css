@@ -34,11 +34,14 @@
   --destructive-subtle-foreground: oklch(0.505 0.213 27.518); /* red-700 */
   --warning-subtle: oklch(0.987 0.022 95.277); /* amber-50 */
   --warning-subtle-foreground: oklch(0.473 0.137 46.201); /* amber-800 */
+  --success: oklch(0.627 0.194 149.214); /* green-600 #00a63e */
   --success-subtle: oklch(0.982 0.018 155.826); /* green-50 */
   --success-subtle-foreground: oklch(0.448 0.119 151.328); /* green-800 */
   --border: oklch(0.922 0 0); /* neutral-200 */
   --input: oklch(0.87 0 0); /* neutral-300 */
   --ring: oklch(0.556 0 0);
+  /* Surface of inputs, textareas and selects: white on the page, filled inside cards. */
+  --control: var(--card);
   --radius: 0.5rem;
 
   /* Control edges and focus rings, from the style guide's input and button states. */
@@ -91,6 +94,7 @@
     --destructive-subtle-foreground: oklch(0.885 0.062 18.334); /* red-200 */
     --warning-subtle: oklch(0.279 0.077 45.635); /* amber-950 */
     --warning-subtle-foreground: oklch(0.924 0.12 95.746); /* amber-200 */
+    --success: oklch(0.723 0.219 149.579); /* green-500 */
     --success-subtle: oklch(0.266 0.065 152.934); /* green-950 */
     --success-subtle-foreground: oklch(0.925 0.084 155.995); /* green-200 */
     --border: oklch(0.269 0 0);
@@ -134,15 +138,18 @@
   --color-destructive-subtle-foreground: var(--destructive-subtle-foreground);
   --color-warning-subtle: var(--warning-subtle);
   --color-warning-subtle-foreground: var(--warning-subtle-foreground);
+  --color-success: var(--success);
   --color-success-subtle: var(--success-subtle);
   --color-success-subtle-foreground: var(--success-subtle-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-control: var(--control);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 12px);
   --shadow-control: var(--elevation-control);
   --shadow-control-hover: var(--elevation-control-hover);
   --shadow-control-focus: var(--elevation-control-focus);
@@ -162,6 +169,19 @@
   ::before,
   ::after {
     border-color: var(--color-border);
+  }
+
+  /* Controls on a white card are filled with the page colour and get a flat hairline instead of
+     the raised shadow (Figma: "Add new asset" card, node 93:4128). */
+  [data-slot='card'] {
+    --control: var(--background);
+    --elevation-control: 0 0 0 1px rgb(0 0 0 / 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-slot='card'] {
+      --elevation-control: 0 0 0 1px rgb(255 255 255 / 0.1);
+    }
   }
 
   html {

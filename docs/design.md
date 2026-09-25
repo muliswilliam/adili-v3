@@ -8,9 +8,10 @@ How the Figma designs map to code. The design system lives in [`packages/ui`](..
 |---|---|
 | Figma file | [Dials](https://www.figma.com/design/wr7hrx3jB9cpWdpsvyAD1G/Dials) |
 | Style guide | page `style-guide` (node `81:3799`), frame `81:3824` |
+| Card | "Add new asset" form card, node [`93:4128`](https://www.figma.com/design/wr7hrx3jB9cpWdpsvyAD1G/Dials?node-id=93-4128) |
 | Applied in | PR [#104](https://github.com/muliswilliam/adili-v3/pull/104) |
 
-The style guide covers type, icons, the input and four button variants with their states. Everything else below marked *derived* was decided in code and needs a design decision (see [Open questions](#open-questions)).
+The style guide covers type, icons, the input and four button variants with their states; the card frame adds cards and how controls look inside them. Everything else below marked *derived* was decided in code and needs a design decision (see [Open questions](#open-questions)).
 
 ## Foundations
 
@@ -20,7 +21,7 @@ The style guide covers type, icons, the input and four button variants with thei
 | Body text | 14px, tracking -0.112px | `text-sm`; body letter-spacing `-0.008em` |
 | Page header | 18px | `text-lg font-semibold` on each page's `h1` |
 | Icons | Hugeicons | `Icon` from `@adili/ui` with icons from `@hugeicons/core-free-icons` |
-| Radius | 8px on controls | `--radius: 0.5rem`, so `rounded-lg` = 8px, `rounded-xl` = 12px (cards) |
+| Radius | 8px on controls, 20px on cards | `--radius: 0.5rem`, so `rounded-lg` = 8px, `rounded-2xl` = 20px |
 
 Landing-page hero headings keep their larger size; the style guide only sets page headers.
 
@@ -42,9 +43,11 @@ Tailwind's neutral and red scales. Use the semantic utility (`bg-primary`, `text
 | `destructive` / `destructive-hover` | red-500 `#fb2c36` / red-600 `#e7000b` | destructive buttons, error text and outlines |
 | `destructive-subtle` | red-50 on red-700 text | error alerts and badges |
 | `warning-subtle` | amber-50 on amber-800 text | warning alerts, "Invited" badges *(derived)* |
+| `success` | green-600 `#00a63e` | card icons |
 | `success-subtle` | green-50 on green-800 text | "Activated" badges *(derived)* |
 | `border` | neutral-200 | card borders, dividers, table rows |
 | `input` | neutral-300 | unused since controls moved to shadows; kept for third-party widgets |
+| `control` | `card` on the page, `background` inside a card | fill of inputs, textareas and selects |
 
 ## Elevation
 
@@ -54,6 +57,8 @@ Controls get their edges from layered shadows rather than borders, copied from t
 |---|---|
 | `shadow-control`, `-hover`, `-focus` | inputs, textareas, selects, outline buttons |
 | `shadow-control-error`, `-error-focus` | invalid inputs (`aria-invalid`) |
+
+Inside a `Card`, `shadow-control` becomes a flat 1px ring (8% black) and `bg-control` the page colour, so controls read as filled wells on the white card. The switch is a CSS rule on `[data-slot='card']` in `styles.css`; components do nothing extra.
 | `shadow-button-primary`, `-hover`, `-focus` | primary buttons |
 | `shadow-button-secondary`, `-focus` | secondary buttons; ghost focus |
 | `shadow-button-destructive`, `-focus` | destructive buttons |
@@ -66,8 +71,9 @@ Controls get their edges from layered shadows rather than borders, copied from t
 | `Input`, `Textarea` | default, active (hover), focused, error | 32px high, `px-2.5`; error comes from `aria-invalid`, set by `FormField` |
 | `Label` | muted, regular weight | turns red when its field has an error |
 | `FormField` | label → control 6px apart | hint below the label, error below the control with `role="alert"` |
+| `Card` | white, 20px radius and padding, no border or shadow | `CardHeader` (optional `CardIcon`: 24px, `success` colour, 12px above the title; title 16px semibold; description 14px muted, 1.6 line height), then 32px to `CardContent` (fields 16px apart), then 20px to `CardFooter` (buttons 12px apart; `flex-1` for an equal-width pair) |
 | `Badge` | *derived* | `default`, `neutral`, `outline`, `warning`, `success`, `destructive` |
-| `Card`, `Alert`, `Dialog`, `Toast`, `Table`, `EmptyState`, `Skeleton`, `Checkbox` | *not in the style guide* | styled from the tokens above until screens are designed |
+| `Alert`, `Dialog`, `Toast`, `Table`, `EmptyState`, `Skeleton`, `Checkbox` | *not designed yet* | styled from the tokens above until screens are designed |
 
 ## Dark theme
 
@@ -83,6 +89,9 @@ For the designer; each is built as described until decided.
 4. **Status colours.** No success or warning colours in the guide; green and amber are used for badges.
 5. **Dark theme**, **outline and link buttons**, **badges, cards, tables, alerts, dialogs, toasts**: not yet designed.
 6. **Typeface in frames.** Component text layers are set in SF Pro; the guide says Inter. Inter is used.
+7. **Secondary button in the card frame** is flat `#f0f0f0`; the style guide's secondary has a hairline ring. The style guide version is used.
+8. **Card icon** is solid in the frame; the free Hugeicons set is stroke only.
+9. **Cards have no border**, so a white card on the `neutral-50` page relies on a small contrast step (about 1.04:1). Worth a check on low-quality displays.
 
 ## Screens
 
@@ -91,6 +100,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 | Screen | Ticket | Figma frame | Status |
 |---|---|---|---|
 | Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `81:3824` | applied |
+| Cards and controls inside cards | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `93:4128` | applied |
 | Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | not yet shared | tokens only |
 
 Add a row when a frame is shared, and flip the status when its design pass merges.

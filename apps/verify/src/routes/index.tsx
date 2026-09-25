@@ -40,7 +40,7 @@ function VerifyHome() {
         </p>
       </div>
       <Card>
-        <CardContent className="pt-6">
+        <CardContent>
           <form className="grid gap-4" onSubmit={submit} noValidate>
             <div className="grid gap-2">
               <Label htmlFor={inputId}>Verification code</Label>
