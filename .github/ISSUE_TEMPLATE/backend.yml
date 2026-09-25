@@ -1,0 +1,60 @@
+name: Backend ticket
+description: One module in a service. Interface first, then what sits behind it.
+title: '<service>: <module or capability>'
+labels: ['area:backend']
+body:
+  - type: input
+    id: spec
+    attributes:
+      label: Spec section
+      placeholder: docs/specs/03-declarant-onboarding/backend.md#roster-matcher
+    validations:
+      required: true
+  - type: input
+    id: scenarios
+    attributes:
+      label: Scenarios covered
+      placeholder: S1, S2, S5
+    validations:
+      required: true
+  - type: textarea
+    id: interface
+    attributes:
+      label: Module interface
+      description: Everything a caller must know. Signatures, invariants, error modes, ordering constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: endpoints
+    attributes:
+      label: Endpoints
+      description: Operation IDs and paths from the contract. Link the contract file.
+      value: |
+        | Operation | Method + path | Auth | Errors |
+        |---|---|---|---|
+  - type: textarea
+    id: data
+    attributes:
+      label: Data and events
+      description: Tables or columns added, migrations, events published or consumed, Temporal workflows
+  - type: textarea
+    id: authz
+    attributes:
+      label: Authorisation and audit
+      description: Roles allowed, tenant and org-scope rules (CASL + RLS), audit events emitted
+    validations:
+      required: true
+  - type: textarea
+    id: external
+    attributes:
+      label: External systems
+      description: Keycloak Admin API, notifications, integration-gateway adapters and their mocks
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance tests
+      description: One test per scenario, written first (TDD). Name them after the scenario.
+      value: |
+        - [ ] S1:
+    validations:
+      required: true

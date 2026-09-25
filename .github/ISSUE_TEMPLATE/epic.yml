@@ -1,0 +1,39 @@
+name: Epic (one user flow)
+description: Parent issue for a user flow. FE/BE tickets hang off it as sub-issues.
+title: 'Epic: <flow name>'
+labels: ['epic']
+body:
+  - type: input
+    id: spec
+    attributes:
+      label: Spec
+      description: Path to the merged spec package
+      placeholder: docs/specs/03-declarant-onboarding/README.md
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Flow summary
+      description: Two or three sentences. Who does what, and what the system guarantees.
+    validations:
+      required: true
+  - type: textarea
+    id: scenarios
+    attributes:
+      label: Scenario checklist
+      description: One line per scenario ID from the spec. Tick as tickets covering them close.
+      value: |
+        - [ ] S1
+        - [ ] S2
+    validations:
+      required: true
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions
+      description: Anything the spec left for product. Mark which ones block tickets.
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
