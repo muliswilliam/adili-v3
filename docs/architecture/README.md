@@ -198,15 +198,19 @@ flowchart TB
 - `traceparent` is carried through HTTP, AMQP and Temporal.
 - No shared databases; no importing another service's code.
 
+**Service runtime.** Every service is a NestJS **hybrid application** (NestJS microservices guideline): one process serves Fastify HTTP (`/v1`, `/internal/v1`, `/health/*`, `/docs`) and consumes its RabbitMQ queue through the Nest RMQ transport. Each service has one durable quorum queue, `<service>.events`, bound to the `adili.events` topic exchange once per `@OnEvent('<type>')` handler, with a per-service dead-letter queue. Publishing goes through the transactional outbox, relayed with the Nest RMQ `ClientProxy`.
+
 **Common shared libraries** (`packages/`, used by every service):
-- `data-access`: tenant context + row-level security
-- `outbox` / `inbox`
-- `audit-client`
-- `numbering`
-- `authz`: CASL policies
-- `events`: CloudEvents + schemas
-- `api-kit`: problem details, idempotency, pagination
-- `telemetry`: OpenTelemetry
+- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth, RFC 9457 problem details, health endpoints
+- `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security
+- `events`: CloudEvents envelope, outbox relay, inbox (idempotent consumers), RMQ topology, `@OnEvent`
+- `temporal`: Temporal client and readiness
+- `cache`: Valkey client and readiness
+- `telemetry`: OpenTelemetry preload
+- `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
+- `schemas`: external-system contracts (OpenAPI)
+- `ui`: design system shared by the apps and the Keycloak theme
+- Added with the features that need them: `authz` (CASL policies), `audit-client`, `numbering`, `clients` (generated internal API clients)
 
 ---
 
@@ -760,10 +764,11 @@ adili-v3/
 │   ├── integration-gateway/  notifications/  audit/
 ├── packages/
 │   ├── ui/                  # design system (shared by apps + Keycloak theme)
-│   ├── data-access/  authz/  outbox/  audit-client/  numbering/
-│   ├── events/  api-kit/  telemetry/  schemas/   # JSON Schemas, OpenAPI, AsyncAPI
+│   ├── api-kit/  data-access/  events/  temporal/  cache/  telemetry/  bff-auth/
+│   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
+│   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
-├── infra/                   # docker compose, Dokploy config, seed data, runbooks
+├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks
 └── docs/                    # architecture, ADRs, requirements, research, legal reference, glossary
 ```
 

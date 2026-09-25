@@ -1,0 +1,167 @@
+import 'reflect-metadata';
+
+import { Controller, Get, Injectable, Module } from '@nestjs/common';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Test } from '@nestjs/testing';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  type BaseEnv,
+  CoreModule,
+  CurrentPrincipal,
+  type Principal,
+  Public,
+  ReadinessCheck,
+  TokenVerifier,
+} from '../src/index.js';
+
+const ISSUER = 'http://keycloak.test/realms/adili';
+const AUDIENCE = 'adili-api';
+
+const config: BaseEnv = {
+  NODE_ENV: 'test',
+  HOST: '127.0.0.1',
+  PORT: 0,
+  LOG_LEVEL: 'fatal',
+  OIDC_ISSUER_URL: ISSUER,
+  OIDC_AUDIENCE: AUDIENCE,
+};
+
+@Injectable()
+class HealthyDependency extends ReadinessCheck {
+  readonly name = 'healthy';
+  check(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class BrokenDependency extends ReadinessCheck {
+  readonly name = 'broken';
+  check(): Promise<void> {
+    return Promise.reject(new Error('connection refused'));
+  }
+}
+
+@Controller()
+class TestController {
+  @Get('v1/me')
+  me(@CurrentPrincipal() principal: Principal) {
+    return principal;
+  }
+
+  @Public()
+  @Get('v1/public')
+  open() {
+    return { ok: true };
+  }
+}
+
+@Module({ providers: [HealthyDependency], exports: [HealthyDependency] })
+class DependencyModule {}
+
+describe('CoreModule', () => {
+  let app: NestFastifyApplication;
+  let signToken: (claims: Record<string, unknown>, audience?: string) => Promise<string>;
+
+  beforeAll(async () => {
+    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
+    signToken = (claims, audience = AUDIENCE) =>
+      new SignJWT(claims)
+        .setProtectedHeader({ alg: 'RS256', kid: 'test' })
+        .setIssuer(ISSUER)
+        .setAudience(audience)
+        .setSubject('user-1')
+        .setExpirationTime('5m')
+        .sign(privateKey);
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        DependencyModule,
+        CoreModule.forRoot({
+          serviceName: 'test',
+          config,
+          readiness: [HealthyDependency, new BrokenDependency()],
+        }),
+      ],
+      controllers: [TestController],
+    })
+      .overrideProvider(TokenVerifier)
+      .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
+      .compile();
+
+    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('reports liveness without checking dependencies', async () => {
+    const response = await app.inject({ method: 'GET', url: '/health/live' });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('reports not ready with the failing dependency named', async () => {
+    const response = await app.inject({ method: 'GET', url: '/health/ready' });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      status: 'down',
+      checks: {
+        healthy: { status: 'up' },
+        broken: { status: 'down', error: 'connection refused' },
+      },
+    });
+  });
+
+  it('rejects requests without a bearer token as problem details', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/me' });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.json()).toMatchObject({ status: 401, instance: '/v1/me' });
+  });
+
+  it('rejects tokens issued for another audience', async () => {
+    const token = await signToken({}, 'another-api');
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('exposes the verified principal to handlers', async () => {
+    const token = await signToken({
+      azp: 'console',
+      tenant: 'psc',
+      realm_access: { roles: ['reviewer'] },
+    });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      subject: 'user-1',
+      tenant: 'psc',
+      roles: ['reviewer'],
+      clientId: 'console',
+    });
+  });
+
+  it('serves public routes without a token', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/public' });
+
+    expect(response.statusCode).toBe(200);
+  });
+});

@@ -1,0 +1,209 @@
+# Local development infrastructure for the DIALs platform.
+# Services and apps run on the host (`pnpm dev`) and reach these on localhost.
+# Host ports are offset where common local installs clash (Postgres, Valkey).
+name: adili
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 5s
+  timeout: 5s
+  retries: 60
+  start_period: 10s
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev
+    command: ['postgres', '-c', 'max_connections=300']
+    ports: ['55432:5432']
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+
+  valkey:
+    image: valkey/valkey:9.0.6-alpine
+    command: ['valkey-server', '--appendonly', 'yes']
+    ports: ['56379:6379']
+    volumes: [valkey-data:/data]
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD', 'valkey-cli', 'ping']
+
+  rabbitmq:
+    image: rabbitmq:4.3.6-management-alpine
+    hostname: rabbitmq
+    # Healthchecks exec as the container user; as root they would create a root-owned
+    # Erlang cookie the broker cannot read.
+    user: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: adili
+      RABBITMQ_DEFAULT_PASS: adili_dev
+    ports: ['55672:5672', '15672:15672']
+    volumes: [rabbitmq-data:/var/lib/rabbitmq/mnesia]
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+
+  temporal-schema:
+    image: temporalio/admin-tools:1.32.0
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: temporal
+      SQL_PASSWORD: temporal_dev
+    volumes: [./temporal/setup-schema.sh:/scripts/setup-schema.sh:ro]
+    entrypoint: ['/bin/sh', '/scripts/setup-schema.sh']
+    restart: on-failure:5
+
+  temporal:
+    image: temporalio/server:1.32.0
+    depends_on:
+      temporal-schema: { condition: service_completed_successfully }
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal_dev
+      BIND_ON_IP: 0.0.0.0
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    ports: ['7233:7233']
+    volumes: [./temporal/dynamicconfig:/etc/temporal/config/dynamicconfig:ro]
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD', 'nc', '-z', 'localhost', '7233']
+
+  temporal-namespace:
+    image: temporalio/admin-tools:1.32.0
+    depends_on:
+      temporal: { condition: service_healthy }
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      DEFAULT_NAMESPACE: adili
+    volumes: [./temporal/create-namespace.sh:/scripts/create-namespace.sh:ro]
+    entrypoint: ['/bin/sh', '/scripts/create-namespace.sh']
+    restart: on-failure:5
+
+  temporal-ui:
+    image: temporalio/ui:2.54.1
+    depends_on:
+      temporal: { condition: service_healthy }
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_DEFAULT_NAMESPACE: adili
+    ports: ['8233:8080']
+
+  keycloak:
+    # Keycloak plus the Adili login theme from apps/keycloak-theme.
+    image: adili/keycloak:dev
+    build:
+      context: ../..
+      dockerfile: infra/docker/keycloak.Dockerfile
+    depends_on:
+      postgres: { condition: service_healthy }
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin_dev
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_dev
+      # One issuer for browsers, host processes and containers.
+      KC_HOSTNAME: http://localhost:8080
+      KC_HEALTH_ENABLED: 'true'
+    ports: ['8080:8080']
+    volumes: [./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro]
+    healthcheck:
+      <<: *healthcheck-defaults
+      start_period: 30s
+      # The image has no curl; probe the management port with bash's /dev/tcp.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.47
+    command:
+      [
+        'server',
+        '-dir=/data',
+        '-s3',
+        '-s3.config=/etc/seaweedfs/s3.json',
+        '-master.volumeSizeLimitMB=1024',
+      ]
+    ports: ['8333:8333', '9333:9333']
+    volumes:
+      - seaweedfs-data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      <<: *healthcheck-defaults
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && nc -z 127.0.0.1 8333',
+        ]
+
+  seaweedfs-buckets:
+    image: chrislusf/seaweedfs:4.47
+    depends_on:
+      seaweedfs: { condition: service_healthy }
+    volumes: [./seaweedfs/create-buckets.sh:/scripts/create-buckets.sh:ro]
+    entrypoint: ['/bin/sh', '/scripts/create-buckets.sh']
+    restart: on-failure:5
+
+  openbao:
+    image: openbao/openbao:2.7.0
+    command: ['server', '-dev', '-dev-listen-address=0.0.0.0:8200']
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: adili-dev-root-token
+    cap_add: [IPC_LOCK]
+    ports: ['8200:8200']
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8200/v1/sys/health']
+
+  clamav:
+    image: clamav/clamav:1.5-debian
+    ports: ['3310:3310']
+    volumes: [clamav-data:/var/lib/clamav]
+    healthcheck:
+      <<: *healthcheck-defaults
+      # First start downloads the signature database.
+      start_period: 300s
+      test: ['CMD', 'clamdcheck.sh']
+
+  gotenberg:
+    image: gotenberg/gotenberg:8.37
+    ports: ['3300:3000']
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD', 'curl', '-sf', 'http://127.0.0.1:3000/health']
+
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports: ['1025:1025', '8025:8025']
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ['CMD', '/mailpit', 'readyz']
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    command: ['--config=/etc/otelcol/collector.yaml']
+    ports: ['4317:4317', '4318:4318']
+    volumes: [./otel/collector.yaml:/etc/otelcol/collector.yaml:ro]
+
+volumes:
+  postgres-data:
+  valkey-data:
+  rabbitmq-data:
+  seaweedfs-data:
+  clamav-data:

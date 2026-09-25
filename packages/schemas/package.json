@@ -1,0 +1,9 @@
+{
+  "name": "@adili/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Contracts shared across languages: OpenAPI for the external systems the platform integrates with (ADR-012).",
+  "files": [
+    "external"
+  ]
+}

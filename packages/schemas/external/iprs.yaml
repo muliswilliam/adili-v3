@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: IPRS (Integrated Population Registration System) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for IPRS (Integrated Population
+    Registration System). Served by the Django mock in `mocks/` during development
+    and demos.
+paths:
+  /iprs/v1/persons/{id_number}:
+    get:
+      operationId: getPerson
+      description: Identity lookup used to verify self-registration (ADR-004).
+      parameters:
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
+      tags:
+      - iprs
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Person:
+      type: object
+      properties:
+        id_number:
+          type: string
+          maxLength: 10
+        first_name:
+          type: string
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type: string
+          format: date
+        sex:
+          $ref: '#/components/schemas/SexEnum'
+        place_of_birth:
+          type: string
+          maxLength: 100
+        date_of_issue:
+          type: string
+          format: date
+      required:
+      - date_of_birth
+      - date_of_issue
+      - first_name
+      - id_number
+      - last_name
+      - place_of_birth
+      - sex
+    SexEnum:
+      enum:
+      - F
+      - M
+      type: string
+      description: |-
+        * `F` - Female
+        * `M` - Male

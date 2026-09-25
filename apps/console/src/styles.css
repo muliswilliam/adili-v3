@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+@import '@adili/ui/styles.css';
+
+@source './';

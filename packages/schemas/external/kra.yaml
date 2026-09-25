@@ -1,0 +1,113 @@
+openapi: 3.1.0
+info:
+  title: KRA (Kenya Revenue Authority) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for KRA (Kenya Revenue Authority).
+    Served by the Django mock in `mocks/` during development and demos.
+paths:
+  /kra/v1/pins:
+    get:
+      operationId: findTaxpayersByIdNumber
+      description: PIN lookup by national ID number (`?id_number=`).
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Taxpayer'
+          description: ''
+  /kra/v1/pins/{pin}:
+    get:
+      operationId: getTaxpayer
+      parameters:
+      - in: path
+        name: pin
+        schema:
+          type: string
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Taxpayer'
+          description: ''
+        '404':
+          description: No record with this identifier
+  /kra/v1/pins/{pin}/compliance:
+    get:
+      operationId: getTaxCompliance
+      description: Tax compliance status and declared income, used in declaration
+        cross-checks.
+      parameters:
+      - in: path
+        name: pin
+        schema:
+          type: string
+        required: true
+      tags:
+      - compliance
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Compliance'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Compliance:
+      type: object
+      properties:
+        pin:
+          type: string
+          maxLength: 11
+        status:
+          type: string
+        certificate_number:
+          type: string
+        valid_until:
+          type:
+          - string
+          - 'null'
+          format: date
+        annual_income_declared:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - annual_income_declared
+      - certificate_number
+      - pin
+      - status
+      - valid_until
+    Taxpayer:
+      type: object
+      properties:
+        pin:
+          type: string
+          maxLength: 11
+        id_number:
+          type: string
+          maxLength: 10
+        name:
+          type: string
+          maxLength: 200
+        registered_on:
+          type: string
+          format: date
+      required:
+      - id_number
+      - name
+      - pin
+      - registered_on

@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: EACC ICMS (Integrated Case Management System) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for EACC ICMS (Integrated Case
+    Management System). Served by the Django mock in `mocks/` during development and
+    demos.
+paths:
+  /icms/v1/referrals:
+    post:
+      operationId: submitReferral
+      description: Registers a referral (Reg 20(2)) and returns the ICMS case number.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Referral'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Referral'
+          description: ''
+  /icms/v1/referrals/{case_number}:
+    get:
+      operationId: getReferral
+      parameters:
+      - in: path
+        name: case_number
+        schema:
+          type: string
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Referral'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Referral:
+      type: object
+      properties:
+        case_number:
+          type: string
+          readOnly: true
+        referral_reference:
+          type: string
+          maxLength: 40
+        id_number:
+          type: string
+          maxLength: 10
+        full_name:
+          type: string
+          maxLength: 200
+        referring_commission:
+          type: string
+          maxLength: 20
+        grounds:
+          type: string
+          maxLength: 200
+        details:
+          type: string
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        registered_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - case_number
+      - full_name
+      - grounds
+      - id_number
+      - referral_reference
+      - referring_commission
+      - registered_at
+      - status
+    ReferralRequest:
+      type: object
+      properties:
+        referral_reference:
+          type: string
+          minLength: 1
+          maxLength: 40
+        id_number:
+          type: string
+          minLength: 1
+          maxLength: 10
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        referring_commission:
+          type: string
+          minLength: 1
+          maxLength: 20
+        grounds:
+          type: string
+          minLength: 1
+          maxLength: 200
+        details:
+          type: string
+      required:
+      - full_name
+      - grounds
+      - id_number
+      - referral_reference
+      - referring_commission
+    StatusEnum:
+      enum:
+      - registered
+      type: string
+      description: '* `registered` - Registered'

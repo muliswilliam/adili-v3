@@ -15,18 +15,54 @@ Designed for **1.5M declarants**, self-hosted in Kenya, API-first for Commission
 
 ## Status
 
-Design phase. The architecture and decisions are documented; implementation starts next.
+Service skeletons are running end to end: infrastructure, 11 NestJS services, 3 web apps, the Keycloak theme and the government-system mocks. Domain features are built on top next.
+
+## Local development
+
+**Prerequisites:** Node 24+ (`.nvmrc`), pnpm 11 (`corepack enable`), uv, Docker (or Podman) with Compose.
+
+```sh
+pnpm bootstrap      # copy .env.example -> .env everywhere, install dependencies
+pnpm infra:up       # Postgres, Valkey, RabbitMQ, Temporal, Keycloak, SeaweedFS, OpenBao, ClamAV, Gotenberg, Mailpit, OTel
+pnpm db:migrate     # apply every service's migrations
+pnpm db:seed        # synthetic data for the government-system mocks
+pnpm dev            # all services, apps and mocks in watch mode
+pnpm health         # readiness of everything
+```
+
+`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm infra:down` stops the infrastructure; `pnpm infra:reset` also deletes its data.
+
+| Component                        | URL                                                                   |
+| -------------------------------- | --------------------------------------------------------------------- |
+| portal (declarants)              | http://localhost:3010                                                 |
+| console (Commissions, EACC)      | http://localhost:3020                                                 |
+| verify (public)                  | http://localhost:3030                                                 |
+| services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) |
+| government-system mocks          | http://localhost:8000                                                 |
+| Keycloak (admin / admin_dev)     | http://localhost:8080                                                 |
+| Temporal UI                      | http://localhost:8233                                                 |
+| RabbitMQ (adili / adili_dev)     | http://localhost:15672                                                |
+| Mailpit                          | http://localhost:8025                                                 |
+
+Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.
+
+**Demo accounts** (password `Adili-Demo-2026`): `declarant`, `hr`, `reviewer`, `supervisor`, `commission-admin`, `access-officer`, `eacc-analyst`, `eacc-supervisor`, `auditor`, `helpdesk`, `platform-admin`.
+
+Container images (from the repo root):
+- services: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=directory .`
+- apps: `docker build -f infra/docker/app.Dockerfile --build-arg APP=portal .`
+- Keycloak with the Adili theme: `docker build -f infra/docker/keycloak.Dockerfile .` (`pnpm infra:up` builds it on first run)
 
 ## Documentation
 
-| | |
-|---|---|
-| [Docs index](docs/README.md) | Where to start |
-| [Architecture](docs/architecture/README.md) | System design, diagrams, flows |
-| [Decisions (ADRs)](docs/adr/) | Why we chose what we chose |
-| [Legal traceability](docs/requirements/legal-traceability.md) | How the law maps to features |
-| [User story coverage](docs/requirements/user-stories.md) | EACC user stories → design |
-| [Glossary](docs/glossary.md) | Reference-number codes and terms |
+|                                                               |                                  |
+| ------------------------------------------------------------- | -------------------------------- |
+| [Docs index](docs/README.md)                                  | Where to start                   |
+| [Architecture](docs/architecture/README.md)                   | System design, diagrams, flows   |
+| [Decisions (ADRs)](docs/adr/)                                 | Why we chose what we chose       |
+| [Legal traceability](docs/requirements/legal-traceability.md) | How the law maps to features     |
+| [User story coverage](docs/requirements/user-stories.md)      | EACC user stories → design       |
+| [Glossary](docs/glossary.md)                                  | Reference-number codes and terms |
 
 ## Stack
 

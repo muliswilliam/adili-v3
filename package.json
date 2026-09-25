@@ -1,0 +1,37 @@
+{
+  "name": "adili-v3",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "bootstrap": "node scripts/setup-env.mjs && pnpm install",
+    "infra:up": "./scripts/infra-up.sh",
+    "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
+    "infra:reset": "docker compose -f infra/compose/docker-compose.yml down -v",
+    "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f",
+    "db:migrate": "turbo run db:migrate",
+    "db:seed": "turbo run db:seed",
+    "dev": "turbo run dev --concurrency=64",
+    "dev:services": "turbo run dev --concurrency=64 --filter='./services/*'",
+    "dev:apps": "turbo run dev --concurrency=64 --filter='./apps/*'",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deps:check": "depcruise services packages apps --config .dependency-cruiser.cjs",
+    "check": "pnpm format:check && turbo run lint typecheck test && pnpm deps:check",
+    "health": "node scripts/health.mjs"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^18.4.0",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.4",
+    "typescript": "~6.0.3"
+  }
+}

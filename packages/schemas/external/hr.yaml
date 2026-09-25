@@ -1,0 +1,93 @@
+openapi: 3.1.0
+info:
+  title: HR (public service HRMIS) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for HR (public service HRMIS).
+    Served by the Django mock in `mocks/` during development and demos.
+paths:
+  /hr/v1/employees/{id_number}:
+    get:
+      operationId: getEmployee
+      description: Employment history used to pre-fill bio data and verify employment
+        claims.
+      parameters:
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
+      tags:
+      - hr
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Employee:
+      type: object
+      description: An employee's identity with their employment history, newest first.
+      properties:
+        id_number:
+          type: string
+        full_name:
+          type: string
+        employments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employment'
+      required:
+      - employments
+      - full_name
+      - id_number
+    Employment:
+      type: object
+      properties:
+        personal_number:
+          type: string
+          maxLength: 20
+        employer_code:
+          type: string
+          maxLength: 20
+        employer_name:
+          type: string
+          maxLength: 200
+        job_title:
+          type: string
+          maxLength: 100
+        job_group:
+          type: string
+          maxLength: 5
+        appointment_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        exit_date:
+          type:
+          - string
+          - 'null'
+          format: date
+      required:
+      - appointment_date
+      - employer_code
+      - employer_name
+      - job_group
+      - job_title
+      - personal_number
+      - status
+    StatusEnum:
+      enum:
+      - active
+      - exited
+      type: string
+      description: |-
+        * `active` - Active
+        * `exited` - Exited

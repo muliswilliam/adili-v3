@@ -1,0 +1,87 @@
+openapi: 3.1.0
+info:
+  title: NTSA (National Transport and Safety Authority) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for NTSA (National Transport
+    and Safety Authority). Served by the Django mock in `mocks/` during development
+    and demos.
+paths:
+  /ntsa/v1/owners/{id_number}/vehicles:
+    get:
+      operationId: listVehiclesByOwner
+      description: Vehicles registered to a national ID number; empty when there are
+        none.
+      parameters:
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
+      tags:
+      - owners
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vehicle'
+          description: ''
+        '404':
+          description: No record with this identifier
+  /ntsa/v1/vehicles/{registration_number}:
+    get:
+      operationId: getVehicle
+      parameters:
+      - in: path
+        name: registration_number
+        schema:
+          type: string
+        required: true
+      tags:
+      - vehicles
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Vehicle:
+      type: object
+      properties:
+        registration_number:
+          type: string
+          maxLength: 10
+        make:
+          type: string
+          maxLength: 50
+        model:
+          type: string
+          maxLength: 50
+        year_of_manufacture:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        owner_id_number:
+          type: string
+          maxLength: 10
+        registered_on:
+          type: string
+          format: date
+      required:
+      - make
+      - model
+      - owner_id_number
+      - registered_on
+      - registration_number
+      - year_of_manufacture

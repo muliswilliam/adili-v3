@@ -1,0 +1,5 @@
+{
+  "extends": "@adili/tsconfig/nest-service.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "noEmit": true },
+  "include": ["src", "test", "drizzle.config.ts", "vitest.config.ts"]
+}

@@ -1,0 +1,14 @@
+pnpm-lock.yaml
+uv.lock
+dist
+.output
+.turbo
+coverage
+**/migrations/meta
+**/routeTree.gen.ts
+docs/reference
+mocks
+apps/keycloak-theme/src/kc.gen.tsx
+docs
+*.md
+packages/schemas/external

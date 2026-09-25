@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: BRS (Business Registration Service) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for BRS (Business Registration
+    Service). Served by the Django mock in `mocks/` during development and demos.
+paths:
+  /brs/v1/companies/{registration_number}:
+    get:
+      operationId: getCompany
+      parameters:
+      - in: path
+        name: registration_number
+        schema:
+          type: string
+        required: true
+      tags:
+      - companies
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+          description: ''
+        '404':
+          description: No record with this identifier
+  /brs/v1/persons/{id_number}/directorships:
+    get:
+      operationId: listDirectorshipsByPerson
+      description: Directorships and shareholdings held by a national ID number.
+      parameters:
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
+      tags:
+      - persons
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonDirectorship'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Company:
+      type: object
+      properties:
+        registration_number:
+          type: string
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        registered_on:
+          type: string
+          format: date
+        officers:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyOfficer'
+          readOnly: true
+      required:
+      - name
+      - officers
+      - registered_on
+      - registration_number
+      - status
+    CompanyOfficer:
+      type: object
+      properties:
+        id_number:
+          type: string
+          maxLength: 10
+        full_name:
+          type: string
+          maxLength: 200
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        shares:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        appointed_on:
+          type: string
+          format: date
+      required:
+      - appointed_on
+      - full_name
+      - id_number
+      - role
+    PersonDirectorship:
+      type: object
+      properties:
+        company_registration_number:
+          type: string
+        company_name:
+          type: string
+        company_status:
+          type: string
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        shares:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        appointed_on:
+          type: string
+          format: date
+      required:
+      - appointed_on
+      - company_name
+      - company_registration_number
+      - company_status
+      - role
+    RoleEnum:
+      enum:
+      - director
+      - shareholder
+      - director_shareholder
+      type: string
+      description: |-
+        * `director` - Director
+        * `shareholder` - Shareholder
+        * `director_shareholder` - Director and shareholder
+    StatusEnum:
+      enum:
+      - active
+      - dissolved
+      type: string
+      description: |-
+        * `active` - Active
+        * `dissolved` - Dissolved

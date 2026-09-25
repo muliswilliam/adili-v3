@@ -1,0 +1,148 @@
+openapi: 3.1.0
+info:
+  title: Payroll (IPPD) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for Payroll (IPPD). Served by
+    the Django mock in `mocks/` during development and demos.
+paths:
+  /payroll/v1/instructions:
+    post:
+      operationId: submitInstruction
+      description: Receives a payroll instruction. Resubmitting the same reference
+        returns the original.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstructionRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instruction'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instruction'
+          description: ''
+  /payroll/v1/instructions/{instruction_reference}:
+    get:
+      operationId: getInstruction
+      parameters:
+      - in: path
+        name: instruction_reference
+        schema:
+          type: string
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instruction'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - stop_salary
+      - resume_salary
+      type: string
+      description: |-
+        * `stop_salary` - Stop salary pending compliance
+        * `resume_salary` - Resume salary
+    Instruction:
+      type: object
+      properties:
+        payroll_reference:
+          type: string
+          format: uuid
+          readOnly: true
+        instruction_reference:
+          type: string
+          maxLength: 40
+        employer_code:
+          type: string
+          maxLength: 20
+        personal_number:
+          type: string
+          maxLength: 20
+        id_number:
+          type: string
+          maxLength: 10
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        reason:
+          type: string
+        effective_date:
+          type: string
+          format: date
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        received_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - effective_date
+      - employer_code
+      - id_number
+      - instruction_reference
+      - payroll_reference
+      - personal_number
+      - reason
+      - received_at
+      - status
+    InstructionRequest:
+      type: object
+      properties:
+        instruction_reference:
+          type: string
+          minLength: 1
+          maxLength: 40
+        employer_code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        personal_number:
+          type: string
+          minLength: 1
+          maxLength: 20
+        id_number:
+          type: string
+          minLength: 1
+          maxLength: 10
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        reason:
+          type: string
+          minLength: 1
+        effective_date:
+          type: string
+          format: date
+      required:
+      - action
+      - effective_date
+      - employer_code
+      - id_number
+      - instruction_reference
+      - personal_number
+      - reason
+    StatusEnum:
+      enum:
+      - accepted
+      type: string
+      description: '* `accepted` - Accepted'
