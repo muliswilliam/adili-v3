@@ -1,0 +1,72 @@
+name: Frontend ticket
+description: A screen cluster in the portal or console. Behaviour and states, not pixels.
+title: '<app>: <screen or behaviour>'
+labels: ['area:frontend']
+body:
+  - type: input
+    id: spec
+    attributes:
+      label: Spec section
+      placeholder: docs/specs/03-declarant-onboarding/frontend.md#match-screen
+    validations:
+      required: true
+  - type: input
+    id: scenarios
+    attributes:
+      label: Scenarios covered
+      description: Scenario IDs from the spec this ticket satisfies
+      placeholder: S1, S2, S5
+    validations:
+      required: true
+  - type: input
+    id: contract
+    attributes:
+      label: Contract endpoints
+      description: Operation IDs from the OpenAPI contract this UI calls
+      placeholder: startOnboarding, verifyOtp
+  - type: textarea
+    id: routes
+    attributes:
+      label: Routes
+      placeholder: /onboarding, /onboarding/verify
+  - type: textarea
+    id: states
+    attributes:
+      label: Screen states
+      description: One row per state the user can see. Copy is final unless marked TBD.
+      value: |
+        | State | Trigger | What the user sees | Actions available |
+        |---|---|---|---|
+        | empty | | | |
+        | loading | | | |
+        | error | | | |
+        | success | | | |
+    validations:
+      required: true
+  - type: textarea
+    id: fields
+    attributes:
+      label: Fields and validation
+      value: |
+        | Field | Type | Rules | Error copy |
+        |---|---|---|---|
+  - type: textarea
+    id: a11y
+    attributes:
+      label: Accessibility and i18n
+      description: Focus order, announcements, keyboard paths, Swahili copy slot
+  - type: checkboxes
+    id: design
+    attributes:
+      label: Design
+      options:
+        - label: Visual design pending. Build with `packages/ui` primitives; a follow-up ticket applies the design.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checkable. Each maps to a scenario or a state above.
+      value: |
+        - [ ]
+    validations:
+      required: true
