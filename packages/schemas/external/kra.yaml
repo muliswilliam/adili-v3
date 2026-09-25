@@ -10,7 +10,7 @@ paths:
       operationId: findTaxpayersByIdNumber
       description: PIN lookup by national ID number (`?id_number=`).
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -24,13 +24,13 @@ paths:
     get:
       operationId: getTaxpayer
       parameters:
-        - in: path
-          name: pin
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: pin
+        schema:
+          type: string
+        required: true
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -46,15 +46,15 @@ paths:
       description: Tax compliance status and declared income, used in declaration
         cross-checks.
       parameters:
-        - in: path
-          name: pin
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: pin
+        schema:
+          type: string
+        required: true
       tags:
-        - compliance
+      - compliance
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -78,19 +78,19 @@ components:
           type: string
         valid_until:
           type:
-            - string
-            - 'null'
+          - string
+          - 'null'
           format: date
         annual_income_declared:
           type: string
           format: decimal
           pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
       required:
-        - annual_income_declared
-        - certificate_number
-        - pin
-        - status
-        - valid_until
+      - annual_income_declared
+      - certificate_number
+      - pin
+      - status
+      - valid_until
     Taxpayer:
       type: object
       properties:
@@ -107,7 +107,7 @@ components:
           type: string
           format: date
       required:
-        - id_number
-        - name
-        - pin
-        - registered_on
+      - id_number
+      - name
+      - pin
+      - registered_on

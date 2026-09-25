@@ -11,15 +11,15 @@ paths:
       description: Employment history used to pre-fill bio data and verify employment
         claims.
       parameters:
-        - in: path
-          name: id_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
       tags:
-        - hr
+      - hr
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -44,9 +44,9 @@ components:
           items:
             $ref: '#/components/schemas/Employment'
       required:
-        - employments
-        - full_name
-        - id_number
+      - employments
+      - full_name
+      - id_number
     Employment:
       type: object
       properties:
@@ -72,21 +72,21 @@ components:
           $ref: '#/components/schemas/StatusEnum'
         exit_date:
           type:
-            - string
-            - 'null'
+          - string
+          - 'null'
           format: date
       required:
-        - appointment_date
-        - employer_code
-        - employer_name
-        - job_group
-        - job_title
-        - personal_number
-        - status
+      - appointment_date
+      - employer_code
+      - employer_name
+      - job_group
+      - job_title
+      - personal_number
+      - status
     StatusEnum:
       enum:
-        - active
-        - exited
+      - active
+      - exited
       type: string
       description: |-
         * `active` - Active

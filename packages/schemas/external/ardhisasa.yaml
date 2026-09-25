@@ -12,15 +12,15 @@ paths:
       description: Parcels registered to a national ID number; empty when there are
         none.
       parameters:
-        - in: path
-          name: id_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
       tags:
-        - owners
+      - owners
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -36,15 +36,15 @@ paths:
     get:
       operationId: getParcel
       parameters:
-        - in: path
-          name: parcel_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: parcel_number
+        schema:
+          type: string
+        required: true
       tags:
-        - parcels
+      - parcels
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -78,16 +78,16 @@ components:
           type: string
           format: date
       required:
-        - area_hectares
-        - county
-        - owner_id_number
-        - parcel_number
-        - registered_on
-        - tenure
+      - area_hectares
+      - county
+      - owner_id_number
+      - parcel_number
+      - registered_on
+      - tenure
     TenureEnum:
       enum:
-        - freehold
-        - leasehold
+      - freehold
+      - leasehold
       type: string
       description: |-
         * `freehold` - Freehold

@@ -11,3 +11,4 @@ mocks
 apps/keycloak-theme/src/kc.gen.tsx
 docs
 *.md
+packages/schemas/external

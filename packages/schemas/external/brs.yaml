@@ -9,15 +9,15 @@ paths:
     get:
       operationId: getCompany
       parameters:
-        - in: path
-          name: registration_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: registration_number
+        schema:
+          type: string
+        required: true
       tags:
-        - companies
+      - companies
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -32,15 +32,15 @@ paths:
       operationId: listDirectorshipsByPerson
       description: Directorships and shareholdings held by a national ID number.
       parameters:
-        - in: path
-          name: id_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
       tags:
-        - persons
+      - persons
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -74,11 +74,11 @@ components:
             $ref: '#/components/schemas/CompanyOfficer'
           readOnly: true
       required:
-        - name
-        - officers
-        - registered_on
-        - registration_number
-        - status
+      - name
+      - officers
+      - registered_on
+      - registration_number
+      - status
     CompanyOfficer:
       type: object
       properties:
@@ -98,10 +98,10 @@ components:
           type: string
           format: date
       required:
-        - appointed_on
-        - full_name
-        - id_number
-        - role
+      - appointed_on
+      - full_name
+      - id_number
+      - role
     PersonDirectorship:
       type: object
       properties:
@@ -121,16 +121,16 @@ components:
           type: string
           format: date
       required:
-        - appointed_on
-        - company_name
-        - company_registration_number
-        - company_status
-        - role
+      - appointed_on
+      - company_name
+      - company_registration_number
+      - company_status
+      - role
     RoleEnum:
       enum:
-        - director
-        - shareholder
-        - director_shareholder
+      - director
+      - shareholder
+      - director_shareholder
       type: string
       description: |-
         * `director` - Director
@@ -138,8 +138,8 @@ components:
         * `director_shareholder` - Director and shareholder
     StatusEnum:
       enum:
-        - active
-        - dissolved
+      - active
+      - dissolved
       type: string
       description: |-
         * `active` - Active

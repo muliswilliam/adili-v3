@@ -17,7 +17,7 @@ paths:
               $ref: '#/components/schemas/ReferralRequest'
         required: true
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -35,13 +35,13 @@ paths:
     get:
       operationId: getReferral
       parameters:
-        - in: path
-          name: case_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: case_number
+        schema:
+          type: string
+        required: true
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -78,21 +78,21 @@ components:
           type: string
         status:
           allOf:
-            - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusEnum'
           readOnly: true
         registered_at:
           type: string
           format: date-time
           readOnly: true
       required:
-        - case_number
-        - full_name
-        - grounds
-        - id_number
-        - referral_reference
-        - referring_commission
-        - registered_at
-        - status
+      - case_number
+      - full_name
+      - grounds
+      - id_number
+      - referral_reference
+      - referring_commission
+      - registered_at
+      - status
     ReferralRequest:
       type: object
       properties:
@@ -119,13 +119,13 @@ components:
         details:
           type: string
       required:
-        - full_name
-        - grounds
-        - id_number
-        - referral_reference
-        - referring_commission
+      - full_name
+      - grounds
+      - id_number
+      - referral_reference
+      - referring_commission
     StatusEnum:
       enum:
-        - registered
+      - registered
       type: string
       description: '* `registered` - Registered'

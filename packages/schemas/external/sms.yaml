@@ -11,7 +11,7 @@ paths:
       description: Send an SMS, or list sent messages (optionally `?to=`) to inspect
         them in demos.
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -32,7 +32,7 @@ paths:
               $ref: '#/components/schemas/MessageRequest'
         required: true
       security:
-        - {}
+      - {}
       responses:
         '201':
           content:
@@ -44,14 +44,14 @@ paths:
     get:
       operationId: getMessage
       parameters:
-        - in: path
-          name: message_id
-          schema:
-            type: string
-            format: uuid
-          required: true
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -82,18 +82,18 @@ components:
           maxLength: 918
         status:
           allOf:
-            - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusEnum'
           readOnly: true
         received_at:
           type: string
           format: date-time
           readOnly: true
       required:
-        - message
-        - message_id
-        - received_at
-        - status
-        - to
+      - message
+      - message_id
+      - received_at
+      - status
+      - to
     MessageRequest:
       type: object
       properties:
@@ -111,10 +111,10 @@ components:
           minLength: 1
           maxLength: 918
       required:
-        - message
-        - to
+      - message
+      - to
     StatusEnum:
       enum:
-        - delivered
+      - delivered
       type: string
       description: '* `delivered` - Delivered'

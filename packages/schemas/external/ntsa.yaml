@@ -12,15 +12,15 @@ paths:
       description: Vehicles registered to a national ID number; empty when there are
         none.
       parameters:
-        - in: path
-          name: id_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
       tags:
-        - owners
+      - owners
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -36,15 +36,15 @@ paths:
     get:
       operationId: getVehicle
       parameters:
-        - in: path
-          name: registration_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: registration_number
+        schema:
+          type: string
+        required: true
       tags:
-        - vehicles
+      - vehicles
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -79,9 +79,9 @@ components:
           type: string
           format: date
       required:
-        - make
-        - model
-        - owner_id_number
-        - registered_on
-        - registration_number
-        - year_of_manufacture
+      - make
+      - model
+      - owner_id_number
+      - registered_on
+      - registration_number
+      - year_of_manufacture

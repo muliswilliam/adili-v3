@@ -17,7 +17,7 @@ paths:
               $ref: '#/components/schemas/InstructionRequest'
         required: true
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -35,13 +35,13 @@ paths:
     get:
       operationId: getInstruction
       parameters:
-        - in: path
-          name: instruction_reference
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: instruction_reference
+        schema:
+          type: string
+        required: true
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -55,8 +55,8 @@ components:
   schemas:
     ActionEnum:
       enum:
-        - stop_salary
-        - resume_salary
+      - stop_salary
+      - resume_salary
       type: string
       description: |-
         * `stop_salary` - Stop salary pending compliance
@@ -89,23 +89,23 @@ components:
           format: date
         status:
           allOf:
-            - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusEnum'
           readOnly: true
         received_at:
           type: string
           format: date-time
           readOnly: true
       required:
-        - action
-        - effective_date
-        - employer_code
-        - id_number
-        - instruction_reference
-        - payroll_reference
-        - personal_number
-        - reason
-        - received_at
-        - status
+      - action
+      - effective_date
+      - employer_code
+      - id_number
+      - instruction_reference
+      - payroll_reference
+      - personal_number
+      - reason
+      - received_at
+      - status
     InstructionRequest:
       type: object
       properties:
@@ -134,15 +134,15 @@ components:
           type: string
           format: date
       required:
-        - action
-        - effective_date
-        - employer_code
-        - id_number
-        - instruction_reference
-        - personal_number
-        - reason
+      - action
+      - effective_date
+      - employer_code
+      - id_number
+      - instruction_reference
+      - personal_number
+      - reason
     StatusEnum:
       enum:
-        - accepted
+      - accepted
       type: string
       description: '* `accepted` - Accepted'

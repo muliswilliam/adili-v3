@@ -11,15 +11,15 @@ paths:
       operationId: getPerson
       description: Identity lookup used to verify self-registration (ADR-004).
       parameters:
-        - in: path
-          name: id_number
-          schema:
-            type: string
-          required: true
+      - in: path
+        name: id_number
+        schema:
+          type: string
+        required: true
       tags:
-        - iprs
+      - iprs
       security:
-        - {}
+      - {}
       responses:
         '200':
           content:
@@ -58,17 +58,17 @@ components:
           type: string
           format: date
       required:
-        - date_of_birth
-        - date_of_issue
-        - first_name
-        - id_number
-        - last_name
-        - place_of_birth
-        - sex
+      - date_of_birth
+      - date_of_issue
+      - first_name
+      - id_number
+      - last_name
+      - place_of_birth
+      - sex
     SexEnum:
       enum:
-        - F
-        - M
+      - F
+      - M
       type: string
       description: |-
         * `F` - Female
