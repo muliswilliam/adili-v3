@@ -8,7 +8,7 @@ Maps every user story in EACC's *User Stories and Workflows* document (Declarati
 
 | # | User story | User | Our design | Service(s) | Ref | Priority |
 |---|---|---|---|---|---|---|
-| 1 | Register / login | Declarant | Self-onboarding: pick Responsible Commission, personnel file number matched against the imported roster, email + phone OTP, then passkey or password + MFA on Keycloakify-branded pages | Keycloak, directory, notifications | ADR-004, ADR-014 | Must |
+| 1 | Register / login | Declarant | Self-onboarding: pick Responsible Commission, personnel file number + national ID matched against the imported roster, email + phone OTP to roster contacts, IPRS check, then passkey or password + MFA on Keycloakify-branded pages | Keycloak, directory, notifications | ADR-004, ADR-014 | Must |
 | 2 | Confirm bio data | Declarant | Pre-filled from the Commission roster, IPRS and HR where available; declarant confirms or corrects | directory, integration-gateway | ADR-006, ADR-014 | Must |
 | 3 | Select declaration type | Declarant | **Derived automatically** (initial / biennial / final) from appointment and exit events and the cycle calendar; declarant confirms | declarations | ADR-003 | Must |
 | 4 | Capture spouse(s) | Declarant | Multiple spouses; pre-fill from previous declaration and HR; separated-spouse handling | declarations | - | Must |

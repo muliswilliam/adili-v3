@@ -33,28 +33,28 @@ This removes the unverified-claim problem of ADR-004 (anyone could claim any emp
 3. **No mass invitations.** Importing a roster does not message declarants. Commissions announce the platform through their own channels; declarants come to it themselves.
 4. **Declarant self-onboarding**, owned by the directory service and rendered by the portal:
    1. Select the Responsible Commission from the list of active Commissions.
-   2. Enter the personnel file number. The directory matches it against that Commission's roster.
+   2. Enter the personnel file number and national ID. The directory matches both against that Commission's roster.
       - No match: a neutral message telling the declarant to contact their Commission's reporting officer. The response never confirms whether a file number exists.
       - Already onboarded: sent to login and account recovery.
       - Matching is rate-limited per IP and per Commission.
-   3. Verify email with an OTP, then phone with an SMS OTP (notifications service).
-   4. The directory creates the Keycloak user through the Admin API, linked to the roster record (`roster_record_id` and tenant membership). The declarant confirms their details from the roster and sets a password or passkey and MFA on Keycloakify pages.
+   3. Verify email with an OTP, then phone with an SMS OTP (notifications service), sent to the roster record's contacts where present.
+   4. The declarant confirms their details from the roster; the directory checks the national ID and names against IPRS. The directory then creates the Keycloak user through the Admin API, linked to the roster record (`roster_record_id` and tenant membership), and the declarant sets a password or passkey and MFA on Keycloakify pages.
    5. The roster record becomes **onboarded**, the officer reference (`OFR`) is issued and filing obligations are created.
 5. **One account per roster record.** The link is unique. A person on two rosters (e.g. during a transfer) keeps one account; their person record (ADR-006) links to both employments.
 6. **Reporting officers resolve exceptions.** Missing or wrong roster records are fixed by the reporting officer (add or correct the row); the declarant then retries. There is no employment-claim queue.
 7. **Reporting entities are categorisation only.** They stay in the org tree and on roster rows for filtering, dashboards and reporting (ADR-006). They get no accounts and no access to declarations. The "employer HR focal point" role from ADR-004 is dropped.
 8. **Unchanged from ADR-004:** Keycloak with one realm and Organizations, Keycloakify UI, BFF token handling, MFA and step-up at submission, CASL + RLS authorisation, separation of duties, audit of auth events. Public applicants and law enforcement accounts are also unchanged.
 
-## Open points
+## Points settled after the product decision
 
-To be confirmed with the product team. The flowchart lists the same points.
+Confirmed on 2026-09-25. The flowchart's open-points note is superseded by this table.
 
-| # | Question | Current proposal |
+| # | Question | Decision |
 |---|---|---|
-| 1 | Match on personnel file number alone? | Also require national ID: file numbers are often sequential and guessable. |
-| 2 | OTPs to roster contacts or to contacts the declarant enters? | Roster contacts where present, masked on screen. That proves the declarant is the person on the roster. |
-| 3 | Keep the IPRS identity check? | Yes, run against the roster record's national ID and names when the profile is completed. |
-| 4 | Commissions with no roster yet | Their declarants cannot onboard. EACC tracks roster coverage per Commission. |
+| 1 | Match on personnel file number alone? | No. The declarant enters file number **and national ID**; both must match the roster record. File numbers are sequential and guessable. |
+| 2 | OTPs to roster contacts or to contacts the declarant enters? | **Roster contacts** where the record has them, shown masked (e.g. `07** *** 123`). If the record has no email or phone, the declarant enters their own; those are stored on the roster record after verification. |
+| 3 | Keep the IPRS identity check? | **Yes.** At profile completion the directory verifies the roster record's national ID and names against IPRS (mock in demo). A mismatch blocks completion and is flagged to the reporting officer. |
+| 4 | Commissions with no roster yet | **No fallback.** Their declarants cannot onboard. EACC sees roster coverage per Commission and chases. A "pending roster" path can be added later without changing the main flow. |
 
 ## Alternatives considered
 
@@ -74,4 +74,4 @@ To be confirmed with the product team. The flowchart lists the same points.
 **Negative / risks**
 - **Onboarding depends on roster quality and timeliness.** Declarants missing from a roster cannot file until the reporting officer fixes it, which risks the s.34 deadlines. Mitigations: import reports, coverage dashboards for EACC and Commissions, and reminders to Commissions ahead of the cycle.
 - **Reporting officers are a bottleneck** for no-match cases at large Commissions (TSC ~436k). Mitigation: a searchable roster admin screen, bulk corrections through re-import, and delegation to more officers per Commission.
-- **Account takeover if only the file number is checked.** Mitigated by open points 1 and 2, OTPs and rate limits.
+- **Account takeover by guessing identifiers.** Mitigated by requiring national ID as well as file number, OTPs to roster contacts, the IPRS check, and rate limits.
