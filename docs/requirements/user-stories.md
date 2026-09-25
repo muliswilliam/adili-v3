@@ -8,8 +8,8 @@ Maps every user story in EACC's *User Stories and Workflows* document (Declarati
 
 | # | User story | User | Our design | Service(s) | Ref | Priority |
 |---|---|---|---|---|---|---|
-| 1 | Register / login | Declarant | Verified self-registration (IPRS identity + OTP), passkey or password + MFA, Keycloakify-branded login | Keycloak, directory | ADR-004 | Must |
-| 2 | Confirm bio data | Declarant | Pre-filled from IPRS and HR where available; declarant confirms or corrects; employment claim derives the responsible Commission | directory, integration-gateway | ADR-004, ADR-006 | Must |
+| 1 | Register / login | Declarant | Self-onboarding: pick Responsible Commission, personnel file number matched against the imported roster, email + phone OTP, then passkey or password + MFA on Keycloakify-branded pages | Keycloak, directory, notifications | ADR-004, ADR-014 | Must |
+| 2 | Confirm bio data | Declarant | Pre-filled from the Commission roster, IPRS and HR where available; declarant confirms or corrects | directory, integration-gateway | ADR-006, ADR-014 | Must |
 | 3 | Select declaration type | Declarant | **Derived automatically** (initial / biennial / final) from appointment and exit events and the cycle calendar; declarant confirms | declarations | ADR-003 | Must |
 | 4 | Capture spouse(s) | Declarant | Multiple spouses; pre-fill from previous declaration and HR; separated-spouse handling | declarations | - | Must |
 | 5 | Capture dependent children | Declarant | Under 18 on the statement date; drop-off calculated automatically | declarations | - | Must |
@@ -61,7 +61,7 @@ Maps every user story in EACC's *User Stories and Workflows* document (Declarati
 | System | Purpose (per EACC) | Our design |
 |---|---|---|
 | ArdhiSasa | Land: owner, title number, size, location | integration-gateway adapter + Django mock |
-| HR systems | Personal info, marital status, designation, file number, spouse(s), children | adapter + mock; optional roster CSV upload |
+| HR systems | Personal info, marital status, designation, file number, spouse(s), children | adapter + mock; roster file upload or roster API |
 | NTSA | Vehicles: make, model, capacity, value | adapter + mock |
 | BRS | Beneficial ownership: directors, shares | adapter + mock |
 | NRB (IPRS) | Identity: names, ID numbers | adapter + mock; used at registration |
@@ -80,6 +80,6 @@ Maps every user story in EACC's *User Stories and Workflows* document (Declarati
 | Compliance certificate + status verification API (vetting, IEBC 2027) | Appointment and election vetting | ADR-009 |
 | Law enforcement, payroll, ICMS and open-data APIs | Other agencies' needs | ADR-009 |
 | Public API, webhooks, conformance tests for federated Commissions | Admin Mechanism 39 | ADR-009 |
-| Employment verification queue and roster upload | Self-registration without Commission HR APIs | ADR-004 |
+| EACC-provisioned Commissions and roster import (file or API), no mass invitations | Onboarding only against rosters the Commission vouches for; complete Form M non-filer figures | ADR-014 |
 | Staggered reminders and Commission readiness dashboards | Flatten the December and 2027 peaks | ADR-003 |
 | AI filing helper (English and Swahili) and reviewer copilot | Usability for 1.5M users; reviewer productivity | ADR-007 |

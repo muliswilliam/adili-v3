@@ -1,6 +1,6 @@
 # ADR-004: Identity - Keycloak with verified self-registration
 
-- **Status:** Accepted
+- **Status:** Accepted; decision points 2 and 3 superseded by [ADR-014](0014-roster-gated-declarant-onboarding.md)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md)

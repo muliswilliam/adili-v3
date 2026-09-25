@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIALS & Access to Declarations – Process Flowcharts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; }
+
+  .cover {
+    background: #003366;
+    color: white;
+    padding: 80px 60px;
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cover h1 { font-size: 28px; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
+  .cover h2 { font-size: 16px; font-weight: 400; opacity: 0.85; margin-bottom: 24px; }
+  .cover .meta { font-size: 13px; opacity: 0.65; }
+
+  .toc {
+    background: white;
+    margin: 32px auto;
+    max-width: 1100px;
+    padding: 32px 40px;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .toc h3 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #003366; margin-bottom: 16px; }
+  .toc a { display: block; font-size: 14px; color: #1a1a1a; text-decoration: none; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+  .toc a:hover { color: #003366; }
+  .toc a span { float: right; color: #999; }
+
+  .page {
+    background: white;
+    max-width: 1100px;
+    margin: 32px auto;
+    padding: 48px 48px 60px;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #003366;
+    margin-bottom: 8px;
+  }
+  h2.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #003366;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #003366;
+  }
+  .section-desc {
+    font-size: 13.5px;
+    color: #444;
+    line-height: 1.7;
+    margin: 16px 0 32px;
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding: 16px 20px;
+    background: #f8f9fb;
+    border-radius: 4px;
+    border: 1px solid #e8eaf0;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #444; }
+  .legend-box {
+    width: 28px; height: 18px; border-radius: 3px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lb-declarant { background: #dbeafe; border: 1.5px solid #3b82f6; }
+  .lb-rc { background: #dcfce7; border: 1.5px solid #16a34a; }
+  .lb-eacc { background: #fef9c3; border: 1.5px solid #ca8a04; }
+  .lb-system { background: #ede9fe; border: 1.5px solid #7c3aed; }
+  .lb-decision { background: #fff; border: 1.5px solid #6b7280; transform: rotate(45deg); width: 16px; height: 16px; }
+  .lb-applicant { background: #fee2e2; border: 1.5px solid #dc2626; }
+  .lb-law { background: #ffedd5; border: 1.5px solid #ea580c; }
+
+  /* SWIMLANE */
+  .swimlane-container { overflow-x: auto; }
+  .swimlane {
+    display: flex;
+    min-width: 820px;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .lane-header {
+    width: 130px;
+    min-width: 130px;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 10px 12px;
+    text-align: center;
+    border-radius: 4px 4px 0 0;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.3;
+  }
+  .lh-declarant { background: #2563eb; }
+  .lh-rc { background: #16a34a; }
+  .lh-eacc { background: #ca8a04; }
+  .lh-system { background: #7c3aed; }
+  .lh-applicant { background: #dc2626; }
+  .lh-law { background: #ea580c; }
+
+  .flow-wrapper {
+    display: flex;
+    gap: 0;
+  }
+
+  .lane {
+    flex: 1;
+    min-width: 0;
+    border-right: 1px dashed #d1d5db;
+    padding: 16px 10px;
+    min-height: 100px;
+    position: relative;
+  }
+  .lane:last-child { border-right: none; }
+
+  /* NODE SHAPES */
+  .node {
+    border-radius: 4px;
+    padding: 9px 12px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    position: relative;
+    text-align: center;
+    overflow-wrap: break-word;
+  }
+  .node-declarant { background: #dbeafe; border: 1.5px solid #3b82f6; color: #1e3a8a; }
+  .node-rc { background: #dcfce7; border: 1.5px solid #16a34a; color: #14532d; }
+  .node-eacc { background: #fef9c3; border: 1.5px solid #ca8a04; color: #713f12; }
+  .node-system { background: #ede9fe; border: 1.5px solid #7c3aed; color: #3b0764; }
+  .node-applicant { background: #fee2e2; border: 1.5px solid #dc2626; color: #7f1d1d; }
+  .node-law { background: #ffedd5; border: 1.5px solid #ea580c; color: #7c2d12; }
+
+  .node-start, .node-end {
+    border-radius: 50px;
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .node-start { background: #003366; color: white; }
+  .node-end { background: #1a1a1a; color: white; }
+
+  .node-decision {
+    background: #fff7ed;
+    border: 1.5px solid #f59e0b;
+    color: #78350f;
+    font-size: 11px;
+    padding: 9px 10px;
+    margin-bottom: 8px;
+    text-align: center;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    padding: 18px 12px;
+    line-height: 1.3;
+  }
+
+  .arrow {
+    text-align: center;
+    font-size: 16px;
+    color: #9ca3af;
+    margin: 2px 0 4px;
+    line-height: 1;
+  }
+  .arrow-label {
+    font-size: 10px;
+    color: #6b7280;
+    text-align: center;
+    font-style: italic;
+    margin: -4px 0 4px;
+  }
+
+  /* Cross-lane connector visual hint */
+  .cross-note {
+    font-size: 10px;
+    color: #7c3aed;
+    text-align: center;
+    padding: 4px 6px;
+    background: #f5f3ff;
+    border: 1px dashed #7c3aed;
+    border-radius: 4px;
+    margin: 4px 0 8px;
+  }
+
+  .phase-bar {
+    background: #003366;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 6px 16px;
+    margin: 16px 0 0;
+    border-radius: 2px;
+  }
+
+  .note-box {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #444;
+    margin: 24px 0 0;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.6;
+  }
+  .note-box strong { color: #003366; }
+
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 40px 0; }
+
+  /* Vertical flow for single-column steps */
+  .vflow { display: flex; flex-direction: column; align-items: center; }
+  .vflow .node { width: 100%; }
+
+  /* Grid layout for flowchart */
+  .fc-grid {
+    display: grid;
+    gap: 0;
+  }
+
+  /* Row in the swimlane flow */
+  .flow-row {
+    display: flex;
+    min-width: 820px;
+    border-bottom: 1px solid #f3f4f6;
+    padding: 8px 0;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .flow-row-label {
+    width: 130px;
+    min-width: 130px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 6px 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-right: 2px solid #e5e7eb;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+  }
+  .flow-row-content { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag-law { background: #fee2e2; color: #dc2626; }
+  .tag-ai { background: #ede9fe; color: #7c3aed; }
+  .tag-system { background: #dbeafe; color: #2563eb; }
+
+  /* Narrow screens: stack swimlanes instead of squeezing them */
+  @media (max-width: 760px) {
+    .page { padding: 32px 20px 40px; }
+    .flow-wrapper { flex-direction: column; }
+    .lane { border-right: none; border-bottom: 1px dashed #d1d5db; }
+    .lane:last-child { border-bottom: none; }
+    .lane > .node, .lane > div[style*="text-align:center"] { margin-top: 0 !important; }
+  }
+
+  @media print {
+    body { background: white; }
+    .page { box-shadow: none; margin: 0; border-radius: 0; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="section-label" style="color: rgba(255,255,255,0.6); margin-bottom:12px;">EACC · Adili Online V3 · September 2026</div>
+  <h1>Process Flowcharts<br>Onboarding, Declaration of Income, Assets & Liabilities<br>and Access to Declarations</h1>
+  <h2>Conflict of Interest Act, No. 11 of 2025 — Part IV Compliance</h2>
+  <div class="meta">Prepared for internal review · Draft v1.1 (onboarding revised)</div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>Contents</h3>
+  <a href="#flowchart1">Flowchart 1: Commission &amp; Declarant Onboarding <span>↓</span></a>
+  <a href="#flowchart2">Flowchart 2: Declaration of Income, Assets & Liabilities (DIALS) <span>↓</span></a>
+  <a href="#flowchart3">Flowchart 3: Access to Declarations & Clarifications <span>↓</span></a>
+</div>
+
+<!-- ======================== FLOWCHART 1 ======================== -->
+<div class="page" id="flowchart1">
+  <div class="section-label">Flowchart 1 of 3</div>
+  <h2 class="section-title">Commission &amp; Declarant Onboarding</h2>
+  <p class="section-desc">
+    This flowchart covers how Responsible Commissions and declarants get onto Adili Online. EACC creates each Responsible Commission and assigns its reporting officer. The reporting officer imports the Commission's declarant roster. Declarants then onboard themselves by matching their personnel file number against that roster. No mass invitations are sent to declarants. Onboarding happens once; every later declaration starts from a normal login (Flowchart 2).
+  </p>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box lb-declarant"></div> Declarant (Public Officer)</div>
+    <div class="legend-item"><div class="legend-box lb-rc"></div> Responsible Commission (RC) reporting officer</div>
+    <div class="legend-item"><div class="legend-box lb-eacc"></div> EACC</div>
+    <div class="legend-item"><div class="legend-box lb-system"></div> System / Automated</div>
+    <div class="legend-item">
+      <div style="width:18px;height:18px;background:#fff7ed;border:1.5px solid #f59e0b;transform:rotate(45deg);flex-shrink:0;"></div>
+      &nbsp;&nbsp;&nbsp;Decision Point
+    </div>
+  </div>
+
+  <!-- PATH A: COMMISSION & ROSTER SETUP -->
+  <div class="phase-bar">Path A - Commission &amp; Roster Setup</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+
+    <div class="lane" style="border-left: 4px solid #ca8a04;">
+      <div style="font-size:10px;font-weight:700;color:#ca8a04;text-align:center;margin-bottom:8px;text-transform:uppercase;">EACC</div>
+      <div class="node node-start">Platform go-live / new Commission</div>
+      <div class="arrow">↓</div>
+      <div class="node node-eacc">Create Responsible Commission<br><span style="font-size:10px;opacity:0.8;">Name, issuer code, categories of officers covered (s.32, Reg 5), active delegations</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-eacc">Assign the Commission's Reporting Officer<br><span style="font-size:10px;opacity:0.8;">Named officer, official email and phone</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-eacc" style="margin-top:120px;">Monitor roster coverage<br><span style="font-size:10px;opacity:0.8;">Commissions without a roster, onboarding progress per Commission</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system" style="margin-top:62px;">Provision Commission workspace<br><span style="font-size:10px;opacity:0.8;">Default statutory periods, templates and reminders</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Send account invitation to Reporting Officer only<br><span style="font-size:10px;opacity:0.8;">Keycloak-managed account, MFA mandatory</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Validate roster rows<br><span style="font-size:10px;opacity:0.8;">Required fields, format checks, duplicate personnel file numbers within the Commission</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Store roster &amp; produce import report<br><span style="font-size:10px;opacity:0.8;">Each accepted row is an expected declarant with status "Not onboarded". Rejected rows listed with reasons.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">No mass invitations sent<br><span style="font-size:10px;opacity:0.8;">Declarants onboard themselves (Path B)</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc" style="margin-top:150px;">Reporting Officer activates account<br><span style="font-size:10px;opacity:0.8;">Sets password or passkey, enrols MFA</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Import declarant roster<br><span style="font-size:10px;font-weight:700;">File upload (template) &nbsp;|&nbsp; API where available</span><br><span style="font-size:10px;opacity:0.8;">Personnel file no., names, national ID, designation, job group, reporting entity, contacts</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Review import report, fix &amp; re-import rejected rows</div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Keep roster current<br><span style="font-size:10px;opacity:0.8;">New appointments, exits, transfers. The roster is also the basis of Form M non-filer figures.</span></div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- PATH B: DECLARANT SELF-ONBOARDING -->
+  <div class="phase-bar" style="margin-top:32px;">Path B - Declarant Self-Onboarding</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+
+    <div class="lane" style="border-left: 4px solid #3b82f6;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-start">Declarant opens Adili Online &amp; selects "Get started"</div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Select Responsible Commission<br><span style="font-size:10px;opacity:0.8;">Searchable list of active Commissions</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Enter Personnel File Number</div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant" style="margin-top:90px;">Verify Email<br><span style="font-size:10px;opacity:0.8;">Enter one-time code sent by email</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Verify Phone<br><span style="font-size:10px;opacity:0.8;">Enter one-time code sent by SMS</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Complete Profile &amp; Account Setup<br><span style="font-size:10px;opacity:0.8;">Confirm details from the roster. Set password or passkey and enrol MFA on Keycloak-managed pages.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-end">Onboarded: proceed to declaration (Flowchart 2)</div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system" style="margin-top:100px;">Match file number against the selected Commission's roster</div>
+      <div class="arrow">↓</div>
+      <div style="text-align:center;margin-bottom:8px;">
+        <div style="display:inline-block;background:#fff7ed;border:1.5px solid #f59e0b;color:#78350f;padding:14px 18px;font-size:11px;font-weight:700;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);min-width:120px;">Match found?</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+        <div class="node node-system" style="flex:1 1 70px;font-size:10.5px;background:#dcfce7;border-color:#16a34a;color:#14532d;">YES<br><span style="font-size:9.5px;">Continue to OTP verification</span></div>
+        <div class="node node-system" style="flex:1 1 70px;font-size:10.5px;background:#fee2e2;border-color:#dc2626;color:#7f1d1d;">NO<br><span style="font-size:9.5px;">Contact the Commission's reporting officer</span></div>
+        <div class="node node-system" style="flex:1 1 70px;font-size:10.5px;">Already onboarded<br><span style="font-size:9.5px;">Go to login</span></div>
+      </div>
+      <div class="node node-system">Send email OTP &amp; SMS OTP<br><span style="font-size:10px;opacity:0.8;">Short-lived codes. Matching and OTP attempts are rate-limited.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Create account in Keycloak<br><span style="font-size:10px;opacity:0.8;">Linked to the roster record. MFA enforced.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Mark roster record "Onboarded"<br><span style="font-size:10px;opacity:0.8;">Issue officer reference (OFR). Create filing obligations.</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc" style="margin-top:230px;">Resolve no-match cases<br><span style="font-size:10px;opacity:0.8;">Add or correct the officer's roster record</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Track onboarding progress<br><span style="font-size:10px;opacity:0.8;">Onboarded vs expected declarants, by reporting entity</span></div>
+    </div>
+
+  </div>
+  </div>
+
+  <div class="note-box">
+    <strong>Reporting entities:</strong> Reporting entities (e.g. schools under TSC, ministries and departments under PSC) are retained on roster records for categorisation, filtering and reporting. They do not access declarations directly and have no role in onboarding. Only the Responsible Commission receives and reviews declarations.
+    <br><br>
+    <strong>Onboarding rules:</strong> A declarant can only onboard against a roster record that their Responsible Commission has imported. One account per roster record. The system never reveals whether a file number exists to someone who fails verification.
+    <br><br>
+    <strong>Open points for confirmation:</strong>
+    (1) Match on personnel file number alone, or also on a second identifier such as national ID? File numbers are often sequential and guessable, so a second identifier is recommended.
+    (2) Are the one-time codes sent to the email and phone on the roster record, or to contacts the declarant enters? Sending to roster contacts proves the declarant is the person on the roster.
+    (3) Is the IPRS/NRB identity check kept, and is it run against the roster record at profile completion?
+    (4) Where a Commission has no roster yet, its declarants cannot onboard. Is that acceptable, or is there a fallback?
+    <br><br>
+    <strong>Key Legal References:</strong> s.32 (Responsible Commissions), s.33 (delegation), s.46 (confidentiality), Reg 5 (Responsible Commissions for other officers), Reg 25(2) (Form M non-filers), Admin Mech. 39 (Commission systems).
+  </div>
+</div>
+
+<!-- ======================== FLOWCHART 2 ======================== -->
+<div class="page" id="flowchart2">
+  <div class="section-label">Flowchart 2 of 3</div>
+  <h2 class="section-title">Declaration of Income, Assets & Liabilities (DIALS)</h2>
+  <p class="section-desc">
+    This flowchart covers the end-to-end process by which a public officer submits a declaration of income, assets and liabilities to their Responsible Commission, how the Responsible Commission analyses, verifies and manages clarifications, and how compliance reports are escalated to EACC. Actors are colour-coded by swimlane.
+  </p>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box lb-declarant"></div> Declarant (Public Officer)</div>
+    <div class="legend-item"><div class="legend-box lb-rc"></div> Responsible Commission (RC)</div>
+    <div class="legend-item"><div class="legend-box lb-eacc"></div> EACC</div>
+    <div class="legend-item"><div class="legend-box lb-system"></div> System / Automated</div>
+    <div class="legend-item">
+      <div style="width:18px;height:18px;background:#fff7ed;border:1.5px solid #f59e0b;transform:rotate(45deg);flex-shrink:0;"></div>
+      &nbsp;&nbsp;&nbsp;Decision Point
+    </div>
+  </div>
+
+  <!-- PHASE 1: TRIGGER -->
+  <div class="phase-bar">Phase 1 - Trigger &amp; Sign In</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+
+    <!-- DECLARANT LANE -->
+    <div class="lane" style="border-left: 4px solid #3b82f6;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-start" style="margin-bottom:8px;">Triggering Event</div>
+      <div class="arrow-label">New appointment / Biennial due / Ceasing office</div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Log In to Adili Online<br><span style="font-size:10px;opacity:0.8;">Password or passkey + MFA. Not yet onboarded? See Flowchart 1.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Select Declaration Type<br><span style="font-size:10px;font-weight:700;">Initial &nbsp;|&nbsp; Biennial &nbsp;|&nbsp; Final</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Confirm / Update Bio Data<br><span style="font-size:10px;opacity:0.8;">Pre-filled from the Commission roster, HR &amp; IPRS integration. Declarant reviews and confirms.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Add / Confirm Spouse(s) Details<br><span style="font-size:10px;opacity:0.8;">Including separated spouses (to extent ascertainable)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Add / Confirm Dependent Children<br><span style="font-size:10px;opacity:0.8;">Under 18 years</span></div>
+    </div>
+
+    <!-- SYSTEM LANE -->
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system" style="margin-top:62px;">Send deadline reminder notification<br><span style="font-size:10px;opacity:0.8;">30 days before due date (s.34 / Admin Mech. 24)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Authenticate via Keycloak<br><span style="font-size:10px;opacity:0.8;">Session linked to the declarant's roster record &amp; Responsible Commission</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Verify KRA PIN &amp; Tax Compliance<br><span style="font-size:10px;opacity:0.8;">GavaConnect API</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Pre-fill data from HR System<br><span style="font-size:10px;opacity:0.8;">Name, designation, file no., employer, job group, marital status</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Pre-fill land from ArthiSaSa<br><span style="font-size:10px;opacity:0.8;">Owner details, title no., size, location</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Pre-fill vehicles from NTSA<br><span style="font-size:10px;opacity:0.8;">Make, model, capacity, estimated value</span></div>
+    </div>
+
+    <!-- RC LANE -->
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc" style="margin-top:150px;">RC receives notification of new<br>declaration in progress</div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- PHASE 2: DECLARATION CAPTURE -->
+  <div class="phase-bar">Phase 2 — Financial Declaration Capture</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+    <div class="lane" style="border-left: 4px solid #3b82f6;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-declarant">Declare Income<br><span style="font-size:10px;opacity:0.8;">Self + spouse(s) + dependents. Description, approx. amount (KES), material change explanation.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Declare Assets<br><span style="font-size:10px;opacity:0.8;">Land, buildings, vehicles, investments, financial obligations. Include assets outside Kenya &amp; jointly held assets.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Declare Liabilities<br><span style="font-size:10px;opacity:0.8;">Outstanding amounts, new/settled/materially changed. Self + spouse(s) + dependents.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">BRS Ownership Check<br><span style="font-size:10px;opacity:0.8;">System pre-fills directorships &amp; shareholdings from BRS. Declarant confirms or corrects.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Add Any Other Relevant Information<br><span style="font-size:10px;opacity:0.8;">Dual citizenship, pending cases, registrable interests (2nd Schedule)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Review Full Declaration Summary</div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant" style="font-weight:700;">Confirm &amp; Submit Declaration<br><span style="font-size:10px;opacity:0.8;">Solemn declaration of accuracy. No physical signature required for online submission (s.38 Admin Mech.)</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system" style="margin-top:10px;">AI Assistant flags incomplete sections<br><span style="font-size:10px;opacity:0.8;">e.g. "Vehicle declared but no land — confirm?" System works without AI.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Cross-reference ArthiSaSa data<br><span style="font-size:10px;opacity:0.8;">Flag discrepancies between declared and registered land</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Cross-reference NTSA vehicle values</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Pre-fill BRS data<br><span style="font-size:10px;opacity:0.8;">Directors &amp; shares from Business Registration Service</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Validate completeness<br><span style="font-size:10px;opacity:0.8;">Required fields, material change explanations, household coverage</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Generate Acknowledgement Receipt<br><span style="font-size:10px;opacity:0.8;">Reference number + timestamp. Sent to declarant &amp; logged in register.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Compute AI Risk Score<br><span style="font-size:10px;opacity:0.8;">Completeness, consistency, magnitude of change, integration matches. Non-blocking.</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc" style="margin-top:320px;">Declaration received<br><span style="font-size:10px;opacity:0.8;">Logged in register of declarations (Admin Mech. 25)</span></div>
+    </div>
+  </div>
+  </div>
+
+  <!-- PHASE 3: REVIEW & CLARIFICATION -->
+  <div class="phase-bar">Phase 3 — Review, Clarification &amp; Compliance Determination</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+    <div class="lane" style="border-left: 4px solid #3b82f6;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-declarant" style="margin-top:80px;">Receives clarification request<br><span style="font-size:10px;opacity:0.8;">Notification by system. Request tied to specific section.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Submits Clarification Response<br><span style="font-size:10px;opacity:0.8;">Within 30 days of receipt. Can include attachments.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Receives compliance notification<br><span style="font-size:10px;opacity:0.8;">Compliant / Non-compliant / Further action</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant" style="background:#fee2e2;border-color:#dc2626;color:#7f1d1d;">If non-compliant: Receives<br>notice / warning / salary stoppage notice<br><span style="font-size:10px;opacity:0.8;">(Admin Mech. 26)</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system">Queue declaration for RC review<br><span style="font-size:10px;opacity:0.8;">Sorted by AI risk score (high → low). Manual queue available without AI.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Track 30-day clarification response timer<br><span style="font-size:10px;opacity:0.8;">Send reminder at day 20. Escalate at day 30.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Track 6-month clarification request window<br><span style="font-size:10px;opacity:0.8;">(s.35 — RC must request within 6 months of receipt)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Log compliance determination<br><span style="font-size:10px;opacity:0.8;">Compliant | Non-compliant | Pending further action</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Record administrative action taken</div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc">Analyse &amp; Verify Declaration<br><span style="font-size:10px;opacity:0.8;">Completeness, correctness, consistency, conflict indicators (s.35 &amp; user story 13)</span></div>
+      <div class="arrow">↓</div>
+      <div style="text-align:center;margin-bottom:8px;">
+        <div style="display:inline-block;background:#fff7ed;border:1.5px solid #f59e0b;color:#78350f;padding:14px 18px;font-size:11px;font-weight:700;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);min-width:120px;">Issues found?</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="flex:1;text-align:center;font-size:10px;color:#16a34a;font-weight:700;">YES →</div>
+        <div style="flex:1;text-align:center;font-size:10px;color:#6b7280;font-weight:700;">NO →</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div class="node node-rc" style="flex:1;font-size:10.5px;">Send Clarification Request<br><span style="font-size:9.5px;opacity:0.8;">Within 6 months. Tied to specific section. System drafts; RC edits &amp; sends.</span></div>
+        <div class="node node-rc" style="flex:1;font-size:10.5px;background:#f0fdf4;">Mark Compliant<br><span style="font-size:9.5px;opacity:0.8;">Proceed to report generation</span></div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Review Clarification Response<br><span style="font-size:10px;opacity:0.8;">Determine: compliant / non-compliant / further action</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc" style="background:#fee2e2;border-color:#dc2626;color:#7f1d1d;">If non-compliant: Issue Administrative Action<br><span style="font-size:10px;opacity:0.8;">Notice to comply → Warning → Salary stoppage → Disciplinary proceedings → Prosecution referral</span></div>
+    </div>
+  </div>
+  </div>
+
+  <!-- PHASE 4: REPORTING -->
+  <div class="phase-bar">Phase 4 — Compliance Reporting to EACC</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+    <div class="lane" style="border-left: 4px solid #3b82f6;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-declarant" style="opacity:0.4;font-style:italic;font-size:11px;">No active role in this phase</div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system">Auto-generate Draft Compliance Report (Form M)<br><span style="font-size:10px;opacity:0.8;">Payroll count, complied, non-compliant, list of non-compliant officers, admin actions, clarification stats</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Route to RC for review &amp; approval</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Submit electronically to EACC<br><span style="font-size:10px;opacity:0.8;">By 31 July following declaration year</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc">Review &amp; Approve Compliance Report</div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Submit to EACC</div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db; border-left-color: #ca8a04; border-left-width: 4px;">
+      <div style="font-size:10px;font-weight:700;color:#ca8a04;text-align:center;margin-bottom:8px;text-transform:uppercase;">EACC</div>
+      <div class="node node-eacc">Receive &amp; Analyse Compliance Reports<br><span style="font-size:10px;opacity:0.8;">From all Responsible Commissions</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-eacc">Consolidate into National Report<br><span style="font-size:10px;opacity:0.8;">AI surfaces cross-commission patterns, chronic non-compliers, risk trends</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-eacc">Forward non-compliant cases to ICMS<br><span style="font-size:10px;opacity:0.8;">5W+2H report auto-populated from declaration record. EACC officer reviews and submits.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-end">End: Declaration Cycle Complete</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="note-box">
+    <strong>Key Legal References:</strong> s.31 (declaration obligation), s.34 (timelines), s.35 (clarification), s.37 (5-year retention), s.38 (failure to submit), s.39 (false information), s.45 (penalties), Admin Mech. 25 (register), Admin Mech. 26 (administrative action), Admin Mech. 37–40 (automation).
+    <br><br>
+    <strong>Material Change triggers (s.31(4)):</strong> ≥25% change in value of income/asset/liability; disposal or acquisition; change in marital status; change in directorships; change in company/partnership membership; change in social associations.
+  </div>
+</div>
+
+<!-- ======================== FLOWCHART 3 ======================== -->
+<div class="page" id="flowchart3">
+  <div class="section-label">Flowchart 3 of 3</div>
+  <h2 class="section-title">Access to Declarations &amp; Clarifications</h2>
+  <p class="section-desc">
+    This flowchart covers who can request access to a declaration or clarification, how that request is processed, how the subject declarant is notified and given an opportunity to respond, and how scoped access is granted or denied. It also covers the streamlined access pathway for law enforcement agencies.
+  </p>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box lb-applicant"></div> Applicant (any person / third party)</div>
+    <div class="legend-item"><div class="legend-box lb-declarant"></div> Declarant (affected party)</div>
+    <div class="legend-item"><div class="legend-box lb-rc"></div> Responsible Commission (RC)</div>
+    <div class="legend-item"><div class="legend-box lb-law"></div> Law Enforcement Agency</div>
+    <div class="legend-item"><div class="legend-box lb-system"></div> System / Automated</div>
+  </div>
+
+  <!-- PATH A: GENERAL PUBLIC -->
+  <div class="phase-bar">Path A — General Applicant (Member of Public / Third Party)</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+
+    <div class="lane" style="border-left: 4px solid #dc2626;">
+      <div style="font-size:10px;font-weight:700;color:#dc2626;text-align:center;margin-bottom:8px;text-transform:uppercase;">Applicant</div>
+      <div class="node node-start">Applicant initiates access request</div>
+      <div class="arrow">↓</div>
+      <div class="node node-applicant">Register / Log In to Adili Online</div>
+      <div class="arrow">↓</div>
+      <div class="node node-applicant">Complete Form K<br><span style="font-size:10px;opacity:0.8;">Name, ID, purpose of request, legitimate interest statement, good cause, scope of request</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-applicant">Define Scope of Request<br><span style="font-size:10px;opacity:0.8;">Specific declaration year(s), whether to include or exclude spouse/children, specific sections only</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-applicant">Submit Request<br><span style="font-size:10px;opacity:0.8;">System generates reference number and sends acknowledgement</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-applicant" style="margin-top:50px;">Receives decision notification<br><span style="font-size:10px;opacity:0.8;">Access granted / partially granted / denied — with reasons</span></div>
+      <div class="arrow">↓</div>
+      <div style="text-align:center;margin-bottom:8px;">
+        <div style="display:inline-block;background:#fff7ed;border:1.5px solid #f59e0b;color:#78350f;padding:14px 18px;font-size:11px;font-weight:700;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);min-width:120px;">Access<br>granted?</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <div class="node node-applicant" style="flex:1;font-size:10.5px;background:#dcfce7;border-color:#16a34a;color:#14532d;">YES: Access provided<br><span style="font-size:9.5px;">Scoped to request only. Not the full declaration.</span></div>
+        <div class="node node-applicant" style="flex:1;font-size:10.5px;background:#fee2e2;border-color:#dc2626;color:#7f1d1d;">NO: Denial with written reasons<br><span style="font-size:9.5px;">May seek relief from court (Admin Mech. 30)</span></div>
+      </div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system" style="margin-top:10px;">Validate Form K completeness</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Generate reference number</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Send acknowledgement to applicant</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Notify affected declarant<br><span style="font-size:10px;opacity:0.8;">Inform of request; open 7-day representation window</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Track 30-day determination timer<br><span style="font-size:10px;opacity:0.8;">(Admin Mech. 29)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Log decision in access register<br><span style="font-size:10px;opacity:0.8;">Admin Mech. 34 — applicant, date, officer, decision, access granted, manner of access</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Enforce scoped access<br><span style="font-size:10px;opacity:0.8;">System filters declaration to approved scope only. Does not share full declaration.</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant (Affected Party)</div>
+      <div class="node node-declarant" style="margin-top:120px;">Receives notification of access request<br><span style="font-size:10px;opacity:0.8;">(s.36(3) — must be notified before affirmative decision)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Submits representations within 7 days<br><span style="font-size:10px;opacity:0.8;">May object, provide context, or consent (Admin Mech. 28)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Receives final decision notification<br><span style="font-size:10px;opacity:0.8;">Whether access was granted or denied</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc" style="margin-top:160px;">Receive &amp; acknowledge application</div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Analyse request<br><span style="font-size:10px;opacity:0.8;">Legitimate interest? Good cause? Aligns with Act objectives? (s.36(1))</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Review declarant representation</div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Make determination<br><span style="font-size:10px;opacity:0.8;">Grant / Partial grant / Deny. Decision is final. Communicate in writing within 30 days.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Grant scoped access<br><span style="font-size:10px;opacity:0.8;">Provide only information within approved scope. Retain original; provide certified copy only. (Admin Mech. 31)</span></div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- PATH B: LAW ENFORCEMENT -->
+  <div class="phase-bar" style="margin-top:32px;">Path B — Law Enforcement Agency (Streamlined Access)</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+
+    <div class="lane" style="border-left: 4px solid #ea580c;">
+      <div style="font-size:10px;font-weight:700;color:#ea580c;text-align:center;margin-bottom:8px;text-transform:uppercase;">Law Enforcement Agency</div>
+      <div class="node node-law">Submit written request to RC<br><span style="font-size:10px;opacity:0.8;">No Form K required. Must state reason for access. (s.36(2) &amp; Admin Mech. 33)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-law">Receive access<br><span style="font-size:10px;opacity:0.8;">Original or certified copy as circumstances require. Within 14 days.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-end">End</div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system">Receive &amp; log LEA request<br><span style="font-size:10px;opacity:0.8;">Validated agency credentials</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Track 14-day response timer</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Log in access register</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Provide access / certified copy<br><span style="font-size:10px;opacity:0.8;">Retain RC copy where original is released</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-declarant" style="opacity:0.5;font-style:italic;font-size:11px;">Not notified for LEA access<br><span style="font-size:10px;">(Access is after due process — s.36(2))</span></div>
+    </div>
+
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc">Verify agency identity &amp; request</div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Grant access within 14 days<br><span style="font-size:10px;opacity:0.8;">Retain certified copy where original is provided. Log in access register.</span></div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- PATH C: DECLARANT SELF-ACCESS -->
+  <div class="phase-bar" style="margin-top:32px;">Path C — Declarant Self-Access</div>
+  <div>
+  <div class="flow-wrapper" style="border:1px solid #e5e7eb; border-top:none;">
+    <div class="lane" style="border-left: 4px solid #3b82f6;">
+      <div style="font-size:10px;font-weight:700;color:#2563eb;text-align:center;margin-bottom:8px;text-transform:uppercase;">Declarant</div>
+      <div class="node node-declarant">Apply in writing (in person or via representative)<br><span style="font-size:10px;opacity:0.8;">Provide ID. If representative: written authority + rep's ID. (Admin Mech. 32)</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-declarant">Receives certified copy within 14 days</div>
+      <div class="arrow">↓</div>
+      <div class="node node-end">End</div>
+    </div>
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;text-align:center;margin-bottom:8px;text-transform:uppercase;">Responsible Commission</div>
+      <div class="node node-rc">Verify identity</div>
+      <div class="arrow">↓</div>
+      <div class="node node-rc">Furnish certified copy within 14 days</div>
+    </div>
+    <div class="lane" style="border-left: 1px dashed #d1d5db;">
+      <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
+      <div class="node node-system">Generate certified copy of declaration(s)</div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Log access event in register</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="note-box">
+    <strong>Scoped Access — System Design Note:</strong> When access is granted, the system must enforce the exact scope approved by the RC. This means the system must support configurable filters on: declaration year(s) requested, inclusion/exclusion of spouse and dependents data, specific sections (income only, assets only, liabilities only, or combinations). Granting access must never expose the full declaration where only a subset was approved. The RC does not part with the original declaration (Admin Mech. 31(2)).
+    <br><br>
+    <strong>Key Legal References:</strong> s.36 (access to declarations), s.46 (confidentiality), s.47 (whistleblower protection), Admin Mech. 28–34 (access procedures), Admin Mech. 31 (scoped access), Admin Mech. 32 (self-access), Admin Mech. 33 (LEA access), Admin Mech. 34 (access register).
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div style="text-align:center;padding:32px;font-size:11px;color:#9ca3af;">
+  EACC · Adili Online V3 Innovation Challenge · Draft v1.1 · September 2026 · Prepared for internal review only
+</div>
+
+</body>
+</html>
