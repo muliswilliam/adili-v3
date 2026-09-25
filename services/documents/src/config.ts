@@ -1,0 +1,29 @@
+import { baseEnvSchema, loadConfig } from '@adili/api-kit';
+import { z } from 'zod';
+
+export const SERVICE_NAME = 'documents';
+export const SERVICE_DESCRIPTION =
+  'Uploads, malware scanning, PDF issuance, signing, QR codes and verification records.';
+
+export const envSchema = baseEnvSchema.extend({
+  DATABASE_URL: z.url(),
+  RABBITMQ_URL: z.url(),
+  TEMPORAL_ADDRESS: z.string().min(1),
+  TEMPORAL_NAMESPACE: z.string().min(1),
+  S3_ENDPOINT: z.url(),
+  S3_REGION: z.string().min(1),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_BUCKET_QUARANTINE: z.string().min(1),
+  S3_BUCKET_CLEAN: z.string().min(1),
+  S3_BUCKET_ISSUED: z.string().min(1),
+  CLAMAV_HOST: z.string().min(1),
+  CLAMAV_PORT: z.coerce.number().int().positive(),
+  GOTENBERG_URL: z.url(),
+  OPENBAO_ADDR: z.url(),
+  OPENBAO_TOKEN: z.string().min(1),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export const config: Env = loadConfig(envSchema);
