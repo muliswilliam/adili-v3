@@ -1,0 +1,104 @@
+openapi: 3.1.0
+info:
+  title: integration-gateway API - IPRS lookup (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 03 (declarant onboarding). Cached, circuit-broken lookup of a
+    person in IPRS for identity checks. Internal paths are not routed by the public
+    entrypoint. The integration-gateway's Swagger document becomes the source of truth
+    once implemented.
+servers:
+  - url: http://localhost:4009
+security:
+  - bearer: []
+tags:
+  - name: internal
+paths:
+  /internal/v1/iprs/persons/{nationalId}:
+    parameters:
+      - name: nationalId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[0-9]{5,10}$'
+    get:
+      tags: [internal]
+      operationId: lookupIprsPerson
+      summary: Person as held by IPRS, cached for 24 hours (hits and misses)
+      responses:
+        '200':
+          description: Person found
+          headers:
+            X-Cache:
+              schema:
+                type: string
+                enum: [hit, miss]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IprsPerson'
+        '404':
+          description: No IPRS record for this national ID
+          headers:
+            X-Cache:
+              schema:
+                type: string
+                enum: [hit, miss]
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller lacks the iprs scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem code `upstream-unavailable`: circuit open or timeout'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    IprsPerson:
+      type: object
+      required: [nationalId, firstName, middleName, lastName, dateOfBirth, sex]
+      properties:
+        nationalId:
+          type: string
+        firstName:
+          type: string
+        middleName:
+          type: [string, 'null']
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [F, M]
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string

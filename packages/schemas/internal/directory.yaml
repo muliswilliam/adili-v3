@@ -3,7 +3,7 @@ info:
   title: directory API - Commission provisioning (draft)
   version: '1'
   description: |
-    Draft contract for specs 01 (Commissions) and 02 (roster). The directory service's Swagger document becomes the
+    Draft contract for specs 01 (Commissions), 02 (roster) and 03 (onboarding). The directory service's Swagger document becomes the
     source of truth once implemented and is exported to packages/schemas/internal;
     this file is what the backend converges to and what the console builds against.
 servers:
@@ -14,6 +14,7 @@ tags:
   - name: commissions
   - name: reference
   - name: roster
+  - name: onboarding
 paths:
   /v1/commissions:
     post:
@@ -667,6 +668,304 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /v1/onboarding/commissions:
+    get:
+      tags: [onboarding]
+      operationId: listOnboardingCommissions
+      summary: Active Responsible Commissions a declarant can choose from
+      security: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Commissions with roster availability
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OnboardingCommission'
+  /v1/onboarding/sessions:
+    post:
+      tags: [onboarding]
+      operationId: identifyDeclarant
+      summary: Match personnel file number and national ID against a Commission's roster
+      description: |
+        Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
+        same `no-match` problem. On success the response carries the session and, once only,
+        the session secret the BFF stores in an httpOnly cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentifyDeclarant'
+      responses:
+        '201':
+          description: Session created; first OTP sent or a contact is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSessionCreated'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          description: 'Problem code `no-match`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '409':
+          description: 'Problem code `already-onboarded` or `no-roster`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/onboarding/sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    get:
+      tags: [onboarding]
+      operationId: getOnboardingSession
+      summary: Current step, masked contacts and roster details to confirm
+      security: []
+      responses:
+        '200':
+          description: The session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+  /v1/onboarding/sessions/{sessionId}/contacts:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    post:
+      tags: [onboarding]
+      operationId: provideOnboardingContact
+      summary: Supply an email or phone when the roster record has none
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel, value]
+              properties:
+                channel:
+                  $ref: '#/components/schemas/OtpChannel'
+                value:
+                  type: string
+                  maxLength: 254
+      responses:
+        '200':
+          description: Contact accepted and OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not waiting for this contact
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+  /v1/onboarding/sessions/{sessionId}/otp/{channel}/verify:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+      - $ref: '#/components/parameters/OtpChannelParam'
+    post:
+      tags: [onboarding]
+      operationId: verifyOnboardingOtp
+      summary: Verify the 6-digit code for a channel
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+      responses:
+        '200':
+          description: Verified; session advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          description: 'Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not waiting for this channel
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+  /v1/onboarding/sessions/{sessionId}/otp/{channel}/resend:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+      - $ref: '#/components/parameters/OtpChannelParam'
+    post:
+      tags: [onboarding]
+      operationId: resendOnboardingOtp
+      summary: Send a new code (60-second cooldown, at most 3 per channel)
+      security: []
+      responses:
+        '202':
+          description: New code sent
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not waiting for this channel
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+        '429':
+          description: 'Problem code `resend-cooldown` with `retryAfterSeconds`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+  /v1/onboarding/sessions/{sessionId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    post:
+      tags: [onboarding]
+      operationId: confirmOnboarding
+      summary: Confirm roster details, run the IPRS check and create or link the account
+      security: []
+      responses:
+        '200':
+          description: Outcome of the confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingConfirmResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not at the confirm step
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+        '502':
+          description: 'Problem code `identity-unavailable`: account could not be created; nothing changed'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '503':
+          description: 'Problem code `iprs-unavailable`: try again later; session unchanged'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+  /v1/onboarding/sessions/{sessionId}/resend-password-email:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    post:
+      tags: [onboarding]
+      operationId: resendSetPasswordEmail
+      summary: Send the Keycloak set-password email again
+      security: []
+      responses:
+        '202':
+          description: Email requested
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not in the confirmed state with a new account
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `resend-cooldown`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+  /v1/me/declarant:
+    get:
+      tags: [onboarding]
+      operationId: getMyDeclarantProfile
+      summary: The signed-in declarant's person, OFR, Commissions and verified contacts
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantProfile'
+        '404':
+          description: The caller is not an onboarded declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/persons:
+    get:
+      tags: [onboarding]
+      operationId: findPersonByOfr
+      summary: Look up account metadata by officer reference (helpdesk, platform-admin)
+      parameters:
+        - name: ofr
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Ofr'
+      responses:
+        '200':
+          description: Account metadata without roster contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -695,7 +994,39 @@ components:
       schema:
         type: string
         format: uuid
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OnboardingSecret:
+      name: X-Onboarding-Secret
+      in: header
+      required: true
+      description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+      schema:
+        type: string
+    OtpChannelParam:
+      name: channel
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/OtpChannel'
   responses:
+    RateLimited:
+      description: 'Problem code `rate-limited`; RateLimit-* headers present'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/OnboardingProblem'
+    SessionEnded:
+      description: 'Problem code `session-expired`; the cookie is cleared'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/OnboardingProblem'
     NotFound:
       description: Not found, or not visible to the caller
       content:
@@ -1305,3 +1636,238 @@ components:
               format: uri
             scope:
               const: roster:write
+    Ofr:
+      type: string
+      description: Officer reference (ADR-011), permanent and person-level
+      pattern: '^OFR-[0-9]{7}-[0-9A-Z]$'
+      examples: [OFR-0482913-H]
+    OtpChannel:
+      type: string
+      enum: [email, phone]
+    OnboardingCommission:
+      type: object
+      required: [slug, issuerCode, name, hasRoster]
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+        name:
+          type: string
+        hasRoster:
+          type: boolean
+    IdentifyDeclarant:
+      type: object
+      required: [commission, personnelFileNumber, nationalId]
+      properties:
+        commission:
+          $ref: '#/components/schemas/Slug'
+        personnelFileNumber:
+          type: string
+          minLength: 1
+          maxLength: 30
+        nationalId:
+          type: string
+          description: Digits after stripping spaces, 5 to 10
+          pattern: '^[0-9 ]{5,12}$'
+    OnboardingState:
+      type: string
+      enum:
+        - identified
+        - email-contact-required
+        - email-pending
+        - email-verified
+        - phone-contact-required
+        - phone-pending
+        - phone-verified
+        - confirmed
+        - identity-mismatch
+        - expired
+    MaskedContact:
+      type: object
+      required: [masked, source, verified]
+      properties:
+        masked:
+          type: string
+          description: e.g. j***@moe.go.ke or 07** *** 123
+        source:
+          type: string
+          enum: [roster, declarant]
+        verified:
+          type: boolean
+    OnboardingSession:
+      type: object
+      required: [id, state, commission, contacts, details, otp, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/OnboardingState'
+        commission:
+          $ref: '#/components/schemas/OnboardingCommission'
+        contacts:
+          type: object
+          required: [email, phone]
+          properties:
+            email:
+              oneOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+            phone:
+              oneOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+        details:
+          description: Roster details shown at the confirm step; null before phone-verified
+          oneOf:
+            - type: object
+              required: [fullName, personnelFileNumber, designation, reportingEntity]
+              properties:
+                fullName:
+                  type: string
+                personnelFileNumber:
+                  type: string
+                designation:
+                  type: [string, 'null']
+                reportingEntity:
+                  type: [string, 'null']
+            - type: 'null'
+        otp:
+          type: object
+          description: Resend availability for the channel currently pending
+          required: [channel, resendAvailableAt, resendsLeft, attemptsLeft]
+          properties:
+            channel:
+              oneOf:
+                - $ref: '#/components/schemas/OtpChannel'
+                - type: 'null'
+            resendAvailableAt:
+              type: [string, 'null']
+              format: date-time
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+        outcome:
+          description: Set when state is confirmed
+          oneOf:
+            - $ref: '#/components/schemas/OnboardingOutcome'
+            - type: 'null'
+        ofr:
+          oneOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+        expiresAt:
+          type: string
+          format: date-time
+    OnboardingSessionCreated:
+      allOf:
+        - $ref: '#/components/schemas/OnboardingSession'
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
+    OnboardingOutcome:
+      type: string
+      enum: [account-created, linked-existing-account, identity-mismatch]
+    OnboardingConfirmResult:
+      type: object
+      required: [outcome, session]
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OnboardingOutcome'
+        session:
+          $ref: '#/components/schemas/OnboardingSession'
+    OnboardingProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              enum:
+                - no-match
+                - already-onboarded
+                - no-roster
+                - otp-invalid
+                - otp-expired
+                - resend-cooldown
+                - session-expired
+                - iprs-unavailable
+                - identity-unavailable
+                - rate-limited
+            attemptsLeft:
+              type: integer
+            retryAfterSeconds:
+              type: integer
+            links:
+              type: object
+              description: Present for already-onboarded
+              properties:
+                signIn:
+                  type: string
+                  format: uri
+                recoverAccess:
+                  type: string
+                  format: uri
+    DeclarantProfile:
+      type: object
+      required: [personId, ofr, fullName, contacts, commissions]
+      properties:
+        personId:
+          type: string
+          format: uuid
+        ofr:
+          $ref: '#/components/schemas/Ofr'
+        fullName:
+          type: string
+        contacts:
+          type: object
+          required: [email, phone]
+          properties:
+            email:
+              type: [string, 'null']
+            phone:
+              type: [string, 'null']
+        commissions:
+          type: array
+          items:
+            type: object
+            required: [slug, name, personnelFileNumber, rosterRecordId, state, onboardedAt]
+            properties:
+              slug:
+                $ref: '#/components/schemas/Slug'
+              name:
+                type: string
+              personnelFileNumber:
+                type: string
+              rosterRecordId:
+                type: string
+                format: uuid
+              state:
+                $ref: '#/components/schemas/RosterRecordState'
+              onboardedAt:
+                type: [string, 'null']
+                format: date-time
+    PersonSummary:
+      type: object
+      required: [personId, ofr, fullName, commissions, createdAt]
+      properties:
+        personId:
+          type: string
+          format: uuid
+        ofr:
+          $ref: '#/components/schemas/Ofr'
+        fullName:
+          type: string
+        commissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slug'
+        createdAt:
+          type: string
+          format: date-time

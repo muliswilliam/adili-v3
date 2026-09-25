@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: notifications API - internal messages (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 03 (declarant onboarding). Synchronous, templated email and
+    SMS sending for other services and the Keycloak OTP authenticator. Internal paths are
+    not routed by the public entrypoint. The notifications service's Swagger document
+    becomes the source of truth once implemented.
+servers:
+  - url: http://localhost:4010
+security:
+  - bearer: []
+tags:
+  - name: internal
+paths:
+  /internal/v1/messages:
+    post:
+      tags: [internal]
+      operationId: sendMessage
+      summary: Render a template and send it by email or SMS
+      description: Synchronous with a 5-second budget. Callers use service tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessage'
+      responses:
+        '201':
+          description: Message handed to the provider (or failed, see status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Unknown template, invalid recipient or params
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller lacks the messages scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/messages/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: getMessage
+      summary: Delivery status of a message
+      responses:
+        '200':
+          description: The message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Channel:
+      type: string
+      enum: [email, sms]
+    TemplateId:
+      type: string
+      description: Registered templates; each declares its params
+      enum:
+        - onboarding-otp-email
+        - onboarding-otp-sms
+        - login-otp-sms
+        - login-otp-email
+    SendMessage:
+      type: object
+      required: [channel, to, template, params]
+      properties:
+        channel:
+          $ref: '#/components/schemas/Channel'
+        to:
+          type: string
+          description: Email address or E.164 phone number, matching the channel
+          maxLength: 254
+        template:
+          $ref: '#/components/schemas/TemplateId'
+        params:
+          type: object
+          additionalProperties: true
+          description: Validated against the template's parameter schema
+        locale:
+          type: string
+          enum: [en, sw]
+          default: en
+        tenant:
+          type: string
+          description: Tenant key for audit and per-tenant branding; optional for platform messages
+    MessageStatus:
+      type: string
+      enum: [sent, failed]
+    Message:
+      type: object
+      required: [id, channel, template, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          $ref: '#/components/schemas/Channel'
+        template:
+          $ref: '#/components/schemas/TemplateId'
+        status:
+          $ref: '#/components/schemas/MessageStatus'
+        error:
+          type: [string, 'null']
+          description: Reason when failed, e.g. timeout, rejected-recipient
+        providerMessageId:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
