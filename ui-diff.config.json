@@ -1,0 +1,58 @@
+{
+  "baseRef": "upstream/main",
+  "devCommand": "pnpm --filter {package} dev",
+  "apps": {
+    "portal": {
+      "dir": "apps/portal",
+      "package": "@adili/portal",
+      "port": 3010,
+      "account": "declarant"
+    },
+    "console": {
+      "dir": "apps/console",
+      "package": "@adili/console",
+      "port": 3020,
+      "account": "reviewer"
+    },
+    "verify": {
+      "dir": "apps/verify",
+      "package": "@adili/verify",
+      "port": 3030,
+      "account": null
+    }
+  },
+  "ui": {
+    "dir": "packages/ui",
+    "importName": "@adili/ui"
+  },
+  "login": {
+    "path": "/auth/login",
+    "usernameSelector": "#username",
+    "passwordSelector": "#password",
+    "submitSelector": "#kc-login",
+    "password": "Adili-Demo-2026"
+  },
+  "prereqs": {
+    "node": ">=24",
+    "urls": [
+      "http://localhost:8080/realms/adili"
+    ],
+    "recommendedUrls": [
+      "http://localhost:4001/health/ready"
+    ]
+  },
+  "gemini": {
+    "videoModel": "gemini-3.8-flash",
+    "ttsModel": "gemini-3.8-flash-tts",
+    "voice": "Kore"
+  },
+  "narration": {
+    "maxSeconds": 45,
+    "language": "en"
+  },
+  "publish": {
+    "mediaRepo": "luckson1/adili-v3",
+    "prRepo": "muliswilliam/adili-v3",
+    "release": "ui-diff-media"
+  }
+}
