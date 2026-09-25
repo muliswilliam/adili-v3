@@ -1,0 +1,417 @@
+openapi: 3.1.0
+info:
+  title: declarations API - filing obligations (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 04 (login and obligations). Obligations are derived from roster
+    events and tenant policy; this API only reads them. The declarations service's Swagger
+    document becomes the source of truth once implemented.
+servers:
+  - url: http://localhost:4002
+security:
+  - bearer: []
+tags:
+  - name: obligations
+paths:
+  /v1/me/obligations:
+    get:
+      tags: [obligations]
+      operationId: getMyObligations
+      summary: The signed-in declarant's obligations across Commissions
+      description: Authorised by the person_id claim. Staff tokens without it get 404.
+      responses:
+        '200':
+          description: Obligations grouped by Commission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyObligations'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/obligations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [obligations]
+      operationId: getObligation
+      summary: One obligation with its reminder history
+      responses:
+        '200':
+          description: The obligation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObligationDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/obligations/summary:
+    get:
+      tags: [obligations]
+      operationId: getNationalObligationsSummary
+      summary: Per-Commission counts for EACC and platform administrators
+      parameters:
+        - name: cycle
+          in: query
+          schema:
+            type: string
+            examples: ['biennial:2027']
+      responses:
+        '200':
+          description: Counts per Commission and totals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/commissions/{slug}/obligations/summary:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [obligations]
+      operationId: getCommissionObligationsSummary
+      summary: Counts by type and status, and not-onboarded among due and overdue
+      parameters:
+        - name: cycle
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommissionSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/obligations:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [obligations]
+      operationId: listCommissionObligations
+      summary: Officers and their obligations for a Commission
+      description: Staff of the tenant and platform-admin. EACC roles get 403 (summaries only).
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ObligationType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ObligationStatus'
+        - name: onboarded
+          in: query
+          schema:
+            type: boolean
+        - name: cycle
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Personnel file number prefix or name fragment
+          schema:
+            type: string
+            maxLength: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Page ordered by due date, overdue first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ObligationListItem'
+                  nextCursor:
+                    type: [string, 'null']
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ObligationType:
+      type: string
+      enum: [initial, biennial, final]
+    ObligationStatus:
+      type: string
+      enum: [upcoming, due, overdue, filed, cancelled]
+    CancelReason:
+      type: string
+      enum: [exited-before-statement-date, exit-reversed, superseded]
+    ReminderOutcome:
+      type: string
+      enum:
+        - sent
+        - skipped-not-onboarded
+        - skipped-no-contact
+        - skipped-past-due-at-creation
+        - failed
+    CommissionRef:
+      type: object
+      required: [slug, issuerCode, name]
+      properties:
+        slug:
+          type: string
+        issuerCode:
+          type: string
+        name:
+          type: string
+    Obligation:
+      type: object
+      required:
+        - id
+        - commission
+        - type
+        - cycleKey
+        - statementDate
+        - dueDate
+        - status
+        - cancelReason
+        - remindersSent
+        - policyVersion
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        cycleKey:
+          type: string
+          examples: ['biennial:2027', 'initial:2027-03-10', 'final:2027-09-15']
+        statementDate:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/ObligationStatus'
+        cancelReason:
+          oneOf:
+            - $ref: '#/components/schemas/CancelReason'
+            - type: 'null'
+        remindersSent:
+          type: integer
+        policyVersion:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    Reminder:
+      type: object
+      required: [offsetDays, scheduledAt, sentAt, channels, outcome]
+      properties:
+        offsetDays:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: [string, 'null']
+          format: date-time
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [sms, email]
+        outcome:
+          $ref: '#/components/schemas/ReminderOutcome'
+    ObligationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Obligation'
+        - type: object
+          required: [reminders, officer]
+          properties:
+            reminders:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reminder'
+            officer:
+              description: Present for staff callers; null for the declarant's own view
+              oneOf:
+                - $ref: '#/components/schemas/OfficerRef'
+                - type: 'null'
+    OfficerRef:
+      type: object
+      required: [rosterRecordId, personnelFileNumber, fullName, onboarded, ofr]
+      properties:
+        rosterRecordId:
+          type: string
+          format: uuid
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        onboarded:
+          type: boolean
+        ofr:
+          type: [string, 'null']
+    MyObligations:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            required: [commission, obligations]
+            properties:
+              commission:
+                $ref: '#/components/schemas/CommissionRef'
+              obligations:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Obligation'
+    ObligationListItem:
+      allOf:
+        - $ref: '#/components/schemas/Obligation'
+        - type: object
+          required: [officer]
+          properties:
+            officer:
+              $ref: '#/components/schemas/OfficerRef'
+    StatusCounts:
+      type: object
+      required: [upcoming, due, overdue, filed]
+      properties:
+        upcoming:
+          type: integer
+        due:
+          type: integer
+        overdue:
+          type: integer
+        filed:
+          type: integer
+    CommissionSummary:
+      type: object
+      required: [commission, cycle, total, byType, notOnboarded]
+      properties:
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        cycle:
+          type: object
+          required: [key, statementDate, dueDate]
+          properties:
+            key:
+              type: string
+            statementDate:
+              type: string
+              format: date
+            dueDate:
+              type: string
+              format: date
+        total:
+          $ref: '#/components/schemas/StatusCounts'
+        byType:
+          type: object
+          required: [initial, biennial, final]
+          properties:
+            initial:
+              $ref: '#/components/schemas/StatusCounts'
+            biennial:
+              $ref: '#/components/schemas/StatusCounts'
+            final:
+              $ref: '#/components/schemas/StatusCounts'
+        notOnboarded:
+          type: object
+          description: Officers with a due or overdue obligation who have not onboarded
+          required: [due, overdue]
+          properties:
+            due:
+              type: integer
+            overdue:
+              type: integer
+    NationalSummary:
+      type: object
+      required: [cycle, commissions, totals]
+      properties:
+        cycle:
+          type: string
+        commissions:
+          type: array
+          items:
+            type: object
+            required: [commission, total, notOnboarded, lastRosterImportAt]
+            properties:
+              commission:
+                $ref: '#/components/schemas/CommissionRef'
+              total:
+                $ref: '#/components/schemas/StatusCounts'
+              notOnboarded:
+                type: integer
+              lastRosterImportAt:
+                type: [string, 'null']
+                format: date-time
+        totals:
+          $ref: '#/components/schemas/StatusCounts'
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
