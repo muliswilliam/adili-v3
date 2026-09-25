@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.output
+**/.turbo
+**/coverage
+**/.env
+**/.venv
+**/__pycache__
+.git
+docs
