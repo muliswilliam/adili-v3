@@ -15,6 +15,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 | Understand scale and sizing | [Scope and scale](research/dials-scope-and-scale.md) · [Database sizing](research/database-sizing.md) |
 | Learn the domain vocabulary | [CONTEXT.md](../CONTEXT.md) |
 | Look up a code or issuer (`DCB`, `TSC`) | [Glossary](glossary.md) |
+| Build UI: tokens, components and how Figma maps to code | [Design](design.md) |
 | Work with agent skills (issue tracker, triage labels, domain docs) | [Agent config](agents/) |
 | Read the legislation | [Legal reference](reference/legal/) |
 
@@ -28,6 +29,7 @@ docs/
 ├── requirements/     # legal traceability, user story coverage, flowcharts
 ├── research/         # scope, population, sizing
 ├── reference/legal/  # Conflict of Interest Act 2025, Regulations 2026
+├── design.md         # Figma style guide mapped to packages/ui tokens and components
 └── glossary.md       # reference-number codes, issuer codes, key terms
 ```
 
