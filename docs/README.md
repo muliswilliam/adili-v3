@@ -11,6 +11,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 | See how the law maps to features | [Legal traceability matrix](requirements/legal-traceability.md) |
 | See how EACC's user stories are covered | [User story coverage](requirements/user-stories.md) |
 | See the product team's process flowcharts (onboarding, DIALs, access) | [Flowcharts](requirements/dials-flowcharts.html) |
+| Pick up a ticket: read its spec (the epic issue) and the API contract | [Epics](https://github.com/muliswilliam/adili-v3/issues?q=label%3Aepic) · [Internal contracts](../packages/schemas/internal/) |
 | Understand scale and sizing | [Scope and scale](research/dials-scope-and-scale.md) · [Database sizing](research/database-sizing.md) |
 | Learn the domain vocabulary | [CONTEXT.md](../CONTEXT.md) |
 | Look up a code or issuer (`DCB`, `TSC`) | [Glossary](glossary.md) |
