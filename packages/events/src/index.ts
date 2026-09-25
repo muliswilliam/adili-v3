@@ -1,0 +1,24 @@
+export {
+  createEnvelope,
+  type EventEnvelope,
+  eventEnvelopeSchema,
+  type NewEvent,
+} from './envelope.js';
+export {
+  EventPublisher,
+  EventsModule,
+  type EventsModuleOptions,
+  OutboxRelay,
+  RabbitMqReadinessCheck,
+} from './events.module.js';
+export { consumeOnce } from './inbox.js';
+export { OnEvent, RmqAckInterceptor } from './on-event.decorator.js';
+export { eventsSchema, inbox, outbox } from './schema.js';
+export { type EventsServerOptions, eventsServerOptions } from './server-options.js';
+export {
+  DEAD_LETTER_EXCHANGE,
+  deadLetterQueue,
+  EVENTS_EXCHANGE,
+  eventsQueue,
+  eventsQueueArguments,
+} from './topology.js';
