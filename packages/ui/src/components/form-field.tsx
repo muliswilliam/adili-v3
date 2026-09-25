@@ -1,8 +1,9 @@
+import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { Slot } from '@radix-ui/react-slot';
-import { CircleAlertIcon } from 'lucide-react';
 import { type ComponentProps, type ReactElement, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
+import { Icon } from './icon';
 import { Label } from './label';
 
 export function FieldHint({ className, ...props }: ComponentProps<'p'>) {
@@ -20,7 +21,7 @@ export function FieldError({ className, children, ...props }: ComponentProps<'p'
       className={cn('flex items-start gap-1.5 text-[13px] font-medium text-destructive', className)}
       {...props}
     >
-      <CircleAlertIcon className="mt-px size-[15px] shrink-0" aria-hidden="true" />
+      <Icon icon={AlertCircleIcon} className="mt-px size-[15px]" />
       <span>{children}</span>
     </p>
   );

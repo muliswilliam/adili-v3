@@ -1,9 +1,9 @@
-import { Button, Input, Label } from '@adili/ui';
+import { Button, Icon, Input, Label } from '@adili/ui';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useScript } from 'keycloakify/login/pages/Login.useScript';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { useIsPasswordRevealed } from 'keycloakify/tools/useIsPasswordRevealed';
-import { Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Key01Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
 import type { I18n } from '../i18n';
@@ -187,7 +187,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
             size="lg"
             className="w-full"
           >
-            <KeyRound aria-hidden="true" />
+            <Icon icon={Key01Icon} />
             {msgStr('passkey-doAuthenticate')}
           </Button>
         </>
@@ -222,9 +222,9 @@ function PasswordInput({ i18n, hasError }: { i18n: I18n; hasError: boolean }) {
         onClick={toggleIsPasswordRevealed}
       >
         {isPasswordRevealed ? (
-          <EyeOff className="size-4" aria-hidden="true" />
+          <Icon icon={ViewOffSlashIcon} className="size-4" />
         ) : (
-          <Eye className="size-4" aria-hidden="true" />
+          <Icon icon={ViewIcon} className="size-4" />
         )}
       </button>
     </div>

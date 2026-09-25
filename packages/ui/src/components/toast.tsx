@@ -1,4 +1,4 @@
-import { CheckIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { Alert02Icon, Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import {
   createContext,
   type ReactNode,
@@ -9,6 +9,9 @@ import {
   useRef,
   useState,
 } from 'react';
+
+import { cn } from '../lib/cn';
+import { Icon } from './icon';
 
 /**
  * `polite` waits for the screen reader to finish (confirmations); `assertive` interrupts
@@ -100,11 +103,10 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
 
   return (
     <div className="pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl bg-foreground py-[11px] pr-2 pl-4 text-sm text-background shadow-2xl">
-      {assertive ? (
-        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      ) : (
-        <CheckIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      )}
+      <Icon
+        icon={assertive ? Alert02Icon : Tick02Icon}
+        className={cn('mt-0.5', assertive && 'text-brand')}
+      />
       <div className="grid min-w-0 gap-0.5">
         <div className="font-medium">{entry.title}</div>
         {entry.description ? <div className="opacity-80">{entry.description}</div> : null}
@@ -116,7 +118,7 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
         }}
         className="-my-0.5 flex size-6 shrink-0 items-center justify-center rounded-md opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-background"
       >
-        <XIcon className="size-4" aria-hidden="true" />
+        <Icon icon={Cancel01Icon} />
         <span className="sr-only">Dismiss notification</span>
       </button>
     </div>

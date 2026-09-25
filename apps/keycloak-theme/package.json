@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@adili/ui": "workspace:*",
+    "@hugeicons/core-free-icons": "^4.3.5",
     "keycloakify": "^11.16.0",
-    "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

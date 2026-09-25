@@ -20,7 +20,7 @@ describe('Button', () => {
 
     const link = screen.getByRole('link', { name: 'Sign in' });
     expect(link.getAttribute('href')).toBe('/auth/login');
-    expect(link.className).toContain('border-input');
+    expect(link.className).toContain('shadow-control');
   });
 });
 

@@ -1,18 +1,24 @@
-import { Alert, AlertDescription, LogoMark } from '@adili/ui';
+import { Alert, AlertDescription, Icon, LogoMark } from '@adili/ui';
+import {
+  Alert02Icon,
+  AlertCircleIcon,
+  CheckmarkCircle02Icon,
+  InformationCircleIcon,
+  RotateLeft01Icon,
+} from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useInitialize } from 'keycloakify/login/Template.useInitialize';
 import type { TemplateProps } from 'keycloakify/login/TemplateProps';
-import { CircleAlert, CircleCheck, Info, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useEffect } from 'react';
 
 import type { I18n } from './i18n';
 import type { KcContext } from './KcContext';
 
 const messageIcons = {
-  success: CircleCheck,
-  warning: TriangleAlert,
-  error: CircleAlert,
-  info: Info,
+  success: CheckmarkCircle02Icon,
+  warning: Alert02Icon,
+  error: AlertCircleIcon,
+  info: InformationCircleIcon,
 } as const;
 
 /** Page frame for every login flow: brand, card, messages and language switch. */
@@ -43,7 +49,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
     displayMessage &&
     message !== undefined &&
     (message.type !== 'warning' || !isAppInitiatedAction);
-  const MessageIcon = message ? messageIcons[message.type] : Info;
+  const messageIcon = message ? messageIcons[message.type] : InformationCircleIcon;
   const showAttemptedUsername = auth?.showUsername === true && !auth.showResetCredentials;
 
   return (
@@ -66,12 +72,12 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                     href={url.loginRestartFlowUrl}
                     className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <RotateCcw className="size-3.5" aria-hidden="true" />
+                    <Icon icon={RotateLeft01Icon} className="size-3.5" />
                     {msg('restartLoginTooltip')}
                   </a>
                 </div>
               ) : (
-                <h1 id="kc-page-title" className="text-xl font-semibold tracking-tight">
+                <h1 id="kc-page-title" className="text-lg font-semibold tracking-tight">
                   {headerNode}
                 </h1>
               )}
@@ -88,7 +94,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                         : 'info'
                   }
                 >
-                  <MessageIcon aria-hidden="true" />
+                  <Icon icon={messageIcon} />
                   <AlertDescription
                     dangerouslySetInnerHTML={{ __html: kcSanitize(message.summary) }}
                   />
