@@ -10,13 +10,7 @@ export function FieldHint({ className, ...props }: ComponentProps<'p'>) {
 
 /** Announced as soon as it appears, so screen reader users hear new validation errors. */
 export function FieldError({ className, ...props }: ComponentProps<'p'>) {
-  return (
-    <p
-      role="alert"
-      className={cn('text-[13px] font-medium text-destructive', className)}
-      {...props}
-    />
-  );
+  return <p role="alert" className={cn('text-[13px] text-destructive', className)} {...props} />;
 }
 
 /** Space-separated ids for aria-describedby, or undefined when there are none. */
@@ -51,8 +45,10 @@ export function FormField({
   const errorId = error ? `${id}-error` : undefined;
 
   return (
-    <div className={cn('grid gap-2', className)} {...props}>
-      <Label htmlFor={id}>{label}</Label>
+    <div className={cn('grid content-start gap-1.5', className)} {...props}>
+      <Label htmlFor={id} className={error ? 'text-destructive' : undefined}>
+        {label}
+      </Label>
       {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
       <Slot
         id={id}

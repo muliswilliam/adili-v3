@@ -1,4 +1,4 @@
-import { XIcon } from 'lucide-react';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import {
   createContext,
   type ReactNode,
@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { cn } from '../lib/cn';
+import { Icon } from './icon';
 
 /**
  * `polite` waits for the screen reader to finish (confirmations); `assertive` interrupts
@@ -118,7 +119,7 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
         }}
         className="absolute top-3 right-3 rounded-sm p-0.5 opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <XIcon className="size-4" aria-hidden="true" />
+        <Icon icon={Cancel01Icon} />
         <span className="sr-only">Dismiss notification</span>
       </button>
     </div>

@@ -7,10 +7,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Icon,
   SiteHeader,
 } from '@adili/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { CalendarClock, CircleAlert, FileCheck2, UserRoundCheck } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  Calendar03Icon,
+  FileValidationIcon,
+  UserCheck01Icon,
+} from '@hugeicons/core-free-icons';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
@@ -61,7 +67,7 @@ function Landing({ error }: { error: string | null }) {
             <div className="grid gap-6">
               {error ? (
                 <Alert variant="destructive" className="max-w-xl">
-                  <CircleAlert aria-hidden="true" />
+                  <Icon icon={AlertCircleIcon} />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               ) : null}
@@ -84,7 +90,7 @@ function Landing({ error }: { error: string | null }) {
             <Card className="lg:justify-self-end lg:w-full lg:max-w-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CalendarClock className="size-4 text-primary" aria-hidden="true" />
+                  <Icon icon={Calendar03Icon} className="size-4 text-primary" />
                   When to declare
                 </CardTitle>
                 <CardDescription>Conflict of Interest Act, 2025</CardDescription>
@@ -109,12 +115,12 @@ function Landing({ error }: { error: string | null }) {
         </section>
         <section className="mx-auto grid max-w-6xl gap-6 px-4 py-14 sm:grid-cols-2 sm:px-6">
           <Feature
-            icon={<UserRoundCheck aria-hidden="true" />}
+            icon={<Icon icon={UserCheck01Icon} />}
             title="Verified identity"
             text="Your account is checked against the national population register before you file, so nobody can file in your name."
           />
           <Feature
-            icon={<FileCheck2 aria-hidden="true" />}
+            icon={<Icon icon={FileValidationIcon} />}
             title="Verifiable acknowledgement"
             text="Every submission receives a reference number and a QR code that confirms the acknowledgement is genuine."
           />
@@ -154,7 +160,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
         <div className="grid gap-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Welcome, {firstName}</h1>
           <p className="text-muted-foreground">
             Your declarations and filing obligations will appear here.
           </p>
@@ -168,7 +174,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                <CalendarClock className="size-6 text-muted-foreground" aria-hidden="true" />
+                <Icon icon={Calendar03Icon} className="size-6 text-muted-foreground" />
                 <p className="text-sm font-medium">No obligations yet</p>
                 <p className="max-w-xs text-sm text-muted-foreground">
                   Obligations appear here when a declaration falls due under your Commission's

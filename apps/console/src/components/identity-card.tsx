@@ -11,8 +11,9 @@ import {
   CardTitle,
   DescriptionItem,
   DescriptionList,
+  Icon,
 } from '@adili/ui';
-import { CircleAlert, ShieldCheck } from 'lucide-react';
+import { AlertCircleIcon, SecurityCheckIcon } from '@hugeicons/core-free-icons';
 
 import type { PrincipalResult } from '../server/directory.server';
 
@@ -32,7 +33,7 @@ export function IdentityCard({
         </div>
         {directory.ok ? (
           <Badge>
-            <ShieldCheck className="size-3.5" aria-hidden="true" />
+            <Icon icon={SecurityCheckIcon} className="size-3.5" />
             Verified
           </Badge>
         ) : null}
@@ -69,7 +70,7 @@ export function IdentityCard({
         </DescriptionList>
         {directory.ok ? null : (
           <Alert variant="warning">
-            <CircleAlert aria-hidden="true" />
+            <Icon icon={AlertCircleIcon} />
             <AlertTitle>Account details unavailable</AlertTitle>
             <AlertDescription>{directory.reason}. Please try again shortly.</AlertDescription>
           </Alert>

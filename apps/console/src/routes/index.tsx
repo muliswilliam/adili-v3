@@ -8,10 +8,17 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Icon,
   SiteHeader,
 } from '@adili/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { Building2, CircleAlert, ClipboardCheck, FileBarChart2, Lock } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  Building03Icon,
+  ClipboardCheckIcon,
+  FileChartColumnIcon,
+  SquareLock02Icon,
+} from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
 
@@ -49,7 +56,7 @@ function Landing({ error }: { error: string | null }) {
           <div className="grid gap-6">
             {error ? (
               <Alert variant="destructive" className="max-w-xl">
-                <CircleAlert aria-hidden="true" />
+                <Icon icon={AlertCircleIcon} />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
@@ -70,17 +77,17 @@ function Landing({ error }: { error: string | null }) {
           </div>
           <ul className="grid gap-4">
             <Capability
-              icon={<ClipboardCheck aria-hidden="true" />}
+              icon={<Icon icon={ClipboardCheckIcon} />}
               title="Review and verify"
               text="Analyse declarations, request clarifications and record determinations, with a second officer approving every decision."
             />
             <Capability
-              icon={<Building2 aria-hidden="true" />}
+              icon={<Icon icon={Building03Icon} />}
               title="Your organisation only"
               text="You see the declarants of your Commission and nothing else. Every read is recorded in the audit trail."
             />
             <Capability
-              icon={<FileBarChart2 aria-hidden="true" />}
+              icon={<Icon icon={FileChartColumnIcon} />}
               title="Report to EACC"
               text="Compliance reports (Form M) are compiled from the data your Commission already holds."
             />
@@ -122,7 +129,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
         <div className="grid gap-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Overview</h1>
           <p className="text-muted-foreground">Signed in as {viewer.user.name}.</p>
         </div>
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
@@ -155,7 +162,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
                 </ul>
               ) : (
                 <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                  <Lock className="size-6 text-muted-foreground" aria-hidden="true" />
+                  <Icon icon={SquareLock02Icon} className="size-6 text-muted-foreground" />
                   <p className="text-sm font-medium">No staff roles</p>
                   <p className="max-w-xs text-sm text-muted-foreground">
                     Your account has no console access. Declarants file through the portal.

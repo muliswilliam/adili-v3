@@ -1,8 +1,9 @@
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
+import { Icon } from './icon';
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -53,7 +54,7 @@ export function DialogContent({
           disabled={busy}
           className="absolute top-4 right-4 rounded-sm p-1 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
         >
-          <XIcon className="size-4" aria-hidden="true" />
+          <Icon icon={Cancel01Icon} />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

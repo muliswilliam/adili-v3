@@ -5,23 +5,29 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 
 export const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-sm leading-4 whitespace-nowrap transition-[background-color,box-shadow] outline-none select-none disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
+      // Primary, secondary, ghost and destructive follow the style guide; outline is a
+      // quieter secondary for toolbars and headers.
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/70',
+        default:
+          'bg-primary text-primary-foreground shadow-button-primary hover:bg-primary-hover hover:shadow-button-primary-hover focus-visible:bg-primary-hover focus-visible:shadow-button-primary-focus',
+        secondary:
+          'bg-secondary text-secondary-foreground shadow-button-secondary hover:bg-secondary-hover focus-visible:bg-secondary-hover focus-visible:shadow-button-secondary-focus',
         outline:
-          'border border-input bg-card text-foreground shadow-xs hover:bg-muted hover:text-foreground',
-        ghost: 'text-foreground hover:bg-muted',
-        destructive: 'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'bg-card text-foreground shadow-control hover:shadow-control-hover focus-visible:shadow-control-focus',
+        ghost:
+          'text-foreground hover:bg-secondary-hover focus-visible:bg-secondary-hover focus-visible:shadow-button-secondary-focus',
+        destructive:
+          'bg-destructive text-destructive-foreground shadow-button-destructive hover:bg-destructive-hover focus-visible:bg-destructive-hover focus-visible:shadow-button-destructive-focus',
+        link: 'rounded-sm text-foreground underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring',
       },
       size: {
-        sm: 'h-8 px-3 text-[13px]',
-        default: 'h-10 px-4',
-        lg: 'h-11 px-6 text-[15px]',
-        icon: 'size-10',
+        sm: 'h-7 px-2.5 text-[13px]',
+        default: 'h-8 px-3',
+        lg: 'h-10 px-4',
+        icon: 'size-8',
       },
     },
     // Links sit inline with text, so they drop the size padding.
