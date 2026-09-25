@@ -1,0 +1,258 @@
+openapi: 3.1.0
+info:
+  title: documents API - uploads (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 02 (roster import). Presigned uploads to quarantine,
+    ClamAV scan on completion, presigned download of clean objects for other services.
+    The documents service's Swagger document becomes the source of truth once implemented.
+servers:
+  - url: http://localhost:4006
+security:
+  - bearer: []
+tags:
+  - name: uploads
+  - name: internal
+paths:
+  /v1/uploads:
+    post:
+      tags: [uploads]
+      operationId: createUpload
+      summary: Reserve an upload and get a presigned PUT to quarantine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUpload'
+      responses:
+        '201':
+          description: Upload reserved; PUT the bytes to uploadUrl before expiresAt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadReservation'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/uploads/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UploadId'
+    get:
+      tags: [uploads]
+      operationId: getUpload
+      summary: Upload state and metadata
+      responses:
+        '200':
+          description: The upload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/uploads/{id}/complete:
+    parameters:
+      - $ref: '#/components/parameters/UploadId'
+    post:
+      tags: [uploads]
+      operationId: completeUpload
+      summary: Verify, scan and move the uploaded object to the clean bucket
+      description: |
+        Synchronous for purposes with small size limits (roster-import, 50 MB). Returns the
+        final state: clean, infected or rejected (type, size, missing, timeout).
+      responses:
+        '200':
+          description: Final state after scanning
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Upload already completed or expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/uploads/{id}/download:
+    parameters:
+      - $ref: '#/components/parameters/UploadId'
+    get:
+      tags: [internal]
+      operationId: getUploadDownload
+      summary: Short-lived presigned GET on a clean object, for services
+      description: Not routed by the public entrypoint. Caller acts for the upload's tenant.
+      responses:
+        '200':
+          description: Download URL valid for a few minutes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDownload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Upload is not clean
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UploadId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    UploadPurpose:
+      type: string
+      description: Sets allowed content types and the size limit
+      enum: [roster-import]
+    UploadState:
+      type: string
+      enum: [awaiting-upload, clean, infected, rejected, expired]
+    UploadRejection:
+      type: string
+      enum: [type, size, missing, timeout]
+    CreateUpload:
+      type: object
+      required: [purpose, contentType, declaredSize]
+      properties:
+        purpose:
+          $ref: '#/components/schemas/UploadPurpose'
+        contentType:
+          type: string
+          examples:
+            ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        declaredSize:
+          type: integer
+          minimum: 1
+          description: Bytes; must be within the purpose's limit
+        fileName:
+          type: string
+          maxLength: 255
+          description: Display only; never used as an object key
+    UploadReservation:
+      type: object
+      required: [id, uploadUrl, expiresAt, maxSize]
+      properties:
+        id:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+          description: Presigned PUT; send the raw bytes with the declared content type
+        expiresAt:
+          type: string
+          format: date-time
+        maxSize:
+          type: integer
+    Upload:
+      type: object
+      required: [id, purpose, state, contentType, declaredSize, fileName, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        purpose:
+          $ref: '#/components/schemas/UploadPurpose'
+        state:
+          $ref: '#/components/schemas/UploadState'
+        rejection:
+          oneOf:
+            - $ref: '#/components/schemas/UploadRejection'
+            - type: 'null'
+        contentType:
+          type: string
+          description: Declared type; detectedType is set after completion
+        detectedType:
+          type: [string, 'null']
+        declaredSize:
+          type: integer
+        size:
+          type: [integer, 'null']
+        sha256:
+          type: [string, 'null']
+          description: Hex digest, set when clean
+        fileName:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+    UploadDownload:
+      type: object
+      required: [id, state, downloadUrl, expiresAt, sha256, size]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          const: clean
+        downloadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+        size:
+          type: integer
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
