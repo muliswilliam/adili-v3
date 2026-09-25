@@ -12,7 +12,9 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 | See how EACC's user stories are covered | [User story coverage](requirements/user-stories.md) |
 | See the product team's process flowcharts (onboarding, DIALs, access) | [Flowcharts](requirements/dials-flowcharts.html) |
 | Understand scale and sizing | [Scope and scale](research/dials-scope-and-scale.md) · [Database sizing](research/database-sizing.md) |
-| Look up a code or term (`DCB`, `TSC`, "material change") | [Glossary](glossary.md) |
+| Learn the domain vocabulary | [CONTEXT.md](../CONTEXT.md) |
+| Look up a code or issuer (`DCB`, `TSC`) | [Glossary](glossary.md) |
+| Work with agent skills (issue tracker, triage labels, domain docs) | [Agent config](agents/) |
 | Read the legislation | [Legal reference](reference/legal/) |
 
 ## Layout
@@ -21,6 +23,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 docs/
 ├── architecture/     # system architecture and diagrams
 ├── adr/              # architecture decision records (0001-0014)
+├── agents/           # config read by engineering agent skills
 ├── requirements/     # legal traceability, user story coverage, flowcharts
 ├── research/         # scope, population, sizing
 ├── reference/legal/  # Conflict of Interest Act 2025, Regulations 2026
