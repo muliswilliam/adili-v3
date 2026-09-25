@@ -1,0 +1,58 @@
+[project]
+name = "adili-mocks"
+version = "0.0.0"
+description = "Simulated Kenyan government systems (IPRS, KRA, NTSA, BRS, ArdhiSasa, HR, payroll, ICMS, SMS) for the DIALs platform"
+requires-python = ">=3.13"
+dependencies = [
+    "django>=6.1,<6.2",
+    "djangorestframework>=3.18",
+    "drf-spectacular>=0.30",
+    "dj-database-url>=3.1",
+    "psycopg[binary]>=3.3",
+    "gunicorn>=26.2",
+]
+
+[dependency-groups]
+dev = [
+    "django-stubs[compatible-mypy]>=6.1",
+    "djangorestframework-stubs[compatible-mypy]>=3.18",
+    "mypy>=2.3",
+    "pytest>=9.1",
+    "pytest-django>=4.14",
+    "ruff>=0.16",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "SIM", "RUF", "PT", "N"]
+# Django `Meta` options and DRF view attributes are class-level lists by design.
+ignore = ["RUF012"]
+
+[tool.mypy]
+strict = true
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+exclude = ["/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["dj_database_url.*", "drf_spectacular.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# drf-spectacular ships without type hints.
+module = ["demo.management.commands.export_contracts"]
+disallow_untyped_calls = false
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py"]
+addopts = "--reuse-db"

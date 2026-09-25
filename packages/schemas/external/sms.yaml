@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: SMS gateway - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for SMS gateway. Served by the
+    Django mock in `mocks/` during development and demos.
+paths:
+  /sms:
+    get:
+      operationId: listMessages
+      description: Send an SMS, or list sent messages (optionally `?to=`) to inspect
+        them in demos.
+      security:
+        - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+          description: ''
+    post:
+      operationId: sendMessage
+      description: Send an SMS, or list sent messages (optionally `?to=`) to inspect
+        them in demos.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+        required: true
+      security:
+        - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /sms/{message_id}:
+    get:
+      operationId: getMessage
+      parameters:
+        - in: path
+          name: message_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      security:
+        - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          readOnly: true
+        to:
+          type: string
+          description: Kenyan mobile number in E.164
+          pattern: ^\+254[17]\d{8}$
+        sender_id:
+          type: string
+          maxLength: 11
+        message:
+          type: string
+          maxLength: 918
+        status:
+          allOf:
+            - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        received_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - message
+        - message_id
+        - received_at
+        - status
+        - to
+    MessageRequest:
+      type: object
+      properties:
+        to:
+          type: string
+          minLength: 1
+          description: Kenyan mobile number in E.164
+          pattern: ^\+254[17]\d{8}$
+        sender_id:
+          type: string
+          minLength: 1
+          maxLength: 11
+        message:
+          type: string
+          minLength: 1
+          maxLength: 918
+      required:
+        - message
+        - to
+    StatusEnum:
+      enum:
+        - delivered
+      type: string
+      description: '* `delivered` - Delivered'

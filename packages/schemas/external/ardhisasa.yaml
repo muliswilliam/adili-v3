@@ -1,0 +1,94 @@
+openapi: 3.1.0
+info:
+  title: ArdhiSasa (National Land Information Management System) - simulated
+  version: 1.0.0
+  description: Contract the DIALs platform relies on for ArdhiSasa (National Land
+    Information Management System). Served by the Django mock in `mocks/` during development
+    and demos.
+paths:
+  /ardhisasa/v1/owners/{id_number}/parcels:
+    get:
+      operationId: listParcelsByOwner
+      description: Parcels registered to a national ID number; empty when there are
+        none.
+      parameters:
+        - in: path
+          name: id_number
+          schema:
+            type: string
+          required: true
+      tags:
+        - owners
+      security:
+        - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Parcel'
+          description: ''
+        '404':
+          description: No record with this identifier
+  /ardhisasa/v1/parcels/{parcel_number}:
+    get:
+      operationId: getParcel
+      parameters:
+        - in: path
+          name: parcel_number
+          schema:
+            type: string
+          required: true
+      tags:
+        - parcels
+      security:
+        - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parcel'
+          description: ''
+        '404':
+          description: No record with this identifier
+components:
+  schemas:
+    Parcel:
+      type: object
+      properties:
+        parcel_number:
+          type: string
+          maxLength: 60
+        county:
+          type: string
+          maxLength: 50
+        area_hectares:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
+        tenure:
+          $ref: '#/components/schemas/TenureEnum'
+        owner_id_number:
+          type: string
+          maxLength: 10
+        registered_on:
+          type: string
+          format: date
+      required:
+        - area_hectares
+        - county
+        - owner_id_number
+        - parcel_number
+        - registered_on
+        - tenure
+    TenureEnum:
+      enum:
+        - freehold
+        - leasehold
+      type: string
+      description: |-
+        * `freehold` - Freehold
+        * `leasehold` - Leasehold
