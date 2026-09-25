@@ -34,12 +34,8 @@
   },
   "prereqs": {
     "node": ">=24",
-    "urls": [
-      "http://localhost:8080/realms/adili"
-    ],
-    "recommendedUrls": [
-      "http://localhost:4001/health/ready"
-    ]
+    "urls": ["http://localhost:8080/realms/adili"],
+    "recommendedUrls": ["http://localhost:4001/health/ready"]
   },
   "gemini": {
     "videoModel": "gemini-3.8-flash",

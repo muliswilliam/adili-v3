@@ -6,6 +6,7 @@ dist
 coverage
 **/migrations/meta
 **/routeTree.gen.ts
+apps/console/src/server/directory/schema.gen.ts
 docs/reference
 mocks
 apps/keycloak-theme/src/kc.gen.tsx

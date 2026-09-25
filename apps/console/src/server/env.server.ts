@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 export const envSchema = bffEnvSchema.extend({
   DIRECTORY_API_URL: z.url(),
+  /** Serve Commission endpoints from in-memory fixtures until the directory implements them (#13). */
+  DIRECTORY_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

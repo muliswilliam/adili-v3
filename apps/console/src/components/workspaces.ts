@@ -1,11 +1,26 @@
+import type { LinkProps } from '@tanstack/react-router';
+
 export interface Workspace {
   id: string;
   title: string;
   description: string;
+  /** Where the workspace lives; workspaces without one are not built yet. */
+  href?: LinkProps['to'];
 }
 
+interface WorkspaceEntry extends Workspace {
+  /** Realm roles that open the workspace. */
+  roles: readonly string[];
+  /** Roles that may change things; everyone else in `roles` gets read-only access. */
+  writeRoles?: readonly string[];
+  /** Shown instead of `description` to read-only users. */
+  readOnlyDescription?: string;
+}
+
+export type WorkspaceAccess = 'write' | 'read' | null;
+
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
-const WORKSPACES: (Workspace & { roles: readonly string[] })[] = [
+const WORKSPACES: WorkspaceEntry[] = [
   {
     id: 'review',
     title: 'Review queue',
@@ -38,6 +53,15 @@ const WORKSPACES: (Workspace & { roles: readonly string[] })[] = [
     roles: ['commission-admin'],
   },
   {
+    id: 'commissions',
+    title: 'Commissions',
+    description: 'Create Responsible Commissions and assign their reporting officers.',
+    readOnlyDescription: 'Responsible Commissions, their reporting officers and roster coverage.',
+    href: '/commissions',
+    roles: ['platform-admin', 'eacc-analyst', 'eacc-supervisor'],
+    writeRoles: ['platform-admin'],
+  },
+  {
     id: 'compliance',
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
@@ -63,9 +87,31 @@ const WORKSPACES: (Workspace & { roles: readonly string[] })[] = [
   },
 ];
 
+function hasAny(roles: readonly string[], wanted: readonly string[]): boolean {
+  return wanted.some((role) => roles.includes(role));
+}
+
+function accessTo(entry: WorkspaceEntry, roles: readonly string[]): WorkspaceAccess {
+  if (!hasAny(roles, entry.roles)) return null;
+  return !entry.writeRoles || hasAny(roles, entry.writeRoles) ? 'write' : 'read';
+}
+
 /** The console areas a user's roles give access to. */
 export function workspacesFor(roles: readonly string[]): Workspace[] {
-  return WORKSPACES.filter((workspace) => workspace.roles.some((role) => roles.includes(role))).map(
-    ({ id, title, description }) => ({ id, title, description }),
-  );
+  return WORKSPACES.flatMap((entry) => {
+    const access = accessTo(entry, roles);
+    if (!access) return [];
+    const { id, title, href } = entry;
+    const description =
+      access === 'read' && entry.readOnlyDescription
+        ? entry.readOnlyDescription
+        : entry.description;
+    return [{ id, title, description, href }];
+  });
+}
+
+/** Whether a user's roles open a workspace, and whether they may change things in it. */
+export function workspaceAccess(id: string, roles: readonly string[]): WorkspaceAccess {
+  const entry = WORKSPACES.find((workspace) => workspace.id === id);
+  return entry ? accessTo(entry, roles) : null;
 }
