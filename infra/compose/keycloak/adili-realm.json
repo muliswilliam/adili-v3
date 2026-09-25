@@ -1,0 +1,380 @@
+{
+  "realm": "adili",
+  "displayName": "Adili Online",
+  "enabled": true,
+  "loginTheme": "adili",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "internationalizationEnabled": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "declarant",
+        "description": "Public officer filing declarations"
+      },
+      {
+        "name": "hr-focal-point",
+        "description": "Employer HR focal point"
+      },
+      {
+        "name": "reviewer",
+        "description": "Commission reviewer"
+      },
+      {
+        "name": "supervisor",
+        "description": "Commission supervisor / approver"
+      },
+      {
+        "name": "commission-admin",
+        "description": "Commission administrator"
+      },
+      {
+        "name": "access-officer",
+        "description": "Decides Form K and law enforcement requests"
+      },
+      {
+        "name": "eacc-analyst",
+        "description": "EACC analyst"
+      },
+      {
+        "name": "eacc-supervisor",
+        "description": "EACC supervisor"
+      },
+      {
+        "name": "auditor",
+        "description": "Reads the audit trail"
+      },
+      {
+        "name": "helpdesk",
+        "description": "Account support"
+      },
+      {
+        "name": "platform-admin",
+        "description": "Operates the platform"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "portal",
+      "name": "Adili portal",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "portal-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3010/*"],
+      "webOrigins": ["http://localhost:3010"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3010/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "console",
+      "name": "Adili console",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "console-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3020/*"],
+      "webOrigins": ["http://localhost:3020"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3020/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}], \"groups\": []}"
+          ]
+        }
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "declarant",
+      "email": "declarant@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Wanjiku",
+      "lastName": "Kamau",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["psc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "declarant"]
+    },
+    {
+      "username": "hr",
+      "email": "hr@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Otieno",
+      "lastName": "Odhiambo",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["psc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "hr-focal-point"]
+    },
+    {
+      "username": "reviewer",
+      "email": "reviewer@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Achieng",
+      "lastName": "Njeri",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["psc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "reviewer"]
+    },
+    {
+      "username": "supervisor",
+      "email": "supervisor@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Kiprono",
+      "lastName": "Chebet",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["psc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "supervisor"]
+    },
+    {
+      "username": "commission-admin",
+      "email": "commission-admin@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Mwangi",
+      "lastName": "Wairimu",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["psc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "commission-admin"]
+    },
+    {
+      "username": "access-officer",
+      "email": "access-officer@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Amina",
+      "lastName": "Hassan",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["psc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "access-officer"]
+    },
+    {
+      "username": "eacc-analyst",
+      "email": "eacc-analyst@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Baraka",
+      "lastName": "Mutua",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["eacc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "eacc-analyst"]
+    },
+    {
+      "username": "eacc-supervisor",
+      "email": "eacc-supervisor@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Nafula",
+      "lastName": "Wekesa",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["eacc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "eacc-supervisor"]
+    },
+    {
+      "username": "auditor",
+      "email": "auditor@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Kariuki",
+      "lastName": "Muriithi",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["eacc"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "auditor"]
+    },
+    {
+      "username": "helpdesk",
+      "email": "helpdesk@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Zawadi",
+      "lastName": "Akinyi",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["platform"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "helpdesk"]
+    },
+    {
+      "username": "platform-admin",
+      "email": "platform-admin@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Juma",
+      "lastName": "Omondi",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["platform"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "platform-admin"]
+    }
+  ]
+}

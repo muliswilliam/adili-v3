@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "adili-dev",
+      "credentials": [{ "accessKey": "adili-dev-access", "secretKey": "adili-dev-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
