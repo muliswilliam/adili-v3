@@ -18,8 +18,8 @@
         "description": "Public officer filing declarations"
       },
       {
-        "name": "hr-focal-point",
-        "description": "Employer HR focal point"
+        "name": "reporting-officer",
+        "description": "Commission reporting officer: roster import and onboarding support"
       },
       {
         "name": "reviewer",
@@ -187,8 +187,8 @@
       "realmRoles": ["default-roles-adili", "declarant"]
     },
     {
-      "username": "hr",
-      "email": "hr@demo.adili.go.ke",
+      "username": "reporting-officer",
+      "email": "reporting-officer@demo.adili.go.ke",
       "emailVerified": true,
       "firstName": "Otieno",
       "lastName": "Odhiambo",
@@ -203,7 +203,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["default-roles-adili", "hr-focal-point"]
+      "realmRoles": ["default-roles-adili", "reporting-officer"]
     },
     {
       "username": "reviewer",

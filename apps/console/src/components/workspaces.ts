@@ -25,10 +25,11 @@ const WORKSPACES: (Workspace & { roles: readonly string[] })[] = [
     roles: ['access-officer'],
   },
   {
-    id: 'employment',
-    title: 'Employment verification',
-    description: 'Confirm employment claims and upload staff rosters.',
-    roles: ['hr-focal-point'],
+    id: 'roster',
+    title: 'Declarant roster',
+    description:
+      "Import and maintain your Commission's roster and help officers who cannot onboard.",
+    roles: ['reporting-officer'],
   },
   {
     id: 'commission',

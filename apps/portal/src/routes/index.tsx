@@ -171,7 +171,8 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
                 <CalendarClock className="size-6 text-muted-foreground" aria-hidden="true" />
                 <p className="text-sm font-medium">No obligations yet</p>
                 <p className="max-w-xs text-sm text-muted-foreground">
-                  Obligations are created once your employment is verified by your employer.
+                  Obligations appear here when a declaration falls due under your Commission's
+                  roster.
                 </p>
               </div>
             </CardContent>

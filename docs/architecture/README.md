@@ -59,8 +59,8 @@ Full analysis: [research/dials-scope-and-scale.md](../research/dials-scope-and-s
 
 | Area | Capabilities |
 |---|---|
-| Declarant | Verified self-registration; bio data pre-fill; declaration type derived automatically; household; per-person financial statements; document upload with AI pre-fill; material-change comparison; sign and submit; acknowledgement with QR; clarification responses; "who accessed my declaration" |
-| Responsible Commission | Roster and employment verification; review queues; deterministic + AI-assisted analysis; clarifications; compliance determinations; administrative actions (incl. payroll instructions); referrals; Form M |
+| Declarant | Roster-matched self-onboarding; bio data pre-fill; declaration type derived automatically; household; per-person financial statements; document upload with AI pre-fill; material-change comparison; sign and submit; acknowledgement with QR; clarification responses; "who accessed my declaration" |
+| Responsible Commission | Roster import and upkeep; review queues; deterministic + AI-assisted analysis; clarifications; compliance determinations; administrative actions (incl. payroll instructions); referrals; Form M |
 | EACC | Form M intake and analysis; national consolidation; non-compliance reporting to ICMS; oversight dashboards; open data |
 | Access | Form K requests with declarant representations; law enforcement requests; watermarked disclosure packages |
 | Cross-cutting | Multi-tenancy with delegations; reference numbers; verifiable documents; tamper-evident audit; notifications; public and agency APIs |
@@ -87,7 +87,6 @@ flowchart LR
     subgraph People
         D["Declarant<br/>(public officer)"]
         CS["Commission staff<br/>(reviewers, approvers, admins)"]
-        HR["Employer HR focal point"]
         EA["EACC officers<br/>(analysts, supervisors)"]
         AP["Public applicant<br/>(Form K)"]
         V["Anyone verifying<br/>a document"]
@@ -117,7 +116,6 @@ flowchart LR
 
     D --> ADILI
     CS --> ADILI
-    HR --> ADILI
     EA --> ADILI
     AP --> ADILI
     V --> ADILI
@@ -174,7 +172,7 @@ flowchart TB
 
 | Service | Owns (data) | Key responsibilities | Temporal workflows hosted |
 |---|---|---|---|
-| **directory** | tenants, org_units (ltree), people, employments, rosters, delegations, category rules, policy versions, numbering registry, reference data | Registration orchestration (IPRS check, employment claim); derives responsible Commission; verification queues; roster import | - |
+| **directory** | tenants, org_units (ltree), people, employments, rosters, delegations, category rules, policy versions, numbering registry, reference data | Declarant onboarding (roster match, OTPs, Keycloak account); roster import and validation; Commission provisioning | - |
 | **declarations** | filing obligations, drafts, declarations, versions (JSONB snapshots), household, statements, items, material changes | Obligation tracking; autosave (Valkey write-behind); submit as one transaction; cross-tenant comparison ("compare, don't show") | `FilingObligationWorkflow`, `DeclarationProcessingWorkflow` |
 | **review** | review cases, risk flags, clarifications, determinations, administrative actions, referrals | Deterministic rules (completeness, ±25%, income vs assets, cross-checks); reviewer queues; separation of duties | `ClarificationWorkflow` |
 | **access** | access requests (Form K), LEA requests, representations, decisions, grants | Declarant notification and representations; decisions with Reg 24 grounds; watermarked packages | `AccessRequestWorkflow` |
@@ -216,7 +214,9 @@ flowchart TB
 
 ## 5. Key flows
 
-### 5.1 Verified self-registration (ADR-004)
+### 5.1 Roster-matched self-onboarding (ADR-014)
+
+The Commission's reporting officer has already imported the roster (file upload or roster API).
 
 ```mermaid
 sequenceDiagram
@@ -224,26 +224,24 @@ sequenceDiagram
     actor O as Officer
     participant P as portal (BFF)
     participant DIR as directory
-    participant INT as integration-gateway
-    participant IPRS as IPRS (mock)
+    participant NOT as notifications
     participant KC as Keycloak
     participant AUD as audit (via outbox)
 
-    O->>P: ID number, date of birth, names
-    P->>DIR: POST /v1/registrations
-    DIR->>INT: verify identity
-    INT->>IPRS: lookup ID
-    IPRS-->>INT: names, DOB match
-    INT-->>DIR: verified
-    DIR->>O: OTP to phone + email (via notifications)
+    O->>P: Responsible Commission, personnel file number
+    P->>DIR: POST /v1/onboardings
+    DIR->>DIR: match against the Commission's roster (rate-limited)
+    alt no match
+        DIR-->>O: contact your Commission's reporting officer
+    else already onboarded
+        DIR-->>O: go to login
+    end
+    DIR->>NOT: email OTP, then SMS OTP
     O->>P: OTP codes
-    DIR->>KC: create user (Admin API), require MFA / passkey
+    DIR->>KC: create user (Admin API), linked to roster record, require MFA / passkey
     O->>KC: set passkey or password + MFA (Keycloakify pages)
-    O->>P: employment claim (employer, file no., job group, appointment date)
-    P->>DIR: POST /v1/employment-claims
-    DIR->>DIR: derive responsible Commission (category rules + delegations)
-    DIR->>DIR: status = unverified (auto-verify if roster match)
-    DIR-->>AUD: registration + claim events
+    DIR->>DIR: roster record = onboarded
+    DIR-->>AUD: onboarding events
     DIR-->>O: OFR officer reference, filing obligations created
 ```
 
@@ -486,7 +484,7 @@ flowchart TB
 | Role | Scope | Can | Cannot |
 |---|---|---|---|
 | Declarant | Own records | File, respond, view history and access log | See others |
-| Employer HR focal point | Org subtree | Verify employment claims, upload rosters | See financial content |
+| Reporting officer | Tenant | Import and maintain the roster, resolve onboarding no-matches | See financial content |
 | Reviewer | Tenant / subtree | Review, raise clarifications, propose determinations | Approve own proposals |
 | Supervisor / approver | Tenant / subtree | Approve determinations and actions | Review and approve the same case |
 | Commission admin | Tenant | Users, policies, templates | See financial content |
@@ -559,7 +557,7 @@ flowchart TB
 | Insider browsing declarations | Scope-limited access, audited reads, "who accessed my declaration", anomaly alerts on read volume |
 | Cross-tenant data leak | RLS + CASL + tests; per-tenant encryption keys |
 | Forged EACC / Commission documents | QR verification + PAdES + hash check |
-| Impersonated filing | IPRS identity check, MFA, step-up at submission |
+| Impersonated filing | Roster match, email + phone OTP, MFA, step-up at submission (ADR-014) |
 | Tampering with records or audit | Immutable JSONB snapshots, INSERT-only audit, hash chains, signed anchors in WORM storage |
 | Malicious uploads / prompt injection | ClamAV, type checks, documents treated as untrusted data in AI prompts, schema-validated AI output |
 | Sensitive data sent to external AI | Data-classification gate, minimisation, synthetic data in demo (ADR-007) |
@@ -794,7 +792,7 @@ adili-v3/
 | [001](../adr/0001-postgresql-as-sole-structured-data-store.md) | PostgreSQL as sole structured data store (Cassandra dropped) |
 | [002](../adr/0002-object-storage-seaweedfs-demo-ceph-rgw-production.md) | S3 API; SeaweedFS demo, Ceph RGW production (MinIO rejected) |
 | [003](../adr/0003-temporal-as-workflow-engine.md) | Temporal as workflow engine |
-| [004](../adr/0004-identity-keycloak-self-registration.md) | Keycloak, verified self-registration, Keycloakify UI |
+| [004](../adr/0004-identity-keycloak-self-registration.md) | Keycloak, Keycloakify UI (self-registration superseded by 014) |
 | [005](../adr/0005-message-queue-rabbitmq.md) | RabbitMQ with transactional outbox |
 | [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant) |
 | [007](../adr/0007-vendor-agnostic-ai-layer.md) | Vendor-agnostic AI layer (Anthropic now, self-hosted later) |
@@ -804,6 +802,7 @@ adili-v3/
 | [011](../adr/0011-human-readable-reference-numbers.md) | Human-readable reference numbers + glossary |
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
 | [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
+| [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
 
 ---
 

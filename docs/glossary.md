@@ -65,7 +65,9 @@ County codes 001-047 follow the standard Kenyan county numbering (e.g. 047 = Nai
 | **Declarant** | A public officer who must make a declaration. |
 | **Public officer** | Any State officer or person holding a public office paid from public funds (Constitution Art. 260). |
 | **Responsible Commission** | The body that receives and reviews an officer's declarations (Act s.32). |
-| **Reporting entity** | The public body an officer works for, e.g. a ministry, county, state corporation, school or university (Act s.2). |
+| **Reporting entity** | The public body an officer works for, e.g. a ministry, county, state corporation, school or university (Act s.2). Used for categorisation only; it does not access declarations. |
+| **Reporting officer** | The officer EACC assigns to a Responsible Commission to import and maintain its roster and help declarants who cannot onboard. |
+| **Roster** | A Commission's list of officers who must declare, imported by file upload or API. Declarants onboard by matching their personnel file number against it. |
 | **Statement date** | The date the financial position is declared as at: appointment date (initial), 1 November (biennial), exit date (final). |
 | **Financial statement** | The income, assets and liabilities of one person. A declaration has one each for the officer, each spouse and each dependent child under 18. |
 | **Material change** | A change of at least 25% in value; buying or disposing of an asset or liability; change in marital status; change in directorships or memberships (Act s.31(4)). |

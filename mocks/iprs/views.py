@@ -7,7 +7,7 @@ from iprs.serializers import PersonSerializer
 
 @extend_schema_view(get=extend_schema(operation_id="getPerson"))
 class PersonDetail(generics.RetrieveAPIView[Person]):
-    """Identity lookup used to verify self-registration (ADR-004)."""
+    """Identity lookup used to check declarant identity during onboarding (ADR-014)."""
 
     queryset = Person.objects.all()
     serializer_class = PersonSerializer
