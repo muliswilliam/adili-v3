@@ -3,7 +3,7 @@ info:
   title: notifications API - internal messages (draft)
   version: '1'
   description: |
-    Draft contract for spec 03 (declarant onboarding). Synchronous, templated email and
+    Draft contract for specs 03 (declarant onboarding) and 04 (obligation reminders). Synchronous, templated email and
     SMS sending for other services and the Keycloak OTP authenticator. Internal paths are
     not routed by the public entrypoint. The notifications service's Swagger document
     becomes the source of truth once implemented.
@@ -88,16 +88,36 @@ components:
         - onboarding-otp-sms
         - login-otp-sms
         - login-otp-email
+        - obligation-reminder-sms
+        - obligation-reminder-email
+    Recipient:
+      oneOf:
+        - type: object
+          required: [kind, to]
+          properties:
+            kind:
+              const: address
+            to:
+              type: string
+              description: Email address or E.164 phone number, matching the channel
+              maxLength: 254
+        - type: object
+          required: [kind, personId]
+          properties:
+            kind:
+              const: person
+            personId:
+              type: string
+              format: uuid
+              description: Contacts resolved through the directory; failed with error no-contact when none
     SendMessage:
       type: object
-      required: [channel, to, template, params]
+      required: [channel, recipient, template, params]
       properties:
         channel:
           $ref: '#/components/schemas/Channel'
-        to:
-          type: string
-          description: Email address or E.164 phone number, matching the channel
-          maxLength: 254
+        recipient:
+          $ref: '#/components/schemas/Recipient'
         template:
           $ref: '#/components/schemas/TemplateId'
         params:
@@ -129,7 +149,7 @@ components:
           $ref: '#/components/schemas/MessageStatus'
         error:
           type: [string, 'null']
-          description: Reason when failed, e.g. timeout, rejected-recipient
+          description: Reason when failed, e.g. timeout, rejected-recipient, no-contact
         providerMessageId:
           type: [string, 'null']
         createdAt:
