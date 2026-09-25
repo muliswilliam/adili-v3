@@ -385,20 +385,20 @@
       <div class="arrow">↓</div>
       <div class="node node-declarant">Select Responsible Commission<br><span style="font-size:10px;opacity:0.8;">Searchable list of active Commissions</span></div>
       <div class="arrow">↓</div>
-      <div class="node node-declarant">Enter Personnel File Number</div>
+      <div class="node node-declarant">Enter Personnel File Number &amp; National ID</div>
       <div class="arrow">↓</div>
-      <div class="node node-declarant" style="margin-top:90px;">Verify Email<br><span style="font-size:10px;opacity:0.8;">Enter one-time code sent by email</span></div>
+      <div class="node node-declarant" style="margin-top:90px;">Verify Email<br><span style="font-size:10px;opacity:0.8;">Code sent to the roster email (masked)</span></div>
       <div class="arrow">↓</div>
-      <div class="node node-declarant">Verify Phone<br><span style="font-size:10px;opacity:0.8;">Enter one-time code sent by SMS</span></div>
+      <div class="node node-declarant">Verify Phone<br><span style="font-size:10px;opacity:0.8;">Code sent to the roster phone (masked)</span></div>
       <div class="arrow">↓</div>
-      <div class="node node-declarant">Complete Profile &amp; Account Setup<br><span style="font-size:10px;opacity:0.8;">Confirm details from the roster. Set password or passkey and enrol MFA on Keycloak-managed pages.</span></div>
+      <div class="node node-declarant">Complete Profile &amp; Account Setup<br><span style="font-size:10px;opacity:0.8;">Confirm details from the roster (IPRS check). Set password or passkey and enrol MFA on Keycloak-managed pages.</span></div>
       <div class="arrow">↓</div>
       <div class="node node-end">Onboarded: proceed to declaration (Flowchart 2)</div>
     </div>
 
     <div class="lane" style="border-left: 1px dashed #d1d5db;">
       <div style="font-size:10px;font-weight:700;color:#7c3aed;text-align:center;margin-bottom:8px;text-transform:uppercase;">System</div>
-      <div class="node node-system" style="margin-top:100px;">Match file number against the selected Commission's roster</div>
+      <div class="node node-system" style="margin-top:100px;">Match file number &amp; national ID against the selected Commission's roster</div>
       <div class="arrow">↓</div>
       <div style="text-align:center;margin-bottom:8px;">
         <div style="display:inline-block;background:#fff7ed;border:1.5px solid #f59e0b;color:#78350f;padding:14px 18px;font-size:11px;font-weight:700;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);min-width:120px;">Match found?</div>
@@ -409,6 +409,8 @@
         <div class="node node-system" style="flex:1 1 70px;font-size:10.5px;">Already onboarded<br><span style="font-size:9.5px;">Go to login</span></div>
       </div>
       <div class="node node-system">Send email OTP &amp; SMS OTP<br><span style="font-size:10px;opacity:0.8;">Short-lived codes. Matching and OTP attempts are rate-limited.</span></div>
+      <div class="arrow">↓</div>
+      <div class="node node-system">Verify identity via IPRS/NRB<br><span style="font-size:10px;opacity:0.8;">Roster national ID &amp; names confirmed</span></div>
       <div class="arrow">↓</div>
       <div class="node node-system">Create account in Keycloak<br><span style="font-size:10px;opacity:0.8;">Linked to the roster record. MFA enforced.</span></div>
       <div class="arrow">↓</div>
@@ -430,12 +432,11 @@
     <br><br>
     <strong>Onboarding rules:</strong> A declarant can only onboard against a roster record that their Responsible Commission has imported. One account per roster record. The system never reveals whether a file number exists to someone who fails verification.
     <br><br>
-    <strong>Open points for confirmation:</strong>
-    (1) Match on personnel file number alone, or also on a second identifier such as national ID? File numbers are often sequential and guessable, so a second identifier is recommended.
-    (2) Are the one-time codes sent to the email and phone on the roster record, or to contacts the declarant enters? Sending to roster contacts proves the declarant is the person on the roster.
-    (3) Is the IPRS/NRB identity check kept, and is it run against the roster record at profile completion?
-    (4) Where a Commission has no roster yet, its declarants cannot onboard. Is that acceptable, or is there a fallback?
-    <br><br>
+    <strong>Settled points (25 Sep 2026, ADR-014):</strong>
+    (1) Match requires personnel file number and national ID.
+    (2) One-time codes go to the contacts on the roster record, shown masked; the declarant enters their own only when the record has none.
+    (3) The IPRS/NRB identity check is kept and runs at profile completion.
+    (4) No fallback for Commissions without a roster; EACC monitors coverage.<br><br>
     <strong>Key Legal References:</strong> s.32 (Responsible Commissions), s.33 (delegation), s.46 (confidentiality), Reg 5 (Responsible Commissions for other officers), Reg 25(2) (Form M non-filers), Admin Mech. 39 (Commission systems).
   </div>
 </div>

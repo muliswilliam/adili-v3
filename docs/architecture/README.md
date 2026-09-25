@@ -225,10 +225,11 @@ sequenceDiagram
     participant P as portal (BFF)
     participant DIR as directory
     participant NOT as notifications
+    participant INT as integration-gateway
     participant KC as Keycloak
     participant AUD as audit (via outbox)
 
-    O->>P: Responsible Commission, personnel file number
+    O->>P: Responsible Commission, personnel file number, national ID
     P->>DIR: POST /v1/onboardings
     DIR->>DIR: match against the Commission's roster (rate-limited)
     alt no match
@@ -236,8 +237,10 @@ sequenceDiagram
     else already onboarded
         DIR-->>O: go to login
     end
-    DIR->>NOT: email OTP, then SMS OTP
+    DIR->>NOT: email OTP, then SMS OTP (to roster contacts)
     O->>P: OTP codes
+    O->>P: confirm roster details
+    DIR->>INT: verify national ID + names against IPRS
     DIR->>KC: create user (Admin API), linked to roster record, require MFA / passkey
     O->>KC: set passkey or password + MFA (Keycloakify pages)
     DIR->>DIR: roster record = onboarded
