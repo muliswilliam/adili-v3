@@ -9,7 +9,8 @@ paths:
   /iprs/v1/persons/{id_number}:
     get:
       operationId: getPerson
-      description: Identity lookup used to verify self-registration (ADR-004).
+      description: Identity lookup used to check declarant identity during onboarding
+        (ADR-014).
       parameters:
       - in: path
         name: id_number
