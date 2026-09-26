@@ -3,7 +3,7 @@ info:
   title: documents API - uploads (draft)
   version: '1'
   description: |
-    Draft contract for specs 02 (roster import) and 05 (declaration attachments). Presigned uploads to quarantine,
+    Draft contract for specs 02 (roster import), 05 (declaration attachments) and 06 (document issuance). Presigned uploads to quarantine,
     ClamAV scan on completion, presigned download of clean objects for other services.
     The documents service's Swagger document becomes the source of truth once implemented.
 servers:
@@ -12,6 +12,7 @@ security:
   - bearer: []
 tags:
   - name: uploads
+  - name: documents
   - name: internal
 paths:
   /v1/uploads:
@@ -100,6 +101,110 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/issue:
+    post:
+      tags: [internal]
+      operationId: issueDocument
+      summary: Render, sign and register a document (services)
+      description: |
+        Gotenberg PDF from a versioned template with the verification code and QR in the footer,
+        PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueDocument'
+      responses:
+        '201':
+          description: Issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '502':
+          description: Renderer or signer unavailable; nothing registered
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/{documentId}/supersede:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      tags: [internal]
+      operationId: supersedeDocument
+      summary: Mark a document superseded by a newer one
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supersededBy]
+              properties:
+                supersededBy:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Superseded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already superseded or revoked
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [documents]
+      operationId: getDocument
+      summary: Metadata of an issued document (owner)
+      responses:
+        '200':
+          description: Metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/documents/{documentId}/download:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [documents]
+      operationId: getDocumentDownload
+      summary: Short-lived presigned download of an issued PDF (owner; audited)
+      responses:
+        '200':
+          description: Download URL valid for five minutes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [downloadUrl, expiresAt, sha256]
+                properties:
+                  downloadUrl:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  sha256:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -109,6 +214,13 @@ components:
   parameters:
     UploadId:
       name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocumentId:
+      name: documentId
       in: path
       required: true
       schema:
@@ -256,3 +368,92 @@ components:
                 type: string
               message:
                 type: string
+    DocumentType:
+      type: string
+      enum: [acknowledgement-slip]
+    DisclosureLevel:
+      type: string
+      enum: [public, restricted, confidential]
+    DocumentStatus:
+      type: string
+      enum: [valid, superseded, revoked, expired]
+    IssueDocument:
+      type: object
+      required:
+        [
+          type,
+          templateVersion,
+          disclosureLevel,
+          issuerTenant,
+          subjectRef,
+          subjectPersonId,
+          payload,
+          publicPayload,
+        ]
+      properties:
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        templateVersion:
+          type: integer
+          minimum: 1
+        disclosureLevel:
+          $ref: '#/components/schemas/DisclosureLevel'
+        issuerTenant:
+          type: string
+        subjectRef:
+          type: string
+          description: Owning record, e.g. declaration-version:<uuid>
+        subjectPersonId:
+          type: [string, 'null']
+          format: uuid
+          description: Person allowed to download the document
+        payload:
+          type: object
+          description: Fields the template renders; never stored beyond the PDF
+          additionalProperties: true
+        publicPayload:
+          type: object
+          description: Fields shown on the verify page for public and restricted levels
+          additionalProperties: true
+    IssuedDocument:
+      type: object
+      required:
+        - id
+        - type
+        - templateVersion
+        - disclosureLevel
+        - issuerTenant
+        - subjectRef
+        - verificationId
+        - sha256
+        - status
+        - supersededBy
+        - issuedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        templateVersion:
+          type: integer
+        disclosureLevel:
+          $ref: '#/components/schemas/DisclosureLevel'
+        issuerTenant:
+          type: string
+        subjectRef:
+          type: string
+        verificationId:
+          type: string
+          description: e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        supersededBy:
+          type: [string, 'null']
+          format: uuid
+        issuedAt:
+          type: string
+          format: date-time
