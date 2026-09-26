@@ -7,8 +7,8 @@ compose() {
   docker compose -f "$(dirname "$0")/../infra/compose/docker-compose.yml" "$@"
 }
 
-init_jobs="temporal-schema temporal-namespace seaweedfs-buckets"
-long_running=$(compose config --services | grep -vxF -e temporal-schema -e temporal-namespace -e seaweedfs-buckets)
+init_jobs="temporal-schema temporal-namespace seaweedfs-buckets openbao-keys"
+long_running=$(compose config --services | grep -vxF -e temporal-schema -e temporal-namespace -e seaweedfs-buckets -e openbao-keys)
 
 # shellcheck disable=SC2086
 compose up -d --wait $long_running
