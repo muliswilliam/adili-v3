@@ -1,0 +1,219 @@
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import type {
+  BatchItem,
+  BatchItemOutcome,
+  BatchStatus,
+  GenerateRequest,
+  GenerateResult,
+  ModelProvider,
+  ProviderCapabilities,
+  StreamEvent,
+  StructuredRequest,
+  StructuredResult,
+} from './port.js';
+
+type Operation = 'generate' | 'generateStructured' | 'stream';
+
+interface Fixture<TResponse> {
+  version: 1;
+  operation: Operation;
+  request: GenerateRequest;
+  response: TResponse;
+}
+
+/** Canonical JSON: sorted keys, `undefined` dropped, so equal requests hash equally. */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonical);
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, v]) => v !== undefined)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([k, v]) => [k, canonical(v)]),
+    );
+  }
+  return value;
+}
+
+/** Identifies a recorded response: SHA-256 over the operation and the canonical neutral request. */
+export function requestHash(operation: Operation, request: GenerateRequest): string {
+  return createHash('sha256')
+    .update(JSON.stringify(canonical({ operation, request })))
+    .digest('hex');
+}
+
+export class ReplayFixtureMissingError extends Error {
+  override readonly name = 'ReplayFixtureMissingError';
+
+  constructor(
+    readonly operation: Operation,
+    readonly hash: string,
+    readonly path: string,
+  ) {
+    super(
+      `No recorded ${operation} response for request ${hash} (expected ${path}). ` +
+        'Refresh fixtures by running with AI_REPLAY_MODE=record and a provider key.',
+    );
+  }
+}
+
+export interface ReplayAdapterOptions {
+  fixturesDir: string;
+  /** `replay` serves fixtures only; `record` calls `inner` and writes what it returns. */
+  mode: 'replay' | 'record';
+  inner?: ModelProvider;
+}
+
+const ALL_CAPABILITIES: ProviderCapabilities = {
+  structuredOutput: true,
+  streaming: true,
+  batch: true,
+  promptCaching: true,
+  attachments: ['image', 'pdf', 'text'],
+};
+
+/**
+ * Serves recorded provider responses keyed by request hash, so tests, evals and the demo run
+ * deterministically without a provider. Record mode refreshes the fixtures from a real provider;
+ * fixture diffs are reviewed like code.
+ */
+export class ReplayAdapter implements ModelProvider {
+  readonly name = 'replay';
+  readonly capabilities: ProviderCapabilities;
+  private readonly inner: ModelProvider | undefined;
+  /** Replayed batches never leave the process; their items are resolved from fixtures on poll. */
+  private readonly replayBatches = new Map<string, BatchItem[]>();
+  /** Recorded batches: inner batch id → items, to key each outcome's fixture by its request. */
+  private readonly recordBatches = new Map<string, BatchItem[]>();
+
+  constructor(private readonly options: ReplayAdapterOptions) {
+    if (options.mode === 'record' && !options.inner) {
+      throw new Error('ReplayAdapter in record mode needs an inner provider to record from');
+    }
+    this.inner = options.mode === 'record' ? options.inner : undefined;
+    this.capabilities = this.inner?.capabilities ?? ALL_CAPABILITIES;
+  }
+
+  generate(request: GenerateRequest): Promise<GenerateResult> {
+    return this.serve('generate', request, (inner) => inner.generate(request));
+  }
+
+  generateStructured(request: StructuredRequest): Promise<StructuredResult> {
+    return this.serve('generateStructured', request, (inner) => inner.generateStructured(request));
+  }
+
+  async *stream(request: GenerateRequest): AsyncIterable<StreamEvent> {
+    if (!this.inner) {
+      yield* await this.read<StreamEvent[]>('stream', request);
+      return;
+    }
+    const events: StreamEvent[] = [];
+    for await (const event of this.inner.stream(request)) {
+      events.push(event);
+      yield event;
+    }
+    await this.write('stream', request, events);
+  }
+
+  async submitBatch(items: BatchItem[]): Promise<{ batchId: string }> {
+    if (this.inner) {
+      const { batchId } = await this.inner.submitBatch(items);
+      this.recordBatches.set(batchId, items);
+      return { batchId };
+    }
+    // Fail at submission, like a provider rejecting a bad batch, rather than on a later poll.
+    await Promise.all(items.map((item) => this.read('generateStructured', item.request)));
+    const batchId = `replay-${createHash('sha256')
+      .update(JSON.stringify(canonical(items)))
+      .digest('hex')
+      .slice(0, 24)}`;
+    this.replayBatches.set(batchId, items);
+    return { batchId };
+  }
+
+  async pollBatch(batchId: string): Promise<BatchStatus> {
+    if (this.inner) {
+      const status = await this.inner.pollBatch(batchId);
+      const items = this.recordBatches.get(batchId);
+      if (status.status === 'ended' && items) {
+        const byId = new Map(items.map((item) => [item.customId, item.request]));
+        await Promise.all(
+          status.outcomes.map(async (outcome) => {
+            const request = byId.get(outcome.customId);
+            // Errors are transient; only results become fixtures.
+            if (request && 'result' in outcome) {
+              await this.write('generateStructured', request, outcome.result);
+            }
+          }),
+        );
+        this.recordBatches.delete(batchId);
+      }
+      return status;
+    }
+    const items = this.replayBatches.get(batchId);
+    if (!items) {
+      throw new Error(`Unknown replay batch ${batchId}`);
+    }
+    const outcomes = await Promise.all(
+      items.map(async (item): Promise<BatchItemOutcome> => ({
+        customId: item.customId,
+        result: await this.read<StructuredResult>('generateStructured', item.request),
+      })),
+    );
+    return { batchId, status: 'ended', outcomes };
+  }
+
+  private async serve<TResponse>(
+    operation: Operation,
+    request: GenerateRequest,
+    call: (inner: ModelProvider) => Promise<TResponse>,
+  ): Promise<TResponse> {
+    if (!this.inner) {
+      return this.read<TResponse>(operation, request);
+    }
+    const response = await call(this.inner);
+    await this.write(operation, request, response);
+    return response;
+  }
+
+  private path(hash: string): string {
+    return join(this.options.fixturesDir, `${hash}.json`);
+  }
+
+  private async read<TResponse>(
+    operation: Operation,
+    request: GenerateRequest,
+  ): Promise<TResponse> {
+    const hash = requestHash(operation, request);
+    const path = this.path(hash);
+    let raw: string;
+    try {
+      raw = await readFile(path, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new ReplayFixtureMissingError(operation, hash, path);
+      }
+      throw error;
+    }
+    return (JSON.parse(raw) as Fixture<TResponse>).response;
+  }
+
+  private async write(
+    operation: Operation,
+    request: GenerateRequest,
+    response: unknown,
+  ): Promise<void> {
+    const fixture: Fixture<unknown> = { version: 1, operation, request, response };
+    await mkdir(this.options.fixturesDir, { recursive: true });
+    await writeFile(
+      this.path(requestHash(operation, request)),
+      `${JSON.stringify(fixture, null, 2)}\n`,
+      'utf8',
+    );
+  }
+}
