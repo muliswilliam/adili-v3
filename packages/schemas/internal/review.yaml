@@ -1,0 +1,1197 @@
+openapi: 3.1.0
+info:
+  title: review API - cases, flags and clarifications (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 07a. Review cases are created by the processing workflow from
+    submitted declarations; the service stores flags and case data only and reads declaration
+    content from the declarations service on demand. The review service's Swagger document
+    becomes the source of truth once implemented.
+servers:
+  - url: http://localhost:4003
+security:
+  - bearer: []
+tags:
+  - name: queue
+  - name: cases
+  - name: clarifications
+  - name: declarant
+  - name: internal
+paths:
+  /v1/commissions/{slug}/review/queue:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [queue]
+      operationId: listReviewQueue
+      summary: Cases of the Commission ordered by score then age
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CaseStatus'
+        - name: band
+          in: query
+          schema:
+            $ref: '#/components/schemas/PriorityBand'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/DeclarationType'
+        - name: cycle
+          in: query
+          schema:
+            type: integer
+        - name: assignee
+          in: query
+          description: mine, unassigned, any, or a subject id
+          schema:
+            type: string
+        - name: late
+          in: query
+          schema:
+            type: boolean
+        - name: openClarification
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Reference prefix, personnel file number prefix or name fragment
+          schema:
+            type: string
+            maxLength: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseListItem'
+                  nextCursor:
+                    type: [string, 'null']
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/review/queue/summary:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [queue]
+      operationId: getReviewQueueSummary
+      summary: Counts by status and priority band
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    get:
+      tags: [cases]
+      operationId: getReviewCase
+      summary: Case with flags, clarifications, notes, timeline and the declaration pulled on demand
+      description: Every call is recorded as a read of the declaration (audit) and emits review.case.viewed.v1.
+      responses:
+        '200':
+          description: Case detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: Declarations service unavailable; case metadata may still be shown by the client
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/cases/{caseId}/compare:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    get:
+      tags: [cases]
+      operationId: compareCaseVersions
+      summary: Item matching and deltas between the current and previous submitted version
+      responses:
+        '200':
+          description: Comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionComparison'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: No previous version to compare with
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/cases/{caseId}/attachments/{uploadId}/download:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+      - name: uploadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [cases]
+      operationId: getCaseAttachmentDownload
+      summary: Short-lived download link for an attachment of the declaration under review (audited)
+      responses:
+        '200':
+          description: Link
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [downloadUrl, expiresAt]
+                properties:
+                  downloadUrl:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/claim:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [cases]
+      operationId: claimCase
+      summary: Assign an unassigned case to the caller
+      responses:
+        '200':
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseListItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already assigned
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/cases/{caseId}/release:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [cases]
+      operationId: releaseCase
+      summary: Return the caller's case to the queue
+      responses:
+        '200':
+          description: Unassigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseListItem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/assignment:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    put:
+      tags: [cases]
+      operationId: reassignCase
+      summary: Supervisor reassigns or unassigns a case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignee]
+              properties:
+                assignee:
+                  type: [string, 'null']
+                  description: Subject of a reviewer or supervisor of the tenant; null unassigns
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseListItem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/notes:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [cases]
+      operationId: addCaseNote
+      summary: Add an internal note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/flags/{flagId}/reviewed:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+      - name: flagId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [cases]
+      operationId: markFlagReviewed
+      summary: Record that a flag was considered, with a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Flag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flag'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/clarifications:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [clarifications]
+      operationId: createClarificationDraft
+      summary: Create a clarification draft (assignee only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationInput'
+      responses:
+        '201':
+          description: Draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/clarifications/{clarificationId}:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    get:
+      tags: [clarifications]
+      operationId: getClarification
+      summary: Clarification with items, letter and response
+      responses:
+        '200':
+          description: Clarification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [clarifications]
+      operationId: updateClarificationDraft
+      summary: Update a draft's items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationInput'
+      responses:
+        '200':
+          description: Draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/clarifications/{clarificationId}/issue:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    post:
+      tags: [clarifications]
+      operationId: issueClarification
+      summary: Allocate the CLR reference, issue the letter, notify the declarant, start the 30-day clock
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '400':
+          description: No items
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `clarification-window-closed` or `not-a-draft`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/clarifications/{clarificationId}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    post:
+      tags: [clarifications]
+      operationId: resolveClarification
+      summary: Mark the clarification resolved with a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not issued or responded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/clarifications/{clarificationId}/follow-up:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    post:
+      tags: [clarifications]
+      operationId: createFollowUpClarification
+      summary: Create a new draft pre-filled with the unresolved items
+      responses:
+        '201':
+          description: Draft with followUpOf set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/clarifications/{clarificationId}/withdraw:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    post:
+      tags: [clarifications]
+      operationId: withdrawClarification
+      summary: Withdraw an issued clarification (letter revoked as issued in error)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clarification'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not issued
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/clarifications:
+    get:
+      tags: [declarant]
+      operationId: getMyClarifications
+      summary: The declarant's clarifications across Commissions
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarantClarification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/clarifications/{clarificationId}:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    get:
+      tags: [declarant]
+      operationId: getMyClarification
+      summary: One clarification with items, letter link and response
+      responses:
+        '200':
+          description: Clarification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantClarification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/clarifications/{clarificationId}/response:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    post:
+      tags: [declarant]
+      operationId: respondToClarification
+      summary: Submit the response once (accepted after the due date, marked late)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationResponseInput'
+      responses:
+        '201':
+          description: Responded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantClarification'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already responded, withdrawn or resolved; or an attachment is not clean
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/review/clarifications/{clarificationId}/letter-payload:
+    parameters:
+      - $ref: '#/components/parameters/ClarificationId'
+    get:
+      tags: [internal]
+      operationId: internalGetClarificationLetterPayload
+      summary: Fields the clarification letter template needs (documents service)
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationLetterPayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ClarificationId:
+      name: clarificationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role or is not the assignee
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    DeclarationType:
+      type: string
+      enum: [initial, biennial, final]
+    CaseStatus:
+      type: string
+      enum: [unassigned, assigned, awaiting-clarification, clarified, ready-for-determination]
+    PriorityBand:
+      type: string
+      enum: [low, medium, high]
+    Severity:
+      type: string
+      enum: [info, low, medium, high]
+    RuleId:
+      type: string
+      enum:
+        - completeness-residual
+        - no-previous-version
+        - value-change-25
+        - acquisition-unflagged
+        - disposal-unflagged
+        - change-flag-mismatch
+        - income-vs-asset-growth
+        - nil-after-populated
+        - late-filing
+        - foreign-holdings
+        - joint-share-inconsistent
+    ClarificationStatus:
+      type: string
+      enum: [draft, issued, responded, resolved, overdue, withdrawn]
+    Requirement:
+      type: string
+      description: Act s.35(4)
+      enum: [provide-omitted, explain-discrepancy, correct]
+    Assignee:
+      type: object
+      required: [subject, name]
+      properties:
+        subject:
+          type: string
+        name:
+          type: string
+    CaseListItem:
+      type: object
+      required:
+        - id
+        - reference
+        - declarantName
+        - personnelFileNumber
+        - type
+        - cycleYear
+        - receivedAt
+        - windowEndsAt
+        - late
+        - band
+        - status
+        - assignee
+        - openFlags
+        - clarification
+        - currentVersion
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        cycleYear:
+          type: integer
+        receivedAt:
+          type: string
+          format: date-time
+        windowEndsAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        band:
+          $ref: '#/components/schemas/PriorityBand'
+        status:
+          $ref: '#/components/schemas/CaseStatus'
+        assignee:
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        openFlags:
+          type: integer
+        clarification:
+          type: object
+          required: [open, status, dueAt]
+          properties:
+            open:
+              type: integer
+            status:
+              oneOf:
+                - $ref: '#/components/schemas/ClarificationStatus'
+                - type: 'null'
+            dueAt:
+              type: [string, 'null']
+              format: date-time
+        currentVersion:
+          type: integer
+    QueueSummary:
+      type: object
+      required: [byStatus, byBand, overdueClarifications]
+      properties:
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        byBand:
+          type: object
+          additionalProperties:
+            type: integer
+        overdueClarifications:
+          type: integer
+    Flag:
+      type: object
+      required:
+        [
+          id,
+          versionId,
+          ruleId,
+          severity,
+          title,
+          indicator,
+          evidence,
+          itemRefs,
+          reviewed,
+          recomputed,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        ruleId:
+          $ref: '#/components/schemas/RuleId'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        title:
+          type: string
+        indicator:
+          type: string
+          description: Plain-language indicator text; never a finding
+        evidence:
+          type: object
+          description: Clear facts only (percentages, counts, dates, references); no amounts or descriptions
+          additionalProperties: true
+        itemRefs:
+          type: array
+          items:
+            type: object
+            required: [personKey, itemId]
+            properties:
+              personKey:
+                type: string
+              itemId:
+                type: [string, 'null']
+                format: uuid
+              sectionKey:
+                type: [string, 'null']
+        reviewed:
+          oneOf:
+            - type: object
+              required: [at, by, note]
+              properties:
+                at:
+                  type: string
+                  format: date-time
+                by:
+                  $ref: '#/components/schemas/Assignee'
+                note:
+                  type: string
+            - type: 'null'
+        recomputed:
+          type: boolean
+    Note:
+      type: object
+      required: [id, author, text, at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/Assignee'
+        text:
+          type: string
+        at:
+          type: string
+          format: date-time
+    TimelineEntry:
+      type: object
+      required: [id, kind, actor, at, summary, ref]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        actor:
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+        ref:
+          type: [string, 'null']
+    CaseDetail:
+      type: object
+      required: [case, flags, clarifications, notes, timeline, document, versions, reviewerHistory]
+      properties:
+        case:
+          $ref: '#/components/schemas/CaseListItem'
+        flags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flag'
+        clarifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Clarification'
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Note'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEntry'
+        document:
+          description: The current version's declaration.v1 document, pulled from the declarations service (null when unavailable)
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        versions:
+          type: array
+          items:
+            type: object
+            required: [version, submittedAt, late]
+            properties:
+              version:
+                type: integer
+              submittedAt:
+                type: string
+                format: date-time
+              late:
+                type: boolean
+        reviewerHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assignee'
+    VersionComparison:
+      type: object
+      required: [previousVersion, currentVersion, statements]
+      properties:
+        previousVersion:
+          type: integer
+        currentVersion:
+          type: integer
+        statements:
+          type: array
+          items:
+            type: object
+            required: [personKey, personName, matched, onlyPrevious, onlyCurrent]
+            properties:
+              personKey:
+                type: string
+              personName:
+                type: string
+              matched:
+                type: array
+                items:
+                  type: object
+                  required:
+                    [
+                      category,
+                      type,
+                      description,
+                      previousCents,
+                      currentCents,
+                      deltaCents,
+                      deltaPercent,
+                      flaggedByDeclarant,
+                    ]
+                  properties:
+                    category:
+                      type: string
+                    type:
+                      type: string
+                    description:
+                      type: string
+                    previousCents:
+                      type: integer
+                    currentCents:
+                      type: integer
+                    deltaCents:
+                      type: integer
+                    deltaPercent:
+                      type: [number, 'null']
+                    flaggedByDeclarant:
+                      type: boolean
+              onlyPrevious:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              onlyCurrent:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+    ClarificationItemInput:
+      type: object
+      required: [requirement, text]
+      properties:
+        sectionKey:
+          type: [string, 'null']
+        personKey:
+          type: [string, 'null']
+        itemId:
+          type: [string, 'null']
+          format: uuid
+        requirement:
+          $ref: '#/components/schemas/Requirement'
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ClarificationInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ClarificationItemInput'
+    ClarificationResponseInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [index, text, attachments]
+            properties:
+              index:
+                type: integer
+                description: Position of the clarification item being answered
+              text:
+                type: string
+                minLength: 1
+                maxLength: 2000
+              attachments:
+                type: array
+                maxItems: 10
+                items:
+                  type: string
+                  format: uuid
+                  description: Clean upload ids with purpose clarification-attachment
+    Clarification:
+      type: object
+      required:
+        - id
+        - caseId
+        - reference
+        - status
+        - items
+        - issuedAt
+        - dueAt
+        - respondedAt
+        - responseLate
+        - resolvedAt
+        - resolutionNote
+        - letter
+        - followUpOf
+        - response
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        reference:
+          type: [string, 'null']
+          description: 'CLR-<ISSUER>-<YEAR>-<seq>-<check>; null while draft'
+        status:
+          $ref: '#/components/schemas/ClarificationStatus'
+        items:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ClarificationItemInput'
+              - type: object
+                properties:
+                  label:
+                    type: string
+                    description: Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno")
+        issuedAt:
+          type: [string, 'null']
+          format: date-time
+        dueAt:
+          type: [string, 'null']
+          format: date-time
+        respondedAt:
+          type: [string, 'null']
+          format: date-time
+        responseLate:
+          type: boolean
+        resolvedAt:
+          type: [string, 'null']
+          format: date-time
+        resolutionNote:
+          type: [string, 'null']
+        letter:
+          oneOf:
+            - type: object
+              required: [documentId, verificationId, status]
+              properties:
+                documentId:
+                  type: string
+                  format: uuid
+                verificationId:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, issued, revoked]
+            - type: 'null'
+        followUpOf:
+          type: [string, 'null']
+          format: uuid
+        response:
+          oneOf:
+            - type: object
+              required: [items, submittedAt]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [index, text, attachments]
+                    properties:
+                      index:
+                        type: integer
+                      text:
+                        type: string
+                      attachments:
+                        type: array
+                        items:
+                          type: object
+                          required: [uploadId, fileName, sha256]
+                          properties:
+                            uploadId:
+                              type: string
+                              format: uuid
+                            fileName:
+                              type: string
+                            sha256:
+                              type: string
+                submittedAt:
+                  type: string
+                  format: date-time
+            - type: 'null'
+    DeclarantClarification:
+      allOf:
+        - $ref: '#/components/schemas/Clarification'
+        - type: object
+          required: [commission, declarationReference, letterDownloadUrl]
+          properties:
+            commission:
+              type: object
+              required: [slug, name]
+              properties:
+                slug:
+                  type: string
+                name:
+                  type: string
+            declarationReference:
+              type: string
+            letterDownloadUrl:
+              type: [string, 'null']
+              format: uri
+    ClarificationLetterPayload:
+      type: object
+      required:
+        [
+          declarantName,
+          commission,
+          declarationReference,
+          clarificationReference,
+          items,
+          issuedAt,
+          dueAt,
+          portalUrl,
+        ]
+      properties:
+        declarantName:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarationReference:
+          type: string
+        clarificationReference:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            required: [label, requirementLabel, text]
+            properties:
+              label:
+                type: string
+              requirementLabel:
+                type: string
+              text:
+                type: string
+        issuedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        portalUrl:
+          type: string
+          format: uri
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
