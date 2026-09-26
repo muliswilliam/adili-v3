@@ -1,17 +1,6 @@
-import {
-  Alert,
-  AlertDescription,
-  Button,
-  FormField,
-  Icon,
-  Input,
-  MaskedContact,
-  OtpInput,
-  useToast,
-} from '@adili/ui';
-import { AlertCircleIcon } from '@hugeicons/core-free-icons';
+import { Button, FormField, Input, MaskedContact, OtpInput, useToast } from '@adili/ui';
 import { useNavigate, useRouter } from '@tanstack/react-router';
-import { type Ref, type SubmitEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 
 import type { OnboardingSession, OtpChannel } from '../../server/directory/types';
 import {
@@ -26,7 +15,7 @@ import { countdownAnnouncement, formatClock, secondsUntil, useCountdown } from '
 import type { StepGuard } from './guard';
 import { HelpFooter, StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from './problems';
-import { SessionUnavailable } from './step-pending';
+import { FailureAlert, SessionUnavailable } from './step-alerts';
 import { routeForSession, type StepRoute } from './steps';
 
 const COPY = {
@@ -409,14 +398,5 @@ function ContactForm({ channel, settle }: { channel: OtpChannel; settle: Settle 
       </form>
       <HelpFooter>{copy.addFooter}</HelpFooter>
     </div>
-  );
-}
-
-function FailureAlert({ ref }: { ref: Ref<HTMLDivElement> }) {
-  return (
-    <Alert ref={ref} tabIndex={-1} variant="destructive" className="outline-none">
-      <Icon icon={AlertCircleIcon} />
-      <AlertDescription>{GENERIC_ERROR}</AlertDescription>
-    </Alert>
   );
 }

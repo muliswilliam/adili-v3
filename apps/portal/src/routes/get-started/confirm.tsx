@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { requireStep } from '../../components/onboarding/guard';
-import { StepPending } from '../../components/onboarding/step-pending';
+import { ConfirmStep } from '../../components/onboarding/confirm-step';
 
 export const Route = createFileRoute('/get-started/confirm')({
   loader: () => requireStep('/get-started/confirm'),
@@ -9,5 +9,5 @@ export const Route = createFileRoute('/get-started/confirm')({
 });
 
 function Confirm() {
-  return <StepPending title="Confirm your details" guard={Route.useLoaderData()} />;
+  return <ConfirmStep guard={Route.useLoaderData()} />;
 }
