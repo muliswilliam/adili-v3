@@ -1,0 +1,142 @@
+openapi: 3.1.0
+info:
+  title: verification-api - public document verification (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 06. Public, rate-limited lookup of a verification code against a
+    projection fed only by document issuance events (ADR-010). The service holds no other data.
+servers:
+  - url: http://localhost:4007
+security: []
+tags:
+  - name: verify
+paths:
+  /v1/verify/{verificationId}:
+    parameters:
+      - name: verificationId
+        in: path
+        required: true
+        description: 'Code printed under the QR, e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K; hyphens and case are normalised'
+        schema:
+          type: string
+          maxLength: 40
+    get:
+      tags: [verify]
+      operationId: verifyDocument
+      summary: Status of a document issued through Adili Online
+      responses:
+        '200':
+          description: Known document
+          headers:
+            RateLimit-Limit:
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              schema:
+                type: integer
+            RateLimit-Reset:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          description: Malformed code
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such document (same shape, status not-found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  schemas:
+    VerificationStatus:
+      type: string
+      enum: [valid, superseded, revoked, expired, not-found]
+    DisclosureLevel:
+      type: string
+      enum: [public, restricted, confidential]
+    VerificationResult:
+      type: object
+      required:
+        [
+          verificationId,
+          status,
+          disclosureLevel,
+          document,
+          sha256,
+          supersededBy,
+          revokedReason,
+          checkedAt,
+        ]
+      properties:
+        verificationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/VerificationStatus'
+        disclosureLevel:
+          oneOf:
+            - $ref: '#/components/schemas/DisclosureLevel'
+            - type: 'null'
+        document:
+          description: Public-safe fields; present for public and restricted levels
+          oneOf:
+            - type: object
+              required: [type, issuerName, issuerCode, issuedAt, reference, version]
+              properties:
+                type:
+                  type: string
+                  examples: [acknowledgement-slip]
+                issuerName:
+                  type: string
+                issuerCode:
+                  type: string
+                issuedAt:
+                  type: string
+                  format: date-time
+                reference:
+                  type: [string, 'null']
+                version:
+                  type: [integer, 'null']
+            - type: 'null'
+        sha256:
+          type: [string, 'null']
+          description: Hash of the issued PDF for the browser-side file check
+        supersededBy:
+          type: [string, 'null']
+          description: Verification id of the current version, when the level allows linking
+        revokedReason:
+          type: [string, 'null']
+          enum: [issued-in-error, withdrawn, other, null]
+        checkedAt:
+          type: string
+          format: date-time
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        retryAfterSeconds:
+          type: integer
