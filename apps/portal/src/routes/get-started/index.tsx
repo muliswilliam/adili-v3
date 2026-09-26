@@ -60,8 +60,8 @@ function GetStarted() {
   return (
     <div className="grid gap-8">
       <StepHeading
-        title="Enter your personnel file number"
-        description="We'll use your personnel file number and national ID to find your record on your Commission's roster, so you don't have to fill in everything manually."
+        title="Find your record"
+        description="We match your details to your Commission's roster, so you don't have to fill in everything yourself."
       />
       {ended ? (
         <Alert>
@@ -172,36 +172,7 @@ function IdentifyForm({
       {shownProblem ? (
         <ProblemAlert ref={problemRef} problem={shownProblem} commissionName={selected?.name} />
       ) : null}
-      <FormField label="Personnel file number" error={errors.personnelFileNumber}>
-        <Input
-          name="personnelFileNumber"
-          placeholder="PfNo."
-          autoCapitalize="off"
-          autoComplete="off"
-          spellCheck={false}
-          value={values.personnelFileNumber}
-          onChange={(event) => {
-            update('personnelFileNumber', event.target.value);
-          }}
-        />
-      </FormField>
-      <FormField label="National ID number" error={errors.nationalId}>
-        <Input
-          name="nationalId"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="e.g. 12345678"
-          value={values.nationalId}
-          onChange={(event) => {
-            update('nationalId', event.target.value);
-          }}
-        />
-      </FormField>
-      <FormField
-        label="Your Responsible Commission"
-        hint={COMMISSION_HINT}
-        error={errors.commission}
-      >
+      <FormField label="Responsible Commission" hint={COMMISSION_HINT} error={errors.commission}>
         <Combobox
           name="commission"
           placeholder="Select your Commission"
@@ -225,6 +196,29 @@ function IdentifyForm({
           </AlertDescription>
         </Alert>
       ) : null}
+      <FormField label="Personnel file number" error={errors.personnelFileNumber}>
+        <Input
+          name="personnelFileNumber"
+          autoCapitalize="off"
+          autoComplete="off"
+          spellCheck={false}
+          value={values.personnelFileNumber}
+          onChange={(event) => {
+            update('personnelFileNumber', event.target.value);
+          }}
+        />
+      </FormField>
+      <FormField label="National ID number" error={errors.nationalId}>
+        <Input
+          name="nationalId"
+          inputMode="numeric"
+          autoComplete="off"
+          value={values.nationalId}
+          onChange={(event) => {
+            update('nationalId', event.target.value);
+          }}
+        />
+      </FormField>
       <Button type="submit" className="w-full" disabled={submitting || blocked || noRoster}>
         {submitting
           ? 'Checking…'

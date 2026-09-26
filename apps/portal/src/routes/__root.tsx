@@ -1,5 +1,5 @@
 import { SiteFooter } from '@adili/ui';
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
+import { createRootRoute, HeadContent, Outlet, Scripts, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import appCss from '../styles.css?url';
@@ -33,6 +33,10 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  // The Get started flow is a focused, full-height page on its glow, with no site footer.
+  const onboarding = useLocation({
+    select: (location) => location.pathname.startsWith('/get-started'),
+  });
   return (
     <html lang="en">
       <head>
@@ -41,7 +45,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       <body>
         <div className="flex min-h-dvh flex-col">
           {children}
-          <SiteFooter />
+          {onboarding ? null : <SiteFooter />}
         </div>
         <Scripts />
       </body>
