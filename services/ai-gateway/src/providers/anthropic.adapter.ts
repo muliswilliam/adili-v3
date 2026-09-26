@@ -296,6 +296,13 @@ function toProviderError(error: unknown): ProviderError {
   }
   if (error instanceof Anthropic.APIError) {
     const status: number | undefined = error.status as number | undefined;
+    // Anthropic documents 408 and 409 as transient, like 5xx.
+    if (status === 408) {
+      return fail('timeout', 'Anthropic timed out handling the request (408)');
+    }
+    if (status === 409) {
+      return fail('unavailable', 'Anthropic reported a conflict (409)');
+    }
     if (status !== undefined && status < 500) {
       return fail('bad-request', `Anthropic rejected the request (${status})`);
     }

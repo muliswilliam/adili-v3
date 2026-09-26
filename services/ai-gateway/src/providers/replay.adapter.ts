@@ -80,7 +80,8 @@ const ALL_CAPABILITIES: ProviderCapabilities = {
 /**
  * Serves recorded provider responses keyed by request hash, so tests, evals and the demo run
  * deterministically without a provider. Record mode refreshes the fixtures from a real provider;
- * fixture diffs are reviewed like code.
+ * fixture diffs are reviewed like code. Fixtures hold the full request (system prompt, messages,
+ * attachments) and are committed, so record only synthetic inputs, never real declarations.
  */
 export class ReplayAdapter implements ModelProvider {
   readonly name = 'replay';

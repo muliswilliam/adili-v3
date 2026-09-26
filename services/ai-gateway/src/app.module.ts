@@ -6,7 +6,7 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
-import { ProvidersModule } from './providers/provider.module.js';
+import { ProvidersModule } from './providers/providers.module.js';
 
 @Module({
   imports: [

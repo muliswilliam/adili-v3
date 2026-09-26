@@ -239,6 +239,8 @@ describe('AnthropicAdapter', () => {
     [403, 'permission_error', 'auth', false],
     [400, 'invalid_request_error', 'bad-request', false],
     [404, 'not_found_error', 'bad-request', false],
+    [408, 'timeout_error', 'timeout', true],
+    [409, 'conflict_error', 'unavailable', true],
     [500, 'api_error', 'unavailable', true],
     [529, 'overloaded_error', 'unavailable', true],
   ])('types HTTP %i as %s', async (status, type, kind, retryable) => {

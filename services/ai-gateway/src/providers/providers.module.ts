@@ -2,41 +2,11 @@ import { resolve } from 'node:path';
 
 import Anthropic from '@anthropic-ai/sdk';
 import { type DynamicModule, Inject, Module } from '@nestjs/common';
-import { z } from 'zod';
 
 import { AnthropicAdapter } from './anthropic.adapter.js';
 import type { ModelProvider } from './port.js';
+import type { ProviderEnv } from './provider-env.js';
 import { ReplayAdapter } from './replay.adapter.js';
-
-export const providerEnvShape = {
-  /** `replay` serves recorded fixtures (tests, CI, demo); `anthropic` calls the API. */
-  AI_PROVIDER: z.enum(['replay', 'anthropic']).default('replay'),
-  /** With `AI_PROVIDER=replay`: `record` calls Anthropic and refreshes the fixtures. */
-  AI_REPLAY_MODE: z.enum(['replay', 'record']).default('replay'),
-  /** Resolved from the working directory. */
-  AI_FIXTURES_DIR: z.string().min(1).default('fixtures/ai'),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_BASE_URL: z.url().optional(),
-  AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
-};
-
-type ProviderEnvShape = z.infer<z.ZodObject<typeof providerEnvShape>>;
-
-/** Fails at startup, not on the first job, when Anthropic would be reached without a key. */
-export function requireAnthropicKey(env: ProviderEnvShape, context: z.RefinementCtx): void {
-  const reachesAnthropic = env.AI_PROVIDER === 'anthropic' || env.AI_REPLAY_MODE === 'record';
-  if (reachesAnthropic && !env.ANTHROPIC_API_KEY) {
-    context.addIssue({
-      code: 'custom',
-      path: ['ANTHROPIC_API_KEY'],
-      message: 'ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic or AI_REPLAY_MODE=record',
-    });
-  }
-}
-
-export const providerEnvSchema = z.object(providerEnvShape).superRefine(requireAnthropicKey);
-
-export type ProviderEnv = z.infer<typeof providerEnvSchema>;
 
 function anthropic(env: ProviderEnv): AnthropicAdapter {
   const client = new Anthropic({
