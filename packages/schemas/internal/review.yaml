@@ -22,6 +22,7 @@ tags:
   - name: actions
   - name: referrals
   - name: declarant
+  - name: copilot
   - name: internal
 paths:
   /v1/commissions/{slug}/review/queue:
@@ -1240,6 +1241,157 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/cases/{caseId}/copilot:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    get:
+      tags: [copilot]
+      operationId: getCaseCopilot
+      summary: AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read)
+      responses:
+        '200':
+          description: Copilot view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopilotView'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/copilot/refresh:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [copilot]
+      operationId: refreshCaseCopilot
+      summary: Re-request the summary and explanations (assignee or supervisor)
+      responses:
+        '202':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopilotView'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already pending, or AI not enabled for this Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/cases/{caseId}/copilot/drafts:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [copilot]
+      operationId: draftClarificationWithAi
+      summary: Draft clarification items from selected flags and items (assignee); nothing is issued
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopilotDraftInput'
+      responses:
+        '200':
+          description: Draft ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopilotDraft'
+        '202':
+          description: Still drafting; poll the draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopilotDraft'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: AI not enabled for this Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/copilot/drafts/{draftId}:
+    parameters:
+      - name: draftId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [copilot]
+      operationId: getCopilotDraft
+      summary: Poll a pending draft (assignee)
+      responses:
+        '200':
+          description: Draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopilotDraft'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/copilot/outputs/{jobId}/feedback:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [copilot]
+      operationId: rateCopilotOutput
+      summary: Rate an AI output as helpful or not (reviewer, supervisor); one rating per reviewer per output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopilotFeedbackInput'
+      responses:
+        '200':
+          description: Recorded
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/ai-status:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [copilot]
+      operationId: getCommissionAiStatus
+      summary: Whether AI assistance is enabled for the Commission (commission-admin, supervisor)
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, providerClass, dataClasses]
+                properties:
+                  enabled:
+                    type: boolean
+                  providerClass:
+                    type: [string, 'null']
+                    enum: [external, self-hosted, null]
+                  dataClasses:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -1463,6 +1615,122 @@ components:
             type: integer
         overdueClarifications:
           type: integer
+    CopilotStatus:
+      type: string
+      enum: [not-enabled, pending, ready, failed, stale]
+    CopilotView:
+      type: object
+      required:
+        [status, forVersionId, generatedAt, failureReason, summary, explanations, jobs, feedback]
+      properties:
+        status:
+          $ref: '#/components/schemas/CopilotStatus'
+        forVersionId:
+          type: [string, 'null']
+          format: uuid
+        generatedAt:
+          type: [string, 'null']
+          format: date-time
+        failureReason:
+          type: [string, 'null']
+        summary:
+          type: [object, 'null']
+          description: ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention)
+          additionalProperties: true
+        explanations:
+          type: [object, 'null']
+          description: ai-gateway ExplainFlagsOutput (label, explanations)
+          additionalProperties: true
+        jobs:
+          type: object
+          required: [summarize, explain]
+          properties:
+            summarize:
+              type: [string, 'null']
+              format: uuid
+            explain:
+              type: [string, 'null']
+              format: uuid
+        feedback:
+          type: array
+          description: The caller's own ratings
+          items:
+            type: object
+            required: [jobId, rating]
+            properties:
+              jobId:
+                type: string
+                format: uuid
+              rating:
+                type: string
+                enum: [helpful, not-helpful]
+    CopilotDraftInput:
+      type: object
+      required: [flagIds, itemRefs, language]
+      properties:
+        flagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        itemRefs:
+          type: array
+          items:
+            type: object
+            required: [personKey, itemId, sectionKey, requirement]
+            properties:
+              personKey:
+                type: [string, 'null']
+              itemId:
+                type: [string, 'null']
+                format: uuid
+              sectionKey:
+                type: [string, 'null']
+              requirement:
+                oneOf:
+                  - $ref: '#/components/schemas/Requirement'
+                  - type: 'null'
+        language:
+          type: string
+          enum: [en, sw]
+    CopilotDraft:
+      type: object
+      required: [id, status, jobId, label, opening, items, failureReason]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, ready, failed]
+        jobId:
+          type: [string, 'null']
+          format: uuid
+        label:
+          type: [object, 'null']
+          description: ai-gateway AiLabel
+          additionalProperties: true
+        opening:
+          type: [string, 'null']
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClarificationItemInput'
+        failureReason:
+          type: [string, 'null']
+    CopilotFeedbackInput:
+      type: object
+      required: [rating, reason, note]
+      properties:
+        rating:
+          type: string
+          enum: [helpful, not-helpful]
+        reason:
+          type: [string, 'null']
+          enum: [inaccurate, missed-something, unclear, too-long, other, null]
+        note:
+          type: [string, 'null']
+          maxLength: 1000
     Flag:
       type: object
       required:

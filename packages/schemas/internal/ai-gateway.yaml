@@ -1,0 +1,789 @@
+openapi: 3.1.0
+info:
+  title: ai-gateway API - tasks, jobs, policy, usage (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 07c. The only component that reaches an AI provider (ADR-007).
+    Domain services call typed tasks; every call is a job whose completion is announced by
+    event and whose output is pulled by id. Content never appears in events, logs or audit.
+    The ai-gateway service's Swagger document becomes the source of truth once implemented.
+servers:
+  - url: http://localhost:4008
+security:
+  - bearer: []
+tags:
+  - name: tasks
+  - name: jobs
+  - name: feedback
+  - name: policy
+paths:
+  /internal/v1/tasks/{task}:
+    parameters:
+      - $ref: '#/components/parameters/Task'
+    post:
+      tags: [tasks]
+      operationId: runTask
+      summary: 'Create a job for a task (services); returns immediately, or waits up to `waitSeconds` for the result'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '200':
+          description: Finished within the wait window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '202':
+          description: Queued; completion announced by ai.job.* events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '429':
+          description: 'Per-tenant rate limit; problem code `rate-limited`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/jobs/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [jobs]
+      operationId: getJob
+      summary: Job state and validated output (caller service only)
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/jobs/{jobId}/feedback:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    put:
+      tags: [feedback]
+      operationId: recordFeedback
+      summary: Record or update a reviewer's rating of a job's output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackInput'
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Feedback'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/tenants/{tenant}/status:
+    parameters:
+      - $ref: '#/components/parameters/Tenant'
+    get:
+      tags: [policy]
+      operationId: getTenantAiStatus
+      summary: Whether AI assistance is enabled for a tenant and with which provider class (for the Commission status line)
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantAiStatus'
+  /v1/ai/policies:
+    get:
+      tags: [policy]
+      operationId: listGatePolicies
+      summary: Classification gate policy per tenant (platform-admin)
+      responses:
+        '200':
+          description: Policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TenantPolicy'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/ai/policies/{tenant}:
+    parameters:
+      - $ref: '#/components/parameters/Tenant'
+    put:
+      tags: [policy]
+      operationId: setGatePolicy
+      summary: Allow or block a provider class for a data class (platform-admin; audited with approval reference)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatePolicyInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicy'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/ai/routing:
+    get:
+      tags: [policy]
+      operationId: getRouting
+      summary: Effective routing table (task → provider, model, parameters) per tenant override (platform-admin)
+      responses:
+        '200':
+          description: Routing
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Route'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/ai/tenants/{tenant}/usage:
+    parameters:
+      - $ref: '#/components/parameters/Tenant'
+    get:
+      tags: [policy]
+      operationId: getTenantUsage
+      summary: Budget, tokens and cost this month, blocked and failed counts (platform-admin)
+      responses:
+        '200':
+          description: Usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUsage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      tags: [policy]
+      operationId: setTenantBudget
+      summary: Set the monthly token budget and per-minute limit (platform-admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUsage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Task:
+      name: task
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/TaskName'
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Tenant:
+      name: tenant
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    TaskName:
+      type: string
+      enum: [summarize-declaration, explain-flags, draft-clarification]
+    DataClass:
+      type: string
+      enum: [synthetic, restricted, highly-confidential]
+    ProviderClass:
+      type: string
+      enum: [external, self-hosted]
+    JobStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, blocked]
+    JobReason:
+      type: string
+      description: Set when failed or blocked
+      enum: [policy, budget, validation, refused, provider, provider-unavailable, timeout]
+    TaskRequest:
+      type: object
+      required: [tenant, dataClass, subjectRef, input]
+      properties:
+        tenant:
+          type: string
+        dataClass:
+          $ref: '#/components/schemas/DataClass'
+        subjectRef:
+          type: string
+          description: Owning record, e.g. review-case:<uuid>; appears in audit and events
+        promptVersion:
+          type: [integer, 'null']
+          description: Pin a prompt version; null uses the current one
+        waitSeconds:
+          type: integer
+          minimum: 0
+          maximum: 30
+          default: 0
+        input:
+          oneOf:
+            - $ref: '#/components/schemas/SummarizeDeclarationInput'
+            - $ref: '#/components/schemas/ExplainFlagsInput'
+            - $ref: '#/components/schemas/DraftClarificationInput'
+    Job:
+      type: object
+      required:
+        [
+          id,
+          task,
+          tenant,
+          subjectRef,
+          status,
+          reason,
+          promptVersion,
+          provider,
+          model,
+          inputHash,
+          outputHash,
+          usage,
+          output,
+          createdAt,
+          finishedAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        task:
+          $ref: '#/components/schemas/TaskName'
+        tenant:
+          type: string
+        subjectRef:
+          type: string
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        reason:
+          oneOf:
+            - $ref: '#/components/schemas/JobReason'
+            - type: 'null'
+        promptVersion:
+          type: integer
+        provider:
+          type: [string, 'null']
+        model:
+          type: [string, 'null']
+        inputHash:
+          type: string
+        outputHash:
+          type: [string, 'null']
+        usage:
+          type: object
+          required: [tokensIn, tokensOut, costMicros, latencyMs]
+          properties:
+            tokensIn:
+              type: integer
+            tokensOut:
+              type: integer
+            costMicros:
+              type: integer
+            latencyMs:
+              type: integer
+        output:
+          oneOf:
+            - $ref: '#/components/schemas/SummarizeDeclarationOutput'
+            - $ref: '#/components/schemas/ExplainFlagsOutput'
+            - $ref: '#/components/schemas/DraftClarificationOutput'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: [string, 'null']
+          format: date-time
+    AiLabel:
+      type: object
+      description: Present on every output
+      required: [aiAssisted, task, promptVersion, provider, model, generatedAt, disclaimer]
+      properties:
+        aiAssisted:
+          const: true
+        task:
+          $ref: '#/components/schemas/TaskName'
+        promptVersion:
+          type: integer
+        provider:
+          type: string
+        model:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        disclaimer:
+          type: string
+          description: 'Fixed text: indicators, not findings; a named officer decides'
+    SourceRef:
+      type: object
+      required: [sectionKey, personKey, itemId, fieldPath]
+      properties:
+        sectionKey:
+          type: [string, 'null']
+        personKey:
+          type: [string, 'null']
+        itemId:
+          type: [string, 'null']
+          format: uuid
+        fieldPath:
+          type: [string, 'null']
+          description: JSON pointer into the declaration.v1 document
+    FlagInput:
+      type: object
+      required: [id, ruleId, severity, title, indicator, evidence, itemRefs]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ruleId:
+          type: string
+        severity:
+          type: string
+        title:
+          type: string
+        indicator:
+          type: string
+        evidence:
+          type: object
+          additionalProperties: true
+        itemRefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+    ChangeInput:
+      type: object
+      required: [kind, personKey, sectionKey, itemId, percent]
+      properties:
+        kind:
+          type: string
+          enum: [acquired, disposed, value-changed, unchanged, corrected]
+        personKey:
+          type: string
+        sectionKey:
+          type: string
+        itemId:
+          type: [string, 'null']
+          format: uuid
+        percent:
+          type: [number, 'null']
+    RegistryStatusInput:
+      type: object
+      required: [system, status]
+      properties:
+        system:
+          type: string
+        status:
+          type: string
+    SummarizeDeclarationInput:
+      type: object
+      required: [kind, document, previousDocument, changes, flags, registryStatuses, language]
+      properties:
+        kind:
+          const: summarize-declaration
+        document:
+          type: object
+          description: declaration.v1 document (minimised by the gateway before any provider call)
+          additionalProperties: true
+        previousDocument:
+          type: [object, 'null']
+          additionalProperties: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeInput'
+        flags:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlagInput'
+        registryStatuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegistryStatusInput'
+        language:
+          type: string
+          enum: [en, sw]
+    SummarizeDeclarationOutput:
+      type: object
+      required: [label, overview, changesSincePrevious, sections, worthAttention]
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        overview:
+          type: string
+          maxLength: 1200
+        changesSincePrevious:
+          type: array
+          items:
+            type: object
+            required: [text, refs]
+            properties:
+              text:
+                type: string
+                maxLength: 300
+              refs:
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/components/schemas/SourceRef'
+        sections:
+          type: array
+          items:
+            type: object
+            required: [sectionKey, text, refs]
+            properties:
+              sectionKey:
+                type: string
+              text:
+                type: string
+                maxLength: 600
+              refs:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceRef'
+        worthAttention:
+          type: array
+          items:
+            type: object
+            required: [text, flagIds]
+            properties:
+              text:
+                type: string
+                maxLength: 300
+              flagIds:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+    ExplainFlagsInput:
+      type: object
+      required: [kind, flags, itemContext, language]
+      properties:
+        kind:
+          const: explain-flags
+        flags:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FlagInput'
+        itemContext:
+          type: array
+          description: Minimal context for referenced items (type, description, values); minimised by the gateway
+          items:
+            type: object
+            required: [ref, context]
+            properties:
+              ref:
+                $ref: '#/components/schemas/SourceRef'
+              context:
+                type: object
+                additionalProperties: true
+        language:
+          type: string
+          enum: [en, sw]
+    ExplainFlagsOutput:
+      type: object
+      required: [label, explanations]
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        explanations:
+          type: array
+          items:
+            type: object
+            required: [flagId, meaning, whatToCheck, typicalResolution, refs]
+            properties:
+              flagId:
+                type: string
+                format: uuid
+              meaning:
+                type: string
+                maxLength: 500
+              whatToCheck:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+                  maxLength: 200
+              typicalResolution:
+                type: string
+                maxLength: 300
+              refs:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceRef'
+    DraftClarificationInput:
+      type: object
+      required: [kind, commissionName, language, selections]
+      properties:
+        kind:
+          const: draft-clarification
+        commissionName:
+          type: string
+        language:
+          type: string
+          enum: [en, sw]
+        selections:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [ref, flag, itemContext, requirement]
+            properties:
+              ref:
+                $ref: '#/components/schemas/SourceRef'
+              flag:
+                oneOf:
+                  - $ref: '#/components/schemas/FlagInput'
+                  - type: 'null'
+              itemContext:
+                type: object
+                additionalProperties: true
+              requirement:
+                type: [string, 'null']
+                enum: [provide-omitted, explain-discrepancy, correct, null]
+                description: Reviewer's choice if set; the task proposes one otherwise
+    DraftClarificationOutput:
+      type: object
+      required: [label, opening, items]
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        opening:
+          type: [string, 'null']
+          maxLength: 800
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [ref, requirement, text]
+            properties:
+              ref:
+                $ref: '#/components/schemas/SourceRef'
+              requirement:
+                type: string
+                enum: [provide-omitted, explain-discrepancy, correct]
+              text:
+                type: string
+                minLength: 1
+                maxLength: 1000
+    FeedbackInput:
+      type: object
+      required: [reviewerSubject, rating, reason, note]
+      properties:
+        reviewerSubject:
+          type: string
+        rating:
+          type: string
+          enum: [helpful, not-helpful]
+        reason:
+          type: [string, 'null']
+          enum: [inaccurate, missed-something, unclear, too-long, other, null]
+        note:
+          type: [string, 'null']
+          maxLength: 1000
+    Feedback:
+      allOf:
+        - $ref: '#/components/schemas/FeedbackInput'
+        - type: object
+          required: [jobId, at]
+          properties:
+            jobId:
+              type: string
+              format: uuid
+            at:
+              type: string
+              format: date-time
+    TenantAiStatus:
+      type: object
+      required: [tenant, enabled, providerClass, dataClasses]
+      properties:
+        tenant:
+          type: string
+        enabled:
+          type: boolean
+        providerClass:
+          oneOf:
+            - $ref: '#/components/schemas/ProviderClass'
+            - type: 'null'
+        dataClasses:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataClass'
+    GatePolicyInput:
+      type: object
+      required: [dataClass, providerClass, allowed, approvalRef]
+      properties:
+        dataClass:
+          $ref: '#/components/schemas/DataClass'
+        providerClass:
+          $ref: '#/components/schemas/ProviderClass'
+        allowed:
+          type: boolean
+        approvalRef:
+          type: string
+          minLength: 1
+          maxLength: 200
+    TenantPolicy:
+      type: object
+      required: [tenant, rules]
+      properties:
+        tenant:
+          type: string
+        rules:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/GatePolicyInput'
+              - type: object
+                required: [changedBy, changedAt]
+                properties:
+                  changedBy:
+                    type: string
+                  changedAt:
+                    type: string
+                    format: date-time
+    Route:
+      type: object
+      required: [tenant, task, provider, model, params]
+      properties:
+        tenant:
+          type: [string, 'null']
+          description: null is the default route
+        task:
+          $ref: '#/components/schemas/TaskName'
+        provider:
+          type: string
+        model:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+    BudgetInput:
+      type: object
+      required: [monthlyTokens, perMinute]
+      properties:
+        monthlyTokens:
+          type: integer
+          minimum: 0
+        perMinute:
+          type: integer
+          minimum: 1
+    TenantUsage:
+      type: object
+      required:
+        [tenant, month, monthlyTokens, perMinute, tokensUsed, costMicros, jobs, blocked, failed]
+      properties:
+        tenant:
+          type: string
+        month:
+          type: string
+          pattern: '^[0-9]{4}-[0-9]{2}$'
+        monthlyTokens:
+          type: integer
+        perMinute:
+          type: integer
+        tokensUsed:
+          type: integer
+        costMicros:
+          type: integer
+        jobs:
+          type: integer
+        blocked:
+          type: integer
+        failed:
+          type: integer
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
