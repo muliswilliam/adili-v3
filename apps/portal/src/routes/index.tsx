@@ -10,7 +10,7 @@ import {
   Icon,
   SiteHeader,
 } from '@adili/ui';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   AlertCircleIcon,
   Calendar03Icon,
@@ -56,9 +56,14 @@ function Landing({ error }: { error: string | null }) {
     <>
       <SiteHeader
         actions={
-          <Button asChild size="sm">
-            <a href="/auth/login">Sign in</a>
-          </Button>
+          <>
+            <Button asChild size="sm" variant="ghost">
+              <a href="/auth/login">Sign in</a>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/get-started">Get started</Link>
+            </Button>
+          </>
         }
       />
       <main className="flex-1">
@@ -80,11 +85,18 @@ function Landing({ error }: { error: string | null }) {
                 children under the Conflict of Interest Act, 2025. File online with your responsible
                 Commission and receive an acknowledgement anyone can verify.
               </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button asChild size="lg">
-                  <a href="/auth/login">Sign in to file</a>
-                </Button>
-                <p className="text-sm text-muted-foreground">Use your Adili Online account.</p>
+              <div className="grid gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button asChild size="lg">
+                    <Link to="/get-started">Get started</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <a href="/auth/login">Sign in to file</a>
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  First time here? You need your personnel file number and national ID.
+                </p>
               </div>
             </div>
             <Card className="lg:justify-self-end lg:w-full lg:max-w-md">

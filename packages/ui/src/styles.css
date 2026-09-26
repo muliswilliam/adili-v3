@@ -42,6 +42,10 @@
   --ring: oklch(0.556 0 0);
   /* Surface of inputs, textareas and selects: white on the page, filled inside cards. */
   --control: var(--card);
+  /* Warm glow at the foot of the onboarding screens, sampled from the Figma frame
+     "onboarding-step-1". Replace with the exact stops once exported. */
+  --glow: #f0cab9;
+  --glow-soft: #f5e4dc;
   --radius: 0.5rem;
 
   /* Control edges and focus rings, from the style guide's input and button states. */
@@ -100,6 +104,8 @@
     --border: oklch(0.269 0 0);
     --input: oklch(0.371 0 0);
     --ring: oklch(0.708 0 0);
+    --glow: oklch(0.35 0.05 45);
+    --glow-soft: oklch(0.25 0.03 45);
 
     --elevation-control: 0 0 0 1px rgb(255 255 255 / 0.1);
     --elevation-control-hover: 0 0 0 1px rgb(255 255 255 / 0.24);
@@ -162,6 +168,15 @@
   --shadow-button-secondary-focus: var(--elevation-button-secondary-focus);
   --shadow-button-destructive: var(--elevation-button-destructive);
   --shadow-button-destructive-focus: var(--elevation-button-destructive-focus);
+}
+
+/* The onboarding page background: the page colour with a warm glow rising from the bottom. */
+@utility bg-glow {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(90% 55% at 50% 100%, var(--glow) 0%, transparent 70%),
+    radial-gradient(140% 70% at 50% 100%, var(--glow-soft) 0%, transparent 75%);
+  background-attachment: fixed;
 }
 
 @layer base {

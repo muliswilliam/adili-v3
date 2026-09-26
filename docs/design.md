@@ -46,6 +46,7 @@ Tailwind's neutral and red scales. Use the semantic utility (`bg-primary`, `text
 | `success` | green-600 `#00a63e` | card icons |
 | `success-subtle` | green-50 on green-800 text | "Activated" badges *(derived)* |
 | `border` | neutral-200 | card borders, dividers, table rows |
+| `glow` / `glow-soft` | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `input` | neutral-300 | unused since controls moved to shadows; kept for third-party widgets |
 | `control` | `card` on the page, `background` inside a card | fill of inputs, textareas and selects |
 
@@ -104,6 +105,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 | Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `81:3824` | applied |
 | Cards and controls inside cards | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `93:4128` | applied |
 | Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | not yet shared | tokens only |
+| Get started (Identify) | [#66](https://github.com/muliswilliam/adili-v3/issues/66) | `onboarding-step-1` (screenshot only) | applied, with a national ID field the frame lacks; glow colours sampled |
 
 Add a row when a frame is shared, and flip the status when its design pass merges.
 
