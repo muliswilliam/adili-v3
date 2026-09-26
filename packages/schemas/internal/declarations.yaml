@@ -3,7 +3,7 @@ info:
   title: declarations API - filing obligations (draft)
   version: '1'
   description: |
-    Draft contract for specs 04 (obligations), 05 (declaration drafts), 06 (submission, versions, acknowledgement) and 07a (internal reads for review). The declarations service's Swagger
+    Draft contract for specs 04 (obligations), 05 (declaration drafts), 06 (submission, versions, acknowledgement) 07a (internal reads for review) and 08 (person obligation history). The declarations service's Swagger
     document becomes the source of truth once implemented.
 servers:
   - url: http://localhost:4002
@@ -647,6 +647,54 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/persons/{personId}/obligations:
+    parameters:
+      - name: personId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: internalListPersonObligations
+      summary: A person's filing obligations across cycles (for the referral sweep)
+      parameters:
+        - name: tenant
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Obligations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [obligationId, type, cycleKey, status, dueDate, filedAt, late]
+                  properties:
+                    obligationId:
+                      type: string
+                      format: uuid
+                    type:
+                      $ref: '#/components/schemas/ObligationType'
+                    cycleKey:
+                      type: string
+                    status:
+                      $ref: '#/components/schemas/ObligationStatus'
+                    dueDate:
+                      type: string
+                      format: date
+                    filedAt:
+                      type: [string, 'null']
+                      format: date-time
+                    late:
+                      type: boolean
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
