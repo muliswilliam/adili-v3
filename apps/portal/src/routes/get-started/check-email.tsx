@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { requireStep } from '../../components/onboarding/guard';
-import { StepPending } from '../../components/onboarding/step-pending';
+import { CheckEmailStep } from '../../components/onboarding/outcome-steps';
 
 export const Route = createFileRoute('/get-started/check-email')({
   loader: () => requireStep('/get-started/check-email'),
@@ -9,5 +9,5 @@ export const Route = createFileRoute('/get-started/check-email')({
 });
 
 function CheckEmail() {
-  return <StepPending title="Check your email" guard={Route.useLoaderData()} />;
+  return <CheckEmailStep guard={Route.useLoaderData()} />;
 }

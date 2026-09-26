@@ -8,11 +8,18 @@
  * - PSC/300400 / 23456789 at the Public Service Commission: match, roster has no email or phone,
  *   so the declarant enters both
  * - TSC/999999 / 11111111 at the Teachers Service Commission: already onboarded
+ * - TSC/200300 / 34567890 at the Teachers Service Commission: the national register holds a
+ *   different name, so confirming ends in identity-mismatch
+ * - NPSC/400500 / 45678901 at the National Police Service Commission: already has an account from
+ *   another Commission, so confirming links this record to it
+ * - PSC/500600 / 56789012 at the Public Service Commission: the first confirm finds the national
+ *   register down (503), the second fails to create the account (502), the third succeeds
  * Anything else is `no-match`; five misses from one address in a row are rate-limited.
  * The Judicial Service Commission has no roster yet.
  *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
- * five wrong codes or a fourth resend end the session, and resends wait 60 seconds.
+ * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
+ * set-password email can be sent again after the same 60 seconds.
  */
 import { maskContact } from '@adili/ui';
 
@@ -43,7 +50,15 @@ interface RosterRecord {
   email: string | null;
   phone: string | null;
   onboarded: boolean;
+  /** What the national register says about this person's name. */
+  iprs: 'match' | 'mismatch';
+  /** Set when the person already has an account from another Commission. */
+  existingOfr?: string;
+  /** Failures the next confirms of a session run into, in order, before one succeeds. */
+  confirmFailures?: ConfirmFailure[];
 }
+
+type ConfirmFailure = 'iprs-unavailable' | 'identity-unavailable';
 
 const ROSTER: RosterRecord[] = [
   {
@@ -56,6 +71,7 @@ const ROSTER: RosterRecord[] = [
     email: 'j***@tsc.go.ke',
     phone: '07** *** 123',
     onboarded: false,
+    iprs: 'match',
   },
   {
     commission: 'psc',
@@ -67,6 +83,7 @@ const ROSTER: RosterRecord[] = [
     email: null,
     phone: null,
     onboarded: false,
+    iprs: 'match',
   },
   {
     commission: 'tsc',
@@ -78,6 +95,45 @@ const ROSTER: RosterRecord[] = [
     email: 'm***@tsc.go.ke',
     phone: '07** *** 789',
     onboarded: true,
+    iprs: 'match',
+  },
+  {
+    commission: 'tsc',
+    fullName: 'Brian Odhiambo Ouma',
+    designation: 'Teacher',
+    reportingEntity: 'Maseno School',
+    personnelFileNumber: 'TSC/200300',
+    nationalId: '34567890',
+    email: 'b***@tsc.go.ke',
+    phone: '07** *** 456',
+    onboarded: false,
+    iprs: 'mismatch',
+  },
+  {
+    commission: 'npsc',
+    fullName: 'Grace Wambui Njeri',
+    designation: 'Inspector',
+    reportingEntity: 'Kilimani Police Station',
+    personnelFileNumber: 'NPSC/400500',
+    nationalId: '45678901',
+    email: 'g***@npsc.go.ke',
+    phone: '07** *** 901',
+    onboarded: false,
+    iprs: 'match',
+    existingOfr: 'OFR-0000417-4',
+  },
+  {
+    commission: 'psc',
+    fullName: 'Amina Hassan Abdi',
+    designation: 'Human Resource Officer',
+    reportingEntity: 'State Department for Public Service',
+    personnelFileNumber: 'PSC/500600',
+    nationalId: '56789012',
+    email: 'a***@psc.go.ke',
+    phone: '07** *** 012',
+    onboarded: false,
+    iprs: 'match',
+    confirmFailures: ['iprs-unavailable', 'identity-unavailable'],
   },
 ];
 
@@ -97,15 +153,22 @@ interface MockSession {
   session: OnboardingSession;
   record: RosterRecord;
   createdAt: number;
+  confirmFailures: ConfirmFailure[];
 }
 
 const sessions = new Map<string, MockSession>();
 const misses = new Map<string, { count: number; blockedUntil: number }>();
+/** Records onboarded through the mock, so identifying again reports already-onboarded. */
+const onboarded = new Set<RosterRecord>();
+const FIRST_OFR = 418;
+let nextOfr = FIRST_OFR;
 
-/** Clears sessions and rate-limit counters; for tests. */
+/** Clears sessions, rate-limit counters and onboarded records; for tests. */
 export function resetOnboardingMock() {
   sessions.clear();
   misses.clear();
+  onboarded.clear();
+  nextOfr = FIRST_OFR;
 }
 
 function json(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -155,7 +218,13 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
     ofr: null,
     expiresAt: new Date(now + SESSION_TTL_MS).toISOString(),
   };
-  sessions.set(id, { secret, session, record, createdAt: now });
+  sessions.set(id, {
+    secret,
+    session,
+    record,
+    createdAt: now,
+    confirmFailures: [...(record.confirmFailures ?? [])],
+  });
   const created: OnboardingSessionCreated = { ...session, secret };
   return created;
 }
@@ -199,7 +268,7 @@ function identify(body: IdentifyDeclarant, clientIp: string) {
   }
   misses.delete(key);
 
-  if (record.onboarded) {
+  if (record.onboarded || onboarded.has(record)) {
     return problem(409, 'already-onboarded', 'Already onboarded', {
       links: { signIn: '/auth/login', recoverAccess: '/auth/login?action=recover' },
     });
@@ -339,6 +408,66 @@ function provide(entry: MockSession, channel: OtpChannel, value: string) {
   return json(200, session);
 }
 
+/** A new officer reference. The check character is not the real ISO 7064 one. */
+function allocateOfr(): string {
+  const digits = String(nextOfr).padStart(7, '0');
+  nextOfr += 1;
+  return `OFR-${digits}-X`;
+}
+
+/** Starts the 60-second wait before the set-password email can be sent again. */
+function passwordEmailSent(session: OnboardingSession) {
+  session.otp = {
+    ...idleOtp(),
+    resendAvailableAt: new Date(Date.now() + RESEND_COOLDOWN_MS).toISOString(),
+  };
+}
+
+function confirm(entry: MockSession) {
+  const { session, record } = entry;
+  if (session.state !== 'phone-verified') return wrongStep();
+  const failure = entry.confirmFailures.shift();
+  if (failure === 'iprs-unavailable') {
+    return problem(503, 'iprs-unavailable', 'The national register is not responding');
+  }
+  if (failure === 'identity-unavailable') {
+    return problem(502, 'identity-unavailable', 'The account could not be created');
+  }
+  if (record.iprs === 'mismatch') {
+    session.state = 'identity-mismatch';
+    session.outcome = 'identity-mismatch';
+  } else {
+    session.state = 'confirmed';
+    session.outcome = record.existingOfr ? 'linked-existing-account' : 'account-created';
+    session.ofr = record.existingOfr ?? allocateOfr();
+    onboarded.add(record);
+    if (!record.existingOfr) passwordEmailSent(session);
+  }
+  return json(200, { outcome: session.outcome, session });
+}
+
+function resendPasswordEmail(entry: MockSession) {
+  const { session } = entry;
+  if (session.state !== 'confirmed' || session.outcome !== 'account-created') return wrongStep();
+  const wait = secondsUntilResend(session);
+  if (wait > 0) {
+    return problem(
+      429,
+      'resend-cooldown',
+      'Wait before asking for another email',
+      { retryAfterSeconds: wait },
+      { 'RateLimit-Reset': String(wait) },
+    );
+  }
+  passwordEmailSent(session);
+  return new Response(null, { status: 202 });
+}
+
+function secondsUntilResend({ otp }: OnboardingSession): number {
+  const wait = otp.resendAvailableAt === null ? 0 : Date.parse(otp.resendAvailableAt) - Date.now();
+  return wait > 0 ? Math.ceil(wait / 1000) : 0;
+}
+
 export async function mockDirectoryFetch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -363,7 +492,7 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
   }
 
   const stepMatch =
-    /^\/v1\/onboarding\/sessions\/([^/]+)\/(contacts|otp\/(email|phone)\/(verify|resend))$/.exec(
+    /^\/v1\/onboarding\/sessions\/([^/]+)\/(contacts|confirm|resend-password-email|otp\/(email|phone)\/(verify|resend))$/.exec(
       path,
     );
   const sessionId = stepMatch?.[1];
@@ -371,6 +500,8 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
     const entry = liveSession(sessionId, secret);
     if (entry instanceof Response) return entry;
     const channel = stepMatch[3] as OtpChannel | undefined;
+    if (stepMatch[2] === 'confirm') return confirm(entry);
+    if (stepMatch[2] === 'resend-password-email') return resendPasswordEmail(entry);
     if (stepMatch[2] === 'contacts') {
       const body = (await request.json()) as { channel: OtpChannel; value: string };
       return provide(entry, body.channel, body.value);

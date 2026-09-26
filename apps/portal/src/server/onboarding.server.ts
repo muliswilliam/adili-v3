@@ -119,19 +119,23 @@ export async function lookupSession(
 }
 
 /**
- * Why a verification step failed. `ended` means the session is gone and the cookie should be
- * cleared; `moved` means it is waiting on another step, e.g. after a second tab moved it on.
+ * Why a step failed. `ended` means the session is gone and the cookie should be cleared;
+ * `moved` means it is waiting on another step, e.g. after a second tab moved it on.
  */
 export type StepProblem =
   | { code: 'otp-invalid'; attemptsLeft?: number }
   | { code: 'otp-expired' }
   | { code: 'resend-cooldown'; retryAfterSeconds?: number }
+  /** The national register did not answer; the session is unchanged and can retry. */
+  | { code: 'iprs-unavailable' }
+  /** The account could not be created; nothing changed and the session can retry. */
+  | { code: 'identity-unavailable' }
   | { code: 'invalid' }
   | { code: 'ended' }
   | { code: 'moved' }
   | { code: 'unavailable' };
 
-/** What the browser gets back from a verification step: the session (never its secret). */
+/** What the browser gets back from a step: the session (never its secret). */
 export type StepResult = { ok: true; session: OnboardingSession } | ({ ok: false } & StepProblem);
 
 function stepProblem(response: Response, error: unknown): StepProblem {
@@ -152,6 +156,8 @@ function stepProblem(response: Response, error: unknown): StepProblem {
       retryAfterSeconds: retryAfter(response, problem.data?.retryAfterSeconds),
     };
   }
+  if (response.status === 502 && code === 'identity-unavailable') return { code };
+  if (response.status === 503 && code === 'iprs-unavailable') return { code };
   return { code: 'unavailable' };
 }
 
@@ -202,6 +208,14 @@ export async function resendCode(
   } catch {
     return { ok: false, code: 'unavailable' };
   }
+  return readBack(client, credentials);
+}
+
+/** The session after a call that answers 202 without it. */
+async function readBack(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+): Promise<StepResult> {
   const lookup = await lookupSession(client, credentials);
   if (lookup.status === 'active') return { ok: true, session: lookup.session };
   return { ok: false, code: lookup.status === 'unavailable' ? 'unavailable' : 'ended' };
@@ -225,4 +239,42 @@ export async function provideContact(
   } catch {
     return { ok: false, code: 'unavailable' };
   }
+}
+
+/**
+ * Confirms the roster details. The directory checks them against the national register, then
+ * creates the account or links the record to the declarant's existing one; the session's state
+ * and outcome say which.
+ */
+export async function confirm(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+): Promise<StepResult> {
+  try {
+    const { data, error, response } = await client.POST(
+      '/v1/onboarding/sessions/{sessionId}/confirm',
+      { params: sessionParams(credentials) },
+    );
+    if (data) return { ok: true, session: data.session };
+    return { ok: false, ...stepProblem(response, error) };
+  } catch {
+    return { ok: false, code: 'unavailable' };
+  }
+}
+
+/** Sends the set-password email again, then reads the session back for the new wait. */
+export async function resendPasswordEmail(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+): Promise<StepResult> {
+  try {
+    const { error, response } = await client.POST(
+      '/v1/onboarding/sessions/{sessionId}/resend-password-email',
+      { params: sessionParams(credentials) },
+    );
+    if (response.status !== 202) return { ok: false, ...stepProblem(response, error) };
+  } catch {
+    return { ok: false, code: 'unavailable' };
+  }
+  return readBack(client, credentials);
 }

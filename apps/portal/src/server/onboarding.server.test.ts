@@ -8,11 +8,13 @@ import {
 } from './directory/mock.server';
 import type { paths } from './directory/schema.gen';
 import {
+  confirm,
   identify,
   listCommissions,
   lookupSession,
   provideContact,
   resendCode,
+  resendPasswordEmail,
   verifyCode,
 } from './onboarding.server';
 
@@ -298,5 +300,148 @@ describe('verification steps', () => {
       ok: false,
       code: 'unavailable',
     });
+  });
+});
+
+describe('confirm and the set-password email', () => {
+  /** A session with both contacts verified, waiting at the confirm step. */
+  async function atConfirm(details = teacher) {
+    const { created } = await identify(client(), details);
+    if (!created) throw new Error('no session');
+    await verifyCode(client(), created, { channel: 'email', code: '123456' });
+    await verifyCode(client(), created, { channel: 'phone', code: '123456' });
+    return created;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows the roster details once both contacts are verified', async () => {
+    const session = await atConfirm();
+
+    const lookup = await lookupSession(client(), session);
+
+    expect(lookup).toMatchObject({
+      status: 'active',
+      session: {
+        state: 'phone-verified',
+        details: { fullName: 'Wanjiru Achieng Otieno', personnelFileNumber: 'TSC/100200' },
+        contacts: { email: { verified: true }, phone: { verified: true } },
+      },
+    });
+  });
+
+  // S11
+  it('creates the account and waits for the set-password email', async () => {
+    const session = await atConfirm();
+
+    const result = await confirm(client(), session);
+
+    expect(result).toMatchObject({
+      ok: true,
+      session: { state: 'confirmed', outcome: 'account-created' },
+    });
+    expect(result.ok && result.session.ofr).toMatch(/^OFR-\d{7}-[0-9A-Z]$/);
+    // The record is onboarded, so identifying again says so.
+    expect((await identify(client(), teacher)).result).toMatchObject({
+      code: 'already-onboarded',
+    });
+  });
+
+  // S12, S13
+  it('stops at identity-mismatch when the national register disagrees', async () => {
+    const session = await atConfirm({
+      commission: 'tsc',
+      personnelFileNumber: 'TSC/200300',
+      nationalId: '34567890',
+    });
+
+    const result = await confirm(client(), session);
+
+    expect(result).toMatchObject({
+      ok: true,
+      session: { state: 'identity-mismatch', ofr: null },
+    });
+  });
+
+  // S15
+  it('links the record to an existing account', async () => {
+    const session = await atConfirm({
+      commission: 'npsc',
+      personnelFileNumber: 'NPSC/400500',
+      nationalId: '45678901',
+    });
+
+    const result = await confirm(client(), session);
+
+    expect(result).toMatchObject({
+      ok: true,
+      session: { state: 'confirmed', outcome: 'linked-existing-account', ofr: 'OFR-0000417-4' },
+    });
+  });
+
+  // S14, S16
+  it('keeps the session for a retry when the register or the account service fails', async () => {
+    const session = await atConfirm({
+      commission: 'psc',
+      personnelFileNumber: 'PSC/500600',
+      nationalId: '56789012',
+    });
+
+    expect(await confirm(client(), session)).toEqual({ ok: false, code: 'iprs-unavailable' });
+    expect(await confirm(client(), session)).toEqual({ ok: false, code: 'identity-unavailable' });
+    expect(await confirm(client(), session)).toMatchObject({
+      ok: true,
+      session: { outcome: 'account-created' },
+    });
+  });
+
+  it('reports a confirm from another step as a session that has moved', async () => {
+    const { created } = await identify(client(), teacher);
+    if (!created) throw new Error('no session');
+
+    expect(await confirm(client(), created)).toEqual({ ok: false, code: 'moved' });
+  });
+
+  // S17
+  it('holds the set-password email for 60 seconds, then sends it again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const session = await atConfirm();
+    await confirm(client(), session);
+
+    expect(await resendPasswordEmail(client(), session)).toMatchObject({
+      ok: false,
+      code: 'resend-cooldown',
+    });
+
+    vi.setSystemTime(Date.now() + 61_000);
+    const result = await resendPasswordEmail(client(), session);
+
+    expect(result).toMatchObject({ ok: true, session: { state: 'confirmed' } });
+    expect(result.ok && result.session.otp.resendAvailableAt).toBeTruthy();
+  });
+
+  it('refuses the set-password email before the account exists or for a linked account', async () => {
+    const pending = await atConfirm();
+    expect(await resendPasswordEmail(client(), pending)).toEqual({ ok: false, code: 'moved' });
+
+    const linked = await atConfirm({
+      commission: 'npsc',
+      personnelFileNumber: 'NPSC/400500',
+      nationalId: '45678901',
+    });
+    await confirm(client(), linked);
+    expect(await resendPasswordEmail(client(), linked)).toEqual({ ok: false, code: 'moved' });
+  });
+
+  it('treats a wrong secret or outages as ended or unavailable', async () => {
+    const session = await atConfirm();
+    const wrong = { ...session, secret: 'wrong' };
+    const down = client(() => Promise.reject(new Error('ECONNREFUSED')));
+
+    expect(await confirm(client(), wrong)).toEqual({ ok: false, code: 'ended' });
+    expect(await confirm(down, session)).toEqual({ ok: false, code: 'unavailable' });
+    expect(await resendPasswordEmail(down, session)).toEqual({ ok: false, code: 'unavailable' });
   });
 });

@@ -14,12 +14,14 @@ import {
   type OnboardingCredentials,
 } from './onboarding-cookie';
 import {
+  confirm,
   identify,
   type IdentifyResult,
   listCommissions,
   lookupSession,
   provideContact,
   resendCode,
+  resendPasswordEmail,
   type SessionLookup,
   type StepResult,
   verifyCode,
@@ -72,7 +74,7 @@ export const getOnboardingSession = createServerFn({ method: 'GET' }).handler(
 );
 
 /**
- * Runs a verification step on the session in the cookie. The secret stays on the server; the
+ * Runs a step on the session in the cookie. The secret stays on the server; the
  * cookie is cleared once the directory says the session has ended.
  */
 async function onSession(
@@ -100,6 +102,16 @@ export const resendOnboardingCode = createServerFn({ method: 'POST' })
 export const provideOnboardingContact = createServerFn({ method: 'POST' })
   .validator(contactSchema)
   .handler(({ data }) => onSession((credentials) => provideContact(client(), credentials, data)));
+
+/** `POST …/confirm`: the IPRS check, then the account created or linked. */
+export const confirmOnboarding = createServerFn({ method: 'POST' }).handler(() =>
+  onSession((credentials) => confirm(client(), credentials)),
+);
+
+/** `POST …/resend-password-email`. */
+export const resendSetPasswordEmail = createServerFn({ method: 'POST' }).handler(() =>
+  onSession((credentials) => resendPasswordEmail(client(), credentials)),
+);
 
 /**
  * Forgets the session in this browser so the declarant can start again. The contract has no

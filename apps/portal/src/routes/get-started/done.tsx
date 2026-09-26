@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { requireStep } from '../../components/onboarding/guard';
-import { StepPending } from '../../components/onboarding/step-pending';
+import { DoneStep } from '../../components/onboarding/outcome-steps';
 
 export const Route = createFileRoute('/get-started/done')({
   loader: () => requireStep('/get-started/done'),
@@ -9,5 +9,5 @@ export const Route = createFileRoute('/get-started/done')({
 });
 
 function Done() {
-  return <StepPending title="Your account is ready" guard={Route.useLoaderData()} />;
+  return <DoneStep guard={Route.useLoaderData()} />;
 }
