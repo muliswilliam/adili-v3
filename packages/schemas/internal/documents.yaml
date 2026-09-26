@@ -3,7 +3,7 @@ info:
   title: documents API - uploads (draft)
   version: '1'
   description: |
-    Draft contract for specs 02 (roster import), 05 (declaration attachments) and 06 (document issuance). Presigned uploads to quarantine,
+    Draft contract for specs 02 (roster import), 05 (declaration attachments), 06 (document issuance) and 07a (clarification letters). Presigned uploads to quarantine,
     ClamAV scan on completion, presigned download of clean objects for other services.
     The documents service's Swagger document becomes the source of truth once implemented.
 servers:
@@ -249,7 +249,7 @@ components:
     UploadPurpose:
       type: string
       description: Sets allowed content types and the size limit
-      enum: [roster-import, declaration-attachment]
+      enum: [roster-import, declaration-attachment, clarification-attachment]
     UploadState:
       type: string
       enum: [awaiting-upload, clean, infected, rejected, expired]
@@ -370,7 +370,7 @@ components:
                 type: string
     DocumentType:
       type: string
-      enum: [acknowledgement-slip]
+      enum: [acknowledgement-slip, clarification-letter]
     DisclosureLevel:
       type: string
       enum: [public, restricted, confidential]

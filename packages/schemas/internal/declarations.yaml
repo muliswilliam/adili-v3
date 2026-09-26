@@ -3,7 +3,7 @@ info:
   title: declarations API - filing obligations (draft)
   version: '1'
   description: |
-    Draft contract for specs 04 (obligations), 05 (declaration drafts) and 06 (submission, versions, acknowledgement). The declarations service's Swagger
+    Draft contract for specs 04 (obligations), 05 (declaration drafts), 06 (submission, versions, acknowledgement) and 07a (internal reads for review). The declarations service's Swagger
     document becomes the source of truth once implemented.
 servers:
   - url: http://localhost:4002
@@ -566,6 +566,87 @@ paths:
                 $ref: '#/components/schemas/AcknowledgementPayload'
         '404':
           $ref: '#/components/responses/NotFound'
+  /internal/v1/declarations/{declarationId}/versions/{version}/document:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+      - name: X-Acting-Subject
+        in: header
+        required: true
+        description: Staff subject on whose behalf the content is read; recorded in the audit event
+        schema:
+          type: string
+      - name: X-Review-Case
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: internalGetVersionDocument
+      summary: Decrypted declaration.v1 document of a submitted version, for the review service (audited read)
+      responses:
+        '200':
+          description: Document and metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalVersionDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/declarations/previous-version:
+    get:
+      tags: [internal]
+      operationId: internalFindPreviousVersion
+      summary: Latest earlier submitted version of the same person at the same Commission
+      parameters:
+        - name: personId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tenant
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: beforeVersionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Previous version reference
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [declarationId, versionId, version, statementDate, submittedAt]
+                properties:
+                  declarationId:
+                    type: string
+                    format: uuid
+                  versionId:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+                  statementDate:
+                    type: string
+                    format: date
+                  submittedAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: No earlier submitted version
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:
@@ -1236,3 +1317,69 @@ components:
               type: integer
             attachments:
               type: integer
+    InternalVersionDocument:
+      type: object
+      required:
+        - declarationId
+        - versionId
+        - version
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - late
+        - dueDate
+        - declarantName
+        - personnelFileNumber
+        - document
+        - attachments
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        dueDate:
+          type: string
+          format: date
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+        document:
+          type: object
+          description: The immutable declaration.v1 document, decrypted
+          additionalProperties: true
+        attachments:
+          type: array
+          items:
+            type: object
+            required: [uploadId, itemId, personKey, fileName, sha256]
+            properties:
+              uploadId:
+                type: string
+                format: uuid
+              itemId:
+                type: string
+                format: uuid
+              personKey:
+                type: string
+              fileName:
+                type: string
+              sha256:
+                type: string
