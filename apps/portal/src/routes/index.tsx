@@ -91,7 +91,7 @@ function Landing({ error }: { error: string | null }) {
                     <Link to="/get-started">Get started</Link>
                   </Button>
                   <Button asChild variant="secondary">
-                    <a href="/auth/login">Sign in to file</a>
+                    <a href="/auth/login">Sign in</a>
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
