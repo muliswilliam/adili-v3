@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- PROTOTYPE - throwaway. Question: what do the PDFs Adili issues look like (A4 pages, letterhead, verification footer with QR and code, signature appearance, classification marking, revoked / superseded / preview states)? Covers tickets #135 #143 #156 #194 #218. Open by double-clicking. State is in memory. -->
+<!-- PROTOTYPE - throwaway. Question: what do the PDFs Adili issues look like (A4 pages, letterhead, verification footer with QR and code, signature appearance, classification marking, revoked / superseded / preview states)? Covers tickets #135 #143 #156 #194 #218, spec 10 access documents (#258 #260 #265 #269 #304) and the spec 09b open-data manifest (#297). Open by double-clicking. State is in memory. -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -1370,6 +1370,27 @@
           break-after: auto;
         }
       }
+      /* ---------- spec 10 access documents: per-recipient watermark (every page) ---------- */
+      .rwm {
+        position: absolute;
+        inset: -35% -40%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        transform: rotate(-30deg);
+        pointer-events: none;
+        z-index: 4;
+        color: rgba(179, 36, 26, 0.09);
+        font-size: 12pt;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        text-align: center;
+      }
+      .lvl.public {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
     </style>
     <script src="../../../packages/ui/prototype/kit.js"></script>
   </head>
@@ -1778,7 +1799,7 @@
         const html = bodies
           .map(
             (b, i) =>
-              `<section class="page ${d.level}" aria-label="${esc(d.title)}, page ${i + 1} of ${n}">${m.mark ? `<div class="mk-top">${m.mark}</div>` : ''}<div class="pb">${i > 0 ? `<div class="ch"><span class="mono">${m.ref}</span><span>${esc(d.short || d.title)}</span></div>` : ''}${b}</div>${footer(m, i, n, !!d.bodyVerify)}${watermark(s, m)}</section>`,
+              `<section class="page ${d.level}" aria-label="${esc(d.title)}, page ${i + 1} of ${n}">${m.mark ? `<div class="mk-top">${m.mark}</div>` : ''}<div class="pb">${i > 0 ? `<div class="ch"><span class="mono">${m.ref}</span><span>${esc(d.short || d.title)}</span></div>` : ''}${b}</div>${footer(m, i, n, !!d.bodyVerify)}${m.rwm && !m.preview ? rwm(m.rwm) : ''}${watermark(s, m)}</section>`,
           )
           .join('');
         CTX = { sw: false };
@@ -2477,7 +2498,839 @@
             return ncrPages(m);
           },
         },
+
+        /* ---------- spec 10 (#258 #260 #265 #269 #304) access documents ---------- */
+        'access-decision': {
+          title: 'Access decision letter',
+          short: 'Decision on an access request',
+          group: 'Access requests',
+          tickets: [258, 260],
+          template: 'access-decision.v1',
+          level: 'restricted',
+          org: ORG.PSC,
+          variants: [
+            ['partial', 'Partially granted'],
+            ['grant', 'Granted'],
+            ['deny', 'Denied'],
+            ['cannot', 'Cannot identify'],
+          ],
+          gap: 'Spec 10 sends decisions as notifications (access-decision-applicant); documents.yaml has no access-decision type. Regulation 22(3) requires written notice with reasons, so a letter is proposed.',
+          access: 'The applicant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            const a = ARQ_L[s.v || 'partial'];
+            return {
+              ref: a.ref,
+              code: a.code,
+              ...letterDates(a.at),
+              a,
+              previewRef: a.ref,
+            };
+          },
+          pages(m, s) {
+            return accessDecisionPages(m, s.v || 'partial');
+          },
+        },
+        'access-package': {
+          title: 'Access package',
+          short: 'Disclosure package',
+          group: 'Access requests',
+          tickets: [258, 260, 265],
+          template: 'access-package.v1',
+          level: 'confidential',
+          window: true,
+          org: ORG.PSC,
+          variants: [
+            ['arq', 'Form K applicant'],
+            ['lea', 'Law enforcement'],
+          ],
+          access:
+            'Only the recipient named in the watermark, for 14 days. Every download is recorded in the access register.',
+          payload: 'None. The verify page shows validity only.',
+          meta(s) {
+            const p = PKG[s.v || 'arq'];
+            return {
+              ref: p.ref,
+              code: p.code,
+              ...letterDates(p.issuedAt),
+              p,
+              rwm: `${p.recipient} · ${p.ref} · ${fmtDate(p.issuedAt)}`,
+              previewRef: p.ref,
+              previewWord: 'Preview',
+            };
+          },
+          pages(m) {
+            return accessPackagePages(m);
+          },
+        },
+        'certified-copy': {
+          title: 'Certified copy',
+          short: 'Certified copy of a declaration',
+          group: 'Access requests',
+          tickets: [269, 304],
+          template: 'certified-copy.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          variants: [
+            ['portal', 'Requested on the portal'],
+            ['in-person', 'In person, by a representative'],
+          ],
+          access: 'The declarant (subject). Download is recorded as self-access.',
+          payload: 'Reference, type, issuer, issue date, version',
+          meta(s) {
+            const c = CERT[s.v || 'portal'];
+            return {
+              org: c.org,
+              ref: c.ref,
+              code: c.code,
+              version: c.version,
+              ...letterDates(c.issuedAt),
+              c,
+              previewRef: c.ref,
+            };
+          },
+          pages(m) {
+            return certifiedCopyPages(m);
+          },
+        },
+        'lea-response': {
+          title: 'Law enforcement response',
+          short: 'Law enforcement request',
+          group: 'Access requests',
+          tickets: [265],
+          template: 'lea-response.v1',
+          level: 'confidential',
+          org: ORG.PSC,
+          variants: [
+            ['grant', 'Granted'],
+            ['deny', 'Denied'],
+          ],
+          gap: 'Spec 10 tells the agency by notification (lea-grant-notice, LEA decision); documents.yaml has no lea-response type. A written response is proposed for the agency file.',
+          access: 'The requesting officer (subject) and the Commission. Download is recorded.',
+          payload: 'None. The verify page shows validity only.',
+          meta(s) {
+            const l = LEA_L[s.v || 'grant'];
+            return { ref: l.ref, code: l.code, ...letterDates(l.at), l, previewRef: l.ref };
+          },
+          pages(m, s) {
+            return leaResponsePages(m, s.v || 'grant');
+          },
+        },
+
+        /* ---------- spec 09b (#297) open-data manifest ---------- */
+        'open-data-manifest': {
+          title: 'Open-data release manifest',
+          short: 'Open-data release manifest',
+          group: 'Open data',
+          tickets: [297],
+          template: 'open-data-manifest.v1',
+          level: 'public',
+          mark: false,
+          org: ORG.EACC,
+          variants: [
+            ['annual', 'Annual release'],
+            ['snapshot', 'Mid-year snapshot'],
+          ],
+          access: 'Anyone. Linked from the open-data page and the public API.',
+          payload: 'The full manifest: release, files and hashes',
+          meta(s) {
+            const r = ODM[s.v || 'annual'];
+            return {
+              ref: r.id,
+              code: r.code,
+              version: r.version,
+              ...letterDates(r.publishedAt),
+              r,
+              previewRef: r.id,
+              previewWord: 'Preview',
+              revokedNote: 'Withdrawn · 26 Sep 2026',
+            };
+          },
+          pages(m) {
+            return manifestPages(m);
+          },
+        },
       };
+
+      /* ============================== spec 10 access documents ============================== */
+      // Data matches apps/console/prototype/10-access.prototype.html and apps/portal/prototype/access-requests.prototype.html.
+      const PSC_ACCESS_SIGN = {
+        name: 'Lucy Wambui',
+        title: 'Access officer',
+        for: 'For: Secretary / Chief Executive Officer',
+      };
+      const SECL = {
+        bio: 'Personal details',
+        income: 'Income',
+        assets: 'Assets',
+        liabilities: 'Liabilities',
+        other: 'Other information',
+      };
+      const REG24 = {
+        'public-interest': [
+          'a',
+          'the disclosure of any information contained in the declaration or clarification would be against public interest',
+        ],
+        'prejudice-proceeding': [
+          'b',
+          'the access to the information contained in the declaration or clarification may prejudice an ongoing proceeding or investigation by the responsible Commission or a law enforcement agency',
+        ],
+        'frivolous-vexatious': ['c', 'the request is frivolous, vexatious or scandalous'],
+        'not-objectives': [
+          'd',
+          'the reason for the access of the information contained in the declaration or clarification does not promote the objectives of the Act',
+        ],
+      };
+      const ppl = (s) =>
+        s.spouses && s.children
+          ? 'Officer, spouses and children'
+          : s.spouses
+            ? 'Officer and spouses'
+            : s.children
+              ? 'Officer and children'
+              : 'Officer only';
+      const secs = (s) =>
+        ['bio', 'income', 'assets', 'liabilities', 'other']
+          .filter((k) => s.sections.includes(k))
+          .map((k, i) => (i ? SECL[k].toLowerCase() : SECL[k]))
+          .join(', ');
+      const scopeLine = (s) =>
+        `${s.years.join(', ')} · ${ppl(s)} · ${secs(s)}${s.clar ? ' · clarifications' : ''}`;
+      const ALL_SECS = ['bio', 'income', 'assets', 'liabilities', 'other'];
+      const MERCY_TO =
+        '<b>Mercy Wanjiku Kamau</b><br />Othaya Road, Kileleshwa<br />P.O. Box 49010-00100, Nairobi<br />mercy.kamau@gmail.com';
+      const ARQ_L = {
+        partial: {
+          ref: 'ARQ-PSC-2026-0000118-3',
+          code: 'ADL-7TCM-R2KD-44PW-HQ8N-3XFB-6C',
+          at: '2026-09-20T11:45:00',
+          received: '2026-08-24T13:30:00',
+          to: MERCY_TO,
+          salute: 'Ms Kamau',
+          officer: 'Anne Njeri Mutua',
+          officerTitle:
+            'Director, Land Administration, State Department for Lands and Physical Planning',
+          outcome: 'partial',
+          requested: {
+            years: [2025, 2026],
+            spouses: true,
+            children: true,
+            sections: ['income', 'assets', 'liabilities'],
+            clar: true,
+          },
+          granted: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['assets', 'liabilities'],
+            clar: true,
+          },
+          grounds: ['public-interest'],
+          reasons:
+            'The request for land holdings is in furtherance of the objectives of the Act. Income and the declarations of the officer’s children are not needed for that purpose and disclosing them would be against the public interest. The 2025 declaration predates the re-allocations and is not granted.',
+          expires: '2026-10-04T11:48:00',
+        },
+        grant: {
+          ref: 'ARQ-PSC-2026-0000097-M',
+          code: 'ADL-3KQ8-W7PD-HM2R-9XTA-5NCE-2J',
+          at: '2026-09-25T14:10:00',
+          received: '2026-08-26T08:50:00',
+          to: MERCY_TO,
+          salute: 'Ms Kamau',
+          officer: 'Daniel Otieno Were',
+          officerTitle: 'Director, Water Infrastructure, State Department for Water and Sanitation',
+          outcome: 'grant',
+          requested: {
+            years: [2026],
+            spouses: false,
+            children: false,
+            sections: ['assets', 'other'],
+            clar: false,
+          },
+          granted: {
+            years: [2026],
+            spouses: false,
+            children: false,
+            sections: ['assets', 'other'],
+            clar: false,
+          },
+          grounds: [],
+          reasons:
+            'The applicant shows a legitimate interest as a journalist reporting on the use of public funds, and good cause in furtherance of the objectives of the Act. The officer consented to the disclosure.',
+          expires: '2026-10-09T14:13:00',
+        },
+        deny: {
+          ref: 'ARQ-PSC-2026-0000088-4',
+          code: 'ADL-9DHV-2QMK-7WRT-4CXP-8NBF-1A',
+          at: '2026-09-18T16:20:00',
+          received: '2026-08-19T09:00:00',
+          to: MERCY_TO,
+          salute: 'Ms Kamau',
+          officer: 'Beatrice Chebet Rotich',
+          officerTitle: 'Director, Mining Licences, State Department for Mining',
+          outcome: 'deny',
+          requested: {
+            years: [2026],
+            spouses: true,
+            children: true,
+            sections: ALL_SECS,
+            clar: true,
+          },
+          grounds: ['prejudice-proceeding'],
+          reasons:
+            'The officer’s declaration is the subject of an ongoing investigation by the Commission. Disclosure now may prejudice that investigation.',
+        },
+        cannot: {
+          ref: 'ARQ-PSC-2026-0000109-3',
+          code: 'ADL-6PWX-3KTD-8MQC-2HRN-5VJA-7G',
+          at: '2026-09-19T10:40:00',
+          received: '2026-09-08T16:10:00',
+          to: '<b>Esther Nduta Gikonyo</b><br />Kiambu<br />P.O. Box 30100-00100, Nairobi<br />esther.gikonyo@mail.co.ke',
+          salute: 'Ms Gikonyo',
+          outcome: 'cannot',
+          sought: 'Dr Achieng, Kenyatta National Hospital, Casualty',
+          note: 'No roster record matches. Kenyatta National Hospital staff are not on the PSC roster.',
+        },
+      };
+      function groundsBlock(gs) {
+        return `<ol class="items">${gs.map((g, i) => `<li><span class="n">${REG24[g][0]}</span><div><div class="it">Regulation 24(${REG24[g][0]})${sw()}</div><p>&ldquo;${REG24[g][1]}&rdquo;</p></div></li>`).join('')}</ol>`;
+      }
+      function scopeTable(req, gr) {
+        const row = (k, a, b) =>
+          `<tr><th scope="row">${k}</th><td>${a}</td>${gr ? `<td>${b}</td>` : ''}</tr>`;
+        const yes = (v) => (v ? 'Included' : 'Not included');
+        return `<table class="ft"><thead><tr><th style="width:30mm"></th><th>You asked for${sw()}</th>${gr ? `<th>Granted${sw()}</th>` : ''}</tr></thead><tbody>
+          ${row('Years', req.years.join(', '), gr ? gr.years.join(', ') : '')}
+          ${row('People', ppl(req), gr ? ppl(gr) : '')}
+          ${row('Sections', secs(req), gr ? secs(gr) : '')}
+          ${row('Clarifications', yes(req.clar), gr ? yes(gr.clar) : '')}
+        </tbody></table>`;
+      }
+      function accessDecisionPages(m, v) {
+        const a = m.a;
+        const date = m.preview ? 'Date of issue' : fmtDate(m.issuedAt);
+        const head = `${lh(m.org)}
+          ${meta(a.to, [
+            ['Ref', `<span class="mono">${m.ref}</span>`],
+            ['Date', date],
+            ['Received', fmtDate(a.received)],
+          ])}
+          <div class="subj">Your request to access a declaration: ${m.ref}${sw()}</div>
+          <p>Dear ${a.salute},</p>`;
+        if (v === 'cannot')
+          return [
+            `${head}
+            <p>The Commission received your request in Form K on ${fmtDate(a.received)} for the declaration of <b>${esc(a.sought)}</b>.${sw()}</p>
+            <div class="outcome warn"><span class="ic">${icon('userX', 20, 2.4)}</span><div class="lbl">Outcome${sw()}</div><div class="v">Officer could not be identified</div></div>
+            <p>The Commission must identify the officer named in Part II of your Form K on its roster before it can consider the request. ${esc(a.note)}${sw()}</p>
+            <p>Your request is now closed. You may make a new request with more details, such as the entity, work station or personnel file number, or apply to the Responsible Commission for that officer.${sw()}</p>
+            <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+            ${sign(m, PSC_ACCESS_SIGN)}`,
+          ];
+        const out =
+          v === 'partial'
+            ? ['warn', 'check', 'Partially granted']
+            : v === 'grant'
+              ? ['ok', 'check', 'Granted']
+              : ['danger', 'x', 'Denied'];
+        const p1 = `${head}
+          <p>The Commission has decided your request under section 36(1) of the Conflict of Interest Act, 2025, to access the declaration of <b>${esc(a.officer)}</b>, ${esc(a.officerTitle)}.${sw()}</p>
+          <div class="outcome ${out[0]}"><span class="ic">${icon(out[1], 20, 2.6)}</span><div class="lbl">Decision${sw()}</div><div class="v">${out[2]}</div></div>
+          <h3>Scope${sw()}</h3>
+          ${scopeTable(a.requested, v === 'deny' ? null : a.granted)}
+          ${a.grounds.length ? `<h3>Grounds under Regulation 24${sw()}</h3><p>The Commission ${v === 'deny' ? 'declined' : 'declined part of'} your request on these grounds:</p>${groundsBlock(a.grounds)}` : ''}
+          <h3>Reasons${sw()}</h3><p>${esc(a.reasons)}</p>`;
+        const p2 =
+          v === 'deny'
+            ? `<h3 style="margin-top:0">What you can do${sw()}</h3>
+              <p>This decision is final. You may seek relief from the court.${sw()}</p>
+              <p>The public officer has been told of this decision.${sw()}</p>
+              <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+              ${sign(m, PSC_ACCESS_SIGN)}`
+            : `<h3 style="margin-top:0">How to get the package${sw()}</h3>
+              <ol class="steps"><li>Sign in to Adili Online at adili.go.ke with your applicant account.</li><li>Open My requests and select <b>${m.ref}</b>.</li><li>Download the package. It contains only the scope granted above.</li></ol>
+              <div class="banner warn">${icon('calendar', 18)}<div>Download by ${m.preview ? '14 days after the date of issue' : fmtDate(a.expires)}${sw()}<span class="s">After that date the package can no longer be downloaded.</span></div></div>
+              <div class="conf-note"><b>Your responsibility.</b> Every page of the package carries your name, this reference and the date of issue. Publishing or sharing the information disclosed is an offence under section 36(4) of the Act.${sw()}</div>
+              <p style="margin-top:5mm">This decision is final. The public officer has been told of it.${sw()}</p>
+              <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+              ${sign(m, PSC_ACCESS_SIGN)}`;
+        return [p1, p2];
+      }
+
+      const PKG = {
+        arq: {
+          ref: 'ARQ-PSC-2026-0000118-3',
+          code: 'ADL-7TCM-R2KD-44PW-HQ8N',
+          issuedAt: '2026-09-20T11:48:00',
+          expires: '2026-10-04T11:48:00',
+          recipient: 'Mercy Wanjiku Kamau',
+          recipientTo: MERCY_TO,
+          basis: 'Section 36(1) of the Act. Decision of 20 Sep 2026 (partially granted).',
+          officer:
+            '<b>Anne Njeri Mutua</b><br />Director, Land Administration, State Department for Lands and Physical Planning',
+          decl: 'DCB-PSC-2026-0087340-5',
+          declType: 'Biennial declaration 2026',
+          stmt: '2026-03-01',
+          granted: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['assets', 'liabilities'],
+            clar: true,
+          },
+          withheld: '2025 declaration; children; income; personal details; other information',
+          people: [
+            {
+              who: 'Anne Njeri Mutua (officer)',
+              assets: [
+                ['Land', 'Ruiru/Kiu Block 2/1184, 0.25 acres, Kiambu. Acquired 2019.', 4800000],
+                ['Building', 'Residential house, Kajiado/Kitengela/48812.', 9500000],
+                ['Vehicle', 'Toyota Land Cruiser Prado, KDH 441M.', 5200000],
+                ['Shares', 'Safaricom PLC, 12,000 shares.', 216000],
+                ['Bank deposits', 'KCB Bank, savings account.', 1340000],
+              ],
+              liabilities: [
+                ['Mortgage', 'HFC Limited, house in Kitengela.', 3850000],
+                ['Vehicle loan', 'Stanbic Bank Kenya.', 1120000],
+              ],
+            },
+            {
+              who: 'Joseph Mutua Kilonzo (spouse)',
+              assets: [
+                ['Land', 'Machakos/Mua Hills/2211, 1 acre.', 2100000],
+                ['Business interest', '40% of Kilonzo Hardware Ltd, Machakos.', 1800000],
+              ],
+              liabilities: [['Overdraft', 'Equity Bank Kenya.', 250000]],
+            },
+          ],
+          clar: {
+            ref: 'CLR-PSC-2026-0000233-8',
+            q: 'Explain the value of Ruiru/Kiu Block 2/1184. The declared value is higher than the purchase price in the transfer.',
+            a: 'I bought the parcel in 2019 for KES 1,200,000. The value declared is from a 2026 valuation report, which I attached.',
+          },
+        },
+        lea: {
+          ref: 'LEA-PSC-2026-0000006-2',
+          code: 'ADL-L6QW-4NXC-8RTM-2KJD-7HBP-5A',
+          issuedAt: '2026-09-10T10:04:00',
+          expires: '2026-09-24T10:04:00',
+          recipient: 'Insp. Peter Kariuki (DCI)',
+          recipientTo:
+            '<b>Insp. Peter Kariuki</b><br />Directorate of Criminal Investigations<br />DCI Headquarters, Kiambu Road, Nairobi<br />Case DCI/ECU/098/2026',
+          basis: 'Section 36(2) of the Act and regulation 23. Decision of 10 Sep 2026 (granted).',
+          officer:
+            '<b>Joseph Kiprono Langat</b><br />Director, Supply Chain Management, State Department for Public Works',
+          decl: 'DCB-PSC-2026-0041187-2',
+          declType: 'Biennial declaration 2026',
+          stmt: '2026-03-01',
+          granted: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['income', 'assets', 'liabilities'],
+            clar: false,
+          },
+          withheld: 'Children; personal details; other information',
+          people: [
+            {
+              who: 'Joseph Kiprono Langat (officer)',
+              income: [
+                ['Salary', 'State Department for Public Works, gross for the year.', 3744000],
+                ['Rent', 'Two flats, Kericho town.', 360000],
+              ],
+              assets: [
+                ['Land', 'Kericho/Kapsoit/771, 3 acres, tea farm.', 6000000],
+                ['Building', 'Residential house, Mavoko Block 3/5521, Syokimau.', 14500000],
+                ['Vehicle', 'Toyota Harrier, KDG 208T.', 3900000],
+              ],
+              liabilities: [['Loan', 'Harambee Sacco, development loan.', 2400000]],
+            },
+            {
+              who: 'Nancy Chepkemoi Langat (spouse)',
+              income: [['Business', 'Chepkemoi Hardware, Kericho, net profit.', 1450000]],
+              assets: [['Business interest', 'Chepkemoi Hardware (sole proprietor).', 2300000]],
+              liabilities: [],
+            },
+          ],
+        },
+      };
+      const kes = (n) => `KES ${num(n)}`;
+      function holdings(title, rows) {
+        if (!rows) return '';
+        const total = rows.reduce((a, r) => a + r[2], 0);
+        return `<table class="ft"><caption>${title}${sw()}</caption><thead><tr><th style="width:30mm">Type</th><th>Description</th><th class="num" style="width:30mm">Value (KES)</th></tr></thead><tbody>${rows.length ? rows.map((r) => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td><td class="num">${num(r[2])}</td></tr>`).join('') + `<tr><td colspan="2" style="font-weight:600">Total</td><td class="num" style="font-weight:600">${num(total)}</td></tr>` : '<tr class="none"><td colspan="3">None declared</td></tr>'}</tbody></table>`;
+      }
+      function accessPackagePages(m) {
+        const p = m.p;
+        const lea = p.ref.startsWith('LEA');
+        const secsIn = p.granted.sections;
+        const person = (x) =>
+          `<h3>${esc(x.who)}${sw()}</h3>${secsIn.includes('income') ? holdings('Income', x.income) : ''}${secsIn.includes('assets') ? holdings('Assets', x.assets) : ''}${secsIn.includes('liabilities') ? holdings('Liabilities', x.liabilities) : ''}`;
+        return [
+          `${lh(m.org)}
+          <div class="doc-h"><div class="t1" role="heading" aria-level="2">Disclosure package${sw()}</div><div class="doc-sub">${lea ? 'Law enforcement request under section 36(2) of the Act' : 'Access request under section 36(1) of the Act'}</div></div>
+          ${meta(p.recipientTo, [
+            ['Ref', `<span class="mono">${m.ref}</span>`],
+            ['Issued', m.preview ? 'On issue' : fmtDate(m.issuedAt)],
+            ['Download until', m.preview ? '14 days after issue' : fmtDate(p.expires)],
+          ])}
+          ${facts([
+            ['Issued to', `<b>${esc(p.recipient)}</b>`],
+            ['Public officer', p.officer],
+            [
+              'Declaration',
+              `<span class="mono">${p.decl}</span><br />${p.declType}, statement date ${fmtDate(p.stmt)}`,
+            ],
+            ['Scope released', scopeLine(p.granted)],
+            ['Not released', p.withheld],
+            ['Legal basis', p.basis],
+          ])}
+          <div class="conf-note"><b>Confidential. Issued only to ${esc(p.recipient)}.</b> Every page carries the recipient's name, this reference and the date of issue. Publishing or sharing the information in this package is an offence under section 36(4) of the Act. The public verify page shows only whether this document is valid.${sw()}</div>
+          <div class="sign" style="margin-top:8mm"><div class="fine">Issued by the Public Service Commission through Adili Online when the request ${m.preview ? 'is' : 'was'} decided. ${p.people.length + 1} pages.</div>${sealBox(m)}</div>`,
+          ...p.people.map(
+            (x, i) =>
+              `${i === 0 ? `<h2 style="margin-top:0">${p.declType} · statement date ${fmtDate(p.stmt)}${sw()}</h2><p class="fine">Only the scope released is shown, rendered from the declaration as submitted.</p>` : ''}
+              ${person(x)}
+              ${i === p.people.length - 1 && p.clar && p.granted.clar ? `<h3>Clarification <span class="mono">${p.clar.ref}</span>${sw()}</h3><table class="facts"><tbody><tr><th scope="row">Commission asked</th><td>${esc(p.clar.q)}</td></tr><tr><th scope="row">Officer answered</th><td>${esc(p.clar.a)}</td></tr></tbody></table>` : ''}
+              ${i === p.people.length - 1 ? '<p class="fine" style="margin-top:4mm">End of disclosure.</p>' : ''}`,
+          ),
+        ];
+      }
+
+      const CERT = {
+        portal: {
+          org: ORG.TSC,
+          ref: 'DCI-TSC-2026-0003418-P',
+          code: 'ADL-C3TK-8WQM-2HXD-7RPN-4VJB-9F',
+          version: 2,
+          issuedAt: '2026-09-26T10:22:00',
+          submittedAt: '2026-05-12T19:40:00',
+          type: 'Initial declaration',
+          stmt: '2026-04-01',
+          signer: TSC_SIGN,
+          declarant: `<b>${JK.name}</b><br />${JK.designation}, TSC No. ${JK.file}<br />${JK.station}`,
+          requestedBy: 'The declarant, on Adili Online',
+          personal: [
+            ['Name', JK.name],
+            ['Designation', `${JK.designation}, ${JK.station}`],
+            ['Personnel file number', `TSC No. ${JK.file}`],
+            ['Marital status', 'Married'],
+            ['Spouse', 'Mary Wanjiru Kennedy'],
+            ['Dependent children', '2 (under 18)'],
+          ],
+          people: [
+            {
+              who: `${JK.name} (declarant)`,
+              income: [['Salary', 'Teachers Service Commission, gross for the year.', 1488000]],
+              assets: [
+                [
+                  'Land',
+                  'Kapsaret/Simat/1234, 0.5 acres, Uasin Gishu. Bought March 2026.',
+                  3500000,
+                ],
+                ['Building', 'Residential house, Eldoret Municipality Block 7/215.', 6200000],
+                ['Vehicle', 'Toyota Fielder, KCX 219Q.', 1150000],
+                ['Deposits', 'Mwalimu National SACCO, member deposits.', 640000],
+              ],
+              liabilities: [['Loan', 'Mwalimu National SACCO, balance on 1 Apr 2026.', 820000]],
+            },
+            {
+              who: 'Mary Wanjiru Kennedy (spouse)',
+              income: [['Rent', 'Shop lease, Eldoret town.', 420000]],
+              assets: [['Bank deposits', 'Equity Bank Kenya, savings account.', 185000]],
+              liabilities: [],
+            },
+          ],
+        },
+        'in-person': {
+          org: ORG.PSC,
+          ref: 'DCB-PSC-2026-0150662-4',
+          code: 'ADL-P8MQ-3KWD-6TXR-2HCN-9VJA-4B',
+          version: 1,
+          issuedAt: '2026-09-22T10:31:00',
+          submittedAt: '2026-03-14T11:20:00',
+          type: 'Biennial declaration 2026',
+          stmt: '2026-03-01',
+          signer: PSC_ACCESS_SIGN,
+          declarant:
+            '<b>Margaret Achieng Oduor</b><br />Senior Clerical Officer, file 20150662<br />Huduma Centre, Kisumu',
+          requestedBy:
+            'Paul Oduor Otieno, ID 31288045, representative with written authority dated 21 Sep 2026. Application recorded in person at PSC.',
+          personal: [
+            ['Name', 'Margaret Achieng Oduor'],
+            ['Designation', 'Senior Clerical Officer, State Department for Public Service'],
+            ['Personnel file number', '20150662'],
+            ['Marital status', 'Widowed'],
+            ['Dependent children', 'None'],
+          ],
+          people: [
+            {
+              who: 'Margaret Achieng Oduor (declarant)',
+              income: [
+                ['Salary', 'State Department for Public Service, gross for the year.', 612000],
+              ],
+              assets: [
+                ['Land', 'Kisumu/Kogony/3312, 0.125 acres.', 900000],
+                ['Deposits', 'Kenya Police SACCO, member deposits.', 210000],
+              ],
+              liabilities: [],
+            },
+          ],
+        },
+      };
+      function certifiedCopyPages(m) {
+        const c = m.c;
+        const hash = sha(`${c.ref} v${c.version} declaration.v1`);
+        const person = (x) =>
+          `<h3>${esc(x.who)}${sw()}</h3>${holdings('Income', x.income)}${holdings('Assets', x.assets)}${holdings('Liabilities', x.liabilities)}`;
+        return [
+          `${lh(m.org)}
+          <div class="doc-h"><div class="t1" role="heading" aria-level="2">Certified copy${sw()}</div><div class="doc-sub">Declaration of income, assets and liabilities</div></div>
+          <div class="record" style="margin:0 0 5mm;font-size:9.4pt;background:#f3faf5;border:0.3mm solid #b9dfc6"><b>Certificate.</b> The pages that follow are a true copy of version ${c.version} of declaration <span class="mono">${c.ref}</span>, as submitted by the declarant on ${fmtDate(c.submittedAt)} at ${hm(c.submittedAt)} and held unchanged in Adili Online.${sw()}</div>
+          ${facts([
+            ['Declarant', c.declarant],
+            ['Declaration', `${c.type}, statement date ${fmtDate(c.stmt)}`],
+            ['Version', `${c.version}, submitted ${dtm(c.submittedAt)}`],
+            [
+              'Content hash',
+              `<span class="hashc" style="font-size:7.4pt">${hash.slice(0, 32)}<br />${hash.slice(32)}</span><span class="fine" style="display:block;margin-top:1mm">SHA-256 of the declaration.v1 document as submitted</span>`,
+            ],
+            ['Requested by', esc(c.requestedBy)],
+            ['Issued', m.preview ? 'On issue' : dtm(m.issuedAt)],
+          ])}
+          <p class="fine">Issued as self-access under the Commission's administrative mechanisms and recorded in the access register. Anyone given this copy can check it with the code at the foot of each page.${sw()}</p>
+          ${sign(m, c.signer, 'Certified by,')}`,
+          `<h2 style="margin-top:0">Personal details${sw()}</h2>
+          <table class="facts"><tbody>${c.personal.map(([k, v]) => `<tr><th scope="row">${k}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>
+          ${person(c.people[0])}`,
+          ...(c.people.length > 1
+            ? [
+                `${c.people.slice(1).map(person).join('')}<p class="fine" style="margin-top:4mm">End of certified copy.</p>`,
+              ]
+            : []),
+        ];
+      }
+
+      const LEA_L = {
+        grant: {
+          ref: 'LEA-PSC-2026-0000006-2',
+          code: 'ADL-R6DW-2KQX-9MTC-4HPN-7JBV-3E',
+          at: '2026-09-10T10:00:00',
+          received: '2026-09-03T11:05:00',
+          caseRef: 'DCI/ECU/098/2026',
+          officer:
+            '<b>Joseph Kiprono Langat</b>, Director, Supply Chain Management, State Department for Public Works',
+          scope: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['income', 'assets', 'liabilities'],
+            clar: false,
+          },
+          reasons:
+            'Written request from a provisioned DCI account with a stated reason and case reference, for an ongoing investigation.',
+          expires: '2026-09-24T10:04:00',
+        },
+        deny: {
+          ref: 'LEA-PSC-2026-0000004-5',
+          code: 'ADL-K2PV-7WMD-3QXT-8HCR-5NJA-6D',
+          at: '2026-09-02T12:15:00',
+          received: '2026-08-22T15:30:00',
+          caseRef: 'DCI/LND/031/2025',
+          officer:
+            '<b>David Mutua Musyoka</b>, Senior Legal Officer, State Department for Lands and Physical Planning',
+          scope: {
+            years: [2025, 2026],
+            spouses: true,
+            children: true,
+            sections: ['assets'],
+            clar: false,
+          },
+          grounds: ['not-objectives'],
+          reasons:
+            'The ODPP closed file DCI/LND/031/2025 on 14 Jul 2026. The request does not show an ongoing investigation, so access would not promote the objectives of the Act.',
+        },
+      };
+      function leaResponsePages(m, v) {
+        const l = m.l;
+        const g = v === 'grant';
+        return [
+          `${lh(m.org)}
+          ${meta(
+            '<b>Insp. Peter Kariuki</b><br />Directorate of Criminal Investigations<br />DCI Headquarters, Kiambu Road<br />Nairobi',
+            [
+              ['Ref', `<span class="mono">${m.ref}</span>`],
+              ['Date', m.preview ? 'Date of issue' : fmtDate(m.issuedAt)],
+              ['Your ref', `<span class="mono">${l.caseRef}</span>`],
+            ],
+          )}
+          <div class="subj">Request for access to a declaration: ${m.ref}${sw()}</div>
+          <p>Dear Inspector Kariuki,</p>
+          <p>The Commission received your written request on ${fmtDate(l.received)} under section 36(2) of the Conflict of Interest Act, 2025 and regulation 23, for access to the declaration of ${l.officer}.${sw()}</p>
+          <div class="outcome ${g ? 'ok' : 'danger'}"><span class="ic">${icon(g ? 'check' : 'x', 20, 2.6)}</span><div class="lbl">Decision${sw()}</div><div class="v">${g ? 'Granted' : 'Denied'}</div></div>
+          ${facts([
+            [g ? 'Scope granted' : 'Scope requested', scopeLine(l.scope)],
+            ...(g
+              ? [
+                  [
+                    'Package',
+                    `Confidential, watermarked with your name. Download it in the Dials console under Requests by ${m.preview ? '14 days after issue' : fmtDate(l.expires)}.`,
+                  ],
+                ]
+              : []),
+            ...(!g
+              ? [
+                  [
+                    'Grounds',
+                    l.grounds
+                      .map((x) => `Regulation 24(${REG24[x][0]}): &ldquo;${REG24[x][1]}&rdquo;`)
+                      .join('<br />'),
+                  ],
+                ]
+              : []),
+            ['Reasons', esc(l.reasons)],
+          ])}
+          ${g ? `<p>As regulation 23(2) requires, the Commission has notified the public officer in writing of your request, after this decision.${sw()}</p>` : `<p>This decision is final.${sw()}</p>`}
+          <div class="conf-note"><b>Confidential.</b> Use this letter${g ? ' and the package' : ''} only for the investigation named above. Publishing or sharing the information is an offence under section 36(4) of the Act. The public verify page shows only whether this document is valid.${sw()}</div>
+          ${sign(m, PSC_ACCESS_SIGN)}`,
+        ];
+      }
+
+      /* ============================== spec 09b open-data manifest ============================== */
+      // Same release, versions and file hashes as apps/console/prototype/12-open-data.prototype.html.
+      const ODM_TABLES = [
+        ['filing-by-commission', 'Declarations by Commission'],
+        ['compliance-by-commission', 'Compliance by Commission'],
+        ['by-entity-type', 'By reporting entity type'],
+        ['by-cycle', 'By cycle'],
+        ['access-requests', 'Access requests'],
+        ['national-totals', 'National totals'],
+      ];
+      const ODM = {
+        annual: {
+          id: 'rel-2025-annual-1',
+          code: 'ADL-8KQD-3TWM-6HXC-2RPA-9VNF-4E',
+          version: 1,
+          kind: 'Annual',
+          asAt: '2026-06-30',
+          builtAt: '2026-09-18T15:10:00',
+          publishedAt: '2026-09-18T15:12:00',
+          by: 'Published automatically when the national consolidated report NCR-EACC-2025-0000001-Q was approved',
+          files: [
+            [
+              208,
+              40,
+              '57f2598c65c30454f2bd1034ebcd88a8f55caec6a4daf269d1e8dd586d6b664a',
+              'a0e5fbbbb4e3a88c439ac27623494ef43206f63c3d259bfe81bfc8e753fd40d4',
+            ],
+            [
+              52,
+              117,
+              '6502fe6d2480f51f22f56f55ea5de0e0c5a0729b5a53cf45593d5460aaff4317',
+              'b275b1d408bea22edd8b019c6333b56d0f95d270df21ddf594d602a4eb1464df',
+            ],
+            [
+              9,
+              4,
+              '7102e64da72edc1039fca3916a4f32d690a9f9838a63f2b8bad8e934099d87e0',
+              '087b4122e119382c8f9b921009ae1e7c02448374a7c6a4a743073009d12b6e3c',
+            ],
+            [
+              3,
+              0,
+              '6f0abd6660379706f6c5063fa49961267082885a7d13095e99ea268ce96bd540',
+              'e0b2c9c6d4869103d0aa79f89520e72b7254d7544b2ef23f631fa1216a85e6c2',
+            ],
+            [
+              52,
+              164,
+              '34ef53edf491a9f62336e916e2d8225d117e3c40ebea48491a900acc1d8b4b4a',
+              'd555fe9005b76763278efaac12daeb01f541a2f08e113f510207d2a00d2673f8',
+            ],
+            [
+              15,
+              0,
+              'f3c6f3a91581a287a88ac607deb68ccaba574e6c38cc3e0efb6d52944c87ff6f',
+              '344c43983c5614b35368e1da9ecb2d08a1a80938ed0b44aaf0bbcb759a710eae',
+            ],
+          ],
+        },
+        snapshot: {
+          id: 'rel-2025-snapshot-1',
+          code: 'ADL-5MRX-7QCK-1WHT-8DNP-3JFA-6B',
+          version: 1,
+          kind: 'Mid-year snapshot',
+          asAt: '2026-01-31',
+          builtAt: '2026-02-12T09:40:00',
+          publishedAt: '2026-02-16T10:05:00',
+          by: 'Built by Brian Otieno, EACC analyst. Published by Esther Chebet, EACC supervisor',
+          files: [
+            [
+              208,
+              40,
+              'a4c97c64bc0162e920b95876a3aab4a0b578b326444c5f23bd211daae1be0778',
+              '74de4ecce460d777ca287e5c146730c6faf68165c8043f0737f9f0b8cff2582e',
+            ],
+            [
+              52,
+              167,
+              '8bab547d10e1ab1a9c618249d708c9ed6d59acdc7be14d355c44e14881e3247d',
+              'bdfee540f4934b54fb90c0b0703173a0bf7128a3a50e0d2505b476400ceb8b4e',
+            ],
+            [
+              9,
+              5,
+              '08a130832a041337bf0a5e0abed3b3c213467a37e57860d4dedb3474be73f899',
+              '4ab1c8507c09e87571feac01a3564ccc2d938c8ebd3fb787124e939ef12a216b',
+            ],
+            [
+              3,
+              0,
+              '74e2c7221b47bba2f41c3d7e12d8c1ff5fc1449d201dcb3c9ba17b5f9c0d174e',
+              '36a2086a69ce1c2b358fdc9d001f47480f51c1d5d6b95d18a257fa99ce90a803',
+            ],
+            [
+              52,
+              139,
+              '5a685e2bf67ea6ec4d7e035f98bedece01b282351559244f1d3fc45a036805dc',
+              '52fcd9f970be73aaa47bd94ce0c70dd92f8b7eca833474649cd67405d9238199',
+            ],
+            [
+              15,
+              0,
+              '8bafd4cf2b671fd616e21120040df39e4076a2d2961062e59d58f03e1ded7de1',
+              '179009e6580afb31c3500da488d83021e396faace0ab8b54d1ddad8598e663fb',
+            ],
+          ],
+        },
+      };
+      function manifestPages(m) {
+        const r = m.r;
+        const hl = (lab, h) =>
+          `<div style="white-space:nowrap"><span class="muted2" style="display:inline-block;width:8mm;font-size:6.6pt">${lab}</span><span class="hashc" style="font-size:6.2pt;word-break:normal">${h}</span></div>`;
+        return [
+          `${lh(m.org)}
+          <div class="doc-h"><div class="t1" role="heading" aria-level="2">Open-data release manifest${sw()}</div><div class="doc-sub">FY 2025/2026 · ${r.kind.toLowerCase()} · version ${r.version}</div></div>
+          <dl class="skv">
+            <dt>Release${sw()}</dt><dd class="mono">${r.id}</dd>
+            <dt>Financial year${sw()}</dt><dd>FY 2025/2026 (1 Jul 2025 to 30 Jun 2026)</dd>
+            <dt>Kind${sw()}</dt><dd>${r.kind}, version ${r.version}</dd>
+            <dt>Figures as at${sw()}</dt><dd>${fmtDate(r.asAt)}</dd>
+            <dt>Published${sw()}</dt><dd>${m.preview ? 'On publication' : dtm(r.publishedAt)}<span class="fine" style="display:block;margin-top:0.6mm;font-weight:400">${r.by}.</span></dd>
+          </dl>
+          <table class="ft"><caption>Files${sw()}</caption><thead><tr><th class="n">No</th><th>Table</th><th class="num">Rows</th><th class="num">Hidden</th><th>SHA-256</th></tr></thead>
+          <tbody>${ODM_TABLES.map(([k, l], i) => `<tr><td class="n">${i + 1}</td><td>${l}<span class="sub mono">${k}</span></td><td class="num">${num(r.files[i][0])}</td><td class="num">${num(r.files[i][1])}</td><td>${hl('JSON', r.files[i][2])}${hl('CSV', r.files[i][3])}</td></tr>`).join('')}</tbody></table>
+          <div class="record"><div class="h">How to use this manifest</div><dl>
+            <dt>Check a file</dt><dd>Compute the SHA-256 of the file you downloaded and compare it with the value above.</dd>
+            <dt>Suppression</dt><dd>Cells based on fewer than 10 officers are hidden, and further cells are hidden where a total would reveal them. Hidden counts those cells per table.</dd>
+            <dt>Personal data</dt><dd>None. Counts and rates by Commission, reporting entity type and cycle only.</dd>
+            <dt>Get the files</dt><dd>adili.go.ke/open-data (CSV and JSON per table, and release.json)</dd>
+          </dl></div>
+          <div class="sign" style="margin-top:5mm"><div class="fine">Issued by the Ethics and Anti-Corruption Commission through Adili Online when the release ${m.preview ? 'is' : 'was'} published.</div>${sealBox(m)}</div>`,
+        ];
+      }
+      const rwm = (t) =>
+        `<div class="rwm" aria-hidden="true">${Array.from({ length: 12 }, () => `<div>${(esc(t) + '&emsp;·&emsp;').repeat(4)}</div>`).join('')}</div>`;
 
       function decisionLetter(m, o) {
         return `${lh(m.org)}
@@ -2772,12 +3625,21 @@
         superseded: ['Superseded', 'warn'],
         revoked: ['Revoked', 'danger'],
         preview: ['Preview', ''],
+        expired: ['Download window closed', 'warn'],
       };
       const lvlChip = (d) =>
-        `<span class="lvl ${d.level}">${icon(d.level === 'confidential' ? 'lock' : 'eyeOff', 12, 2.2)}${d.level === 'confidential' ? 'Confidential' : 'Restricted'}</span>`;
+        d.level === 'public'
+          ? `<span class="lvl public">${icon('globe', 12, 2.2)}Public</span>`
+          : `<span class="lvl ${d.level}">${icon(d.level === 'confidential' ? 'lock' : 'eyeOff', 12, 2.2)}${d.level === 'confidential' ? 'Confidential' : 'Restricted'}</span>`;
 
       /* ============================== screens ============================== */
-      const GROUPS = ['Submission and review', 'Determination and actions', 'Form M and EACC'];
+      const GROUPS = [
+        'Submission and review',
+        'Determination and actions',
+        'Form M and EACC',
+        'Access requests',
+        'Open data',
+      ];
       function screenIndex() {
         const ids = Object.keys(DOCS);
         return `<div class="idx">
@@ -2807,8 +3669,10 @@
           return `<div class="callout callout-warn">${icon('refresh', 17)}<span class="vn-t">${id === 'slip' && s.v !== 'late' ? 'Superseded by version 2 on 26 Sep 2026.' : 'Superseded by a newer version on 26 Sep 2026.'} The signed PDF is unchanged; the viewer and verify page show the status.</span><button class="btn btn-secondary btn-sm" data-act="setStatus" data-arg="valid">${id === 'slip' && s.v !== 'late' ? 'View version 2' : 'View current'}</button></div>`;
         if (s.status === 'revoked')
           return `<div class="callout callout-danger">${icon('ban', 17)}<span class="vn-t">Revoked on ${m.revokedNote.split(' · ')[1]}: issued in error. The signed PDF is unchanged; the viewer and verify page show the status.</span></div>`;
+        if (s.status === 'expired')
+          return `<div class="callout callout-warn">${icon('timer', 17)}<span class="vn-t">Download window closed on ${fmtDate(m.p ? m.p.expires : m.issuedAt)}. Downloads now return 410; the signed PDF and the verify page are unchanged.</span></div>`;
         if (s.status === 'preview')
-          return `<div class="callout callout-info">${icon('eye', 17)}<span class="vn-t">${id === 'form-m' || id === 'ncr' ? 'Draft.' : 'Preview.'} The reference, verification code and signature are added when it is ${id === 'form-m' ? 'submitted' : id === 'ncr' || id === 'referral-package' ? 'approved' : 'issued'}.</span></div>`;
+          return `<div class="callout callout-info">${icon('eye', 17)}<span class="vn-t">${id === 'form-m' || id === 'ncr' ? 'Draft.' : 'Preview.'} The ${id.startsWith('access') || id.startsWith('lea') || id === 'certified-copy' || id === 'open-data-manifest' ? '' : 'reference, '}verification code and signature are added when it is ${id === 'form-m' ? 'submitted' : id === 'ncr' || id === 'referral-package' ? 'approved' : id === 'open-data-manifest' ? 'published' : 'issued'}.</span></div>`;
         if (s.sw)
           return `<div class="callout callout-info">${icon('globe', 17)}<span class="vn-t">Kiswahili slots are empty in the template, so the document issues in English. Dashed boxes mark each slot.</span></div>`;
         if (d.gap)
@@ -2823,8 +3687,12 @@
           ['Status', badge(sl, sk)],
           ['Template', `<span class="mono">${d.template}</span>`],
           [
-            `Disclosure ${tip(d.level === 'confidential' ? 'Verify page shows validity only. Even the issuer or type could reveal an investigation.' : 'Verify page shows type, issuer, issue date and reference. No names, amounts or findings.')}`,
-            d.level === 'confidential' ? 'Confidential' : 'Restricted',
+            `Disclosure ${tip(d.level === 'confidential' ? 'Verify page shows validity only. Even the issuer or type could reveal an investigation.' : d.level === 'public' ? 'Verify page shows the full document. It holds no personal data.' : 'Verify page shows type, issuer, issue date and reference. No names, amounts or findings.')}`,
+            d.level === 'confidential'
+              ? 'Confidential'
+              : d.level === 'public'
+                ? 'Public'
+                : 'Restricted',
           ],
           ['Verify page shows', d.payload],
           [
@@ -2884,6 +3752,7 @@
                   ['superseded', 'Superseded'],
                   ['revoked', 'Revoked'],
                   ['preview', id === 'form-m' || id === 'ncr' ? 'Draft' : 'Preview'],
+                  ...(d.window ? [['expired', 'Window closed']] : []),
                 ],
                 s.status,
                 'setStatus',
@@ -3021,6 +3890,24 @@
       /* ============================== mount ============================== */
       const screens = { index: screenIndex };
       Object.keys(DOCS).forEach((id) => (screens[id] = () => screenDoc(id)));
+      // Deep links to a variant (other prototypes link here), e.g. #access-decision-deny.
+      const ALIASES = {
+        'access-decision-grant': ['access-decision', { v: 'grant' }],
+        'access-decision-deny': ['access-decision', { v: 'deny' }],
+        'access-decision-cannot-identify': ['access-decision', { v: 'cannot' }],
+        'access-package-lea': ['access-package', { v: 'lea' }],
+        'certified-copy-in-person': ['certified-copy', { v: 'in-person' }],
+        'lea-response-deny': ['lea-response', { v: 'deny' }],
+        'open-data-manifest-snapshot': ['open-data-manifest', { v: 'snapshot' }],
+      };
+      Object.entries(ALIASES).forEach(([alias, [id, patch]]) => {
+        screens[alias] = () => {
+          setDoc(id, patch);
+          S.screen = id;
+          history.replaceState(null, '', '#' + id);
+          return screenDoc(id);
+        };
+      });
       const J = (key, label, id, patch) => [
         key,
         label,
@@ -3096,6 +3983,59 @@
           J('form-m-receipt', '#218 Form M receipt', 'form-m-receipt'),
           J('ncr', '#218 National consolidated report (6 pages)', 'ncr'),
           J('j-ncr-draft', '#218 NCR: draft, awaiting approval', 'ncr', { status: 'preview' }),
+          J(
+            'access-decision',
+            '#260 Access decision: partially granted (2 pages)',
+            'access-decision',
+          ),
+          J('j-acd-grant', '#260 Access decision: granted', 'access-decision', { v: 'grant' }),
+          J(
+            'j-acd-deny',
+            '#260 Access decision: denied, Regulation 24 grounds',
+            'access-decision',
+            { v: 'deny' },
+          ),
+          J(
+            'j-acd-cannot',
+            '#254 Access decision: officer could not be identified',
+            'access-decision',
+            { v: 'cannot' },
+          ),
+          J(
+            'access-package',
+            '#260 Access package: watermarked for the applicant (Confidential)',
+            'access-package',
+          ),
+          J('j-acp-lea', '#265 Access package: law enforcement officer', 'access-package', {
+            v: 'lea',
+          }),
+          J(
+            'j-acp-expired',
+            '#260 Access package: download window closed (410)',
+            'access-package',
+            { status: 'expired' },
+          ),
+          J('j-acp-preview', '#260 Access package: preview before issue', 'access-package', {
+            status: 'preview',
+          }),
+          J('certified-copy', '#269 Certified copy: requested on the portal', 'certified-copy'),
+          J('j-cc-rep', '#304 Certified copy: in person, by a representative', 'certified-copy', {
+            v: 'in-person',
+          }),
+          J('j-cc-sw', '#269 Certified copy: Kiswahili slots', 'certified-copy', { sw: true }),
+          J('lea-response', '#265 Law enforcement response: granted', 'lea-response'),
+          J('j-lea-deny', '#265 Law enforcement response: denied', 'lea-response', { v: 'deny' }),
+          J(
+            'open-data-manifest',
+            '#297 Open-data manifest: annual release (Public)',
+            'open-data-manifest',
+          ),
+          J('j-odm-snap', '#297 Open-data manifest: mid-year snapshot', 'open-data-manifest', {
+            v: 'snapshot',
+          }),
+          J('j-odm-withdrawn', '#297 Open-data manifest: withdrawn release', 'open-data-manifest', {
+            status: 'revoked',
+          }),
         ],
         coverage: [
           {
@@ -3146,6 +4086,38 @@
               'j-ncr-draft',
             ],
             note: 'EACC download of referral packages is shown in the details panel. Notification templates are out of scope here.',
+          },
+          {
+            ticket: 260,
+            title: 'Spec 10: access decision letter and watermarked access package',
+            screens: [
+              'access-decision',
+              'j-acd-grant',
+              'j-acd-deny',
+              'j-acd-cannot',
+              'access-package',
+              'j-acp-expired',
+              'j-acp-preview',
+            ],
+            note: 'access-package (Confidential) carries the recipient, reference and date as a watermark on every page and has a 14-day download window (410 after). The decision letter is a proposal (see the gap note). Variant links: #access-decision-grant, #access-decision-deny, #access-decision-cannot-identify.',
+          },
+          {
+            ticket: 265,
+            title: 'Spec 10: law enforcement package and response letter',
+            screens: ['j-acp-lea', 'lea-response', 'j-lea-deny'],
+            note: 'Variant links: #access-package-lea, #lea-response-deny. The response letter is a proposal (see the gap note).',
+          },
+          {
+            ticket: 304,
+            title: 'Spec 10: certified copy (Restricted), portal and in person',
+            screens: ['certified-copy', 'j-cc-rep', 'j-cc-sw'],
+            note: 'Also covers #269 (portal). The in-person copy names the representative and their written authority. Variant link: #certified-copy-in-person.',
+          },
+          {
+            ticket: 297,
+            title: 'Spec 09b: open-data release manifest (Public)',
+            screens: ['open-data-manifest', 'j-odm-snap', 'j-odm-withdrawn'],
+            note: 'Same release ids, versions and file hashes as 12-open-data. Public: no protective marking; the verify page shows the full manifest. Variant link: #open-data-manifest-snapshot.',
           },
         ],
       });

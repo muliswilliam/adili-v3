@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- PROTOTYPE - throwaway. Question: what does a declarant see and do after submitting (clarifications and responses, compliance determinations, notices, warnings, salary stoppage and reinstatement)? Covers tickets #170, #173, #199, #205, #208 (portal parts). Open by double-clicking. State is in memory. -->
+<!-- PROTOTYPE - throwaway. Question: what does a declarant see and do after submitting (clarifications and responses, compliance determinations, notices, warnings, salary stoppage and reinstatement, access requests about their declaration)? Covers tickets #170, #173, #199, #205, #208, #255 and the compact RegisterTimeline of #268 (portal parts). Open by double-clicking. State is in memory. -->
 <!-- Demo assumption: John Kennedy's initial declaration DCI-TSC-2026-0003418-P (statement date 1 Apr 2026) was received on 28 Apr 2026, so TSC's six-month clarification window closes on 28 Oct 2026. -->
 <html lang="en">
   <head>
@@ -806,6 +806,110 @@
         border-radius: 11px;
         flex: none;
       }
+      /* access requests (#255) */
+      .k-label {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      .scope {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+      }
+      .scope > div {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+      }
+      @container app (min-width: 600px) {
+        .scope > div {
+          grid-template-columns: 130px minmax(0, 1fr);
+          align-items: baseline;
+        }
+      }
+      .scope dt {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .scope dd {
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .sc-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 26px;
+        padding: 0 10px 0 8px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        background: var(--ink);
+        color: #fff;
+        white-space: nowrap;
+      }
+      .sc-chip.off {
+        background: var(--sunken);
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .sc-chip.out {
+        background: #fff;
+        color: var(--muted);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+        text-decoration: line-through;
+        text-decoration-color: var(--muted);
+      }
+      .grounds {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 14.5px;
+        display: grid;
+        gap: 4px;
+      }
+      fieldset.acc-form {
+        border: 0;
+        margin: 0;
+        min-width: 0;
+      }
+      fieldset.acc-form[disabled] {
+        opacity: 0.6;
+      }
+      @container app (max-width: 599px) {
+        .acc-form .choices.c3 {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .acc-form .choice.tile {
+          flex-direction: row;
+          align-items: center;
+          min-height: 0;
+          gap: 12px;
+        }
+      }
+      .timeline .tl-ico.brand {
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+      }
+      .timeline .tl-ico.info {
+        background: #eaf1fb;
+        color: #1f4f96;
+      }
+      .timeline .tl-ico.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .timeline .tl-ico.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .timeline .tl-ico.danger {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
       /* local fix: kit styles .nav .count but not .tabbar .count (see report) */
       .tabbar a {
         position: relative;
@@ -930,6 +1034,8 @@
         ADM: 'Administrative action',
         DCI: 'Initial declaration',
         DCB: 'Biennial declaration',
+        ARQ: 'Access request',
+        LEA: 'Law-enforcement request',
       };
 
       const ITEMS_A = [
@@ -1063,6 +1169,12 @@
           form: {},
           nform: {},
           notFound: false,
+          access: [],
+          aform: {},
+          aEdit: null,
+          accPage: 1,
+          accConflict: null,
+          accBusy: null,
         };
         const ladderClar = (issued, extra = {}) =>
           clar({
@@ -1428,6 +1540,303 @@
           ];
         }
         return w;
+      }
+
+      /* ---------- Spec 10: access requests the declarant was notified about (#255) ---------- */
+      // Same requests as declarant-profile.prototype.html (Who accessed). GET /v1/me/access-notices.
+      const PROFILE = 'declarant-profile.prototype.html';
+      const PSC_C = { slug: 'psc', code: 'PSC', name: 'Public Service Commission' };
+      const SECTIONS = {
+        bio: 'Personal details',
+        income: 'Income',
+        assets: 'Assets',
+        liabilities: 'Liabilities',
+        other: 'Other information',
+      };
+      const SEC_KEYS = Object.keys(SECTIONS);
+      const GROUNDS = {
+        'public-interest': 'Disclosure would be against the public interest.',
+        'prejudice-proceeding': 'Access may prejudice an ongoing proceeding or investigation.',
+        'frivolous-vexatious': 'The request is frivolous, vexatious or scandalous.',
+        'not-objectives': 'The reason for access does not promote the objectives of the Act.',
+      };
+      const ACC_OUT = {
+        grant: { label: 'Granted', kind: 'ok', icon: 'check', verb: 'granted access' },
+        'partial-grant': {
+          label: 'Partially granted',
+          kind: 'warn',
+          icon: 'check',
+          verb: 'partially granted access',
+        },
+        deny: { label: 'Denied', kind: 'danger', icon: 'ban', verb: 'denied access' },
+      };
+      const STANCE = {
+        object: {
+          label: 'Object',
+          done: 'You objected',
+          icon: 'ban',
+          sub: 'Ask not to release it',
+        },
+        consent: {
+          label: 'Consent',
+          done: 'You consented',
+          icon: 'check',
+          sub: 'Agree to release',
+        },
+        context: {
+          label: 'Add context',
+          done: 'You added context',
+          icon: 'msg',
+          sub: 'Tell the Commission first',
+        },
+      };
+      const REP_MAX = 8000;
+      const REP_FILES = 10;
+      const scope = (years, spouses, children, sections) => ({
+        years,
+        spouses,
+        children,
+        sections,
+      });
+      const people = (sc) =>
+        sc.spouses && sc.children
+          ? 'You, spouse and children'
+          : sc.spouses
+            ? 'You and spouse'
+            : sc.children
+              ? 'You and children'
+              : 'You only';
+      const secText = (arr) =>
+        arr.map((k, i) => (i ? SECTIONS[k].toLowerCase() : SECTIONS[k])).join(', ');
+      const scopeText = (sc) => `${sc.years.join(', ')} · ${people(sc)} · ${secText(sc.sections)}`;
+      const REP_TEXT =
+        'The plot is the subject of a pending case at the Environment and Land Court in Eldoret. Releasing my land and loan details now could affect that case. My income is already public through the TSC salary scales.';
+      function accReq(o) {
+        return Object.assign(
+          {
+            id: 'a1',
+            ref: 'ARQ-TSC-2026-0000052-3',
+            kind: 'form-k',
+            comm: COMM,
+            applicant: 'Wanjiru Kamau',
+            purpose: 'Journalistic research on school procurement in Uasin Gishu County',
+            scope: scope([2026], true, false, ['income', 'assets', 'liabilities']),
+            notifiedAt: '2026-09-22T11:20:00',
+            windowEndsAt: '2026-09-29T11:20:00',
+            reps: null,
+            decision: null,
+            withdrawnAt: null,
+            pkg: null,
+          },
+          o,
+        );
+      }
+      const ACC = {
+        lea1: () =>
+          accReq({
+            id: 'a2',
+            ref: 'LEA-TSC-2026-0000007-M',
+            kind: 'lea',
+            applicant: null,
+            agency: 'Asset Recovery Agency',
+            caseRef: 'ARA/INV/118/2026',
+            purpose: null,
+            scope: scope([2026], true, true, SEC_KEYS),
+            notifiedAt: '2026-09-02T15:36:00',
+            windowEndsAt: null,
+            decision: {
+              outcome: 'grant',
+              at: '2026-09-02T15:30:00',
+              granted: scope([2026], true, true, SEC_KEYS),
+              grounds: [],
+              reasons: '',
+            },
+            pkg: {
+              issuedAt: '2026-09-02T15:34:00',
+              expiresAt: '2026-09-16T15:34:00',
+              downloads: ['2026-09-03T10:12:00'],
+            },
+          }),
+        arq1: () =>
+          accReq({
+            id: 'a3',
+            ref: 'ARQ-TSC-2026-0000045-X',
+            applicant: 'Kevin Mutua Njoroge',
+            purpose: 'Civil claim over a land sale in Kapsaret',
+            scope: scope([2026], true, true, ['income', 'assets', 'liabilities', 'other']),
+            notifiedAt: '2026-07-20T10:40:00',
+            windowEndsAt: '2026-07-27T10:40:00',
+            reps: {
+              stance: 'object',
+              text: REP_TEXT,
+              files: [
+                { name: 'ELC case 118 of 2026 hearing notice.pdf', size: 264000, status: 'clean' },
+              ],
+              submittedAt: '2026-07-24T18:05:00',
+              updatedAt: '2026-07-24T18:05:00',
+            },
+            decision: {
+              outcome: 'partial-grant',
+              at: '2026-08-05T12:00:00',
+              granted: scope([2026], false, false, ['income', 'assets']),
+              grounds: ['not-objectives'],
+              reasons:
+                "The claim concerns land the officer holds, so his income and assets are relevant. His liabilities and his family's details are not needed for it.",
+            },
+            pkg: {
+              issuedAt: '2026-08-05T12:04:00',
+              expiresAt: '2026-08-19T12:04:00',
+              downloads: ['2026-08-09T16:48:00'],
+            },
+          }),
+        arq39: () =>
+          accReq({
+            id: 'a4',
+            ref: 'ARQ-TSC-2026-0000039-K',
+            applicant: 'Samuel Otieno Ouma',
+            purpose: 'A private dispute with the officer',
+            scope: scope([2026], true, true, SEC_KEYS),
+            notifiedAt: '2026-07-01T09:10:00',
+            windowEndsAt: '2026-07-08T09:10:00',
+            decision: {
+              outcome: 'deny',
+              at: '2026-07-24T15:45:00',
+              granted: null,
+              grounds: ['frivolous-vexatious'],
+              reasons:
+                "The application concerns a private dispute and gives no reason connected to the officer's public duties.",
+            },
+          }),
+        arq31: () =>
+          accReq({
+            id: 'a5',
+            ref: 'ARQ-TSC-2026-0000031-6',
+            applicant: 'Brian Kiptoo Rotich',
+            purpose: 'Checking a tender award at the school',
+            scope: scope([2026], false, false, ['income', 'assets']),
+            notifiedAt: '2026-06-12T09:30:00',
+            windowEndsAt: '2026-06-19T09:30:00',
+            reps: {
+              stance: 'context',
+              text: 'I was not on the tender committee for the 2026 laboratory works. The committee minutes are with the Board of Management.',
+              files: [],
+              submittedAt: '2026-06-14T20:12:00',
+              updatedAt: '2026-06-14T20:12:00',
+            },
+            withdrawnAt: '2026-06-15T14:10:00',
+          }),
+        psc27: () =>
+          accReq({
+            id: 'a6',
+            ref: 'ARQ-PSC-2026-0000027-2',
+            comm: PSC_C,
+            applicant: 'Achieng Odhiambo',
+            purpose: 'Academic research on declarations by education officers',
+            scope: scope([2025], false, false, ['income', 'assets']),
+            notifiedAt: '2026-06-08T10:00:00',
+            windowEndsAt: '2026-06-15T10:00:00',
+            reps: {
+              stance: 'consent',
+              text: '',
+              files: [],
+              submittedAt: '2026-06-09T08:30:00',
+              updatedAt: '2026-06-09T08:30:00',
+            },
+            decision: {
+              outcome: 'grant',
+              at: '2026-06-22T11:15:00',
+              granted: scope([2025], false, false, ['income', 'assets']),
+              grounds: [],
+              reasons: 'The research purpose is legitimate and the officer consented.',
+            },
+            pkg: {
+              issuedAt: '2026-06-22T11:18:00',
+              expiresAt: '2026-07-06T11:18:00',
+              downloads: ['2026-06-23T09:02:00', '2026-06-30T14:40:00'],
+            },
+          }),
+        psc19: () =>
+          accReq({
+            id: 'a7',
+            ref: 'ARQ-PSC-2026-0000019-7',
+            comm: PSC_C,
+            applicant: 'Joseph Maina Kariuki',
+            purpose: 'Suspected conflict of interest in a supplies contract',
+            scope: scope([2025, 2026], true, false, SEC_KEYS),
+            notifiedAt: '2026-05-05T09:40:00',
+            windowEndsAt: '2026-05-12T09:40:00',
+            reps: {
+              stance: 'object',
+              text: 'I had no role in the supplies contract. It was awarded by the county education office.',
+              files: [],
+              submittedAt: '2026-05-08T19:25:00',
+              updatedAt: '2026-05-08T19:25:00',
+            },
+            decision: {
+              outcome: 'deny',
+              at: '2026-05-29T10:05:00',
+              granted: null,
+              grounds: ['prejudice-proceeding'],
+              reasons: 'A related investigation is under way. Access now could prejudice it.',
+            },
+          }),
+      };
+      const OLDER = () => [ACC.lea1(), ACC.arq1(), ACC.arq39(), ACC.arq31()];
+      const savedReps = (stance = 'object') => ({
+        stance,
+        text: stance === 'consent' ? '' : REP_TEXT,
+        files:
+          stance === 'object'
+            ? [{ name: 'ELC case 118 of 2026 hearing notice.pdf', size: 264000, status: 'clean' }]
+            : [],
+        submittedAt: '2026-09-24T18:20:00',
+        updatedAt: '2026-09-24T18:20:00',
+      });
+      function accessWorld(name) {
+        switch (name) {
+          case 'none':
+            return [];
+          case 'saved':
+            return [accReq({ reps: savedReps() }), ...OLDER()];
+          case 'consented':
+            return [
+              accReq({
+                reps: {
+                  ...savedReps('consent'),
+                  submittedAt: '2026-09-23T07:45:00',
+                  updatedAt: '2026-09-23T07:45:00',
+                },
+              }),
+              ...OLDER(),
+            ];
+          case 'closed-none':
+            return [
+              accReq({ notifiedAt: '2026-09-17T09:05:00', windowEndsAt: '2026-09-24T09:05:00' }),
+              ...OLDER(),
+            ];
+          case 'closed-reps':
+            return [
+              accReq({
+                notifiedAt: '2026-09-17T09:05:00',
+                windowEndsAt: '2026-09-24T09:05:00',
+                reps: {
+                  ...savedReps(),
+                  submittedAt: '2026-09-20T21:10:00',
+                  updatedAt: '2026-09-22T07:30:00',
+                },
+              }),
+              ...OLDER(),
+            ];
+          case 'closing':
+            return [
+              accReq({ notifiedAt: '2026-09-19T10:25:00', windowEndsAt: '2026-09-26T10:25:00' }),
+              ...OLDER(),
+            ];
+          case 'history':
+            return [accReq(), ...OLDER(), ACC.psc27(), ACC.psc19()];
+          default:
+            return [accReq(), ...OLDER()];
+        }
       }
 
       const S = Kit.state({ ...world('open'), modal: null });
@@ -1907,6 +2316,7 @@
               <div class="card"><div class="card-head"><h3>Documents</h3></div>
                 <div class="item"><span class="ico">${icon('file', 16)}</span><div class="item-body"><div class="t">Acknowledgement slip</div><div class="d">${fmtDate(DECL.receivedAt)}</div></div><a class="btn btn-ghost icon-btn" href="${DOCS}#slip" target="_blank" rel="noopener" aria-label="Download slip">${icon('download', 17)}</a></div>
                 ${clars.map((c) => `<div class="item"><span class="ico">${icon('msg', 16)}</span><div class="item-body"><div class="t">Clarification letter</div><div class="d mono">${c.ref}</div></div><button class="btn btn-ghost icon-btn" data-act="modal" data-arg="letter|clr:${c.id}" aria-label="View letter ${c.ref}">${icon('eye', 17)}</button><a class="btn btn-ghost icon-btn" href="${DOCS}#clarification-letter" target="_blank" rel="noopener" aria-label="Download letter ${c.ref}">${icon('download', 17)}</a></div>`).join('')}
+                <div class="item"><span class="ico">${icon('shield', 16)}</span><div class="item-body"><div class="t">Certified copy</div></div><a class="btn btn-ghost icon-btn" href="${PROFILE}#certified-copies" aria-label="Certified copies">${icon('right', 17)}</a></div>
                 ${dec && dec.letter === 'ready' ? `<div class="item"><span class="ico">${icon('stamp', 16)}</span><div class="item-body"><div class="t">Decision letter</div><div class="d mono">${dec.ref}</div></div><button class="btn btn-ghost icon-btn" data-act="modal" data-arg="letter|cmp:${dec.id}" aria-label="View decision letter">${icon('eye', 17)}</button><a class="btn btn-ghost icon-btn" href="${DOCS}#${DEC_DOC(dec.outcome)}" target="_blank" rel="noopener" aria-label="Download decision letter">${icon('download', 17)}</a></div>` : ''}
               </div>
               ${helpCard()}
@@ -2205,12 +2615,344 @@
               .map(noticeCard)
               .join('')}</div>`
           : '';
-        const any = clarCardHome || decCardHome || noticeCardHome;
+        const accList = accSorted();
+        const accCardHome = accList.length
+          ? `<div class="card"><div class="card-head"><h3>Access requests</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="access-requests">View all</button></div>${accList.slice(0, 2).map(accCard).join('')}</div>`
+          : '';
+        const accFirst = accList.some(accNeedsYou);
+        const any = clarCardHome || decCardHome || noticeCardHome || accCardHome;
         return shell(
           `<div class="page">
           <div class="proto-note">${icon('info', 16)}<span>Prototype: Home cards after submission (<a href="${JOURNEY}#home">declarant-journey</a>). Each card shows only when it has content.</span></div>
-          <h1 class="page-title">${S.notices.some((n) => n.step !== 'notice-to-comply' && n.step !== 'warning' && n.salaryStoppedAt && !['complied', 'reinstated'].includes(n.status)) ? 'Your salary has been stopped' : noticeActionCount() ? 'Your Commission needs you to act' : open.length ? `You have ${plural(open.length, 'clarification')} to respond to` : 'You are up to date'}</h1>
-          ${any ? `<div class="dash-grid" ${decCardHome ? '' : 'style="grid-template-columns:minmax(0,760px)"'}><div class="stack-lg">${noticeCardHome}${clarCardHome}</div>${decCardHome ? `<div class="stack-lg">${decCardHome}</div>` : ''}</div>` : `<div class="card" style="margin-top:20px"><div class="empty" style="padding:40px 20px"><h4>No cards to show</h4><p>Nothing after submission in this state.</p></div></div>`}
+          <h1 class="page-title">${S.notices.some((n) => n.step !== 'notice-to-comply' && n.step !== 'warning' && n.salaryStoppedAt && !['complied', 'reinstated'].includes(n.status)) ? 'Your salary has been stopped' : noticeActionCount() ? 'Your Commission needs you to act' : open.length ? `You have ${plural(open.length, 'clarification')} to respond to` : accFirst ? 'Respond to an access request' : 'You are up to date'}</h1>
+          ${any ? `<div class="dash-grid" ${decCardHome ? '' : 'style="grid-template-columns:minmax(0,760px)"'}><div class="stack-lg">${accFirst ? accCardHome : ''}${noticeCardHome}${clarCardHome}${accFirst ? '' : accCardHome}</div>${decCardHome ? `<div class="stack-lg">${decCardHome}</div>` : ''}</div>` : `<div class="card" style="margin-top:20px"><div class="empty" style="padding:40px 20px"><h4>No cards to show</h4><p>Nothing after submission in this state.</p></div></div>`}
+        </div>`,
+          'Home',
+        );
+      };
+
+      /* ---------- Access requests (#255): card, list, detail with representations form ---------- */
+      const findAcc = (id) => S.access.find((r) => r.id === id);
+      const windowOpen = (r) =>
+        r.kind === 'form-k' &&
+        !r.decision &&
+        !r.withdrawnAt &&
+        r.reps?.stance !== 'consent' &&
+        new Date(r.windowEndsAt) > TODAY;
+      const accNeedsYou = (r) => windowOpen(r) && !r.reps;
+      function accStatus(r) {
+        if (r.kind === 'lea') return { label: 'Law enforcement', kind: 'info', icon: 'shield' };
+        if (r.withdrawnAt) return { label: 'Withdrawn', kind: '', icon: 'undo' };
+        if (r.decision) return ACC_OUT[r.decision.outcome];
+        if (windowOpen(r))
+          return r.reps
+            ? { label: 'Response saved', kind: 'ok', icon: 'check' }
+            : { label: 'Waiting for your response', kind: 'warn', icon: 'clock' };
+        return { label: 'Under decision', kind: 'info', icon: 'search' };
+      }
+      const leaCopy = (r) =>
+        `A law-enforcement agency was granted access on ${fmtDate(r.decision.at)} (${esc(r.agency)}, case ${esc(r.caseRef)})`;
+      function accLeft(r) {
+        const d = dd(TODAY, r.windowEndsAt);
+        return d <= 0 ? 'closes today' : d === 1 ? '1 day left' : `${d} days left`;
+      }
+      function accCard(r) {
+        const b = accStatus(r);
+        const tone = {
+          warn: ['var(--warn-soft)', 'var(--warn)'],
+          danger: ['var(--danger-soft)', 'var(--danger)'],
+          ok: ['var(--ok-soft)', 'var(--ok)'],
+          info: ['#eaf1fb', '#1f4f96'],
+          '': ['var(--sunken)', 'var(--ink-2)'],
+        }[b.kind];
+        const lea = r.kind === 'lea';
+        const open = windowOpen(r);
+        const title = lea
+          ? leaCopy(r)
+          : open
+            ? 'Someone has requested access to your declaration'
+            : `Access request from ${esc(r.applicant)}`;
+        const d = lea
+          ? `<span class="mono">${r.ref}</span>`
+          : open
+            ? `<span class="mono">${r.ref}</span> · ${esc(r.applicant)}<br/>${esc(r.purpose)}<br/>${esc(scopeText(r.scope))}`
+            : `<span class="mono">${r.ref}</span> · ${r.decision ? `Decided ${fmtDate(r.decision.at)}` : r.withdrawnAt ? `Withdrawn ${fmtDate(r.withdrawnAt)}` : `Notified ${fmtDate(r.notifiedAt)}`}`;
+        const left = open ? accLeft(r) : '';
+        const tags = open
+          ? `${r.reps ? badge(b) : ''}<span class="countdown ${/today|^1 /.test(left) ? 'danger' : 'warn'} small">${icon('clock', 14)} ${r.reps ? 'Edit until' : 'Respond by'} ${shortDate(r.windowEndsAt)} · ${left}</span>`
+          : badge(b);
+        return `<a class="cardlink" href="#access-request" data-act="go" data-arg="access-request|${r.id}"><div class="lc"><span class="ico" style="background:${tone[0]};color:${tone[1]}">${icon(lea ? 'shield' : 'users', 18)}</span><div class="body">
+          <div class="t">${title}</div>
+          <div class="d">${d}</div>
+          <div class="tags">${tags}</div></div><span class="chev">${icon('right', 20)}</span></div></a>`;
+      }
+      const accSorted = () =>
+        [...S.access].sort(
+          (a, b) =>
+            accNeedsYou(b) - accNeedsYou(a) ||
+            windowOpen(b) - windowOpen(a) ||
+            new Date(b.notifiedAt) - new Date(a.notifiedAt),
+        );
+
+      screens['access-requests'] = () => {
+        let body;
+        if (S.loadFor === 'access-requests') body = skeletonList(3);
+        else if (S.errorFor === 'access-requests') body = errorCard('access requests', 'retry');
+        else if (!S.access.length)
+          body = `<div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--ok-soft);color:var(--ok)">${icon('lock', 16)}</span></div><h4>No access requests</h4><p>If someone asks to see your declaration, we will SMS and email you.</p></div></div>`;
+        else {
+          const all = accSorted();
+          const open = all.filter(windowOpen);
+          const rest = all.filter((r) => !windowOpen(r));
+          const page = Math.min(S.accPage || 1, Math.max(1, Math.ceil(rest.length / PAGE)));
+          const grp = (title, list, foot = '') =>
+            list.length
+              ? `<div class="section-title" style="margin:24px 0 10px">${title}</div><div class="card">${list.map(accCard).join('')}${foot}</div>`
+              : '';
+          body =
+            grp('Open', open) +
+            grp(
+              open.length ? 'Earlier' : 'All access requests',
+              rest.slice((page - 1) * PAGE, page * PAGE),
+              Kit.pager({ page, pageSize: PAGE, total: rest.length, act: 'accPage' }),
+            );
+        }
+        const plain = S.loadFor || S.errorFor || !S.access.length;
+        return shell(
+          `<div class="page" style="max-width:880px"><button class="back" data-act="go" data-arg="dashboard">${icon('left', 16)} Home</button><h1 class="page-title">Access requests</h1>${plain ? `<div style="margin-top:24px">${body}</div>` : body}</div>`,
+          'Home',
+        );
+      };
+
+      /* RegisterTimeline, compact density (#268). Entries the declarant may see (S12). */
+      function accEntries(r) {
+        const e = [];
+        const add = (kind, at) => e.push({ kind, at, r });
+        if (r.kind === 'form-k') {
+          add('notified', r.notifiedAt);
+          if (r.reps) add('representations', r.reps.updatedAt || r.reps.submittedAt);
+          if (r.withdrawnAt) add('withdrawn', r.withdrawnAt);
+        }
+        if (r.decision) add('decided', r.decision.at);
+        if (r.pkg) {
+          add('package-issued', r.pkg.issuedAt);
+          r.pkg.downloads.forEach((d) => add('downloaded', d));
+          if (new Date(r.pkg.expiresAt) < TODAY) add('expired', r.pkg.expiresAt);
+        }
+        return e.sort((a, b) => new Date(a.at) - new Date(b.at));
+      }
+      function regText(e) {
+        const r = e.r;
+        const lea = r.kind === 'lea';
+        const who = lea ? r.agency : r.applicant;
+        const code = r.comm.code;
+        switch (e.kind) {
+          case 'notified':
+            return ['bell', 'brand', `${who} asked to see your declaration`, `Notified by ${code}`];
+          case 'representations':
+            return [
+              'send',
+              '',
+              STANCE[r.reps.stance].done,
+              r.reps.updatedAt && r.reps.updatedAt !== r.reps.submittedAt ? 'You · edited' : 'You',
+            ];
+          case 'decided':
+            if (lea) return ['shield', 'info', `${who} was granted access`, `Case ${r.caseRef}`];
+            return [
+              r.decision.outcome === 'deny' ? 'ban' : 'stamp',
+              { grant: 'ok', 'partial-grant': 'warn', deny: 'danger' }[r.decision.outcome],
+              `${code} ${ACC_OUT[r.decision.outcome].verb}`,
+              `Access officer, ${code}`,
+            ];
+          case 'package-issued':
+            return ['box', '', `Package issued to ${who}`, 'Watermarked with their name'];
+          case 'downloaded':
+            return ['download', '', `${who} downloaded the package`, lea ? 'Agency' : 'Applicant'];
+          case 'expired':
+            return ['clock', '', 'Download period ended', ''];
+          case 'withdrawn':
+            return ['undo', '', `${who} withdrew the request`, 'Applicant'];
+        }
+      }
+      const regCompact = (list) =>
+        `<ol class="timeline" aria-label="Register entries">${list
+          .map((e) => {
+            const [ic, tone, t, actor] = regText(e);
+            return `<li><span class="tl-ico ${tone}">${icon(ic, 14)}</span><div><div class="tl-t">${esc(t)}</div><div class="tl-s">${actor ? esc(actor) + ' · ' : ''}<time datetime="${e.at}">${fmtDateTime(e.at)}</time></div></div></li>`;
+          })
+          .join('')}</ol>`;
+
+      // Read-only ScopePicker view. With `granted`, parts outside it show as withheld.
+      function scopeView(sc, granted) {
+        const chip = (label, on, out) =>
+          `<span class="sc-chip ${out ? 'out' : on ? '' : 'off'}">${icon(out || !on ? 'x' : 'check', 12, 2.6)}${label}${out ? '<span class="sr-only"> (withheld)</span>' : !on ? '<span class="sr-only"> (not asked)</span>' : ''}</span>`;
+        const g = granted;
+        const peopleRow = [
+          chip('You', true, false),
+          chip('Spouse', sc.spouses, g && sc.spouses && !g.spouses),
+          chip('Children', sc.children, g && sc.children && !g.children),
+        ].join('');
+        const secRow = sc.sections
+          .map((k) => chip(SECTIONS[k], true, g && !g.sections.includes(k)))
+          .join('');
+        const yearsRow = sc.years
+          .map((y) => chip(String(y), true, g && !g.years.includes(y)))
+          .join('');
+        return `<dl class="scope">
+          <div><dt>Declaration year</dt><dd>${yearsRow}</dd></div>
+          <div><dt>People</dt><dd>${peopleRow}</dd></div>
+          <div><dt>Sections</dt><dd>${secRow}</dd></div>
+        </dl>${g && g !== sc ? `<div class="small muted row" style="gap:6px;margin-top:10px"><span class="sc-chip out" aria-hidden="true">${icon('x', 12, 2.6)}Withheld</span> not released</div>` : ''}`;
+      }
+      function accWindowCard(r) {
+        if (r.kind !== 'form-k' || r.decision || r.withdrawnAt) return '';
+        const total = 7;
+        const elapsed = Math.min(total, Math.max(0, dd(r.notifiedAt, TODAY)));
+        const open = windowOpen(r);
+        const consent = r.reps?.stance === 'consent';
+        const endT =
+          String(new Date(r.windowEndsAt).getHours()).padStart(2, '0') +
+          ':' +
+          String(new Date(r.windowEndsAt).getMinutes()).padStart(2, '0');
+        const left = accLeft(r);
+        const cls = !open ? '' : /today|^1 /.test(left) ? 'danger' : 'warn';
+        const big = open
+          ? left.charAt(0).toUpperCase() + left.slice(1)
+          : consent
+            ? 'Closed early'
+            : 'Window closed';
+        const sub = open
+          ? `${r.reps ? 'Edit until' : 'Respond by'} ${fmtDate(r.windowEndsAt)}, ${endT} · day ${elapsed} of ${total}`
+          : consent
+            ? `You consented on ${fmtDate(r.reps.submittedAt)}`
+            : `Closed ${fmtDate(r.windowEndsAt)}, ${endT}`;
+        const pctW = open ? Math.round((elapsed / total) * 100) : 100;
+        return `<div class="card card-pad"><div class="timer" role="group" aria-label="Window for your response"><div class="big ${cls === 'danger' ? 'countdown danger' : ''}">${big}</div><div class="small muted" style="margin-top:2px">${sub}</div><div class="bar ${open ? cls : ''}" role="img" aria-label="${elapsed} of ${total} days used"><i style="width:${pctW}%"></i></div><div class="scale"><span>${shortDate(r.notifiedAt)}</span><span></span><span>${shortDate(r.windowEndsAt)}</span></div></div></div>`;
+      }
+      function accForm(r) {
+        const f = S.aform[r.id];
+        const st = f.stance;
+        const conflict = S.accConflict === r.id;
+        const dis = conflict ? 'disabled' : '';
+        const errStance = f.tried && !st;
+        const needText = st && st !== 'consent';
+        const errText = f.tried && needText && !f.text.trim();
+        const over = f.text.length > REP_MAX;
+        const scanning = f.files.some((y) => y.status === 'scanning');
+        const busy = S.accBusy === r.id;
+        const lab =
+          st === 'object'
+            ? 'Your reasons'
+            : st === 'context'
+              ? 'Context for ' + r.comm.code
+              : 'Comments';
+        const ph =
+          st === 'object'
+            ? 'Why the declaration should not be released'
+            : st === 'context'
+              ? 'What the Commission should know before deciding'
+              : 'Anything you want to add';
+        const choice = Kit.choices(
+          `aform.${r.id}.stance`,
+          Object.entries(STANCE).map(([k, v]) => ({ k, label: v.label, icon: v.icon, sub: v.sub })),
+          'c3',
+          { tiles: true },
+        );
+        return `<div class="card"><div class="card-head"><h3>Your response</h3></div>
+          <fieldset class="sec-b stack acc-form" style="gap:16px" ${dis}>
+            <div class="field"><div class="label" id="lg-${r.id}"><span>Your position</span></div><div aria-labelledby="lg-${r.id}">${choice}</div>${errStance ? `<div class="ferr" role="alert">${icon('alert', 14)} Choose object, consent or add context.</div>` : ''}</div>
+            ${
+              st
+                ? `<div class="field"><div class="label"><label for="f-arep">${lab}${st === 'consent' ? ' <span class="opt">Optional</span>' : ''}</label><span class="counter ${over ? 'over' : ''}" data-count="aform.${r.id}.text">${num(f.text.length)} / ${num(REP_MAX)}</span></div>
+              <textarea id="f-arep" class="textarea ${errText || over ? 'err' : ''}" rows="5" data-bind="aform.${r.id}.text" placeholder="${ph}" ${errText ? 'aria-invalid="true"' : ''}>${esc(f.text)}</textarea>
+              ${errText ? `<div class="ferr">${icon('alert', 14)} ${st === 'object' ? 'Write your reasons.' : 'Write the context you want the Commission to consider.'}</div>` : over ? `<div class="ferr">${icon('alert', 14)} Keep your response to ${num(REP_MAX)} characters or fewer.</div>` : ''}</div>
+              ${f.files.length ? `<div class="docs">${f.files.map((x, k) => docRow(x, { removable: !conflict, bind: `aform.${r.id}`, i: k })).join('')}</div>` : ''}
+              ${conflict ? '' : f.files.length >= REP_FILES ? `<div class="hint">Up to ${REP_FILES} documents.</div>` : `<label class="attach"><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,application/pdf,image/*" data-act-change="attach" data-arg="aform.${r.id}" aria-label="Attach documents to your response"/>${icon('clip', 16)} ${f.files.length ? 'Attach another document' : 'Attach a document'} <span class="muted" style="font-weight:400">(optional)</span></label>`}`
+                : ''
+            }
+          </fieldset>
+          ${
+            conflict
+              ? ''
+              : `<div class="submitbar">${S.submitErr === r.id ? `<div class="ferr" style="flex-basis:100%">${icon('wifiOff', 14)} We could not save your response. Check your connection and try again.</div>` : ''}<span class="small muted">Editable until ${fmtDate(r.windowEndsAt)}</span><span class="spacer"></span>${S.aEdit === r.id ? `<button class="btn btn-ghost" data-act="accCancel" data-arg="${r.id}" ${busy ? 'disabled' : ''}>Cancel</button>` : ''}<button class="btn btn-primary" data-act="accSave" data-arg="${r.id}" ${scanning || busy ? 'disabled' : ''}>${busy ? '<span class="spinner"></span> Saving…' : scanning ? '<span class="spinner"></span> Checking files…' : S.aEdit === r.id ? 'Save changes' : `${icon('send', 16)} Send response`}</button></div>`
+          }</div>`;
+      }
+      function accRepsCard(r) {
+        const x = r.reps;
+        const edited = x.updatedAt && x.updatedAt !== x.submittedAt;
+        return `<div class="card"><div class="card-head"><h3>Your response</h3><span class="spacer"></span>${windowOpen(r) ? `<button class="btn btn-secondary btn-sm" data-act="accEdit" data-arg="${r.id}">${icon('pencil', 15)} Edit</button>` : ''}</div>
+          <div class="sec-b stack" style="gap:10px"><div class="row wrap" style="gap:8px"><span class="badge">${icon(STANCE[x.stance].icon, 13, 2.2)} ${STANCE[x.stance].done}</span><span class="small muted">${edited ? `Edited ${fmtDateTime(x.updatedAt)}` : `Sent ${fmtDateTime(x.submittedAt)}`}</span></div>
+          ${x.text ? `<div class="qa-answer" style="margin:0"><div class="ans">${esc(x.text)}</div></div>` : ''}
+          ${x.files.length ? `<div class="docs">${x.files.map((y) => docRow(y)).join('')}</div>` : ''}</div></div>`;
+      }
+      screens['access-request'] = () => {
+        const r = findAcc(S.params.id) || accSorted()[0];
+        if (S.notFound || !r)
+          return shell(
+            `<div class="page" style="max-width:720px"><button class="back" data-act="go" data-arg="access-requests">${icon('left', 16)} Access requests</button><div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--sunken);color:var(--muted)">${icon('search', 16)}</span></div><h4>Access request not found</h4><p>The link may be wrong, or it is not about your declaration.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="go" data-arg="access-requests">All access requests</button></div></div></div></div>`,
+            'Home',
+          );
+        const lea = r.kind === 'lea';
+        const b = accStatus(r);
+        const d = r.decision;
+        const open = windowOpen(r);
+        const code = r.comm.code;
+        const conflict = S.accConflict === r.id;
+        if (open && !r.reps && !S.aform[r.id])
+          S.aform[r.id] = { stance: '', text: '', files: [], tried: false };
+        const endAt = `${fmtDate(r.windowEndsAt)}, ${String(new Date(r.windowEndsAt).getHours()).padStart(2, '0')}:${String(new Date(r.windowEndsAt).getMinutes()).padStart(2, '0')}`;
+        let banner;
+        if (lea)
+          banner = `<div class="banner banner-info">${icon('shield', 18)}<div><b>${leaCopy(r)}.</b> ${Kit.tip('Law-enforcement requests are shown after access is granted, so investigations are not prejudiced.', { label: 'Why now' })}</div></div>`;
+        else if (conflict)
+          banner = `<div class="banner banner-warn">${icon('clock', 18)}<div><b>The window closed at ${endAt.split(', ')[1]} today.</b> Your response was not saved. ${code} is deciding.</div></div>`;
+        else if (r.withdrawnAt)
+          banner = `<div class="banner banner-neutral">${icon('undo', 18)}<div><b>The applicant withdrew the request on ${fmtDate(r.withdrawnAt)}.</b> Nothing was released.</div></div>`;
+        else if (d)
+          banner = `<div class="banner ${d.outcome === 'grant' ? 'banner-info' : d.outcome === 'deny' ? 'banner-ok' : 'banner-warn'}">${icon(d.outcome === 'deny' ? 'ban' : 'stamp', 18)}<div><b>${code} ${ACC_OUT[d.outcome].verb} on ${fmtDate(d.at)}.</b> ${d.outcome === 'deny' ? 'Nothing was released.' : d.outcome === 'partial-grant' ? 'Only part of what was asked was released.' : 'What was asked was released.'}</div></div>`;
+        else if (open && !r.reps)
+          banner = `<div class="banner banner-warn">${icon('bell', 18)}<div><b>Someone has requested access to your declaration.</b> Respond by ${endAt}. ${code} decides after that.</div></div>`;
+        else if (open)
+          banner = `<div class="banner banner-info">${icon('check', 18)}<div><b>Your response is saved.</b> You can edit it until ${endAt}.</div></div>`;
+        else if (r.reps?.stance === 'consent')
+          banner = `<div class="banner banner-info">${icon('check', 18)}<div><b>You consented.</b> ${code} can now decide. We will SMS and email you the outcome.</div></div>`;
+        else
+          banner = `<div class="banner banner-neutral">${icon('clock', 18)}<div><b>The window closed on ${fmtDate(r.windowEndsAt)}.</b> ${r.reps ? `${code} has your response and is deciding.` : `You did not respond. ${code} is deciding.`}</div></div>`;
+        const kv = (k, v, full) =>
+          `<div ${full ? 'style="grid-column:1/-1"' : ''}><div class="k">${k}</div><div class="v">${v}</div></div>`;
+        const reqCard = lea
+          ? `<div class="card"><div class="card-head"><h3>Scope granted</h3></div><div class="sec-b">${scopeView(r.scope)}</div></div>`
+          : `<div class="card"><div class="card-head"><h3>Request</h3></div><div class="sec-b stack" style="gap:18px">
+          <div class="kvs">${lea ? `${kv('Agency', esc(r.agency))}${kv('Case reference', `<span class="mono">${esc(r.caseRef)}</span>`)}` : `${kv('Applicant', esc(r.applicant))}${kv('Commission', esc(r.comm.name))}${kv('Purpose', esc(r.purpose), true)}`}</div>
+          <div><div class="k-label">${lea ? 'Scope granted' : d && d.outcome === 'partial-grant' ? 'Scope asked and granted' : 'Scope asked'}</div>${scopeView(r.scope, d && d.outcome === 'partial-grant' ? d.granted : null)}</div>
+        </div></div>`;
+        const decCard =
+          d && !lea
+            ? `<div class="card"><div class="card-head"><h3>Decision</h3><span class="spacer"></span><span class="small muted">${fmtDate(d.at)}</span></div><div class="sec-b stack" style="gap:14px">
+            <div>${badge(ACC_OUT[d.outcome])}</div>
+            ${d.grounds.length ? `<div><div class="k-label">Grounds</div><ul class="grounds">${d.grounds.map((g) => `<li>${esc(GROUNDS[g])}</li>`).join('')}</ul></div>` : ''}
+            <div><div class="k-label">Reasons</div><p style="font-size:14.5px">${esc(d.reasons)}</p></div>
+            ${r.pkg ? `<div class="small muted row" style="gap:6px">${icon('box', 15)} Package issued to ${esc(r.applicant)}, watermarked with their name. ${r.pkg.downloads.length ? `Downloaded ${plural(r.pkg.downloads.length, 'time')}.` : 'Not downloaded yet.'}</div>` : ''}
+          </div></div>`
+            : '';
+        let resp = '';
+        if (!lea) {
+          if ((open && (!r.reps || S.aEdit === r.id)) || conflict) resp = accForm(r);
+          else if (r.reps) resp = accRepsCard(r);
+        }
+        return shell(
+          `<div class="page">
+          <button class="back" data-act="go" data-arg="access-requests">${icon('left', 16)} Access requests</button>
+          <div class="head-row"><h1 class="page-title">${lea ? 'Law-enforcement access' : 'Access request'}</h1></div>
+          <div class="meta-line"><span>${refChip(r.ref)}</span><span>${badge(b)}</span><span>${icon('calendar', 15)} ${lea ? 'Granted' : 'Notified'} ${fmtDate(lea ? d.at : r.notifiedAt)}</span></div>
+          <div class="side-grid">
+            <div class="stack" style="min-width:0">${banner}${d && !lea ? decCard + reqCard : reqCard}${resp}</div>
+            <div class="side">
+              ${accWindowCard(r)}
+              <div class="card card-pad"><div class="row" style="justify-content:space-between"><div class="section-title">History</div><a class="link small" href="${PROFILE}#who-accessed">Who accessed</a></div><div style="margin-top:14px">${regCompact(accEntries(r))}</div></div>
+              ${helpCard()}
+            </div>
+          </div>
         </div>`,
           'Home',
         );
@@ -2526,6 +3268,118 @@
         },
       };
 
+      /* ---------- actions: access requests (#255) ---------- */
+      function accPut(id) {
+        // PUT /v1/me/access-notices/{id}/representations (200, or 409 when the window has closed)
+        const r = findAcc(id);
+        const f = S.aform[id];
+        S.accBusy = id;
+        S.submitErr = null;
+        Kit.render();
+        setTimeout(() => {
+          S.accBusy = null;
+          S.modal = null;
+          if (S.fail === 'network') {
+            S.fail = null;
+            S.submitErr = id;
+            Kit.render();
+            return;
+          }
+          if (S.fail === 'closed') {
+            S.fail = null;
+            S.accConflict = id;
+            r.windowEndsAt = '2026-09-26T10:25:00';
+            Kit.render();
+            return;
+          }
+          const now = TODAY.toISOString();
+          const first = !r.reps;
+          r.reps = {
+            stance: f.stance,
+            text: f.text.trim(),
+            files: f.files.filter((y) => y.status === 'clean'),
+            submittedAt: first ? now : r.reps.submittedAt,
+            updatedAt: now,
+          };
+          delete S.aform[id];
+          S.aEdit = null;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+          Kit.toast(
+            f.stance === 'consent'
+              ? `Consent sent to ${r.comm.code}.`
+              : first
+                ? `Response sent to ${r.comm.code}. You can edit it until ${fmtDate(r.windowEndsAt)}.`
+                : 'Changes saved.',
+            false,
+          );
+        }, 900);
+      }
+      Object.assign(actions, {
+        accPage: (p) => {
+          S.accPage = +p;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+        },
+        accSave: (id) => {
+          const f = S.aform[id];
+          f.tried = true;
+          const needText = f.stance && f.stance !== 'consent';
+          if (!f.stance || (needText && !f.text.trim()) || f.text.length > REP_MAX) {
+            Kit.render();
+            Kit.toast(
+              !f.stance
+                ? 'Choose object, consent or add context.'
+                : 'Check your response before you send it.',
+              true,
+            );
+            return;
+          }
+          if (f.files.some((y) => y.status !== 'clean')) {
+            Kit.toast('Remove the documents that were not accepted before you send.', true);
+            return;
+          }
+          if (f.stance === 'consent') {
+            S.modal = { kind: 'confirmConsent', id };
+            Kit.render();
+            return;
+          }
+          accPut(id);
+        },
+        accConsent: (id) => {
+          S.modal.busy = true;
+          accPut(id);
+        },
+        accEdit: (id) => {
+          const x = findAcc(id).reps;
+          S.aform[id] = {
+            stance: x.stance,
+            text: x.text,
+            files: x.files.map((y) => ({ ...y, id: Kit.id('f') })),
+            tried: false,
+          };
+          S.aEdit = id;
+          Kit.render();
+        },
+        accCancel: (id) => {
+          delete S.aform[id];
+          S.aEdit = null;
+          S.submitErr = null;
+          Kit.render();
+        },
+      });
+      modals.confirmConsent = () => {
+        const r = findAcc(S.modal.id);
+        const busy = S.modal.busy;
+        return dialog({
+          title: 'Consent to release?',
+          icon: 'check',
+          body: `<p>${r.comm.code} can decide straight away. You cannot change your response after this.</p>
+            <dl class="dl"><div><dt>Applicant</dt><dd>${esc(r.applicant)}</dd></div><div><dt>Scope asked</dt><dd style="text-align:right">${esc(scopeText(r.scope))}</dd></div></dl>`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal" ${busy ? 'disabled' : ''}>Cancel</button><button class="btn btn-primary" data-act="accConsent" data-arg="${r.id}" ${busy ? 'disabled' : ''}>${busy ? '<span class="spinner"></span> Sending…' : 'Consent and send'}</button>`,
+        });
+      };
+
       /* ---------- jumps ---------- */
       const J = (scen, screen, params, extra) => () => {
         load(typeof scen === 'function' ? scen() : world(scen));
@@ -2546,6 +3400,39 @@
             x.files = (FILES_A[i] || []).map((y) => ({ ...y, id: Kit.id('f'), status: 'clean' }));
           }
         });
+      };
+      const JA = (acc, screen, params, extra, clar = 'none') =>
+        J(
+          () => {
+            const w = world(clar);
+            w.access = accessWorld(acc);
+            w.scen = 'access-' + acc;
+            return w;
+          },
+          screen,
+          params,
+          extra,
+        );
+      const fillRep = (stance, o = {}) => {
+        S.aform.a1 = Object.assign(
+          {
+            stance,
+            text: stance === 'consent' ? '' : REP_TEXT,
+            files:
+              stance === 'object'
+                ? [
+                    {
+                      id: Kit.id('f'),
+                      name: 'ELC case 118 of 2026 hearing notice.pdf',
+                      size: 264000,
+                      status: 'clean',
+                    },
+                  ]
+                : [],
+            tried: false,
+          },
+          o,
+        );
       };
       const jumps = [
         [
@@ -2857,6 +3744,149 @@
           'Home cards: decision non-compliant',
           J(() => decisionWorld('non-compliant'), 'dashboard'),
         ],
+        [
+          'dash-access',
+          '#255 Home cards: access request, respond by 29 Sep',
+          JA('awaiting', 'dashboard'),
+        ],
+        [
+          'dash-access-saved',
+          '#255 Home cards: response saved + clarification open',
+          JA('saved', 'dashboard', null, null, 'open'),
+        ],
+        ['acc-list', '#255 Access requests: list', JA('awaiting', 'access-requests')],
+        [
+          'acc-list-p2',
+          '#255 Access requests: long history, page 2',
+          JA('history', 'access-requests', null, () => (S.accPage = 2)),
+        ],
+        ['acc-empty', '#255 Access requests: none (empty)', JA('none', 'access-requests')],
+        [
+          'acc-loading',
+          '#255 Access requests: loading',
+          JA('awaiting', 'access-requests', null, () => (S.loadFor = 'access-requests')),
+        ],
+        [
+          'acc-error',
+          '#255 Access requests: could not load',
+          JA('awaiting', 'access-requests', null, () => (S.errorFor = 'access-requests')),
+        ],
+        [
+          'access-request',
+          '#255 Access request: notice received, respond by 29 Sep',
+          JA('awaiting', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-object',
+          '#255 Respond: objection with attachment',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => fillRep('object')),
+        ],
+        [
+          'acc-validation',
+          '#255 Respond: validation errors',
+          JA('awaiting', 'access-request', { id: 'a1' }, () =>
+            fillRep('object', { text: '', files: [], tried: true }),
+          ),
+        ],
+        [
+          'acc-files',
+          '#255 Respond: files checking and rejected',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => {
+            fillRep('object');
+            S.aform.a1.files.push(
+              { id: 'fa1', name: 'Title deed Kapsaret.pdf', size: 910000, status: 'scanning' },
+              {
+                id: 'fa2',
+                name: 'Court order scan.tiff',
+                size: 1600000,
+                status: 'rejected',
+                reason: 'Use a PDF, JPEG, PNG or HEIC file.',
+              },
+            );
+            setTimeout(() => {
+              const f = S.aform.a1?.files.find((x) => x.id === 'fa1');
+              if (f) {
+                f.status = 'clean';
+                Kit.render();
+              }
+            }, 4000);
+          }),
+        ],
+        [
+          'acc-consent',
+          '#255 Respond: consent confirm',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => {
+            fillRep('consent');
+            S.modal = { kind: 'confirmConsent', id: 'a1' };
+          }),
+        ],
+        [
+          'acc-neterr',
+          '#255 Respond: network error on save',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => {
+            fillRep('object');
+            S.submitErr = 'a1';
+          }),
+        ],
+        [
+          'acc-saved',
+          '#255 Response saved, editable until 29 Sep',
+          JA('saved', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-editing',
+          '#255 Editing a saved response',
+          JA('saved', 'access-request', { id: 'a1' }, () => {
+            const x = S.access[0].reps;
+            S.aform.a1 = { ...x, files: x.files.map((y) => ({ ...y })), tried: false };
+            S.aEdit = 'a1';
+          }),
+        ],
+        [
+          'acc-409',
+          '#255 Window closed while saving (409): form disabled',
+          JA('closing', 'access-request', { id: 'a1' }, () => {
+            fillRep('object');
+            S.accConflict = 'a1';
+          }),
+        ],
+        [
+          'acc-closed-none',
+          '#255 Window closed, no response: under decision',
+          JA('closed-none', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-closed-reps',
+          '#255 Window closed with response: under decision',
+          JA('closed-reps', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-consented',
+          '#255 Consented: under decision',
+          JA('consented', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-partial',
+          '#255 Outcome: partially granted',
+          JA('awaiting', 'access-request', { id: 'a3' }),
+        ],
+        ['acc-granted', '#255 Outcome: granted', JA('history', 'access-request', { id: 'a6' })],
+        ['acc-denied', '#255 Outcome: denied', JA('awaiting', 'access-request', { id: 'a4' })],
+        [
+          'acc-withdrawn',
+          '#255 Withdrawn by the applicant',
+          JA('awaiting', 'access-request', { id: 'a5' }),
+        ],
+        [
+          'acc-lea',
+          '#255 Law-enforcement agency granted access',
+          JA('awaiting', 'access-request', { id: 'a2' }),
+        ],
+        [
+          'acc-404',
+          '#255 Access request: not found (404)',
+          JA('awaiting', 'access-request', { id: 'zz' }, () => (S.notFound = true)),
+        ],
       ];
 
       Kit.mount({
@@ -2870,7 +3900,7 @@
         onBind: (bind, v) => {
           const el = document.querySelector(`[data-count="${bind}"]`);
           if (el) {
-            const max = bind.startsWith('nform') ? 4000 : 2000;
+            const max = bind.startsWith('aform') ? REP_MAX : bind.startsWith('nform') ? 4000 : 2000;
             el.textContent = `${num(v.length)} / ${num(max)}`;
             el.classList.toggle('over', v.length > max);
             const ta = el.closest('.field')?.querySelector('textarea');
@@ -2983,6 +4013,44 @@
               'dash-mixed',
             ],
             note: 'Try it: on "Salary stopped", respond to the clarification. The ladder completes and reinstatement is sent, then confirmed by payroll after a few seconds.',
+          },
+          {
+            ticket: 255,
+            title: 'Portal: Access requests card and representations form',
+            screens: [
+              'dash-access',
+              'dash-access-saved',
+              'acc-list',
+              'acc-list-p2',
+              'acc-empty',
+              'acc-loading',
+              'acc-error',
+              'access-request',
+              'acc-object',
+              'acc-validation',
+              'acc-files',
+              'acc-consent',
+              'acc-neterr',
+              'acc-saved',
+              'acc-editing',
+              'acc-409',
+              'acc-closed-none',
+              'acc-closed-reps',
+              'acc-consented',
+              'acc-partial',
+              'acc-granted',
+              'acc-denied',
+              'acc-withdrawn',
+              'acc-lea',
+              'acc-404',
+            ],
+            note: 'Card copy per the spec 10 frontend comment ("Someone has requested access to your declaration", "Respond by {window end}", LEA grant sentence). One representation per request, editable until the 7-day window closes; consent closes it early (confirm). Who accessed and certified copies: declarant-profile.prototype.html.',
+          },
+          {
+            ticket: 268,
+            title: 'UI primitives round 12: RegisterTimeline (compact, declarant view)',
+            screens: ['acc-partial', 'acc-lea', 'acc-saved'],
+            note: 'History card on each request. Every kind in list and compact density: declarant-profile.prototype.html#register-kinds.',
           },
         ],
       });

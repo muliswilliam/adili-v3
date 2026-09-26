@@ -76,6 +76,7 @@ p {
   container: app / inline-size;
   height: 100vh;
   overflow: hidden;
+  overflow: clip;
   background: var(--bg);
   position: relative;
 }
@@ -3261,4 +3262,13 @@ dl.dl {
 }
 .skeleton {
   max-width: 100%;
+}
+/* Long toasts wrap on narrow screens. */
+.toast {
+  max-width: calc(100% - 32px);
+  white-space: normal;
+}
+/* Keep sr-only text inside wide scrolling tables from widening the page. */
+.table-wrap {
+  position: relative;
 }

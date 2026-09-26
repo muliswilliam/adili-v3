@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- PROTOTYPE - throwaway. Question: how do reviewers and supervisors work the review queue, a case (declaration as filed, flags, registry checks, notes, timeline, version compare) and clarifications (compose, issue, respond, resolve, follow-up, withdraw)? Covers tickets #159 #161 #164 #167 #170 #173 #180 #185 #188 (console parts). Open by double-clicking. State is in memory. -->
+<!-- PROTOTYPE - throwaway. Question: how do reviewers and supervisors work the review queue, a case (declaration as filed, flags, registry checks, notes, timeline, version compare) and clarifications (compose, issue, respond, resolve, follow-up, withdraw)? Also: where does the AI copilot sit on a case and how does Draft with AI work in the composer (spec 07c)? Covers tickets #159 #161 #164 #167 #170 #173 #180 #185 #188 (console parts) and #282 #285 #288 (spec 07c). Open by double-clicking. State is in memory. -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -1568,6 +1568,555 @@
         color: var(--line-2);
         line-height: 1;
       }
+
+      /* ---------- AI primitives (#282): AiLabel, SourceRefLink, FeedbackControl ---------- */
+      .ailabel {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 9px 0 7px;
+        border-radius: 999px;
+        background: var(--ai-soft);
+        color: var(--ai);
+        font-size: 12.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        vertical-align: middle;
+        max-width: 100%;
+      }
+      .ailabel > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ailabel svg {
+        flex: none;
+      }
+      .ailabel.sm {
+        height: 20px;
+        padding: 0 7px 0 5px;
+        gap: 4px;
+        font-size: 11.5px;
+      }
+      .ailabel.edited {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .ailabel.kit-tip,
+      .ailabel.kit-tip:hover {
+        color: var(--ai);
+        border-radius: 999px;
+      }
+      .ailabel.edited.kit-tip {
+        color: var(--ink-2);
+      }
+      .srcref {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        max-width: 100%;
+        min-height: 24px;
+        padding: 2px 8px 2px 6px;
+        border: 0;
+        border-radius: 7px;
+        background: var(--sunken);
+        color: var(--ink);
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        line-height: 1.3;
+        text-align: left;
+        cursor: pointer;
+      }
+      .srcref:hover {
+        background: #ebe9e5;
+      }
+      .srcref svg {
+        flex: none;
+        color: var(--muted);
+      }
+      .srcref .tx {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .refs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .fb {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .fbb {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .fbb:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+      .fbb[aria-pressed='true'] {
+        background: var(--ink);
+        color: #fff;
+      }
+      .fb-ro {
+        font-size: 12.5px;
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .fb-form {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--sunken);
+      }
+      .fb-form .select,
+      .fb-form .textarea {
+        background: var(--surface);
+      }
+
+      /* ---------- Copilot panel (#285) ---------- */
+      .cp-launch {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding: 10px 12px 10px 10px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        font: inherit;
+        color: var(--ink);
+        text-align: left;
+        cursor: pointer;
+      }
+      .cp-launch:hover {
+        box-shadow:
+          var(--shadow-card),
+          0 0 0 1px var(--ai);
+      }
+      .cp-ico {
+        width: 30px;
+        height: 30px;
+        flex: none;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: var(--ai-soft);
+        color: var(--ai);
+      }
+      .cp-launch .t {
+        font-weight: 600;
+        font-size: 14.5px;
+      }
+      .cp-launch .s {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        color: var(--ai);
+        font-weight: 500;
+      }
+      .cp-launch.warn .s {
+        color: var(--warn);
+      }
+      .cp-launch.off .s,
+      .cp-launch.off .cp-ico {
+        color: var(--muted);
+      }
+      .cp-launch.off .cp-ico {
+        background: var(--sunken);
+      }
+      .cp-launch > svg {
+        color: var(--muted);
+        flex: none;
+      }
+      .cp-card {
+        background: var(--surface);
+        border-radius: 16px;
+        box-shadow: var(--shadow-card);
+        min-height: 200px;
+      }
+      .cp-top {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--surface);
+        border-radius: 16px 16px 0 0;
+      }
+      .cp-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 10px 0 14px;
+      }
+      .cp-head h2 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .cp-lab {
+        padding: 8px 14px 0;
+        display: flex;
+      }
+      .cp-top .tabs {
+        padding: 0 8px;
+        margin-top: 6px;
+      }
+      .cp-top .tabs button {
+        padding: 0 8px;
+        font-size: 13.5px;
+      }
+      .cp-body {
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+      }
+      .cp-disc {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        font-size: 13px;
+        color: var(--ink-2);
+        font-weight: 500;
+      }
+      .cp-disc svg {
+        flex: none;
+        margin-top: 2px;
+        color: var(--ai);
+      }
+      .cp-block {
+        display: grid;
+        gap: 8px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      .cp-block:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+      }
+      .cp-bh {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+      }
+      .cp-bh h3 {
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+      .cp-block p,
+      .cp-list li {
+        font-size: 14px;
+        color: var(--ink);
+        line-height: 1.55;
+      }
+      .cp-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 12px;
+      }
+      .cp-sec .h {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+      .cp-sec + .cp-sec {
+        margin-top: 10px;
+      }
+      .flaglink {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        padding: 2px 8px 2px 3px;
+        border: 0;
+        border-radius: 999px;
+        background: none;
+        box-shadow: 0 0 0 1px var(--line);
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .flaglink:hover {
+        box-shadow: 0 0 0 1px var(--ink-2);
+      }
+      .flaglink .sevb {
+        height: 19px;
+        font-size: 11px;
+        padding: 0 6px;
+      }
+      .flaglink .tx {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cp-stale-wrap {
+        opacity: 0.45;
+        pointer-events: none;
+        user-select: none;
+      }
+      .cp-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--ai-soft);
+        color: #4b34a8;
+        font-size: 13.5px;
+        font-weight: 500;
+      }
+      .cp-banner .spinner {
+        width: 14px;
+        height: 14px;
+      }
+      .cp-state {
+        display: grid;
+        justify-items: center;
+        text-align: center;
+        gap: 10px;
+        padding: 36px 20px 40px;
+      }
+      .cp-state .art {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--muted);
+      }
+      .cp-state p {
+        font-size: 14px;
+        max-width: 300px;
+      }
+      .cp-skel {
+        display: grid;
+        gap: 10px;
+      }
+      .cp-wait {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13.5px;
+        color: var(--ai);
+        font-weight: 500;
+      }
+      .cp-wait .spinner {
+        width: 14px;
+        height: 14px;
+      }
+      .cpf {
+        border-radius: 12px;
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        scroll-margin-top: 150px;
+      }
+      .cpf-h {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 12px;
+        border: 0;
+        background: none;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        color: var(--ink);
+      }
+      .cpf-h .t {
+        flex: 1;
+        min-width: 0;
+        font-size: 13.5px;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+      .cpf-h .chev {
+        color: var(--muted);
+        display: flex;
+        transition: transform 0.15s;
+      }
+      .cpf.open .cpf-h .chev {
+        transform: rotate(180deg);
+      }
+      .cpf.done .cpf-h .t {
+        font-weight: 500;
+        color: var(--ink-2);
+      }
+      .cpf-b {
+        display: grid;
+        gap: 10px;
+        padding: 2px 14px 12px;
+        font-size: 13.5px;
+      }
+      .cpf-b .k {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+      .cpf-b ol {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 3px;
+      }
+      .cpf-b .nf {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .cpf-f {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+      .cpf.pulse {
+        animation: flagpulse 1.6s ease-out;
+      }
+      .cp-selbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px 8px 16px;
+        border-bottom: 1px solid var(--line);
+        background: var(--ai-soft);
+        color: #4b34a8;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .dsec.hl,
+      .stmt.hl {
+        box-shadow: inset 3px 0 0 var(--brand);
+        background: var(--brand-softer);
+        animation: hlpulse 1.6s ease-out;
+      }
+
+      /* ---------- Draft with AI in the composer (#288) ---------- */
+      .aidraft {
+        display: grid;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--ai-soft);
+      }
+      .aidraft-row {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .aidraft .lbl {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #4b34a8;
+      }
+      .aichip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        min-width: 0;
+        height: 28px;
+        padding: 0 4px 0 9px;
+        border-radius: 999px;
+        background: var(--surface);
+        box-shadow: 0 0 0 1px rgba(109, 74, 224, 0.2);
+        font-size: 12.5px;
+        font-weight: 500;
+      }
+      .aichip .tx {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .aichip button {
+        width: 22px;
+        height: 22px;
+        border: 0;
+        border-radius: 50%;
+        background: none;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        flex: none;
+      }
+      .aichip button:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+      .aidraft .select {
+        height: 32px;
+        width: auto;
+        font-size: 13.5px;
+        padding-top: 0;
+        padding-bottom: 0;
+        background-color: var(--surface);
+      }
+      .aidraft .aiadd {
+        max-width: 190px;
+      }
+      .btn-ai {
+        background: var(--ai);
+        color: #fff;
+      }
+      .btn-ai:hover {
+        background: #5b3bcc;
+      }
+      .citem.ai {
+        box-shadow:
+          var(--shadow-card),
+          inset 3px 0 0 var(--ai);
+      }
+      .citem.ai.err {
+        box-shadow: 0 0 0 1.5px var(--danger);
+      }
+      .letter .opening {
+        margin-bottom: 8px;
+      }
+      .citem-h .counter {
+        white-space: nowrap;
+      }
+      @container app (max-width: 699px) {
+        .citem-h .counter {
+          display: none;
+        }
+      }
+      .spinner.ai {
+        border-color: rgba(109, 74, 224, 0.2);
+        border-top-color: var(--ai);
+      }
     </style>
     <script src="../../../packages/ui/prototype/kit.js"></script>
   </head>
@@ -3122,6 +3671,18 @@
         pick: { rw: 'peter' },
         dlgText: '',
         dlgErr: '',
+        aiEnabled: true,
+        cps: {},
+        cpOpen: false,
+        cpSub: 'summary',
+        cpExp: {},
+        hlSec: null,
+        fb: {
+          'c1:overview': { rating: 'helpful', reason: '', note: '', open: false, by: 'faith' },
+        },
+        aiSel: {},
+        aiDraftMode: 'ok',
+        declLang: { c1: 'en', c3: 'sw' },
       });
       function parseQuery() {
         const f = { ...FDEF };
@@ -3738,7 +4299,7 @@
     <div class="rsplit" id="rsplit" data-mview="${S.mview}" style="--side:${S.sideW}px">
       <section class="rs-main" aria-label="Declaration as filed">${S.caseState === '503' ? declUnavailable(c) : S.compare ? compareView(c) : declPane(c)}</section>
       <div class="rs-handle" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize review panel" aria-valuemin="340" aria-valuemax="720" aria-valuenow="${S.sideW}" aria-controls="rsplit" title="Drag or use the arrow keys to resize"></div>
-      <aside class="rs-side" aria-label="Review tools">${side}</aside>
+      <aside class="rs-side" aria-label="Review tools">${S.cpOpen ? cpPanel(c) : cpLauncher(c) + side}</aside>
     </div>
     ${auditFoot()}
   </main>`,
@@ -3831,34 +4392,36 @@
         return `<div class="decl-card">${versionTools(c)}
     ${ver !== c.currentVersion ? `<div style="padding:14px 20px 0"><div class="callout callout-warn">${icon('info', 16)}<span>Viewing version ${ver} (${fmtDate(c.versions[ver - 1].at)}). Flags refer to version ${c.currentVersion}.</span></div></div>` : ''}
     <div class="dsec"><div style="overflow-x:auto"><table class="sum-mini"><thead><tr><th>Totals (KES)</th><th>Income</th><th>Assets</th><th>Liabilities</th></tr></thead><tbody>${totals.map(({ pp, t }) => `<tr><td><span class="row" style="gap:8px"><span class="avatar sm ${pp.kind}">${pp.initials}</span>${esc(pp.short)}</span></td><td>${num(t.income)}</td><td>${num(t.assets)}</td><td>${num(t.liabilities)}</td></tr>`).join('')}<tr><td>Total</td><td>${num(grand[0])}</td><td>${num(grand[1])}</td><td>${num(grand[2])}</td></tr></tbody></table></div></div>
-    <div class="dsec"><h2><span class="no">1-5</span> Personal and employment details</h2>${kvs([
-      ['Surname', p.surname],
-      ['First name', p.first],
-      ['Other names', p.other || '-'],
-      ['Date of birth', fmtDate(p.dob)],
-      ['Place of birth', p.pob],
-      ['Marital status', p.marital],
-      ['Postal address', p.postal],
-      ['Physical address', p.physical],
-      ['Designation', p.designation],
-      ['Reporting entity', p.entity],
-      ['Nature of employment', p.nature],
-    ])}</div>
-    <div class="dsec"><h2><span class="no">6</span> Spouses</h2>${sp.length ? sp.map((x) => `<div class="row" style="gap:10px;margin-top:6px"><span class="avatar sm spouse">${x.initials}</span><div><div style="font-weight:500">${esc(x.name)}</div><div class="small muted">National ID ${x.idDeclared ? 'declared' : 'not declared'}</div></div></div>`).join('') : '<p class="small muted">None declared</p>'}</div>
-    <div class="dsec"><h2><span class="no">7</span> Dependent children under 18</h2>${ch.length ? ch.map((x) => `<div class="row" style="gap:10px;margin-top:6px"><span class="avatar sm child">${x.initials}</span><div><div style="font-weight:500">${esc(x.name)}</div><div class="small muted">${x.rel.replace('Child, ', 'Age ')} · no national ID</div></div></div>`).join('') : '<p class="small muted">None declared</p>'}</div>
+    <div class="dsec ${S.hlSec === 'sec-personal' ? 'hl' : ''}" id="sec-personal"><h2><span class="no">1-5</span> Personal and employment details</h2>${kvs(
+      [
+        ['Surname', p.surname],
+        ['First name', p.first],
+        ['Other names', p.other || '-'],
+        ['Date of birth', fmtDate(p.dob)],
+        ['Place of birth', p.pob],
+        ['Marital status', p.marital],
+        ['Postal address', p.postal],
+        ['Physical address', p.physical],
+        ['Designation', p.designation],
+        ['Reporting entity', p.entity],
+        ['Nature of employment', p.nature],
+      ],
+    )}</div>
+    <div class="dsec ${S.hlSec === 'sec-spouses' ? 'hl' : ''}" id="sec-spouses"><h2><span class="no">6</span> Spouses</h2>${sp.length ? sp.map((x) => `<div class="row" style="gap:10px;margin-top:6px"><span class="avatar sm spouse">${x.initials}</span><div><div style="font-weight:500">${esc(x.name)}</div><div class="small muted">National ID ${x.idDeclared ? 'declared' : 'not declared'}</div></div></div>`).join('') : '<p class="small muted">None declared</p>'}</div>
+    <div class="dsec ${S.hlSec === 'sec-children' ? 'hl' : ''}" id="sec-children"><h2><span class="no">7</span> Dependent children under 18</h2>${ch.length ? ch.map((x) => `<div class="row" style="gap:10px;margin-top:6px"><span class="avatar sm child">${x.initials}</span><div><div style="font-weight:500">${esc(x.name)}</div><div class="small muted">${x.rel.replace('Child, ', 'Age ')} · no national ID</div></div></div>`).join('') : '<p class="small muted">None declared</p>'}</div>
     <div class="dsec"><h2><span class="no">8</span> Financial statements <span class="small muted" style="font-weight:400">as at ${fmtDate(doc.statementDate)}</span></h2>
       ${doc.persons
         .map(
           (
             pp,
-          ) => `<div class="stmt" id="stmt-${pp.key}"><div class="stmt-h"><span class="avatar sm ${pp.kind}">${pp.initials}</span><div><div class="n">${esc(pp.name)}</div><div class="small muted">${pp.rel}</div></div></div>
+          ) => `<div class="stmt ${S.hlSec === 'stmt-' + pp.key ? 'hl' : ''}" id="stmt-${pp.key}"><div class="stmt-h"><span class="avatar sm ${pp.kind}">${pp.initials}</span><div><div class="n">${esc(pp.name)}</div><div class="small muted">${pp.rel}</div></div></div>
         ${cat(pp, 'income', '(b) Income', `${fmtDate(doc.periodFrom)} to ${fmtDate(doc.statementDate)}`)}
         ${cat(pp, 'assets', '(c) Assets', '')}
         ${cat(pp, 'liabilities', '(d) Liabilities', '')}</div>`,
         )
         .join('')}
     </div>
-    <div class="dsec"><h2><span class="no">9</span> Other information</h2><p style="font-size:14px">${doc.other ? esc(doc.other) : '<span class="muted">None given</span>'}</p></div>
+    <div class="dsec ${S.hlSec === 'sec-other' ? 'hl' : ''}" id="sec-other"><h2><span class="no">9</span> Other information</h2><p style="font-size:14px">${doc.other ? esc(doc.other) : '<span class="muted">None given</span>'}</p></div>
     <div class="dsec"><h2>Attachments <span class="small muted" style="font-weight:400">${doc.attachments.length}</span></h2>${doc.attachments.length ? `<div class="docs">${doc.attachments.map((a) => `<div class="doc"><span class="doc-ico">${icon('file', 16)}</span><div class="doc-body"><div class="doc-name">${esc(a.name)}</div><div class="small muted">${a.size} · ${esc(itemLabel(doc, a.item).split(' · ').slice(1, -1).join(' · '))}</div></div><button class="btn btn-ghost btn-sm" data-act="attLink" data-arg="${a.id}">${S.links[a.id] === 'busy' ? '<span class="spinner dark"></span>' : icon('download', 15)} ${S.links[a.id] === 'done' ? 'Download again' : 'Download'}</button></div>`).join('')}</div>` : '<p class="small muted">No attachments</p>'}</div>
     <div class="dsec"><p class="small muted row" style="gap:8px">${icon('check', 15)} Solemn declaration made online on ${fmtDateTime(c.versions[ver - 1].at)} (version ${ver}).</p></div>
   </div>`;
@@ -3984,7 +4547,7 @@
     ${
       form
         ? `<div class="field" style="margin-top:4px"><label class="label" for="flagnote">What did you conclude?</label><textarea id="flagnote" class="textarea" rows="3" maxlength="1000" data-bind="flagNote" placeholder="For example: valuation report attached explains the increase">${esc(S.flagNote)}</textarea>${S.flagErr ? `<div class="ferr">${icon('alert', 14)} ${S.flagErr}</div>` : ''}<div class="row" style="gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" data-act="cancelFlag">Cancel</button><button class="btn btn-primary btn-sm" data-act="saveFlag" data-arg="${f.id}">Mark reviewed</button></div></div>`
-        : `<div class="foot">${canGo ? `<button class="btn btn-secondary btn-xs" data-act="goItem" data-arg="${f.id}">${icon(f.refs.some((r) => r.item) ? 'arrowRight' : 'shield', 13)} ${f.refs.some((r) => r.item) ? 'Go to item' : 'Show registry record'}</button>` : ''}<button class="btn btn-ghost btn-xs" data-act="openFlag" data-arg="${f.id}">${icon('check', 13)} Mark reviewed</button></div>`
+        : `<div class="foot">${canGo ? `<button class="btn btn-secondary btn-xs" data-act="goItem" data-arg="${f.id}">${icon(f.refs.some((r) => r.item) ? 'arrowRight' : 'shield', 13)} ${f.refs.some((r) => r.item) ? 'Go to item' : 'Show registry record'}</button>` : ''}<button class="btn btn-ghost btn-xs" data-act="openFlag" data-arg="${f.id}">${icon('check', 13)} Mark reviewed</button>${!inRegistry && ['ready', 'stale'].includes(cpStatus(c)) ? `<button class="btn btn-ghost btn-xs" style="color:var(--ai)" data-act="explainFlag" data-arg="${f.id}">${icon('sparkles', 13)} Explain</button>` : ''}</div>`
     }
   </div>`;
       }
@@ -4184,6 +4747,673 @@
         return timelineList(entries);
       }
 
+      /* ============================== AI PRIMITIVES (#282) ============================== */
+      // Same markup as the gallery in 07c-copilot.prototype.html#primitives.
+      Kit.I.thumbUp =
+        '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>';
+      Kit.I.thumbDown =
+        '<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>';
+      const AI_TASK = {
+        'summarize-declaration': 'Summary',
+        'explain-flags': 'Flag explanations',
+        'draft-clarification': 'Clarification draft',
+      };
+      const AI_DISCLAIMER = 'Indicators, not findings. A named officer decides.';
+      const aiLab = (task, promptVersion, generatedAt) => ({
+        aiAssisted: true,
+        task,
+        promptVersion,
+        provider: 'Anthropic',
+        model: 'claude-opus-5',
+        generatedAt,
+      });
+      function relAgo(iso) {
+        const m = Math.round((D(NOW) - D(iso)) / 60000);
+        if (m < 1) return 'just now';
+        if (m < 60) return plural(m, 'minute') + ' ago';
+        if (m < 1440) return plural(Math.round(m / 60), 'hour') + ' ago';
+        return plural(Math.round(m / 1440), 'day') + ' ago';
+      }
+      // AiLabel: always text; tooltip names task, provider, model, prompt version and time.
+      function aiLabel(lab, { text = 'AI-assisted', sm = false, edited = false, id = '' } = {}) {
+        const tip = `${AI_TASK[lab.task] || lab.task} · ${lab.provider} ${lab.model} · prompt v${lab.promptVersion} · generated ${fmtDateTime(lab.generatedAt)}`;
+        const t = edited ? 'AI draft, edited' : text;
+        return `<span class="ailabel kit-tip ${sm ? 'sm' : ''} ${edited ? 'edited' : ''}" ${id ? `id="${id}"` : ''} tabindex="0" role="note" aria-label="${esc(t)}. ${esc(tip)}" data-tip="${esc(tip)}">${icon(edited ? 'pencil' : 'sparkles', sm ? 11 : 13, 2)}<span>${esc(t)}</span></span>`;
+      }
+      // SourceRefLink: resolves section, person, item or field path to a target in the declaration pane.
+      const SEC_L = {
+        personal: 'Personal and employment details',
+        spouses: 'Spouses',
+        children: 'Dependent children',
+        other: 'Other information',
+      };
+      function refTarget(c, r) {
+        const doc = docFor(c);
+        if (r.itemId) {
+          const f = findItem(doc, r.itemId);
+          if (!f) return null;
+          return {
+            arg: r.itemId,
+            label: `${f.it.desc}`,
+            ic: f.it.ic || 'box',
+            aria: itemLabel(doc, r.itemId),
+          };
+        }
+        const sec = r.sectionKey || (r.fieldPath || '').split('/')[1];
+        if (
+          r.personKey &&
+          (!sec || ['income', 'assets', 'liabilities', 'statement'].includes(sec))
+        ) {
+          const p = doc.persons.find((x) => x.key === r.personKey);
+          if (!p) return null;
+          const lab =
+            sec && sec !== 'statement' ? `${CATL[sec]} · ${p.short}` : `${p.short} · statement`;
+          return { arg: 'stmt-' + p.key, label: lab, ic: 'user', aria: `${lab}, section 8` };
+        }
+        if (SEC_L[sec])
+          return { arg: 'sec-' + sec, label: SEC_L[sec], ic: 'list', aria: SEC_L[sec] };
+        return null;
+      }
+      function srcLink(c, r) {
+        const t = refTarget(c, r);
+        if (!t) return '';
+        return `<button class="srcref" data-act="srcGo" data-arg="${t.arg}" aria-label="Open in the declaration: ${esc(t.aria)}">${icon(t.ic, 13)}<span class="tx">${esc(t.label)}</span></button>`;
+      }
+      const refsHtml = (c, refs) =>
+        refs && refs.length
+          ? `<div class="refs">${refs.map((r) => srcLink(c, r)).join('')}</div>`
+          : '';
+      // FeedbackControl: helpful / not helpful, then reason and optional note. Read-only mode for supervisors.
+      const FB_REASONS = [
+        ['inaccurate', 'Inaccurate'],
+        ['missed-something', 'Missed something'],
+        ['unclear', 'Unclear'],
+        ['too-long', 'Too long'],
+        ['other', 'Other'],
+      ];
+      const fbOf = (key) =>
+        (S.fb[key] ||= { rating: null, reason: '', note: '', open: false, by: null });
+      function feedbackCtl(key, mode = 'edit') {
+        const f = fbOf(key);
+        if (mode === 'none') return '';
+        if (mode === 'ro')
+          return f.rating
+            ? `<span class="fb-ro">${icon(f.rating === 'helpful' ? 'thumbUp' : 'thumbDown', 13)} ${esc(OFF[f.by || 'faith'].name)}: ${f.rating === 'helpful' ? 'helpful' : 'not helpful'}${f.reason ? ', ' + FB_REASONS.find((x) => x[0] === f.reason)[1].toLowerCase() : ''}</span>`
+            : '';
+        return `<span class="fb" role="group" aria-label="Rate this output"><button class="fbb" data-act="fbUp" data-arg="${key}" aria-pressed="${f.rating === 'helpful'}" aria-label="Helpful" data-tip="Helpful">${icon('thumbUp', 15)}</button><button class="fbb" data-act="fbDown" data-arg="${key}" aria-pressed="${f.rating === 'not-helpful' || f.open}" aria-label="Not helpful" data-tip="Not helpful">${icon('thumbDown', 15)}</button></span>`;
+      }
+      function feedbackForm(key) {
+        const f = fbOf(key);
+        if (!f.open) return '';
+        return `<div class="fb-form" role="group" aria-label="Why was this not helpful?"><div class="field"><label class="label" for="fbr-${key}">What was wrong?</label><select id="fbr-${key}" class="select" data-bind="fb.${key}.reason"><option value="" ${f.reason ? '' : 'selected'} disabled>Choose a reason</option>${FB_REASONS.map(([k, l]) => `<option value="${k}" ${f.reason === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${f.err ? `<div class="ferr">${icon('alert', 14)} ${f.err}</div>` : ''}</div><div class="field"><label class="label" for="fbn-${key}"><span>Note</span><span class="opt">Optional</span></label><textarea id="fbn-${key}" class="textarea" rows="2" maxlength="1000" data-bind="fb.${key}.note" placeholder="What should it have said?">${esc(f.note)}</textarea></div><div class="row" style="gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" data-act="fbCancel" data-arg="${key}">Cancel</button><button class="btn btn-primary btn-sm" data-act="fbSubmit" data-arg="${key}">Send rating</button></div></div>`;
+      }
+
+      /* ============================== COPILOT (#285) ============================== */
+      const AI_REASON = {
+        'provider-unavailable': 'AI service unavailable',
+        provider: 'AI service error',
+        timeout: 'timed out',
+        refused: 'declined by the AI model',
+        validation: 'output failed its checks',
+        budget: 'monthly AI budget used up',
+      };
+      const cpOf = (c) =>
+        (S.cps[c.id] ||= {
+          status: 'ready',
+          reason: null,
+          stopped: false,
+          forV: c.currentVersion,
+          at:
+            c.id === 'c1'
+              ? '2026-09-02T14:33'
+              : String(c.versions[c.versions.length - 1].at).slice(0, 10) + 'T09:06',
+        });
+      const cpStatus = (c) => (S.aiEnabled ? cpOf(c).status : 'not-enabled');
+      const lc = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+      function cpSummary(c) {
+        const doc = docFor(c);
+        const v = c.currentVersion;
+        const ps = doc.persons;
+        const items = (pk, cat) => itemsOf(doc, pk, cat, v, v);
+        const sum = (arr) => arr.reduce((a, x) => a + x.value, 0);
+        const T = (cat) => ps.reduce((a, p) => a + sum(items(p.key, cat)), 0);
+        const nsp = ps.filter((p) => p.kind === 'spouse').length;
+        const nch = ps.filter((p) => p.kind === 'child').length;
+        const hh = `${nsp ? plural(nsp, 'spouse') : 'no spouse'} and ${nch ? plural(nch, 'child', 'children') : 'no children'}`;
+        const lastV = c.versions[c.versions.length - 1];
+        const overview = `${TYPE[c.type]} declaration by ${ps[0].name}, ${doc.personal.designation} at ${doc.personal.entity}, as at ${fmtDate(doc.statementDate)}.${v > 1 ? ` This is version ${v}, amended ${fmtDate(lastV.at)}.` : ''} It covers ${hh}. Household totals: income KES ${num(T('income'))} for the period, assets KES ${num(T('assets'))} and liabilities KES ${num(T('liabilities'))}.`;
+        const hasPrev = c.currentVersion > 1 || c.hasPrevious;
+        const changes = [];
+        if (hasPrev)
+          diffData(c).forEach(({ pp, rows }) =>
+            rows.forEach((r) => {
+              const who = `${r.it.desc} (${pp.short})`;
+              const ref = [
+                { sectionKey: r.cat, personKey: pp.key, itemId: r.it.id, fieldPath: null },
+              ];
+              if (r.kind === 'matched' && r.pct === null && r.cur > 0)
+                changes.push({ text: `${who} went from KES 0 to KES ${num(r.cur)}.`, refs: ref });
+              else if (r.kind === 'matched' && Math.abs(r.pct) >= 25)
+                changes.push({
+                  text: `${who} ${r.delta > 0 ? 'rose' : 'fell'} ${Math.abs(Math.round(r.pct))}%, from KES ${num(r.prev)} to KES ${num(r.cur)}. ${r.it.changed ? 'Marked as changed.' : 'Not marked as changed.'}`,
+                  refs: ref,
+                });
+              else if (r.kind === 'onlyCurrent')
+                changes.push({
+                  text: `${who} is new in this version, KES ${num(r.cur)}. ${r.it.acquired ? 'Marked as acquired.' : 'Not marked as acquired.'}`,
+                  refs: ref,
+                });
+              else if (r.kind === 'onlyPrevious')
+                changes.push({
+                  text: `${who} is no longer declared (KES ${num(r.prev)} before). Not marked as disposed of.`,
+                  refs: ref,
+                });
+            }),
+          );
+        const sections = ps.map((p) => {
+          const inc = items(p.key, 'income');
+          const ast = items(p.key, 'assets');
+          const lia = items(p.key, 'liabilities');
+          const top = (arr) => arr.slice().sort((a, b) => b.value - a.value)[0];
+          const refs = [];
+          const bits = [];
+          if (inc.length) {
+            const t = top(inc);
+            refs.push({ sectionKey: 'income', personKey: p.key, itemId: t.id, fieldPath: null });
+            bits.push(
+              `Income KES ${num(sum(inc))} from ${plural(inc.length, 'source')}${inc.length > 1 ? `, mainly ${lc(t.type)} (KES ${num(t.value)})` : ` (${lc(t.type)})`}.`,
+            );
+          }
+          if (ast.length) {
+            const t = top(ast);
+            refs.push({ sectionKey: 'assets', personKey: p.key, itemId: t.id, fieldPath: null });
+            bits.push(
+              `${ast.length === 1 ? 'One asset' : plural(ast.length, 'asset')} worth KES ${num(sum(ast))}${ast.length > 1 ? `, largest: ${t.desc} (KES ${num(t.value)})` : ` (${t.desc})`}.`,
+            );
+          }
+          if (lia.length) {
+            const t = top(lia);
+            refs.push({
+              sectionKey: 'liabilities',
+              personKey: p.key,
+              itemId: t.id,
+              fieldPath: null,
+            });
+            bits.push(`Liabilities KES ${num(sum(lia))}.`);
+          }
+          const foreign = ast.filter((x) => /Uganda|United Kingdom|Tanzania/.test(x.loc || ''));
+          if (foreign.length) bits.push(`${plural(foreign.length, 'asset')} outside Kenya.`);
+          return {
+            sectionKey: 'statement:' + p.key,
+            head: `${p.short} · ${p.rel}`,
+            text: bits.length ? bits.join(' ') : 'Nil declared.',
+            refs: refs.length
+              ? refs
+              : [{ sectionKey: 'statement', personKey: p.key, itemId: null, fieldPath: null }],
+          };
+        });
+        const open = c.flags.filter((f) => !f.reviewed && !f.closed);
+        const worth =
+          c.id === 'c1'
+            ? [
+                {
+                  text: 'BRS shows an undeclared directorship in Medisupply Solutions Ltd, which supplies KEMSA.',
+                  flagIds: ['f1', 'f3'],
+                },
+                {
+                  text: 'ArdhiSasa and NTSA show a Kitengela parcel and vehicle KDK 482M that are not declared.',
+                  flagIds: ['f2', 'f4'],
+                },
+                {
+                  text: 'The Syokimau house rose 41% in value without a change mark.',
+                  flagIds: ['f5', 'f9'],
+                },
+                {
+                  text: "The spouse's business income differs 38% from KRA records.",
+                  flagIds: ['f8'],
+                },
+              ].filter((w) => w.flagIds.some((id) => open.find((f) => f.id === id)))
+            : open
+                .filter((f) => f.sev === 'high' || f.sev === 'medium')
+                .slice(0, 4)
+                .map((f) => ({ text: `${f.title}: ${lc(f.ev)}.`, flagIds: [f.id] }));
+        return { overview, changes, hasPrev, sections, worth };
+      }
+      const EXPL = {
+        'directorship-employer-supplier': {
+          m: 'The declarant is recorded as a director of a company that supplies their own reporting entity. That can put official duty and private interest in conflict.',
+          chk: [
+            'Open the BRS record and confirm the company, role and appointment date.',
+            'Look for the directorship or shareholding anywhere in section 8.',
+            'Ask procurement whether the declarant took part in awards to this supplier.',
+          ],
+          r: 'The directorship is declared with a conflict-of-interest disclosure, or the declarant shows they resigned before the statement date.',
+        },
+        'registry-parcel-undeclared': {
+          m: 'A parcel registered to the declarant has no matching land or building item in the declaration.',
+          chk: [
+            'Compare the parcel number with every declared land and building item, including joint ones.',
+            'Check the registration date against the statement date.',
+            'Check whether it is declared under the spouse.',
+          ],
+          r: 'The parcel is added in an amendment, or a transfer before the statement date is shown.',
+        },
+        'registry-directorship-undeclared': {
+          m: 'BRS lists a directorship or shareholding that is not among the declared directorships, shares or securities.',
+          chk: [
+            'Confirm the company and role in the BRS record.',
+            'Look for the company under shares or other assets.',
+          ],
+          r: 'The holding is declared with its value, or the appointment ended before the statement date.',
+        },
+        'registry-vehicle-undeclared': {
+          m: 'NTSA lists a vehicle owned by the declarant that no declared vehicle refers to.',
+          chk: [
+            "Compare the registration number with declared vehicles, including the spouse's.",
+            'Check the NTSA registration date against the statement date.',
+          ],
+          r: 'The vehicle is declared in an amendment, or a sale before the statement date is shown.',
+        },
+        'value-change-25': {
+          m: 'The value of an item changed by 25% or more since the previous version. Revaluations are common, but the change should be explained.',
+          chk: [
+            'Compare both values in the version comparison.',
+            'Look for a valuation report attached to the item.',
+            'Check whether the declarant marked the change.',
+          ],
+          r: 'A valuation, improvement or market reason that fits the size of the change.',
+        },
+        'acquisition-unflagged': {
+          m: 'An item appears for the first time in this version, but the declarant did not mark it as acquired.',
+          chk: [
+            'Confirm the item is new and not a renamed older item.',
+            'Check whether income for the period can fund it.',
+            'Read "Other information" for an explanation.',
+          ],
+          r: 'The declarant confirms when and how it was acquired.',
+        },
+        'disposal-unflagged': {
+          m: 'An item from the previous version is missing, and the declarant did not mark it as disposed of.',
+          chk: [
+            'Confirm it is not declared under another description.',
+            'Check registry records for a transfer.',
+          ],
+          r: 'The declarant confirms the sale, transfer or write-off and its date.',
+        },
+        'kra-income-mismatch': {
+          m: 'Income declared here differs by 25% or more from income declared to KRA for the same tax year.',
+          chk: [
+            'Compare declared income sources with the KRA summary on the Registry tab.',
+            'Check that the tax year and the declaration period line up.',
+          ],
+          r: 'A timing difference, a source declared to only one of them, or a corrected figure.',
+        },
+        'change-flag-mismatch': {
+          m: "The declarant's change marks do not match the comparison.",
+          chk: [
+            'Open the version comparison for this item.',
+            'Check the related value-change flag.',
+          ],
+          r: 'Usually resolved together with the related value-change or acquisition flag.',
+        },
+        'declared-company-not-found': {
+          m: 'A declared business has a registration number that BRS does not know.',
+          chk: ['Check the number for typing errors.', 'Search BRS by business name.'],
+          r: 'A corrected registration number, or proof of registration.',
+        },
+        'late-filing': {
+          m: 'A version was submitted after the due date.',
+          chk: [
+            'Check the personnel file for leave or other reasons.',
+            'See whether a late-filing notice was already issued.',
+          ],
+          r: 'A documented reason, recorded in a note.',
+        },
+        'foreign-holdings': {
+          m: 'The declaration includes assets or income held outside Kenya. This is context, not a concern in itself.',
+          chk: [
+            'Check that values are in Kenya shillings as at the statement date.',
+            'Look for a supporting statement.',
+          ],
+          r: 'Usually nothing beyond checking the conversion.',
+        },
+        'no-previous-version': {
+          m: 'This is the first declaration on Adili for this person, so the comparison checks were skipped.',
+          chk: ['Rely on the registry checks and the attachments.'],
+          r: 'Nothing to resolve. Comparison checks run from the next declaration.',
+        },
+        'kra-non-compliant': {
+          m: 'KRA records the declarant as not compliant with tax obligations.',
+          chk: [
+            'Check the KRA summary on the Registry tab.',
+            'Check whether declared income sources match KRA returns.',
+          ],
+          r: 'A valid tax compliance certificate, or an explanation of the pending obligation.',
+        },
+        'nil-after-populated': {
+          m: 'A category is declared nil although the previous version had items in it.',
+          chk: [
+            'Compare the category with the previous version.',
+            'Check for disposals or repayments.',
+          ],
+          r: 'Confirmation that the items were disposed of or repaid, with dates.',
+        },
+        'income-vs-asset-growth': {
+          m: 'Total declared assets grew by more than the total income declared for the period.',
+          chk: [
+            'Look for revaluations, gifts, inheritance or loans that explain the growth.',
+            'Compare totals in the version comparison.',
+          ],
+          r: 'A source of funds that explains the growth.',
+        },
+        'joint-share-inconsistent': {
+          m: 'Shares declared for the same joint asset do not add up to 100%.',
+          chk: [
+            'Compare the share on each household statement.',
+            'Check whether a co-owner outside the household holds the rest.',
+          ],
+          r: 'Corrected shares, or confirmation of an outside co-owner.',
+        },
+      };
+      const flagRefs = (f) =>
+        f.refs.map((r) => ({
+          sectionKey: r.item ? null : (r.section || '').toLowerCase() || null,
+          personKey: r.person,
+          itemId: r.item,
+          fieldPath: null,
+        }));
+      const cpFlags = (c) => {
+        const order = { high: 0, medium: 1, low: 2, info: 3 };
+        const st = (f) => (f.closed ? 2 : f.reviewed ? 1 : 0);
+        return c.flags.slice().sort((a, b) => st(a) - st(b) || order[a.sev] - order[b.sev]);
+      };
+      const selOf = (id) => (S.aiSel[id] ||= { flags: [], items: [] });
+
+      function cpLauncher(c) {
+        const st = cpStatus(c);
+        const [txt, cls] = {
+          ready: ['Summary ready', ''],
+          pending: ['Preparing summary…', 'busy'],
+          stale: ['Updating…', 'busy'],
+          failed: ['Not available', 'warn'],
+          'not-enabled': ['Not enabled', 'off'],
+        }[st];
+        return `<button class="cp-launch ${cls}" data-act="cpOpen" aria-label="Open Copilot, AI-assisted. ${txt}"><span class="cp-ico">${icon(st === 'not-enabled' ? 'ban' : 'sparkles', 16)}</span><span class="t">Copilot</span><span class="s">${cls === 'busy' ? '<span class="spinner ai" style="width:13px;height:13px"></span>' : st === 'failed' ? icon('alert', 14) : ''}${txt}</span>${icon('right', 16)}</button>`;
+      }
+      function cpBlock(c, key, title, body, fbMode, lab) {
+        return `<section class="cp-block" aria-labelledby="cpb-${key}"><div class="cp-bh"><h3 id="cpb-${key}">${title}</h3>${aiLabel(lab, { text: 'AI', sm: true })}<span class="spacer"></span>${feedbackCtl(c.id + ':' + key, fbMode)}</div>${fbMode === 'edit' ? feedbackForm(c.id + ':' + key) : ''}${body}</section>`;
+      }
+      function cpSummaryTab(c, fbMode) {
+        const cp = cpOf(c);
+        const s = cpSummary(c);
+        const lab = aiLab('summarize-declaration', 3, cp.at);
+        const flagLink = (id) => {
+          const f = c.flags.find((x) => x.id === id);
+          return f
+            ? `<button class="flaglink" data-act="cpGoFlag" data-arg="${f.id}" aria-label="Open flag: ${esc(f.title)}">${sevb(f.sev)}<span class="tx">${esc(f.title)}</span></button>`
+            : '';
+        };
+        return `${cpBlock(c, 'overview', 'Overview', `<p>${esc(s.overview)}</p>`, fbMode, lab)}
+    ${cpBlock(c, 'changes', 'Changes since previous version', !s.hasPrev ? '<p class="muted" style="font-size:13.5px">First declaration on Adili. Nothing to compare.</p>' : s.changes.length ? `<ul class="cp-list">${s.changes.map((x) => `<li>${esc(x.text)}${refsHtml(c, x.refs)}</li>`).join('')}</ul>` : '<p class="muted" style="font-size:13.5px">No material changes.</p>', fbMode, lab)}
+    ${cpBlock(c, 'sections', 'By person', s.sections.map((x) => `<div class="cp-sec"><div class="h">${esc(x.head)}</div><p>${esc(x.text)}</p>${refsHtml(c, x.refs)}</div>`).join(''), fbMode, lab)}
+    ${cpBlock(c, 'attention', 'Worth attention', s.worth.length ? `<ul class="cp-list">${s.worth.map((w) => `<li>${esc(w.text)}<div class="refs">${w.flagIds.map(flagLink).join('')}</div></li>`).join('')}</ul>` : '<p class="muted" style="font-size:13.5px">No open flags.</p>', fbMode, lab)}`;
+      }
+      function cpFlagsTab(c, fbMode) {
+        const cp = cpOf(c);
+        const lab = aiLab('explain-flags', 2, cp.at);
+        const my = mine(c);
+        const sel = selOf(c.id);
+        const list = cpFlags(c);
+        if (!list.length)
+          return empty('No flags', 'Nothing to explain on this case.', { icon: 'flag' });
+        return list
+          .map((f) => {
+            const e = EXPL[f.rule] || {
+              m: f.ind,
+              chk: ['Check the evidence against the declared items.'],
+              r: 'An explanation from the declarant.',
+            };
+            const open = !!S.cpExp[f.id];
+            const done = f.reviewed || f.closed;
+            const added = sel.flags.includes(f.id);
+            const key = c.id + ':x-' + f.id;
+            return `<div class="cpf ${open ? 'open' : ''} ${done ? 'done' : ''} ${S.pulse === 'cp-' + f.id ? 'pulse' : ''}" id="cpf-${f.id}">
+      <button class="cpf-h" aria-expanded="${open}" aria-controls="cpfb-${f.id}" data-act="cpExp" data-arg="${f.id}">${done ? `<span style="color:var(--ok);display:flex">${icon('check', 15, 2.4)}</span>` : sevb(f.sev)}<span class="t">${esc(f.title)}</span>${done ? `<span class="small muted">${f.closed ? 'Closed' : 'Reviewed'}</span>` : ''}<span class="chev">${icon('down', 16)}</span></button>
+      ${
+        open
+          ? `<div class="cpf-b" id="cpfb-${f.id}">
+        <div><div class="k">What this indicates</div><p>${esc(e.m)}</p></div>
+        <div><div class="k">What to check</div><ol>${e.chk.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>
+        <div><div class="k">What usually resolves it</div><p>${esc(e.r)}</p></div>
+        <p class="nf">${icon('info', 13)} An indicator, not a finding.</p>
+        ${
+          f.refs.some((r) => r.item)
+            ? refsHtml(
+                c,
+                flagRefs(f).filter((r) => r.itemId),
+              )
+            : ''
+        }
+        <div class="cpf-f">${aiLabel(lab, { text: 'AI', sm: true })}${feedbackCtl(key, fbMode)}<span class="spacer"></span>${my && !done ? `<button class="btn ${added ? 'btn-secondary' : 'btn-ghost'} btn-xs" data-act="cpAdd" data-arg="${f.id}" aria-pressed="${added}">${icon(added ? 'check' : 'plus', 13)} ${added ? 'Added to clarification' : 'Add to clarification'}</button>` : ''}</div>
+        ${fbMode === 'edit' ? feedbackForm(key) : ''}
+      </div>`
+          : ''
+      }
+    </div>`;
+          })
+          .join('');
+      }
+      function cpSelBar(c) {
+        const sel = selOf(c.id);
+        if (!mine(c) || !sel.flags.length) return '';
+        return `<div class="cp-selbar" role="status"><span style="flex:1">${plural(sel.flags.length, 'flag')} selected</span><button class="btn btn-ghost btn-xs" data-act="cpClearSel">Clear</button><button class="btn btn-primary btn-xs" data-act="cpDraftSel" ${windowOpen(c) ? '' : 'disabled'}>${icon('msg', 13)} New clarification</button></div>`;
+      }
+      function cpPanel(c) {
+        const cp = cpOf(c);
+        const st = cpStatus(c);
+        const my = mine(c);
+        const canRefresh = (my || sup()) && st !== 'not-enabled';
+        const fbMode = my ? 'edit' : sup() ? 'ro' : 'none';
+        const busy = st === 'pending' || st === 'stale';
+        const head = `<div class="cp-head"><span class="cp-ico">${icon('sparkles', 16)}</span><h2 id="cp-h">Copilot</h2><span class="spacer"></span>${canRefresh ? `<button class="btn btn-ghost icon-btn" data-act="cpRefresh" ${busy ? 'disabled' : ''} aria-label="Refresh summary and explanations" data-tip="Refresh">${icon('refresh', 16)}</button>` : ''}<button class="btn btn-ghost icon-btn" data-act="cpClose" aria-label="Close Copilot" data-tip="Close">${icon('x', 17)}</button></div>`;
+        const live = `<div class="sr" role="status" aria-live="polite">${st === 'pending' ? 'Preparing summary' : st === 'stale' ? 'Updating summary' : st === 'ready' ? 'Summary ready' : ''}</div>`;
+        let top = head;
+        let body = '';
+        if (st === 'not-enabled') {
+          body = `<div class="cp-state"><span class="art">${icon('ban', 18)}</span><p>AI assistance is not enabled for this Commission.</p><button class="linkish small" data-act="cpLearn">Learn why</button></div>`;
+        } else if (st === 'pending') {
+          body = `<div class="cp-body">${cp.stopped ? `<div class="callout callout-info" role="status">${icon('clock', 16)}<div style="flex:1">Still preparing.</div><button class="btn btn-secondary btn-xs" data-act="cpCheck">${icon('refresh', 13)} Check again</button></div>` : `<div class="cp-wait"><span class="spinner ai"></span>Preparing summary…</div>`}<div class="cp-skel">${[92, 80, 96, 60, 0, 40, 88, 75, 83, 0, 45, 90, 70].map((w) => (w ? `<span class="skeleton" style="width:${w}%"></span>` : '<span style="height:6px"></span>')).join('')}</div></div>`;
+        } else if (st === 'failed') {
+          body = `<div class="cp-body"><div class="callout callout-warn" role="alert">${icon('alert', 16)}<div style="flex:1">The summary could not be produced (${AI_REASON[cp.reason] || cp.reason}).${cp.reason === 'budget' ? '<div class="small" style="margin-top:2px">The budget resets on 1 Oct 2026.</div>' : ''}</div>${canRefresh && cp.reason !== 'budget' ? `<button class="btn btn-secondary btn-xs" data-act="cpRefresh">${icon('refresh', 13)} Try again</button>` : ''}</div><p class="small muted">Flags, registry checks and clarifications work as usual.</p></div>`;
+        } else {
+          const lab = aiLab('summarize-declaration', 3, cp.at);
+          top += `<div class="cp-lab">${aiLabel(lab, { text: `AI-assisted · generated ${relAgo(cp.at)} for version ${cp.forV}` })}</div>
+      <div class="tabs" role="tablist" aria-label="Copilot"><button role="tab" id="cptab-summary" aria-selected="${S.cpSub === 'summary'}" aria-controls="cppanel" class="${S.cpSub === 'summary' ? 'on' : ''}" data-act="cpSub" data-arg="summary">Summary</button><button role="tab" id="cptab-flags" aria-selected="${S.cpSub === 'flags'}" aria-controls="cppanel" class="${S.cpSub === 'flags' ? 'on' : ''}" data-act="cpSub" data-arg="flags">Flags<span class="count">${c.flags.length}</span></button></div>${S.cpSub === 'flags' ? cpSelBar(c) : ''}`;
+          const inner = S.cpSub === 'summary' ? cpSummaryTab(c, fbMode) : cpFlagsTab(c, fbMode);
+          body = `<div class="cp-body" role="tabpanel" id="cppanel" aria-labelledby="cptab-${S.cpSub}">${st === 'stale' ? `<div class="cp-banner" role="status"><span class="spinner ai"></span>Declaration or registry results changed. Updating…</div>` : ''}<p class="cp-disc">${icon('info', 14)}<span>${AI_DISCLAIMER}</span></p>${st === 'stale' ? `<div class="cp-stale-wrap" aria-hidden="true">${inner}</div>` : inner}</div>`;
+        }
+        return `<section class="cp-card" role="complementary" aria-labelledby="cp-h"><div class="cp-top">${top}</div>${live}${body}</section>`;
+      }
+      let cpTimer = null;
+      function cpRun(c, ms = 2600) {
+        clearTimeout(cpTimer);
+        const cp = cpOf(c);
+        cpTimer = setTimeout(() => {
+          cp.status = 'ready';
+          cp.reason = null;
+          cp.stopped = false;
+          cp.at = NOW;
+          cp.forV = c.currentVersion;
+          Kit.render();
+        }, ms);
+      }
+
+      /* ---------- Draft with AI (#288) ---------- */
+      const DRAFT_REQ = {
+        'directorship-employer-supplier': 'provide-omitted',
+        'registry-parcel-undeclared': 'provide-omitted',
+        'registry-directorship-undeclared': 'provide-omitted',
+        'registry-vehicle-undeclared': 'provide-omitted',
+        'declared-company-not-found': 'correct',
+        'joint-share-inconsistent': 'correct',
+        'nil-after-populated': 'provide-omitted',
+      };
+      const DRAFT_GEN = {
+        en: {
+          'provide-omitted': (ev) =>
+            `Registry records show something that is not in your declaration (${ev}). Please declare it with its value as at the statement date, or explain why it is not declared.`,
+          'explain-discrepancy': (ev) =>
+            `Please explain the following in your declaration: ${lc(ev)}. Attach any documents that support your explanation.`,
+          correct: (ev) => `Please correct this entry: ${lc(ev)}.`,
+          item: (d) =>
+            `Please explain the value declared for ${d} and attach supporting documents.`,
+          opening: (c) =>
+            `Thank you for your ${TYPE[c.type].toLowerCase()} declaration. The points below relate to registry records and to changes since your previous version.`,
+        },
+        sw: {
+          'provide-omitted': (ev) =>
+            `Rekodi za usajili zinaonyesha jambo ambalo halipo kwenye tamko lako (${ev}). Tafadhali litangaze pamoja na thamani yake kufikia tarehe ya taarifa, au ueleze kwa nini halikutangazwa.`,
+          'explain-discrepancy': (ev) =>
+            `Tafadhali eleza jambo lifuatalo katika tamko lako: ${ev}. Ambatisha nyaraka zinazounga mkono maelezo yako.`,
+          correct: (ev) => `Tafadhali sahihisha kipengee hiki: ${ev}.`,
+          item: (d) =>
+            `Tafadhali eleza thamani iliyotangazwa ya ${d} na uambatishe nyaraka zinazounga mkono.`,
+          opening: () =>
+            'Asante kwa tamko lako. Mambo yaliyo hapa chini yanahusu rekodi za usajili na mabadiliko tangu toleo lako lililopita.',
+        },
+      };
+      // Hand-written outputs for the demo case (recorded fixtures in the real system).
+      const C1_DRAFT = {
+        dir: {
+          flags: ['f1', 'f3'],
+          req: 'provide-omitted',
+          en: 'BRS records show you as a director of Medisupply Solutions Ltd (PVT-7XK2M9) with 50% of the shares. The company is on the KEMSA supplier list. Please declare this directorship and shareholding with its value as at the statement date.',
+          sw: 'Rekodi za BRS zinaonyesha kuwa wewe ni mkurugenzi wa Medisupply Solutions Ltd (PVT-7XK2M9) na unamiliki asilimia 50 ya hisa. Kampuni hii iko kwenye orodha ya wasambazaji wa KEMSA. Tafadhali tangaza ukurugenzi huu na hisa hizo pamoja na thamani yake kufikia tarehe ya taarifa.',
+        },
+        f2: {
+          flags: ['f2'],
+          req: 'provide-omitted',
+          en: 'ArdhiSasa shows parcel KAJIADO/KITENGELA/48213 registered in your name on 3 Feb 2025. Please declare it with its value, or explain why it is not in your declaration.',
+          sw: 'Rekodi za ArdhiSasa zinaonyesha kipande cha ardhi KAJIADO/KITENGELA/48213 kilichosajiliwa kwa jina lako tarehe 3 Februari 2025. Tafadhali kitangaze pamoja na thamani yake, au ueleze kwa nini hakipo kwenye tamko lako.',
+        },
+        f4: {
+          flags: ['f4'],
+          req: 'provide-omitted',
+          en: 'NTSA shows vehicle KDK 482M registered in your name on 14 Jun 2024. Please declare it with its value, or explain why it is not in your declaration.',
+          sw: 'Rekodi za NTSA zinaonyesha gari KDK 482M lililosajiliwa kwa jina lako tarehe 14 Juni 2024. Tafadhali litangaze pamoja na thamani yake, au ueleze kwa nini halipo kwenye tamko lako.',
+        },
+        house: {
+          flags: ['f5', 'f9'],
+          req: 'explain-discrepancy',
+          en: 'The value of the house on LR 12715/482 rose by 41%, from KES 12,000,000 to KES 16,900,000, and it was not marked as changed. Please explain the change and attach the valuation report if you have one.',
+          sw: 'Thamani ya nyumba iliyo kwenye LR 12715/482 iliongezeka kwa asilimia 41, kutoka KES 12,000,000 hadi KES 16,900,000, na haikuonyeshwa kuwa imebadilika. Tafadhali eleza sababu ya mabadiliko haya na uambatishe ripoti ya uthamini ikiwa unayo.',
+        },
+        f8: {
+          flags: ['f8'],
+          req: 'explain-discrepancy',
+          en: "Your spouse's business income declared here differs by 38% from the income declared to KRA for tax year 2024. Please explain the difference.",
+          sw: 'Mapato ya biashara ya mwenzi wako yaliyotangazwa hapa yanatofautiana kwa asilimia 38 na mapato yaliyotangazwa kwa KRA kwa mwaka wa kodi 2024. Tafadhali eleza tofauti hii.',
+        },
+      };
+      function draftTarget(c, f) {
+        const r = f.refs.find((x) => x.item) || f.refs[0];
+        const tg = targetsFor(c);
+        if (r.item)
+          return (
+            tg.find((t) => t.key === r.item) || { key: r.item, label: itemLabel(docFor(c), r.item) }
+          );
+        const cat = (r.section || '').toLowerCase();
+        return (
+          tg.find((t) => t.key === `${r.person}-${cat}`) ||
+          (cat === 'declaration'
+            ? tg.find((t) => t.key === 'personal')
+            : tg.find((t) => t.key === `${r.person}-assets`))
+        );
+      }
+      function buildDraft(c, sel, lang) {
+        const out = [];
+        const used = new Set();
+        const flags = sel.flags.map((id) => c.flags.find((f) => f.id === id)).filter(Boolean);
+        if (c.id === 'c1')
+          Object.values(C1_DRAFT).forEach((d) => {
+            const hit = flags.filter((f) => d.flags.includes(f.id));
+            if (!hit.length) return;
+            hit.forEach((f) => used.add(f.id));
+            const t = draftTarget(c, hit[0]);
+            out.push({ target: t.key, label: t.label, req: d.req, text: d[lang] });
+          });
+        flags
+          .filter((f) => !used.has(f.id))
+          .forEach((f) => {
+            const req = DRAFT_REQ[f.rule] || 'explain-discrepancy';
+            const t = draftTarget(c, f);
+            out.push({ target: t.key, label: t.label, req, text: DRAFT_GEN[lang][req](f.ev) });
+          });
+        sel.items.forEach((id) => {
+          const t = targetsFor(c).find((x) => x.key === id);
+          const it = findItem(docFor(c), id);
+          out.push({
+            target: id,
+            label: t.label,
+            req: 'explain-discrepancy',
+            text: DRAFT_GEN[lang].item(it ? it.it.desc : t.label),
+          });
+        });
+        return out;
+      }
+      function aiDraftBox(c) {
+        const comp = S.comp;
+        const st = cpStatus(c);
+        if (st === 'not-enabled') {
+          const b = `<button class="btn btn-ai btn-sm" disabled>${icon('sparkles', 15)} Draft with AI</button>`;
+          return `<div class="aidraft"><div class="aidraft-row">${tipBtn(b, 'AI assistance is not enabled for this Commission.', true)}<span class="small muted">Not enabled for this Commission</span></div></div>`;
+        }
+        const sel = selOf(c.id);
+        const n = sel.flags.length + sel.items.length;
+        const chips = [
+          ...sel.flags.map((id) => {
+            const f = c.flags.find((x) => x.id === id);
+            return f
+              ? `<span class="aichip">${sevb(f.sev)}<span class="tx">${esc(f.title)}</span><button data-act="aiRm" data-arg="f:${id}" aria-label="Remove ${esc(f.title)}">${icon('x', 13)}</button></span>`
+              : '';
+          }),
+          ...sel.items.map((id) => {
+            const r = findItem(docFor(c), id);
+            return r
+              ? `<span class="aichip">${icon(r.it.ic || 'box', 13)}<span class="tx">${esc(r.it.desc)}</span><button data-act="aiRm" data-arg="i:${id}" aria-label="Remove ${esc(r.it.desc)}">${icon('x', 13)}</button></span>`
+              : '';
+          }),
+        ].join('');
+        const openF = c.flags.filter((f) => !f.reviewed && !f.closed && !sel.flags.includes(f.id));
+        const doc = docFor(c);
+        const itemOpts = [];
+        doc.persons.forEach((p) =>
+          ['income', 'assets', 'liabilities'].forEach((cat) =>
+            (doc.st[p.key]?.[cat] || []).forEach((it) => {
+              if (!sel.items.includes(it.id))
+                itemOpts.push(
+                  `<option value="i:${it.id}">${esc(it.desc)} (${esc(p.short)})</option>`,
+                );
+            }),
+          ),
+        );
+        const add = `<select class="select aiadd" data-act-change="aiAdd" aria-label="Add a flag or item to draft from"><option value="" selected>${n ? 'Add more' : 'Add a flag or item'}</option>${openF.length ? `<optgroup label="Flags">${openF.map((f) => `<option value="f:${f.id}">${esc(f.title)}</option>`).join('')}</optgroup>` : ''}${itemOpts.length ? `<optgroup label="Items">${itemOpts.join('')}</optgroup>` : ''}</select>`;
+        const busy = comp.drafting;
+        const btn = `<button class="btn btn-ai btn-sm" data-act="aiDraft" ${!n || busy ? 'disabled' : ''}>${busy ? '<span class="spinner" style="width:14px;height:14px"></span> Drafting…' : `${icon('sparkles', 15)} Draft with AI`}</button>`;
+        const pref = S.declLang[c.id] || 'en';
+        return `<div class="aidraft" aria-busy="${!!busy}"><div class="aidraft-row"><span class="lbl">Draft from</span>${chips}${add}</div><div class="aidraft-row"><label class="lbl" for="ailang">Language</label><select id="ailang" class="select" data-bind="comp.aiLang">${[
+          ['en', 'English'],
+          ['sw', 'Swahili'],
+        ]
+          .map(
+            ([k, l]) =>
+              `<option value="${k}" ${comp.aiLang === k ? 'selected' : ''}>${l}${pref === k ? ' (preferred)' : ''}</option>`,
+          )
+          .join(
+            '',
+          )}</select><span class="spacer"></span>${busy === 'pending' ? `<span class="cp-wait" role="status">Still drafting. Checking again…</span>` : busy ? '<span class="sr" role="status">Drafting</span>' : ''}${tipBtn(btn, 'Add at least one flag or item first.', !n && !busy)}</div></div>`;
+      }
+
       /* ============================== COMPOSER (#170) ============================== */
       function targetsFor(c) {
         const doc = docFor(c);
@@ -4233,23 +5463,30 @@
         e.any = !!e.none || e.items.some((x) => Object.keys(x).length);
         return e;
       }
-      function letterHTML(c, { ref, items, issuedAt, dueAt, ver, revoked }) {
+      function letterHTML(c, { ref, items, issuedAt, dueAt, ver, revoked, opening }) {
         const doc = docFor(c);
         return `<div class="letter ${revoked ? 'revoked' : ''}">
     <div class="lh"><span class="crest">PSC</span><div><div style="font-weight:700;font-size:14px">${COMMISSION}</div><div class="small muted">Commission House, Harambee Avenue, Nairobi</div></div><span class="mark">RESTRICTED</span></div>
     <div class="meta"><span>Ref</span><span class="mono">${ref || 'Allocated when issued (CLR-PSC-2026-…)'}</span><span>Date</span><span>${fmtDate(issuedAt || TODAY)}</span><span>Re</span><span class="mono">${c.ref}</span></div>
     <p>${esc(c.name)}<br/>File no. ${c.pf}<br/>${esc(doc.personal.entity)}</p>
     <h4>Request for clarification under section 35(2) of the Conflict of Interest Act, 2025</h4>
-    <p>The Commission has analysed your ${TYPE[c.type].toLowerCase()} declaration and asks you to clarify the following, as allowed by section 35(4):</p>
+    ${opening ? `<p class="opening">${esc(opening)}</p>` : ''}<p>The Commission has analysed your ${TYPE[c.type].toLowerCase()} declaration and asks you to clarify the following, as allowed by section 35(4):</p>
     <ol>${items.length ? items.map((it) => `<li><b>${esc(it.label || 'Item not chosen yet')}</b><br/><i>${it.req ? REQ[it.req].l : 'Requirement not chosen yet'}.</i> ${esc(it.text || '')}</li>`).join('') : '<li class="muted">Add an item to see it here.</li>'}</ol>
     <p>Please respond by <b>${fmtDate(dueAt || addDays(TODAY, 30))}</b>, within thirty days as required by section 35(3). Respond online at portal.dials.go.ke under Clarifications, answering each point and attaching any documents. You can still respond after this date, but your response will be recorded as late.</p>
     <p style="margin-top:14px">For the Commission Secretary</p>
     <div class="foot">${Kit.qr(ref ? ref.length * 7 : 3, 64)}<div>${ver ? `Verification code <b class="mono" style="color:var(--ink)">${ver}</b><br/>Scan or visit verify.dials.go.ke to check this letter.` : 'The verification code and QR are added when the letter is issued.'}<br/>How to read this reference: dials.go.ke/glossary</div></div>
   </div>`;
       }
+      function openingHtml(comp) {
+        const o = comp.opening;
+        if (!o) return '';
+        const len = o.text.length;
+        return `<div class="citem ai"><div class="citem-h"><b style="font-size:14.5px" id="copen-l">Opening paragraph</b>${aiLabel(o.ai, { text: 'AI draft', sm: true, edited: o.edited, id: 'aib-open' })}<span class="spacer"></span><span class="counter ${len > 800 ? 'over' : ''}" data-count-for="comp.opening.text" data-max="800">${num(len)} / 800</span><button class="btn btn-ghost btn-xs" data-act="aiDiscardOpening" aria-label="Discard drafted opening paragraph">${icon('trash', 14)} Discard</button></div><textarea id="copen" class="textarea" rows="3" aria-labelledby="copen-l" data-bind="comp.opening.text">${esc(o.text)}</textarea></div>`;
+      }
       function composerModal() {
         const comp = S.comp;
         const c = caseOf(comp.caseId);
+        if (!comp.aiLang) comp.aiLang = S.declLang[c.id] || 'en';
         const e = comp.tried ? composerErrors() : { items: [] };
         const tg = targetsFor(c);
         const itemsHtml = comp.items
@@ -4259,8 +5496,8 @@
             const q = (comp.pq || '').toLowerCase();
             const opts = tg;
             const groups = [...new Set(opts.map((o) => o.g))];
-            return `<div class="citem ${Object.keys(er).length ? 'err' : ''}" id="citem-${i}">
-      <div class="citem-h"><span class="n">${i + 1}</span><b style="font-size:14.5px">Item ${i + 1}</b><span class="spacer"></span>${comp.items.length > 1 ? `<button class="btn btn-ghost btn-xs" data-act="rmItem" data-arg="${i}" aria-label="Remove item ${i + 1}">${icon('trash', 14)} Remove</button>` : ''}</div>
+            return `<div class="citem ${it.ai ? 'ai' : ''} ${Object.keys(er).length ? 'err' : ''}" id="citem-${i}">
+      <div class="citem-h"><span class="n">${i + 1}</span><b style="font-size:14.5px">Item ${i + 1}</b>${it.ai ? aiLabel(it.ai, { text: 'AI draft', sm: true, edited: it.edited, id: 'aib-' + i }) : ''}<span class="spacer"></span>${it.ai ? `<button class="btn btn-ghost btn-xs" data-act="aiDiscard" data-arg="${i}" aria-label="Discard drafted item ${i + 1}">${icon('trash', 14)} Discard</button>` : comp.items.length > 1 ? `<button class="btn btn-ghost btn-xs" data-act="rmItem" data-arg="${i}" aria-label="Remove item ${i + 1}">${icon('trash', 14)} Remove</button>` : ''}</div>
       <div class="field"><span class="label" id="tl-${i}">What is this about?</span>
         <button class="picker-btn ${er.target ? 'bad' : ''}" data-act="togglePicker" data-arg="${i}" aria-haspopup="listbox" aria-expanded="${pickOpen}" aria-labelledby="tl-${i}">${icon('search', 16)}<span style="flex:1;min-width:0" class="${it.label ? '' : 'ph'}">${esc(it.label || 'Search a section or item of the current version')}</span>${icon('down', 16)}</button>
         ${
@@ -4299,7 +5536,7 @@
     ${comp.err409 ? `<div class="callout callout-danger" role="alert">${icon('lock', 17)}<div><b>This clarification could not be issued.</b><div style="margin-top:2px">The clarification window closed on ${fmtDate(comp.err409)}. Your draft is kept.</div></div></div>` : ''}
     ${comp.tried && e.any ? `<div class="callout callout-danger" role="alert">${icon('alert', 17)}<span>${e.none || 'Complete the highlighted items.'}</span></div>` : ''}
     <div class="seg" role="tablist" aria-label="Composer view"><button class="${comp.view === 'edit' ? 'on' : ''}" data-act="compView" data-arg="edit">${icon('pencil', 14)} Items</button><button class="${comp.view === 'preview' ? 'on' : ''}" data-act="compView" data-arg="preview">${icon('eye', 14)} Letter preview</button></div>
-    ${comp.view === 'preview' ? letterHTML(c, { items: comp.items, dueAt }) : `${itemsHtml}${comp.items.length ? '' : empty('No items', 'Add at least one item.', { icon: 'list' })}<button class="btn btn-secondary" data-act="addItem" style="align-self:flex-start">${icon('plus', 16)} Add item</button>`}`;
+    ${comp.view === 'preview' ? letterHTML(c, { items: comp.items, dueAt, opening: comp.opening?.text }) : `${aiDraftBox(c)}${openingHtml(comp)}${itemsHtml}${comp.items.length ? '' : empty('No items', 'Add at least one item.', { icon: 'list' })}<button class="btn btn-secondary" data-act="addItem" style="align-self:flex-start">${icon('plus', 16)} Add item</button>`}`;
         const foot = `<span class="small muted fhint" style="margin-right:auto;display:flex;align-items:center;gap:6px">${icon('clock', 14)} Response due ${fmtDate(dueAt)}</span><button class="btn btn-secondary" data-act="saveDraft">${icon('save', 15)} Save draft</button><button class="btn btn-primary" data-act="tryIssue" ${comp.err409 ? 'disabled' : ''}>${icon('send', 15)} Issue clarification</button>`;
         return drawer({
           title: comp.followUpOf
@@ -4366,7 +5603,7 @@
           k.status === 'draft'
             ? ''
             : `<div class="card"><div class="sec-h"><span style="color:var(--muted);display:flex">${icon('file', 17)}</span><h3>Clarification letter</h3><span class="spacer"></span>${k.letter.status === 'pending' ? `<span class="checking"><span class="spinner dark" style="width:14px;height:14px"></span>Producing the letter…</span>` : `<span class="badge ${k.letter.status === 'revoked' ? 'badge-danger' : 'badge-ok'}">${k.letter.status === 'revoked' ? 'Revoked' : 'Issued'}</span><a class="btn btn-secondary btn-sm" href="${DOCS}#clarification-letter" target="_blank" rel="noopener">${icon('download', 15)} Download PDF</a>`}</div>
-    <div class="sec-b"><div class="row wrap small" style="gap:6px 14px;${S.showLetter ? 'margin-bottom:12px' : ''}">${k.letter.ver ? `<span>Verification code <b class="mono">${k.letter.ver}</b></span>` : ''}<button class="linkish small" data-act="toggleLetter">${S.showLetter ? 'Hide letter' : 'Show letter'}</button></div>${S.showLetter ? letterHTML(c, { ref: k.ref, items: k.items, issuedAt: k.issuedAt, dueAt: k.dueAt, ver: k.letter.ver, revoked: k.letter.status === 'revoked' }) : ''}</div></div>`;
+    <div class="sec-b"><div class="row wrap small" style="gap:6px 14px;${S.showLetter ? 'margin-bottom:12px' : ''}">${k.letter.ver ? `<span>Verification code <b class="mono">${k.letter.ver}</b></span>` : ''}<button class="linkish small" data-act="toggleLetter">${S.showLetter ? 'Hide letter' : 'Show letter'}</button></div>${S.showLetter ? letterHTML(c, { ref: k.ref, items: k.items, issuedAt: k.issuedAt, dueAt: k.dueAt, ver: k.letter.ver, revoked: k.letter.status === 'revoked', opening: k.opening }) : ''}</div></div>`;
         const qa = k.items
           .map((it, i) => {
             const r = k.response?.items[i];
@@ -4668,6 +5905,13 @@
             foot: `<button class="btn btn-secondary" data-act="closeModal">Keep it</button><button class="btn btn-danger" data-act="doWithdraw">Withdraw clarification</button>`,
           });
         },
+        aiWhy: () =>
+          dialog({
+            title: 'Why AI is not enabled',
+            icon: 'shield',
+            body: `<p>Declarations hold sensitive personal data. An AI provider may process them only after EACC and your Commission approve it for that kind of data.</p><p>Until then, nothing from a declaration is sent to an AI provider. Review works as usual.</p>`,
+            foot: `<button class="btn btn-primary" data-act="closeModal">Got it</button>`,
+          }),
         recheck: () =>
           dialog({
             title: 'Re-check registries',
@@ -5009,6 +6253,10 @@
             );
             S.recheck = 'idle';
             S.recheckAt = Date.now();
+            if (S.aiEnabled) {
+              cpOf(c).status = 'stale';
+              cpRun(c, 4200);
+            }
             Kit.toast('Registry checks updated');
           }, 2200);
         },
@@ -5037,6 +6285,7 @@
           const [i, key] = a.split('|');
           const t = targetsFor(caseOf(S.comp.caseId)).find((x) => x.key === key);
           Object.assign(S.comp.items[+i], { target: key, label: t.label });
+          if (S.comp.items[+i].ai) S.comp.items[+i].edited = true;
           S.comp.picker = null;
           Kit.render();
         },
@@ -5135,9 +6384,12 @@
               late: false,
               letter: { status: 'pending', ver: null },
               items: comp.items.map((x) => ({ label: x.label, req: x.req, text: x.text })),
+              opening: comp.opening?.text || null,
               response: null,
               followUpOf: comp.followUpOf || null,
             });
+            selOf(c.id).flags = [];
+            selOf(c.id).items = [];
             logTl(c, 'send', `Clarification ${ref} issued · email and SMS sent`, 'info');
             setCaseStatus(c);
             S.modal = null;
@@ -5244,6 +6496,196 @@
           setCaseStatus(c);
           S.modal = null;
           Kit.toast('Clarification withdrawn');
+        },
+        /* ---- copilot (#285) ---- */
+        cpOpen: () => {
+          S.cpOpen = true;
+          S.mview = 'review';
+          Kit.render();
+        },
+        cpClose: () => {
+          S.cpOpen = false;
+          Kit.render();
+        },
+        cpSub: (k) => {
+          S.cpSub = k;
+          Kit.render();
+        },
+        cpExp: (id) => {
+          S.cpExp[id] = !S.cpExp[id];
+          Kit.render();
+        },
+        cpGoFlag: (id) => {
+          S.cpSub = 'flags';
+          S.cpExp = { [id]: true };
+          S.pulse = 'cp-' + id;
+          scrollToEl('cpf-' + id);
+          Kit.render();
+          setTimeout(() => (S.pulse = null), 1700);
+        },
+        explainFlag: (id) => {
+          S.cpOpen = true;
+          S.mview = 'review';
+          actions.cpGoFlag(id);
+        },
+        srcGo: (arg) => {
+          if (arg.startsWith('sec-') || arg.startsWith('stmt-')) {
+            S.compare = false;
+            S.viewVersion = null;
+            S.hl = null;
+            S.hlSec = arg;
+            S.mview = 'decl';
+            scrollToEl(arg);
+            Kit.render();
+            return;
+          }
+          S.hlSec = null;
+          actions.goItemId(arg);
+        },
+        cpRefresh: () => {
+          const c = cur();
+          const cp = cpOf(c);
+          if (cp.status === 'pending' || cp.status === 'stale') {
+            Kit.toast('Already updating', true);
+            return;
+          }
+          cp.status = 'pending';
+          cp.reason = null;
+          cp.stopped = false;
+          Kit.render();
+          cpRun(c);
+        },
+        cpCheck: () => {
+          const c = cur();
+          cpOf(c).stopped = false;
+          Kit.render();
+          cpRun(c, 1800);
+        },
+        cpLearn: () => {
+          S.modal = { kind: 'aiWhy' };
+          Kit.render();
+        },
+        cpAdd: (id) => {
+          const sel = selOf(S.caseId);
+          const i = sel.flags.indexOf(id);
+          if (i > -1) sel.flags.splice(i, 1);
+          else sel.flags.push(id);
+          Kit.render();
+        },
+        cpClearSel: () => {
+          selOf(S.caseId).flags = [];
+          selOf(S.caseId).items = [];
+          Kit.render();
+        },
+        cpDraftSel: () => actions.newClar(),
+        fbUp: (key) => {
+          const f = fbOf(key);
+          Object.assign(f, {
+            rating: f.rating === 'helpful' ? null : 'helpful',
+            reason: '',
+            note: '',
+            open: false,
+            by: ME().subject,
+            err: '',
+          });
+          Kit.render();
+          if (f.rating) Kit.toast('Thanks. Rating saved.');
+        },
+        fbDown: (key) => {
+          const f = fbOf(key);
+          if (f.rating === 'not-helpful' && !f.open) {
+            Object.assign(f, { rating: null, reason: '', note: '' });
+          } else f.open = true;
+          f.err = '';
+          Kit.render();
+          if (f.open) setTimeout(() => document.getElementById('fbr-' + key)?.focus(), 30);
+        },
+        fbCancel: (key) => {
+          const f = fbOf(key);
+          f.open = false;
+          f.err = '';
+          Kit.render();
+        },
+        fbSubmit: (key) => {
+          const f = fbOf(key);
+          if (!f.reason) {
+            f.err = 'Choose a reason.';
+            Kit.render();
+            return;
+          }
+          Object.assign(f, { rating: 'not-helpful', open: false, by: ME().subject, err: '' });
+          Kit.render();
+          Kit.toast('Thanks. Rating saved.');
+        },
+        /* ---- Draft with AI (#288) ---- */
+        aiAdd: (el) => {
+          const [t, id] = el.value.split(':');
+          if (!id) return;
+          const sel = selOf(S.comp.caseId);
+          (t === 'f' ? sel.flags : sel.items).push(id);
+          Kit.render();
+        },
+        aiRm: (a) => {
+          const [t, id] = a.split(':');
+          const sel = selOf(S.comp.caseId);
+          const arr = t === 'f' ? sel.flags : sel.items;
+          arr.splice(arr.indexOf(id), 1);
+          Kit.render();
+        },
+        aiDraft: () => {
+          const comp = S.comp;
+          const c = caseOf(comp.caseId);
+          const sel = selOf(c.id);
+          if (!sel.flags.length && !sel.items.length) return;
+          comp.drafting = 'busy';
+          Kit.render();
+          const mode = S.aiDraftMode;
+          const alive = () => S.comp === comp && S.modal?.kind === 'composer';
+          const finish = () => {
+            if (!alive()) return;
+            const lab = aiLab('draft-clarification', 1, NOW);
+            const items = buildDraft(c, sel, comp.aiLang).map((x) => ({
+              ...x,
+              ai: lab,
+              edited: false,
+            }));
+            comp.items = comp.items.filter((x) => x.label || x.text.trim()).concat(items);
+            comp.opening = { text: DRAFT_GEN[comp.aiLang].opening(c), ai: lab, edited: false };
+            comp.picker = null;
+            comp.drafting = null;
+            sel.flags = [];
+            sel.items = [];
+            Kit.toast(
+              `${plural(items.length, 'draft item')} added. Check each one before issuing.`,
+            );
+          };
+          setTimeout(() => {
+            if (!alive()) return;
+            if (mode.startsWith('fail:')) {
+              comp.drafting = null;
+              Kit.toast(
+                `Draft not available (${AI_REASON[mode.slice(5)]}). You can write the items manually.`,
+                true,
+              );
+              return;
+            }
+            if (mode === 'pending') {
+              comp.drafting = 'pending';
+              Kit.render();
+              setTimeout(finish, 3200);
+              return;
+            }
+            finish();
+          }, 1500);
+        },
+        aiDiscard: (i) => {
+          S.comp.items.splice(+i, 1);
+          S.comp.picker = null;
+          Kit.render();
+        },
+        aiDiscardOpening: () => {
+          S.comp.opening = null;
+          Kit.render();
         },
         clarF: (f) => {
           S.clarPage = 1;
@@ -5366,6 +6808,18 @@
         const c1 = caseOf('c1');
         c1.reg = reg1();
         c1.regUnavail = true;
+        clearTimeout(cpTimer);
+        S.aiEnabled = true;
+        S.cps = {};
+        S.cpOpen = false;
+        S.cpSub = 'summary';
+        S.cpExp = {};
+        S.hlSec = null;
+        S.fb = {
+          'c1:overview': { rating: 'helpful', reason: '', note: '', open: false, by: 'faith' },
+        };
+        S.aiSel = {};
+        S.aiDraftMode = 'ok';
       };
       const J = (key, label, p, fn) => [
         key,
@@ -5379,6 +6833,7 @@
         openCaseFn(id, { tab });
         if (extra) {
           extra();
+          if (S.cpOpen && !S.hl) S.mview = 'review';
           Kit.render();
         }
       };
@@ -5831,6 +7286,286 @@
           Kit.go('clarifications');
         }),
         J('primitives', '#159 #180 UI primitives gallery', 'reviewer', () => Kit.go('primitives')),
+        J(
+          'cp-ready',
+          '#285 Copilot: summary (ready)',
+          'reviewer',
+          openC('c1', 'flags', () => (S.cpOpen = true)),
+        ),
+        J(
+          'cp-flags',
+          '#285 Copilot: flag explanation expanded',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            S.cpSub = 'flags';
+            S.cpExp = { f1: true };
+          }),
+        ),
+        J(
+          'cp-feedback',
+          '#285 Copilot: not helpful, reason and note',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            Object.assign(fbOf('c1:changes'), { open: true, reason: 'missed-something', note: '' });
+            scrollToEl('cpb-changes');
+          }),
+        ),
+        J(
+          'cp-source',
+          '#285 Copilot: source link highlights the item',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            S.hl = 'a1';
+            scrollToEl('item-a1');
+          }),
+        ),
+        J(
+          'cp-selected',
+          '#285 Copilot: flags added to the clarification',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            S.cpSub = 'flags';
+            S.cpExp = { f2: true };
+            selOf('c1').flags = ['f1', 'f2'];
+          }),
+        ),
+        J(
+          'cp-pending',
+          '#285 Copilot: preparing summary (pending)',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            cpOf(caseOf('c1')).status = 'pending';
+          }),
+        ),
+        J(
+          'cp-stopped',
+          '#285 Copilot: still pending after 2 minutes (Check again)',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            Object.assign(cpOf(caseOf('c1')), { status: 'pending', stopped: true });
+          }),
+        ),
+        J(
+          'cp-stale',
+          '#285 Copilot: stale after a registry re-check (updating)',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            cpOf(caseOf('c1')).status = 'stale';
+          }),
+        ),
+        J(
+          'cp-failed',
+          '#285 Copilot: failed, AI service unavailable (Try again)',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            Object.assign(cpOf(caseOf('c1')), { status: 'failed', reason: 'provider-unavailable' });
+          }),
+        ),
+        J(
+          'cp-refused',
+          '#285 Copilot: failed, declined by the AI model',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            Object.assign(cpOf(caseOf('c1')), { status: 'failed', reason: 'refused' });
+          }),
+        ),
+        J(
+          'cp-invalid',
+          '#285 Copilot: failed, output failed its checks',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            Object.assign(cpOf(caseOf('c1')), { status: 'failed', reason: 'validation' });
+          }),
+        ),
+        J(
+          'cp-budget',
+          '#285 Copilot: failed, monthly AI budget used up',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.cpOpen = true;
+            Object.assign(cpOf(caseOf('c1')), { status: 'failed', reason: 'budget' });
+          }),
+        ),
+        J(
+          'cp-off',
+          '#285 Copilot: not enabled for this Commission',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.aiEnabled = false;
+            S.cpOpen = true;
+          }),
+        ),
+        J(
+          'cp-off-why',
+          '#285 Copilot: Learn why',
+          'reviewer',
+          openC('c1', 'flags', () => {
+            S.aiEnabled = false;
+            S.cpOpen = true;
+            S.modal = { kind: 'aiWhy' };
+          }),
+        ),
+        J(
+          'cp-launcher-off',
+          '#285 Case with AI not enabled (launcher)',
+          'reviewer',
+          openC('c1', 'flags', () => (S.aiEnabled = false)),
+        ),
+        J(
+          'cp-sup',
+          '#285 Copilot as supervisor: read-only ratings, refresh',
+          'supervisor',
+          openC('c1', 'flags', () => (S.cpOpen = true)),
+        ),
+        J(
+          'cp-other',
+          '#285 Copilot on a case held by another reviewer (view only)',
+          'reviewer',
+          openC('c9', 'flags', () => (S.cpOpen = true)),
+        ),
+        J(
+          'cp-first',
+          '#285 Copilot: first declaration (nothing to compare)',
+          'reviewer',
+          openC('c4', 'flags', () => (S.cpOpen = true)),
+        ),
+        J(
+          'draft',
+          '#288 Composer: flags as chips, Draft with AI',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            selOf('c1').flags = ['f1', 'f3', 'f2', 'f5'];
+            actions.newClar();
+            S.comp.picker = null;
+          }),
+        ),
+        J(
+          'draft-empty',
+          '#288 Draft with AI: nothing selected (disabled)',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            actions.newClar();
+            S.comp.picker = null;
+          }),
+        ),
+        J(
+          'draft-busy',
+          '#288 Draft with AI: drafting',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            selOf('c1').flags = ['f1', 'f3', 'f2', 'f5'];
+            actions.newClar();
+            S.comp.picker = null;
+            S.comp.drafting = 'busy';
+          }),
+        ),
+        J(
+          'draft-pending',
+          '#288 Draft with AI: still drafting (polling)',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            selOf('c1').flags = ['f1', 'f3', 'f2', 'f5'];
+            actions.newClar();
+            S.comp.picker = null;
+            S.comp.drafting = 'pending';
+          }),
+        ),
+        J(
+          'draft-done',
+          '#288 Draft inserted: labelled items and opening paragraph',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            actions.newClar();
+            const lab = aiLab('draft-clarification', 1, NOW);
+            const sel = { flags: ['f1', 'f3', 'f2', 'f5'], items: [] };
+            S.comp.picker = null;
+            S.comp.items = buildDraft(caseOf('c1'), sel, 'en').map((x) => ({
+              ...x,
+              ai: lab,
+              edited: false,
+            }));
+            S.comp.opening = { text: DRAFT_GEN.en.opening(caseOf('c1')), ai: lab, edited: false };
+          }),
+        ),
+        J(
+          'draft-sw',
+          '#288 Swahili draft, one item edited',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            actions.newClar();
+            const lab = aiLab('draft-clarification', 1, NOW);
+            const sel = { flags: ['f1', 'f3', 'f2', 'f5', 'f8'], items: [] };
+            S.comp.picker = null;
+            S.comp.aiLang = 'sw';
+            S.comp.items = buildDraft(caseOf('c1'), sel, 'sw').map((x) => ({
+              ...x,
+              ai: lab,
+              edited: false,
+            }));
+            S.comp.items[1].edited = true;
+            S.comp.items[1].text += ' Ambatisha nakala ya hati ya umiliki.';
+            S.comp.opening = { text: DRAFT_GEN.sw.opening(caseOf('c1')), ai: lab, edited: false };
+          }),
+        ),
+        J(
+          'draft-preview',
+          '#288 Letter preview with the drafted items',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            actions.newClar();
+            const lab = aiLab('draft-clarification', 1, NOW);
+            S.comp.picker = null;
+            S.comp.view = 'preview';
+            S.comp.items = buildDraft(
+              caseOf('c1'),
+              { flags: ['f1', 'f3', 'f5'], items: [] },
+              'en',
+            ).map((x) => ({ ...x, ai: lab, edited: false }));
+            S.comp.opening = { text: DRAFT_GEN.en.opening(caseOf('c1')), ai: lab, edited: false };
+          }),
+        ),
+        J(
+          'draft-fail',
+          '#288 Draft failed: click Draft with AI (toast)',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            selOf('c1').flags = ['f2'];
+            S.aiDraftMode = 'fail:provider-unavailable';
+            actions.newClar();
+            S.comp.picker = null;
+          }),
+        ),
+        J(
+          'draft-slow',
+          '#288 Draft slow: click Draft with AI (202, then poll)',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            selOf('c1').flags = ['f2', 'f4'];
+            S.aiDraftMode = 'pending';
+            actions.newClar();
+            S.comp.picker = null;
+          }),
+        ),
+        J(
+          'draft-off',
+          '#288 Draft with AI disabled: not enabled',
+          'reviewer',
+          openC('c1', 'clarifications', () => {
+            S.aiEnabled = false;
+            actions.newClar();
+            S.comp.picker = null;
+          }),
+        ),
       ];
 
       /* ============================== mount ============================== */
@@ -5973,9 +7708,73 @@
             title: 'Console: Re-check button (pause and resume are in 07b-registry)',
             screens: ['recheck-confirm', 'recheck-running', 'recheck-429', 'recheck-disabled'],
           },
+          {
+            ticket: 282,
+            title:
+              'UI primitives round 13: AI label, source ref link, feedback control, usage meter',
+            screens: ['cp-ready', 'cp-feedback', 'cp-source', 'draft-sw'],
+            note: 'In use here. Full gallery with every state: 07c-copilot.prototype.html#primitives.',
+          },
+          {
+            ticket: 285,
+            title: 'Console: Copilot panel on the case view',
+            screens: [
+              'cp-ready',
+              'cp-flags',
+              'cp-feedback',
+              'cp-source',
+              'cp-selected',
+              'cp-pending',
+              'cp-stopped',
+              'cp-stale',
+              'cp-failed',
+              'cp-refused',
+              'cp-invalid',
+              'cp-budget',
+              'cp-off',
+              'cp-off-why',
+              'cp-launcher-off',
+              'cp-sup',
+              'cp-other',
+              'cp-first',
+            ],
+            note: 'Opens from the Copilot bar above the review tabs, or from Explain on a flag. Registry re-check marks it stale, then it refreshes (try it on the Registry tab). Polling backoff is engineering; the stop after 2 minutes is the Check again state.',
+          },
+          {
+            ticket: 288,
+            title: 'Console: Draft with AI in the clarification composer',
+            screens: [
+              'draft',
+              'draft-empty',
+              'draft-busy',
+              'draft-pending',
+              'draft-slow',
+              'draft-done',
+              'draft-sw',
+              'draft-preview',
+              'draft-fail',
+              'draft-off',
+            ],
+            note: 'Items are ordinary composer items; the issue flow and its confirm dialog are unchanged. Nothing is issued by the AI.',
+          },
         ],
         navCounts: { 'Review queue': 9, Clarifications: 1 },
         onBind: (bind, v) => {
+          const m = bind.match(/^comp\.items\.(\d+)\.(text|req)$/);
+          const it = m && S.comp?.items[+m[1]];
+          const o = bind === 'comp.opening.text' && S.comp?.opening;
+          const ed = it?.ai ? it : o?.ai ? o : null;
+          if (ed && !ed.edited) {
+            ed.edited = true;
+            const el = document.getElementById(it?.ai ? 'aib-' + m[1] : 'aib-open');
+            if (el)
+              el.outerHTML = aiLabel(ed.ai, {
+                text: 'AI draft',
+                sm: true,
+                edited: true,
+                id: el.id,
+              });
+          }
           if (bind.startsWith('f.') || bind === 'qSize') S.qPage = 1;
           if (bind === 'clarQ' || bind === 'clarSize') S.clarPage = 1;
           document.querySelectorAll(`[data-count-for="${bind}"]`).forEach((el) => {

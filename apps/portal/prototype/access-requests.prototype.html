@@ -1,0 +1,4152 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what does the applicant side of access requests look like, from Get started as an applicant (national ID + IPRS + phone code, passport pending verification) through the Form K wizard, My requests, the decision and the watermarked package download with its countdown? Covers tickets #247 #249 #251 #261 (spec 10). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Access requests, applicant (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      /* ---------- shared bits (same look as declarant-journey / after-submission) ---------- */
+      .proto-note {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: #6d5a2a;
+        background: #fffaf0;
+        border: 1px dashed #e2c98f;
+        border-radius: 8px;
+        padding: 7px 10px;
+      }
+      .proto-note b {
+        color: #4d3d10;
+      }
+      .proto-note a {
+        color: #4d3d10;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .is-invalid {
+        box-shadow: 0 0 0 1.5px var(--danger) !important;
+      }
+      .cd {
+        font-variant-numeric: tabular-nums;
+      }
+      .linklike {
+        background: none;
+        border: 0;
+        padding: 0;
+        color: var(--ink);
+        font-weight: 500;
+        text-decoration: underline;
+        text-decoration-color: var(--line-2);
+        text-underline-offset: 3px;
+        cursor: pointer;
+        font-size: inherit;
+      }
+      .linklike:hover {
+        text-decoration-color: var(--ink);
+      }
+      .linklike[disabled] {
+        color: var(--muted);
+        text-decoration: none;
+        cursor: default;
+      }
+      :focus-visible {
+        outline: 3px solid rgba(233, 90, 36, 0.45);
+        outline-offset: 2px;
+      }
+      .spinner.sm {
+        width: 14px;
+        height: 14px;
+        border-width: 2px;
+      }
+      .ferr {
+        font-size: 13px;
+        color: var(--danger);
+        font-weight: 500;
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+      }
+      .ferr svg {
+        flex: none;
+        margin-top: 2px;
+      }
+
+      /* ---------- onboarding (auth layout) ---------- */
+      .stepper-wrap {
+        margin-bottom: 26px;
+      }
+      .stepper-wrap .stepper {
+        margin-bottom: 8px;
+      }
+      .stepper-wrap .lbl {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .gs-foot-help {
+        margin-top: 28px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        font-size: 13.5px;
+        color: var(--muted);
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .gs-foot-help svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .gs-h1 {
+        font-size: 26px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        font-weight: 600;
+      }
+      .gs-sub {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      .otp {
+        flex-wrap: nowrap;
+      }
+      .otp.err input {
+        box-shadow: 0 0 0 1.5px var(--danger);
+      }
+      .otp.dis input {
+        background: var(--sunken);
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .otp-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .otp-row {
+        font-size: 14px;
+      }
+      .masked {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        color: var(--ink);
+      }
+      .vbadge-ok {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--ok-soft);
+        color: var(--ok);
+        font-size: 12px;
+        font-weight: 500;
+        vertical-align: 1px;
+        white-space: nowrap;
+      }
+      .vbadge-warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .grid-2c {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 520px) {
+        .grid-2c {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+      }
+      .auth-body .callout {
+        font-size: 14px;
+      }
+
+      /* ---------- combobox (Commission) ---------- */
+      .combo .input-group .ico {
+        display: flex;
+        align-items: center;
+        padding-left: 12px;
+        color: var(--muted);
+      }
+      .combo-list {
+        margin-top: 8px;
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow-pop);
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 6px;
+      }
+      .combo-opt {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 10px;
+        border: 0;
+        background: none;
+        border-radius: 9px;
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+        color: inherit;
+      }
+      .combo-opt:hover,
+      .combo-opt.act {
+        background: var(--sunken);
+      }
+      .mono-code {
+        flex: none;
+        min-width: 58px;
+        height: 26px;
+        padding: 0 6px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .combo-opt .nm {
+        flex: 1;
+        min-width: 0;
+        font-weight: 500;
+        font-size: 14.5px;
+        line-height: 1.3;
+      }
+      .combo-empty {
+        padding: 16px 12px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .chosen {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: var(--r);
+        background: var(--surface);
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+
+      /* ---------- portal pages (as declarant-after-submission) ---------- */
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        text-decoration: none;
+        cursor: pointer;
+        margin-bottom: 14px;
+        background: none;
+        border: 0;
+        padding: 0;
+      }
+      .back:hover {
+        color: var(--ink);
+      }
+      .head-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .head-row .page-title {
+        flex: 1 1 260px;
+        min-width: 0;
+      }
+      .meta-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 10px;
+        font-size: 14px;
+        color: var(--muted);
+        align-items: center;
+      }
+      .meta-line > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .side-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 24px;
+      }
+      @container app (min-width: 960px) {
+        .side-grid {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          align-items: start;
+        }
+        .side-grid > .side {
+          position: sticky;
+          top: 84px;
+        }
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-width: 0;
+      }
+      .refchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        padding: 0 9px;
+        border-radius: 7px;
+        background: var(--sunken);
+        border: 0;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--ink);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .refchip:hover {
+        background: #ebe9e5;
+      }
+      .refchip.lg {
+        height: 44px;
+        padding: 0 16px;
+        font-size: 17px;
+        border-radius: 11px;
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+      }
+      .refmenu {
+        left: 0;
+        right: auto;
+        min-width: 260px;
+        max-width: 320px;
+        padding: 12px;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .refmenu .row {
+        gap: 8px;
+        align-items: baseline;
+      }
+      .refmenu .seg-k {
+        font-family: ui-monospace, Menlo, monospace;
+        font-weight: 600;
+        min-width: 64px;
+      }
+      .banner {
+        display: flex;
+        gap: 12px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        font-size: 14.5px;
+        line-height: 1.5;
+      }
+      .banner > svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .banner b {
+        font-weight: 600;
+      }
+      .banner .btn {
+        margin-top: 10px;
+      }
+      .banner-warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+        box-shadow: 0 0 0 1px #f3dfb5;
+      }
+      .banner-danger {
+        background: var(--danger-soft);
+        color: #8a1c14;
+        box-shadow: 0 0 0 1px #f5cdc9;
+      }
+      .banner-ok {
+        background: var(--ok-soft);
+        color: #0f5a2d;
+        box-shadow: 0 0 0 1px #cbe8d5;
+      }
+      .banner-info {
+        background: #eaf1fb;
+        color: #1f4f96;
+        box-shadow: 0 0 0 1px #d3e2f6;
+      }
+      .banner-neutral {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .timer .big {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+      }
+      .timer .big.warn {
+        color: var(--warn);
+      }
+      .timer .big.danger {
+        color: var(--danger);
+      }
+      .timer .bar {
+        position: relative;
+        height: 8px;
+        border-radius: 8px;
+        background: var(--sunken);
+        margin: 14px 0 6px;
+      }
+      .timer .bar > i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        border-radius: 8px;
+        background: var(--ink);
+      }
+      .timer .bar.warn > i {
+        background: #d98a00;
+      }
+      .timer .bar.danger > i {
+        background: var(--danger);
+      }
+      .timer .bar.ok > i {
+        background: var(--ok);
+      }
+      .timer .mark {
+        position: absolute;
+        top: -4px;
+        width: 2px;
+        height: 16px;
+        background: var(--line-2);
+        border-radius: 2px;
+      }
+      .timer .scale {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .mark-key {
+        width: 2px;
+        height: 12px;
+        border-radius: 2px;
+        background: var(--line-2);
+        flex: none;
+      }
+      .timer .scale .mid {
+        position: absolute;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+      .cardlink {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+      }
+      .lc {
+        display: flex;
+        gap: 14px;
+        padding: 18px 20px;
+        align-items: flex-start;
+      }
+      .cardlink + .cardlink .lc {
+        border-top: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .lc {
+          padding: 18px 24px;
+        }
+      }
+      .cardlink:hover .lc {
+        background: #fcfbfa;
+      }
+      .card > .cardlink:first-child .lc {
+        border-top-left-radius: var(--r-lg);
+        border-top-right-radius: var(--r-lg);
+      }
+      .lc .ico {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .lc .body {
+        flex: 1;
+        min-width: 0;
+      }
+      .lc .t {
+        font-weight: 600;
+        font-size: 15.5px;
+        line-height: 1.35;
+      }
+      .lc .d {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin-top: 3px;
+        line-height: 1.45;
+      }
+      .lc .d .mono {
+        font-size: 12.5px;
+      }
+      .lc .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .lc .chev {
+        color: var(--muted);
+        align-self: center;
+        flex: none;
+      }
+      .counter {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .counter.over {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .skel-card {
+        display: flex;
+        gap: 14px;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .skel-card:last-child {
+        border-bottom: 0;
+      }
+      .skeleton.circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        flex: none;
+      }
+      .sec-label {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .prose {
+        font-size: 14.5px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .kv-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      /* ---------- DeadlineChip (#249) ---------- */
+      .dchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        background: var(--sunken);
+        color: var(--ink-2);
+        font-size: 12.5px;
+        font-weight: 500;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .dchip.soon {
+        background: var(--warn-soft);
+        color: #8a5300;
+      }
+      .dchip.late {
+        background: var(--danger-soft);
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .dchip.done {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .dchip.off {
+        background: var(--sunken);
+        color: var(--muted);
+      }
+
+      /* ---------- ScopePicker (#249) ---------- */
+      .sp {
+        display: grid;
+        gap: 22px;
+      }
+      .sp fieldset {
+        border: 0;
+        margin: 0;
+        padding: 0;
+        min-width: 0;
+      }
+      .sp legend {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .sp-opts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .sp-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 520px) {
+        .sp-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @container app (min-width: 1000px) {
+        .sp-grid.c3 {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      .sp-opt {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 46px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        cursor: pointer;
+        font-size: 14.5px;
+        font-weight: 500;
+        line-height: 1.3;
+      }
+      .sp-opt input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .sp-opt .box {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        display: grid;
+        place-items: center;
+        color: transparent;
+        flex: none;
+        background: #fff;
+      }
+      .sp-opt:has(input:checked) {
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+      .sp-opt:has(input:checked) .box {
+        background: var(--ink);
+        color: #fff;
+        box-shadow: none;
+      }
+      .sp-opt:has(input:focus-visible) {
+        outline: 3px solid rgba(233, 90, 36, 0.45);
+        outline-offset: 2px;
+      }
+      .sp-opt:has(input:disabled) {
+        cursor: not-allowed;
+        background: var(--sunken);
+        box-shadow: none;
+        color: var(--muted);
+      }
+      .sp-opt:has(input:disabled:checked) .box {
+        background: var(--line-2);
+      }
+      .sp-opt .sub {
+        display: block;
+        font-size: 12.5px;
+        font-weight: 400;
+        color: var(--muted);
+      }
+      .sp-opt.yr {
+        min-width: 104px;
+      }
+      .sp.err .sp-invalid .sp-opt {
+        box-shadow: 0 0 0 1.5px var(--danger);
+      }
+      /* read-only scope view (requested vs granted) */
+      .sv {
+        display: grid;
+        gap: 12px;
+      }
+      .sv-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+      }
+      @container app (min-width: 600px) {
+        .sv-row {
+          grid-template-columns: 120px minmax(0, 1fr);
+          gap: 12px;
+          align-items: baseline;
+        }
+      }
+      .sv-k {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .sv-v {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .sv-i {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 8px;
+        background: var(--sunken);
+        font-size: 13.5px;
+        font-weight: 500;
+      }
+      .sv-i.yes {
+        background: var(--ok-soft);
+        color: #0f5a2d;
+      }
+      .sv-i.no {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--line);
+        color: var(--muted);
+        text-decoration: line-through;
+        text-decoration-color: var(--line-2);
+      }
+      .sv-legend {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .sv-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .sv-legend i {
+        width: 12px;
+        height: 12px;
+        border-radius: 4px;
+        background: var(--ok-soft);
+        display: inline-block;
+      }
+      .sv-legend i.no {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--line-2);
+      }
+
+      /* ---------- grounds (#249, read-only in the portal) ---------- */
+      .grounds {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .grounds li {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-size: 14.5px;
+        line-height: 1.45;
+      }
+      .reg-tag {
+        flex: none;
+        display: inline-grid;
+        place-items: center;
+        min-width: 26px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: 6px;
+        background: var(--sunken);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+        margin-top: 1px;
+      }
+      .gsel {
+        display: grid;
+        gap: 8px;
+      }
+      .gsel .check {
+        align-items: flex-start;
+      }
+
+      /* ---------- package ---------- */
+      .pkg {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+      }
+      .wm {
+        position: relative;
+        flex: none;
+        width: 92px;
+        height: 120px;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow:
+          var(--shadow-input),
+          3px 3px 0 -1px #fff,
+          3px 3px 0 0 var(--line);
+        overflow: hidden;
+      }
+      .wm .ln {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        height: 4px;
+        border-radius: 3px;
+        background: #ecebe8;
+      }
+      .wm .mk {
+        position: absolute;
+        left: -20px;
+        right: -20px;
+        top: 42px;
+        transform: rotate(-32deg);
+        text-align: center;
+        font-size: 6.5px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: rgba(201, 41, 30, 0.42);
+        letter-spacing: 0.02em;
+      }
+      .wm .cf {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        font-size: 6.5px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: var(--danger);
+      }
+      .wm.off {
+        opacity: 0.5;
+        filter: grayscale(1);
+      }
+      .pkg-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .pkg-acts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        align-items: center;
+        margin-top: 14px;
+      }
+      .exp-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13.5px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .exp-line.warn {
+        color: #8a5300;
+        font-weight: 600;
+      }
+      @container app (max-width: 519px) {
+        .wm {
+          display: none;
+        }
+        .pkg-acts .btn-primary {
+          flex: 1;
+        }
+      }
+
+      /* ---------- progress on request detail ---------- */
+      .prog .tl-ico.done {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .prog .tl-ico.cur {
+        background: var(--ink);
+        color: #fff;
+      }
+      .prog .tl-ico.todo {
+        background: transparent;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        color: var(--muted);
+      }
+      .prog .tl-ico.fail {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .prog li.todo .tl-t {
+        color: var(--muted);
+        font-weight: 400;
+      }
+
+      /* ---------- Form K wizard ---------- */
+      .wiz .rail .back {
+        margin-bottom: 18px;
+      }
+      .rail .lb {
+        flex: 1;
+        min-width: 0;
+      }
+      .rail li.err .n {
+        box-shadow: inset 0 0 0 1.5px var(--danger);
+        color: var(--danger);
+        background: none;
+      }
+      .rail .meta .mono-code {
+        min-width: 0;
+        height: 22px;
+        font-size: 11px;
+      }
+      .fk-card {
+        padding: 20px;
+      }
+      @container app (min-width: 700px) {
+        .fk-card {
+          padding: 24px;
+        }
+      }
+      .lock-block {
+        padding: 16px 18px;
+        border-radius: var(--r-lg);
+        background: var(--sunken);
+      }
+      .lock-block h3 {
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .lock-grid {
+        display: grid;
+        gap: 12px 20px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 600px) {
+        .lock-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .lock-grid .k {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .lock-grid .v {
+        font-weight: 500;
+        margin-top: 2px;
+        overflow-wrap: anywhere;
+      }
+      .rev {
+        border-bottom: 1px solid var(--line);
+        padding: 16px 0;
+      }
+      .rev:first-child {
+        padding-top: 0;
+      }
+      .rev-h {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .rev-h h3 {
+        flex: 1;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      @container app (max-width: 959px) {
+        .mprog + .wiz-head {
+          margin-top: 20px;
+        }
+      }
+      .rev dl {
+        display: grid;
+        gap: 2px;
+        margin: 0;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 600px) {
+        .rev dl {
+          grid-template-columns: 170px minmax(0, 1fr);
+          gap: 8px 16px;
+        }
+        .rev dd {
+          margin-bottom: 0 !important;
+        }
+      }
+      .rev dt {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .rev dd {
+        margin: 0 0 10px;
+        font-size: 14.5px;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .declare-box {
+        margin-top: 20px;
+        padding: 18px;
+        border-radius: var(--r-lg);
+        background: var(--brand-softer, #fff7f2);
+        box-shadow: 0 0 0 1px #f3dccd;
+      }
+      .declare-box.err {
+        box-shadow: 0 0 0 1.5px var(--danger);
+      }
+      .field .lbl-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .textarea.err,
+      .input.err {
+        box-shadow:
+          0 0 0 1.5px var(--danger),
+          0 0 0 4px rgba(201, 41, 30, 0.08);
+      }
+      .success-mark.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+
+      /* ---------- reference pages ---------- */
+      .docpage h2 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 32px 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .docpage h2:first-of-type {
+        margin-top: 24px;
+      }
+      .ctable {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+        background: var(--surface);
+      }
+      .ctable th,
+      .ctable td {
+        text-align: left;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .ctable th {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        background: #fcfbfa;
+      }
+      .ctable code {
+        font-size: 12px;
+        background: var(--sunken);
+        padding: 1px 5px;
+        border-radius: 5px;
+      }
+      .gap-note {
+        color: var(--warn);
+        font-size: 12.5px;
+        margin-top: 4px;
+        display: flex;
+        gap: 5px;
+        align-items: flex-start;
+      }
+      .gap-note svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .prim {
+        padding: 20px 24px;
+      }
+      .prim + .prim {
+        border-top: 1px solid var(--line);
+      }
+      .prim-h {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const {
+        icon,
+        esc,
+        field,
+        input,
+        select,
+        textarea,
+        checkbox,
+        dialog,
+        portalShell,
+        fmtDate,
+        fmtDateTime,
+        num,
+      } = Kit;
+
+      /* =====================================================================
+       * Constants and demo world
+       * ===================================================================== */
+      const FILE = 'access-requests.prototype.html';
+      const KC = '../../keycloak-theme/prototype/login.prototype.html?aud=applicant';
+      const DOCS = '../../../services/documents/prototype/documents.prototype.html';
+      const TODAY = Kit.TODAY; // 26 Sep 2026, 10:30
+      const DAY = 86400000;
+      // Demo clock: Kit.TODAY plus the time since the page loaded, so live countdowns and demo dates agree.
+      const T0 = Date.now();
+      const now = () => TODAY.getTime() + (Date.now() - T0);
+      const at = (s) => new Date(s).getTime();
+      const addDays = (t, n) => new Date(t).getTime() + n * DAY;
+      const dd = (a, b) => Kit.daysBetween(a, b);
+      const plural = (n, w) => `${num(n)} ${w}${n === 1 ? '' : 's'}`;
+      const shortDate = (d) => fmtDate(d).replace(/ \d{4}$/, '');
+      const longDate = (d) =>
+        new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const fmtPhone = (p) => p.replace(/^(\+\d{3})(\d{3})(\d{3})(\d+)$/, '$1 $2 $3 $4');
+      const isoDay = (d) => new Date(d).toISOString().slice(0, 10);
+
+      // Commissions an applicant can address, with the declaration years available (GET /v1/access/commissions)
+      const COMMS = [
+        {
+          slug: 'psc',
+          code: 'PSC',
+          name: 'Public Service Commission',
+          years: [2025, 2026],
+          phone: '020 222 3901',
+          email: 'access@publicservice.go.ke',
+        },
+        {
+          slug: 'tsc',
+          code: 'TSC',
+          name: 'Teachers Service Commission',
+          years: [2025, 2026],
+          phone: '020 289 2000',
+          email: 'access@tsc.go.ke',
+        },
+        {
+          slug: 'jsc',
+          code: 'JSC',
+          name: 'Judicial Service Commission',
+          years: [2025],
+          phone: '020 273 9180',
+          email: 'access@jsc.go.ke',
+        },
+        {
+          slug: 'parlsc',
+          code: 'PARLSC',
+          name: 'Parliamentary Service Commission',
+          years: [2025, 2026],
+          phone: '020 284 8000',
+          email: 'access@parliament.go.ke',
+        },
+        {
+          slug: 'npsc',
+          code: 'NPSC',
+          name: 'National Police Service Commission',
+          years: [2025, 2026],
+          phone: '020 271 1110',
+          email: 'access@npsc.go.ke',
+        },
+        {
+          slug: 'cpsb047',
+          code: 'CPSB047',
+          name: 'Nairobi City County Public Service Board',
+          years: [2025, 2026],
+          phone: '020 334 4194',
+          email: 'access@nairobiassembly.go.ke',
+        },
+        {
+          slug: 'cpsb042',
+          code: 'CPSB042',
+          name: 'Kisumu County Public Service Board',
+          years: [2026],
+          phone: '057 202 3000',
+          email: 'access@kisumu.go.ke',
+        },
+        {
+          slug: 'cpsb022',
+          code: 'CPSB022',
+          name: 'Kiambu County Public Service Board',
+          years: [],
+          phone: '066 202 2000',
+          email: 'access@kiambu.go.ke',
+        },
+        {
+          slug: 'eacc',
+          code: 'EACC',
+          name: 'Ethics and Anti-Corruption Commission',
+          years: [2025, 2026],
+          phone: '020 499 7000',
+          email: 'access@integrity.go.ke',
+        },
+        {
+          slug: 'cue',
+          code: 'CUE',
+          name: 'Commission for University Education',
+          years: [2025, 2026],
+          phone: '020 726 5000',
+          email: 'access@cue.or.ke',
+        },
+      ];
+      const comm = (slug) => COMMS.find((c) => c.slug === slug);
+      const COUNTRIES = [
+        { v: 'GH', l: 'Ghana' },
+        { v: 'GB', l: 'United Kingdom' },
+        { v: 'IN', l: 'India' },
+        { v: 'NG', l: 'Nigeria' },
+        { v: 'SO', l: 'Somalia' },
+        { v: 'TZ', l: 'Tanzania' },
+        { v: 'UG', l: 'Uganda' },
+        { v: 'US', l: 'United States' },
+        { v: 'KE', l: 'Kenya' },
+      ];
+      const countryName = (c) => (COUNTRIES.find((x) => x.v === c) || { l: c }).l;
+
+      // Applicants (people, not declarants)
+      const APPLICANTS = {
+        id: {
+          surname: 'Kamau',
+          first: 'Mercy',
+          other: 'Wanjiku',
+          full: 'Mercy Wanjiku Kamau',
+          initials: 'MK',
+          kind: 'national-id',
+          number: '28841276',
+          country: 'KE',
+          phone: '+254722418903',
+          phoneMasked: '07** *** 903',
+          email: 'mercy.kamau@gmail.com',
+          emailMasked: 'm***@gmail.com',
+          identityStatus: 'verified',
+          postal: 'P.O. Box 49010-00100, Nairobi',
+          physical: 'Othaya Road, Kileleshwa, Nairobi',
+          occupation: 'Journalist',
+        },
+        passport: {
+          surname: 'Mensah',
+          first: 'Kwame',
+          other: '',
+          full: 'Kwame Mensah',
+          initials: 'KM',
+          kind: 'passport',
+          number: 'G2837465',
+          country: 'GH',
+          phone: '+233244718265',
+          phoneMasked: '+233 ** *** 8265',
+          email: 'kwame.mensah@outlook.com',
+          emailMasked: 'k***@outlook.com',
+          identityStatus: 'pending-verification',
+          postal: 'P.O. Box 30218-00100, Nairobi',
+          physical: 'Riverside Drive, Westlands, Nairobi',
+          occupation: 'Researcher, anti-corruption NGO',
+        },
+      };
+      const ME = () => APPLICANTS[S.world];
+
+      const SECTIONS = [
+        { k: 'bio', l: 'Personal details' },
+        { k: 'income', l: 'Income' },
+        { k: 'assets', l: 'Assets' },
+        { k: 'liabilities', l: 'Liabilities' },
+        { k: 'other', l: 'Other information' },
+      ];
+      const secLabel = (k) => SECTIONS.find((s) => s.k === k).l;
+
+      // Regulation 24 grounds (labels quote the Regulation; full text on hover)
+      const GROUNDS = {
+        'public-interest': {
+          letter: 'a',
+          label: 'Against the public interest',
+          text: 'The disclosure of any information contained in the declaration or clarification would be against public interest. (Regulation 24(a))',
+        },
+        'prejudice-proceeding': {
+          letter: 'b',
+          label: 'May prejudice an ongoing proceeding or investigation',
+          text: 'The access to the information contained in the declaration or clarification may prejudice an ongoing proceeding or investigation by the responsible Commission or a law enforcement agency. (Regulation 24(b))',
+        },
+        'frivolous-vexatious': {
+          letter: 'c',
+          label: 'Frivolous, vexatious or scandalous',
+          text: 'The request is frivolous, vexatious or scandalous. (Regulation 24(c))',
+        },
+        'not-objectives': {
+          letter: 'd',
+          label: 'Does not promote the objectives of the Act',
+          text: 'The reason for the access of the information contained in the declaration or clarification does not promote the objectives of the Act. (Regulation 24(d))',
+        },
+      };
+
+      // AccessRequestStatus -> applicant-facing badge (spec 10 frontend comment copy)
+      const STATUS = {
+        submitted: { label: 'Submitted', kind: 'info', icon: 'send', tone: 'info' },
+        'pending-applicant-verification': {
+          label: 'Awaiting identity verification',
+          kind: 'warn',
+          icon: 'userCheck',
+          tone: 'warn',
+        },
+        'officer-unresolved': {
+          label: 'Officer being identified',
+          kind: 'info',
+          icon: 'search',
+          tone: 'info',
+        },
+        'awaiting-representations': {
+          label: 'Declarant notified',
+          kind: 'info',
+          icon: 'bell',
+          tone: 'info',
+        },
+        'under-decision': { label: 'Under decision', kind: 'brand', icon: 'scale', tone: 'brand' },
+        granted: { label: 'Granted', kind: 'ok', icon: 'check', tone: 'ok' },
+        'partially-granted': {
+          label: 'Partially granted',
+          kind: 'ok',
+          icon: 'listCheck',
+          tone: 'ok',
+        },
+        denied: { label: 'Denied', kind: 'danger', icon: 'ban', tone: 'danger' },
+        'cannot-identify': { label: 'Cannot identify officer', kind: '', icon: 'userX', tone: '' },
+        withdrawn: { label: 'Withdrawn', kind: '', icon: 'undo', tone: '' },
+      };
+      const OPEN = [
+        'submitted',
+        'pending-applicant-verification',
+        'officer-unresolved',
+        'awaiting-representations',
+        'under-decision',
+      ];
+      const GRANTED = ['granted', 'partially-granted'];
+      const TONES = {
+        info: ['#eaf1fb', '#1f4f96'],
+        warn: ['var(--warn-soft)', 'var(--warn)'],
+        brand: ['var(--brand-soft)', 'var(--brand-ink)'],
+        ok: ['var(--ok-soft)', 'var(--ok)'],
+        danger: ['var(--danger-soft)', 'var(--danger)'],
+        '': ['var(--sunken)', 'var(--muted)'],
+      };
+      const statusBadge = (st) =>
+        `<span class="badge ${STATUS[st].kind ? 'badge-' + STATUS[st].kind : ''}">${icon(STATUS[st].icon, 13, 2.2)} ${STATUS[st].label}</span>`;
+
+      /* ---------- requests (AccessRequest) ---------- */
+      const fullScope = (years) => ({
+        years,
+        spouses: true,
+        children: true,
+        sections: ['bio', 'income', 'assets', 'liabilities', 'other'],
+        clar: true,
+      });
+      let seq = 0;
+      function R(o) {
+        const submittedAt = at(o.submittedAt);
+        const r = Object.assign(
+          {
+            id: 'r' + ++seq,
+            comm: 'psc',
+            status: 'submitted',
+            officer: { name: '', entity: '', workStation: '', fileNo: '' },
+            info: { what: '', reason: '', other: '' },
+            scope: fullScope([2025, 2026]),
+            decision: null,
+            pkg: null,
+            resolvedAt: null,
+            notifiedAt: null,
+            windowEndsAt: null,
+            withdrawnAt: null,
+            closedAt: null,
+            verifiedAt: null,
+            passport: false,
+          },
+          o,
+        );
+        r.submittedAt = submittedAt;
+        r.deadlineAt = addDays(submittedAt, 30);
+        [
+          'resolvedAt',
+          'notifiedAt',
+          'windowEndsAt',
+          'withdrawnAt',
+          'closedAt',
+          'verifiedAt',
+        ].forEach((k) => r[k] && (r[k] = at(r[k])));
+        if (r.decision) r.decision.decidedAt = at(r.decision.decidedAt);
+        if (r.pkg) {
+          r.pkg.issuedAt = at(r.pkg.issuedAt || r.decision.decidedAt);
+          r.pkg.expiresAt =
+            r.pkg.expiresAt === 'today'
+              ? now() + (5 * 60 + 12) * 60000
+              : at(r.pkg.expiresAt || addDays(r.pkg.issuedAt, 14));
+          r.pkg.downloads = r.pkg.downloads || [];
+        }
+        return r;
+      }
+      const INFO_ASSETS = {
+        what: 'Assets and liabilities declared in the biennial declarations, including land and vehicles.',
+        reason:
+          'I am reporting on procurement of affordable housing contracts. Public records show a company linked to the officer won three tenders in 2025. The declarations will show whether the officer declared an interest in that company, which is in furtherance of the Act.',
+        other: 'My press card number is KMC-2024-11873 (Media Council of Kenya).',
+      };
+      function makeRequests() {
+        seq = 0;
+        return [
+          R({
+            ref: 'ARQ-PSC-2026-0000151-C',
+            status: 'submitted',
+            submittedAt: '2026-09-26T09:12',
+            officer: {
+              name: 'Josephine Akinyi Ouma',
+              entity: 'State Department for Public Works',
+              workStation: 'Ministry of Roads and Transport, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Income and assets declared in the 2026 initial declaration.',
+              reason:
+                'The officer approved variations worth KES 1.2 billion on the Northern Bypass contract. I want to see whether any income or assets link to the contractor, in furtherance of the objectives of the Act.',
+              other: '',
+            },
+            scope: {
+              years: [2026],
+              spouses: false,
+              children: false,
+              sections: ['income', 'assets'],
+              clar: false,
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000142-K',
+            status: 'awaiting-representations',
+            submittedAt: '2026-09-22T11:40',
+            resolvedAt: '2026-09-23T15:05',
+            notifiedAt: '2026-09-24T08:30',
+            windowEndsAt: '2026-10-01T23:59',
+            officer: {
+              name: 'Peter Mwangi Kamau',
+              entity: 'State Department for Housing and Urban Development',
+              workStation: 'Ardhi House, Nairobi',
+              fileNo: '',
+            },
+            info: INFO_ASSETS,
+            scope: {
+              years: [2025, 2026],
+              spouses: true,
+              children: false,
+              sections: ['assets', 'liabilities', 'other'],
+              clar: true,
+            },
+          }),
+          R({
+            ref: 'ARQ-TSC-2026-0000077-5',
+            comm: 'tsc',
+            status: 'officer-unresolved',
+            submittedAt: '2026-09-21T16:22',
+            officer: {
+              name: 'Samuel Kiprono',
+              entity: 'Teachers Service Commission',
+              workStation: 'County Director of Education office, Nakuru',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets declared in the 2025 biennial declaration.',
+              reason:
+                'Parents allege that school fees collected at county level were diverted. I am investigating whether officers in the county office declared assets that are out of line with their pay.',
+              other: '',
+            },
+            scope: {
+              years: [2025],
+              spouses: false,
+              children: false,
+              sections: ['assets'],
+              clar: false,
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000139-7',
+            status: 'under-decision',
+            submittedAt: '2026-08-30T10:05',
+            resolvedAt: '2026-09-01T09:10',
+            notifiedAt: '2026-09-01T09:40',
+            windowEndsAt: '2026-09-08T23:59',
+            officer: {
+              name: 'Grace Atieno Odhiambo',
+              entity: 'Kenya Rural Roads Authority',
+              workStation: 'Head office, Barabara Plaza, Nairobi',
+              fileNo: 'KRR/2011/0442',
+            },
+            info: {
+              what: 'Income from other sources and liabilities, 2025 and 2026.',
+              reason:
+                'A contractor paid consultancy fees to a firm registered to a relative of the officer. The declarations show whether that income was declared.',
+              other: '',
+            },
+            scope: {
+              years: [2025, 2026],
+              spouses: true,
+              children: true,
+              sections: ['income', 'liabilities'],
+              clar: false,
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000097-M',
+            status: 'granted',
+            submittedAt: '2026-08-26T08:50',
+            resolvedAt: '2026-08-27T10:00',
+            notifiedAt: '2026-08-27T10:20',
+            windowEndsAt: '2026-09-03T23:59',
+            officer: {
+              name: 'Daniel Otieno Were',
+              entity: 'State Department for Water and Sanitation',
+              workStation: 'Maji House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets declared in the 2026 initial declaration.',
+              reason:
+                'The officer chaired the tender committee that awarded the Thwake dam pipeline works. I am checking declared interests against the company registry.',
+              other: '',
+            },
+            scope: {
+              years: [2026],
+              spouses: false,
+              children: false,
+              sections: ['assets', 'other'],
+              clar: false,
+            },
+            decision: {
+              outcome: 'grant',
+              grounds: [],
+              reasons:
+                'The applicant shows a legitimate interest as a journalist reporting on the use of public funds, and good cause in furtherance of the objectives of the Act. The officer consented to the disclosure.',
+              decidedAt: '2026-09-25T14:10',
+            },
+            pkg: { verificationId: 'ADL-3KQ8-W7PD-HM2R-9XTA', downloads: [] },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000118-3',
+            status: 'partially-granted',
+            submittedAt: '2026-08-24T13:30',
+            resolvedAt: '2026-08-25T09:00',
+            notifiedAt: '2026-08-25T09:15',
+            windowEndsAt: '2026-09-01T23:59',
+            officer: {
+              name: 'Anne Njeri Mutua',
+              entity: 'State Department for Lands and Physical Planning',
+              workStation: 'Ardhi House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets, liabilities and income in the 2025 and 2026 declarations, with spouse and children.',
+              reason:
+                'Several parcels in Ruiru were re-allocated to companies linked to officers of the department. The declarations show whether the officer declared land held directly or through family.',
+              other:
+                'I have attached nothing. The re-allocation list is public (Gazette Notice 11203 of 2026).',
+            },
+            scope: {
+              years: [2025, 2026],
+              spouses: true,
+              children: true,
+              sections: ['income', 'assets', 'liabilities'],
+              clar: true,
+            },
+            decision: {
+              outcome: 'partial-grant',
+              grantedScope: {
+                years: [2026],
+                spouses: true,
+                children: false,
+                sections: ['assets', 'liabilities'],
+                clar: true,
+              },
+              grounds: ['public-interest'],
+              reasons:
+                'The request for land holdings is in furtherance of the objectives of the Act. Income and the declarations of the officer’s children are not needed for that purpose and disclosing them would be against the public interest. The 2025 declaration predates the re-allocations and is not granted.',
+              decidedAt: '2026-09-20T11:45',
+            },
+            pkg: { verificationId: 'ADL-7TCM-R2KD-44PW-HQ8N', downloads: [at('2026-09-20T18:02')] },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000071-2',
+            status: 'granted',
+            submittedAt: '2026-08-10T10:00',
+            resolvedAt: '2026-08-11T09:00',
+            notifiedAt: '2026-08-11T09:20',
+            windowEndsAt: '2026-08-18T23:59',
+            officer: {
+              name: 'Hassan Abdi Mohamed',
+              entity: 'State Department for Devolution',
+              workStation: 'Teleposta Towers, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Liabilities in the 2025 biennial declaration.',
+              reason:
+                'Reports suggest the officer took loans from a supplier to the department. The declaration shows whether those loans were declared.',
+              other: '',
+            },
+            scope: {
+              years: [2025],
+              spouses: false,
+              children: false,
+              sections: ['liabilities'],
+              clar: false,
+            },
+            decision: {
+              outcome: 'grant',
+              grounds: [],
+              reasons:
+                'Legitimate interest and good cause shown. The officer did not object within the period for representations.',
+              decidedAt: '2026-09-12T09:30',
+            },
+            pkg: { verificationId: 'ADL-9PLX-2MWE-C3KF-7VUA', expiresAt: 'today', downloads: [] },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000088-4',
+            status: 'denied',
+            submittedAt: '2026-08-19T09:00',
+            resolvedAt: '2026-08-20T10:30',
+            notifiedAt: '2026-08-20T11:00',
+            windowEndsAt: '2026-08-27T23:59',
+            officer: {
+              name: 'Beatrice Chebet Rotich',
+              entity: 'State Department for Mining',
+              workStation: 'NSSF Building, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'All sections of the 2026 initial declaration, with spouse and children.',
+              reason:
+                'The officer oversees mining licences in Kakamega. I want to know whether she or her family hold interests in licensed companies.',
+              other: '',
+            },
+            scope: {
+              years: [2026],
+              spouses: true,
+              children: true,
+              sections: ['bio', 'income', 'assets', 'liabilities', 'other'],
+              clar: true,
+            },
+            decision: {
+              outcome: 'deny',
+              grounds: ['prejudice-proceeding'],
+              reasons:
+                'The officer’s declaration is the subject of an ongoing investigation by the Commission. Disclosure now may prejudice that investigation.',
+              decidedAt: '2026-09-18T16:20',
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000102-9',
+            status: 'withdrawn',
+            submittedAt: '2026-09-02T12:15',
+            withdrawnAt: '2026-09-10T08:40',
+            officer: {
+              name: 'Paul Kariuki Ngugi',
+              entity: 'State Department for Trade',
+              workStation: 'Co-op Bank House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets in the 2026 declaration.',
+              reason: 'Follow-up on import licences issued to a company linked to the officer.',
+              other: '',
+            },
+            scope: {
+              years: [2026],
+              spouses: false,
+              children: false,
+              sections: ['assets'],
+              clar: false,
+            },
+          }),
+          R({
+            ref: 'ARQ-NPSC-2026-0000019-8',
+            comm: 'npsc',
+            status: 'cannot-identify',
+            submittedAt: '2026-08-28T15:00',
+            closedAt: '2026-09-15T10:10',
+            officer: {
+              name: 'James Otieno',
+              entity: 'National Police Service',
+              workStation: 'Kilimani Police Station',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets in the 2025 biennial declaration.',
+              reason:
+                'Residents report extortion at roadblocks in Kilimani. I am investigating officers whose assets may not match their pay.',
+              other: '',
+            },
+            scope: {
+              years: [2025],
+              spouses: false,
+              children: false,
+              sections: ['assets'],
+              clar: false,
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000060-R',
+            status: 'under-decision',
+            submittedAt: '2026-08-20T09:30',
+            resolvedAt: '2026-08-21T10:00',
+            notifiedAt: '2026-08-21T10:30',
+            windowEndsAt: '2026-08-28T23:59',
+            officer: {
+              name: 'Lilian Wairimu Njoroge',
+              entity: 'State Department for Health',
+              workStation: 'Afya House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Income and assets in the 2025 and 2026 declarations.',
+              reason:
+                'Medical equipment leasing payments went to a company whose directors include a relative of the officer. The declarations show whether she declared that interest.',
+              other: '',
+            },
+            scope: {
+              years: [2025, 2026],
+              spouses: true,
+              children: false,
+              sections: ['income', 'assets'],
+              clar: false,
+            },
+          }),
+          R({
+            ref: 'ARQ-TSC-2026-0000031-X',
+            comm: 'tsc',
+            status: 'granted',
+            submittedAt: '2026-07-20T10:40',
+            resolvedAt: '2026-07-21T09:00',
+            notifiedAt: '2026-07-21T09:30',
+            windowEndsAt: '2026-07-28T23:59',
+            officer: {
+              name: 'Esther Wambui Gitau',
+              entity: 'Teachers Service Commission',
+              workStation: 'TSC House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets in the 2025 biennial declaration.',
+              reason:
+                'Follow-up on the purchase of a building for a county office from a company linked to the officer.',
+              other: '',
+            },
+            scope: {
+              years: [2025],
+              spouses: false,
+              children: false,
+              sections: ['assets'],
+              clar: false,
+            },
+            decision: {
+              outcome: 'grant',
+              grounds: [],
+              reasons: 'Legitimate interest and good cause shown.',
+              decidedAt: '2026-08-20T10:00',
+            },
+            pkg: {
+              verificationId: 'ADL-2WQF-8HNM-PR4C-6TYE',
+              downloads: [at('2026-08-20T19:14'), at('2026-08-27T08:02')],
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000044-H',
+            status: 'denied',
+            submittedAt: '2026-07-01T09:00',
+            resolvedAt: '2026-07-02T11:00',
+            notifiedAt: '2026-07-02T11:30',
+            windowEndsAt: '2026-07-09T23:59',
+            officer: {
+              name: 'Michael Kiplagat Tanui',
+              entity: 'State Department for Sports',
+              workStation: 'Kencom House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'All sections of the 2025 declaration.',
+              reason: 'Public interest in the officer’s lifestyle following social media posts.',
+              other: '',
+            },
+            scope: {
+              years: [2025],
+              spouses: true,
+              children: true,
+              sections: ['bio', 'income', 'assets', 'liabilities', 'other'],
+              clar: true,
+            },
+            decision: {
+              outcome: 'deny',
+              grounds: ['not-objectives', 'frivolous-vexatious'],
+              reasons:
+                'The request does not identify any conflict of interest or public duty. Curiosity about an officer’s lifestyle does not promote the objectives of the Act.',
+              decidedAt: '2026-07-30T15:00',
+            },
+          }),
+          R({
+            ref: 'ARQ-PSC-2026-0000029-6',
+            status: 'granted',
+            submittedAt: '2026-06-10T09:00',
+            resolvedAt: '2026-06-11T09:00',
+            notifiedAt: '2026-06-11T09:30',
+            windowEndsAt: '2026-06-18T23:59',
+            officer: {
+              name: 'Faith Nduta Macharia',
+              entity: 'State Department for Energy',
+              workStation: 'Nyayo House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets in the 2025 biennial declaration.',
+              reason: 'Follow-up on power purchase agreements.',
+              other: '',
+            },
+            scope: {
+              years: [2025],
+              spouses: false,
+              children: false,
+              sections: ['assets'],
+              clar: false,
+            },
+            decision: {
+              outcome: 'grant',
+              grounds: [],
+              reasons: 'Legitimate interest and good cause shown.',
+              decidedAt: '2026-07-06T11:00',
+            },
+            pkg: { verificationId: 'ADL-5HRT-QW2M-8KPD-3CAX', downloads: [at('2026-07-06T12:40')] },
+          }),
+        ];
+      }
+      function passportRequests() {
+        return [
+          R({
+            ref: 'ARQ-PSC-2026-0000148-2',
+            status: 'pending-applicant-verification',
+            passport: true,
+            submittedAt: '2026-09-24T14:05',
+            officer: {
+              name: 'Peter Mwangi Kamau',
+              entity: 'State Department for Housing and Urban Development',
+              workStation: 'Ardhi House, Nairobi',
+              fileNo: '',
+            },
+            info: {
+              what: 'Assets declared in the 2026 initial declaration.',
+              reason:
+                'Our research on affordable housing tenders found companies linked to officers of the department. The declaration shows whether the officer declared those interests.',
+              other: '',
+            },
+            scope: {
+              years: [2026],
+              spouses: false,
+              children: false,
+              sections: ['assets'],
+              clar: false,
+            },
+          }),
+        ];
+      }
+
+      /* ---------- state ---------- */
+      const blank = () => ['', '', '', '', '', ''];
+      const freshOn = () => ({
+        kind: '',
+        surname: '',
+        first: '',
+        other: '',
+        number: '',
+        country: '',
+        phone: '',
+        email: '',
+        err: {},
+        st: null, // checking | mismatch | already | rate | unavailable | error
+        attempts: 0,
+        rateUntil: 0,
+        notice: null, // ended | toomany
+        otp: { code: blank(), st: null, attemptsLeft: 5, resendAt: 0, resendsLeft: 3 },
+        create: { st: null, outcome: 'ok' }, // st: busy | unavailable
+        pwResendAt: 0,
+        masked: '',
+        emailMasked: '',
+      });
+      const freshForm = () => ({
+        step: 1,
+        max: 1,
+        comm: '',
+        q: '',
+        comboOpen: true,
+        partI: { postal: '', physical: '', occupation: '' },
+        partII: { name: '', entity: '', workStation: '', fileNo: '' },
+        partIII: { what: '', reason: '', other: '' },
+        scope: { yr: {}, spouses: false, children: false, sec: {}, clar: false },
+        declared: false,
+        err: {},
+        tried: {},
+        serverErr: null, // 400 | net
+        busy: false,
+      });
+      function freshState() {
+        return {
+          world: 'id',
+          on: freshOn(),
+          reqs: makeRequests(),
+          list: { page: 1, pageSize: 10, load: null },
+          detail: { load: null, notFound: false, dl: null, force410: false, force409: false },
+          f: freshForm(),
+          lastId: null,
+        };
+      }
+      const S = Kit.state(freshState());
+      const findReq = (id) => S.reqs.find((r) => r.id === id);
+      const cur = () => findReq(S.params.id) || S.reqs[0];
+
+      /* =====================================================================
+       * Small helpers and primitives
+       * ===================================================================== */
+      const docLink = (id, label, cls = 'btn btn-ghost btn-sm') =>
+        `<a class="${cls}" href="${DOCS}#${id}" target="_blank" rel="noopener">${icon('file', 16)} ${label} ${icon('external', 13)}</a>`;
+      const tip = (t, label) => Kit.tip(t, label ? { label } : undefined);
+      const proto = (html) =>
+        `<div class="proto-note" style="margin-top:16px"><b>Prototype.</b> ${html}</div>`;
+      const errLine = (id, msg) =>
+        msg
+          ? `<div class="ferr" id="${id}" role="alert">${icon('alert', 14)}<span>${msg}</span></div>`
+          : '';
+      function cdText(until, fmt) {
+        const s = Math.max(0, Math.ceil((until - (fmt === 'hm' ? now() : Date.now())) / 1000));
+        if (fmt === 'mmss') return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        if (fmt === 'min') return plural(Math.max(1, Math.ceil(s / 60)), 'minute');
+        if (fmt === 'hm') {
+          const h = Math.floor(s / 3600);
+          const m = Math.floor((s % 3600) / 60);
+          return h ? `${h} h ${m} min` : `${Math.max(1, m)} min`;
+        }
+        return `${s}s`;
+      }
+      const cd = (until, fmt = 's') =>
+        `<span class="cd" data-cd="${until}" data-fmt="${fmt}">${cdText(until, fmt)}</span>`;
+      const left = (until) => until && until > Date.now();
+
+      // Reference chip with an explainer (ADR-011)
+      function refChip(ref, { lg = false } = {}) {
+        const [type, issuer, year, sq, check] = ref.split('-');
+        const c = COMMS.find((x) => x.code === issuer);
+        const k = 'ref:' + ref + (lg ? ':lg' : '');
+        const menu =
+          S.menu === k
+            ? `<div class="menu refmenu" role="dialog" aria-label="What this reference means">
+          <div class="small" style="font-weight:600;margin-bottom:2px">What this reference means</div>
+          <div class="row"><span class="seg-k">${type}</span><span>Access request</span></div>
+          <div class="row"><span class="seg-k">${issuer}</span><span>${c ? esc(c.name) : issuer}</span></div>
+          <div class="row"><span class="seg-k">${year}</span><span>Year received</span></div>
+          <div class="row"><span class="seg-k">${sq}</span><span>Sequence number</span></div>
+          <div class="row"><span class="seg-k">${check}</span><span>Check character</span></div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px" data-act="copy" data-arg="${ref}">${icon('copy', 15)} Copy reference</button>
+        </div>`
+            : '';
+        return `<span class="menu-wrap"><button class="refchip ${lg ? 'lg' : ''}" data-act="menu" data-arg="${k}" aria-expanded="${!!menu}" aria-label="Reference ${ref}. Show what it means">${ref}</button>${menu}</span>`;
+      }
+
+      /* DeadlineChip (#249): due, due soon, due today, late, done. Accessible time text. */
+      function deadlineChip(
+        date,
+        {
+          label = 'Decision due',
+          soon = 5,
+          done = null,
+          doneLabel = 'Decided',
+          lateLabel = null,
+          expiry = false,
+        } = {},
+      ) {
+        const long = longDate(date);
+        const iso = isoDay(date);
+        if (done) {
+          const onTime = done <= date;
+          return `<span class="dchip ${onTime ? 'done' : 'late'}">${icon(onTime ? 'check' : 'clock', 13, 2.2)} <time datetime="${isoDay(done)}">${doneLabel} ${shortDate(done)}</time>${onTime ? '' : `<span class="sr-only">, after the deadline of ${long}</span>`}</span>`;
+        }
+        const n = dd(TODAY, date);
+        const ms = date - now();
+        if (expiry && ms > 0 && ms < DAY)
+          return `<span class="dchip soon" aria-label="${label} today, ${long}">${icon('clock', 13, 2.2)} <time datetime="${iso}">Expires in ${cdText(date, 'hm')}</time></span>`;
+        if (ms <= 0 && expiry)
+          return `<span class="dchip off">${icon('lock', 13, 2.2)} <time datetime="${iso}">${lateLabel || 'Expired'} ${shortDate(date)}</time></span>`;
+        if (n < 0)
+          return `<span class="dchip late" aria-label="${label} ${long}, ${plural(-n, 'day')} late">${icon('alert', 13, 2.2)} <time datetime="${iso}">${lateLabel || plural(-n, 'day') + ' late'}</time></span>`;
+        if (n === 0)
+          return `<span class="dchip soon" aria-label="${label} today, ${long}">${icon('clock', 13, 2.2)} <time datetime="${iso}">${expiry ? 'Expires today' : 'Due today'}</time></span>`;
+        if (n <= soon)
+          return `<span class="dchip soon" aria-label="${label} ${long}, in ${plural(n, 'day')}">${icon('clock', 13, 2.2)} <time datetime="${iso}">${expiry ? 'Expires' : 'Due'} in ${plural(n, 'day')}</time></span>`;
+        return `<span class="dchip" aria-label="${label} ${long}, in ${plural(n, 'day')}">${icon('calendar', 13, 2.2)} <time datetime="${iso}">${label} ${shortDate(date)}</time></span>`;
+      }
+
+      /* ScopePicker (#249). Editable: binds to <base>.yr / .sec / .spouses / .children / .clar.
+       * restrict: a requested scope; options outside it are disabled (partial grant subset). */
+      function scopePicker(base, { years, restrict = null, err = {}, idp = 'sp' } = {}) {
+        const sc = Kit.getPath(S, base);
+        const dis = (ok) => (restrict && !ok ? 'disabled' : '');
+        const opt = (bind, checked, label, sub = '', disabled = '', cls = '') =>
+          `<label class="sp-opt ${cls}"><input type="checkbox" id="${idp}-${bind.replace(/\W/g, '-')}" data-bind="${bind}" data-rerender ${checked ? 'checked' : ''} ${disabled}/><span class="box">${icon('check', 13, 3)}</span><span>${label}${sub ? `<span class="sub">${sub}</span>` : ''}</span></label>`;
+        return `<div class="sp ${err.years || err.sections ? 'err' : ''}">
+          <fieldset class="${err.years ? 'sp-invalid' : ''}" aria-describedby="${idp}-years-err"><legend>Declaration years ${tip('The year of each declaration’s statement date. Only years with filed declarations are listed.')}</legend>
+            <div class="sp-opts">${years.map((y) => opt(`${base}.yr.${y}`, sc.yr[y], String(y), '', dis(!restrict || restrict.years.includes(y)), 'yr')).join('')}</div>
+            ${err.years ? `<div style="margin-top:8px">${errLine(idp + '-years-err', err.years)}</div>` : ''}
+          </fieldset>
+          <fieldset><legend>People</legend>
+            <div class="sp-grid c3">${opt('_x', true, 'The officer', '', 'disabled')}${opt(`${base}.spouses`, sc.spouses, 'Spouses', '', dis(!restrict || restrict.spouses))}${opt(`${base}.children`, sc.children, 'Children', 'Under 18', dis(!restrict || restrict.children))}</div>
+          </fieldset>
+          <fieldset class="${err.sections ? 'sp-invalid' : ''}" aria-describedby="${idp}-sec-err"><legend>Sections</legend>
+            <div class="sp-grid c3">${SECTIONS.map((s) => opt(`${base}.sec.${s.k}`, sc.sec[s.k], s.l, '', dis(!restrict || restrict.sections.includes(s.k)))).join('')}</div>
+            ${err.sections ? `<div style="margin-top:8px">${errLine(idp + '-sec-err', err.sections)}</div>` : ''}
+          </fieldset>
+          <fieldset><legend>Clarifications</legend>
+            ${opt(`${base}.clar`, sc.clar, 'Include clarifications the officer gave', '', dis(!restrict || restrict.clar))}
+          </fieldset>
+        </div>`;
+      }
+      // Read-only scope. With `granted`, shows each requested item as granted or not.
+      function scopeView(req, granted = null) {
+        const item = (label, ok) => {
+          if (!granted) return `<span class="sv-i">${label}</span>`;
+          return `<span class="sv-i ${ok ? 'yes' : 'no'}">${icon(ok ? 'check' : 'x', 13, 2.4)} ${label}<span class="sr-only">${ok ? ': granted' : ': not granted'}</span></span>`;
+        };
+        const people = [item('The officer', true)];
+        if (req.spouses) people.push(item('Spouses', !granted || granted.spouses));
+        if (req.children) people.push(item('Children', !granted || granted.children));
+        const rows = [
+          ['Years', req.years.map((y) => item(String(y), !granted || granted.years.includes(y)))],
+          ['People', people],
+          [
+            'Sections',
+            req.sections.map((s) => item(secLabel(s), !granted || granted.sections.includes(s))),
+          ],
+        ];
+        if (req.clar) rows.push(['Clarifications', [item('Included', !granted || granted.clar)]]);
+        return `<div class="sv">${rows.map(([k, v]) => `<div class="sv-row"><div class="sv-k">${k}</div><div class="sv-v">${v.join('')}</div></div>`).join('')}${granted ? `<div class="sv-legend" aria-hidden="true"><span><i></i> Granted</span><span><i class="no"></i> Not granted</span></div>` : ''}</div>`;
+      }
+      // Grounds, read-only (GroundsSelect's display form in the portal)
+      const groundsList = (gs) =>
+        `<ul class="grounds">${gs.map((g) => `<li><span class="reg-tag" aria-label="Regulation 24 (${GROUNDS[g].letter})">24(${GROUNDS[g].letter})</span><span>${GROUNDS[g].label} ${tip(GROUNDS[g].text, 'Regulation text')}</span></li>`).join('')}</ul>`;
+
+      /* =====================================================================
+       * Onboarding (#247): public auth layout
+       * ===================================================================== */
+      function authArt() {
+        const items = [
+          ['shield', 'Identity checked once'],
+          ['file', 'Form K online, no paperwork'],
+          ['clock', 'A decision within 30 days'],
+        ];
+        return `<aside class="auth-art" aria-hidden="true">
+    <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3d2"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
+        <radialGradient id="sun" cx=".72" cy=".47" r=".22"><stop offset="0" stop-color="#fff4e6"/><stop offset=".5" stop-color="#ffd9b8" stop-opacity=".8"/><stop offset="1" stop-color="#ffd9b8" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="800" height="1000" fill="url(#sky)"/><rect width="800" height="1000" fill="url(#sun)"/>
+      <circle cx="576" cy="470" r="46" fill="#fff6ea" opacity=".95"/>
+      <path d="M0 560 C120 520 200 540 300 510 C420 470 520 520 640 490 C720 470 770 480 800 470 V1000 H0Z" fill="#e7936a" opacity=".55"/>
+      <path d="M0 610 C140 570 230 620 360 580 C500 540 600 600 800 555 V1000 H0Z" fill="#d97a4f" opacity=".7"/>
+      <path d="M0 680 C160 640 260 700 420 660 C560 625 660 690 800 650 V1000 H0Z" fill="#b95b35"/>
+      <path d="M0 770 C180 730 300 790 470 750 C610 720 700 770 800 745 V1000 H0Z" fill="#8f3f22"/>
+      <path d="M0 860 C200 830 330 880 520 845 C650 822 730 850 800 840 V1000 H0Z" fill="#5e2814"/>
+      <g fill="#4a1f0f"><path d="M150 745c-40-6-70 4-80 10 18 2 36-2 56 0-6 4-12 10-12 26h4c2-14 8-20 16-24 10 2 24 6 34 4-6-8-12-14-18-16Z"/><rect x="146" y="748" width="4" height="40"/></g>
+      <g fill="#4a1f0f"><path d="M640 735c-30-5-52 3-60 8 14 2 27-1 42 0-5 3-9 8-9 20h3c2-11 6-15 12-18 8 1 18 4 26 3-5-6-9-11-14-13Z"/><rect x="637" y="738" width="3" height="30"/></g>
+    </svg>
+    <div class="halftone"></div>
+    <div class="art-copy"><h2>Ask to see a public officer’s declaration.</h2></div>
+    <div class="art-list">${items.map(([ic, t]) => `<div class="art-item"><span class="ico">${icon(ic, 17)}</span>${t}</div>`).join('')}</div>
+  </aside>`;
+      }
+      const ON_STEPS = [
+        'Choose your ID',
+        'Your details',
+        'Verify your phone',
+        'Create your account',
+        'Set your password',
+      ];
+      function authLayout(body, { step = null, back = null, help = true } = {}) {
+        const stepper = step
+          ? `<div class="stepper-wrap"><div class="stepper" aria-hidden="true">${[1, 2, 3, 4, 5].map((i) => `<span class="s ${i < step ? 'done' : i === step ? 'cur' : ''}"></span>`).join('')}</div><div class="lbl" aria-live="polite">Step ${step} of 5<span class="sr-only">: ${ON_STEPS[step - 1]}</span></div></div>`
+          : '';
+        const backBtn = back
+          ? `<button class="back" style="margin-bottom:14px;align-self:flex-start" data-act="go" data-arg="${back}">${icon('left', 16)} Back</button>`
+          : '';
+        return `<div class="auth"><main class="auth-main">
+    <div class="auth-top">${Kit.logo(24, 'goLanding')}<div class="row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili will follow. English only for now.">${icon('globe', 16)} English</button><a class="btn btn-ghost btn-sm" href="${KC}#login">Sign in</a></div></div>
+    <div class="auth-body">${backBtn}${stepper}${body}${help ? `<div class="gs-foot-help">${icon('help', 16)}<span>Need help? Call the Adili helpdesk on 0800 720 720.</span></div>` : ''}</div>
+    <div class="auth-foot"><a class="link" style="font-weight:400" data-act="toast" data-arg="Privacy notice would open here">Privacy</a> · <a class="link" style="font-weight:400" data-act="toast" data-arg="Help centre would open here">Help</a></div>
+  </main>${authArt()}</div>`;
+      }
+
+      const screens = {};
+      const modals = {};
+      const actions = {};
+
+      screens.landing = () =>
+        authLayout(
+          `<h1 class="gs-h1" style="font-size:30px">Request access to a declaration</h1>
+    <p class="gs-sub">For members of the public, with a national ID or passport.</p>
+    <div class="stack" style="margin-top:26px;gap:10px">
+      <button class="btn btn-primary btn-block" data-act="startOnboarding">Get started ${icon('right', 17)}</button>
+      <a class="btn btn-secondary btn-block" href="${KC}#login">Sign in</a>
+    </div>
+    <p class="small muted" style="margin-top:14px">Public officer? <a class="link" href="declarant-journey.prototype.html#landing">Declare here</a></p>`,
+          { help: false },
+        );
+      actions.goLanding = () => Kit.go('landing');
+      actions.startOnboarding = () => {
+        S.on = freshOn();
+        Kit.go('ap-id');
+      };
+
+      /* ---- Step 1: ID type ---- */
+      screens['ap-id'] = () => {
+        const o = S.on;
+        const notice =
+          o.notice === 'ended'
+            ? 'Your session ended. Start again.'
+            : o.notice === 'toomany'
+              ? 'Too many attempts. Start again.'
+              : '';
+        return authLayout(
+          `${notice ? `<div class="callout callout-info" role="alert" style="margin-bottom:20px">${icon('info', 17)}<div>${notice}</div></div>` : ''}
+    <h1 class="gs-h1">How will you identify yourself?</h1>
+    <div style="margin-top:22px">${Kit.choices(
+      'on.kind',
+      [
+        {
+          k: 'national-id',
+          label: 'Kenyan national ID',
+          sub: 'Checked with the national register',
+          icon: 'card',
+        },
+        { k: 'passport', label: 'Passport', sub: 'Checked by the Commission later', icon: 'globe' },
+      ],
+      'c1',
+      { tiles: true },
+    )}</div>
+    <button class="btn btn-primary btn-block" style="margin-top:22px" data-act="go" data-arg="ap-details" ${o.kind ? '' : 'disabled'}>Continue</button>`,
+          { step: 1, back: 'landing' },
+        );
+      };
+
+      /* ---- Step 2: details (start: IPRS for national ID) ---- */
+      screens['ap-details'] = () => {
+        const o = S.on;
+        const pp = o.kind === 'passport';
+        const busy = o.st === 'checking';
+        const rate = o.st === 'rate' && left(o.rateUntil);
+        const e = o.err || {};
+        const ro = busy ? 'readonly' : '';
+        let alert = '';
+        if (o.st === 'mismatch')
+          alert = `<div class="callout callout-danger" role="alert" tabindex="-1" id="on-alert">${icon('alert', 17)}<div>These details do not match the national register. Enter your names and ID number exactly as they appear on your ID.</div></div>`;
+        if (o.st === 'already')
+          alert = `<div class="callout callout-info" role="alert" tabindex="-1" id="on-alert">${icon('userCheck', 17)}<div><div style="font-weight:600">You already have an account.</div><div class="row wrap" style="gap:8px;margin-top:10px"><a class="btn btn-primary btn-sm" href="${KC}#login">Sign in</a><a class="btn btn-secondary btn-sm" href="${KC}#reset-password">Recover access</a></div></div></div>`;
+        if (o.st === 'rate')
+          alert = `<div class="callout callout-warn" role="alert" tabindex="-1" id="on-alert">${icon('clock', 17)}<div>Too many attempts. Try again in ${rate ? cd(o.rateUntil, 'min') : '1 minute'}.</div></div>`;
+        if (o.st === 'unavailable')
+          alert = `<div class="callout callout-warn" role="alert" tabindex="-1" id="on-alert">${icon('clock', 17)}<div>The national register is not responding. Wait a few minutes and try again.</div></div>`;
+        if (o.st === 'error')
+          alert = `<div class="callout callout-danger" role="alert" tabindex="-1" id="on-alert">${icon('alert', 17)}<div>Something went wrong. Try again.</div></div>`;
+        const f = (label, bind, opts = {}, fo = {}) => {
+          const k = bind.split('.').pop();
+          return field(
+            label,
+            input(bind, {
+              ...opts,
+              cls: e[k] ? 'is-invalid' : '',
+              extra: `${opts.extra || ''} aria-invalid="${!!e[k]}" ${ro}`,
+            }),
+            { id: 'f-' + bind.replace(/\./g, '-'), error: e[k], ...fo },
+          );
+        };
+        return authLayout(
+          `<h1 class="gs-h1">Your details</h1>
+    ${alert ? `<div style="margin-top:18px">${alert}</div>` : ''}
+    <div class="stack" style="margin-top:22px">
+      <div class="grid-2c">${f('Surname', 'on.surname', { extra: 'autocomplete="family-name"' })}${f('First name', 'on.first', { extra: 'autocomplete="given-name"' })}</div>
+      ${f('Other names', 'on.other', { extra: 'autocomplete="additional-name"' }, { opt: true })}
+      ${
+        pp
+          ? `<div class="grid-2c">${f('Passport number', 'on.number', { extra: 'autocapitalize="characters" autocomplete="off" maxlength="20"' })}${field('Issuing country', select('on.country', COUNTRIES, { ph: 'Choose', cls: e.country ? 'is-invalid' : '', extra: ro ? 'disabled' : '' }), { id: 'f-on-country', error: e.country })}</div>`
+          : f('National ID number', 'on.number', {
+              extra: 'inputmode="numeric" autocomplete="off" maxlength="10"',
+            })
+      }
+      ${f('Mobile number', 'on.phone', { type: 'tel', ph: pp ? '+233 24 471 8265' : '0712 345 678', extra: 'inputmode="tel" autocomplete="tel"' }, { hint: 'We send a code by SMS.' })}
+      ${f('Email address', 'on.email', { type: 'email', ph: 'name@example.com', extra: 'autocomplete="email"' }, { hint: 'Your password link goes here.' })}
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:22px" data-act="startApplicant" ${busy || rate ? 'disabled' : ''}>${busy ? `<span class="spinner"></span> ${pp ? 'Sending code…' : 'Checking the national register…'}` : rate ? `${icon('clock', 16)} <span>Try again in ${cd(o.rateUntil, 'mmss')}</span>` : 'Continue'}</button>
+    ${proto(pp ? 'Any passport number works (no register check). Fill: <a data-act="fillOn">sample passport holder</a>.' : 'ID 28841276 + Kamau matches. 30112233 is already registered. Any other ID does not match; the 6th try is rate-limited. Fill: <a data-act="fillOn">Mercy Kamau</a>.')}`,
+          { step: 2, back: 'ap-id' },
+        );
+      };
+      actions.fillOn = () => {
+        const a = S.on.kind === 'passport' ? APPLICANTS.passport : APPLICANTS.id;
+        Object.assign(S.on, {
+          surname: a.surname,
+          first: a.first,
+          other: a.other,
+          number: a.number,
+          country: S.on.kind === 'passport' ? a.country : '',
+          phone: S.on.kind === 'passport' ? '+233 24 471 8265' : '0722 418 903',
+          email: a.email,
+          err: {},
+          st: null,
+        });
+        Kit.render();
+      };
+      actions.startApplicant = () => {
+        const o = S.on;
+        const pp = o.kind === 'passport';
+        const e = {};
+        if (o.surname.trim().length < 2) e.surname = 'Enter your surname.';
+        if (o.first.trim().length < 2) e.first = 'Enter your first name.';
+        const n = o.number.replace(/\s/g, '');
+        if (pp ? !/^[A-Za-z0-9]{5,20}$/.test(n) : !/^\d{5,10}$/.test(n))
+          e.number = pp
+            ? 'Enter your passport number (5 to 20 letters or numbers).'
+            : 'Enter your national ID number (5 to 10 digits).';
+        if (pp && !o.country) e.country = 'Choose the country that issued your passport.';
+        const ph = o.phone.replace(/[\s-]/g, '');
+        const ke = /^(?:\+?254|0)([17]\d{8})$/.exec(ph);
+        if (!(pp ? /^\+[1-9]\d{6,14}$/.test(ph) || ke : ke))
+          e.phone = pp
+            ? 'Enter your mobile number with the country code, e.g. +233 24 471 8265.'
+            : 'Enter a mobile number, e.g. 0712 345 678.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(o.email.trim()))
+          e.email = 'Enter an email address in the format name@example.com.';
+        o.err = e;
+        o.st = null;
+        if (Object.keys(e).length) {
+          Kit.render();
+          document.getElementById('f-on-' + Object.keys(e)[0])?.focus();
+          return;
+        }
+        o.st = 'checking';
+        Kit.render();
+        setTimeout(() => {
+          o.attempts++;
+          if (o.attempts >= 6) {
+            o.st = 'rate';
+            o.rateUntil = Date.now() + (14 * 60 + 32) * 1000;
+          } else if (pp || (n === '28841276' && o.surname.trim().toLowerCase() === 'kamau')) {
+            o.st = null;
+            o.masked = ke
+              ? '07** *** ' + ke[1].slice(-3)
+              : ph.slice(0, 4) + ' ** *** ' + ph.slice(-4);
+            o.emailMasked = o.email.trim()[0] + '***@' + o.email.trim().split('@')[1];
+            o.otp = {
+              code: blank(),
+              st: null,
+              attemptsLeft: 5,
+              resendAt: Date.now() + 60000,
+              resendsLeft: 3,
+            };
+            return Kit.go('ap-phone');
+          } else if (n === '30112233') o.st = 'already';
+          else o.st = 'mismatch';
+          Kit.render();
+          document.getElementById('on-alert')?.focus();
+        }, 1100);
+      };
+
+      /* ---- Step 3: phone code ---- */
+      screens['ap-phone'] = () => {
+        const o = S.on;
+        const c = o.otp;
+        const verifying = c.st === 'verifying';
+        let otpHtml = Kit.otp('on.otp.code', 'verifyPhone').replace(
+          'aria-label="6-digit code"',
+          'aria-labelledby="otp-l"',
+        );
+        if (c.st === 'wrong' || c.st === 'expired')
+          otpHtml = otpHtml.replace('class="otp"', 'class="otp err"');
+        if (verifying)
+          otpHtml = otpHtml
+            .replace('class="otp"', 'class="otp dis"')
+            .replace(/<input /g, '<input disabled ');
+        const err =
+          c.st === 'wrong'
+            ? `That code is not right. ${plural(c.attemptsLeft, 'attempt')} left.`
+            : c.st === 'expired'
+              ? 'That code has expired. Resend to get a new one.'
+              : c.st === 'sendfail'
+                ? 'We could not send the code. Try again in a minute.'
+                : '';
+        const cool = left(c.resendAt);
+        return authLayout(
+          `<h1 class="gs-h1">Verify your phone</h1>
+    <p class="gs-sub">We sent a 6-digit code by SMS to <span class="masked">${esc(o.masked || ME().phoneMasked)}</span><span class="sr-only"> (partly hidden)</span>.</p>
+    <div class="otp-group" style="margin-top:24px">
+      <span class="label" id="otp-l">6-digit code</span>
+      ${otpHtml}
+      ${verifying ? `<div class="row small muted" style="gap:8px" aria-live="polite"><span class="spinner dark sm"></span> Checking the code…</div>` : errLine('otp-err', err)}
+      <div class="otp-row">${cool ? `<button class="linklike" disabled aria-disabled="true">Resend in ${cd(c.resendAt, 's')}</button>` : `<button class="linklike" data-act="resendOtp">Resend code</button>`}${c.resendsLeft < 3 ? `<span class="muted small"> · ${c.resendsLeft === 0 ? 'no more resends' : plural(c.resendsLeft, 'resend') + ' left'}</span>` : ''}</div>
+    </div>
+    <p class="small muted" style="margin-top:18px">Wrong number? <button class="linklike" data-act="go" data-arg="ap-details">Change it</button></p>
+    ${proto('Any 6 digits verify. 111111 is wrong (attempts count down), 000000 has expired.')}`,
+          { step: 3 },
+        );
+      };
+      actions.verifyPhone = (code) => {
+        const c = S.on.otp;
+        c.st = 'verifying';
+        Kit.render();
+        setTimeout(() => {
+          if (code === '111111') {
+            c.attemptsLeft--;
+            if (c.attemptsLeft <= 0) return sessionEnded('toomany');
+            c.st = 'wrong';
+          } else if (code === '000000') c.st = 'expired';
+          else {
+            c.st = null;
+            return Kit.go('ap-create');
+          }
+          Kit.render();
+          document.querySelector('#view .otp input')?.focus();
+        }, 900);
+      };
+      actions.resendOtp = () => {
+        const c = S.on.otp;
+        if (c.resendsLeft <= 0) return sessionEnded('toomany');
+        c.resendsLeft--;
+        c.resendAt = Date.now() + 60000;
+        c.st = null;
+        c.code.fill('');
+        Kit.toast('New code sent');
+      };
+      function sessionEnded(kind) {
+        const kindWas = S.on.kind;
+        S.on = freshOn();
+        S.on.kind = kindWas;
+        S.on.notice = kind;
+        Kit.go('ap-id');
+      }
+
+      /* ---- Step 4: create account (complete) ---- */
+      screens['ap-create'] = () => {
+        const o = S.on;
+        const pp = o.kind === 'passport';
+        const a = pp ? APPLICANTS.passport : APPLICANTS.id;
+        const name = [o.first || a.first, o.other || a.other, o.surname || a.surname]
+          .filter(Boolean)
+          .join(' ');
+        const busy = o.create.st === 'busy';
+        const alert =
+          o.create.st === 'unavailable'
+            ? `<div class="callout callout-danger" role="alert" tabindex="-1" id="cr-alert">${icon('alert', 17)}<div>Your account could not be created. Try again.</div></div>`
+            : o.create.st === 'expired'
+              ? ''
+              : '';
+        return authLayout(
+          `<h1 class="gs-h1">Create your account</h1>
+    <div class="card" style="margin-top:20px">
+      <dl class="dl" style="padding:4px 18px">
+        <div><dt>Name</dt><dd>${esc(name)}</dd></div>
+        <div><dt>${pp ? 'Passport' : 'National ID'}</dt><dd><span class="mono">${esc(o.number || a.number)}</span>${pp ? ` · ${esc(countryName(o.country || a.country))}` : ` <span class="vbadge-ok">${icon('check', 12, 2.6)} Matches the register</span>`}</dd></div>
+        <div><dt>Phone</dt><dd><span class="masked">${esc(o.masked || a.phoneMasked)}</span> <span class="vbadge-ok">${icon('check', 12, 2.6)} Verified</span></dd></div>
+        <div><dt>Email</dt><dd>${esc(o.email || a.email)}</dd></div>
+      </dl>
+    </div>
+    ${pp ? `<div class="callout callout-info" style="margin-top:16px">${icon('info', 17)}<div>Your identity will be verified by the Commission when you submit your first request.</div></div>` : ''}
+    ${alert ? `<div style="margin-top:16px">${alert}</div>` : ''}
+    <button class="btn btn-primary btn-block" style="margin-top:20px" data-act="createAccount" ${busy ? 'disabled' : ''}>${busy ? '<span class="spinner"></span> Creating your account…' : 'Create account'}</button>
+    ${proto(`Outcome on create: <a data-act="setCreate" data-arg="ok" style="${o.create.outcome === 'ok' ? '' : 'opacity:.7;text-decoration:none'}">account created</a> · <a data-act="setCreate" data-arg="unavailable" style="${o.create.outcome === 'unavailable' ? '' : 'opacity:.7;text-decoration:none'}">account error (502)</a> · <a data-act="setCreate" data-arg="expired" style="${o.create.outcome === 'expired' ? '' : 'opacity:.7;text-decoration:none'}">session expired (410)</a>`)}`,
+          { step: 4 },
+        );
+      };
+      actions.setCreate = (k) => {
+        S.on.create.outcome = k;
+        S.on.create.st = null;
+        Kit.render();
+      };
+      actions.createAccount = () => {
+        const o = S.on;
+        o.create.st = 'busy';
+        Kit.render();
+        setTimeout(() => {
+          if (o.create.outcome === 'unavailable') {
+            o.create.st = 'unavailable';
+            o.create.outcome = 'ok';
+            Kit.render();
+            return document.getElementById('cr-alert')?.focus();
+          }
+          if (o.create.outcome === 'expired') return sessionEnded('ended');
+          o.create.st = null;
+          o.pwResendAt = Date.now() + 60000;
+          Kit.go('ap-email');
+        }, 1200);
+      };
+
+      /* ---- Step 5: check your email ---- */
+      screens['ap-email'] = () => {
+        const o = S.on;
+        const pp = o.kind === 'passport';
+        const cool = left(o.pwResendAt);
+        return authLayout(
+          `<div class="success-mark" style="background:var(--brand-soft);color:var(--brand-ink)">${icon('mail', 30, 2)}</div>
+    <h1 class="gs-h1">Check your email</h1>
+    <p class="gs-sub">Your account is ready. Set your password with the link sent to <span class="masked">${esc(o.emailMasked || (pp ? APPLICANTS.passport : APPLICANTS.id).emailMasked)}</span>. It expires in 24 hours.</p>
+    ${pp ? `<div class="callout callout-info" style="margin-top:18px">${icon('info', 17)}<div>Your identity will be verified by the Commission when you submit your first request.</div></div>` : ''}
+    <div class="stack" style="margin-top:22px;gap:10px">
+      <button class="btn btn-secondary btn-block" data-act="resendPw" ${cool ? 'disabled' : ''}>${cool ? `<span>Resend email in ${cd(o.pwResendAt, 's')}</span>` : `${icon('send', 16)} Resend email`}</button>
+      <a class="btn btn-ghost btn-block" href="${KC}#login">Sign in</a>
+    </div>
+    ${proto(`<a href="${KC}#update-password">Open the set-password link</a> (Keycloak page). After saving a password you land on <a data-act="signedIn" data-arg="${pp ? 'passport' : 'id'}">My requests</a>.`)}`,
+          { step: 5 },
+        );
+      };
+      actions.resendPw = () => {
+        S.on.pwResendAt = Date.now() + 60000;
+        Kit.toast('Email sent again');
+      };
+      actions.signedIn = (world) => {
+        setWorld(world || 'id');
+        S.reqs = []; // a new account has no requests yet
+        Kit.go('requests');
+      };
+      function setWorld(w) {
+        S.world = w;
+        S.reqs = w === 'passport' ? passportRequests() : makeRequests();
+        S.list = { page: 1, pageSize: 10, load: null };
+        S.detail = { load: null, notFound: false, dl: null, force410: false, force409: false };
+        S.f = freshForm();
+      }
+
+      /* =====================================================================
+       * Signed-in portal (applicant shell)
+       * ===================================================================== */
+      const NAV = [
+        ['My requests', 'list', FILE + '#requests'],
+        ['New request', 'plus', FILE + '#new'],
+      ];
+      const shell = (body, active = 'My requests') =>
+        portalShell(body, {
+          nav: NAV,
+          active,
+          avatar: { initials: ME().initials, href: '#account' },
+        });
+      function skeletonList(n = 3) {
+        return `<div class="card" aria-busy="true" aria-label="Loading">${Array.from({ length: n }, () => `<div class="skel-card"><span class="skeleton circle"></span><div style="flex:1;display:grid;gap:10px;padding-top:4px"><span class="skeleton" style="width:40%;height:14px"></span><span class="skeleton" style="width:65%"></span><span class="skeleton" style="width:25%"></span></div></div>`).join('')}</div>`;
+      }
+      function errorCard(what, act) {
+        return `<div class="card"><div class="empty" style="padding:48px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--danger-soft);color:var(--danger)">${icon('wifiOff', 16)}</span></div><h4>We could not load ${what}</h4><p>Check your connection and try again.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="${act}">${icon('refresh', 16)} Try again</button></div></div></div>`;
+      }
+      const pendingBanner = () =>
+        ME().identityStatus === 'pending-verification'
+          ? `<div class="banner banner-warn" style="margin-top:20px">${icon('userCheck', 18)}<div><b>Your passport is not verified yet.</b> The Commission checks it when it receives your first request.</div></div>`
+          : '';
+
+      /* ---------- My requests (#251) ---------- */
+      function reqChip(r) {
+        if (OPEN.includes(r.status)) return deadlineChip(r.deadlineAt);
+        if (GRANTED.includes(r.status) && r.pkg) {
+          if (r.pkg.expiresAt <= now())
+            return `<span class="badge">${icon('lock', 13)} Download expired</span>`;
+          return deadlineChip(r.pkg.expiresAt, { label: 'Download by', soon: 3, expiry: true });
+        }
+        return '';
+      }
+      function reqCard(r) {
+        const st = STATUS[r.status];
+        const tone = TONES[st.tone];
+        const c = comm(r.comm);
+        const when = r.decision
+          ? `Decided ${fmtDate(r.decision.decidedAt)}`
+          : r.withdrawnAt
+            ? `Withdrawn ${fmtDate(r.withdrawnAt)}`
+            : r.closedAt
+              ? `Closed ${fmtDate(r.closedAt)}`
+              : `Submitted ${fmtDate(r.submittedAt)}`;
+        return `<a class="cardlink" href="#request" data-act="go" data-arg="request|${r.id}"><div class="lc"><span class="ico" style="background:${tone[0]};color:${tone[1]}">${icon(st.icon, 18)}</span><div class="body">
+          <div class="t">${esc(r.officer.name)}</div>
+          <div class="d"><span class="mono">${r.ref}</span> · ${c.code}</div>
+          <div class="d">${when}</div>
+          <div class="tags">${statusBadge(r.status)}${reqChip(r)}</div></div><span class="chev">${icon('right', 20)}</span></div></a>`;
+      }
+      screens.requests = () => {
+        const L = S.list;
+        const head = `<div class="head-row"><h1 class="page-title">My requests</h1>${S.reqs.length && !L.load ? `<button class="btn btn-primary" data-act="newRequest">${icon('plus', 16)} New request</button>` : ''}</div>${pendingBanner()}`;
+        let body;
+        if (L.load === 'loading') body = skeletonList(4);
+        else if (L.load === 'error') body = errorCard('your requests', 'retryList');
+        else if (!S.reqs.length)
+          body = `<div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--brand-soft);color:var(--brand-ink)">${icon('file', 16)}</span></div><h4>No requests yet</h4><p>Ask to see a public officer’s declaration.</p><div style="margin-top:14px"><button class="btn btn-primary" data-act="newRequest">${icon('plus', 16)} New request</button></div></div></div>`;
+        else {
+          const rows = [...S.reqs].sort((a, b) => b.submittedAt - a.submittedAt);
+          const pages = Math.max(1, Math.ceil(rows.length / L.pageSize));
+          const page = Math.min(L.page, pages);
+          const shown = rows.slice((page - 1) * L.pageSize, page * L.pageSize);
+          body = `<div class="card">${shown.map(reqCard).join('')}${rows.length > L.pageSize ? Kit.pager({ page, pageSize: L.pageSize, total: rows.length, act: 'listPage', label: 'requests' }) : ''}</div>`;
+        }
+        return shell(
+          `<div class="page" style="max-width:880px">${head}<div style="margin-top:24px">${body}</div></div>`,
+        );
+      };
+      actions.listPage = (p) => {
+        S.list.page = Number(p);
+        Kit.render();
+        document.getElementById('view').scrollTop = 0;
+      };
+      actions.retryList = () => {
+        S.list.load = 'loading';
+        Kit.render();
+        setTimeout(() => {
+          S.list.load = null;
+          Kit.render();
+        }, 900);
+      };
+      actions.newRequest = () => {
+        S.f = freshForm();
+        Kit.go('new');
+      };
+
+      /* ---------- Request detail (#251, #261) ---------- */
+      function bannerFor(r) {
+        const c = comm(r.comm);
+        const b = (kind, ic, html) =>
+          `<div class="banner banner-${kind}">${icon(ic, 18)}<div>${html}</div></div>`;
+        const late = OPEN.includes(r.status) && dd(TODAY, r.deadlineAt) < 0;
+        switch (r.status) {
+          case 'submitted':
+            return b(
+              'info',
+              'send',
+              `<b>${c.code} received your request on ${fmtDate(r.submittedAt)}.</b> Next, it identifies the officer on its roster.`,
+            );
+          case 'pending-applicant-verification':
+            return b(
+              'warn',
+              'userCheck',
+              `<b>Waiting for ${c.code} to verify your passport.</b> Your request moves on once it is verified.`,
+            );
+          case 'officer-unresolved':
+            return b(
+              'info',
+              'search',
+              `<b>${c.code} is identifying the officer on its roster.</b>`,
+            );
+          case 'awaiting-representations':
+            return b(
+              'info',
+              'bell',
+              `<b>${c.code} has notified the officer.</b> They can respond until ${fmtDate(r.windowEndsAt)}. Then ${c.code} decides.`,
+            );
+          case 'under-decision':
+            return late
+              ? b(
+                  'danger',
+                  'alert',
+                  `<b>The decision is ${plural(-dd(TODAY, r.deadlineAt), 'day')} overdue.</b> It was due ${fmtDate(r.deadlineAt)}. Contact ${c.code} to follow up.`,
+                )
+              : b(
+                  'info',
+                  'scale',
+                  `<b>${c.code} is deciding.</b> It must decide by ${fmtDate(r.deadlineAt)}.`,
+                );
+          case 'granted':
+            return r.pkg && r.pkg.expiresAt <= now()
+              ? b(
+                  'neutral',
+                  'lock',
+                  `<b>Access was granted on ${fmtDate(r.decision.decidedAt)}.</b> The download window closed on ${fmtDate(r.pkg.expiresAt)}.`,
+                )
+              : b(
+                  'ok',
+                  'check',
+                  `<b>Access granted on ${fmtDate(r.decision.decidedAt)}.</b> Download your package ${dd(TODAY, r.pkg.expiresAt) === 0 ? 'today' : 'by ' + fmtDate(r.pkg.expiresAt)}.`,
+                );
+          case 'partially-granted':
+            return r.pkg && r.pkg.expiresAt <= now()
+              ? b(
+                  'neutral',
+                  'lock',
+                  `<b>Access was partially granted on ${fmtDate(r.decision.decidedAt)}.</b> The download window closed on ${fmtDate(r.pkg.expiresAt)}.`,
+                )
+              : b(
+                  'ok',
+                  'listCheck',
+                  `<b>Access partially granted on ${fmtDate(r.decision.decidedAt)}.</b> Some of what you asked for was not granted.`,
+                );
+          case 'denied':
+            return b(
+              'danger',
+              'ban',
+              `<b>${c.code} denied your request on ${fmtDate(r.decision.decidedAt)}.</b> This decision is final. You may seek relief from the court.`,
+            );
+          case 'cannot-identify':
+            return b(
+              'neutral',
+              'userX',
+              `<b>${c.code} could not identify this officer on its roster, so the request is closed.</b> Check the officer’s details and make a new request.<div><button class="btn btn-secondary btn-sm" data-act="copyToNew" data-arg="${r.id}">${icon('copy', 15)} New request with these details</button></div>`,
+            );
+          case 'withdrawn':
+            return b(
+              'neutral',
+              'undo',
+              `<b>You withdrew this request on ${fmtDate(r.withdrawnAt)}.</b>`,
+            );
+        }
+        return '';
+      }
+      function timerCard(r) {
+        if (!OPEN.includes(r.status)) return ''; // decided or closed: the progress card carries the dates
+        const total = 30;
+        const decided = r.decision;
+        const endAt = decided ? decided.decidedAt : TODAY;
+        const elapsed = Math.min(total, Math.max(0, dd(r.submittedAt, endAt)));
+        const n = dd(TODAY, r.deadlineAt);
+        let big, sub, cls;
+        if (decided) {
+          const late = dd(r.deadlineAt, decided.decidedAt) > 0;
+          big = late
+            ? `Decided ${plural(dd(r.deadlineAt, decided.decidedAt), 'day')} late`
+            : 'Decided on time';
+          sub = `${fmtDate(decided.decidedAt)} · due ${fmtDate(r.deadlineAt)}`;
+          cls = late ? 'warn' : 'ok';
+        } else if (n < 0) {
+          big = `Decision ${plural(-n, 'day')} overdue`;
+          sub = `Was due ${fmtDate(r.deadlineAt)}`;
+          cls = 'danger';
+        } else {
+          big = n === 0 ? 'Decision due today' : `Decision due in ${plural(n, 'day')}`;
+          sub = `Due ${fmtDate(r.deadlineAt)} · day ${elapsed} of ${total}`;
+          cls = n <= 5 ? 'warn' : '';
+        }
+        const w = Math.min(100, Math.round((elapsed / total) * 100));
+        const winPct =
+          r.status === 'awaiting-representations' && r.windowEndsAt
+            ? Math.min(
+                96,
+                Math.max(4, Math.round((dd(r.submittedAt, r.windowEndsAt) / total) * 100)),
+              )
+            : null;
+        return `<div class="card card-pad"><div class="timer" role="group" aria-label="Decision period">
+          <div class="big ${!decided && cls ? cls : ''}">${big}</div>
+          <div class="small muted" style="margin-top:2px">${sub}</div>
+          <div class="bar ${cls}" role="img" aria-label="${elapsed} of ${total} days used"><i style="width:${w}%"></i>${winPct ? `<span class="mark" style="left:${winPct}%" title="Officer responds by ${fmtDate(r.windowEndsAt)}"></span>` : ''}</div>
+          <div class="scale"><span>${shortDate(r.submittedAt)}</span><span>${shortDate(r.deadlineAt)}</span></div>
+          ${winPct ? `<div class="small muted row" style="gap:8px;margin-top:10px"><span class="mark-key" aria-hidden="true"></span>Officer can respond until ${shortDate(r.windowEndsAt)}</div>` : ''}
+        </div></div>`;
+      }
+      function progressCard(r) {
+        const c = comm(r.comm);
+        const li = (state, title, sub = '') =>
+          `<li class="${state}"><span class="tl-ico ${state}">${state === 'done' ? icon('check', 14, 2.6) : state === 'fail' ? icon('x', 14, 2.6) : state === 'cur' ? icon('dot', 12) : ''}</span><div><div class="tl-t">${title}</div>${sub ? `<div class="tl-s">${sub}</div>` : ''}</div></li>`;
+        const e = [
+          li('done', 'Received', `${fmtDateTime(r.submittedAt)} · acknowledged by SMS and email`),
+        ];
+        if (r.passport || r.verifiedAt)
+          e.push(
+            r.status === 'pending-applicant-verification'
+              ? li('cur', 'Passport verification', `Waiting for ${c.code}`)
+              : li('done', 'Passport verified', fmtDate(r.verifiedAt)),
+          );
+        if (r.status === 'withdrawn') {
+          e.push(li('fail', 'Withdrawn by you', fmtDateTime(r.withdrawnAt)));
+        } else if (r.status === 'cannot-identify') {
+          e.push(li('fail', 'Officer could not be identified', fmtDate(r.closedAt)));
+        } else {
+          const pend = r.status === 'pending-applicant-verification';
+          e.push(
+            r.resolvedAt
+              ? li('done', 'Officer identified', fmtDate(r.resolvedAt))
+              : li(
+                  pend ? 'todo' : 'cur',
+                  'Officer identified',
+                  pend ? '' : `${c.code} is checking its roster`,
+                ),
+          );
+          e.push(
+            r.notifiedAt
+              ? li(
+                  r.status === 'awaiting-representations' ? 'cur' : 'done',
+                  'Officer notified',
+                  r.status === 'awaiting-representations'
+                    ? `Can respond until ${fmtDate(r.windowEndsAt)}`
+                    : fmtDate(r.notifiedAt),
+                )
+              : li('todo', 'Officer notified', 'They get 7 days to respond'),
+          );
+          e.push(
+            r.decision
+              ? li(
+                  'done',
+                  'Decision',
+                  `${STATUS[r.status].label} · ${fmtDate(r.decision.decidedAt)}`,
+                )
+              : li(
+                  r.status === 'under-decision' ? 'cur' : 'todo',
+                  'Decision',
+                  `Due ${fmtDate(r.deadlineAt)}`,
+                ),
+          );
+          if (GRANTED.includes(r.status) && r.pkg) {
+            const exp = r.pkg.expiresAt <= now();
+            e.push(
+              li(
+                exp ? 'done' : 'cur',
+                exp ? 'Download window closed' : 'Package ready',
+                exp ? fmtDate(r.pkg.expiresAt) : `Until ${fmtDate(r.pkg.expiresAt)}`,
+              ),
+            );
+          }
+        }
+        const canWithdraw = OPEN.includes(r.status);
+        return `<div class="card"><div class="card-pad" style="padding-bottom:6px"><div class="section-title">Progress</div><ul class="timeline prog" style="margin-top:14px">${e.join('')}</ul></div>${canWithdraw ? `<div class="card-foot"><button class="btn btn-danger-ghost btn-sm" data-act="modal" data-arg="withdraw|${r.id}">${icon('undo', 15)} Withdraw request</button></div>` : ''}</div>`;
+      }
+      function helpCard(r) {
+        const c = comm(r.comm);
+        return `<div class="card card-pad"><div class="section-title">Contact ${c.code}</div><div style="display:grid;gap:8px;margin-top:12px;font-size:14px"><div class="row" style="gap:10px">${icon('phone', 16)} ${c.phone}</div><div class="row" style="gap:10px;min-width:0">${icon('mail', 16)} <span class="truncate">${c.email}</span></div></div><p class="small muted" style="margin-top:10px">Quote <span class="mono">${r.ref}</span>.</p></div>`;
+      }
+      function decisionCard(r) {
+        const d = r.decision;
+        if (!d) return '';
+        const partial = d.outcome === 'partial-grant';
+        return `<div class="card">
+          <div class="card-head"><h3 style="flex:1">Decision</h3>${docLink('access-decision', 'Decision letter')}</div>
+          <div class="card-pad stack" style="gap:18px">
+            ${d.grounds.length ? `<div><div class="sec-label">Grounds</div>${groundsList(d.grounds)}</div>` : ''}
+            <div><div class="sec-label">Reasons</div><div class="prose">${esc(d.reasons)}</div></div>
+            ${partial ? `<div><div class="sec-label" style="margin-bottom:10px">What you asked for</div>${scopeView(r.scope, d.grantedScope)}</div>` : ''}
+          </div>
+        </div>`;
+      }
+      function packageCard(r) {
+        if (!GRANTED.includes(r.status)) return '';
+        const p = r.pkg;
+        const me = ME();
+        const dls = p ? p.downloads : [];
+        if (!p || p.preparing)
+          return `<div class="card card-pad"><div class="row" style="gap:14px;align-items:flex-start"><span class="spinner dark" style="margin-top:3px"></span><div><div style="font-weight:600">Preparing your package…</div><div class="small muted" style="margin-top:2px">Usually a few minutes. We will SMS and email you when it is ready.</div></div></div></div>`;
+        const expired = p.expiresAt <= now();
+        const hoursLeft = (p.expiresAt - now()) / 3600000;
+        const days = dd(TODAY, p.expiresAt);
+        const wmText = `${esc(me.full)}<br/>${r.ref}<br/>${fmtDate(p.issuedAt)}`;
+        const thumb = `<div class="wm ${expired ? 'off' : ''}" aria-hidden="true"><span class="cf">CONFIDENTIAL</span>${[20, 30, 38, 46, 76, 84, 92, 100].map((t, i) => `<span class="ln" style="top:${t}px;${i % 3 === 2 ? 'right:34px' : ''}"></span>`).join('')}<span class="mk">${wmText}</span></div>`;
+        const dlText = dls.length
+          ? `Downloaded ${plural(dls.length, 'time')} · last ${fmtDateTime(dls[dls.length - 1])}`
+          : 'Not downloaded yet';
+        let acts;
+        if (expired)
+          acts = `<div class="pkg-acts"><span class="badge">${icon('lock', 13)} Expired ${fmtDate(p.expiresAt)}</span><span class="small muted">${dlText}</span></div><p class="small muted" style="margin-top:10px">Contact ${comm(r.comm).code} if you still need it.</p>`;
+        else {
+          const busy = S.detail.dl === 'busy';
+          const expLine =
+            hoursLeft < 24
+              ? `<span class="exp-line warn" role="timer">${icon('clock', 15)}<span>Expires in <span class="cd" data-cd="${p.expiresAt}" data-fmt="hm">${cdText(p.expiresAt, 'hm')}</span></span></span><span class="sr-only" aria-live="polite" data-cd-sr="${p.expiresAt}">Expires in ${Math.ceil(hoursLeft)} hours</span>`
+              : `<span class="exp-line ${days <= 3 ? 'warn' : ''}">${icon('clock', 15)} Expires ${fmtDate(p.expiresAt)} · ${plural(days, 'day')} left</span>`;
+          acts = `<div class="pkg-acts"><a class="btn btn-primary" href="${DOCS}#access-package" target="_blank" rel="noopener" data-act="download" data-arg="${r.id}" ${busy ? 'aria-disabled="true"' : ''}>${busy ? '<span class="spinner"></span> Preparing link…' : `${icon('download', 16)} Download`}</a>${expLine}</div>
+            ${S.detail.dl === 'error' ? `<div style="margin-top:10px">${errLine('dl-err', 'Could not start the download. Try again.')}</div>` : ''}
+            <p class="small muted" style="margin-top:10px">${dlText}</p>`;
+        }
+        return `<div class="card"><div class="card-head"><h3 style="flex:1">Package</h3><span class="badge badge-danger">${icon('lock', 12, 2.2)} Confidential</span></div>
+          <div class="card-pad"><div class="pkg">${thumb}<div class="pkg-body">
+            <div style="font-weight:500">Issued to you on ${fmtDate(p.issuedAt)}.</div>
+            <div class="small muted" style="margin-top:3px">Your name and reference are on every page.</div>
+            ${acts}
+          </div></div></div>
+          <div class="card-foot small" style="color:var(--ink-2);gap:8px">${icon('alert', 15)}<span style="flex:1;min-width:0">Publishing or sharing it without ${comm(r.comm).code}’s permission is an offence. ${tip('Act s.36(4): a person who publishes information obtained under section 36 without prior permission of the responsible Commission, or knowingly disseminates it, commits an offence.', 'Legal basis')}</span></div>
+        </div>`;
+      }
+      function requestCard(r) {
+        const o = r.officer;
+        const showScope = !(r.decision && r.decision.outcome === 'partial-grant');
+        const row = (k, v) =>
+          v ? `<div><div class="sec-label">${k}</div><div class="prose">${esc(v)}</div></div>` : '';
+        return `<div class="card"><div class="card-head"><h3>Your request</h3></div><div class="card-pad kv-list">
+          <div class="grid-2c">${row('Officer', o.name)}${row('Entity', o.entity)}${row('Work station', o.workStation)}${row('Personnel file number', o.fileNo)}</div>
+          ${row('Information sought', r.info.what)}
+          ${row('Reason', r.info.reason)}
+          ${row('Other information', r.info.other)}
+          ${showScope ? `<div><div class="sec-label" style="margin-bottom:10px">Scope</div>${scopeView(r.scope)}</div>` : ''}
+        </div></div>`;
+      }
+      screens.request = () => {
+        const D = S.detail;
+        const back = `<button class="back" data-act="go" data-arg="requests">${icon('left', 16)} My requests</button>`;
+        if (D.load === 'loading')
+          return shell(
+            `<div class="page">${back}<span class="skeleton" style="display:block;width:280px;height:30px"></span><span class="skeleton" style="display:block;width:200px;height:14px;margin-top:14px"></span><div class="side-grid"><div class="stack"><div class="card card-pad" aria-busy="true"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:40%;margin-top:12px;display:block"></span></div>${skeletonList(1)}</div><div class="side"><div class="card card-pad"><span class="skeleton" style="width:60%;height:20px;display:block"></span><span class="skeleton" style="width:90%;margin-top:14px;display:block"></span></div></div></div></div>`,
+          );
+        if (D.load === 'error')
+          return shell(
+            `<div class="page" style="max-width:720px">${back}${errorCard('this request', 'retryDetail')}</div>`,
+          );
+        const r = cur();
+        if (D.notFound || !r)
+          return shell(
+            `<div class="page" style="max-width:720px">${back}<div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--sunken);color:var(--muted)">${icon('search', 16)}</span></div><h4>Request not found</h4><p>The link may be wrong, or it belongs to another account.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="go" data-arg="requests">My requests</button></div></div></div></div>`,
+          );
+        const c = comm(r.comm);
+        return shell(`<div class="page">
+          ${back}
+          <div class="head-row"><h1 class="page-title">${esc(r.officer.name)}</h1></div>
+          <div class="meta-line"><span>${refChip(r.ref)}</span><span>${statusBadge(r.status)}</span><span>${icon('building', 15)} ${esc(c.name)}</span></div>
+          <div class="side-grid">
+            <div class="stack" style="min-width:0;gap:20px">
+              ${D.gone ? `<div class="banner banner-neutral">${icon('lock', 18)}<div><b>The download window has closed.</b> The package can no longer be downloaded.</div></div>` : bannerFor(r)}
+              ${packageCard(r)}
+              ${decisionCard(r)}
+              ${requestCard(r)}
+            </div>
+            <div class="side">${timerCard(r)}${progressCard(r)}${helpCard(r)}</div>
+          </div>
+        </div>`);
+      };
+      actions.retryDetail = () => {
+        S.detail.load = 'loading';
+        Kit.render();
+        setTimeout(() => {
+          S.detail.load = null;
+          Kit.render();
+        }, 900);
+      };
+      actions.download = (id) => {
+        const r = findReq(id);
+        const D = S.detail;
+        if (D.dl === 'busy') return;
+        if (D.force410) {
+          D.force410 = false;
+          r.pkg.expiresAt = now() - 1000;
+          D.gone = true;
+          Kit.render();
+          return;
+        }
+        if (D.forceErr) {
+          D.forceErr = false;
+          D.dl = 'error';
+          Kit.render();
+          return;
+        }
+        window.open(`${DOCS}#access-package`, '_blank', 'noopener');
+        D.dl = null;
+        r.pkg.downloads.push(now());
+        Kit.toast('Download started. It is recorded.');
+      };
+      actions.copyToNew = (id) => {
+        const r = findReq(id);
+        S.f = freshForm();
+        S.f.comm = r.comm;
+        S.f.comboOpen = false;
+        Object.assign(S.f.partII, r.officer);
+        Object.assign(S.f.partIII, r.info);
+        prefillI();
+        r.scope.years.forEach((y) => (S.f.scope.yr[y] = true));
+        r.scope.sections.forEach((s) => (S.f.scope.sec[s] = true));
+        Object.assign(S.f.scope, {
+          spouses: r.scope.spouses,
+          children: r.scope.children,
+          clar: r.scope.clar,
+        });
+        S.f.step = 3;
+        S.f.max = 6;
+        Kit.go('new');
+      };
+
+      /* ---------- withdraw dialog (#251) ---------- */
+      modals.withdraw = () => {
+        const r = findReq(S.modal.id);
+        const m = S.modal;
+        const c = comm(r.comm);
+        if (m.conflict)
+          return dialog({
+            title: 'Already decided',
+            icon: 'info',
+            tint: ['#eaf1fb', '#1f4f96'],
+            body: `<p>${c.code} decided this request before you withdrew it, so it cannot be withdrawn.</p>`,
+            foot: `<button class="btn btn-primary" data-act="seeDecision" data-arg="${r.id}">See decision</button>`,
+          });
+        return dialog({
+          title: 'Withdraw this request?',
+          icon: 'undo',
+          tint: ['var(--danger-soft)', 'var(--danger)'],
+          body: `<p>${c.code} stops working on <span class="mono nowrap" style="font-weight:600">${r.ref}</span> and closes it. You cannot undo this.</p><p class="small muted" style="margin-top:10px">To ask again, make a new request.</p>`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal" ${m.busy ? 'disabled' : ''}>Cancel</button><button class="btn btn-danger" data-act="doWithdraw" data-arg="${r.id}" ${m.busy ? 'disabled' : ''}>${m.busy ? '<span class="spinner"></span> Withdrawing…' : 'Withdraw request'}</button>`,
+        });
+      };
+      actions.doWithdraw = (id) => {
+        const r = findReq(id);
+        S.modal.busy = true;
+        Kit.render();
+        setTimeout(() => {
+          if (S.detail.force409) {
+            S.detail.force409 = false;
+            S.modal = { kind: 'withdraw', id, conflict: true };
+            Kit.render();
+            return;
+          }
+          r.status = 'withdrawn';
+          r.withdrawnAt = now();
+          S.modal = null;
+          Kit.toast('Request withdrawn');
+        }, 900);
+      };
+      actions.seeDecision = (id) => {
+        const r = findReq(id);
+        r.status = 'denied';
+        r.decision = {
+          outcome: 'deny',
+          grounds: ['frivolous-vexatious'],
+          reasons:
+            'The same information was requested and refused in July 2026. No new reason is given.',
+          decidedAt: now() - 20 * 60000,
+        };
+        S.modal = null;
+        Kit.render();
+      };
+
+      /* =====================================================================
+       * Form K wizard (#251, uses ScopePicker #249)
+       * ===================================================================== */
+      const FK_STEPS = [
+        { t: 'Commission', h: 'Which Commission?' },
+        { t: 'Your particulars', h: 'Your particulars' },
+        { t: 'Officer sought', h: 'Officer sought' },
+        { t: 'Information sought', h: 'Information sought' },
+        { t: 'Scope', h: 'Scope' },
+        { t: 'Declare', h: 'Check and declare' },
+      ];
+      function prefillI() {
+        const a = ME();
+        if (!S.f.partI.postal)
+          Object.assign(S.f.partI, {
+            postal: a.postal,
+            physical: a.physical,
+            occupation: a.occupation,
+          });
+      }
+      function validateStep(n) {
+        const f = S.f;
+        const e = {};
+        const len = (s) => s.trim().length;
+        if (n === 1) {
+          if (!f.comm) e.comm = 'Choose the Commission.';
+          else if (!comm(f.comm).years.length)
+            e.comm = 'No declarations are available from this Commission yet.';
+        }
+        if (n === 2) {
+          if (len(f.partI.postal) < 3) e.postal = 'Enter your postal address.';
+          if (len(f.partI.physical) < 3) e.physical = 'Enter your physical address.';
+          if (len(f.partI.occupation) < 2) e.occupation = 'Enter your occupation.';
+        }
+        if (n === 3) {
+          if (len(f.partII.name) < 2) e.name = 'Enter the officer’s name.';
+          if (len(f.partII.entity) < 2)
+            e.entity = 'Enter the officer’s entity, e.g. the ministry, county or authority.';
+        }
+        if (n === 4) {
+          if (len(f.partIII.what) < 10)
+            e.what = 'Describe the information you want (at least 10 characters).';
+          else if (f.partIII.what.length > 4000) e.what = 'Keep this to 4,000 characters or fewer.';
+          if (len(f.partIII.reason) < 10) e.reason = 'Give your reason (at least 10 characters).';
+          else if (f.partIII.reason.length > 4000)
+            e.reason = 'Keep this to 4,000 characters or fewer.';
+          if (f.partIII.other.length > 4000) e.other = 'Keep this to 4,000 characters or fewer.';
+        }
+        if (n === 5) {
+          const yrs = comm(f.comm) ? comm(f.comm).years.filter((y) => f.scope.yr[y]) : [];
+          if (!yrs.length) e.years = 'Choose at least one year.';
+          if (!SECTIONS.some((s) => f.scope.sec[s.k])) e.sections = 'Choose at least one section.';
+        }
+        if (n === 6 && !f.declared) e.declared = 'Tick the declaration to submit.';
+        return e;
+      }
+      const stepOk = (n) => !Object.keys(validateStep(n)).length;
+      function fkField(
+        label,
+        bind,
+        key,
+        { area = false, max = 0, rows = 4, hint = '', opt = false, ph = '' } = {},
+      ) {
+        const e = S.f.err[key];
+        const id = 'f-' + bind.replace(/\./g, '-');
+        const val = Kit.getPath(S, bind);
+        const ctl = area
+          ? `<textarea id="${id}" class="textarea ${e ? 'err' : ''}" rows="${rows}" data-bind="${bind}" placeholder="${esc(ph)}" ${e ? 'aria-invalid="true"' : ''} aria-describedby="${id}-hint">${esc(val)}</textarea>`
+          : `<input id="${id}" class="input ${e ? 'err' : ''}" data-bind="${bind}" value="${esc(val)}" placeholder="${esc(ph)}" ${e ? 'aria-invalid="true"' : ''} aria-describedby="${id}-hint"/>`;
+        const counter = max
+          ? `<span class="counter ${val.length > max ? 'over' : ''}" data-count="${bind}" data-max="${max}">${num(val.length)} / ${num(max)}</span>`
+          : '';
+        return `<div class="field"><div class="lbl-row"><label class="label" for="${id}"><span>${label}</span>${opt ? '<span class="opt">Optional</span>' : ''}</label>${counter}</div>${ctl}${e ? `<div class="ferr" id="${id}-hint" role="alert">${icon('alert', 14)}<span>${e}</span></div>` : hint ? `<div class="hint" id="${id}-hint">${hint}</div>` : `<span id="${id}-hint" hidden></span>`}</div>`;
+      }
+      function fkStepBody(n) {
+        const f = S.f;
+        const e = f.err;
+        const a = ME();
+        if (n === 1) {
+          const c = comm(f.comm);
+          const q = f.q.trim().toLowerCase();
+          const list = COMMS.filter(
+            (x) => !q || x.name.toLowerCase().includes(q) || x.code.toLowerCase().includes(q),
+          );
+          const open = !c || f.comboOpen;
+          const combo = open
+            ? `<div class="combo"><div class="input-group ${e.comm ? 'is-invalid' : ''}"><span class="ico">${icon('search', 17)}</span><input id="f-fk-q" class="input" role="combobox" aria-expanded="true" aria-controls="fk-comm-list" aria-autocomplete="list" autocomplete="off" data-bind="f.q" data-live value="${esc(f.q)}" placeholder="Search, e.g. Teachers" ${e.comm ? 'aria-invalid="true"' : ''}/></div>
+              <div class="combo-list" id="fk-comm-list" role="listbox" aria-label="Commissions">${list.length ? list.map((x) => `<button class="combo-opt ${x.slug === f.comm ? 'act' : ''}" role="option" aria-selected="${x.slug === f.comm}" data-act="pickComm" data-arg="${x.slug}"><span class="mono-code">${x.code}</span><span class="nm">${esc(x.name)}</span>${x.slug === f.comm ? icon('check', 16, 2.4) : ''}</button>`).join('') : `<div class="combo-empty">No match for "${esc(f.q)}". Try its short name, e.g. TSC.</div>`}</div></div>`
+            : `<div class="chosen"><span class="mono-code">${c.code}</span><div style="flex:1;min-width:0;font-weight:600;line-height:1.3">${esc(c.name)}</div><button class="btn btn-ghost btn-sm" data-act="reopenComm">Change</button></div>`;
+          return `<div class="field"><label class="label" for="f-fk-q"><span>Responsible Commission</span> ${tip('Each public officer declares to one Responsible Commission, e.g. TSC for teachers and PSC for civil servants.')}</label>${combo}${e.comm ? `<div style="margin-top:8px">${errLine('fk-comm-err', e.comm)}</div>` : ''}</div>
+            ${c && !c.years.length ? `<div class="callout callout-warn" style="margin-top:14px">${icon('alert', 17)}<div>No declarations are available from ${esc(c.name)} yet. Try again after its first declaration period.</div></div>` : ''}`;
+        }
+        if (n === 2) {
+          return `<div class="lock-block"><h3>${icon('lock', 15)} From your account</h3><div class="lock-grid">
+              <div><div class="k">Name</div><div class="v">${esc(a.full)}</div></div>
+              <div><div class="k">${a.kind === 'passport' ? 'Passport' : 'National ID'}</div><div class="v"><span class="mono">${a.number}</span>${a.kind === 'passport' ? ` · ${countryName(a.country)}` : ''} ${a.identityStatus === 'verified' ? `<span class="vbadge-ok">${icon('check', 12, 2.6)} Verified</span>` : `<span class="vbadge-ok vbadge-warn">${icon('clock', 12, 2.4)} Pending</span>`}</div></div>
+              <div><div class="k">Telephone</div><div class="v">${fmtPhone(a.phone)}</div></div>
+              <div><div class="k">Email</div><div class="v">${esc(a.email)}</div></div>
+            </div></div>
+            <div class="stack" style="margin-top:20px">
+              <div class="grid-2c">${fkField('Postal address', 'f.partI.postal', 'postal', { ph: 'P.O. Box 12345-00100, Nairobi' })}${fkField('Physical address', 'f.partI.physical', 'physical', { ph: 'Road, estate, town' })}</div>
+              ${fkField('Occupation', 'f.partI.occupation', 'occupation', { ph: 'e.g. Journalist' })}
+            </div>`;
+        }
+        if (n === 3)
+          return `<div class="stack">
+            ${fkField('Name', 'f.partII.name', 'name', { ph: 'Full name of the public officer' })}
+            <div class="grid-2c">${fkField('Entity', 'f.partII.entity', 'entity', { ph: 'Ministry, county or authority' })}${fkField('Work station', 'f.partII.workStation', 'ws', { ph: 'Office and town', opt: true })}</div>
+            ${fkField('Personnel file number', 'f.partII.fileNo', 'fileNo', { opt: true, hint: 'Only if you know it.' })}
+          </div>`;
+        if (n === 4)
+          return `<div class="stack">
+            ${fkField('Information you want', 'f.partIII.what', 'what', { area: true, max: 4000, rows: 3, ph: 'e.g. Land and vehicles declared in 2025 and 2026' })}
+            ${fkField(`Reason for requiring it ${tip('Show a legitimate interest and good cause in furtherance of the objectives of the Act. The Commission decides on this.')}`, 'f.partIII.reason', 'reason', { area: true, max: 4000, rows: 5, ph: 'Why you need it and how it relates to the officer’s public duties' })}
+            ${fkField('Other information', 'f.partIII.other', 'other', { area: true, max: 4000, rows: 3, opt: true, ph: 'Anything else that supports your request' })}
+          </div>`;
+        if (n === 5) {
+          const c = comm(f.comm) || COMMS[0];
+          return scopePicker('f.scope', { years: c.years, err: e, idp: 'fk' });
+        }
+        if (n === 6) {
+          const c = comm(f.comm);
+          const sc = f.scope;
+          const scope = {
+            years: c ? c.years.filter((y) => sc.yr[y]) : [],
+            spouses: sc.spouses,
+            children: sc.children,
+            sections: SECTIONS.filter((s) => sc.sec[s.k]).map((s) => s.k),
+            clar: sc.clar,
+          };
+          const sec = (n2, title, body) =>
+            `<div class="rev"><div class="rev-h"><h3>${title}</h3><button class="btn btn-ghost btn-sm" data-act="fkGo" data-arg="${n2}">${icon('pencil', 14)} Edit</button></div>${body}</div>`;
+          const dl = (rows) =>
+            `<dl>${rows
+              .filter((x) => x[1])
+              .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`)
+              .join('')}</dl>`;
+          return `${a.identityStatus !== 'verified' ? `<div class="callout callout-info" style="margin-bottom:18px">${icon('info', 17)}<div>${c ? c.code : 'The Commission'} verifies your passport before it processes this request.</div></div>` : ''}
+            <div class="card fk-card">
+              ${sec(1, 'Commission', `<div style="font-size:14.5px">${c ? esc(c.name) : ''}</div>`)}
+              ${sec(
+                2,
+                'Your particulars',
+                dl([
+                  ['Name', a.full],
+                  [a.kind === 'passport' ? 'Passport' : 'National ID', a.number],
+                  ['Postal address', f.partI.postal],
+                  ['Physical address', f.partI.physical],
+                  ['Telephone', fmtPhone(a.phone)],
+                  ['Email', a.email],
+                  ['Occupation', f.partI.occupation],
+                ]),
+              )}
+              ${sec(
+                3,
+                'Officer sought',
+                dl([
+                  ['Name', f.partII.name],
+                  ['Entity', f.partII.entity],
+                  ['Work station', f.partII.workStation],
+                  ['Personnel file number', f.partII.fileNo],
+                ]),
+              )}
+              ${sec(
+                4,
+                'Information sought',
+                dl([
+                  ['Information', f.partIII.what],
+                  ['Reason', f.partIII.reason],
+                  ['Other information', f.partIII.other],
+                ]),
+              )}
+              <div class="rev" style="border-bottom:0;padding-bottom:0"><div class="rev-h"><h3>Scope</h3><button class="btn btn-ghost btn-sm" data-act="fkGo" data-arg="5">${icon('pencil', 14)} Edit</button></div>${scope.years.length && scope.sections.length ? scopeView(scope) : '<span class="muted small">Not chosen</span>'}</div>
+            </div>
+            <div class="declare-box ${e.declared ? 'err' : ''}">
+              ${checkbox('f.declared', 'I declare that the information I have given above is true, complete and correct to the best of my knowledge.')}
+              <div class="small muted" style="margin:8px 0 0 32px">${fmtDate(TODAY)} · ${esc(a.full)}</div>
+              ${e.declared ? `<div style="margin:8px 0 0 32px">${errLine('fk-decl-err', e.declared)}</div>` : ''}
+            </div>
+            ${f.serverErr === 'net' ? `<div class="banner banner-danger" style="margin-top:18px" role="alert">${icon('wifiOff', 18)}<div><b>Your request was not submitted.</b> Check your connection and try again. Your answers are still here.</div></div>` : ''}`;
+        }
+      }
+      screens.new = () => {
+        const f = S.f;
+        const n = f.step;
+        const c = comm(f.comm);
+        const errSteps = f.errSteps || [];
+        const rail = `<aside class="rail" aria-label="Form K steps">
+          <button class="back" data-act="go" data-arg="requests">${icon('left', 16)} My requests</button>
+          <div style="font-weight:600;font-size:15px">New request</div>
+          <ol>${FK_STEPS.map((s, i) => {
+            const k = i + 1;
+            const st =
+              k === n ? 'on' : errSteps.includes(k) ? 'err' : k < f.max && stepOk(k) ? 'done' : '';
+            return `<li class="${st}"><button data-act="fkGo" data-arg="${k}" ${k > f.max ? 'disabled style="opacity:.55;cursor:default"' : ''} ${k === n ? 'aria-current="step"' : ''}><span class="n">${st === 'done' ? icon('check', 13, 2.6) : st === 'err' ? '!' : k}</span><span class="lb">${s.t}</span></button></li>`;
+          }).join('')}</ol>
+          <div class="meta">${c ? `<div><span class="mono-code">${c.code}</span> ${esc(c.name)}</div>` : ''}<div>${icon('clock', 15)} Decision within 30 days</div></div>
+        </aside>`;
+        const mprog = `<div class="mprog"><div class="row" style="justify-content:space-between"><span><b>Step ${n} of 6</b> · ${FK_STEPS[n - 1].t}</span><button class="btn btn-ghost btn-xs" data-act="go" data-arg="requests">Cancel</button></div><div class="bar">${FK_STEPS.map((s, i) => `<i class="${i + 1 < n ? 'done' : i + 1 === n ? 'done' : ''}" style="${i + 1 === n ? 'opacity:.45' : ''}"></i>`).join('')}</div></div>`;
+        const sub =
+          n === 3
+            ? 'As precisely as you can. The Commission must identify the officer on its roster.'
+            : n === 5
+              ? 'Ask only for what your interest requires. The Commission may grant less.'
+              : '';
+        const serverBanner =
+          f.serverErr === '400' && f.serverStep === n
+            ? `<div class="banner banner-danger" role="alert" style="margin-bottom:18px">${icon('alert', 18)}<div><b>Your request was not submitted.</b> Fix the highlighted field and submit again.</div></div>`
+            : '';
+        const body = fkStepBody(n);
+        const fill = n >= 2 && n <= 5 ? proto(`<a data-act="fkFill">Fill sample answers</a>`) : '';
+        const actionsBar = `<div class="actions">${n > 1 ? `<button class="btn btn-secondary" data-act="fkBack">${icon('left', 16)} Back</button>` : ''}<span class="spacer hide-sm"></span><button class="btn btn-primary" data-act="${n === 6 ? 'fkSubmit' : 'fkNext'}" ${f.busy ? 'disabled' : ''}>${f.busy ? '<span class="spinner"></span> Submitting…' : n === 6 ? `${icon('send', 16)} Submit request` : `Continue ${icon('right', 16)}`}</button></div>`;
+        return shell(
+          `<div class="wiz">${rail}<main class="wiz-main">${mprog}
+            <div class="wiz-head"><h1>${FK_STEPS[n - 1].h}</h1>${sub ? `<p>${sub}</p>` : ''}</div>
+            ${serverBanner}
+            ${n === 1 || n === 6 ? body : `<div class="card fk-card">${body}</div>`}
+            ${fill}
+            ${actionsBar}
+          </main></div>`,
+          'New request',
+        );
+      };
+      actions.pickComm = (slug) => {
+        const f = S.f;
+        if (f.comm !== slug) f.scope.yr = {};
+        f.comm = slug;
+        f.comboOpen = false;
+        f.q = '';
+        f.err = {};
+        Kit.render();
+      };
+      actions.reopenComm = () => {
+        S.f.comboOpen = true;
+        Kit.render();
+        setTimeout(() => document.getElementById('f-fk-q')?.focus(), 0);
+      };
+      actions.fkGo = (k) => {
+        k = Number(k);
+        if (k > S.f.max) return;
+        S.f.step = k;
+        S.f.err = S.f.tried[k] ? validateStep(k) : {};
+        if (k === 2) prefillI();
+        Kit.render();
+        document.getElementById('view').scrollTop = 0;
+      };
+      actions.fkBack = () => actions.fkGo(S.f.step - 1);
+      actions.fkNext = () => {
+        const f = S.f;
+        const e = validateStep(f.step);
+        f.tried[f.step] = true;
+        f.err = e;
+        if (Object.keys(e).length) {
+          Kit.render();
+          const first = document.querySelector('#view [aria-invalid="true"], #view .ferr');
+          first?.focus?.();
+          return;
+        }
+        if (f.serverErr === '400' && f.serverStep === f.step) f.serverErr = null;
+        f.errSteps = (f.errSteps || []).filter((x) => x !== f.step);
+        f.step++;
+        f.max = Math.max(f.max, f.step);
+        f.err = f.tried[f.step] ? validateStep(f.step) : {};
+        if (f.step === 2) prefillI();
+        Kit.render();
+        document.getElementById('view').scrollTop = 0;
+      };
+      actions.fkFill = () => {
+        const f = S.f;
+        if (!f.comm) f.comm = 'psc';
+        f.comboOpen = false;
+        prefillI();
+        Object.assign(f.partII, {
+          name: 'Peter Mwangi Kamau',
+          entity: 'State Department for Housing and Urban Development',
+          workStation: 'Ardhi House, Nairobi',
+          fileNo: '',
+        });
+        Object.assign(f.partIII, { ...INFO_ASSETS });
+        f.scope.yr = { 2025: true, 2026: true };
+        f.scope.sec = { assets: true, liabilities: true, other: true };
+        Object.assign(f.scope, { spouses: true, children: false, clar: true });
+        f.err = {};
+        Kit.render();
+      };
+      actions.fkSubmit = () => {
+        const f = S.f;
+        f.tried[6] = true;
+        const bad = [1, 2, 3, 4, 5].filter((k) => !stepOk(k));
+        if (bad.length) {
+          f.errSteps = bad;
+          f.tried[bad[0]] = true;
+          f.step = bad[0];
+          f.err = validateStep(bad[0]);
+          Kit.render();
+          return;
+        }
+        f.err = validateStep(6);
+        if (f.err.declared) return Kit.render();
+        f.busy = true;
+        f.serverErr = null;
+        Kit.render();
+        setTimeout(() => {
+          f.busy = false;
+          if (f.forceNet) {
+            f.forceNet = false;
+            f.serverErr = 'net';
+            return Kit.render();
+          }
+          if (f.force400) {
+            f.force400 = false;
+            f.serverErr = '400';
+            f.serverStep = 3;
+            f.errSteps = [3];
+            f.step = 3;
+            f.err = { name: 'Enter the officer’s full name.' };
+            return Kit.render();
+          }
+          const c = comm(f.comm);
+          const passport = ME().identityStatus !== 'verified';
+          const n = 152 + S.reqs.length;
+          const r = R({
+            ref: `ARQ-${c.code}-2026-${String(n).padStart(7, '0')}-${'KMPX7'[n % 5]}`,
+            comm: f.comm,
+            status: passport ? 'pending-applicant-verification' : 'submitted',
+            passport,
+            submittedAt: TODAY,
+            officer: { ...f.partII },
+            info: { ...f.partIII },
+            scope: {
+              years: c.years.filter((y) => f.scope.yr[y]),
+              spouses: f.scope.spouses,
+              children: f.scope.children,
+              sections: SECTIONS.filter((s) => f.scope.sec[s.k]).map((s) => s.k),
+              clar: f.scope.clar,
+            },
+          });
+          r.submittedAt = TODAY.getTime();
+          r.deadlineAt = addDays(r.submittedAt, 30);
+          S.reqs.unshift(r);
+          S.lastId = r.id;
+          S.list.page = 1;
+          Kit.go('submitted');
+        }, 1200);
+      };
+
+      /* ---------- submission success (#251) ---------- */
+      screens.submitted = () => {
+        const r = findReq(S.lastId) || S.reqs[0];
+        const c = comm(r.comm);
+        const pending = r.status === 'pending-applicant-verification';
+        return shell(`<div class="page" style="max-width:640px;text-align:center">
+          <div class="success-mark" style="margin:12px auto 0">${icon('check', 30, 2.4)}</div>
+          <h1 class="page-title" style="margin-top:18px">Request submitted</h1>
+          <div style="margin-top:18px">${refChip(r.ref, { lg: true })}</div>
+          <p style="margin:18px auto 0;max-width:460px;color:var(--ink-2)">Acknowledged ${fmtDate(r.submittedAt)}. The Commission has 30 days to decide. You will be notified.</p>
+          ${pending ? `<div class="callout callout-info" style="margin-top:18px;text-align:left">${icon('info', 17)}<div>${c.code} verifies your passport first.</div></div>` : ''}
+          <div class="row wrap" style="justify-content:center;gap:10px;margin-top:26px"><button class="btn btn-primary" data-act="go" data-arg="request|${r.id}">View request</button><button class="btn btn-ghost" data-act="go" data-arg="requests">My requests</button></div>
+        </div>`);
+      };
+
+      /* ---------- account (avatar) ---------- */
+      screens.account = () => {
+        const a = ME();
+        return shell(
+          `<div class="page" style="max-width:640px"><h1 class="page-title">Account</h1>
+          <div class="card" style="margin-top:22px"><dl class="dl" style="padding:4px 24px">
+            <div><dt>Name</dt><dd>${esc(a.full)}</dd></div>
+            <div><dt>${a.kind === 'passport' ? 'Passport' : 'National ID'}</dt><dd><span class="mono">${a.number}</span>${a.kind === 'passport' ? ` · ${countryName(a.country)}` : ''}</dd></div>
+            <div><dt>Identity</dt><dd>${a.identityStatus === 'verified' ? `<span class="badge badge-ok">${icon('check', 12, 2.4)} Verified</span>` : `<span class="badge badge-warn">${icon('clock', 12, 2.4)} Pending verification</span>`}</dd></div>
+            <div><dt>Phone</dt><dd>${a.phoneMasked}</dd></div>
+            <div><dt>Email</dt><dd>${esc(a.email)}</dd></div>
+          </dl><div class="card-foot"><a class="btn btn-secondary btn-sm" href="${KC}#update-password">${icon('key', 15)} Change password</a><a class="btn btn-ghost btn-sm" href="${KC}#logout">${icon('logout', 15)} Sign out</a></div></div>
+          ${a.identityStatus !== 'verified' ? `<p class="small muted" style="margin-top:12px">The Commission verifies your passport when it receives your first request.</p>` : ''}
+          </div>`,
+          '',
+        );
+      };
+
+      /* =====================================================================
+       * Reference: primitives (#249) and copy tables
+       * ===================================================================== */
+      screens.primitives = () => {
+        const d = (n) => addDays(TODAY, n);
+        const req = {
+          years: [2025, 2026],
+          spouses: true,
+          children: true,
+          sections: ['income', 'assets', 'liabilities'],
+          clar: true,
+        };
+        const gr = {
+          years: [2026],
+          spouses: true,
+          children: false,
+          sections: ['assets', 'liabilities'],
+          clar: true,
+        };
+        return shell(
+          `<div class="page docpage" style="max-width:960px">
+          <h1 class="page-title">UI primitives, round 11</h1>
+          <h2>DeadlineChip ${Kit.badge('#249')}</h2>
+          <div class="card"><div class="prim"><div class="prim-h">Decision deadline (soon = 5 days)</div><div class="row wrap" style="gap:8px">${deadlineChip(d(26))}${deadlineChip(d(3))}${deadlineChip(d(0))}${deadlineChip(d(-7))}${deadlineChip(d(-6), { done: d(-10) })}${deadlineChip(d(-6), { done: d(-2) })}</div></div>
+          <div class="prim"><div class="prim-h">Download window (soon = 3 days)</div><div class="row wrap" style="gap:8px">${deadlineChip(d(13), { label: 'Download by', soon: 3, expiry: true })}${deadlineChip(d(2), { label: 'Download by', soon: 3, expiry: true })}${deadlineChip(now() + 5 * 3600000, { label: 'Download by', soon: 3, expiry: true })}${deadlineChip(d(-3), { label: 'Download by', soon: 3, expiry: true })}</div></div>
+          <div class="prim small muted">Each chip wraps a <span class="mono">&lt;time datetime&gt;</span> and carries an aria-label with the full date and distance, e.g. "Decision due 22 October 2026, in 26 days". Colour is always paired with an icon and words.</div></div>
+          <h2>ScopePicker ${Kit.badge('#249')}</h2>
+          <div class="card"><div class="prim"><div class="prim-h">Editable (Form K step 5)</div>${scopePicker('prim.a', { years: [2025, 2026], idp: 'pa' })}</div>
+          <div class="prim"><div class="prim-h">Validation</div>${scopePicker('prim.b', { years: [2025, 2026], err: { years: 'Choose at least one year.', sections: 'Choose at least one section.' }, idp: 'pb' })}</div>
+          <div class="prim"><div class="prim-h">Restricted to the requested scope (partial grant, console)</div>${scopePicker('prim.c', { years: [2025, 2026], restrict: req, idp: 'pc' })}</div>
+          <div class="prim"><div class="prim-h">Read-only: requested</div>${scopeView(req)}</div>
+          <div class="prim"><div class="prim-h">Read-only: requested vs granted</div>${scopeView(req, gr)}</div></div>
+          <h2>GroundsSelect ${Kit.badge('#249')}</h2>
+          <div class="card"><div class="prim"><div class="prim-h">Portal: cited grounds (read-only)</div>${groundsList(['public-interest', 'prejudice-proceeding'])}</div>
+          <div class="prim"><div class="prim-h">Console: select (lists the Regulation text)</div><div class="gsel" role="group" aria-label="Regulation 24 grounds">${Object.entries(
+            GROUNDS,
+          )
+            .map(([k, g]) =>
+              checkbox(
+                'prim.g.' + k,
+                `<span class="reg-tag" style="margin-right:6px">24(${g.letter})</span>${g.label}`,
+                { sub: g.text.replace(/ \(Regulation.*$/, '') },
+              ),
+            )
+            .join('')}</div></div></div>
+        </div>`,
+          '',
+        );
+      };
+      S.prim = {
+        a: {
+          yr: { 2026: true },
+          spouses: true,
+          children: false,
+          sec: { assets: true, liabilities: true },
+          clar: false,
+        },
+        b: { yr: {}, spouses: false, children: false, sec: {}, clar: false },
+        c: {
+          yr: { 2026: true },
+          spouses: true,
+          children: false,
+          sec: { assets: true, liabilities: true },
+          clar: true,
+        },
+        g: { 'public-interest': true },
+      };
+
+      screens.copy = () => {
+        const t = (head, rows) =>
+          `<div class="table-wrap card" style="overflow:auto"><table class="ctable"><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+        const gap = (s) => `<div class="gap-note">${icon('alert', 12)} ${s}</div>`;
+        const stRows = Object.keys(STATUS).map((k) => {
+          const r = S.reqs.find((x) => x.status === k) || passportRequests()[0];
+          const tmp = k === 'pending-applicant-verification' ? passportRequests()[0] : r;
+          return `<tr><td><code>${k}</code></td><td>${statusBadge(k)}</td><td>${
+            tmp && tmp.status === k
+              ? bannerFor(tmp)
+                  .replace(/<button[\s\S]*?<\/button>/, '')
+                  .replace(
+                    /class="banner banner-\w+"/,
+                    'style="display:flex;gap:8px;font-size:13px"',
+                  )
+              : ''
+          }${k === 'submitted' || k === 'officer-unresolved' ? gap('Spec does not say when <code>submitted</code> becomes <code>officer-unresolved</code>.') : ''}</td></tr>`;
+        });
+        return shell(
+          `<div class="page docpage" style="max-width:1040px">
+          <h1 class="page-title">Copy tables</h1>
+          <p class="muted" style="margin-top:6px">English keys with empty Swahili slots. Amber notes are spec or contract gaps.</p>
+          <h2>Request status ${Kit.badge('#251')}</h2>
+          ${t(['Value', 'Badge', 'Detail banner'], stRows)}
+          <h2>Applicant onboarding problems ${Kit.badge('#247')}</h2>
+          ${t(
+            ['Code', 'HTTP', 'Copy'],
+            [
+              `<tr><td><code>identity-mismatch</code></td><td>409</td><td>"These details do not match the national register. Enter your names and ID number exactly as they appear on your ID."${gap('Not in <code>OnboardingProblem.code</code> enum (directory.yaml); only in the endpoint description.')}</td></tr>`,
+              `<tr><td><code>already-registered</code></td><td>409</td><td>"You already have an account." + Sign in / Recover access${gap('Not in the enum either; declarant flow uses <code>already-onboarded</code>.')}</td></tr>`,
+              `<tr><td><code>rate-limited</code></td><td>429</td><td>"Too many attempts. Try again in {n} minutes." Button counts down.</td></tr>`,
+              `<tr><td><code>iprs-unavailable</code></td><td>503</td><td>"The national register is not responding. Wait a few minutes and try again."${gap('Applicant start runs IPRS but lists no 503.')}</td></tr>`,
+              `<tr><td><code>otp-invalid</code> / <code>otp-expired</code></td><td>400</td><td>"That code is not right. {n} attempts left." / "That code has expired. Resend to get a new one."</td></tr>`,
+              `<tr><td><code>resend-cooldown</code></td><td>429</td><td>"Resend in {s}s" (disabled link).</td></tr>`,
+              `<tr><td><code>session-expired</code></td><td>410</td><td>Back to step 1: "Your session ended. Start again." or "Too many attempts. Start again."</td></tr>`,
+              `<tr><td><code>identity-unavailable</code></td><td>502</td><td>"Your account could not be created. Try again."</td></tr>`,
+              `<tr><td><span class="muted">none</span></td><td>5xx</td><td>"Something went wrong. Try again."</td></tr>`,
+            ],
+          )}
+          <h2>Form K, withdraw and download ${Kit.badge('#251 #261')}</h2>
+          ${t(
+            ['Case', 'HTTP', 'Copy and behaviour'],
+            [
+              `<tr><td>Submit: invalid document</td><td>400</td><td>Jump to the step owning <code>errors[].path</code>, field error inline, banner "Your request was not submitted. Fix the highlighted field and submit again."</td></tr>`,
+              `<tr><td>Submit: network or 5xx</td><td>-</td><td>"Your request was not submitted. Check your connection and try again. Your answers are still here." Same Idempotency-Key.</td></tr>`,
+              `<tr><td>Submit: success</td><td>201</td><td>"Acknowledged {date}. The Commission has 30 days to decide. You will be notified."</td></tr>`,
+              `<tr><td>Withdraw after decision</td><td>409</td><td>"{Commission} decided this request before you withdrew it, so it cannot be withdrawn." + See decision</td></tr>`,
+              `<tr><td>Download after window</td><td>410</td><td>"The download window has closed. The package can no longer be downloaded."${gap('Spec does not say whether the applicant can ask for a new window.')}</td></tr>`,
+              `<tr><td>Download: link failed</td><td>5xx</td><td>"Could not start the download. Try again."</td></tr>`,
+              `<tr><td>Denied</td><td>-</td><td>"This decision is final. You may seek relief from the court."</td></tr>`,
+            ],
+          )}
+          <h2>Regulation 24 grounds ${Kit.badge('#249')}</h2>
+          ${t(
+            ['Value', 'Label', 'Regulation text (tooltip)'],
+            Object.entries(GROUNDS).map(
+              ([k, g]) =>
+                `<tr><td><code>${k}</code></td><td>${g.label}</td><td>${g.text}</td></tr>`,
+            ),
+          )}
+          <h2>Scope labels ${Kit.badge('#249')}</h2>
+          ${t(['Value', 'Label'], [...SECTIONS.map((s) => `<tr><td><code>${s.k}</code></td><td>${s.l}</td></tr>`), `<tr><td><code>includeSpouses</code> / <code>includeChildren</code></td><td>Spouses / Children</td></tr>`, `<tr><td><code>includeClarifications</code></td><td>Include clarifications the officer gave${gap('In form-k.v1 scope (required) but missing from access.yaml <code>Scope</code> and the spec copy.')}</td></tr>`])}
+        </div>`,
+          '',
+        );
+      };
+
+      /* =====================================================================
+       * Live countdowns
+       * ===================================================================== */
+      setInterval(() => {
+        let rerender = false;
+        document.querySelectorAll('#view [data-cd]').forEach((el) => {
+          const until = Number(el.dataset.cd);
+          if (until <= (el.dataset.fmt === 'hm' ? now() : Date.now())) rerender = true;
+          el.textContent = cdText(until, el.dataset.fmt);
+        });
+        document.querySelectorAll('#view [data-cd-sr]').forEach((el) => {
+          const h = Math.ceil((Number(el.dataset.cdSr) - now()) / 3600000);
+          const t = `Expires in ${plural(Math.max(1, h), 'hour')}`;
+          if (el.textContent !== t) el.textContent = t; // announced at coarse (hourly) steps
+        });
+        if (rerender) Kit.render();
+      }, 1000);
+
+      /* =====================================================================
+       * Jumps and coverage
+       * ===================================================================== */
+      const J = (screen, setup) => () => {
+        Object.assign(S, freshState());
+        if (setup) setup();
+        const p = S._p || {};
+        delete S._p;
+        Kit.go(screen, p);
+      };
+      const open = (ref, extra) => () => {
+        const r = S.reqs.find((x) => x.ref === ref);
+        S._p = { id: r.id };
+        if (extra) extra(r);
+      };
+      const onb = (kind, extra) => () => {
+        S.on.kind = kind;
+        if (kind) {
+          const a = kind === 'passport' ? APPLICANTS.passport : APPLICANTS.id;
+          Object.assign(S.on, {
+            surname: a.surname,
+            first: a.first,
+            other: a.other,
+            number: a.number,
+            country: kind === 'passport' ? a.country : '',
+            phone: kind === 'passport' ? '+233 24 471 8265' : '0722 418 903',
+            email: a.email,
+            masked: a.phoneMasked,
+            emailMasked: a.emailMasked,
+          });
+          S.on.otp.resendAt = Date.now() + 60000;
+        }
+        if (extra) extra();
+      };
+      const fk = (step, extra) => () => {
+        actions.fkFill();
+        S.f.step = step;
+        S.f.max = 6;
+        if (step === 6) S.f.declared = false;
+        if (extra) extra();
+      };
+      const jumps = [
+        ['landing', '#247 Landing: Request access to a declaration', J('landing')],
+        ['ap-id', '#247 1 ID type', J('ap-id')],
+        [
+          'j-id-ended',
+          '#247 1 ID type: session ended notice',
+          J('ap-id', () => (S.on.notice = 'ended')),
+        ],
+        [
+          'j-id-toomany',
+          '#247 1 ID type: too many attempts notice',
+          J('ap-id', () => (S.on.notice = 'toomany')),
+        ],
+        [
+          'ap-details',
+          '#247 2 Details: national ID',
+          J(
+            'ap-details',
+            onb('national-id', () =>
+              Object.assign(S.on, {
+                surname: '',
+                first: '',
+                other: '',
+                number: '',
+                phone: '',
+                email: '',
+              }),
+            ),
+          ),
+        ],
+        [
+          'j-d-errors',
+          '#247 2 Details: field errors',
+          J(
+            'ap-details',
+            onb('national-id', () => {
+              Object.assign(S.on, {
+                surname: '',
+                first: 'M',
+                number: '2884',
+                phone: '0722',
+                email: 'mercy@',
+              });
+              S.on.err = {
+                surname: 'Enter your surname.',
+                first: 'Enter your first name.',
+                number: 'Enter your national ID number (5 to 10 digits).',
+                phone: 'Enter a mobile number, e.g. 0712 345 678.',
+                email: 'Enter an email address in the format name@example.com.',
+              };
+            }),
+          ),
+        ],
+        [
+          'j-d-checking',
+          '#247 2 Details: checking the register',
+          J(
+            'ap-details',
+            onb('national-id', () => (S.on.st = 'checking')),
+          ),
+        ],
+        [
+          'j-d-mismatch',
+          '#247 2 Details: IPRS mismatch (409)',
+          J(
+            'ap-details',
+            onb('national-id', () => (S.on.st = 'mismatch')),
+          ),
+        ],
+        [
+          'j-d-already',
+          '#247 2 Details: already registered (409)',
+          J(
+            'ap-details',
+            onb('national-id', () => (S.on.st = 'already')),
+          ),
+        ],
+        [
+          'j-d-rate',
+          '#247 2 Details: rate limited (countdown)',
+          J(
+            'ap-details',
+            onb('national-id', () => {
+              S.on.st = 'rate';
+              S.on.rateUntil = Date.now() + (14 * 60 + 32) * 1000;
+              S.on.attempts = 6;
+            }),
+          ),
+        ],
+        [
+          'j-d-iprs',
+          '#247 2 Details: register unavailable',
+          J(
+            'ap-details',
+            onb('national-id', () => (S.on.st = 'unavailable')),
+          ),
+        ],
+        [
+          'j-d-error',
+          '#247 2 Details: server error',
+          J(
+            'ap-details',
+            onb('national-id', () => (S.on.st = 'error')),
+          ),
+        ],
+        [
+          'j-d-passport',
+          '#247 2 Details: passport',
+          J(
+            'ap-details',
+            onb('passport', () =>
+              Object.assign(S.on, {
+                surname: '',
+                first: '',
+                other: '',
+                number: '',
+                country: '',
+                phone: '',
+                email: '',
+              }),
+            ),
+          ),
+        ],
+        ['ap-phone', '#247 3 Verify phone', J('ap-phone', onb('national-id'))],
+        [
+          'j-p-verifying',
+          '#247 3 Verify phone: checking',
+          J(
+            'ap-phone',
+            onb('national-id', () => (S.on.otp.st = 'verifying')),
+          ),
+        ],
+        [
+          'j-p-wrong',
+          '#247 3 Verify phone: wrong code',
+          J(
+            'ap-phone',
+            onb('national-id', () => {
+              S.on.otp.st = 'wrong';
+              S.on.otp.attemptsLeft = 3;
+            }),
+          ),
+        ],
+        [
+          'j-p-expired',
+          '#247 3 Verify phone: code expired, resend',
+          J(
+            'ap-phone',
+            onb('national-id', () => {
+              S.on.otp.st = 'expired';
+              S.on.otp.resendAt = 0;
+              S.on.otp.resendsLeft = 1;
+            }),
+          ),
+        ],
+        [
+          'j-p-sendfail',
+          '#247 3 Verify phone: could not send',
+          J(
+            'ap-phone',
+            onb('national-id', () => {
+              S.on.otp.st = 'sendfail';
+              S.on.otp.resendAt = 0;
+            }),
+          ),
+        ],
+        ['ap-create', '#247 4 Create account: national ID', J('ap-create', onb('national-id'))],
+        [
+          'j-c-passport',
+          '#247 4 Create account: passport (pending notice)',
+          J('ap-create', onb('passport')),
+        ],
+        [
+          'j-c-busy',
+          '#247 4 Create account: creating',
+          J(
+            'ap-create',
+            onb('national-id', () => (S.on.create.st = 'busy')),
+          ),
+        ],
+        [
+          'j-c-error',
+          '#247 4 Create account: account error (502)',
+          J(
+            'ap-create',
+            onb('national-id', () => (S.on.create.st = 'unavailable')),
+          ),
+        ],
+        [
+          'ap-email',
+          '#247 5 Check your email',
+          J(
+            'ap-email',
+            onb('national-id', () => (S.on.pwResendAt = Date.now() + 60000)),
+          ),
+        ],
+        [
+          'j-e-passport',
+          '#247 5 Check your email: passport',
+          J(
+            'ap-email',
+            onb('passport', () => (S.on.pwResendAt = 0)),
+          ),
+        ],
+        ['requests', '#251 My requests: every status (page 1)', J('requests')],
+        ['j-r-page2', '#251 My requests: page 2', J('requests', () => (S.list.page = 2))],
+        [
+          'j-r-loading',
+          '#251 My requests: loading',
+          J('requests', () => (S.list.load = 'loading')),
+        ],
+        [
+          'j-r-error',
+          '#251 My requests: could not load',
+          J('requests', () => (S.list.load = 'error')),
+        ],
+        ['j-r-empty', '#251 My requests: empty (first visit)', J('requests', () => (S.reqs = []))],
+        [
+          'j-r-passport',
+          '#251 My requests: passport applicant, pending verification',
+          J('requests', () => setWorld('passport')),
+        ],
+        ['new', '#251 Form K 1 Commission', J('new')],
+        [
+          'j-f1-noyears',
+          '#251 Form K 1 Commission: no declarations yet',
+          J('new', () => {
+            S.f.comm = 'cpsb022';
+            S.f.comboOpen = false;
+          }),
+        ],
+        [
+          'j-f1-err',
+          '#251 Form K 1 Commission: not chosen',
+          J('new', () => {
+            S.f.err = { comm: 'Choose the Commission.' };
+            S.f.tried[1] = true;
+          }),
+        ],
+        ['j-f2', '#251 Form K 2 Your particulars (pre-filled)', J('new', fk(2))],
+        [
+          'j-f2-err',
+          '#251 Form K 2 Your particulars: errors',
+          J(
+            'new',
+            fk(2, () => {
+              Object.assign(S.f.partI, { postal: '', physical: '', occupation: '' });
+              S.f.tried[2] = true;
+              S.f.err = validateStep(2);
+            }),
+          ),
+        ],
+        ['j-f3', '#251 Form K 3 Officer sought', J('new', fk(3))],
+        [
+          'j-f3-err',
+          '#251 Form K 3 Officer sought: errors',
+          J(
+            'new',
+            fk(3, () => {
+              Object.assign(S.f.partII, { name: '', entity: '' });
+              S.f.tried[3] = true;
+              S.f.err = validateStep(3);
+            }),
+          ),
+        ],
+        ['j-f4', '#251 Form K 4 Information sought', J('new', fk(4))],
+        [
+          'j-f4-err',
+          '#251 Form K 4 Information sought: errors and counter',
+          J(
+            'new',
+            fk(4, () => {
+              Object.assign(S.f.partIII, { what: 'Assets', reason: 'Journalism '.repeat(370) });
+              S.f.tried[4] = true;
+              S.f.err = validateStep(4);
+            }),
+          ),
+        ],
+        ['j-f5', '#251 #249 Form K 5 Scope (ScopePicker)', J('new', fk(5))],
+        [
+          'j-f5-err',
+          '#251 #249 Form K 5 Scope: nothing chosen',
+          J(
+            'new',
+            fk(5, () => {
+              S.f.scope.yr = {};
+              S.f.scope.sec = {};
+              S.f.tried[5] = true;
+              S.f.err = validateStep(5);
+            }),
+          ),
+        ],
+        ['j-f6', '#251 Form K 6 Check and declare', J('new', fk(6))],
+        [
+          'j-f6-err',
+          '#251 Form K 6 Declare: not ticked',
+          J(
+            'new',
+            fk(6, () => {
+              S.f.tried[6] = true;
+              S.f.err = validateStep(6);
+            }),
+          ),
+        ],
+        [
+          'j-f6-busy',
+          '#251 Form K 6 Submitting',
+          J(
+            'new',
+            fk(6, () => {
+              S.f.declared = true;
+              S.f.busy = true;
+            }),
+          ),
+        ],
+        [
+          'j-f6-net',
+          '#251 Form K 6 Submit failed (network)',
+          J(
+            'new',
+            fk(6, () => {
+              S.f.declared = true;
+              S.f.serverErr = 'net';
+            }),
+          ),
+        ],
+        [
+          'j-f-400',
+          '#251 Form K Submit rejected (400) on step 3',
+          J(
+            'new',
+            fk(3, () => {
+              S.f.declared = true;
+              S.f.serverErr = '400';
+              S.f.serverStep = 3;
+              S.f.errSteps = [3];
+              S.f.partII.name = 'P';
+              S.f.err = { name: 'Enter the officer’s full name.' };
+            }),
+          ),
+        ],
+        [
+          'j-f6-passport',
+          '#251 Form K 6 Declare: passport applicant',
+          J('new', () => {
+            setWorld('passport');
+            fk(6)();
+          }),
+        ],
+        [
+          'submitted',
+          '#251 Submitted: reference and acknowledgement',
+          J('submitted', () => (S.lastId = S.reqs[0].id)),
+        ],
+        [
+          'j-sub-passport',
+          '#251 Submitted: passport, pending verification',
+          J('submitted', () => {
+            setWorld('passport');
+            S.lastId = S.reqs[0].id;
+          }),
+        ],
+        ['request', '#251 Request: submitted', J('request', open('ARQ-PSC-2026-0000151-C'))],
+        [
+          'j-rq-pending',
+          '#251 Request: awaiting identity verification',
+          J('request', () => {
+            setWorld('passport');
+            S._p = { id: S.reqs[0].id };
+          }),
+        ],
+        [
+          'j-rq-unresolved',
+          '#251 Request: officer being identified',
+          J('request', open('ARQ-TSC-2026-0000077-5')),
+        ],
+        [
+          'j-rq-notified',
+          '#251 Request: declarant notified (window open)',
+          J('request', open('ARQ-PSC-2026-0000142-K')),
+        ],
+        [
+          'j-rq-deciding',
+          '#251 #249 Request: under decision, due in 3 days',
+          J('request', open('ARQ-PSC-2026-0000139-7')),
+        ],
+        [
+          'j-rq-late',
+          '#251 #249 Request: under decision, overdue',
+          J('request', open('ARQ-PSC-2026-0000060-R')),
+        ],
+        [
+          'j-rq-granted',
+          '#261 Request: granted, package ready',
+          J('request', open('ARQ-PSC-2026-0000097-M')),
+        ],
+        [
+          'j-rq-preparing',
+          '#261 Request: granted, package preparing',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000097-M', (r) => (r.pkg.preparing = true)),
+          ),
+        ],
+        [
+          'j-rq-today',
+          '#261 Request: package expires today (live countdown)',
+          J('request', open('ARQ-PSC-2026-0000071-2')),
+        ],
+        [
+          'j-rq-partial',
+          '#261 #249 Request: partially granted (scope compare)',
+          J('request', open('ARQ-PSC-2026-0000118-3')),
+        ],
+        [
+          'j-rq-expired',
+          '#261 Request: granted, download expired',
+          J('request', open('ARQ-TSC-2026-0000031-X')),
+        ],
+        [
+          'j-rq-410',
+          '#261 Download: window closed while open (410), click Download',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000097-M', () => (S.detail.force410 = true)),
+          ),
+        ],
+        [
+          'j-rq-dlerr',
+          '#261 Download: link failed',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000097-M', () => (S.detail.dl = 'error')),
+          ),
+        ],
+        [
+          'j-rq-denied',
+          '#261 Request: denied (grounds, court relief)',
+          J('request', open('ARQ-PSC-2026-0000088-4')),
+        ],
+        [
+          'j-rq-denied2',
+          '#261 Request: denied on two grounds',
+          J('request', open('ARQ-PSC-2026-0000044-H')),
+        ],
+        [
+          'j-rq-cannot',
+          '#251 Request: cannot identify officer',
+          J('request', open('ARQ-NPSC-2026-0000019-8')),
+        ],
+        ['j-rq-withdrawn', '#251 Request: withdrawn', J('request', open('ARQ-PSC-2026-0000102-9'))],
+        [
+          'j-wd',
+          '#251 Withdraw: confirm',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000142-K', (r) =>
+              setTimeout(() => {
+                S.modal = { kind: 'withdraw', id: r.id };
+                Kit.render();
+              }, 0),
+            ),
+          ),
+        ],
+        [
+          'j-wd-busy',
+          '#251 Withdraw: withdrawing',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000142-K', (r) =>
+              setTimeout(() => {
+                S.modal = { kind: 'withdraw', id: r.id, busy: true };
+                Kit.render();
+              }, 0),
+            ),
+          ),
+        ],
+        [
+          'j-wd-409',
+          '#251 Withdraw: already decided (409)',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000139-7', (r) =>
+              setTimeout(() => {
+                S.modal = { kind: 'withdraw', id: r.id, conflict: true };
+                Kit.render();
+              }, 0),
+            ),
+          ),
+        ],
+        [
+          'j-rq-loading',
+          '#251 Request: loading',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000142-K', () => (S.detail.load = 'loading')),
+          ),
+        ],
+        [
+          'j-rq-error',
+          '#251 Request: could not load',
+          J(
+            'request',
+            open('ARQ-PSC-2026-0000142-K', () => (S.detail.load = 'error')),
+          ),
+        ],
+        [
+          'j-rq-404',
+          '#251 Request: not found (404)',
+          J('request', () => (S.detail.notFound = true)),
+        ],
+        ['account', 'Account (avatar)', J('account')],
+        [
+          'j-acct-passport',
+          'Account: passport pending verification',
+          J('account', () => setWorld('passport')),
+        ],
+        ['primitives', '#249 Primitives: DeadlineChip, ScopePicker, grounds', J('primitives')],
+        ['copy', '#247 #251 #261 Copy tables and problem codes', J('copy')],
+      ];
+
+      window.addEventListener('hashchange', () => {
+        const h = location.hash.slice(1);
+        if (screens[h] && h !== S.screen) Kit.go(h);
+      });
+      Kit.mount({
+        app: 'portal',
+        start: 'landing',
+        home: 'landing',
+        screens,
+        modals,
+        actions,
+        jumps,
+        coverage: [
+          {
+            ticket: 247,
+            title: 'Portal: Get started as an applicant',
+            screens: [
+              'landing',
+              'ap-id',
+              'j-id-ended',
+              'ap-details',
+              'j-d-errors',
+              'j-d-checking',
+              'j-d-mismatch',
+              'j-d-already',
+              'j-d-rate',
+              'j-d-iprs',
+              'j-d-error',
+              'j-d-passport',
+              'ap-phone',
+              'j-p-wrong',
+              'j-p-expired',
+              'ap-create',
+              'j-c-passport',
+              'j-c-error',
+              'ap-email',
+              'j-e-passport',
+              'copy',
+            ],
+            note: 'Sign in and set password are Keycloak pages (keycloak-theme login prototype). Session cookie handling is non-visual.',
+          },
+          {
+            ticket: 249,
+            title: 'UI primitives round 11 (portal context)',
+            screens: [
+              'primitives',
+              'j-f5',
+              'j-f5-err',
+              'j-rq-partial',
+              'j-rq-deciding',
+              'j-rq-late',
+            ],
+            note: 'GroundsSelect is interactive in the console (10-access); the portal shows cited grounds read-only. RegisterTimeline is used by the declarant and console files.',
+          },
+          {
+            ticket: 251,
+            title: 'Portal: Form K wizard and My requests',
+            screens: [
+              'new',
+              'j-f1-noyears',
+              'j-f2',
+              'j-f3',
+              'j-f4-err',
+              'j-f5',
+              'j-f6',
+              'j-f6-net',
+              'j-f-400',
+              'submitted',
+              'j-sub-passport',
+              'requests',
+              'j-r-page2',
+              'j-r-empty',
+              'j-r-passport',
+              'request',
+              'j-rq-pending',
+              'j-rq-unresolved',
+              'j-rq-notified',
+              'j-rq-cannot',
+              'j-rq-withdrawn',
+              'j-wd',
+              'j-wd-409',
+              'j-rq-404',
+            ],
+          },
+          {
+            ticket: 261,
+            title: 'Portal: decision view and package download with countdown',
+            screens: [
+              'j-rq-granted',
+              'j-rq-preparing',
+              'j-rq-today',
+              'j-rq-partial',
+              'j-rq-expired',
+              'j-rq-410',
+              'j-rq-dlerr',
+              'j-rq-denied',
+              'j-rq-denied2',
+            ],
+            note: 'The declarant card outcome (AC 3) lives in the declarant portal file for #255, not here. Decision letter and package open documents #access-decision and #access-package.',
+          },
+        ],
+        reset: () => {
+          Object.assign(S, freshState());
+          Kit.go('landing');
+        },
+      });
+    </script>
+  </body>
+</html>

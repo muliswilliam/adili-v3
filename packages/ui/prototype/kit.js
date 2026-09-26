@@ -412,6 +412,20 @@
       code: 'PSC',
       initials: 'SN',
     },
+    'access-officer': {
+      name: 'Lucy Wambui',
+      role: 'Access officer',
+      org: 'Public Service Commission',
+      code: 'PSC',
+      initials: 'LW',
+    },
+    'law-enforcement': {
+      name: 'Insp. Peter Kariuki',
+      role: 'Law enforcement',
+      org: 'Directorate of Criminal Investigations',
+      code: 'DCI',
+      initials: 'PK',
+    },
   };
   // Console navigation. href = '<file>#<screen>'. Files live in apps/console/prototype/.
   const CONSOLE_NAV = [
@@ -436,6 +450,24 @@
           href: '07b-registry.prototype.html#integrations',
           roles: ['platform-admin'],
         },
+        {
+          label: 'AI policy',
+          icon: 'sparkles',
+          href: '07c-copilot.prototype.html#ai-policy',
+          roles: ['platform-admin'],
+        },
+        {
+          label: 'Help articles',
+          icon: 'help',
+          href: '11-help.prototype.html#articles',
+          roles: ['platform-admin'],
+        },
+        {
+          label: 'Agency accounts',
+          icon: 'shield',
+          href: '10-access.prototype.html#lea-accounts',
+          roles: ['platform-admin'],
+        },
       ],
     },
     {
@@ -452,6 +484,34 @@
           icon: 'flag',
           href: '09-form-m.prototype.html#referrals',
           roles: ['eacc-analyst', 'eacc-supervisor'],
+        },
+        {
+          label: 'Open data',
+          icon: 'chart',
+          href: '12-open-data.prototype.html#releases',
+          roles: ['eacc-analyst', 'eacc-supervisor'],
+        },
+      ],
+    },
+    {
+      group: 'Law enforcement',
+      items: [
+        {
+          label: 'Requests',
+          icon: 'shield',
+          href: '10-access.prototype.html#lea',
+          roles: ['law-enforcement'],
+        },
+      ],
+    },
+    {
+      group: 'Access',
+      items: [
+        {
+          label: 'Access requests',
+          icon: 'lock',
+          href: '10-access.prototype.html#requests',
+          roles: ['access-officer', 'supervisor'],
         },
       ],
     },
@@ -481,6 +541,12 @@
           icon: 'calendar',
           href: '04-obligations.prototype.html#obligations',
           roles: ['reporting-officer', 'commission-admin', 'reviewer', 'supervisor'],
+        },
+        {
+          label: 'Help articles',
+          icon: 'help',
+          href: '11-help.prototype.html#articles',
+          roles: ['commission-admin', 'reporting-officer'],
         },
       ],
     },
@@ -579,17 +645,43 @@
     ['Clarifications', 'msg', 'declarant-after-submission.prototype.html#clarifications'],
     ['Notices', 'bell', 'declarant-after-submission.prototype.html#notices'],
   ];
-  function portalShell(body, { active = 'Home', tabbar = true, counts = {} } = {}) {
+  // Options: nav (array like PORTAL_NAV, e.g. an applicant nav), avatar ({ initials, href } or null to hide),
+  // lang (false hides the language button). Defaults are the declarant portal.
+  function portalShell(
+    body,
+    {
+      active = 'Home',
+      tabbar = true,
+      counts = {},
+      nav = null,
+      avatar = undefined,
+      lang = true,
+    } = {},
+  ) {
+    const NAV = nav || PORTAL_NAV;
     const file = location.pathname.split('/').pop();
     const link = ([l, ic, href], cls) => {
       const [f, h] = href.split('#');
       return `<a class="${active === l ? 'on' : ''} ${cls || ''}" href="${f === file ? '#' + h : href}" ${f === file ? `data-act="go" data-arg="${h}"` : ''}>${icon(ic, cls ? 21 : 17)}${cls ? `<span>${l}</span>` : ` ${l}`}${counts[l] ? `<span class="count">${counts[l]}</span>` : ''}</a>`;
     };
-    return `<div class="pshell"><header class="topbar">${logo(22, '')}<nav class="nav">${PORTAL_NAV.map((n) => link(n)).join('')}</nav><div class="spacer"></div><div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili would switch the whole portal">${icon('globe', 16)} English</button></div><button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Help centre would open here" aria-label="Help">${icon('help', 19)}</button>${(() => {
-      const f = 'declarant-profile.prototype.html';
-      const here = location.pathname.split('/').pop() === f;
-      return `<a class="avatar" style="margin-left:4px;text-decoration:none" href="${here ? '#profile' : f + '#profile'}" ${here ? 'data-act="go" data-arg="profile"' : ''} aria-label="Your profile" title="Your profile">JK</a>`;
-    })()}</header><div class="pbody">${body}</div>${tabbar ? `<nav class="tabbar" style="grid-template-columns:repeat(${PORTAL_NAV.length},1fr)">${PORTAL_NAV.map((n) => link(n, 'tab')).join('')}</nav>` : ''}</div>`;
+    return `<div class="pshell"><header class="topbar">${logo(22, '')}<nav class="nav">${NAV.map((n) => link(n)).join('')}</nav><div class="spacer"></div>${lang ? `<div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili would switch the whole portal">${icon('globe', 16)} English</button></div>` : ''}${(() => {
+      // Declarant portal: Help opens the help pages in the journey file. Custom portals (applicant, public) keep a toast.
+      if (nav)
+        return `<button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Help centre would open here" aria-label="Help">${icon('help', 19)}</button>`;
+      const hf = 'declarant-journey.prototype.html';
+      const hereJ = file === hf;
+      return `<a class="btn btn-ghost icon-btn" href="${hereJ ? '#help' : hf + '#help'}" ${hereJ ? 'data-act="go" data-arg="help"' : ''} aria-label="Help" title="Help">${icon('help', 19)}</a>`;
+    })()}${
+      avatar === null
+        ? ''
+        : avatar
+          ? `<a class="avatar" style="margin-left:4px;text-decoration:none" href="${avatar.href || '#'}" aria-label="Your account" title="Your account">${avatar.initials}</a>`
+          : (() => {
+              const f = 'declarant-profile.prototype.html';
+              const here = location.pathname.split('/').pop() === f;
+              return `<a class="avatar" style="margin-left:4px;text-decoration:none" href="${here ? '#profile' : f + '#profile'}" ${here ? 'data-act="go" data-arg="profile"' : ''} aria-label="Your profile" title="Your profile">JK</a>`;
+            })()
+    }</header><div class="pbody">${body}</div>${tabbar && NAV.length ? `<nav class="tabbar" style="grid-template-columns:repeat(${NAV.length},1fr)">${NAV.map((n) => link(n, 'tab')).join('')}</nav>` : ''}</div>`;
   }
 
   /* ---------- mount / render ---------- */

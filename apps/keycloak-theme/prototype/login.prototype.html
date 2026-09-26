@@ -240,6 +240,8 @@
 
       const PORTAL = '../../portal/prototype/declarant-journey.prototype.html';
       const PORTAL_HOME = PORTAL + '#home';
+      const APPLICANT_HOME = '../../portal/prototype/access-requests.prototype.html#requests';
+      const homeUrl = () => (S.aud === 'applicant' ? APPLICANT_HOME : PORTAL_HOME);
       // Step-up return target. The portal agent defines the real "summary with stepUp=done" screen; #home is the safe fallback.
       const PORTAL_STEPUP_RETURN = PORTAL + '#stepup-return';
       const PORTAL_STEPUP_FAILED = PORTAL + '#stepup-failed';
@@ -263,7 +265,10 @@
       const blankCode = () => ['', '', '', '', '', ''];
 
       const fresh = () => ({
-        aud: 'declarant', // 'declarant' (client portal) | 'staff' (client console)
+        // 'declarant' (client portal) | 'staff' (client console) | 'applicant' (access-request portal). ?aud= in the URL sets it.
+        aud: ['staff', 'applicant'].includes(new URLSearchParams(location.search).get('aud'))
+          ? new URLSearchParams(location.search).get('aud')
+          : 'declarant',
         flow: 'login', // 'login' | 'stepup' | 'activation' | 'reset'
         login: { id: '', pw: '', showPw: false, error: null, notice: null, busy: false },
         otp: {
@@ -297,6 +302,20 @@
 
       /* ---------- helpers ---------- */
       const isStaff = () => S.aud === 'staff';
+      const isApplicant = () => S.aud === 'applicant';
+      // Audience-specific copy for the sign-in identifier and help lines.
+      const idLabel = () =>
+        isStaff() ? 'Official email' : isApplicant() ? 'Email' : 'Email or officer reference';
+      const idPh = () =>
+        isStaff() ? 'name@psc.go.ke' : isApplicant() ? 'name@example.com' : 'e.g. OFR-0012345-B';
+      const idWords = () =>
+        isStaff() ? 'official email' : isApplicant() ? 'email' : 'email or officer reference';
+      const helpContact = () =>
+        isStaff()
+          ? 'the EACC platform team'
+          : isApplicant()
+            ? 'the Commission you applied to'
+            : "your Commission's reporting officer";
       const secsLeft = () => Math.max(0, Math.ceil((S.otp.cooldownEnds - Date.now()) / 1000));
       const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
       const masked = (text) =>
@@ -326,6 +345,14 @@
               ['shield', 'Sent only to your Commission'],
               ['phone', 'Sign-in codes by SMS'],
               ['file', 'Signed slip when you submit'],
+            ],
+          },
+          applicant: {
+            h: 'Access requests.',
+            items: [
+              ['file', 'Track your Form K requests'],
+              ['phone', 'Sign-in codes by SMS'],
+              ['lock', 'Downloads are watermarked'],
             ],
           },
           staff: {
@@ -376,7 +403,15 @@
       }
       // Page frame for every Keycloak page (Template.tsx): brand, body, language, footer.
       function page(body, { artV = null, top = null, stepper = null } = {}) {
-        const a = artV || (S.flow === 'stepup' ? 'stepup' : isStaff() ? 'staff' : 'declarant');
+        const a =
+          artV ||
+          (S.flow === 'stepup'
+            ? 'stepup'
+            : isStaff()
+              ? 'staff'
+              : isApplicant()
+                ? 'applicant'
+                : 'declarant');
         const st = stepper
           ? `<div class="stepper" role="img" aria-label="Step ${stepper[0]} of ${stepper[1]}">${Array.from({ length: stepper[1] }, (_, i) => `<span class="s ${i + 1 < stepper[0] ? 'done' : i + 1 === stepper[0] ? 'cur' : ''}"></span>`).join('')}</div>`
           : '';
@@ -459,7 +494,9 @@
             'Your account is disabled',
             staff
               ? 'Contact the EACC platform team if you think this is a mistake.'
-              : "Contact your Commission's reporting officer and quote your officer reference.",
+              : isApplicant()
+                ? 'Contact the Commission you applied to and quote your request reference.'
+                : "Contact your Commission's reporting officer and quote your officer reference.",
           ],
           locked: [
             'danger',
@@ -479,7 +516,7 @@
       <div class="row muted small" style="gap:12px"><span style="flex:1;height:1px;background:var(--line)"></span>or<span style="flex:1;height:1px;background:var(--line)"></span></div>`
           : ''
       }
-      ${field(staff ? 'Official email' : 'Email or officer reference', input('login.id', { ph: staff ? 'name@psc.go.ke' : 'e.g. OFR-0012345-B', type: staff ? 'email' : 'text', extra: `autocomplete="username" autocapitalize="off" spellcheck="false" ${L.error ? 'aria-invalid="true"' : ''}` }), { id: 'f-login-id', hint: staff ? '' : 'Your officer reference is in your welcome email.' })}
+      ${field(idLabel(), input('login.id', { ph: idPh(), type: staff || isApplicant() ? 'email' : 'text', extra: `autocomplete="username" autocapitalize="off" spellcheck="false" ${L.error ? 'aria-invalid="true"' : ''}` }), { id: 'f-login-id', hint: staff || isApplicant() ? '' : 'Your officer reference is in your welcome email.' })}
       <div class="field">
         <label class="label" for="f-login-pw"><span>Password</span><a class="link small" data-act="go" data-arg="reset-password">Forgot password?</a></label>
         ${pwInput('login.pw', 'showPw', 'togglePw', 'Your password', 'current-password', !!L.error)}
@@ -506,9 +543,9 @@
   <p class="subtitle">We will email you a reset link.</p>
   <div class="stack" style="margin-top:24px">
     ${S.reset.error ? alertBox('danger', '', S.reset.error) : ''}
-    ${field(isStaff() ? 'Official email' : 'Email or officer reference', input('reset.id', { ph: isStaff() ? 'name@psc.go.ke' : 'e.g. OFR-0012345-B', extra: 'autocomplete="username" autocapitalize="off"' }), { id: 'f-reset-id' })}
+    ${field(idLabel(), input('reset.id', { ph: idPh(), extra: 'autocomplete="username" autocapitalize="off"' }), { id: 'f-reset-id' })}
     <button class="btn btn-primary btn-block" data-act="sendReset">Send reset link</button>
-    <p class="small muted">${isStaff() ? 'Lost access to this email? Ask EACC.' : 'Email changed? Ask your reporting officer.'}</p>
+    <p class="small muted">${isStaff() ? 'Lost access to this email? Ask EACC.' : isApplicant() ? 'Email changed? Contact the Commission you applied to.' : 'Email changed? Ask your reporting officer.'}</p>
   </div>`);
 
       function otpScreen(step) {
@@ -522,7 +559,7 @@
             `<div role="status" aria-live="polite">${stateMark('check', 'ok')}
       <h1 class="title">${step ? 'Identity confirmed' : 'Code accepted'}</h1>
       <p class="subtitle">${step ? 'You have 5 minutes to submit.' : 'Taking you to Adili Online.'}</p>
-      <div class="row" style="margin-top:24px"><span class="spinner dark"></span><a class="link small" href="${step ? PORTAL_STEPUP_RETURN : PORTAL_HOME}">Continue now</a></div></div>`,
+      <div class="row" style="margin-top:24px"><span class="spinner dark"></span><a class="link small" href="${step ? PORTAL_STEPUP_RETURN : homeUrl()}">Continue now</a></div></div>`,
             { top: step ? '' : null },
           );
         }
@@ -669,7 +706,9 @@
         const rules = [
           ['At least 12 characters', a.length >= 12],
           [
-            staff ? 'Not your email address' : 'Not your email or officer reference',
+            staff || isApplicant()
+              ? 'Not your email address'
+              : 'Not your email or officer reference',
             a.length > 0 &&
               !a.toLowerCase().includes(idLow.split('@')[0]) &&
               !a.toLowerCase().includes('0012345'),
@@ -794,7 +833,7 @@
   <p class="subtitle">Nothing has changed on your account. Try signing in again.</p>
   <div class="stack" style="margin-top:24px">
     <button class="btn btn-primary btn-block" data-act="setAud" data-arg="${S.aud}|login">Back to sign in</button>
-    <p class="small muted">If it keeps happening, contact ${isStaff() ? 'the EACC platform team' : "your Commission's reporting officer"}.</p>
+    <p class="small muted">If it keeps happening, contact ${helpContact()}.</p>
   </div>`);
 
       screens['page-expired'] = () =>
@@ -866,7 +905,7 @@
         passkey: () => {
           Kit.toast('Your device asks for your fingerprint, face or PIN');
           later(() => {
-            location.href = PORTAL_HOME;
+            location.href = homeUrl();
           }, 1500);
         },
         signIn: () => {
@@ -875,7 +914,7 @@
           if (!L.id.trim() || !L.pw) {
             L.error = isStaff()
               ? 'Enter your official email and password.'
-              : 'Enter your email or officer reference, and your password.';
+              : `Enter your ${idWords()}, and your password.`;
             Kit.render();
             return;
           }
@@ -887,7 +926,9 @@
             if (L.pw.toLowerCase() === 'wrong') {
               L.error = isStaff()
                 ? 'The email or password is not right. Check them and try again.'
-                : 'The email, officer reference or password is not right. Check them and try again.';
+                : isApplicant()
+                  ? 'The email or password is not right. Check them and try again.'
+                  : 'The email, officer reference or password is not right. Check them and try again.';
               L.pw = '';
               return;
             }
@@ -908,8 +949,7 @@
         },
         sendReset: () => {
           if (!S.reset.id.trim()) {
-            S.reset.error =
-              'Enter your ' + (isStaff() ? 'official email.' : 'email or officer reference.');
+            S.reset.error = 'Enter your ' + idWords() + '.';
             Kit.render();
             return;
           }
@@ -945,7 +985,7 @@
               return;
             }
             O.done = true;
-            leaveTo(S.flow === 'stepup' ? PORTAL_STEPUP_RETURN : PORTAL_HOME, 1600);
+            leaveTo(S.flow === 'stepup' ? PORTAL_STEPUP_RETURN : homeUrl(), 1600);
           }, 800);
         },
         resend: () => {
@@ -1109,6 +1149,11 @@
       };
       const jumps = [
         ['login', '#78 Declarant: sign in', J('declarant', 'login', 'login')],
+        [
+          'j-applicant-login',
+          'Applicant: sign in (access requests)',
+          J('applicant', 'login', 'login'),
+        ],
         [
           'j-login-bad',
           '#78 Sign in: wrong password',

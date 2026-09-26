@@ -1,0 +1,1370 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: how does a platform administrator govern AI per Commission (classification gate per data class and provider class, routing, budgets and usage), what does a commission administrator see about AI for their Commission, and what do the shared AI primitives look like? Covers tickets #282 (gallery) and #291. The Copilot panel (#285) and Draft with AI (#288) live in 07a-review.prototype.html. Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - AI policy and copilot primitives (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      *:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      body:not(.mobile):has(#layer .drawer-ov) .proto {
+        right: auto;
+        left: 14px;
+        max-width: calc(100vw - 770px);
+      }
+      .stay .drawer,
+      .stay .drawer-ov,
+      .stay .dialog,
+      .stay .overlay {
+        animation: none !important;
+      }
+      .not-found {
+        max-width: 520px;
+        margin: 60px auto;
+        text-align: center;
+      }
+      .not-found .code {
+        font-size: 56px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        color: var(--line-2);
+        line-height: 1;
+      }
+      .ferr {
+        font-size: 13px;
+        color: var(--danger);
+        font-weight: 500;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .linkish {
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--line-2);
+        text-underline-offset: 3px;
+        cursor: pointer;
+        background: none;
+        border: 0;
+        padding: 0;
+        font: inherit;
+        font-weight: 500;
+      }
+
+      /* ---------- AI primitives (#282), same markup as 07a-review ---------- */
+      .ailabel {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 9px 0 7px;
+        border-radius: 999px;
+        background: var(--ai-soft);
+        color: var(--ai);
+        font-size: 12.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        vertical-align: middle;
+        max-width: 100%;
+      }
+      .ailabel > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ailabel svg {
+        flex: none;
+      }
+      .ailabel.sm {
+        height: 20px;
+        padding: 0 7px 0 5px;
+        gap: 4px;
+        font-size: 11.5px;
+      }
+      .ailabel.edited {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .ailabel.kit-tip,
+      .ailabel.kit-tip:hover {
+        color: var(--ai);
+        border-radius: 999px;
+      }
+      .ailabel.edited.kit-tip {
+        color: var(--ink-2);
+      }
+      .srcref {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        max-width: 100%;
+        min-height: 24px;
+        padding: 2px 8px 2px 6px;
+        border: 0;
+        border-radius: 7px;
+        background: var(--sunken);
+        color: var(--ink);
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        line-height: 1.3;
+        text-align: left;
+        cursor: pointer;
+      }
+      .srcref:hover {
+        background: #ebe9e5;
+      }
+      .srcref svg {
+        flex: none;
+        color: var(--muted);
+      }
+      .srcref .tx {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .fb {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .fbb {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .fbb:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+      .fbb[aria-pressed='true'] {
+        background: var(--ink);
+        color: #fff;
+      }
+      .fb-ro {
+        font-size: 12.5px;
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .fb-form {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--sunken);
+      }
+      .fb-form .select,
+      .fb-form .textarea {
+        background: var(--surface);
+      }
+      /* UsageMeter */
+      .meter {
+        display: grid;
+        gap: 6px;
+        min-width: 150px;
+      }
+      .meter .lab {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 10px;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .meter .lab b {
+        font-weight: 600;
+      }
+      .meter .st {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .meter .bar {
+        position: relative;
+        height: 6px;
+        border-radius: 99px;
+        background: var(--sunken);
+        overflow: hidden;
+      }
+      .meter .fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        border-radius: 99px;
+        background: var(--ink);
+      }
+      .meter .tick {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--surface);
+      }
+      .meter.warn .fill {
+        background: #d98a00;
+      }
+      .meter.warn .st {
+        color: var(--warn);
+      }
+      .meter.over .fill {
+        background: var(--danger);
+      }
+      .meter.over .st {
+        color: var(--danger);
+      }
+      .meter.lg .bar {
+        height: 10px;
+      }
+      .meter.lg .lab {
+        font-size: 14px;
+      }
+
+      /* ---------- AI policy (#291) ---------- */
+      .table .cls {
+        white-space: nowrap;
+        font-size: 13.5px;
+      }
+      .gate {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 500;
+      }
+      .gate.on {
+        color: var(--ok);
+      }
+      .gate.off {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .table thead .grp th {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+      .tname {
+        font-weight: 500;
+      }
+      .tname .sub {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .gmatrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .gmatrix th,
+      .gmatrix td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      .gmatrix thead th {
+        white-space: nowrap;
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .gmatrix tbody th {
+        font-weight: 500;
+      }
+      .gmatrix tr:last-child > * {
+        border-bottom: 0;
+      }
+      .gmatrix .ref {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 400;
+        margin-top: 2px;
+      }
+      .gmatrix .check {
+        margin: 0;
+      }
+      .gcard {
+        border-radius: 12px;
+        box-shadow: var(--shadow-card);
+        overflow-x: auto;
+      }
+      .dsec-h {
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .kv4 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 16px;
+        margin-top: 14px;
+      }
+      .kv4 .k {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .kv4 .v {
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      @container app (min-width: 700px) {
+        .kv4 {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      .audit {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .audit li {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 10px;
+        font-size: 13.5px;
+      }
+      .audit .ico {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: var(--sunken);
+        color: var(--ink-2);
+        display: grid;
+        place-items: center;
+      }
+      .audit .s {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .chg {
+        display: grid;
+        gap: 8px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--sunken);
+        font-size: 14px;
+      }
+      .chg li {
+        margin-left: 18px;
+      }
+      .mono-s {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12.5px;
+      }
+      .params {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        font-size: 12.5px;
+        color: var(--ink-2);
+      }
+      .params span b {
+        font-weight: 500;
+        color: var(--muted);
+      }
+      /* Commission status line (belongs in 01-commissions Policy card) */
+      .cardx {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        max-width: 720px;
+      }
+      .cardx .sec-h {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px 6px;
+      }
+      .cardx .sec-h h3 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .cardx .sec-h .ico {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .prow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .prow:last-child {
+        border-bottom: 0;
+      }
+      .prow .k {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .prow .v {
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      @container app (min-width: 600px) {
+        .prow {
+          grid-template-columns: 170px minmax(0, 1fr);
+          gap: 16px;
+          align-items: center;
+        }
+      }
+      .prow.new {
+        background: var(--ai-soft);
+      }
+      /* gallery */
+      .gal {
+        display: grid;
+        gap: 16px;
+      }
+      @container app (min-width: 1000px) {
+        .gal {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .gal h3 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .gal .spec {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .gal .demo {
+        margin-top: 14px;
+        display: grid;
+        gap: 12px;
+      }
+      .gal .st-l {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const {
+        icon,
+        esc,
+        dialog,
+        drawer,
+        consoleShell,
+        fmtDate,
+        fmtDateTime,
+        num,
+        badge,
+        empty,
+        skeletonRows,
+      } = Kit;
+      const P = () => Kit.persona();
+      const NOW = '2026-09-26T10:30';
+      const D = (s) => new Date(s);
+      const plural = (n, w, pl) => `${num(n)} ${n === 1 ? w : pl || w + 's'}`;
+      const ME = () => Kit.PERSONAS[P()];
+
+      /* ============================== AI primitives (#282) ============================== */
+      Kit.I.thumbUp =
+        '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>';
+      Kit.I.thumbDown =
+        '<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>';
+      const AI_TASK = {
+        'summarize-declaration': 'Summary',
+        'explain-flags': 'Flag explanations',
+        'draft-clarification': 'Clarification draft',
+      };
+      const aiLab = (task, promptVersion, generatedAt) => ({
+        aiAssisted: true,
+        task,
+        promptVersion,
+        provider: 'Anthropic',
+        model: 'claude-opus-5',
+        generatedAt,
+      });
+      function aiLabel(lab, { text = 'AI-assisted', sm = false, edited = false } = {}) {
+        const tip = `${AI_TASK[lab.task] || lab.task} · ${lab.provider} ${lab.model} · prompt v${lab.promptVersion} · generated ${fmtDateTime(lab.generatedAt)}`;
+        const t = edited ? 'AI draft, edited' : text;
+        return `<span class="ailabel kit-tip ${sm ? 'sm' : ''} ${edited ? 'edited' : ''}" tabindex="0" role="note" aria-label="${esc(t)}. ${esc(tip)}" data-tip="${esc(tip)}">${icon(edited ? 'pencil' : 'sparkles', sm ? 11 : 13, 2)}<span>${esc(t)}</span></span>`;
+      }
+      const srcLink = (label, ic, aria) =>
+        `<button class="srcref" data-act="toast" data-arg="Opens ${esc(aria)} in the declaration pane and highlights it" aria-label="Open in the declaration: ${esc(aria)}">${icon(ic, 13)}<span class="tx">${esc(label)}</span></button>`;
+      const FB_REASONS = [
+        ['inaccurate', 'Inaccurate'],
+        ['missed-something', 'Missed something'],
+        ['unclear', 'Unclear'],
+        ['too-long', 'Too long'],
+        ['other', 'Other'],
+      ];
+      const fbOf = (k) => (S.fb[k] ||= { rating: null, reason: '', note: '', open: false });
+      function feedbackCtl(key, mode = 'edit') {
+        const f = fbOf(key);
+        if (mode === 'ro')
+          return f.rating
+            ? `<span class="fb-ro">${icon(f.rating === 'helpful' ? 'thumbUp' : 'thumbDown', 13)} Faith Achieng: ${f.rating === 'helpful' ? 'helpful' : 'not helpful'}${f.reason ? ', ' + FB_REASONS.find((x) => x[0] === f.reason)[1].toLowerCase() : ''}</span>`
+            : '';
+        return `<span class="fb" role="group" aria-label="Rate this output"><button class="fbb kit-tip" data-act="fbUp" data-arg="${key}" aria-pressed="${f.rating === 'helpful'}" aria-label="Helpful" data-tip="Helpful">${icon('thumbUp', 15)}</button><button class="fbb kit-tip" data-act="fbDown" data-arg="${key}" aria-pressed="${f.rating === 'not-helpful' || f.open}" aria-label="Not helpful" data-tip="Not helpful">${icon('thumbDown', 15)}</button></span>`;
+      }
+      function feedbackForm(key) {
+        const f = fbOf(key);
+        if (!f.open) return '';
+        return `<div class="fb-form" role="group" aria-label="Why was this not helpful?"><div class="field"><label class="label" for="fbr-${key}">What was wrong?</label><select id="fbr-${key}" class="select" data-bind="fb.${key}.reason"><option value="" ${f.reason ? '' : 'selected'} disabled>Choose a reason</option>${FB_REASONS.map(([k, l]) => `<option value="${k}" ${f.reason === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${f.err ? `<div class="ferr">${icon('alert', 14)} ${f.err}</div>` : ''}</div><div class="field"><label class="label" for="fbn-${key}"><span>Note</span><span class="opt">Optional</span></label><textarea id="fbn-${key}" class="textarea" rows="2" maxlength="1000" data-bind="fb.${key}.note" placeholder="What should it have said?">${esc(f.note)}</textarea></div><div class="row" style="gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" data-act="fbCancel" data-arg="${key}">Cancel</button><button class="btn btn-primary btn-sm" data-act="fbSubmit" data-arg="${key}">Send rating</button></div></div>`;
+      }
+      const tok = (n) =>
+        n >= 1e6
+          ? `${(n / 1e6).toFixed(2).replace(/\.?0+$/, '')}M`
+          : n >= 1e3
+            ? `${Math.round(n / 1e3)}k`
+            : String(n);
+      // UsageMeter: tokens used against the monthly budget; amber from 80%, red at 100%.
+      function usageMeter(u, { lg = false } = {}) {
+        const p = u.monthlyTokens ? (u.tokensUsed / u.monthlyTokens) * 100 : u.tokensUsed ? 100 : 0;
+        const cls = p >= 100 ? 'over' : p >= 80 ? 'warn' : '';
+        const st =
+          p >= 100
+            ? `${icon('alert', 13, 2.2)} Used up`
+            : p >= 80
+              ? `${icon('alert', 13, 2.2)} ${Math.floor(p)}%`
+              : `${Math.floor(p)}%`;
+        return `<div class="meter ${cls} ${lg ? 'lg' : ''}" role="meter" aria-valuemin="0" aria-valuemax="${u.monthlyTokens}" aria-valuenow="${Math.min(u.tokensUsed, u.monthlyTokens)}" aria-label="Tokens this month: ${num(u.tokensUsed)} of ${num(u.monthlyTokens)}${p >= 100 ? '. Budget used up' : p >= 80 ? '. Over 80%' : ''}"><div class="lab"><span><b>${tok(u.tokensUsed)}</b> <span class="muted">of ${tok(u.monthlyTokens)} tokens</span></span><span class="st">${st}</span></div><div class="bar"><span class="fill" style="width:${Math.min(100, p)}%"></span><span class="tick" style="left:80%"></span></div></div>`;
+      }
+
+      /* ============================== demo data ============================== */
+      const CLS = ['synthetic', 'restricted', 'highly-confidential'];
+      const CLS_L = {
+        synthetic: 'Synthetic',
+        restricted: 'Restricted',
+        'highly-confidential': 'Highly confidential',
+      };
+      const PC = ['external', 'self-hosted'];
+      const PC_L = { external: 'External', 'self-hosted': 'Self-hosted' };
+      const CLS_TIP =
+        'Synthetic: generated demo declarations. Restricted: aggregates and non-personal data. Highly confidential: real declarations.';
+      const COUNTIES =
+        'Nairobi City,Mombasa,Kisumu,Nakuru,Kiambu,Machakos,Uasin Gishu,Kakamega,Kilifi,Nyeri,Meru,Kajiado,Kericho,Bungoma,Kisii,Embu,Garissa,Turkana,Laikipia,Narok,Homa Bay,Migori,Siaya,Vihiga,Busia,Nandi,Bomet,Kirinyaga,Murang’a,Nyandarua,Makueni,Kitui,Tharaka-Nithi,Isiolo,Marsabit,Wajir,Mandera,Lamu,Taita-Taveta,Kwale,Tana River,Samburu,West Pokot,Elgeyo-Marakwet,Trans Nzoia,Baringo,Nyamira'.split(
+          ',',
+        );
+      function seedTenants() {
+        const base = [
+          ['demo', 'Demo Commission', 'Synthetic declarations for demonstrations'],
+          ['psc', 'Public Service Commission', ''],
+          ['tsc', 'Teachers Service Commission', ''],
+          ['jsc', 'Judicial Service Commission', ''],
+          ['parlsc', 'Parliamentary Service Commission', ''],
+          ['npsc', 'National Police Service Commission', ''],
+          ['cra', 'Commission on Revenue Allocation', ''],
+          ['src', 'Salaries and Remuneration Commission', ''],
+          ['iebc', 'Independent Electoral and Boundaries Commission', ''],
+          ['knchr', 'Kenya National Commission on Human Rights', ''],
+          ['nlc', 'National Land Commission', ''],
+          ['caj', 'Commission on Administrative Justice', ''],
+          ['ngec', 'National Gender and Equality Commission', ''],
+        ].map(([slug, name, sub]) => ({ slug, name, sub }));
+        COUNTIES.forEach((c) =>
+          base.push({
+            slug:
+              'cpsb' +
+              c
+                .toLowerCase()
+                .replace(/[^a-z]/g, '')
+                .slice(0, 16),
+            name: `${c} County Public Service Board`,
+            sub: '',
+          }),
+        );
+        const rule = (dc, pc, ref, by, at) => ({
+          dataClass: dc,
+          providerClass: pc,
+          allowed: true,
+          approvalRef: ref,
+          changedBy: by,
+          changedAt: at,
+        });
+        const P0 = {
+          demo: [
+            rule('synthetic', 'external', 'EACC/AI/2026/001', 'Amina Wanjiru', '2026-08-04T09:12'),
+          ],
+          psc: [
+            rule('synthetic', 'external', 'EACC/AI/2026/014', 'Amina Wanjiru', '2026-09-01T11:40'),
+          ],
+          jsc: [
+            rule('synthetic', 'external', 'EACC/AI/2026/019', 'Amina Wanjiru', '2026-09-08T15:05'),
+          ],
+          cpsbnairobicity: [
+            rule('synthetic', 'external', 'EACC/AI/2026/021', 'Amina Wanjiru', '2026-09-10T10:20'),
+          ],
+        };
+        const U0 = {
+          demo: [2000000, 60, 412800, 5210000, 318, 0, 2],
+          psc: [3000000, 120, 1926400, 24180000, 1482, 0, 11],
+          jsc: [1000000, 60, 862300, 10940000, 604, 0, 3],
+          cpsbnairobicity: [1500000, 60, 1500000, 18820000, 1120, 37, 5],
+        };
+        return base.map((t, i) => {
+          const u = U0[t.slug] || [1000000, 60, 0, 0, 0, t.slug === 'tsc' ? 214 : (i * 37) % 90, 0];
+          return {
+            ...t,
+            rules: P0[t.slug] || [],
+            usage: {
+              month: '2026-09',
+              monthlyTokens: u[0],
+              perMinute: u[1],
+              tokensUsed: u[2],
+              costMicros: u[3],
+              jobs: u[4],
+              blocked: u[5],
+              failed: u[6],
+            },
+            audit: (P0[t.slug] || []).map((r) => ({
+              at: r.changedAt,
+              by: r.changedBy,
+              text: `Allowed ${PC_L[r.providerClass].toLowerCase()} providers for ${CLS_L[r.dataClass].toLowerCase()} data`,
+              ref: r.approvalRef,
+              ic: 'check',
+            })),
+          };
+        });
+      }
+      const ROUTES = [
+        {
+          tenant: null,
+          task: 'summarize-declaration',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0, maxTokens: 4000, timeout: '60 s' },
+        },
+        {
+          tenant: null,
+          task: 'explain-flags',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0, maxTokens: 3000, timeout: '45 s' },
+        },
+        {
+          tenant: null,
+          task: 'draft-clarification',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0.2, maxTokens: 2000, timeout: '10 s' },
+        },
+        {
+          tenant: 'psc',
+          task: 'draft-clarification',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0.2, maxTokens: 3000, timeout: '10 s' },
+        },
+        {
+          tenant: null,
+          task: 'extract-document',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0, maxTokens: 2000, timeout: '60 s' },
+        },
+        {
+          tenant: null,
+          task: 'answer-declarant-question',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0.3, maxTokens: 1500, timeout: '30 s' },
+        },
+        {
+          tenant: null,
+          task: 'narrate-compliance-report',
+          provider: 'anthropic',
+          model: 'claude-opus-5',
+          params: { temperature: 0.2, maxTokens: 6000, timeout: '120 s' },
+        },
+      ];
+
+      const S = Kit.state({
+        tenants: seedTenants(),
+        tab: 'tenants',
+        q: '',
+        filt: 'all',
+        page: 1,
+        size: 20,
+        view: 'ok',
+        tenantId: 'psc',
+        edit: null,
+        budget: null,
+        fb: {
+          'g-helpful': { rating: 'helpful', reason: '', note: '', open: false },
+          'g-open': { rating: null, reason: 'missed-something', note: '', open: true },
+          'g-done': { rating: 'not-helpful', reason: 'too-long', note: '', open: false },
+          'g-ro': { rating: 'helpful', reason: '', note: '', open: false },
+        },
+      });
+      const admin = () => P() === 'platform-admin';
+      const tenantOf = (slug) => S.tenants.find((t) => t.slug === slug);
+      const allowed = (t, dc, pc) =>
+        t.rules.some((r) => r.dataClass === dc && r.providerClass === pc && r.allowed);
+      const enabled = (t) => t.rules.some((r) => r.allowed);
+      function statusText(t) {
+        const al = t.rules.filter((r) => r.allowed);
+        if (!al.length) return 'not enabled';
+        const byPc = PC.map((pc) => [
+          pc,
+          al.filter((r) => r.providerClass === pc).map((r) => r.dataClass),
+        ]).filter(([, d]) => d.length);
+        return (
+          'enabled (' +
+          byPc
+            .map(
+              ([pc, d]) =>
+                `${PC_L[pc].toLowerCase()} provider, ${d.map((x) => CLS_L[x].toLowerCase()).join(' and ')} data${d.length === 1 && d[0] === 'synthetic' ? ' only' : ''}`,
+            )
+            .join('; ') +
+          ')'
+        );
+      }
+      const pctUsed = (u) => (u.monthlyTokens ? (u.tokensUsed / u.monthlyTokens) * 100 : 0);
+      const kes = (micros) => `KES ${num(Math.round((micros / 1e6) * 129))}`;
+
+      /* ============================== screens ============================== */
+      function forbidden() {
+        return consoleShell(
+          `<main class="cpage"><div class="not-found"><div class="code">403</div><h1 class="page-title" style="margin-top:10px">You do not have access to AI policy</h1><p class="muted" style="margin-top:8px">Only platform administrators can see AI policy.</p><div style="margin-top:20px"><a class="btn btn-secondary" href="01-commissions.prototype.html#my-commission">Go to overview</a></div></div></main>`,
+          { crumbs: [['Platform'], ['AI policy']] },
+        );
+      }
+      function notFound() {
+        return consoleShell(
+          `<main class="cpage"><div class="not-found"><div class="code">404</div><h1 class="page-title" style="margin-top:10px">Page not found</h1><p class="muted" style="margin-top:8px">This page does not exist, or you do not have access to it.</p><div style="margin-top:20px"><a class="btn btn-secondary" href="01-commissions.prototype.html#my-commission">Go to overview</a></div></div></main>`,
+          { crumbs: [['Not found']] },
+        );
+      }
+      const gateCell = (t, dc) => {
+        const on = PC.filter((pc) => allowed(t, dc, pc));
+        return on.length
+          ? `<span class="gate on">${icon('check', 14, 2.4)}${on.map((pc) => PC_L[pc]).join(', ')}</span>`
+          : '<span class="gate off">Blocked</span>';
+      };
+      function tenantsTab() {
+        const q = S.q.trim().toLowerCase();
+        const F = {
+          all: () => true,
+          on: (t) => enabled(t),
+          off: (t) => !enabled(t),
+          budget: (t) => enabled(t) && pctUsed(t.usage) >= 80,
+        };
+        const base = S.tenants.filter(
+          (t) => !q || t.name.toLowerCase().includes(q) || t.slug.includes(q),
+        );
+        const list = base.filter(F[S.filt]);
+        const pages = Math.max(1, Math.ceil(list.length / S.size));
+        if (S.page > pages) S.page = pages;
+        const rows = list.slice((S.page - 1) * S.size, S.page * S.size);
+        const chips = [
+          ['all', 'All'],
+          ['on', 'Enabled'],
+          ['off', 'Not enabled'],
+          ['budget', 'Budget 80%+'],
+        ];
+        const toolbar = `<div class="toolbar"><div class="input-group"><span class="addon">${icon('search', 16)}</span><input id="tq" class="input" type="search" aria-label="Search Commissions" placeholder="Commission" data-bind="q" data-live value="${esc(S.q)}"/></div>${chips.map(([k, l]) => `<button class="chip ${S.filt === k ? 'on' : ''}" data-act="filt" data-arg="${k}" aria-pressed="${S.filt === k}">${l} <span class="n">${base.filter(F[k]).length}</span></button>`).join('')}</div>`;
+        if (S.view === 'loading')
+          return `<div class="card">${toolbar}<div class="table-wrap"><table class="table"><tbody>${skeletonRows(8, 6)}</tbody></table></div></div>`;
+        if (S.view === 'error')
+          return `<div class="callout callout-danger" role="alert">${icon('alert', 17)}<div style="flex:1"><b>AI policy could not be loaded.</b><div style="margin-top:2px">Nothing has changed. Try again in a moment.</div></div><button class="btn btn-secondary btn-sm" data-act="retry">${icon('refresh', 15)} Try again</button></div>`;
+        const body = !list.length
+          ? empty('No Commissions here', 'Try another search or filter.', { icon: 'search' })
+          : `<div class="table-wrap"><table class="table"><caption class="sr">Classification gate, usage and rate limit per Commission</caption><thead><tr><th scope="col">Commission</th>${CLS.map((dc) => `<th scope="col">${CLS_L[dc]}${dc === 'highly-confidential' ? ' ' + Kit.tip(CLS_TIP, { label: 'About data classes' }) : ''}</th>`).join('')}<th scope="col">Usage, Sep 2026</th><th scope="col" class="right">Rate limit</th><th scope="col"><span class="sr">Open</span></th></tr></thead><tbody>${rows
+              .map(
+                (t) =>
+                  `<tr class="click" data-act="openTenant" data-arg="${t.slug}"><td style="min-width:220px"><div class="tname">${esc(t.name)}</div><div class="tname"><span class="sub mono-s">${t.slug}</span></div></td>${CLS.map((dc) => `<td class="cls">${gateCell(t, dc)}</td>`).join('')}<td style="min-width:190px">${enabled(t) ? usageMeter(t.usage) : `<span class="small muted">Not enabled${t.usage.blocked ? ` · ${num(t.usage.blocked)} blocked` : ''}</span>`}</td><td class="right tabular nowrap">${num(t.usage.perMinute)}/min</td><td class="right" style="color:var(--muted)">${icon('right', 16)}</td></tr>`,
+              )
+              .join(
+                '',
+              )}</tbody></table></div>${Kit.pager({ page: S.page, pageSize: S.size, total: list.length, act: 'page', sizes: [20, 50], sizeBind: 'size' })}`;
+        return `<div class="card">${toolbar}${body}</div>`;
+      }
+      function routingTab() {
+        const scope = (r) =>
+          r.tenant ? esc(tenantOf(r.tenant).name) : '<span class="muted">All Commissions</span>';
+        return `<div class="card"><div class="toolbar" style="justify-content:space-between"><span class="small muted row" style="gap:6px">${icon('lock', 14)} Set in configuration</span><span class="badge">Production</span></div><div class="table-wrap"><table class="table"><caption class="sr">Routing: task to provider and model</caption><thead><tr><th scope="col">Task</th><th scope="col">Scope</th><th scope="col">Provider</th><th scope="col">Model</th><th scope="col">Parameters</th></tr></thead><tbody>${ROUTES.map((r) => `<tr><td class="nowrap"><span class="mono-s">${r.task}</span></td><td style="min-width:150px">${scope(r)}</td><td>${r.provider === 'anthropic' ? 'Anthropic' : r.provider}</td><td class="nowrap"><span class="mono-s">${r.model}</span></td><td style="min-width:220px"><div class="params"><span><b>Temperature</b> ${r.params.temperature}</span><span><b>Max tokens</b> ${num(r.params.maxTokens)}</span><span><b>Timeout</b> ${r.params.timeout}</span></div></td></tr>`).join('')}</tbody></table></div></div>`;
+      }
+      const scrPolicy = () => {
+        if (!admin()) return forbidden();
+        const on = S.tenants.filter(enabled).length;
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div><h1>AI policy</h1><p>${on} of ${S.tenants.length} Commissions enabled</p></div></div>
+    <div class="tabs" role="tablist" aria-label="AI policy" style="margin-bottom:16px"><button role="tab" aria-selected="${S.tab === 'tenants'}" class="${S.tab === 'tenants' ? 'on' : ''}" data-act="tab" data-arg="tenants">Commissions</button><button role="tab" aria-selected="${S.tab === 'routing'}" class="${S.tab === 'routing' ? 'on' : ''}" data-act="tab" data-arg="routing">Routing</button></div>
+    <div role="tabpanel">${S.tab === 'tenants' ? tenantsTab() : routingTab()}</div>
+  </main>`,
+          { crumbs: [['Platform'], ['AI policy']] },
+        );
+      };
+      const scrCommission = () => {
+        if (!['commission-admin', 'supervisor'].includes(P())) return notFound();
+        const t = tenantOf('psc');
+        const on = enabled(t);
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div style="min-width:0"><h1>Public Service Commission</h1></div></div>
+    <section class="cardx" aria-labelledby="h-policy"><div class="sec-h"><span class="ico">${icon('settings', 16)}</span><h3 id="h-policy">Policy</h3></div>
+      <div class="prow"><div class="k">Statutory periods</div><div class="v">Initial: 30 days after appointment<br/>Biennial: statement 1 Nov, due 31 Dec<br/>Final: 30 days after leaving office</div></div>
+      <div class="prow"><div class="k">Obligations start date</div><div class="v">1 Jul 2026</div></div>
+      <div class="prow new"><div class="k">AI assistance</div><div class="v row" style="gap:8px;flex-wrap:wrap">${on ? badge(icon('check', 12, 2.6) + ' Enabled', 'ok') : badge(icon('ban', 12) + ' Not enabled')}<span style="font-weight:400;color:var(--ink-2)">${on ? 'External provider, synthetic data only' : 'No declaration data is sent to an AI provider'}</span></div></div>
+    </section>
+    <p class="small muted" style="margin-top:12px;max-width:720px">Prototype: the AI assistance row (shaded) belongs in the Policy card on 01-commissions #my-commission. Other rows are shown for context.</p>
+  </main>`,
+          { crumbs: [['Overview']] },
+        );
+      };
+      const scrPrimitives = () => {
+        const lab = aiLab('summarize-declaration', 3, '2026-09-02T14:33');
+        const dl = aiLab('draft-clarification', 1, NOW);
+        const u = (a, b) => ({ tokensUsed: a, monthlyTokens: b });
+        return consoleShell(
+          `<main class="cpage"><div class="page-head"><div><h1>AI primitives</h1></div></div>
+  <div class="gal">
+    <div class="card card-pad"><h3>AiLabel</h3><p class="spec">Always text. Hover or focus shows task, provider, model, prompt version and time.</p><div class="demo">
+      <div><div class="st-l">Panel header</div>${aiLabel(lab, { text: 'AI-assisted · generated 24 days ago for version 2' })}</div>
+      <div><div class="st-l">Block mark</div>${aiLabel(lab, { text: 'AI', sm: true })}</div>
+      <div class="row wrap" style="gap:16px"><div><div class="st-l">Drafted item</div>${aiLabel(dl, { text: 'AI draft', sm: true })}</div><div><div class="st-l">After an edit</div>${aiLabel(dl, { sm: true, edited: true })}</div></div>
+    </div></div>
+    <div class="card card-pad"><h3>SourceRefLink</h3><p class="spec">Resolves section, person, item or field path. Opens the target in the declaration pane and highlights it.</p><div class="demo">
+      <div><div class="st-l">Item</div>${srcLink('4-bedroom house on LR 12715/482', 'building', 'Assets, Building, 4-bedroom house on LR 12715/482, Wanjiku Njeri Kamau')}</div>
+      <div><div class="st-l">Person statement</div>${srcLink('Amani · statement', 'user', 'Amani, section 8')}</div>
+      <div><div class="st-l">Section or field path (/personal/designation)</div>${srcLink('Personal and employment details', 'list', 'Personal and employment details')}</div>
+      <div><div class="st-l">Long label</div><div style="max-width:260px">${srcLink('Hardware shop stock, Kamau Hardware Enterprises (BN-4K7Q2P)', 'box', 'Hardware shop stock')}</div></div>
+    </div></div>
+    <div class="card card-pad"><h3>FeedbackControl</h3><p class="spec">Helpful, or not helpful with a reason and an optional note. One rating per reviewer per output.</p><div class="demo">
+      <div class="row wrap" style="gap:24px"><div><div class="st-l">Not rated</div>${feedbackCtl('g-idle')}</div><div><div class="st-l">Helpful</div>${feedbackCtl('g-helpful')}</div><div><div class="st-l">Not helpful, sent</div>${feedbackCtl('g-done')}</div><div><div class="st-l">Read-only (supervisor)</div>${feedbackCtl('g-ro', 'ro')}</div></div>
+      <div><div class="st-l">Not helpful: reason and note</div><div class="row" style="justify-content:flex-end">${feedbackCtl('g-open')}</div>${feedbackForm('g-open')}</div>
+    </div></div>
+    <div class="card card-pad"><h3>UsageMeter</h3><p class="spec">Tokens this month against the budget. Amber from 80%, red when used up. The notch marks 80%.</p><div class="demo" style="max-width:360px">
+      <div><div class="st-l">Normal</div>${usageMeter(u(1926400, 3000000))}</div>
+      <div><div class="st-l">80% or more</div>${usageMeter(u(862300, 1000000))}</div>
+      <div><div class="st-l">Used up</div>${usageMeter(u(1500000, 1500000))}</div>
+      <div><div class="st-l">None used</div>${usageMeter(u(0, 1000000))}</div>
+      <div><div class="st-l">Large (Commission drawer)</div>${usageMeter(u(1926400, 3000000), { lg: true })}</div>
+    </div></div>
+  </div></main>`,
+          { crumbs: [['Platform'], ['AI primitives']] },
+        );
+      };
+
+      /* ============================== modals ============================== */
+      function tenantDrawer() {
+        const t = tenantOf(S.tenantId);
+        const u = t.usage;
+        const on = enabled(t);
+        const p = pctUsed(u);
+        const rulesFor = (dc, pc) =>
+          t.rules.find((r) => r.dataClass === dc && r.providerClass === pc && r.allowed);
+        const matrix = `<div class="gcard"><table class="gmatrix"><caption class="sr">Provider classes allowed per data class</caption><thead><tr><th scope="col">Data class ${Kit.tip(CLS_TIP, { label: 'About data classes' })}</th>${PC.map((pc) => `<th scope="col">${PC_L[pc]}</th>`).join('')}</tr></thead><tbody>${CLS.map(
+          (dc) =>
+            `<tr><th scope="row">${CLS_L[dc]}</th>${PC.map((pc) => {
+              const r = rulesFor(dc, pc);
+              return `<td>${r ? `<span class="gate on">${icon('check', 14, 2.4)}Allowed</span><span class="ref">${esc(r.approvalRef)}</span>` : '<span class="gate off">Blocked</span>'}</td>`;
+            }).join('')}</tr>`,
+        ).join('')}</tbody></table></div>`;
+        const body = `<div class="stack-lg">
+    <div class="row wrap" style="gap:8px">${on ? badge(icon('check', 12, 2.6) + ' Enabled', 'ok') : badge(icon('ban', 12) + ' Not enabled')}<span class="small" style="color:var(--ink-2)">${esc(
+      statusText(t)
+        .replace(/^enabled \(|\)$/g, '')
+        .replace(/^not enabled$/, 'blocked for every data class')
+        .replace(/^./, (x) => x.toUpperCase()),
+    )}</span></div>
+    <section><h4 class="dsec-h">Gate policy</h4>${matrix}</section>
+    <section><h4 class="dsec-h">Usage, September 2026</h4>
+      ${usageMeter(u, { lg: true })}
+      ${p >= 100 ? `<div class="callout callout-danger" style="margin-top:12px" role="status">${icon('alert', 16)}<span>Budget used up. New AI requests are blocked until 1 Oct 2026.</span></div>` : ''}
+      <div class="kv4"><div><div class="k">Jobs</div><div class="v">${num(u.jobs)}</div></div><div><div class="k">Blocked</div><div class="v">${num(u.blocked)}</div></div><div><div class="k">Failed</div><div class="v">${num(u.failed)}</div></div><div><div class="k">Cost</div><div class="v">${kes(u.costMicros)}</div></div><div><div class="k">Monthly budget</div><div class="v">${num(u.monthlyTokens)} tokens</div></div><div><div class="k">Rate limit</div><div class="v">${num(u.perMinute)} a minute</div></div></div>
+    </section>
+    <section><h4 class="dsec-h">Changes</h4>${
+      t.audit.length
+        ? `<ul class="audit">${t.audit
+            .slice()
+            .reverse()
+            .map(
+              (a) =>
+                `<li><span class="ico">${icon(a.ic, 14)}</span><div><div>${esc(a.text)}</div><div class="s">${esc(a.by)} · ${fmtDateTime(a.at)}${a.ref ? ` · <span class="mono-s">${esc(a.ref)}</span>` : ''}</div></div></li>`,
+            )
+            .join('')}</ul>`
+        : '<p class="small muted">No changes. External providers are blocked by default.</p>'
+    }</section>
+  </div>`;
+        return drawer({
+          title: esc(t.name),
+          sub: `<span class="mono-s">${t.slug}</span>`,
+          body,
+          foot: `<button class="btn btn-secondary" data-act="budgetDlg">${icon('gauge', 15)} Edit budget</button><button class="btn btn-primary" data-act="editDlg">${icon('pencil', 15)} Edit policy</button>`,
+        });
+      }
+      function editDialog() {
+        const t = tenantOf(S.tenantId);
+        const e = S.edit;
+        const changed = changesOf(t);
+        return dialog({
+          title: 'Edit gate policy',
+          sub: esc(t.name),
+          icon: 'shield',
+          wide: true,
+          body: `<div class="gcard"><table class="gmatrix"><caption class="sr">Allow provider classes per data class</caption><thead><tr><th scope="col">Data class ${Kit.tip(CLS_TIP, { label: 'About data classes' })}</th>${PC.map((pc) => `<th scope="col">${PC_L[pc]}</th>`).join('')}</tr></thead><tbody>${CLS.map((dc) => `<tr><th scope="row">${CLS_L[dc]}</th>${PC.map((pc) => `<td><label class="check"><input type="checkbox" data-bind="edit.m.${dc}|${pc}" data-rerender ${e.m[dc + '|' + pc] ? 'checked' : ''} aria-label="Allow ${PC_L[pc].toLowerCase()} providers for ${CLS_L[dc].toLowerCase()} data"/><span class="box">${icon('check', 14, 3)}</span><span>${e.m[dc + '|' + pc] ? 'Allowed' : 'Blocked'}</span></label></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <p class="small muted">No self-hosted provider is routed yet. Allowing it has no effect until one is configured.</p>`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="reviewEdit" ${changed.length ? '' : 'disabled'}>Continue</button>`,
+        });
+      }
+      function changesOf(t) {
+        const e = S.edit;
+        const out = [];
+        CLS.forEach((dc) =>
+          PC.forEach((pc) => {
+            const was = allowed(t, dc, pc);
+            const now = !!e.m[dc + '|' + pc];
+            if (was !== now) out.push({ dc, pc, allow: now });
+          }),
+        );
+        return out;
+      }
+      function confirmDialog() {
+        const t = tenantOf(S.tenantId);
+        const e = S.edit;
+        const ch = changesOf(t);
+        const line = (c) =>
+          c.allow
+            ? `${PC_L[c.pc]} providers may process ${CLS_L[c.dc].toLowerCase()} data for ${esc(t.name)}.`
+            : `${PC_L[c.pc]} providers will no longer process ${CLS_L[c.dc].toLowerCase()} data for ${esc(t.name)}. New AI requests are blocked; outputs already shown stay.`;
+        return dialog({
+          title: 'Confirm policy change',
+          sub: esc(t.name),
+          icon: ch.some((c) => c.allow && c.pc === 'external') ? 'globe' : 'shield',
+          tint: ch.some((c) => c.allow && c.pc === 'external')
+            ? ['var(--warn-soft)', 'var(--warn)']
+            : ['var(--sunken)', 'var(--ink)'],
+          body: `${ch.length > 1 ? `<ul class="chg" style="list-style:disc">${ch.map((c) => `<li>${line(c)}</li>`).join('')}</ul>` : `<p class="chg">${line(ch[0])}</p>`}
+      <div class="field"><label class="label" for="aref">Record the approval reference.</label><input id="aref" class="input" data-bind="edit.ref" value="${esc(e.ref)}" placeholder="For example EACC/AI/2026/022" maxlength="200" ${e.err ? 'aria-invalid="true" aria-describedby="aref-e"' : ''}/>${e.err ? `<div class="ferr" id="aref-e" role="alert">${icon('alert', 14)} ${e.err}</div>` : ''}</div>
+      <p class="small muted row" style="gap:6px">${icon('lock', 13)} Recorded in the audit trail with your name.</p>`,
+          foot: `<button class="btn btn-secondary" data-act="backEdit" ${e.busy ? 'disabled' : ''}>Back</button><button class="btn btn-primary" data-act="saveEdit" ${e.busy ? 'disabled' : ''}>${e.busy ? '<span class="spinner"></span> Saving…' : 'Save policy'}</button>`,
+        });
+      }
+      function budgetDialog() {
+        const t = tenantOf(S.tenantId);
+        const b = S.budget;
+        const n = Number(String(b.tokens).replace(/,/g, ''));
+        const below = b.tokens !== '' && !isNaN(n) && n < t.usage.tokensUsed;
+        return dialog({
+          title: 'Edit budget',
+          sub: esc(t.name),
+          icon: 'gauge',
+          body: `<div class="field"><label class="label" for="btok">Monthly tokens</label><input id="btok" class="input" inputmode="numeric" data-bind="budget.tokens" data-live value="${esc(b.tokens)}" ${b.errT ? 'aria-invalid="true" aria-describedby="btok-hint"' : 'aria-describedby="btok-hint"'}/>${b.errT ? `<div class="ferr" id="btok-hint" role="alert">${icon('alert', 14)} ${b.errT}</div>` : `<div class="hint" id="btok-hint">Used this month: ${num(t.usage.tokensUsed)}</div>`}</div>
+      <div class="field"><label class="label" for="bmin">Requests a minute</label><input id="bmin" class="input" inputmode="numeric" data-bind="budget.perMinute" value="${esc(b.perMinute)}" ${b.errM ? 'aria-invalid="true" aria-describedby="bmin-e"' : ''}/>${b.errM ? `<div class="ferr" id="bmin-e" role="alert">${icon('alert', 14)} ${b.errM}</div>` : ''}</div>
+      ${below ? `<div class="callout callout-warn" role="status">${icon('alert', 16)}<span>Below this month's usage. New AI requests are blocked until 1 Oct 2026.</span></div>` : ''}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="saveBudget">Save budget</button>`,
+        });
+      }
+      const modals = {
+        tenant: tenantDrawer,
+        edit: editDialog,
+        confirm: confirmDialog,
+        budget: budgetDialog,
+      };
+
+      /* ============================== actions ============================== */
+      const actions = {
+        tab: (k) => {
+          S.tab = k;
+          Kit.render();
+        },
+        filt: (k) => {
+          S.filt = k;
+          S.page = 1;
+          Kit.render();
+        },
+        page: (n) => {
+          S.page = +n;
+          Kit.render();
+        },
+        retry: () => {
+          S.view = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.view = 'ok';
+            Kit.render();
+          }, 900);
+        },
+        openTenant: (slug) => {
+          S.tenantId = slug;
+          S.modal = { kind: 'tenant' };
+          Kit.render();
+        },
+        editDlg: () => {
+          const t = tenantOf(S.tenantId);
+          const m = {};
+          CLS.forEach((dc) => PC.forEach((pc) => (m[dc + '|' + pc] = allowed(t, dc, pc))));
+          S.edit = { m, ref: '', err: '', busy: false };
+          S.modal = { kind: 'edit' };
+          Kit.render();
+        },
+        reviewEdit: () => {
+          S.modal = { kind: 'confirm' };
+          Kit.render();
+          setTimeout(() => document.getElementById('aref')?.focus(), 30);
+        },
+        backEdit: () => {
+          S.edit.err = '';
+          S.modal = { kind: 'edit' };
+          Kit.render();
+        },
+        saveEdit: () => {
+          const e = S.edit;
+          if (!e.ref.trim()) {
+            e.err = 'Enter the approval reference.';
+            Kit.render();
+            document.getElementById('aref')?.focus();
+            return;
+          }
+          e.busy = true;
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            const t = tenantOf(S.tenantId);
+            changesOf(t).forEach((c) => {
+              t.rules = t.rules.filter((r) => !(r.dataClass === c.dc && r.providerClass === c.pc));
+              if (c.allow)
+                t.rules.push({
+                  dataClass: c.dc,
+                  providerClass: c.pc,
+                  allowed: true,
+                  approvalRef: e.ref.trim(),
+                  changedBy: ME().name,
+                  changedAt: NOW,
+                });
+              t.audit.push({
+                at: NOW,
+                by: ME().name,
+                ref: e.ref.trim(),
+                ic: c.allow ? 'check' : 'ban',
+                text: `${c.allow ? 'Allowed' : 'Blocked'} ${PC_L[c.pc].toLowerCase()} providers for ${CLS_L[c.dc].toLowerCase()} data`,
+              });
+            });
+            S.edit = null;
+            S.modal = { kind: 'tenant' };
+            Kit.toast('Policy saved and recorded in the audit trail');
+          }, 900);
+        },
+        budgetDlg: () => {
+          const t = tenantOf(S.tenantId);
+          S.budget = {
+            tokens: num(t.usage.monthlyTokens),
+            perMinute: String(t.usage.perMinute),
+            errT: '',
+            errM: '',
+          };
+          S.modal = { kind: 'budget' };
+          Kit.render();
+        },
+        saveBudget: () => {
+          const b = S.budget;
+          const n = Number(String(b.tokens).replace(/,/g, ''));
+          const m = Number(b.perMinute);
+          b.errT =
+            b.tokens === '' || !Number.isInteger(n) || n < 0
+              ? 'Enter a whole number of tokens, 0 or more.'
+              : '';
+          b.errM = !Number.isInteger(m) || m < 1 ? 'Enter at least 1 request a minute.' : '';
+          if (b.errT || b.errM) {
+            Kit.render();
+            return;
+          }
+          const t = tenantOf(S.tenantId);
+          t.usage.monthlyTokens = n;
+          t.usage.perMinute = m;
+          t.audit.push({
+            at: NOW,
+            by: ME().name,
+            ref: '',
+            ic: 'gauge',
+            text: `Budget set to ${num(n)} tokens a month, ${num(m)} requests a minute`,
+          });
+          S.budget = null;
+          S.modal = { kind: 'tenant' };
+          Kit.toast('Budget saved');
+        },
+        fbUp: (k) => {
+          const f = fbOf(k);
+          Object.assign(f, {
+            rating: f.rating === 'helpful' ? null : 'helpful',
+            open: false,
+            reason: '',
+            err: '',
+          });
+          Kit.render();
+        },
+        fbDown: (k) => {
+          const f = fbOf(k);
+          if (f.rating === 'not-helpful' && !f.open) Object.assign(f, { rating: null, reason: '' });
+          else f.open = true;
+          Kit.render();
+        },
+        fbCancel: (k) => {
+          fbOf(k).open = false;
+          fbOf(k).err = '';
+          Kit.render();
+        },
+        fbSubmit: (k) => {
+          const f = fbOf(k);
+          if (!f.reason) {
+            f.err = 'Choose a reason.';
+            Kit.render();
+            return;
+          }
+          Object.assign(f, { rating: 'not-helpful', open: false, err: '' });
+          Kit.render();
+          Kit.toast('Thanks. Rating saved.');
+        },
+      };
+
+      /* ============================== jumps ============================== */
+      const setPersona = (p) => localStorage.setItem('dials-proto-persona', p);
+      const reset = () => {
+        S.tenants = seedTenants();
+        Object.assign(S, {
+          tab: 'tenants',
+          q: '',
+          filt: 'all',
+          page: 1,
+          size: 20,
+          view: 'ok',
+          edit: null,
+          budget: null,
+          modal: null,
+        });
+      };
+      const J = (key, label, p, fn) => [
+        key,
+        label,
+        () => {
+          setPersona(p);
+          reset();
+          fn();
+        },
+      ];
+      const openT = (slug) => {
+        Kit.go('ai-policy');
+        actions.openTenant(slug);
+      };
+      const jumps = [
+        J('ai-policy', '#291 AI policy: Commissions (platform admin)', 'platform-admin', () =>
+          Kit.go('ai-policy'),
+        ),
+        J('ai-policy-p2', '#291 AI policy: page 2', 'platform-admin', () => {
+          S.page = 2;
+          Kit.go('ai-policy');
+        }),
+        J('ai-policy-on', '#291 AI policy: enabled only', 'platform-admin', () => {
+          S.filt = 'on';
+          Kit.go('ai-policy');
+        }),
+        J('ai-policy-none', '#291 AI policy: no matches', 'platform-admin', () => {
+          S.q = 'zzz';
+          Kit.go('ai-policy');
+        }),
+        J('ai-policy-loading', '#291 AI policy: loading', 'platform-admin', () => {
+          S.view = 'loading';
+          Kit.go('ai-policy');
+        }),
+        J('ai-policy-error', '#291 AI policy: could not load', 'platform-admin', () => {
+          S.view = 'error';
+          Kit.go('ai-policy');
+        }),
+        J('ai-tenant', '#291 Commission: policy, budget and usage (PSC)', 'platform-admin', () =>
+          openT('psc'),
+        ),
+        J('ai-tenant-warn', '#291 Commission: 86% of budget (JSC)', 'platform-admin', () =>
+          openT('jsc'),
+        ),
+        J(
+          'ai-tenant-over',
+          '#291 Commission: budget used up (Nairobi City CPSB)',
+          'platform-admin',
+          () => openT('cpsbnairobicity'),
+        ),
+        J('ai-tenant-off', '#291 Commission: not enabled (TSC)', 'platform-admin', () =>
+          openT('tsc'),
+        ),
+        J(
+          'ai-edit',
+          '#291 Edit policy: allow external on synthetic (TSC)',
+          'platform-admin',
+          () => {
+            openT('tsc');
+            actions.editDlg();
+            S.edit.m['synthetic|external'] = true;
+            Kit.render();
+          },
+        ),
+        J('ai-confirm', '#291 Confirm: approval reference', 'platform-admin', () => {
+          openT('tsc');
+          actions.editDlg();
+          S.edit.m['synthetic|external'] = true;
+          S.modal = { kind: 'confirm' };
+          Kit.render();
+        }),
+        J(
+          'ai-confirm-invalid',
+          '#291 Confirm: approval reference missing',
+          'platform-admin',
+          () => {
+            openT('tsc');
+            actions.editDlg();
+            S.edit.m['synthetic|external'] = true;
+            S.edit.err = 'Enter the approval reference.';
+            S.modal = { kind: 'confirm' };
+            Kit.render();
+          },
+        ),
+        J('ai-confirm-block', '#291 Confirm: block external (PSC)', 'platform-admin', () => {
+          openT('psc');
+          actions.editDlg();
+          S.edit.m['synthetic|external'] = false;
+          S.modal = { kind: 'confirm' };
+          Kit.render();
+        }),
+        J('ai-budget', '#291 Edit budget', 'platform-admin', () => {
+          openT('psc');
+          actions.budgetDlg();
+        }),
+        J(
+          'ai-budget-invalid',
+          '#291 Edit budget: validation, below usage',
+          'platform-admin',
+          () => {
+            openT('psc');
+            actions.budgetDlg();
+            Object.assign(S.budget, {
+              tokens: '1,500,000',
+              perMinute: '0',
+              errM: 'Enter at least 1 request a minute.',
+            });
+            Kit.render();
+          },
+        ),
+        J('ai-routing', '#291 Routing (read-only)', 'platform-admin', () => {
+          S.tab = 'routing';
+          Kit.go('ai-policy');
+        }),
+        J('ai-403', '#291 AI policy as EACC analyst: 403', 'eacc-analyst', () =>
+          Kit.go('ai-policy'),
+        ),
+        J(
+          'commission-ai',
+          '#291 Commission AI status: enabled (commission admin)',
+          'commission-admin',
+          () => Kit.go('commission-ai'),
+        ),
+        J('commission-ai-off', '#291 Commission AI status: not enabled', 'commission-admin', () => {
+          tenantOf('psc').rules = [];
+          Kit.go('commission-ai');
+        }),
+        J('commission-ai-sup', '#291 Commission AI status as supervisor', 'supervisor', () =>
+          Kit.go('commission-ai'),
+        ),
+        J('commission-ai-404', '#291 Commission AI status as reviewer: 404', 'reviewer', () =>
+          Kit.go('commission-ai'),
+        ),
+        J('primitives', '#282 AI primitives gallery', 'platform-admin', () => Kit.go('primitives')),
+      ];
+
+      Kit.mount({
+        app: 'console',
+        start: 'ai-policy',
+        home: 'ai-policy',
+        defaultPersona: 'platform-admin',
+        screens: {
+          'ai-policy': scrPolicy,
+          'commission-ai': scrCommission,
+          primitives: scrPrimitives,
+        },
+        modals,
+        actions,
+        jumps,
+        coverage: [
+          {
+            ticket: 282,
+            title:
+              'UI primitives round 13: AI label, source ref link, feedback control, usage meter',
+            screens: ['primitives', 'ai-tenant'],
+            note: 'AiLabel, SourceRefLink and FeedbackControl in use in 07a-review.prototype.html (Copilot jumps). Stories and tests are engineering work.',
+          },
+          {
+            ticket: 291,
+            title: 'Console: AI policy page and Commission AI status line',
+            screens: [
+              'ai-policy',
+              'ai-policy-p2',
+              'ai-policy-on',
+              'ai-policy-none',
+              'ai-policy-loading',
+              'ai-policy-error',
+              'ai-tenant',
+              'ai-tenant-warn',
+              'ai-tenant-over',
+              'ai-tenant-off',
+              'ai-edit',
+              'ai-confirm',
+              'ai-confirm-invalid',
+              'ai-confirm-block',
+              'ai-budget',
+              'ai-budget-invalid',
+              'ai-routing',
+              'ai-403',
+              'commission-ai',
+              'commission-ai-off',
+              'commission-ai-sup',
+              'commission-ai-404',
+            ],
+            note: 'The status line belongs in the Policy card on 01-commissions #my-commission; shown here in context. Routing is read-only (configuration).',
+          },
+        ],
+        onBind: (bind) => {
+          if (bind === 'q' || bind === 'size') S.page = 1;
+        },
+        reset: () => {
+          reset();
+          Kit.go('ai-policy');
+        },
+      });
+    </script>
+  </body>
+</html>

@@ -784,6 +784,242 @@
         white-space: pre-wrap;
         line-height: 1.6;
       }
+      /* ---------- NCR: patterns, figure citations, AI narrative (spec 09b) ---------- */
+      .pat-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        padding: 16px 20px 20px;
+      }
+      @container app (min-width: 760px) {
+        .pat-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @container app (min-width: 1180px) {
+        .pat-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      .pat {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #fdfdfc;
+        box-shadow: 0 0 0 1px var(--line);
+        min-width: 0;
+      }
+      .pat.cited {
+        background: var(--surface);
+        box-shadow: 0 0 0 1px var(--line-2);
+      }
+      .pat .subj {
+        font-weight: 600;
+        font-size: 14.5px;
+        line-height: 1.35;
+        margin-top: 4px;
+      }
+      .pat .val {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pat .val b {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        font-variant-numeric: tabular-nums;
+      }
+      .pat .val span,
+      .pat .cmp {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .pat .cmp {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .pat .act {
+        margin-top: auto;
+        padding-top: 8px;
+      }
+      .pat .done {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ok);
+        height: 30px;
+      }
+      .pat.skel {
+        min-height: 150px;
+      }
+      .fig {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        max-width: 100%;
+        height: 24px;
+        padding: 0 9px 0 7px;
+        border: 0;
+        border-radius: 7px;
+        background: var(--sunken);
+        color: var(--ink-2);
+        font-size: 12.5px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .fig > span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .fig b {
+        font-weight: 600;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .fig svg {
+        flex: none;
+        color: var(--muted);
+      }
+      .fig:hover {
+        background: #ebe9e5;
+      }
+      .fig.bad {
+        background: var(--warn-soft);
+        color: #6b4000;
+        cursor: default;
+      }
+      .fig.bad svg {
+        color: var(--warn);
+      }
+      .narr-h {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .narr-h .right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      @container app (max-width: 520px) {
+        .narr-h .right {
+          margin-left: 0;
+        }
+      }
+      .paras {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      #ncr-totals,
+      #ncr-per,
+      #ncr-patterns,
+      #ncr-narrative,
+      .para {
+        scroll-margin-top: 76px;
+      }
+      .para {
+        position: relative;
+      }
+      .para-del {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 30px !important;
+        height: 30px !important;
+        color: var(--muted);
+        opacity: 0.7;
+      }
+      .para:hover .para-del,
+      .para-del:focus-visible {
+        opacity: 1;
+      }
+      .para .textarea {
+        padding-right: 44px;
+        min-height: 0;
+        field-sizing: content;
+        resize: vertical;
+      }
+      .para-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 7px;
+        min-height: 24px;
+      }
+      .para-meta > span:empty {
+        display: none;
+      }
+      .para-meta .icon-btn {
+        width: 28px;
+        height: 28px;
+        color: var(--muted);
+      }
+      .para .ro {
+        padding: 12px 14px;
+      }
+      .para .ro.ai {
+        box-shadow:
+          0 0 0 1px #c9bcf5,
+          0 0 0 4px var(--ai-soft);
+      }
+      .drafting {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: var(--ai-soft);
+      }
+      .drafting .t {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #43299f;
+      }
+      .drafting .skeleton {
+        background: linear-gradient(90deg, #e4dcfb 25%, #efe9fd 50%, #e4dcfb 75%);
+        background-size: 200% 100%;
+      }
+      .choices.one {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      .flash {
+        animation: flash 1.6s ease-out;
+      }
+      @keyframes flash {
+        0%,
+        30% {
+          background: #fff4d6;
+        }
+        100% {
+          background: transparent;
+        }
+      }
+      .prim-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
       .autosave {
         display: inline-flex;
         align-items: center;
@@ -791,29 +1027,6 @@
         font-size: 12.5px;
         color: var(--muted);
       }
-      .actas {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 4px 4px 10px;
-        border-radius: 10px;
-        background: #111;
-        color: #fff;
-        font-size: 12.5px;
-      }
-      .actas .seg {
-        background: #2a2a2a;
-      }
-      .actas .seg button {
-        color: #ddd;
-        height: 26px;
-        font-size: 12.5px;
-      }
-      .actas .seg button.on {
-        background: #fff;
-        color: #111;
-      }
-
       /* ---------- referrals ---------- */
       .conf {
         display: inline-flex;
@@ -1785,8 +1998,14 @@
             included: 0,
             snapshot: null,
             narrative: { ...NARR_SEED },
+            paras: null,
+            pat: 'ok',
+            patPage: 1,
+            drafting: null,
+            draftErr: null,
+            failNext: null,
+            lastAsk: null,
             author: 'Brian Otieno',
-            actAs: 'analyst',
             saved: null,
             approvedAt: null,
             reference: null,
@@ -1810,7 +2029,8 @@
       const role = () => Kit.persona();
       const isCommissionRole = () =>
         ['supervisor', 'commission-admin', 'reporting-officer'].includes(role());
-      const isEacc = () => role() === 'eacc-analyst';
+      const isEacc = () => ['eacc-analyst', 'eacc-supervisor'].includes(role());
+      const isEaccSup = () => role() === 'eacc-supervisor';
       const rep = () => S.fm.reports[S.fm.sel];
       const psc = () => S.fm.reports[2025];
       const chaseDates = (until) => {
@@ -2683,6 +2903,508 @@
           per: sub.map((r) => ({ slug: r.slug, name: r.name, status: r.status, rates: r.rates })),
         };
       }
+      /* ---------- spec 09b: pattern candidates, figure citations, AI narrative (#329 #331 #341) ---------- */
+      // Prior-year figures the candidates module compares against (FY 2023/24 and 2024/25). Demo values.
+      const PRIOR = {
+        nonFiler: { cpsb047: { 2024: 16.8 } },
+        lateDays: { cpsb009: { 2023: 9, 2024: 14 } },
+      };
+      const SIZE_BAND = [2000, 5000];
+      const fyShort = (y) => `${y}/${String(y + 1).slice(2)}`;
+      const pct1 = (v) => (v == null ? '-' : `${Number(v).toFixed(1)}%`);
+      const shortName = (slug) =>
+        cname(slug)
+          .replace(' County Public Service Board', ' CPSB')
+          .replace('Parliamentary Service Commission', 'Parliamentary SC');
+      const median = (xs) => {
+        const a = [...xs].sort((x, y) => x - y);
+        const m = Math.floor(a.length / 2);
+        return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+      };
+      const sumRates = (r) =>
+        ['initial', 'biennial', 'final'].reduce(
+          (a, k) => ({ e: a.e + r.rates[k].expected, d: a.d + r.rates[k].declared }),
+          { e: 0, d: 0 },
+        );
+      const nonFilerRate = (r) => {
+        const t = sumRates(r);
+        return t.e ? Math.round(((t.e - t.d) / t.e) * 1000) / 10 : null;
+      };
+      const clarPer1000 = (r) => {
+        const t = sumRates(r);
+        return t.d && r.clar != null ? Math.round((r.clar / t.d) * 10000) / 10 : null;
+      };
+      const lateDaysOf = (r, fy) =>
+        r.submittedAt ? Math.max(0, daysBetweenDates(dueOf(fy), r.submittedAt)) : null;
+
+      /* Figure formatter: aggregate key -> { label, value, anchor }. The citation chip (#329) renders it. */
+      function figure(key) {
+        const p = key.split('.');
+        const fy = +S.ncr.fy;
+        const rows = intakeRows(fy);
+        const sub = rows.filter((r) => r.rates);
+        const y = +p[p.length - 1];
+        if (p[0] === 'national') {
+          const tot = { e: 0, d: 0 };
+          sub.forEach((r) => {
+            const t = sumRates(r);
+            tot.e += t.e;
+            tot.d += t.d;
+          });
+          const secT = (k) =>
+            sub.reduce((a, r) => ({ e: a.e + r.rates[k].expected, d: a.d + r.rates[k].declared }), {
+              e: 0,
+              d: 0,
+            });
+          const m = {
+            'rate.all': ['National filing rate', pct1(pc(tot.d, tot.e))],
+            'rate.initial': [
+              'National initial rate',
+              pct1(pc(secT('initial').d, secT('initial').e)),
+            ],
+            'rate.biennial': [
+              'National biennial rate',
+              pct1(pc(secT('biennial').d, secT('biennial').e)),
+            ],
+            'rate.final': ['National final rate', pct1(pc(secT('final').d, secT('final').e))],
+            expected: ['Declarations expected', num(tot.e)],
+            declared: ['Declarations made', num(tot.d)],
+            reported: ['Commissions reported', num(sub.length)],
+            commissions: ['Commissions', num(rows.length)],
+            late: ['Reported late', num(sub.filter((r) => r.status === 'submitted-late').length)],
+            'not-reported': ['Did not report', num(rows.length - sub.length)],
+          };
+          const hit = m[p.slice(1, -1).join('.')];
+          if (hit && y === fy)
+            return { label: `${hit[0]} ${fyShort(y)}`, value: hit[1], anchor: 'ncr-totals' };
+        }
+        if (p[0] === 'threshold') return { label: 'Rate threshold', value: `${THRESHOLD}%` };
+        if (p[0] === 'band' && p[1] === 'median-rate') {
+          const band = sub.filter(
+            (r) =>
+              r.rates.biennial.expected >= SIZE_BAND[0] &&
+              r.rates.biennial.expected <= SIZE_BAND[1],
+          );
+          return {
+            label: `Median biennial rate, ${num(SIZE_BAND[0])}-${num(SIZE_BAND[1])} officers ${fyShort(y)}`,
+            value: pct1(median(band.map((r) => r.rates.biennial.rate))),
+            anchor: 'ncr-per',
+          };
+        }
+        if (p[0] === 'median' && p[1] === 'clar-per-1000') {
+          const xs = sub.map(clarPer1000).filter((x) => x != null);
+          return {
+            label: `Median clarifications per 1,000 ${fyShort(y)}`,
+            value: median(xs).toFixed(1),
+            anchor: 'ncr-per',
+          };
+        }
+        if (p[0] === 'commission') {
+          const slug = p[1];
+          const r = rows.find((x) => x.slug === slug);
+          if (!r) return null;
+          const nm = shortName(slug);
+          const metric = p.slice(2, -1).join('.');
+          const cur = y === fy && r.rates;
+          if (metric.startsWith('rate.') && cur) {
+            const k = metric.split('.')[1];
+            return {
+              label: `${nm} ${SEC_L[k].toLowerCase()} rate ${fyShort(y)}`,
+              value: pct1(r.rates[k].rate),
+              anchor: `ncr-row-${slug}`,
+              slug,
+            };
+          }
+          if (metric === 'nonfiler-rate') {
+            const v = cur ? nonFilerRate(r) : PRIOR.nonFiler[slug]?.[y];
+            if (v == null) return null;
+            return {
+              label: `${nm} non-filer rate ${fyShort(y)}`,
+              value: pct1(v),
+              anchor: `ncr-row-${slug}`,
+              slug,
+            };
+          }
+          if (metric === 'late-days') {
+            const v = cur ? lateDaysOf(r, fy) : PRIOR.lateDays[slug]?.[y];
+            if (v == null) return null;
+            return {
+              label: `${nm} days late ${fyShort(y)}`,
+              value: num(v),
+              anchor: `ncr-row-${slug}`,
+              slug,
+            };
+          }
+          if (metric === 'clar-per-1000' && cur)
+            return {
+              label: `${nm} clarifications per 1,000 ${fyShort(y)}`,
+              value: clarPer1000(r).toFixed(1),
+              anchor: `ncr-row-${slug}`,
+              slug,
+            };
+        }
+        return null;
+      }
+      function figChip(key, { static: st = false } = {}) {
+        const f = figure(key);
+        if (!f)
+          return `<span class="fig bad" title="${esc(key)}">${icon('alert', 13, 2)}<span>Figure not found</span></span>`;
+        const inner = `${icon('hash', 12, 2)}<span class="truncate">${esc(f.label)}: <b>${esc(f.value)}</b></span>`;
+        return st
+          ? `<span class="fig">${inner}</span>`
+          : `<button class="fig" data-act="figGo" data-arg="${esc(key)}" title="${esc(key)}" aria-label="Figure ${esc(f.label)}: ${esc(f.value)}. Show in table">${inner}</button>`;
+      }
+
+      /* Pattern candidates, as the reporting module would compute them (deterministic; AI only narrates). */
+      const KIND = {
+        'rate-change': ['Rate change', 'trend', 'Largest year-on-year change in a rate'],
+        'threshold-breach': ['Below threshold', 'gauge', `A section rate below ${THRESHOLD}%`],
+        'chronic-late-reporting': [
+          'Late three years',
+          'clock',
+          'Reported late in each of the last three years',
+        ],
+        'clarification-ratio-outlier': [
+          'High clarifications',
+          'msg',
+          'Clarifications per 1,000 declarations far above the median',
+        ],
+        'size-band-outlier': [
+          'Size-band outlier',
+          'scale',
+          'Rate far below Commissions of a similar size',
+        ],
+        'non-reporting': ['Did not report', 'ban', 'No Form M received by the due date'],
+      };
+      function candidates() {
+        const fy = +S.ncr.fy;
+        const rows = intakeRows(fy);
+        const sub = rows.filter((r) => r.rates);
+        const K = (s, m) => `commission.${s}.${m}.${fy}`;
+        const out = [];
+        const nrb = sub.find((r) => r.slug === 'cpsb047');
+        if (nrb)
+          out.push({
+            id: 'cand-rate-cpsb047',
+            kind: 'rate-change',
+            subject: 'cpsb047',
+            main: [pct1(nonFilerRate(nrb)), 'non-filer rate'],
+            cmp: `from ${pct1(PRIOR.nonFiler.cpsb047[fy - 1])} in ${fyShort(fy - 1)}`,
+            keys: [`commission.cpsb047.nonfiler-rate.${fy - 1}`, K('cpsb047', 'nonfiler-rate')],
+          });
+        sub
+          .flatMap((r) =>
+            ['initial', 'biennial', 'final']
+              .filter((k) => r.rates[k].rate != null && r.rates[k].rate < THRESHOLD)
+              .map((k) => ({ r, k })),
+          )
+          .sort((a, b) => a.r.rates[a.k].rate - b.r.rates[b.k].rate)
+          .forEach(({ r, k }) =>
+            out.push({
+              id: `cand-thr-${r.slug}-${k}`,
+              kind: 'threshold-breach',
+              subject: r.slug,
+              main: [pct1(r.rates[k].rate), `${SEC_L[k].toLowerCase()} rate`],
+              cmp: `${num(r.rates[k].declared)} of ${num(r.rates[k].expected)} · threshold ${THRESHOLD}%`,
+              keys: [K(r.slug, `rate.${k}`), 'threshold.rate'],
+            }),
+          );
+        const man = sub.find((r) => r.slug === 'cpsb009');
+        if (man && man.status === 'submitted-late')
+          out.push({
+            id: 'cand-late-cpsb009',
+            kind: 'chronic-late-reporting',
+            subject: 'cpsb009',
+            main: [`${lateDaysOf(man, fy)} days`, `late in ${fyShort(fy)}`],
+            cmp: `${PRIOR.lateDays.cpsb009[fy - 2]} days in ${fyShort(fy - 2)} · ${PRIOR.lateDays.cpsb009[fy - 1]} days in ${fyShort(fy - 1)}`,
+            keys: [
+              `commission.cpsb009.late-days.${fy - 2}`,
+              `commission.cpsb009.late-days.${fy - 1}`,
+              K('cpsb009', 'late-days'),
+            ],
+          });
+        const clar = sub
+          .map((r) => ({ r, v: clarPer1000(r) }))
+          .filter((x) => x.v != null)
+          .sort((a, b) => b.v - a.v)[0];
+        if (clar)
+          out.push({
+            id: `cand-clar-${clar.r.slug}`,
+            kind: 'clarification-ratio-outlier',
+            subject: clar.r.slug,
+            main: [clar.v.toFixed(1), 'clarifications per 1,000 declarations'],
+            cmp: `median ${median(sub.map(clarPer1000).filter((x) => x != null)).toFixed(1)}`,
+            keys: [K(clar.r.slug, 'clar-per-1000'), `median.clar-per-1000.${fy}`],
+          });
+        const band = sub
+          .filter(
+            (r) =>
+              r.rates.biennial.expected >= SIZE_BAND[0] &&
+              r.rates.biennial.expected <= SIZE_BAND[1],
+          )
+          .sort((a, b) => a.rates.biennial.rate - b.rates.biennial.rate);
+        if (band.length > 3)
+          out.push({
+            id: `cand-band-${band[0].slug}`,
+            kind: 'size-band-outlier',
+            subject: band[0].slug,
+            main: [pct1(band[0].rates.biennial.rate), 'biennial rate'],
+            cmp: `median ${pct1(median(band.map((r) => r.rates.biennial.rate)))} for ${num(SIZE_BAND[0])}-${num(SIZE_BAND[1])} officers`,
+            keys: [K(band[0].slug, 'rate.biennial'), `band.median-rate.biennial.${fy}`],
+          });
+        const notRep = rows.filter((r) => !r.rates);
+        if (notRep.length)
+          out.push({
+            id: 'cand-nonrep',
+            kind: 'non-reporting',
+            subject: 'national',
+            main: [`${notRep.length} of ${rows.length}`, 'Commissions'],
+            cmp: `${notRep
+              .slice(0, 2)
+              .map((r) => shortName(r.slug))
+              .join(', ')}${notRep.length > 2 ? ` and ${notRep.length - 2} more` : ''}`,
+            keys: [`national.not-reported.${fy}`, `national.commissions.${fy}`],
+          });
+        return out;
+      }
+      const candSubject = (id) => {
+        const c = candidates().find((x) => x.id === id);
+        return !c
+          ? 'this pattern'
+          : c.subject === 'national'
+            ? 'national figures'
+            : shortName(c.subject);
+      };
+      const citedIds = () =>
+        Object.values(S.ncr.paras || {})
+          .flat()
+          .flatMap((p) => p.cands || []);
+
+      function patternCard(c, { canCite = false, cited = false } = {}) {
+        const [kl, ki, kt] = KIND[c.kind];
+        const subj = c.subject === 'national' ? 'National' : shortName(c.subject);
+        return `<article class="pat ${cited ? 'cited' : ''}" aria-label="${esc(kl)}: ${esc(subj)}"><div><span class="badge" title="${esc(kt)}">${icon(ki, 13)} ${kl}</span></div><div class="subj">${esc(subj)}</div><div class="val"><b>${esc(c.main[0])}</b><span>${esc(c.main[1])}</span></div><div class="cmp">${esc(c.cmp)}</div>${
+          cited
+            ? `<div class="act"><span class="done">${icon('check', 14, 2.4)} Cited in findings</span></div>`
+            : canCite
+              ? `<div class="act"><button class="btn btn-secondary btn-sm" data-act="citeCand" data-arg="${c.id}" aria-label="Cite in findings: ${esc(kl)}, ${esc(subj)}">${icon('plus', 15)} Cite in findings</button></div>`
+              : ''
+        }</article>`;
+      }
+      function patternsPanel(canEdit) {
+        const n = S.ncr;
+        const tipTxt =
+          'Computed from this and prior years’ figures. AI narrates these; it does not find them.';
+        const headTitle = `<div class="sec-h"><h3>Notable patterns</h3>${n.pat === 'ok' ? `<span class="badge">${candidates().length}</span>` : ''}${Kit.tip(tipTxt)}</div>`;
+        if (n.pat === 'loading')
+          return `<section class="card" id="ncr-patterns" aria-busy="true">${headTitle}<div class="pat-grid">${[
+            1, 2, 3,
+          ]
+            .map(
+              () =>
+                `<div class="pat skel"><span class="skeleton" style="width:40%;height:20px"></span><span class="skeleton" style="width:70%;margin-top:8px"></span><span class="skeleton" style="width:35%;height:22px;margin-top:6px"></span><span class="skeleton" style="width:80%"></span></div>`,
+            )
+            .join('')}</div></section>`;
+        if (n.pat === 'error')
+          return `<section class="card" id="ncr-patterns">${headTitle}<div class="sec-b"><div class="callout callout-danger" role="alert" style="align-items:center">${icon('alert', 18)}<div style="flex:1">Patterns could not be loaded.</div><button class="btn btn-secondary btn-sm" data-act="retryPat">${icon('refresh', 15)} Retry</button></div></div></section>`;
+        const list = n.pat === 'empty' ? [] : candidates();
+        if (!list.length)
+          return `<section class="card" id="ncr-patterns">${headTitle}${empty('No notable patterns', `Nothing crossed the thresholds for ${FYL(+n.fy)}.`, { icon: 'chart' })}</section>`;
+        const PP = 6;
+        const pg = Math.min(n.patPage || 1, Math.ceil(list.length / PP));
+        const cited = citedIds();
+        return `<section class="card" id="ncr-patterns">${headTitle}<div class="pat-grid">${list
+          .slice((pg - 1) * PP, pg * PP)
+          .map((c) => patternCard(c, { canCite: canEdit, cited: cited.includes(c.id) }))
+          .join(
+            '',
+          )}</div>${list.length > PP ? Kit.pager({ page: pg, pageSize: PP, total: list.length, act: 'patPage' }) : ''}</section>`;
+      }
+
+      /* Narrative paragraphs (per-paragraph structure from spec 09b). ai: 'draft' | 'edited' | null */
+      const NSECS = [
+        ['overview', 'Overview'],
+        ['findings', 'Findings'],
+        ['recommendations', 'Recommendations'],
+      ];
+      let pid = 1;
+      const para = (text, ai = null, refs = [], cands = []) => ({
+        id: `p${pid++}`,
+        text,
+        ai,
+        refs,
+        cands,
+      });
+      const parasFrom = (narr) =>
+        Object.fromEntries(
+          NSECS.map(([k]) => [
+            k,
+            (narr[k] || '')
+              .split(/\n\s*\n/)
+              .map((t) => t.trim())
+              .filter(Boolean)
+              .map((t) => para(t)),
+          ]),
+        );
+      function ensureParas(editable) {
+        const n = S.ncr;
+        if (!n.paras) n.paras = parasFrom(n.narrative);
+        if (editable)
+          NSECS.forEach(([k]) => {
+            if (!n.paras[k].length) n.paras[k].push(para(''));
+          });
+      }
+      /* What the narrate-compliance-report task returns for the demo aggregates. Numbers come from the figures. */
+      function aiDraft(sec) {
+        const fy = +S.ncr.fy;
+        const F = (k) => figure(k)?.value;
+        const cs = candidates();
+        const byKind = (k) => cs.filter((c) => c.kind === k);
+        if (sec === 'overview')
+          return [
+            para(
+              `${F(`national.reported.${fy}`)} of ${F(`national.commissions.${fy}`)} Commissions submitted Form M for ${FYL(fy)}; ${F(`national.late.${fy}`)} of them reported after the due date.`,
+              'draft',
+              [`national.reported.${fy}`, `national.commissions.${fy}`, `national.late.${fy}`],
+            ),
+            para(
+              `Across the reporting Commissions, ${F(`national.declared.${fy}`)} of ${F(`national.expected.${fy}`)} expected declarations were made, a national filing rate of ${F(`national.rate.all.${fy}`)}.`,
+              'draft',
+              [`national.declared.${fy}`, `national.expected.${fy}`, `national.rate.all.${fy}`],
+            ),
+          ];
+        if (sec === 'findings') {
+          const out = [];
+          const rc = byKind('rate-change')[0];
+          if (rc)
+            out.push(
+              para(
+                `The ${cname(rc.subject)} recorded the largest change of any Commission: its non-filer rate rose from ${F(rc.keys[0])} in ${FYL(fy - 1)} to ${F(rc.keys[1])} in ${FYL(fy)}.`,
+                'draft',
+                rc.keys,
+                [rc.id],
+              ),
+            );
+          const th = byKind('threshold-breach');
+          if (th.length)
+            out.push(
+              para(
+                `Section rates fell below the ${THRESHOLD}% threshold in ${th.length} cases. The lowest is the ${cname(th[0].subject)} at ${F(th[0].keys[0])}.`,
+                'draft',
+                [th[0].keys[0], 'threshold.rate'],
+                th.map((c) => c.id),
+              ),
+            );
+          const cl = byKind('chronic-late-reporting')[0];
+          if (cl)
+            out.push(
+              para(
+                `The ${cname(cl.subject)} reported late for the third year running, ${F(cl.keys[2])} days after the due date this year.`,
+                'draft',
+                cl.keys,
+                [cl.id],
+              ),
+            );
+          const cr = byKind('clarification-ratio-outlier')[0];
+          if (cr)
+            out.push(
+              para(
+                `The ${cname(cr.subject)} issued ${F(cr.keys[0])} clarifications per 1,000 declarations, against a median of ${F(cr.keys[1])}.`,
+                'draft',
+                cr.keys,
+                [cr.id],
+              ),
+            );
+          return out;
+        }
+        const nr = byKind('non-reporting')[0];
+        return [
+          para(
+            `EACC should follow up with each of the ${F(`national.not-reported.${fy}`)} Commissions that did not report, and publish their names with this report.`,
+            'draft',
+            [`national.not-reported.${fy}`],
+            nr ? [nr.id] : [],
+          ),
+          para(
+            `Commissions below the ${THRESHOLD}% threshold should agree an improvement plan with EACC before the next biennial cycle.`,
+            'draft',
+            ['threshold.rate'],
+          ),
+        ];
+      }
+      const aiLabel = (p) =>
+        p.ai === 'draft'
+          ? `<span class="badge badge-ai">${icon('sparkles', 12)} AI draft</span>`
+          : p.ai === 'edited'
+            ? `<span class="badge" title="AI draft, edited by the analyst">${icon('pencil', 12)} Edited</span>`
+            : '';
+      const secChars = (k) => (S.ncr.paras[k] || []).reduce((a, p) => a + p.text.length, 0);
+      function narrSection(k, label, { canEdit }) {
+        const n = S.ncr;
+        const ps = n.paras[k] || [];
+        const drafting = n.drafting && (n.drafting === 'all' || n.drafting === k);
+        const top = `<div class="top"><label ${canEdit && ps[0] ? `for="f-ncr-paras-${k}-0-text"` : ''}>${label}</label><span class="cc" id="cc-${k}">${num(secChars(k))} characters</span></div>`;
+        if (drafting)
+          return `<div class="narr">${top}<div class="drafting" role="status" aria-live="polite"><div class="t"><span class="spinner" style="width:14px;height:14px;border-color:rgba(109,74,224,.25);border-top-color:var(--ai)"></span> Drafting ${label.toLowerCase()}…</div><span class="skeleton" style="width:96%"></span><span class="skeleton" style="width:88%"></span><span class="skeleton" style="width:64%"></span></div></div>`;
+        const meta = (p, i) => {
+          const chips = (p.refs || []).map((r) => figChip(r)).join('');
+          const lab = `<span id="lab-${p.id}">${aiLabel(p)}</span>`;
+          return p.ai || chips ? `<div class="para-meta">${lab}${chips}</div>` : lab;
+        };
+        const body = canEdit
+          ? ps
+              .map(
+                (p, i) =>
+                  `<div class="para" id="para-${p.id}">${textarea(`ncr.paras.${k}.${i}.text`, {
+                    rows: Math.max(2, Math.ceil(p.text.length / 120) + 1),
+                    ph: p.cands?.length
+                      ? `Write the finding on ${candSubject(p.cands[0])}…`
+                      : i
+                        ? 'Write a paragraph…'
+                        : `Write the ${label.toLowerCase()}…`,
+                    cls: p.ai === 'draft' ? 'ai-filled' : '',
+                    extra: `aria-label="${label}, paragraph ${i + 1}"`,
+                  })}${
+                    p.text || ps.length > 1 || p.refs.length
+                      ? `<button class="btn btn-ghost icon-btn para-del" data-act="delPara" data-arg="${k}|${p.id}" aria-label="Remove ${label.toLowerCase()} paragraph ${i + 1}" title="Remove paragraph">${icon('trash', 15)}</button>`
+                      : ''
+                  }${meta(p, i)}</div>`,
+              )
+              .join('') +
+            `<div><button class="btn btn-ghost btn-sm" data-act="addPara" data-arg="${k}">${icon('plus', 15)} Add paragraph</button></div>`
+          : ps.filter((p) => p.text).length
+            ? ps
+                .filter((p) => p.text)
+                .map(
+                  (p, i) =>
+                    `<div class="para"><div class="ro ${p.ai === 'draft' ? 'ai' : ''}">${esc(p.text)}</div>${meta(p, i)}</div>`,
+                )
+                .join('')
+            : `<div class="ro"><span class="muted">Not written yet.</span></div>`;
+        return `<div class="narr">${top}<div class="paras">${body}</div></div>`;
+      }
+      function draftMenu() {
+        const n = S.ncr;
+        if (n.drafting)
+          return `<button class="btn btn-secondary btn-sm" disabled aria-busy="true"><span class="spinner dark" style="width:13px;height:13px"></span> Drafting…</button>`;
+        const open = S.menu === 'draft';
+        return `<div class="menu-wrap"><button class="btn btn-secondary btn-sm" data-act="menu" data-arg="draft" aria-haspopup="menu" aria-expanded="${open}">${icon('sparkles', 15)} Draft narrative ${icon('down', 14)}</button>${
+          open
+            ? `<div class="menu" role="menu">${[['all', 'All sections'], ...NSECS]
+                .map(
+                  ([k, l]) =>
+                    `<button role="menuitem" data-act="askDraft" data-arg="${k}">${l}</button>`,
+                )
+                .join('')}</div>`
+            : ''
+        }</div>`;
+      }
+      function draftError() {
+        const e = S.ncr.draftErr;
+        if (!e) return '';
+        return `<div class="callout callout-danger" role="alert" style="flex-wrap:wrap">${icon('alert', 18)}<div style="flex:1;min-width:200px">${esc(e.msg)}</div><div class="row" style="gap:6px"><button class="btn btn-secondary btn-sm" data-act="retryDraft">${icon('refresh', 15)} Try again</button><button class="btn btn-ghost icon-btn" data-act="dismissDraftErr" aria-label="Dismiss">${icon('x', 16)}</button></div></div>`;
+      }
+
       function screenNcr() {
         const crumbs = [
           ['Compliance reports', 'intake'],
@@ -2694,27 +3416,17 @@
         const rows = intakeRows(fy);
         const submitted = rows.filter((r) => r.rates).length;
         const notRep = rows.length - submitted;
-        const asSup = n.actAs === 'supervisor' || n.actAs === 'supervisor-author';
-        const who =
-          n.actAs === 'analyst'
-            ? { name: 'Brian Otieno', role: 'EACC analyst' }
-            : { name: SUP_EACC.name, role: 'EACC supervisor' };
+        const asSup = isEaccSup();
+        const who = asSup
+          ? { name: SUP_EACC.name, role: 'EACC supervisor' }
+          : { name: 'Brian Otieno', role: 'EACC analyst' };
         const isAuthor = who.name === n.author;
-        const actAs = `<span class="actas" title="Prototype only">Prototype: view as<span class="seg">${[
-          ['analyst', 'Analyst (author)'],
-          ['supervisor', 'EACC supervisor'],
-        ]
-          .map(
-            ([k, l]) =>
-              `<button class="${(k === 'supervisor' ? asSup : n.actAs === k) ? 'on' : ''}" data-act="ncrActAs" data-arg="${k}">${l}</button>`,
-          )
-          .join('')}</span></span>`;
-        const head = `<div class="page-head"><div><h1>Compliance reports</h1></div><div class="actions-r">${actAs}${fySelect('ncr.fy')}</div></div>`;
+        const head = `<div class="page-head"><div><h1>Compliance reports</h1></div><div class="actions-r">${fySelect('ncr.fy')}</div></div>`;
         let body;
         if (fy === 2026 || !submitted)
           body = `<div class="card">${empty(`No reports for ${FYL(fy)} yet`, `Form M reports are due ${fmtDate(dueOf(fy))}.`, { icon: 'inbox' })}</div>`;
         else if (n.status === 'none')
-          body = `<div class="card">${empty(`National report not built yet`, `${submitted} Commissions reported${notRep ? `, ${notRep} have not` : ''}. You can rebuild later.`, { icon: 'file', action: `<button class="btn btn-primary" data-act="ncrBuild">${icon('refresh', 17)} Build from ${submitted} submitted reports</button>` })}</div>`;
+          body = `<div class="card">${empty(`National report not built yet`, `${submitted} Commissions reported${notRep ? `, ${notRep} have not` : ''}. You can rebuild later.`, { icon: 'file', action: asSup ? '' : `<button class="btn btn-primary" data-act="ncrBuild">${icon('refresh', 17)} Build from ${submitted} submitted reports</button>` })}</div>`;
         else if (n.status === 'building')
           body = `<div class="card"><div class="empty" style="padding:48px 20px" role="status"><span class="spinner dark" style="width:28px;height:28px;margin-bottom:14px"></span><h4>Building from ${submitted} submitted reports…</h4><p>Your narrative is kept.</p></div></div>`;
         else {
@@ -2722,6 +3434,7 @@
           const approved = n.status === 'approved';
           const stale = !approved && submitted > n.included;
           const canEdit = !approved && !asSup;
+          ensureParas(canEdit);
           const approveBtn = approved
             ? ''
             : asSup && !isAuthor
@@ -2736,27 +3449,63 @@
             (a, x) => ({ e: a.e + x.expected, d: a.d + x.declared }),
             { e: 0, d: 0 },
           );
-          const totals = `<section class="card"><div class="sec-h"><h3>National totals</h3></div><div class="table-wrap"><table class="table"><caption style="position:absolute;left:-9999px">National totals per Form M section</caption><thead><tr><th>Section</th><th class="num">Expected</th><th class="num">Declared</th><th class="num">Did not declare</th><th style="min-width:180px">Rate</th></tr></thead><tbody>${['initial', 'biennial', 'final'].map((k, i) => `<tr><td style="font-weight:500">${i + 1}. ${SEC_L[k]} declarations</td><td class="num">${num(tot[k].expected)}</td><td class="num">${num(tot[k].declared)}</td><td class="num">${num(tot[k].expected - tot[k].declared)}</td><td>${rateBar(tot[k].declared, tot[k].expected, { sub: false })}</td></tr>`).join('')}<tr><td style="font-weight:600">All sections</td><td class="num" style="font-weight:600">${num(grand.e)}</td><td class="num" style="font-weight:600">${num(grand.d)}</td><td class="num" style="font-weight:600">${num(grand.e - grand.d)}</td><td>${rateBar(grand.d, grand.e, { sub: false })}</td></tr></tbody></table></div></section>`;
+          const totals = `<section class="card" id="ncr-totals"><div class="sec-h"><h3>National totals</h3></div><div class="table-wrap"><table class="table"><caption style="position:absolute;left:-9999px">National totals per Form M section</caption><thead><tr><th>Section</th><th class="num">Expected</th><th class="num">Declared</th><th class="num">Did not declare</th><th style="min-width:180px">Rate</th></tr></thead><tbody>${['initial', 'biennial', 'final'].map((k, i) => `<tr><td style="font-weight:500">${i + 1}. ${SEC_L[k]} declarations</td><td class="num">${num(tot[k].expected)}</td><td class="num">${num(tot[k].declared)}</td><td class="num">${num(tot[k].expected - tot[k].declared)}</td><td>${rateBar(tot[k].declared, tot[k].expected, { sub: false })}</td></tr>`).join('')}<tr><td style="font-weight:600">All sections</td><td class="num" style="font-weight:600">${num(grand.e)}</td><td class="num" style="font-weight:600">${num(grand.d)}</td><td class="num" style="font-weight:600">${num(grand.e - grand.d)}</td><td>${rateBar(grand.d, grand.e, { sub: false })}</td></tr></tbody></table></div></section>`;
           const perPg = Math.min(n.page || 1, Math.max(1, Math.ceil(ag.per.length / PAGE)));
-          const per = `<section class="card"><div class="sec-h"><h3>By Commission</h3></div><div class="table-wrap"><table class="table"><caption style="position:absolute;left:-9999px">Rates per Commission</caption><thead><tr><th>Commission</th><th>Status</th><th>Initial</th><th>Biennial</th><th>Final</th></tr></thead><tbody>${ag.per
+          const per = `<section class="card" id="ncr-per"><div class="sec-h"><h3>By Commission</h3></div><div class="table-wrap"><table class="table"><caption style="position:absolute;left:-9999px">Rates per Commission</caption><thead><tr><th>Commission</th><th>Status</th><th>Initial</th><th>Biennial</th><th>Final</th></tr></thead><tbody>${ag.per
             .slice((perPg - 1) * PAGE, perPg * PAGE)
             .map(
               (r) =>
-                `<tr><td style="font-weight:500;white-space:normal;min-width:200px">${esc(r.name)}</td><td>${intakeBadge(r.status)}</td>${['initial', 'biennial', 'final'].map((k) => `<td style="min-width:130px">${rateBar(r.rates[k].declared, r.rates[k].expected)}</td>`).join('')}</tr>`,
+                `<tr id="ncr-row-${r.slug}"><td style="font-weight:500;white-space:normal;min-width:200px">${esc(r.name)}</td><td>${intakeBadge(r.status)}</td>${['initial', 'biennial', 'final'].map((k) => `<td style="min-width:130px">${rateBar(r.rates[k].declared, r.rates[k].expected)}</td>`).join('')}</tr>`,
             )
             .join(
               '',
             )}</tbody></table></div>${Kit.pager({ page: perPg, pageSize: PAGE, total: ag.per.length, act: 'ncrPage' })}</section>`;
-          const narrSec = (k, label) =>
-            `<div class="narr"><div class="top"><label for="f-ncr-narrative-${k}">${label}</label><span class="cc">${num((n.narrative[k] || '').length)} characters</span></div>${canEdit ? textarea(`ncr.narrative.${k}`, { rows: 6, ph: `Write the ${label.toLowerCase()}…` }) : `<div class="ro">${n.narrative[k] ? esc(n.narrative[k]) : '<span class="muted">Not written yet.</span>'}</div>`}</div>`;
-          const narrative = `<section class="card"><div class="sec-h"><h3>Narrative</h3><span class="spacer"></span>${canEdit ? `<span class="autosave" id="ncr-save" aria-live="polite">${n.saved ? `${icon('check', 13, 2.4)} Saved ${n.saved}` : 'Autosaves'}</span>` : approved ? '<span class="small muted">Frozen at approval</span>' : '<span class="small muted">Written by the analyst</span>'}</div><div class="sec-b stack-lg">${narrSec('overview', 'Overview')}${narrSec('findings', 'Findings')}${narrSec('recommendations', 'Recommendations')}</div></section>`;
-          body = `${sb}${staleB}<div class="stack" style="margin-top:16px">${totals}${per}${narrative}</div>`;
+          const status = canEdit
+            ? `<span class="autosave" id="ncr-save" aria-live="polite">${n.saved ? `${icon('check', 13, 2.4)} Saved ${n.saved}` : 'Autosaves'}</span>${draftMenu()}`
+            : approved
+              ? '<span class="small muted">Frozen at approval</span>'
+              : '<span class="small muted">Written by the analyst</span>';
+          const narrative = `<section class="card" id="ncr-narrative"><div class="sec-h narr-h"><h3>Narrative</h3><div class="right">${status}</div></div><div class="sec-b stack-lg">${draftError()}${NSECS.map(([k, l]) => narrSection(k, l, { canEdit })).join('')}</div></section>`;
+          body = `${sb}${staleB}<div class="stack" style="margin-top:16px">${totals}${per}${patternsPanel(canEdit)}${narrative}</div>`;
         }
         if (n.view === 'error') body = loadError('the national report', 'retryNcr');
         return consoleShell(`<main class="cpage">${head}${eaccTabs('ncr')}${body}</main>`, {
           crumbs,
           active: 'Compliance reports',
         });
+      }
+
+      /* #329 primitives: pattern card and figure citation chip, every kind and state */
+      function screenPrimitives16() {
+        const crumbs = [
+          ['Compliance reports', 'intake'],
+          ['UI primitives 16a', 'primitives-16a'],
+        ];
+        if (!isEacc()) return stateScreen(403, crumbs);
+        if (!S.ncr.snapshot) S.ncr.snapshot = ncrAggregates(intakeRows(2025));
+        const cs = candidates();
+        const one = Object.keys(KIND)
+          .map((k) => cs.find((c) => c.kind === k))
+          .filter(Boolean);
+        const fy = +S.ncr.fy;
+        return consoleShell(
+          `<main class="cpage"><div class="page-head"><div><h1>UI primitives round 16a</h1></div></div><div class="stack">
+          <section class="card"><div class="sec-h"><h3>Pattern card</h3></div><div class="pat-grid">${one
+            .map((c, i) => patternCard(c, { canCite: i !== 1, cited: i === 1 }))
+            .join('')}</div></section>
+          <section class="card"><div class="sec-h"><h3>Figure citation chip</h3></div><div class="sec-b stack"><div class="prim-row">${[
+            `national.rate.all.${fy}`,
+            `national.reported.${fy}`,
+            `commission.cpsb047.rate.biennial.${fy}`,
+            `commission.cpsb047.nonfiler-rate.${fy - 1}`,
+            `band.median-rate.biennial.${fy}`,
+          ]
+            .map((k) => figChip(k))
+            .join(
+              '',
+            )}</div><div class="prim-row">${figChip(`national.rate.all.${fy}`, { static: true })}<span class="small muted">Static (in a read-only document)</span></div><div class="prim-row">${figChip(`commission.xyz.rate.initial.${fy}`)}<span class="small muted">Key the formatter cannot resolve</span></div></div></section></div></main>`,
+          { crumbs, active: 'Compliance reports' },
+        );
       }
 
       /* ============================== EACC: referrals received (#236) ============================== */
@@ -2934,6 +3683,37 @@
             foot: `<button class="btn btn-secondary" data-act="closeModal">Close</button>`,
           });
         },
+        redraft: () => {
+          const { sec } = S.modal;
+          const targets = sec === 'all' ? NSECS.map((x) => x[0]) : [sec];
+          const all = targets.flatMap((k) => S.ncr.paras[k].filter((p) => p.text.trim()));
+          const mine = all.filter((p) => p.ai !== 'draft').length;
+          const secL = sec === 'all' ? 'all sections' : sec;
+          return dialog({
+            title: `Redraft ${secL}?`,
+            icon: 'sparkles',
+            tint: ['var(--ai-soft)', 'var(--ai)'],
+            body: choices(
+              'modal.mode',
+              [
+                {
+                  k: 'ai',
+                  label: 'Replace only AI-draft paragraphs',
+                  sub: mine
+                    ? `Keeps ${mine} paragraph${mine === 1 ? '' : 's'} you wrote or edited.`
+                    : 'No written or edited paragraphs to keep.',
+                },
+                {
+                  k: 'all',
+                  label: sec === 'all' ? 'Replace every section' : 'Replace the whole section',
+                  sub: `Removes all ${all.length} paragraph${all.length === 1 ? '' : 's'}${mine ? ', including your edits' : ''}.`,
+                },
+              ],
+              'one',
+            ),
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="doRedraft">${icon('sparkles', 16)} Redraft</button>`,
+          });
+        },
         approveNcr: () =>
           dialog({
             title: 'Approve the national report?',
@@ -3014,6 +3794,69 @@
           if (e2) e2.innerHTML = savedHtml;
           then?.();
         }, 700);
+      }
+      /* Demo: the narrative after "Draft narrative" (all sections), with one paragraph edited by the analyst. */
+      function seedAiDraft() {
+        const n = S.ncr;
+        n.paras = {
+          overview: [para(NARR_SEED.overview), ...aiDraft('overview')],
+          findings: aiDraft('findings'),
+          recommendations: aiDraft('recommendations'),
+        };
+        const e = n.paras.findings[1];
+        if (e) {
+          e.ai = 'edited';
+          e.text =
+            e.text.replace('The lowest is', 'We note that the lowest is') +
+            ' The board has been asked to explain.';
+        }
+      }
+      function startDraft(sec, replaceAll) {
+        const n = S.ncr;
+        n.lastAsk = { sec, replaceAll };
+        n.drafting = sec;
+        n.draftErr = null;
+        Kit.render();
+        const tok = n;
+        setTimeout(() => {
+          if (S.ncr !== tok) return;
+          n.drafting = null;
+          const fail = n.failNext;
+          n.failNext = null;
+          if (fail) {
+            n.draftErr = {
+              kind: fail,
+              msg:
+                fail === 'validation'
+                  ? 'The draft referenced a figure that is not in the table and was discarded.'
+                  : 'The AI service did not respond. Nothing was changed. Try again, or write the narrative yourself.',
+            };
+            Kit.render();
+            Kit.toast(n.draftErr.msg, true);
+            return;
+          }
+          const targets = sec === 'all' ? NSECS.map((x) => x[0]) : [sec];
+          let added = 0;
+          targets.forEach((k) => {
+            const fresh = aiDraft(k);
+            added += fresh.length;
+            if (replaceAll) {
+              n.paras[k] = fresh;
+              return;
+            }
+            const cur = n.paras[k];
+            const at = cur.findIndex((p) => p.ai === 'draft');
+            const kept = cur.filter((p) => p.ai !== 'draft' && (p.text.trim() || p.refs.length));
+            const pos =
+              at < 0 ? kept.length : cur.slice(0, at).filter((p) => kept.includes(p)).length;
+            kept.splice(pos, 0, ...fresh);
+            n.paras[k] = kept;
+          });
+          Kit.render();
+          Kit.toast(
+            `Drafted ${sec === 'all' ? 'all sections' : sec}: ${added} paragraph${added === 1 ? '' : 's'}. Review each one.`,
+          );
+        }, 1800);
       }
       const actions = {
         go: (a) => {
@@ -3250,22 +4093,108 @@
           S.intake.q = '';
           Kit.render();
         },
-        ncrActAs: (k) => {
-          S.ncr.actAs = k;
-          Kit.render();
-        },
         ncrBuild: () => {
           S.ncr.status = 'building';
           Kit.render();
+          const tok = S.ncr;
           setTimeout(() => {
+            if (S.ncr !== tok) return;
             const rows = intakeRows(+S.ncr.fy);
             S.ncr.snapshot = ncrAggregates(rows);
             S.ncr.included = S.ncr.snapshot.per.length;
             S.ncr.builtAt = S.today;
             S.ncr.status = 'draft';
+            S.ncr.pat = 'loading';
             Kit.render();
             Kit.toast(`Built from ${S.ncr.included} reports. Narrative kept.`);
+            setTimeout(() => {
+              if (S.ncr !== tok) return;
+              S.ncr.pat = 'ok';
+              Kit.render();
+            }, 800);
           }, 1100);
+        },
+        patPage: (p) => {
+          S.ncr.patPage = +p;
+          Kit.render();
+        },
+        retryPat: () => {
+          S.ncr.pat = 'loading';
+          Kit.render();
+          const tok = S.ncr;
+          setTimeout(() => {
+            if (S.ncr !== tok) return;
+            S.ncr.pat = 'ok';
+            Kit.render();
+          }, 800);
+        },
+        figGo: (key) => {
+          const f = figure(key);
+          if (!f?.anchor) return;
+          if (f.slug) {
+            const i = S.ncr.snapshot.per.findIndex((r) => r.slug === f.slug);
+            if (i >= 0) {
+              S.ncr.page = Math.floor(i / PAGE) + 1;
+              Kit.render();
+            }
+          }
+          const el = document.getElementById(f.anchor);
+          if (!el) return;
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('flash');
+          void el.offsetWidth;
+          el.classList.add('flash');
+        },
+        citeCand: (id) => {
+          const c = candidates().find((x) => x.id === id);
+          const ps = S.ncr.paras.findings;
+          const blank = ps.findIndex((p) => !p.text.trim() && !p.refs.length);
+          const np = para('', null, [...c.keys], [c.id]);
+          if (blank >= 0) ps.splice(blank, 1, np);
+          else ps.push(np);
+          Kit.render();
+          const i = ps.indexOf(np);
+          const ta = document.getElementById(`f-ncr-paras-findings-${i}-text`);
+          if (ta) {
+            ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            ta.focus({ preventScroll: true });
+          }
+          Kit.toast('Cited in findings. Write the paragraph.');
+        },
+        addPara: (k) => {
+          S.ncr.paras[k].push(para(''));
+          Kit.render();
+          const ta = document.getElementById(`f-ncr-paras-${k}-${S.ncr.paras[k].length - 1}-text`);
+          ta?.focus();
+        },
+        delPara: (a) => {
+          const [k, id] = a.split('|');
+          S.ncr.paras[k] = S.ncr.paras[k].filter((p) => p.id !== id);
+          Kit.render();
+          Kit.toast('Paragraph removed');
+        },
+        askDraft: (sec) => {
+          S.menu = null;
+          const targets = sec === 'all' ? NSECS.map((x) => x[0]) : [sec];
+          const has = targets.some((k) => S.ncr.paras[k].some((p) => p.text.trim()));
+          if (has) {
+            S.modal = { kind: 'redraft', sec, mode: 'ai' };
+            Kit.render();
+          } else startDraft(sec, false);
+        },
+        doRedraft: () => {
+          const { sec, mode } = S.modal;
+          S.modal = null;
+          startDraft(sec, mode === 'all');
+        },
+        retryDraft: () => {
+          const last = S.ncr.lastAsk || { sec: 'all', replaceAll: false };
+          S.ncr.draftErr = null;
+          startDraft(last.sec, last.replaceAll);
+        },
+        dismissDraftErr: () => {
+          S.ncr.draftErr = null;
+          Kit.render();
         },
         doApproveNcr: () => {
           S.modal.busy = true;
@@ -3385,7 +4314,7 @@
         const fresh = initialState();
         S.fm = fresh.fm;
         S.viewer = fresh.viewer;
-        S.ncr.page = 1;
+        S.ncr = fresh.ncr;
         S.today = REAL_TODAY;
         S.reviewForm = fresh.reviewForm;
       }
@@ -3435,6 +4364,7 @@
           intake: screenIntake,
           report: screenReport,
           ncr: screenNcr,
+          'primitives-16a': screenPrimitives16,
           referrals: screenReferrals,
         },
         modals,
@@ -3457,7 +4387,21 @@
             autosave('p1', 'save-p1', `${icon('check', 13, 2.4)} Saved`, () => Kit.render());
           }
           if (/complaints\.registerMaintained/.test(bind)) Kit.toast('Saved');
-          if (bind.startsWith('ncr.narrative.')) {
+          const pm = bind.match(/^ncr\.paras\.(\w+)\.(\d+)\.text$/);
+          if (pm) {
+            const pp = S.ncr.paras[pm[1]][+pm[2]];
+            if (pp.ai === 'draft') {
+              pp.ai = 'edited';
+              const lab = document.getElementById(`lab-${pp.id}`);
+              if (lab) lab.innerHTML = aiLabel(pp);
+              document
+                .getElementById(`f-ncr-paras-${pm[1]}-${pm[2]}-text`)
+                ?.classList.remove('ai-filled');
+            }
+            const cc = document.getElementById(`cc-${pm[1]}`);
+            if (cc) cc.textContent = `${num(secChars(pm[1]))} characters`;
+          }
+          if (pm || bind.startsWith('ncr.narrative.')) {
             const el = document.getElementById('ncr-save');
             if (el)
               el.innerHTML =
@@ -3465,7 +4409,7 @@
             const cc = document
               .querySelector(`label[for="f-${bind.replace(/\./g, '-')}"]`)
               ?.parentElement.querySelector('.cc');
-            if (cc) cc.textContent = `${num(v.length)} characters`;
+            if (cc && !pm) cc.textContent = `${num(v.length)} characters`;
             clearTimeout(saveTimers.ncr);
             saveTimers.ncr = setTimeout(() => {
               const t = new Date(S.today);
@@ -4000,7 +4944,6 @@
               Object.assign(S.ncr, {
                 fy: 2025,
                 status: 'none',
-                actAs: 'analyst',
                 view: 'ok',
                 narrative: { ...NARR_SEED },
               });
@@ -4016,7 +4959,6 @@
               Object.assign(S.ncr, {
                 fy: 2025,
                 status: 'draft',
-                actAs: 'analyst',
                 view: 'ok',
                 builtAt: '2026-09-24T10:15:00',
                 saved: '10:21',
@@ -4040,7 +4982,6 @@
               Object.assign(S.ncr, {
                 fy: 2025,
                 status: 'draft',
-                actAs: 'analyst',
                 view: 'ok',
                 builtAt: '2026-09-24T10:15:00',
                 snapshot: ncrAggregates(intakeRows(2025)),
@@ -4055,11 +4996,10 @@
             '#233 NCR: EACC supervisor can approve',
             () => {
               resetFm();
-              setPersona('eacc-analyst');
+              setPersona('eacc-supervisor');
               Object.assign(S.ncr, {
                 fy: 2025,
                 status: 'draft',
-                actAs: 'supervisor',
                 view: 'ok',
                 author: 'Brian Otieno',
                 builtAt: '2026-09-24T10:15:00',
@@ -4074,11 +5014,10 @@
             '#233 NCR: supervisor is the author, cannot approve',
             () => {
               resetFm();
-              setPersona('eacc-analyst');
+              setPersona('eacc-supervisor');
               Object.assign(S.ncr, {
                 fy: 2025,
                 status: 'draft',
-                actAs: 'supervisor',
                 view: 'ok',
                 author: SUP_EACC.name,
                 builtAt: '2026-09-24T10:15:00',
@@ -4097,7 +5036,6 @@
               Object.assign(S.ncr, {
                 fy: 2025,
                 status: 'approved',
-                actAs: 'analyst',
                 view: 'ok',
                 author: 'Brian Otieno',
                 builtAt: '2026-09-24T10:15:00',
@@ -4123,6 +5061,120 @@
               setPersona('eacc-analyst');
               S.ncr.fy = 2026;
               go('ncr');
+            },
+          ],
+          ...[
+            ['ncr-pat', '#331 Notable patterns panel (analyst)', {}],
+            ['ncr-pat-p2', '#331 Notable patterns: page 2', { patPage: 2 }],
+            ['ncr-pat-loading', '#331 Notable patterns: loading', { pat: 'loading' }],
+            ['ncr-pat-empty', '#331 Notable patterns: none', { pat: 'empty' }],
+            ['ncr-pat-error', '#331 Notable patterns: error', { pat: 'error' }],
+            ['ncr-cited', '#331 Cited in findings', {}, 'cite'],
+            ['ncr-pat-sup', '#331 Patterns read-only (EACC supervisor)', {}, 'sup'],
+            ['ncr-ai-idle', '#341 Draft narrative: idle, menu open', {}, 'menu'],
+            ['ncr-ai-drafting', '#341 Drafting all sections', {}, 'drafting'],
+            ['ncr-ai-done', '#341 AI draft inserted, one edited', {}, 'done'],
+            ['ncr-ai-redraft', '#341 Redraft dialog (findings)', {}, 'redraft'],
+            ['ncr-ai-invalid', '#341 Draft failed validation', {}, 'invalid'],
+            ['ncr-ai-failed', '#341 Draft failed (service)', {}, 'failed'],
+            ['ncr-ai-sup', '#341 AI labels seen by EACC supervisor', {}, 'done-sup'],
+            ['ncr-ai-approved', '#341 Approved: labels frozen, no drafting', {}, 'done-approved'],
+          ].map(([id, label, extra, mode]) => [
+            id,
+            label,
+            () => {
+              resetFm();
+              setPersona(mode && mode.includes('sup') ? 'eacc-supervisor' : 'eacc-analyst');
+              Object.assign(S.ncr, {
+                fy: 2025,
+                status: mode === 'done-approved' ? 'approved' : 'draft',
+                view: 'ok',
+                builtAt: '2026-09-24T10:15:00',
+                saved: '10:21',
+                snapshot: ncrAggregates(intakeRows(2025)),
+                ...extra,
+              });
+              S.ncr.included = S.ncr.snapshot.per.length;
+              if (mode === 'done-approved')
+                Object.assign(S.ncr, {
+                  approver: SUP_EACC.name,
+                  approvedAt: '2026-09-25T16:40:00',
+                  reference: 'NCR-EACC-2025-0000001-Q',
+                });
+              S.ncr.paras = parasFrom(S.ncr.narrative);
+              if (mode && mode.startsWith('done')) seedAiDraft();
+              if (mode === 'redraft') {
+                seedAiDraft();
+                go('ncr');
+                S.modal = { kind: 'redraft', sec: 'findings', mode: 'ai' };
+                Kit.render();
+                return;
+              }
+              go('ncr');
+              if (mode === 'cite') Kit.cfg.actions.citeCand('cand-rate-cpsb047');
+              if (mode === 'menu') {
+                S.menu = 'draft';
+                Kit.render();
+                document.getElementById('ncr-narrative')?.scrollIntoView({ block: 'start' });
+              }
+              if (mode === 'drafting') {
+                S.ncr.drafting = 'all';
+                S.ncr.lastAsk = { sec: 'all', replaceAll: false };
+                Kit.render();
+                document.getElementById('ncr-narrative')?.scrollIntoView({ block: 'start' });
+              }
+              if (mode === 'invalid' || mode === 'failed') {
+                S.ncr.lastAsk = { sec: 'all', replaceAll: false };
+                S.ncr.draftErr = {
+                  kind: mode === 'invalid' ? 'validation' : 'unavailable',
+                  msg:
+                    mode === 'invalid'
+                      ? 'The draft referenced a figure that is not in the table and was discarded.'
+                      : 'The AI service did not respond. Nothing was changed. Try again, or write the narrative yourself.',
+                };
+                Kit.render();
+                Kit.toast(S.ncr.draftErr.msg, true);
+                document.getElementById('ncr-narrative')?.scrollIntoView({ block: 'start' });
+              }
+              if (
+                mode === 'sup' ||
+                mode === 'done' ||
+                mode === 'done-sup' ||
+                mode === 'done-approved'
+              )
+                document
+                  .getElementById(mode === 'sup' ? 'ncr-patterns' : 'ncr-narrative')
+                  ?.scrollIntoView({ block: 'start' });
+              if (mode === undefined || mode === 'sup')
+                document.getElementById('ncr-patterns')?.scrollIntoView({ block: 'start' });
+            },
+          ]),
+          [
+            'ncr-ai-fail-next',
+            '#341 Next draft fails validation (click Draft narrative)',
+            () => {
+              resetFm();
+              setPersona('eacc-analyst');
+              Object.assign(S.ncr, {
+                fy: 2025,
+                status: 'draft',
+                view: 'ok',
+                builtAt: '2026-09-24T10:15:00',
+                snapshot: ncrAggregates(intakeRows(2025)),
+                failNext: 'validation',
+              });
+              S.ncr.included = S.ncr.snapshot.per.length;
+              go('ncr');
+              document.getElementById('ncr-narrative')?.scrollIntoView({ block: 'start' });
+            },
+          ],
+          [
+            'primitives-16a',
+            '#329 UI primitives 16a: pattern card, figure chip',
+            () => {
+              resetFm();
+              setPersona('eacc-analyst');
+              go('primitives-16a');
             },
           ],
           [
@@ -4306,7 +5358,43 @@
               'ncr-approved',
               'ncr-empty',
             ],
-            note: 'No eacc-supervisor persona in the kit; an in-page "view as" toggle stands in.',
+            note: 'Analyst (author) and EACC supervisor are the eacc-analyst and eacc-supervisor personas. The narrative editor is now per paragraph (spec 09b).',
+          },
+          {
+            ticket: 329,
+            title: 'UI primitives round 16a: pattern card, figure citation chip',
+            screens: ['primitives-16a', 'ncr-pat', 'ncr-ai-done'],
+            note: 'Pattern card: kind badge (icon + text, kind explained in its title), subject, main value, comparison, action slot (Cite in findings / Cited). Figure chip: a button named "Figure {label}: {value}. Show in table"; it resolves aggregate keys through a formatter and falls back to "Figure not found" for unknown keys.',
+          },
+          {
+            ticket: 331,
+            title: 'Console: NCR builder Notable patterns panel',
+            screens: [
+              'ncr-pat',
+              'ncr-pat-p2',
+              'ncr-pat-loading',
+              'ncr-pat-empty',
+              'ncr-pat-error',
+              'ncr-cited',
+              'ncr-pat-sup',
+            ],
+            note: "Candidates are computed from the demo aggregates (thresholds, prior-year figures, size band 2,000-5,000 officers). Cite in findings adds a findings paragraph carrying the candidate's figure chips and focuses it. Hidden (403) for everyone outside EACC; read-only for the EACC supervisor and after approval. Clicking a chip scrolls to and highlights the table row.",
+          },
+          {
+            ticket: 341,
+            title: 'Console: Draft narrative menu, AI-draft labels, redraft dialog',
+            screens: [
+              'ncr-ai-idle',
+              'ncr-ai-drafting',
+              'ncr-ai-done',
+              'ncr-ai-redraft',
+              'ncr-ai-invalid',
+              'ncr-ai-failed',
+              'ncr-ai-fail-next',
+              'ncr-ai-sup',
+              'ncr-ai-approved',
+            ],
+            note: 'Type in an "AI draft" paragraph and its label turns to "Edited". Drafting an empty section inserts directly; a section with text opens the redraft dialog (default: replace only AI-draft paragraphs). Failures show the toast and a persistent error in the narrative card with Try again.',
           },
           {
             ticket: 236,

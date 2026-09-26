@@ -127,6 +127,11 @@
         outline: 3px solid rgba(233, 90, 36, 0.45);
         outline-offset: 2px;
       }
+      /* the group draws the focus ring; no second ring on the inner field */
+      .input-group .input:focus-visible,
+      .ask-compose textarea:focus-visible {
+        outline: none;
+      }
       .spinner.sm {
         width: 14px;
         height: 14px;
@@ -412,6 +417,14 @@
       .tip.left .bubble {
         left: 0;
         transform: none;
+      }
+      .tip.right .bubble {
+        left: auto;
+        right: 0;
+        transform: none;
+      }
+      .tip:not(:hover):not(:focus-within) .bubble {
+        display: none;
       }
       .tip-btn {
         position: relative;
@@ -1504,7 +1517,9 @@
       }
       .sum-items th:first-child,
       .sum-items td:first-child {
-        width: 150px;
+        width: 180px;
+        padding-right: 14px;
+        white-space: normal;
       }
       .sum-items th.n,
       .sum-items td.n {
@@ -2044,6 +2059,1141 @@
           padding: 0;
         }
       }
+      /* ---------- spec 05b: registries, suggestions, extraction, source badges ---------- */
+      .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .src-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .field .src-hint {
+        margin-top: 2px;
+      }
+      .src-b.kit-tip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #e8f0fb;
+        color: #2f5fae;
+        font-size: 12px;
+        font-weight: 600;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .src-b.kit-tip.document {
+        background: var(--ai-soft);
+        color: var(--ai);
+      }
+      .src-b.kit-tip:hover,
+      .src-b.kit-tip:focus-visible {
+        box-shadow: 0 0 0 2px rgba(47, 95, 174, 0.25);
+        color: #234a8a;
+      }
+      .src-b.kit-tip.document:hover,
+      .src-b.kit-tip.document:focus-visible {
+        box-shadow: 0 0 0 2px rgba(109, 74, 224, 0.25);
+        color: var(--ai);
+      }
+      .sum-items .src-b {
+        margin-right: 2px;
+      }
+      .conf {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .conf.high {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .conf.med {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .conf.low {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .ai-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--ai-soft);
+        color: var(--ai);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .reg-card {
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        display: grid;
+        gap: 12px;
+      }
+      .reg-card.idle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .reg-card.idle .t {
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .reg-ico {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: #e8f0fb;
+        color: #2f5fae;
+        flex: none;
+      }
+      .reg-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      @container app (max-width: 599px) {
+        .reg-head {
+          flex-wrap: wrap;
+        }
+        .reg-head .grow {
+          flex: 1 1 0;
+        }
+        .reg-head .reg-btn {
+          order: 5;
+          flex-basis: 100%;
+          padding-left: 48px;
+        }
+      }
+      .reg-head h2 {
+        font-size: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .reg-head h2 .badge {
+        height: 22px;
+        font-size: 12px;
+      }
+      .reg-strip {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      @container app (min-width: 700px) {
+        .reg-strip {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      .rs {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 9px 12px;
+        border-radius: 10px;
+        background: var(--sunken);
+        font-size: 13px;
+        min-width: 0;
+      }
+      .rs-n {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .rs-t {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+      }
+      .rs.rs-ok .rs-t {
+        color: var(--ok);
+      }
+      .rs.rs-down {
+        background: var(--warn-soft);
+      }
+      .rs.rs-down .rs-t {
+        color: var(--warn);
+      }
+      .rs-retry {
+        align-self: flex-start;
+        height: 26px;
+        margin: 2px 0 0 -8px;
+        padding: 0 8px;
+        font-size: 12.5px;
+        color: var(--warn);
+      }
+      .sug-group {
+        display: grid;
+        gap: 8px;
+      }
+      .sug {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        box-shadow: 0 0 0 1px var(--line);
+        background: var(--surface);
+      }
+      .sug-ico {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+      }
+      .sug-ico.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .sug-b {
+        flex: 1;
+        min-width: 0;
+      }
+      .sug-b .t {
+        font-weight: 500;
+        line-height: 1.35;
+      }
+      .sug-b .src {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .sug-b .d {
+        font-size: 13px;
+        color: var(--ink-2);
+        margin-top: 4px;
+      }
+      .sug-b .d b {
+        font-weight: 600;
+      }
+      .sug-acts {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        flex: none;
+        max-width: 50%;
+      }
+      .sug.done {
+        align-items: center;
+        box-shadow: none;
+        background: var(--sunken);
+        padding: 8px 10px 8px 14px;
+      }
+      .sug.done .sug-ico {
+        width: 26px;
+        height: 26px;
+      }
+      .sug-st {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ok);
+      }
+      @container app (max-width: 699px) {
+        .sug:not(.done) {
+          flex-wrap: wrap;
+        }
+        .sug:not(.done) .sug-acts {
+          max-width: none;
+          flex-basis: 100%;
+          justify-content: flex-start;
+          padding-left: 44px;
+        }
+      }
+      .sug-fold {
+        font-size: 13.5px;
+      }
+      .sug-fold .linklike {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--ink-2);
+      }
+      .sug-fold ul {
+        margin: 6px 0 0;
+        padding: 0 0 0 20px;
+        display: grid;
+        gap: 4px;
+        color: var(--ink-2);
+      }
+      .kra-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #e8f0fb;
+        color: #234a8a;
+        font-size: 14px;
+      }
+      .menu-note {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 8px 10px;
+        font-size: 13px;
+        color: var(--muted);
+        max-width: 240px;
+        white-space: normal;
+        line-height: 1.4;
+      }
+      .menu-note svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .ex-reading {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px;
+        border-radius: 12px;
+        background: var(--ai-soft);
+      }
+      .ex-list {
+        display: grid;
+        gap: 10px;
+      }
+      .ex-row {
+        display: grid;
+        gap: 6px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .ex-row.low {
+        box-shadow: 0 0 0 1px #f3c3bf;
+        background: #fffafa;
+      }
+      .ex-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .ex-top .label {
+        margin: 0;
+      }
+      .ex-tick .check {
+        font-size: 13.5px;
+      }
+      .dialog-foot .ex-hint {
+        align-self: center;
+        flex: 1 1 100%;
+      }
+      .dialog-foot:has(.ex-hint) {
+        flex-wrap: wrap;
+      }
+      .dialog-foot:has(.ex-hint) .btn {
+        white-space: nowrap;
+      }
+      @container app (min-width: 700px) {
+        .dialog-foot .ex-hint {
+          flex: 1 1 auto;
+        }
+        .dialog-foot:has(.ex-hint) {
+          flex-wrap: nowrap;
+        }
+      }
+      .src-fold {
+        margin-top: 10px;
+        font-size: 13.5px;
+      }
+      .src-fold > .linklike {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+        text-decoration: none;
+      }
+      .src-fold ul {
+        list-style: none;
+        margin: 8px 0 4px;
+        padding: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .src-fold li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 4px 4px 10px;
+        border-radius: 10px;
+        background: var(--sunken);
+      }
+      .blocking h2 {
+        flex-wrap: wrap;
+      }
+      .blocking h2 .grow {
+        flex: 1 1 220px;
+      }
+      .blocking h2 .ai-label {
+        font-size: 11.5px;
+      }
+      .hint-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        font-weight: 500;
+      }
+      .blocking .fix {
+        font-weight: 600;
+      }
+      .hint-line {
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+        margin-top: 3px;
+        font-size: 13px;
+        color: #43299f;
+      }
+      .hint-line svg {
+        flex: none;
+        margin-top: 3px;
+        color: var(--ai);
+      }
+      .flash {
+        animation: flash 1.6s ease-out;
+        border-radius: var(--r);
+      }
+      @keyframes flash {
+        0%,
+        40% {
+          box-shadow:
+            0 0 0 4px var(--ai-soft),
+            0 0 0 1px var(--ai);
+        }
+        100% {
+          box-shadow: none;
+        }
+      }
+
+      /* ---------- spec 11: Ask Adili panel ---------- */
+      .ask-fab {
+        position: absolute;
+        z-index: 35;
+        right: 20px;
+        bottom: 84px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 46px;
+        padding: 0 18px 0 15px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font: inherit;
+        font-size: 14.5px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 10px 28px -8px rgba(20, 20, 20, 0.45);
+      }
+      @container app (max-width: 959px) {
+        .dws ~ .ask-fab {
+          display: none;
+        }
+      }
+      @container app (max-width: 699px) {
+        .ask-fab {
+          width: 50px;
+          height: 50px;
+          padding: 0;
+          justify-content: center;
+        }
+        .ask-fab span {
+          display: none;
+        }
+      }
+      .mbar-ask {
+        width: 34px;
+        color: var(--ai);
+      }
+      .ask-fab svg {
+        color: #c9b8ff;
+      }
+      .ask-fab:hover {
+        background: #000;
+      }
+      @container app (min-width: 700px) {
+        .ask-fab {
+          right: 28px;
+          bottom: 76px;
+        }
+      }
+      .ask-panel {
+        position: absolute;
+        z-index: 45;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 88%;
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        border-radius: 22px 22px 0 0;
+        box-shadow: var(--shadow-pop);
+        animation: rise 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+      }
+      .ask-scrim {
+        position: absolute;
+        inset: 0;
+        z-index: 44;
+        background: rgba(24, 20, 16, 0.35);
+      }
+      @container app (min-width: 700px) {
+        .ask-scrim {
+          display: none;
+        }
+        .ask-panel {
+          left: auto;
+          top: 60px;
+          height: auto;
+          width: 392px;
+          border-radius: 0;
+          box-shadow:
+            -1px 0 0 var(--line),
+            -12px 0 32px -18px rgba(20, 20, 20, 0.25);
+          animation: slidein 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+      }
+      @container app (min-width: 1200px) {
+        .pbody:has(> .ask-panel) {
+          padding-right: 392px;
+        }
+        .ask-panel {
+          box-shadow: -1px 0 0 var(--line);
+          animation: none;
+        }
+      }
+      /* keep the prototype bar off the docked panel's composer */
+      body:not(.mobile):has(.ask-panel) .proto {
+        right: auto;
+        left: 14px;
+      }
+      .ask-panel.still {
+        animation: none;
+      }
+      .ask-head {
+        padding: 10px 16px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .ask-grab {
+        width: 38px;
+        height: 4px;
+        border-radius: 4px;
+        background: var(--line-2);
+        margin: 0 auto 8px;
+      }
+      @container app (min-width: 700px) {
+        .ask-grab {
+          display: none;
+        }
+        .ask-head {
+          padding-top: 14px;
+        }
+      }
+      .ask-head h2 {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .ask-av {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: var(--ai-soft);
+        color: var(--ai);
+        flex: none;
+      }
+      .ask-lang button {
+        height: 26px;
+        padding: 0 10px;
+        font-size: 12.5px;
+      }
+      .ask-msgs {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .ask-msgs.demo {
+        padding: 0;
+        overflow: visible;
+      }
+      .ask-idle p {
+        color: var(--ink-2);
+        font-size: 14px;
+        margin-bottom: 14px;
+      }
+      .ask-sub {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .sq {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .sq-chip {
+        border: 0;
+        background: var(--surface);
+        box-shadow: 0 0 0 1px #dcd2fa;
+        color: #43299f;
+        border-radius: 14px;
+        padding: 7px 12px;
+        font: inherit;
+        font-size: 13.5px;
+        text-align: left;
+        line-height: 1.35;
+        cursor: pointer;
+      }
+      .sq-chip:hover {
+        background: var(--ai-soft);
+      }
+      .msg {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 92%;
+      }
+      .msg.u {
+        align-self: flex-end;
+        align-items: flex-end;
+      }
+      .msg.a {
+        align-self: flex-start;
+      }
+      .msg .bubble {
+        padding: 10px 13px;
+        border-radius: 14px;
+        font-size: 14px;
+        line-height: 1.55;
+        background: var(--surface);
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .msg.u .bubble {
+        background: var(--ink);
+        color: #fff;
+        box-shadow: none;
+        border-bottom-right-radius: 5px;
+      }
+      .msg.a .bubble {
+        border-bottom-left-radius: 5px;
+      }
+      .msg .bubble.warn,
+      .msg .bubble.declined {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        background: var(--sunken);
+        box-shadow: none;
+        color: var(--ink-2);
+      }
+      .msg .bubble.warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+      }
+      .msg .bubble svg {
+        flex: none;
+        margin-top: 3px;
+      }
+      .msg .ro {
+        display: grid;
+        gap: 1px;
+        margin-top: 6px;
+        font-size: 13.5px;
+      }
+      .msg .ro a {
+        color: var(--ink);
+      }
+      .caret {
+        display: inline-block;
+        width: 7px;
+        height: 15px;
+        margin-left: 2px;
+        vertical-align: -2px;
+        border-radius: 2px;
+        background: var(--ai);
+        animation: blink 1s steps(2) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .typing {
+        display: inline-flex;
+        gap: 4px;
+        padding: 13px 14px !important;
+      }
+      .typing span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--muted);
+        animation: dots 1.2s infinite;
+      }
+      .typing span:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      .typing span:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      @keyframes dots {
+        0%,
+        60%,
+        100% {
+          opacity: 0.3;
+          transform: none;
+        }
+        30% {
+          opacity: 1;
+          transform: translateY(-2px);
+        }
+      }
+      .cites {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .cite {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 26px;
+        padding: 0 9px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--sunken);
+        color: var(--ink-2);
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .cite:hover,
+      .cite.on {
+        background: #ebe9e5;
+        color: var(--ink);
+      }
+      .cite.on {
+        box-shadow: inset 0 0 0 1px var(--line-2);
+      }
+      .passage {
+        padding: 10px 12px;
+        border-left: 3px solid var(--line-2);
+        background: var(--bg);
+        border-radius: 0 10px 10px 0;
+        font-size: 13px;
+        color: var(--ink-2);
+        display: grid;
+        gap: 6px;
+        justify-items: start;
+      }
+      .passage .ph {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .ask-link {
+        align-self: flex-start;
+      }
+      .fb {
+        display: flex;
+        gap: 2px;
+        align-items: center;
+      }
+      .fb-b {
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .fb-b:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+      .fb-b.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .fb-why {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--sunken);
+      }
+      .fb-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .fb-reasons .chip {
+        height: 28px;
+        font-size: 12.5px;
+      }
+      .fb-why .input {
+        height: 38px;
+        font-size: 14px;
+      }
+      .ask-foot {
+        border-top: 1px solid var(--line);
+        padding: 10px 16px 14px;
+        display: grid;
+        gap: 8px;
+      }
+      .ask-ctx {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .ask-compose {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 6px 6px 6px 12px;
+        border-radius: 14px;
+        box-shadow: var(--shadow-input);
+        background: var(--surface);
+      }
+      .ask-compose:focus-within {
+        box-shadow:
+          0 0 0 1px var(--ink),
+          0 0 0 4px rgba(26, 26, 26, 0.08);
+      }
+      .ask-compose textarea {
+        flex: 1;
+        border: 0;
+        outline: 0;
+        resize: none;
+        background: none;
+        font-size: 14.5px;
+        line-height: 1.45;
+        padding: 6px 0;
+        min-height: 32px;
+        max-height: 120px;
+        field-sizing: content;
+      }
+      .ask-compose .btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        flex: none;
+      }
+      .ask-privacy {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+      .ask-hits,
+      .ask-miss {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .ask-hits .hit {
+        width: 100%;
+        display: grid;
+        gap: 4px;
+        justify-items: start;
+        text-align: left;
+        padding: 10px 12px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: 0 0 0 1px var(--line);
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .ask-hits .hit:hover {
+        background: var(--bg);
+      }
+      .ask-hits .sn,
+      .help-hit .sn {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      mark {
+        background: #fff1b8;
+        color: inherit;
+        border-radius: 3px;
+        padding: 0 1px;
+      }
+      .ask-miss li {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        justify-content: space-between;
+        font-size: 13.5px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: var(--warn-soft);
+        color: #6b4000;
+      }
+      .ask-miss li.muted {
+        background: none;
+        padding: 0 10px;
+      }
+      .ask-miss .linklike {
+        font-weight: 600;
+        flex: none;
+        color: #6b4000;
+      }
+      .cite-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 6px;
+        background: var(--sunken);
+        color: var(--ink-2);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .cite-tag.help {
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+      }
+
+      /* ---------- help pages ---------- */
+      /* home: compact access request card (matches declarant-after-submission #dashboard) */
+      .acc-row {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 16px 20px 18px;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 0 0 var(--r-lg) var(--r-lg);
+      }
+      .acc-row:hover {
+        background: #fcfbfa;
+      }
+      .acc-row .ico {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        flex: none;
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .acc-row .body {
+        flex: 1;
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+      }
+      .acc-row .t {
+        font-weight: 600;
+      }
+      .acc-row .d {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .acc-row .cd-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 5px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--warn);
+      }
+      .acc-row > svg {
+        color: var(--muted);
+        margin-top: 10px;
+      }
+      .help-page {
+        max-width: 820px;
+        display: grid;
+        gap: 18px;
+      }
+      .help-search {
+        height: 50px;
+      }
+      .help-search .input {
+        height: 48px;
+        font-size: 15.5px;
+      }
+      .help-topics {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+      @container app (min-width: 700px) {
+        .help-topics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .help-topic {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        color: var(--ink);
+      }
+      .help-topic:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 6px 18px -10px rgba(0, 0, 0, 0.2);
+      }
+      .help-topic .ico {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+      }
+      .help-topic .grow {
+        display: grid;
+      }
+      .help-topic > svg {
+        color: var(--muted);
+      }
+      .help-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .help-hit {
+        width: 100%;
+        display: grid;
+        gap: 6px;
+        text-align: left;
+        padding: 14px 16px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        font: inherit;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .help-hit:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 6px 18px -10px rgba(0, 0, 0, 0.2);
+      }
+      .help-hit b {
+        font-weight: 600;
+      }
+      .help-h2 {
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .crumbs-p {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .crumbs-p .linklike {
+        color: var(--ink-2);
+        font-weight: 500;
+      }
+      .help-art {
+        display: grid;
+        gap: 14px;
+      }
+      .help-art h1 {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      .help-art .meta {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: -8px;
+      }
+      .art-body {
+        font-size: 15.5px;
+        line-height: 1.65;
+        color: var(--ink);
+      }
+      .art-law {
+        margin: 0;
+        padding: 14px 16px;
+        border-left: 3px solid var(--line-2);
+        background: var(--bg);
+        border-radius: 0 12px 12px 0;
+        font-size: 15px;
+        line-height: 1.65;
+      }
     </style>
     <script src="../../../packages/ui/prototype/kit.js"></script>
   </head>
@@ -2060,6 +3210,7 @@
         input,
         select,
         checkbox,
+        choices,
         textarea,
         dialog,
         drawer,
@@ -2525,7 +3676,23 @@
         natureOther: '',
         msChanged: false,
         msExplain: '',
+        jobGroup: '',
+        appointed: '',
+        station: '',
+        kra: '',
+        kraStatus: '',
+        kraAt: '',
       });
+      /* HR fields from the Commission's roster record (spec 05b FE-4); PSC supplied none for John */
+      const hrFor = (D) =>
+        D.commission === 'tsc'
+          ? {
+              marital: 'married',
+              jobGroup: 'D3 (T-Scale 13)',
+              appointed: '02/09/2026',
+              station: 'Eldoret, Uasin Gishu',
+            }
+          : {};
       const emptyStatement = () => ({
         income: [],
         assets: [],
@@ -2614,7 +3781,9 @@
           createdAt: '2026-09-26T10:30:00',
           lastSection: null,
           touched: {},
-          bio: emptyBio(),
+          bio: { ...emptyBio(), ...hrFor(o) },
+          hr: hrFor(o),
+          sug: { sets: {}, list: [] },
           hh: { spouses: [], noSpouse: false, children: [], noChildren: false },
           st: { officer: emptyStatement() },
           other: emptyOther(),
@@ -2642,15 +3811,14 @@
       /* demo content builders */
       function demoFill(D, level = 'complete') {
         D.bio = {
+          ...emptyBio(),
+          ...D.hr,
           dob: '12/12/1977',
           place: 'Kapsabet, Nandi',
           marital: 'married',
           postal: 'P.O. Box 3100-30100, Eldoret',
           physical: 'House 14, Elgon View Estate, Eldoret',
           nature: 'permanent',
-          natureOther: '',
-          msChanged: false,
-          msExplain: '',
         };
         const mary = {
           id: 'sp1',
@@ -2958,9 +4126,31 @@
             stepUpFailed: false,
             conflict: null,
             pickerMonth: null,
+            regOpen: {},
+            regFold: {},
+            sugBusy: null,
           },
           save: 'saved',
           savedAt: null,
+          /* spec 05b / 11: AI policy for the Commission, assistant availability, prototype simulations */
+          ai: {
+            extract: 'enabled',
+            assistant: 'ok',
+            hints: 'ok',
+            exFail: false,
+            acceptConflict: false,
+          },
+          ask: {
+            open: false,
+            lang: 'en',
+            msgs: [],
+            draft: '',
+            cite: null,
+            q: '',
+            rate: false,
+            failNext: false,
+          },
+          help: { q: '', topic: null, article: null, lang: 'en' },
           submitMode: 'live', // live (spec 06) | s05-release | s05-upcoming
           slipTimer: null,
           demo: {
@@ -2970,6 +4160,27 @@
             seg: 'married',
             county: 'Uasin Gishu',
             country: 'UG',
+            askMsgs: [
+              {
+                id: 'pm1',
+                role: 'assistant',
+                lang: 'en',
+                st: 'done',
+                text: 'Give an approximate value as at the statement date: roughly what it would sell for then. You do not need a professional valuation.',
+                cites: ['am-24', 'help-value'],
+                link: null,
+                rating: null,
+              },
+              {
+                id: 'pm2',
+                role: 'assistant',
+                lang: 'en',
+                st: 'declined',
+                text: '',
+                cites: [],
+                rating: null,
+              },
+            ],
             rep: [
               { id: 'r1', t: 'Kapsoya Parents Welfare Group' },
               { id: 'r2', t: 'Eldoret Teachers SACCO' },
@@ -3773,12 +4984,12 @@
           `<div class="page">
     <h1 class="page-title">${title}</h1>
     <div class="home-grid">
-      <div class="stack-lg">${S.home.st === 'notdecl' ? accountCard() : obligationsSection()}${S.home.st === 'ok' || S.home.st === 'notdecl' ? commissionCards() : ''}</div>
+      <div class="stack-lg">${S.home.st === 'notdecl' ? accountCard() : obligationsSection()}${S.home.st === 'ok' && S.home.access ? accessHomeCard() : ''}${S.home.st === 'ok' || S.home.st === 'notdecl' ? commissionCards() : ''}</div>
       <div class="stack-lg">${S.home.st === 'notdecl' ? '' : accountCard()}
-        <div class="card card-pad"><div class="section-title">Need help?</div><p class="small muted" style="margin-top:4px">Quote your officer reference. Never share your ID number or codes.</p></div>
+        <div class="card card-pad"><div class="section-title">Need help?</div><p class="small muted" style="margin-top:4px">Quote your officer reference. Never share your ID number or codes.</p><div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn btn-secondary btn-sm" data-act="askOpen">${icon('sparkles', 15)} Ask Adili</button><button class="btn btn-ghost btn-sm" data-act="go" data-arg="help">${icon('help', 15)} Help articles</button></div></div>
       </div>
     </div>
-  </div>`,
+  </div>${S.home.st === 'notdecl' ? '' : askUi()}`,
           { active: 'Home' },
         );
       };
@@ -3915,6 +5126,10 @@
           add('natureOther', 'Describe the nature of your employment.');
         if (b.msChanged && !b.msExplain.trim())
           add('msExplain', 'Explain the change in marital status.');
+        if (b.appointed && !parseDMY(b.appointed))
+          add('appointed', 'Enter a real date as DD/MM/YYYY.');
+        if (b.kra && !/^[AP]\d{9}[A-Z]$/i.test(b.kra))
+          add('kra', 'Check your KRA PIN, e.g. A000000000Z.');
         return out;
       }
       function hhIssues(D) {
@@ -4061,7 +5276,7 @@
           st(
             'bio',
             b,
-            Object.values(D.bio).some((v) => v && v !== false),
+            Object.entries(D.bio).some(([k, v]) => v && v !== false && D.hr?.[k] !== v),
           ),
         );
         const h = hhIssues(D);
@@ -4331,7 +5546,7 @@
       function mobileBar() {
         const D = cur();
         const label = `${TYPE_LABEL[D.type]} · ${comm(D.commission).code}`;
-        return `<div class="mbar"><button class="btn btn-ghost icon-btn" style="margin-left:-8px;width:32px;height:32px" data-act="go" data-arg="decl-overview" aria-label="Declaration overview">${icon('left', 18)}</button><div style="flex:1;min-width:0"><div class="truncate" style="font-weight:600">${label}</div><div>${saveInd()}</div></div><button class="btn btn-secondary btn-sm" data-act="modal" data-arg="sections">${icon('list', 15)} Sections</button></div>`;
+        return `<div class="mbar"><button class="btn btn-ghost icon-btn" style="margin-left:-8px;width:32px;height:32px" data-act="go" data-arg="decl-overview" aria-label="Declaration overview">${icon('left', 18)}</button><div style="flex:1;min-width:0"><div class="truncate" style="font-weight:600">${label}</div><div>${saveInd()}</div></div><button class="btn btn-secondary btn-sm icon-btn mbar-ask" data-act="askOpen" aria-label="Ask Adili" title="Ask Adili">${icon('sparkles', 16)}</button><button class="btn btn-secondary btn-sm" data-act="modal" data-arg="sections">${icon('list', 15)} Sections</button></div>`;
       }
       modals.sections = () => {
         const D = cur();
@@ -4385,7 +5600,7 @@
       function declHead(title) {
         const D = cur();
         return `<div class="dhead"><h1>${title}</h1>
-    <div class="meta"><span>${tip('Statement date', TIP_STATEMENT, 'left')} ${fmtDate(D.statementDate)}</span><span>${tip('Income', TIP_INCOME)} ${fmtDate(D.incomeFrom)} to ${fmtDate(D.incomeTo)}${D.fromSource === 'assumed' ? ` (${tip('start assumed', TIP_ASSUMED)})` : ''}</span>${D.status === 'amending' ? Kit.badge(`Amending version ${D.amendingFrom}`, 'info') : ''}</div></div>`;
+    <div class="meta"><span>${tip('Statement date', TIP_STATEMENT, 'left')} ${fmtDate(D.statementDate)}</span><span>${tip('Income', TIP_INCOME)} ${fmtDate(D.incomeFrom)} to ${fmtDate(D.incomeTo)}${D.fromSource === 'assumed' ? ` (${tip('start assumed', TIP_ASSUMED, 'right')})` : ''}</span>${D.status === 'amending' ? Kit.badge(`Amending version ${D.amendingFrom}`, 'info') : ''}</div></div>`;
       }
       function amendBanner(D) {
         const n = D.amendingFrom;
@@ -4405,7 +5620,7 @@
     ${declHead(title)}
     <fieldset class="plain" ${S.save === 'conflict' ? 'disabled' : ''}>${content}</fieldset>
     ${foot}
-  </section></div>`,
+  </section></div>${askUi()}`,
           { active: 'Declarations', tabbar: false },
         );
       }
@@ -4501,12 +5716,22 @@
         ${field('Date of birth', dateInput(P('bio.dob'), { err: E('dob') }), { id: fid(P('bio.dob')), error: E('dob') })}
         ${field('Place of birth', input(P('bio.place'), { ph: 'Town and county, e.g. Kapsabet, Nandi', cls: E('place') ? 'is-invalid' : '', extra: 'maxlength="100"' }), { id: fid(P('bio.place')), error: E('place') })}
       </div>
-      <div class="field"><span class="label" id="ms-l">Marital status</span>${segc(P('bio.marital'), MARITAL, { err: !!E('marital'), label: 'Marital status' })}${errText(E('marital'))}</div>
+      <div class="field"><span class="label" id="ms-l">Marital status</span>${segc(P('bio.marital'), MARITAL, { err: !!E('marital'), label: 'Marital status' })}${errText(E('marital')) || rosterNote(D, 'marital')}</div>
       <div class="grid-2">
         ${field('Postal address', textarea(P('bio.postal'), { rows: 3, ph: 'P.O. Box 3100-30100, Eldoret', cls: E('postal') ? 'is-invalid' : '', extra: 'maxlength="200" style="min-height:84px"' }), { id: fid(P('bio.postal')), error: E('postal') })}
         ${field('Physical address', textarea(P('bio.physical'), { rows: 3, ph: 'House, estate or road, town', cls: E('physical') ? 'is-invalid' : '', extra: 'maxlength="200" style="min-height:84px"' }), { id: fid(P('bio.physical')), error: E('physical') })}
       </div>
+      <div class="stack" style="gap:12px">
+        ${toggle(P('bio.msChanged'), 'My marital status changed since my last declaration')}
+        ${b.msChanged ? `<div class="subpanel">${field('Explain the change', textarea(P('bio.msExplain'), { rows: 3, ph: 'e.g. Married Mary Wanjiru Kennedy in April 2025.', cls: E('msExplain') ? 'is-invalid' : '', extra: 'style="min-height:80px" maxlength="1000"' }), { id: fid(P('bio.msExplain')), error: E('msExplain') })}</div>` : ''}
+      </div>
+    </div>
+    <section class="card card-pad stack-lg" aria-labelledby="emp-h">
+      <h2 id="emp-h" style="font-size:16px;font-weight:600">Employment and tax</h2>
       <div class="grid-2">
+        ${field('Job group', input(P('bio.jobGroup'), { ph: 'e.g. D3 (T-Scale 13)', extra: 'maxlength="40"' }), { id: fid(P('bio.jobGroup')), opt: true, hint: rosterNote(D, 'jobGroup') })}
+        ${field('Date of appointment', dateInput(P('bio.appointed'), { err: E('appointed') }), { id: fid(P('bio.appointed')), opt: true, error: E('appointed'), hint: rosterNote(D, 'appointed') })}
+        ${field('Work station', input(P('bio.station'), { ph: 'e.g. Eldoret, Uasin Gishu', extra: 'maxlength="100"' }), { id: fid(P('bio.station')), opt: true, hint: rosterNote(D, 'station') })}
         ${field(
           'Nature of employment',
           select(
@@ -4516,13 +5741,13 @@
           ),
           { id: fid(P('bio.nature')), error: E('nature') },
         )}
-        ${b.nature === 'other' ? field('Describe it', input(P('bio.natureOther'), { ph: 'e.g. Secondment from a county', cls: E('natureOther') ? 'is-invalid' : '', extra: 'maxlength="100"' }), { id: fid(P('bio.natureOther')), error: E('natureOther') }) : '<div></div>'}
+        ${b.nature === 'other' ? field('Describe it', input(P('bio.natureOther'), { ph: 'e.g. Secondment from a county', cls: E('natureOther') ? 'is-invalid' : '', extra: 'maxlength="100"' }), { id: fid(P('bio.natureOther')), error: E('natureOther') }) : ''}
       </div>
-      <div class="stack" style="gap:12px">
-        ${toggle(P('bio.msChanged'), 'My marital status changed since my last declaration')}
-        ${b.msChanged ? `<div class="subpanel">${field('Explain the change', textarea(P('bio.msExplain'), { rows: 3, ph: 'e.g. Married Mary Wanjiru Kennedy in April 2025.', cls: E('msExplain') ? 'is-invalid' : '', extra: 'style="min-height:80px" maxlength="1000"' }), { id: fid(P('bio.msExplain')), error: E('msExplain') })}</div>` : ''}
+      <div class="grid-2">
+        ${field('KRA PIN', input(P('bio.kra'), { ph: 'A000000000Z', cls: E('kra') ? 'is-invalid' : '', extra: 'maxlength="11" autocapitalize="characters" autocomplete="off"' }), { id: fid(P('bio.kra')), opt: true, error: E('kra'), hint: b.kraStatus ? `${srcBadge({ kind: 'kra', at: b.kraAt, ref: 'PIN ' + maskPin(b.kra) })} Compliance: ${esc(b.kraStatus)}` : '' })}
       </div>
-    </div>
+      ${kraLine(D)}
+    </section>
   </div>`,
           {
             title: 'Your details',
@@ -4775,6 +6000,7 @@
           showE || /No minus|as a number|from 1 to 100/.test(errs[k] || '') ? errs[k] || '' : '';
         const abroad = cat === 'assets' ? it.loc === 'abroad' : it.abroad;
         const tags = [];
+        if (it.src) tags.push(srcBadge(it.src));
         if (cat === 'assets' && it.joint)
           tags.push(
             Kit.badge(
@@ -4939,6 +6165,7 @@
       })
       .join('')}</div>
     ${sp && sp.separated ? `<div class="callout callout-info" style="margin-bottom:16px">${icon('info', 16)}<span>Separated spouse: declare what you know. If you do not know, say so in the description.</span></div>` : ''}
+    ${regPanel(D, p)}
     <div class="ptabs" role="tablist" aria-label="Parts of the statement">${Object.keys(CAT)
       .map(
         (k) =>
@@ -5088,6 +6315,7 @@
         copy.share = String(100 - mine);
         copy.coOwner = m.pk === 'officer' ? 'Spouse' : 'Other relative';
         copy.atts = [];
+        delete copy.src;
         copy.changed = false;
         copy.kind = '';
         copy.explain = '';
@@ -5116,7 +6344,7 @@
               : a.st === 'scanning'
                 ? 'Checking the file for viruses…'
                 : a.st === 'linked'
-                  ? `${fmtSize(a.size)} · Attached`
+                  ? `${fmtSize(a.size)} · ${a.read ? 'Read into the form' : 'Attached'}`
                   : ATT_COPY[a.st];
           const ic =
             a.st === 'uploading'
@@ -5126,9 +6354,10 @@
                 : bad
                   ? icon('alert', 16)
                   : icon('file', 16);
+          const mid = 'am-' + a.id;
           const act =
             a.st === 'linked'
-              ? `<button class="btn btn-ghost icon-btn" data-act="askRemoveAtt" data-arg="${cat}|${pk}|${it.id}|${a.id}" aria-label="Remove ${esc(a.name)}">${icon('x', 16)}</button>`
+              ? `<div class="menu-wrap"><button class="btn btn-ghost icon-btn" data-act="menu" data-arg="${mid}" aria-label="Actions for ${esc(a.name)}" aria-haspopup="menu" aria-expanded="${S.menu === mid}">${icon('moreV', 16)}</button>${S.menu === mid ? `<div class="menu" role="menu">${S.ai.extract === 'enabled' ? `<button role="menuitem" data-act="exStart" data-arg="${cat}|${pk}|${it.id}|${a.id}"><span style="color:var(--ai);display:flex">${icon('sparkles', 16)}</span> Read into the form</button>` : `<div class="menu-note">${icon('sparkles', 15)}<span>Read into the form: not enabled for your Commission</span></div>`}<button role="menuitem" class="danger" data-act="askRemoveAtt" data-arg="${cat}|${pk}|${it.id}|${a.id}">${icon('trash', 16)} Remove</button></div>` : ''}</div>`
               : a.st === 'failed'
                 ? `<button class="btn btn-secondary btn-sm" data-act="retryAtt" data-arg="${cat}|${pk}|${it.id}|${a.id}">Try again</button><button class="btn btn-ghost icon-btn" data-act="dismissAtt" data-arg="${cat}|${pk}|${it.id}|${a.id}" aria-label="Dismiss">${icon('x', 16)}</button>`
                 : bad
@@ -5293,7 +6522,7 @@
                     { id: fid(`${b}.kind`) },
                   )}</div>`
                 : `<div class="grid-2">${field('Court or body', input(`${b}.forum`, { ph: "e.g. Eldoret Chief Magistrate's Court" }), { id: fid(`${b}.forum`) })}${field('Case reference', input(`${b}.ref`, { ph: 'e.g. ELC 45 of 2025' }), { id: fid(`${b}.ref`) })}</div>${field('Nature', input(`${b}.nature`, { ph: 'e.g. Boundary dispute over the Kapsoya plot' }), { id: fid(`${b}.nature`) })}`;
-          return `<div class="rep-card"><div class="rep-edit" style="border-top:0"><div class="row"><h4 style="font-size:14px;font-weight:600;flex:1">${conf[0].replace(/s$/, '')} ${i + 1}</h4><button class="btn btn-ghost icon-btn" data-act="removeInterest" data-arg="${kind}|${i}" aria-label="Remove ${conf[0].replace(/s$/, '').toLowerCase()} ${i + 1}">${icon('trash', 16)}</button></div>${inner}</div></div>`;
+          return `<div class="rep-card"><div class="rep-edit" style="border-top:0"><div class="row"><h4 style="font-size:14px;font-weight:600;flex:1">${conf[0].replace(/s$/, '')} ${i + 1} ${x.src ? srcBadge(x.src) : ''}</h4><button class="btn btn-ghost icon-btn" data-act="removeInterest" data-arg="${kind}|${i}" aria-label="Remove ${conf[0].replace(/s$/, '').toLowerCase()} ${i + 1}">${icon('trash', 16)}</button></div>${inner}</div></div>`;
         };
         return `<div class="stack" style="gap:10px"><div><h3 style="font-size:15px;font-weight:600">${conf[0]}</h3>${conf[1] ? `<p class="small muted">${conf[1]}</p>` : ''}</div>${list.length ? list.map(card).join('') : `<p class="small muted" style="padding:2px 0">None added.</p>`}<button class="rep-add" style="height:40px" data-act="addInterest" data-arg="${kind}">${icon('plus', 16)} ${conf[2]}</button></div>`;
       }
@@ -5387,6 +6616,24 @@
       function sumCard(num, title, state, editAct, editArg, body) {
         return `<section class="card sum-card" aria-labelledby="sh-${num}"><div class="sec-h"><h2 id="sh-${num}" style="font-size:15.5px;font-weight:600;flex:1">${title}</h2>${state ? stateBadge(state) : ''}${editAct ? `<button class="btn btn-ghost btn-sm" data-act="${editAct}" data-arg="${editArg}">${icon('pencil', 14)} Edit<span class="sr-only"> ${title}</span></button>` : ''}</div><div class="sec-b">${body}</div></section>`;
       }
+      /* summary: items that came from a registry or a document (#319) */
+      function sourcedFold(D, ps) {
+        const rows = [];
+        ps.forEach((p) =>
+          Object.keys(CAT).forEach((cat) =>
+            D.st[p.key][cat].forEach((it) => {
+              if (it.src) rows.push({ p, cat, it });
+            }),
+          ),
+        );
+        if (!rows.length) return '';
+        const open = S.ui.srcFold;
+        return `<div class="src-fold"><button class="linklike" data-act="toggleSrcFold" aria-expanded="${!!open}">${icon(open ? 'down' : 'right', 14)} ${plural(rows.length, 'item')} from registries or documents</button>${open ? `<ul>${rows.map((r) => `<li>${srcBadge(r.it.src)}<span class="grow">${esc(r.it.desc || lab(typeList(r.cat), r.it.type))}<span class="muted"> · ${esc(r.p.kind === 'self' ? 'You' : r.p.short)}</span></span><button class="btn btn-ghost btn-sm" data-act="goIssue" data-arg="${esc(JSON.stringify(['decl-statement', r.p.key, r.cat, r.it.id]))}">Check<span class="sr-only"> ${esc(r.it.desc)}</span></button></li>`).join('')}</ul>` : ''}</div>`;
+      }
+      actions.toggleSrcFold = () => {
+        S.ui.srcFold = !S.ui.srcFold;
+        Kit.render();
+      };
       function itemRowsTable(cat, items) {
         if (!items.length) return '';
         return `<table class="sum-items"><thead><tr><th>Type</th><th>Details</th><th class="n">${cat === 'income' ? 'Amount' : cat === 'assets' ? 'Value' : 'Outstanding'}</th></tr></thead><tbody>${items
@@ -5399,7 +6646,7 @@
             const docs = (it.atts || [])
               .filter((a) => a.st === 'linked')
               .map((a) => `${icon('clip', 12)} ${esc(a.name)}`);
-            return `<tr><td class="nowrap">${lab(typeList(cat), it.type)}</td><td>${esc(itemSummary(cat, it))}${flags.length ? `<div class="small muted">${flags.join(' · ')}</div>` : ''}${docs.length ? `<div class="small" style="color:var(--ink-2);margin-top:2px">${docs.join('<br/>')}</div>` : ''}</td><td class="n">${fmtCents(itemAmt(cat, it))}</td></tr>`;
+            return `<tr><td class="nowrap">${lab(typeList(cat), it.type)}</td><td>${it.src ? srcBadge(it.src) + ' ' : ''}${esc(itemSummary(cat, it))}${flags.length ? `<div class="small muted">${flags.join(' · ')}</div>` : ''}${docs.length ? `<div class="small" style="color:var(--ink-2);margin-top:2px">${docs.join('<br/>')}</div>` : ''}</td><td class="n">${fmtCents(itemAmt(cat, it))}</td></tr>`;
           })
           .join('')}</tbody></table>`;
       }
@@ -5454,12 +6701,15 @@
     ${conflictMsg ? `<div class="alert alert-warn" role="alert">${icon('alert', 17)}<div>${conflictMsg}</div></div>` : ''}
     ${
       cmp.issues.length
-        ? `<div class="blocking" role="region" aria-labelledby="blk-h"><h2 id="blk-h">${icon('alert', 18)} ${plural(cmp.issues.length, 'thing')} to complete before you can submit</h2><ul>${cmp.issues
+        ? `<div class="blocking" role="region" aria-labelledby="blk-h"><h2 id="blk-h">${icon('alert', 18)} <span class="grow">${plural(cmp.issues.length, 'thing')} to complete before you can submit</span>${S.ai.hints === 'loading' ? `<span class="hint-state" role="status"><span class="spinner dark sm"></span> Getting hints…</span>` : cmp.issues.some((i) => hintFor(D, i)) ? aiLabel('Hints: AI-assisted') : ''}</h2><ul>${cmp.issues
             .slice(0, 12)
-            .map(
-              (i) =>
-                `<li><button class="linklike" style="text-align:left;font-weight:400" data-act="goIssue" data-arg="${esc(JSON.stringify(i.go))}">${esc(i.text)}</button></li>`,
-            )
+            .map((i) => {
+              const h = hintFor(D, i);
+              const go = esc(JSON.stringify(i.go));
+              if (!h && S.ai.hints !== 'loading')
+                return `<li><button class="linklike" style="text-align:left;font-weight:400" data-act="goIssue" data-arg="${go}">${esc(i.text)}</button></li>`;
+              return `<li><span>${esc(i.text)}</span> <button class="linklike fix" data-act="goIssue" data-arg="${go}">Fix<span class="sr-only">: ${esc(i.text)}</span></button>${h ? `<span class="hint-line">${icon('sparkles', 13)}<span><span class="sr-only">AI-assisted hint: </span>${esc(h)}</span></span>` : '<span class="hint-line"><span class="skeleton" style="width:72%;height:12px"></span></span>'}</li>`;
+            })
             .join(
               '',
             )}${cmp.issues.length > 12 ? `<li>and ${cmp.issues.length - 12} more</li>` : ''}</ul></div>`
@@ -5478,6 +6728,10 @@
       <div><dt>Postal address</dt><dd>${esc(b.postal || '-')}</dd></div>
       <div><dt>Physical address</dt><dd>${esc(b.physical || '-')}</dd></div>
       <div><dt>Employer and designation</dt><dd>${roster(D).entity} · ${roster(D).designation}</dd></div>
+      ${b.jobGroup ? `<div><dt>Job group</dt><dd>${esc(b.jobGroup)}</dd></div>` : ''}
+      ${b.appointed ? `<div><dt>Date of appointment</dt><dd>${esc(b.appointed)}</dd></div>` : ''}
+      ${b.station ? `<div><dt>Work station</dt><dd>${esc(b.station)}</dd></div>` : ''}
+      <div><dt>KRA PIN</dt><dd>${b.kra ? `<span class="mono">${esc(b.kra)}</span>${b.kraStatus ? ` · Compliance: ${esc(b.kraStatus)} ${srcBadge({ kind: 'kra', at: b.kraAt, ref: 'PIN ' + maskPin(b.kra) })}` : ''}` : '-'}</dd></div>
       <div><dt>Nature of employment</dt><dd>${b.nature ? lab(NATURE, b.nature) + (b.nature === 'other' ? ': ' + esc(b.natureOther) : '') : '-'}</dd></div>
       <div><dt>Responsible Commission</dt><dd>${esc(c.name)} · personnel file number <span class="mono">${roster(D).fileNo}</span></dd></div></dl>`,
     )}
@@ -5506,6 +6760,7 @@
       `
       <div class="table-wrap"><table class="sum-table"><caption class="sr-only">Totals per person, KES</caption><thead><tr><th scope="col">Person</th><th scope="col">Income</th><th scope="col">Assets</th><th scope="col">Liabilities</th></tr></thead><tbody>${ps.map((p) => `<tr><td><span class="row" style="gap:8px"><span class="avatar sm ${p.kind === 'self' ? '' : p.kind}">${esc(p.initials)}</span><span style="font-weight:500">${esc(p.kind === 'self' ? 'You' : p.short)}</span></span></td><td>${num(tot(p, 'income') / 100)}</td><td>${num(tot(p, 'assets') / 100)}</td><td>${num(tot(p, 'liabilities') / 100)}</td></tr>`).join('')}</tbody></table></div>
       <p class="small muted" style="margin-top:6px">KES, approximate. Joint assets at whole value.</p>
+      ${sourcedFold(D, ps)}
       ${ps
         .map((p, i) => {
           const st = D.st[p.key];
@@ -5527,7 +6782,7 @@
       'decl-other',
       `<dl class="sum-dl">
       <div><dt>Material changes</dt><dd>${mc.length ? mc.map((m) => `<div>${esc(m.who)} · ${esc(m.what)}: ${KIND_WORDS[m.kind] || '-'} · ${esc(m.explain || '-')}</div>`).join('') : 'None flagged.'}</dd></div>
-      <div><dt>Directorships</dt><dd>${D.other.directorships.length ? D.other.directorships.map((x) => `<div>${esc(x.company)}, ${esc(x.role)} (${x.rem === 'yes' ? 'paid' : x.rem === 'no' ? 'unpaid' : '-'})</div>`).join('') : 'None.'}</dd></div>
+      <div><dt>Directorships</dt><dd>${D.other.directorships.length ? D.other.directorships.map((x) => `<div>${x.src ? srcBadge(x.src) + ' ' : ''}${esc(x.company)}, ${esc(x.role)} (${x.rem === 'yes' ? 'paid' : x.rem === 'no' ? 'unpaid' : '-'})</div>`).join('') : 'None.'}</dd></div>
       <div><dt>Memberships</dt><dd>${D.other.memberships.length ? D.other.memberships.map((x) => `<div>${esc(x.entity)} (${lab(MEMBERSHIP_KINDS, x.kind) || '-'})</div>`).join('') : 'None.'}</dd></div>
       <div><dt>Dual citizenship</dt><dd>${D.other.dual.holds === 'yes' ? 'Yes, ' + esc(countryName(D.other.dual.country || '')) : D.other.dual.holds === 'no' ? 'No' : '-'} · pending application: ${D.other.dual.pending || '-'}</dd></div>
       <div><dt>Pending cases</dt><dd>${D.other.cases.length ? D.other.cases.map((x) => `<div>${esc(x.forum)}, ${esc(x.ref)}: ${esc(x.nature)}</div>`).join('') : 'None.'}</dd></div>
@@ -5893,7 +7148,7 @@
               .reverse()
               .map(
                 (v) =>
-                  `<div class="ver">${verBadge(v.version, !!v.superseded)}<span style="flex:1;min-width:160px">Submitted ${fmtDateTime(v.submittedAt)}${v.late ? ' · late' : ''}</span>${v.superseded ? Kit.badge('Superseded') : Kit.badge('In force', 'ok')}<span class="small muted">${icon('eye', 13)} ${plural(v.ack.verified, 'check')}</span>${slipLink('btn-ghost btn-sm')}</div>`,
+                  `<div class="ver">${verBadge(v.version, !!v.superseded)}<span style="flex:1;min-width:160px">Submitted ${fmtDateTime(v.submittedAt)}${v.late ? ' · late' : ''}</span>${v.superseded ? Kit.badge('Superseded') : Kit.badge('In force', 'ok')}<span class="small muted">${icon('eye', 13)} ${plural(v.ack.verified, 'check')}</span>${slipLink('btn-ghost btn-sm')}<a class="btn btn-ghost btn-sm" href="declarant-profile.prototype.html#certified-copies">${icon('stamp', 15)} Certified copy<span class="sr-only"> of version ${v.version}</span></a></div>`,
               )
               .join(
                 '',
@@ -6013,6 +7268,11 @@
 
       /* ---- Home: cards that link to the after-submission prototype ---- */
       const AFTER = 'declarant-after-submission.prototype.html';
+      /* compact access-request card (spec 10 #255); shown only when someone requested access */
+      function accessHomeCard() {
+        return `<section class="card acc-home" aria-labelledby="acc-h"><div class="card-head"><h3 id="acc-h">Access requests</h3><span class="spacer"></span><a class="btn btn-ghost btn-sm" href="${AFTER}#access-requests">View all<span class="sr-only"> access requests</span></a></div>
+    <a class="acc-row" href="${AFTER}#access-requests"><span class="ico">${icon('users', 18)}</span><span class="body"><span class="t">Someone has requested access to your declaration</span><span class="d"><span class="mono">ARQ-TSC-2026-0000052-3</span> · Wanjiru Kamau<br/>Journalistic research on school procurement in Uasin Gishu County</span><span class="cd-line">${icon('clock', 14)} Respond by 29 Sep · 3 days left</span></span>${icon('right', 20)}</a></section>`;
+      }
       function commissionCards() {
         const row = (ic, tint, title, text, href) =>
           `<div class="item"><span class="ico" style="background:${tint[0]};color:${tint[1]}">${icon(ic, 17)}</span><div class="item-body"><div class="t">${title}</div><div class="d">${text}</div></div><a class="btn btn-ghost btn-sm" href="${AFTER}#${href}">View all<span class="sr-only"> ${title.toLowerCase()}</span></a></div>`;
@@ -6051,7 +7311,7 @@
         return portalShell(
           `<div class="docpage">
     <h1>UI primitives in portal context</h1>
-    <p class="lead">Rounds 3 to 6 of <span class="mono">packages/ui</span> as the declarant portal uses them. Each block names its ticket. Everything here is interactive where it can be.</p>
+    <p class="lead">Rounds 3 to 6, 14 and 15 of <span class="mono">packages/ui</span> as the declarant portal uses them. Each block names its ticket. Everything here is interactive where it can be.</p>
     <h2>Round 3: onboarding ${Kit.badge('#64')}</h2>
     <div class="gal">
       <div class="card"><h3>OtpInput <span class="mono">default · error · disabled</span></h3>
@@ -6136,9 +7396,119 @@
       <div class="card"><h3>QrCode <span class="mono">alt text carries the code</span></h3><div class="row-wrap" style="gap:18px">${Kit.qr(18, 112, `QR code for verification code ${VCODES[0]}`)}<div><div class="small muted">Verification code</div><div class="mono" style="font-weight:600">${VCODES[0]}</div></div></div>
         <h3 style="margin-top:6px">VersionBadge</h3><div class="row-wrap">${verBadge(2)}${verBadge(1, true)} ${Kit.badge('Superseded')}</div><p class="small muted">HashDropZone lives in the verify app prototype.</p></div>
     </div>
-  </div>`,
+    ${primRound14()}
+    ${primRound15()}
+  </div>${S.ask.open ? askUi() : ''}`,
           { active: '' },
         );
+      };
+      function primRound14() {
+        const base = { src: 'ntsa', at: CHECKED_AT, status: 'new', pk: 'officer' };
+        const cards = [
+          [
+            'New',
+            {
+              ...base,
+              id: 'ps1',
+              type: 'vehicle',
+              title: 'KCA 123A · Toyota Probox 2016',
+              fields: { reg: 'KCA 123A' },
+            },
+          ],
+          [
+            'Matches an item, fills empty fields',
+            {
+              ...base,
+              id: 'ps2',
+              type: 'vehicle',
+              title: 'KDA 123X · Toyota Fielder 2014',
+              match: 'x',
+              fields: { makeModel: 'Toyota Fielder, 2014' },
+              demoDiff: ['makeModel'],
+              demoTarget: { desc: 'Family car', type: 'vehicle' },
+            },
+          ],
+          [
+            'Matches, nothing to fill',
+            {
+              ...base,
+              id: 'ps3',
+              src: 'ardhisasa',
+              type: 'land',
+              title: 'Eldoret Municipality Block 7/1234 · 0.25 acres',
+              match: 'x',
+              fields: {},
+              demoDiff: [],
+              demoTarget: { desc: 'Quarter-acre residential plot, Kapsoya', type: 'land' },
+            },
+          ],
+          [
+            'Accepted',
+            {
+              ...base,
+              id: 'ps4',
+              type: 'vehicle',
+              title: 'KCA 123A · Toyota Probox 2016',
+              status: 'accepted',
+            },
+          ],
+        ];
+        const busyKeep = S.ui.sugBusy;
+        S.ui.sugBusy = 'ps5';
+        const busy = sugCard(
+          {
+            ...base,
+            id: 'ps5',
+            src: 'brs',
+            type: 'shareholding',
+            title: 'Rift Valley Agrovet Ltd · 500 shares',
+            fields: {},
+          },
+          { demo: true },
+        );
+        S.ui.sugBusy = busyKeep;
+        const rs = (n, k, t, ic) =>
+          `<li class="rs rs-${k}"><span class="rs-n">${n}</span><span class="rs-t">${ic}<span>${t}</span></span>${k === 'down' ? `<button class="btn btn-ghost btn-sm rs-retry" data-act="toast" data-arg="Retries that registry">${icon('refresh', 13)} Retry</button>` : ''}</li>`;
+        return `<h2>Round 14: registry suggestions and extraction ${Kit.badge('#309')}</h2>
+    <div class="gal">
+      <div class="card" style="grid-column:1/-1"><h3>SuggestionCard <span class="mono">new · match · nothing to fill · accepted · refreshing (409/412)</span></h3>
+        <div class="sug-group">${cards.map(([l, c]) => `<div class="lbl">${l}</div>${sugCard(c, { demo: true })}`).join('')}<div class="lbl">Accept hit 409/412: refreshing, then retried</div>${busy}</div>
+        <p class="small muted">Action buttons carry the item title in their accessible names, e.g. "Add: KCA 123A · Toyota Probox 2016".</p></div>
+      <div class="card"><h3>RegistryStatusRow <span class="mono">text and icon, never colour alone</span></h3>
+        <ul class="reg-strip" style="grid-template-columns:minmax(0,1fr)">${rs('KRA', 'none', 'Not checked', icon('minus', 13, 2.4))}${rs('NTSA', 'pending', 'Checking…', '<span class="spinner dark sm"></span>')}${rs('BRS', 'ok', '2 suggestions', icon('check', 13, 2.6))}${rs('ArdhiSasa', 'empty', 'Nothing found', icon('minus', 13, 2.4))}${rs('ArdhiSasa', 'down', 'Not available now', icon('alert', 13))}</ul></div>
+      <div class="card"><h3>ConsentDialog <span class="mono">modal, focus trap</span></h3><div class="row-wrap"><button class="btn btn-secondary btn-sm" data-act="primConsent">${icon('landmark', 15)} Open consent dialog</button></div>
+        <h3 style="margin-top:6px">ConfidenceChip</h3><div class="row-wrap">${confChip(0.95)}${confChip(0.7)}${confChip(0.4)}</div>
+        <h3 style="margin-top:6px">SourceBadge <span class="mono">tooltip: kind, date, identifier</span></h3><div class="row-wrap">${srcBadge({ kind: 'kra', at: CHECKED_AT, ref: 'PIN A00•••••76K' })}${srcBadge({ kind: 'ntsa', at: CHECKED_AT, ref: 'KCA 123A' })}${srcBadge({ kind: 'brs', at: CHECKED_AT, ref: 'PVT-AB12CD3E' })}${srcBadge({ kind: 'ardhisasa', at: CHECKED_AT, ref: 'Uasin Gishu/Kimumu/2231' })}${srcBadge({ kind: 'document', at: CHECKED_AT, ref: 'logbook-KCB782M.pdf, page 1' })}</div></div>
+    </div>`;
+      }
+      function primRound15() {
+        const t = ASK_T.en;
+        const stream = {
+          id: 'pm0',
+          role: 'assistant',
+          lang: 'en',
+          st: 'streaming',
+          text: 'Yes. A vehicle you own with someone else is an asset. Declare it under Assets',
+          cites: [],
+        };
+        return `<h2>Round 15: Ask Adili chat ${Kit.badge('#330')}</h2>
+    <div class="gal">
+      <div class="card"><h3>ChatPanelShell <span class="mono">complementary landmark; bottom sheet on phones</span></h3><div class="row-wrap"><button class="btn btn-secondary btn-sm" data-act="askOpen">${icon('sparkles', 15)} Open the panel</button></div><p class="small muted">Header with AiLabel and language switch, message log, composer. Enter sends; Shift+Enter adds a line.</p>
+        <h3 style="margin-top:6px">SuggestedQuestionChips</h3><ul class="sq">${SUGGEST.assets[0]
+          .slice(0, 2)
+          .map(
+            (q) =>
+              `<li><button class="sq-chip" data-act="toast" data-arg="Sends the question">${esc(q)}</button></li>`,
+          )
+          .join('')}</ul></div>
+      <div class="card"><h3>StreamingMessage <span class="mono">thinking · streaming · stopped · 429</span></h3><div class="ask-msgs demo">${msgHtml({ id: 'pmt', role: 'assistant', lang: 'en', st: 'thinking' })}${msgHtml(stream)}${msgHtml({ id: 'pme', role: 'assistant', lang: 'en', st: 'error', text: '' })}${msgHtml({ id: 'pmr', role: 'assistant', lang: 'en', st: 'rate' })}</div><p class="small muted">The bubble is silent to screen readers; finished sentences go to a polite live region.</p></div>
+      <div class="card"><h3>Answered with CitationChip and FeedbackControl</h3><div class="ask-msgs demo">${msgHtml({ id: 'pmu', role: 'user', text: 'How do I value my car?' })}${msgHtml(S.demo.askMsgs[0])}</div></div>
+      <div class="card"><h3>Declined <span class="mono">with the reporting officer's contact</span></h3><div class="ask-msgs demo">${msgHtml(S.demo.askMsgs[1])}</div></div>
+    </div>`;
+      }
+      actions.primConsent = () => {
+        S.modal = { kind: 'consent', pk: null, name: ME.full, idm: maskNid(ME.nid), ok: false };
+        Kit.render();
       };
       actions.primOtpDone = (code) => Kit.toast(`Submitted ${code} once (prototype)`);
       actions.render = () => Kit.render();
@@ -6169,9 +7539,1896 @@
       };
 
       /* =====================================================================
+       * SPEC 05b: registry suggestions (#312), read into the form (#316),
+       * HR fields and source badges (#319), primitives round 14 (#309)
+       * ===================================================================== */
+      Kit.I.thumbUp =
+        '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>';
+      Kit.I.thumbDown =
+        '<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>';
+      const SRC = {
+        kra: { name: 'KRA', icon: 'landmark' },
+        ntsa: { name: 'NTSA', icon: 'car' },
+        brs: { name: 'BRS', icon: 'briefcase' },
+        ardhisasa: { name: 'ArdhiSasa', icon: 'pin' },
+        document: { name: 'Document', icon: 'file' },
+      };
+      const REGS = ['kra', 'ntsa', 'brs', 'ardhisasa'];
+      const CHECKED_AT = '2026-09-26T10:32:00';
+      const FIELD_LABEL = {
+        reg: 'Registration',
+        makeModel: 'Make and model',
+        parcel: 'Parcel or plot number',
+        size: 'Size',
+        county: 'County',
+        issuer: 'Company or issuer',
+        qty: 'Number or percentage',
+        desc: 'Description',
+        company: 'Company',
+        role: 'Role',
+        kra: 'KRA PIN',
+        kraStatus: 'Compliance',
+        institution: 'Institution',
+        accType: 'Account type',
+        creditor: 'Creditor',
+        amount: 'Outstanding amount',
+      };
+      const maskPin = (p) => (p ? p.slice(0, 3) + '•••••' + p.slice(-3) : '');
+      const maskNid = (n) => (n ? '•'.repeat(Math.max(0, n.length - 3)) + n.slice(-3) : '');
+      const norm = (v) =>
+        String(v || '')
+          .toUpperCase()
+          .replace(/[\s/.-]+/g, '');
+      function rosterNote(D, k) {
+        return D.hr && D.hr[k] && D.bio[k] === D.hr[k]
+          ? `<span class="src-hint">${icon('building', 13)} From your Commission's roster</span>`
+          : '';
+      }
+      /* SourceBadge: kind, date and identifier in the tooltip */
+      function srcBadge(src) {
+        if (!src) return '';
+        const s = SRC[src.kind];
+        const t =
+          src.kind === 'document'
+            ? `Read from ${src.ref}, ${fmtDate(src.at)}`
+            : `From ${s.name}, ${fmtDate(src.at)}${src.ref ? ' · ' + src.ref : ''}`;
+        return `<span class="src-b kit-tip ${src.kind}" tabindex="0" role="img" aria-label="Source: ${esc(t)}" data-tip="${esc(t)}">${icon(s.icon, 12)}${s.name}</span>`;
+      }
+      /* ConfidenceChip: text, never colour alone */
+      const confChip = (c) =>
+        c >= 0.85
+          ? `<span class="conf high">${icon('check', 12, 2.6)} High</span>`
+          : c >= 0.6
+            ? `<span class="conf med">${icon('minus', 12, 2.6)} Medium</span>`
+            : `<span class="conf low">${icon('alert', 12)} Low</span>`;
+      /* AiLabel (spec 07c primitive) */
+      const aiLabel = (text = 'AI-assisted', tipText = '') =>
+        `<span class="ai-label" ${tipText ? `title="${esc(tipText)}"` : ''}>${icon('sparkles', 12)} ${esc(text)}</span>`;
+
+      function personRec(D, pk) {
+        if (pk === 'officer') return { name: ME.full, first: ME.first, nid: ME.nid, rec: null };
+        const [k, id] = pk.split(':');
+        const x = (k === 'spouse' ? D.hh.spouses : D.hh.children).find((p) => p.id === id);
+        return {
+          name: x ? nm(x) : 'This person',
+          first: (x && x.first) || (k === 'spouse' ? 'your spouse' : 'this child'),
+          nid: x ? x.nid : '',
+          rec: x,
+        };
+      }
+      /* Demo registry results per person (uniform verification results mapped to suggestions) */
+      function regResults(D, pk, src, attempt) {
+        const E = 'Eldoret Municipality Block 7/1234';
+        if (pk === 'officer')
+          return {
+            kra: [
+              {
+                section: 'bio',
+                type: 'bio-tax',
+                title: `KRA PIN ${maskPin('A005231876K')} · Compliance: Compliant`,
+                fields: { kra: 'A005231876K', kraStatus: 'Compliant' },
+                ref: 'PIN A005231876K',
+              },
+              {
+                section: 'income',
+                type: 'hint',
+                title: 'Employment income from Teachers Service Commission',
+                preview: `About KES 1,428,000 for ${fmtDate(D.incomeFrom)} to ${fmtDate(D.incomeTo)}. A hint to check your salary item, not a value.`,
+                fields: {},
+                ref: 'KRA income data',
+              },
+            ],
+            ntsa: [
+              {
+                section: 'assets',
+                type: 'vehicle',
+                title: 'KCA 123A · Toyota Probox 2016',
+                fields: {
+                  reg: 'KCA 123A',
+                  makeModel: 'Toyota Probox, 2016',
+                  desc: 'Toyota Probox',
+                },
+                ref: 'KCA 123A',
+              },
+              {
+                section: 'assets',
+                type: 'vehicle',
+                title: 'KDA 123X · Toyota Fielder 2014',
+                fields: { reg: 'KDA 123X', makeModel: 'Toyota Fielder, 2014' },
+                ref: 'KDA 123X',
+                matchOn: 'reg',
+              },
+            ],
+            brs: [
+              {
+                section: 'other',
+                type: 'directorship',
+                title: 'Kapsoya Water Project Ltd · Director',
+                fields: { company: 'Kapsoya Water Project Ltd', role: 'Director' },
+                ref: 'PVT-7XK2LM9Q',
+              },
+              {
+                section: 'assets',
+                type: 'shareholding',
+                title: 'Rift Valley Agrovet Ltd · 500 shares',
+                fields: {
+                  issuer: 'Rift Valley Agrovet Ltd',
+                  qty: '500 shares',
+                  desc: 'Shares in Rift Valley Agrovet Ltd',
+                  county: 'Uasin Gishu',
+                },
+                ref: 'PVT-AB12CD3E',
+              },
+            ],
+            ardhisasa: [
+              {
+                section: 'assets',
+                type: 'land',
+                title: 'Uasin Gishu/Kimumu/2231 · 0.5 acres',
+                fields: {
+                  parcel: 'Uasin Gishu/Kimumu/2231',
+                  size: '0.5 acres',
+                  county: 'Uasin Gishu',
+                  desc: 'Plot in Kimumu',
+                },
+                ref: 'Uasin Gishu/Kimumu/2231',
+              },
+              {
+                section: 'assets',
+                type: 'land',
+                title: `${E} · 0.25 acres`,
+                fields: { parcel: E, size: '0.25 acres', county: 'Uasin Gishu' },
+                ref: E,
+                matchOn: 'parcel',
+              },
+            ],
+          }[src];
+        if (pk.startsWith('spouse'))
+          return {
+            kra: [
+              {
+                section: 'bio',
+                type: 'bio-tax',
+                title: `KRA PIN ${maskPin('A006612874M')} · Compliance: Compliant`,
+                fields: { kra: 'A006612874M' },
+                ref: 'PIN A006612874M',
+              },
+            ],
+            ntsa: [],
+            brs: [],
+            ardhisasa: attempt
+              ? [
+                  {
+                    section: 'assets',
+                    type: 'land',
+                    title: `${E} · 0.25 acres`,
+                    fields: { parcel: E, size: '0.25 acres', county: 'Uasin Gishu' },
+                    ref: E,
+                    matchOn: 'parcel',
+                  },
+                ]
+              : 'unavailable',
+          }[src];
+        return [];
+      }
+      function sugTarget(D, s) {
+        if (s.type === 'bio-tax') return s.pk === 'officer' ? D.bio : personRec(D, s.pk).rec;
+        if (s.match) return (D.st[s.pk][s.section] || []).find((x) => x.id === s.match) || null;
+        return null;
+      }
+      function sugDiff(D, s) {
+        const t = sugTarget(D, s);
+        if (!t) return Object.keys(s.fields);
+        return Object.keys(s.fields).filter((k) => !String(t[k] ?? '').trim());
+      }
+      const regTimers = [];
+      function clearRegTimers() {
+        regTimers.splice(0).forEach(clearTimeout);
+      }
+      /* run lookups: supersede `new` suggestions of the re-run sources; keep accepted and dismissed */
+      function runLookups(pk, srcs = REGS, { instant = false, retry = false } = {}) {
+        const D = cur();
+        const set = (D.sug.sets[pk] = D.sug.sets[pk] || { consentAt: null, checkedAt: null });
+        if (!retry) set.consentAt = CHECKED_AT;
+        set.checkedAt = CHECKED_AT;
+        srcs.forEach((r) => {
+          D.sug.list
+            .filter((s) => s.pk === pk && s.src === r && s.status === 'new')
+            .forEach((s) => (s.status = 'superseded'));
+          set[r] = { st: 'pending', attempt: (set[r]?.attempt || 0) + (retry ? 1 : 0) };
+        });
+        const resolve = (r) => {
+          const res = regResults(D, pk, r, set[r].attempt);
+          if (res === 'unavailable') {
+            set[r].st = 'unavailable';
+            return;
+          }
+          set[r].st = 'ready';
+          res.forEach((x) => {
+            const kept = D.sug.list.find(
+              (s) =>
+                s.pk === pk &&
+                s.src === r &&
+                s.ref === x.ref &&
+                s.title === x.title &&
+                ['accepted', 'dismissed'].includes(s.status),
+            );
+            if (kept) return;
+            const s = {
+              id: uid('sg'),
+              pk,
+              src: r,
+              at: CHECKED_AT,
+              status: 'new',
+              itemId: null,
+              match: null,
+              ...x,
+            };
+            if (x.matchOn) {
+              const hit = (D.st[pk][x.section] || []).find(
+                (it) => norm(it[x.matchOn]) === norm(x.fields[x.matchOn]),
+              );
+              if (hit) s.match = hit.id;
+            }
+            D.sug.list.push(s);
+          });
+        };
+        if (instant) {
+          srcs.forEach(resolve);
+          return;
+        }
+        srcs.forEach((r, i) =>
+          regTimers.push(
+            setTimeout(
+              () => {
+                if (cur() !== D) return;
+                resolve(r);
+                Kit.render();
+                if (srcs.every((x) => set[x].st !== 'pending'))
+                  announce(`Registry check finished for ${personRec(D, pk).name}`);
+              },
+              700 + i * 450,
+            ),
+          ),
+        );
+      }
+      function regStatus(D, pk, r) {
+        const set = D.sug.sets[pk];
+        const x = set && set[r];
+        const n = D.sug.list.filter(
+          (s) => s.pk === pk && s.src === r && s.status !== 'superseded',
+        ).length;
+        if (!x) return { k: 'none', t: 'Not checked' };
+        if (x.st === 'pending') return { k: 'pending', t: 'Checking…' };
+        if (x.st === 'unavailable' || x.st === 'failed')
+          return { k: 'down', t: 'Not available now' };
+        return n ? { k: 'ok', t: plural(n, 'suggestion') } : { k: 'empty', t: 'Nothing found' };
+      }
+      /* RegistryStatusRow */
+      function regStatusRow(D, pk, r) {
+        const s = regStatus(D, pk, r);
+        const ic =
+          s.k === 'pending'
+            ? '<span class="spinner dark sm"></span>'
+            : s.k === 'ok'
+              ? icon('check', 13, 2.6)
+              : s.k === 'down'
+                ? icon('alert', 13)
+                : icon('minus', 13, 2.4);
+        return `<li class="rs rs-${s.k}"><span class="rs-n">${SRC[r].name}</span><span class="rs-t">${ic}<span>${s.t}</span></span>${s.k === 'down' ? `<button class="btn btn-ghost btn-sm rs-retry" data-act="regRetry" data-arg="${pk}|${r}">${icon('refresh', 13)} Retry<span class="sr-only"> ${SRC[r].name}</span></button>` : ''}</li>`;
+      }
+      const sugIcon = (s) =>
+        s.type === 'bio-tax' || s.type === 'hint'
+          ? 'landmark'
+          : s.type === 'directorship'
+            ? 'briefcase'
+            : (ASSET_TYPES.find((x) => x[0] === s.type) || [0, 0, 'box'])[2];
+      /* SuggestionCard */
+      function sugCard(s, { demo = false } = {}) {
+        const D = cur();
+        const T = esc(s.title);
+        if (s.status === 'accepted')
+          return `<div class="sug done"><span class="sug-ico ok">${icon('check', 15, 2.6)}</span><div class="sug-b"><div class="t">${T}</div></div><span class="sug-st">${s.match || s.type === 'bio-tax' ? 'Applied' : 'Added'}</span><button class="btn btn-ghost btn-sm" data-act="${demo ? 'toast' : 'sugView'}" data-arg="${demo ? 'Opens the item' : s.id}">View<span class="sr-only"> ${T}</span></button></div>`;
+        const busy = S.ui.sugBusy === s.id;
+        const diff = demo ? s.demoDiff || [] : sugDiff(D, s);
+        const target = demo ? s.demoTarget : sugTarget(D, s);
+        const isMatch =
+          !!s.match || (s.type === 'bio-tax' && target && String(target.kra || '').trim());
+        const targetName =
+          s.type === 'bio-tax'
+            ? s.pk === 'officer'
+              ? 'your KRA PIN'
+              : `${personRec(D, s.pk).first}'s KRA PIN`
+            : target
+              ? `"${target.desc || lab(ASSET_TYPES, target.type)}"`
+              : '';
+        let body = '';
+        let acts = '';
+        const a = (act, label, cls = 'btn-secondary') =>
+          `<button class="btn ${cls} btn-sm" data-act="${demo ? 'toast' : act}" data-arg="${demo ? label : s.id}" aria-label="${label}: ${T}">${label}</button>`;
+        const dismiss = a('sugDismiss', 'Dismiss', 'btn-ghost');
+        if (s.type === 'hint') {
+          body = `<div class="d">${esc(s.preview)}</div>`;
+          acts = `${a('sugHint', 'View income')}${dismiss}`;
+        } else if (isMatch && !diff.length) {
+          body = `<div class="d">Matches ${esc(targetName)}. Nothing to fill.</div>`;
+          acts = dismiss;
+        } else if (s.type === 'bio-tax') {
+          body = `<div class="d">Adds to ${s.pk === 'officer' ? 'Your details' : `${esc(personRec(D, s.pk).first)}'s details in Household`}</div>`;
+          acts = `${a('sugApply', 'Apply', 'btn-primary')}${dismiss}`;
+        } else if (isMatch) {
+          body = `<div class="d">${isMatch ? `Matches ${esc(targetName)}. ` : ''}Fills: ${diff.map((k) => `${FIELD_LABEL[k] || k} <b>${esc(s.fields[k])}</b>`).join(', ')}</div>`;
+          acts = `${a('sugApply', 'Apply to this item', 'btn-primary')}${dismiss}`;
+        } else {
+          body = `<div class="d">${s.type === 'directorship' ? 'Directorship · adds to Other information' : `${esc(lab(ASSET_TYPES, s.type))} · add the value yourself`}</div>`;
+          acts = `${a('sugAdd', 'Add', 'btn-primary')}${a('sugEdit', 'Edit and add')}${dismiss}`;
+        }
+        return `<div class="sug" id="sug-${s.id}"><span class="sug-ico">${icon(sugIcon(s), 16)}</span><div class="sug-b"><div class="t">${T}</div><div class="src">From ${SRC[s.src].name}, ${fmtDate(s.at)}</div>${body}</div><div class="sug-acts">${busy ? `<span class="small muted row" style="gap:8px" role="status"><span class="spinner dark sm"></span>Section changed. Refreshing…</span>` : acts}</div></div>`;
+      }
+      function regPanel(D, p) {
+        const set = D.sug.sets[p.key];
+        const rec = personRec(D, p.key);
+        const pending = set && REGS.some((r) => set[r]?.st === 'pending');
+        const tid = 'noid-' + p.key.replace(/\W/g, '');
+        const btn = !rec.nid
+          ? `<span class="tip-btn"><button class="btn btn-secondary btn-sm" disabled aria-describedby="${tid}">${icon('search', 15)} Check registries</button><span class="bubble" role="tooltip" id="${tid}">Add ${esc(rec.first)}'s national ID in Household to check registries.</span></span>`
+          : `<button class="btn btn-secondary btn-sm" data-act="regCheck" data-arg="${p.key}" ${pending ? 'disabled' : ''}>${icon(set ? 'refresh' : 'search', 15)} ${set ? 'Check again' : 'Check registries'}</button>`;
+        if (!set)
+          return `<section class="reg-card idle" aria-label="Registries"><span class="reg-ico">${icon('landmark', 17)}</span><div class="grow"><div class="t">Registries</div><div class="small muted">KRA, NTSA, BRS and ArdhiSasa</div></div>${btn}</section>`;
+        const open = S.ui.regOpen[p.key] !== false;
+        const list = D.sug.list.filter((s) => s.pk === p.key && s.status !== 'superseded');
+        const live = list.filter((s) => s.status !== 'dismissed');
+        const dismissed = list.filter((s) => s.status === 'dismissed');
+        const newN = list.filter((s) => s.status === 'new').length;
+        const groups = REGS.map((r) => live.filter((s) => s.src === r))
+          .filter((g) => g.length)
+          .map((g) => `<div class="sug-group">${g.map((s) => sugCard(s)).join('')}</div>`)
+          .join('');
+        const foldOpen = S.ui.regFold[p.key];
+        return `<section class="reg-card" aria-labelledby="reg-h">
+    <div class="reg-head"><span class="reg-ico">${icon('landmark', 17)}</span><div class="grow"><h2 id="reg-h">Registries${newN ? ` <span class="badge badge-info">${newN} to review</span>` : ''}</h2><div class="small muted">${pending ? 'Checking…' : `Checked ${fmtDateTime(set.checkedAt)}`}</div></div><span class="reg-btn">${btn}</span><button class="btn btn-ghost icon-btn" data-act="regToggle" data-arg="${p.key}" aria-expanded="${open}" aria-label="${open ? 'Hide' : 'Show'} registry suggestions">${icon(open ? 'down' : 'right', 17)}</button></div>
+    ${
+      open
+        ? `<ul class="reg-strip" aria-label="Registry status">${REGS.map((r) => regStatusRow(D, p.key, r)).join('')}</ul>
+    ${groups}
+    ${dismissed.length ? `<div class="sug-fold"><button class="linklike" data-act="regFold" data-arg="${p.key}" aria-expanded="${!!foldOpen}">${icon(foldOpen ? 'down' : 'right', 14)} Dismissed (${dismissed.length})</button>${foldOpen ? `<ul>${dismissed.map((s) => `<li>${esc(s.title)} <span class="muted">· ${SRC[s.src].name}</span></li>`).join('')}</ul>` : ''}</div>` : ''}`
+        : ''
+    }
+  </section>`;
+      }
+      actions.regCheck = (pk) => {
+        const D = cur();
+        const rec = personRec(D, pk);
+        S.modal = { kind: 'consent', pk, name: rec.name, idm: maskNid(rec.nid), ok: false };
+        Kit.render();
+      };
+      /* ConsentDialog */
+      modals.consent = () => {
+        const m = S.modal;
+        return dialog({
+          title: 'Check registries',
+          icon: 'landmark',
+          body: `<p>Adili will ask KRA, NTSA, BRS and ArdhiSasa what they hold about ${esc(m.name)} (${esc(m.idm)}) and show the results to you only. Nothing is added unless you accept it.</p>
+      <div class="nil-row">${checkbox('modal.ok', 'I request this check')}</div>`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="regConsent" ${m.ok ? '' : 'disabled'}>Continue</button>`,
+        });
+      };
+      actions.regConsent = () => {
+        const pk = S.modal.pk;
+        S.modal = null;
+        if (!pk) return Kit.toast('Consent recorded (prototype)');
+        S.ui.regOpen[pk] = true;
+        runLookups(pk);
+        Kit.render();
+      };
+      actions.regRetry = (a) => {
+        const [pk, r] = a.split('|');
+        runLookups(pk, [r], { retry: true });
+        Kit.render();
+      };
+      actions.regToggle = (pk) => {
+        S.ui.regOpen[pk] = S.ui.regOpen[pk] === false;
+        Kit.render();
+      };
+      actions.regFold = (pk) => {
+        S.ui.regFold[pk] = !S.ui.regFold[pk];
+        Kit.render();
+      };
+      const sugById = (id) => cur().sug.list.find((s) => s.id === id);
+      function acceptSug(s, fields) {
+        const D = cur();
+        const src = { kind: s.src, at: s.at, ref: s.ref, sid: s.id };
+        if (s.type === 'bio-tax') {
+          if (s.pk === 'officer') {
+            D.bio.kra = D.bio.kra || fields.kra;
+            D.bio.kraStatus = fields.kraStatus || D.bio.kraStatus;
+            D.bio.kraAt = s.at;
+            D.touched.bio = 1;
+          } else {
+            const r = personRec(D, s.pk).rec;
+            if (!r.kra) r.kra = fields.kra;
+            D.touched.household = 1;
+          }
+          s.itemId = 'bio';
+        } else if (s.type === 'directorship') {
+          const x = {
+            id: uid('d'),
+            company: fields.company,
+            role: fields.role,
+            rem: fields.rem || '',
+            src,
+          };
+          D.other.directorships.push(x);
+          D.touched.other = 1;
+          s.itemId = x.id;
+        } else if (s.match) {
+          const it = sugTarget(D, s);
+          Object.keys(fields).forEach((k) => {
+            if (!String(it[k] ?? '').trim()) it[k] = fields[k];
+          });
+          it.src = it.src || src;
+          s.itemId = it.id;
+        } else {
+          const it = s.section === 'liabilities' ? newLiab() : newAsset();
+          Object.assign(it, { type: s.type }, fields, { src });
+          D.st[s.pk][s.section].push(it);
+          D.st[s.pk][CAT[s.section].nilKey] = false;
+          D.touched[s.pk] = 1;
+          s.itemId = it.id;
+        }
+        s.status = 'accepted';
+        markDirty();
+      }
+      function withConflict(s, fn) {
+        if (!S.ai.acceptConflict) return fn();
+        S.ui.sugBusy = s.id;
+        Kit.render();
+        regTimers.push(
+          setTimeout(() => {
+            S.ui.sugBusy = null;
+            S.ai.acceptConflict = false;
+            fn(true);
+          }, 1400),
+        );
+      }
+      actions.sugAdd = (id) => {
+        const s = sugById(id);
+        withConflict(s, (retried) => {
+          acceptSug(s, s.fields);
+          Kit.render();
+          Kit.toast(
+            retried
+              ? 'Section refreshed, then added'
+              : s.type === 'directorship'
+                ? 'Added to Other information'
+                : 'Added. Enter its value.',
+          );
+        });
+      };
+      actions.sugApply = (id) => {
+        const s = sugById(id);
+        withConflict(s, (retried) => {
+          acceptSug(s, s.fields);
+          Kit.render();
+          Kit.toast(retried ? 'Section refreshed, then applied' : 'Applied');
+        });
+      };
+      actions.sugDismiss = (id) => {
+        const s = sugById(id);
+        s.status = 'dismissed';
+        markDirty();
+        Kit.render();
+        announce(`Dismissed ${s.title}`);
+      };
+      actions.sugHint = (id) => {
+        const s = sugById(id);
+        S.ui.tab[s.pk] = 'income';
+        S.ui.open = null;
+        Kit.render();
+      };
+      actions.sugView = (id) => {
+        const s = sugById(id);
+        if (s.type === 'bio-tax')
+          return s.pk === 'officer'
+            ? actions.goIssue(JSON.stringify(['decl-bio']))
+            : Kit.go('decl-household');
+        if (s.type === 'directorship') return Kit.go('decl-other');
+        S.ui.person = s.pk;
+        S.ui.tab[s.pk] = s.section;
+        S.ui.open = s.itemId;
+        Kit.go('decl-statement');
+        setTimeout(() => {
+          const el = document.getElementById('card-' + s.itemId);
+          el?.scrollIntoView({ block: 'center' });
+          el?.querySelector('input,select')?.focus();
+        }, 30);
+      };
+      actions.sugEdit = (id) => {
+        const s = sugById(id);
+        S.modal = { kind: 'sugEdit', id, f: { value: '', county: '', ...s.fields } };
+        Kit.render();
+      };
+      modals.sugEdit = () => {
+        const s = sugById(S.modal.id);
+        const f = S.modal.f;
+        const inp = (k, ph = '') =>
+          field(FIELD_LABEL[k], input(`modal.f.${k}`, { ph }), { id: fid(`modal.f.${k}`) });
+        const byType = {
+          vehicle: `<div class="grid-2">${inp('reg')}${inp('makeModel')}</div>`,
+          land: `<div class="grid-2">${inp('parcel')}${inp('size')}</div>`,
+          shareholding: `<div class="grid-2">${inp('issuer')}${inp('qty')}</div>`,
+          directorship: `<div class="grid-2">${inp('company')}${inp('role')}</div>`,
+        }[s.type];
+        const asset = s.type !== 'directorship';
+        return dialog({
+          title: 'Edit and add',
+          sub: `From ${SRC[s.src].name}, ${fmtDate(s.at)}`,
+          icon: sugIcon(s),
+          body: `${byType}
+      ${
+        asset
+          ? `${field('Description', input('modal.f.desc', { extra: 'maxlength="200"' }), { id: 'f-modal-f-desc' })}<div class="grid-2">${field('County', countySelect('modal.f.county'), { id: 'f-modal-f-county' })}${field('Approximate value', moneyInput('modal.f.value'), { id: 'f-modal-f-value', opt: true })}</div>`
+          : field(
+              'Remunerated',
+              segc(
+                'modal.f.rem',
+                [
+                  ['yes', 'Yes, it is paid'],
+                  ['no', 'No'],
+                ],
+                { label: 'Remunerated' },
+              ),
+              { opt: true },
+            )
+      }`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="sugEditSave">Add</button>`,
+        });
+      };
+      actions.sugEditSave = () => {
+        const s = sugById(S.modal.id);
+        const f = { ...S.modal.f };
+        if (!f.value) delete f.value;
+        S.modal = null;
+        withConflict(s, () => {
+          acceptSug(s, f);
+          Kit.render();
+          Kit.toast('Added');
+        });
+      };
+      /* KRA line in bio (FE-2 copy) */
+      function kraLine(D) {
+        const s = D.sug.list.find(
+          (x) => x.pk === 'officer' && x.type === 'bio-tax' && x.status === 'new',
+        );
+        if (!s || !sugDiff(D, s).length) return '';
+        return `<div class="kra-line">${icon('landmark', 16)}<span class="grow">KRA PIN ${maskPin(s.fields.kra)} · Compliance: ${esc(s.fields.kraStatus)} (checked ${fmtDate(s.at)})</span><button class="btn btn-secondary btn-sm" data-act="sugApply" data-arg="${s.id}" aria-label="Apply KRA PIN and compliance to your tax details">Apply</button></div>`;
+      }
+
+      /* ---- Read into the form (#316) ---- */
+      const DOC_KINDS = [
+        ['title-deed', 'Title deed'],
+        ['logbook', 'Logbook'],
+        ['payslip', 'Payslip'],
+        ['bank-letter', 'Bank letter'],
+        ['share-certificate', 'Share certificate'],
+        ['other', 'Other'],
+      ];
+      const kindFor = (cat, it) =>
+        cat === 'liabilities'
+          ? 'bank-letter'
+          : {
+              vehicle: 'logbook',
+              land: 'title-deed',
+              building: 'title-deed',
+              shareholding: 'share-certificate',
+              securities: 'share-certificate',
+              'bank-account': 'bank-letter',
+            }[it.type] || 'other';
+      function extractFields(cat, it, a) {
+        if (cat === 'liabilities')
+          return {
+            fields: [
+              ['creditor', 'HFC Bank', 0.97, 1],
+              ['amount', '1,150,000', 0.72, 1],
+              ['desc', 'Construction loan', 0.45, 2],
+            ],
+            warn: [],
+          };
+        if (it.type === 'vehicle')
+          return /KDA/i.test(a.name)
+            ? {
+                fields: [
+                  ['reg', 'KDA 123X', 0.98, 1],
+                  ['makeModel', 'Toyota Fielder, 2014', 0.74, 1],
+                  ['desc', 'Station wagon', 0.41, 1],
+                ],
+                warn: [],
+              }
+            : {
+                fields: [
+                  ['reg', 'KCB 782M', 0.97, 1],
+                  ['makeModel', 'Isuzu D-Max, 2019', 0.91, 1],
+                  ['desc', 'Double cab pickup', 0.44, 1],
+                ],
+                warn: [],
+              };
+        if (['land', 'building'].includes(it.type))
+          return {
+            fields: [
+              ['parcel', 'Eldoret Municipality Block 7/1234', 0.96, 1],
+              ['size', '0.1012 ha', 0.68, 1],
+              ['county', 'Uasin Gishu', 0.93, 1],
+              ['desc', 'Residential plot', 0.38, 2],
+            ],
+            warn: ['Page 3 could not be read.'],
+          };
+        if (['shareholding', 'securities'].includes(it.type))
+          return {
+            fields: [
+              ['issuer', 'Rift Valley Agrovet Ltd', 0.95, 1],
+              ['qty', '500 shares', 0.7, 1],
+            ],
+            warn: [],
+          };
+        if (it.type === 'bank-account')
+          return {
+            fields: [
+              ['institution', 'KCB Bank', 0.97, 1],
+              ['accType', 'Savings', 0.66, 1],
+            ],
+            warn: [],
+          };
+        return { fields: [['desc', 'Document', 0.4, 1]], warn: [] };
+      }
+      let exT = null;
+      actions.exStart = (a) => {
+        const [cat, pk, id, aid] = a.split('|');
+        const it = findItem(cat, pk, id);
+        S.menu = null;
+        S.modal = { kind: 'extract', cat, pk, id, aid, step: 'kind', doc: kindFor(cat, it) };
+        Kit.render();
+      };
+      actions.exRead = () => {
+        const m = S.modal;
+        m.step = 'reading';
+        Kit.render();
+        announce('Reading the document');
+        clearTimeout(exT);
+        exT = setTimeout(() => {
+          if (S.modal !== m) return;
+          if (S.ai.exFail) {
+            m.step = 'failed';
+            S.ai.exFail = false;
+          } else exReview(m);
+          Kit.render();
+          announce(m.step === 'failed' ? 'Could not read this document' : 'Ready to review');
+        }, 2200);
+      };
+      function exReview(m) {
+        const it = findItem(m.cat, m.pk, m.id);
+        const a = it.atts.find((x) => x.id === m.aid);
+        const r = extractFields(m.cat, it, a);
+        m.step = 'review';
+        m.warn = r.warn;
+        m.overwrite = false;
+        m.fields = r.fields.map(([k, v, c, page]) => ({ k, v, c, page, ok: false }));
+      }
+      modals.extract = () => {
+        const m = S.modal;
+        const it = findItem(m.cat, m.pk, m.id);
+        const a = it.atts.find((x) => x.id === m.aid);
+        const kindLabel = lab(DOC_KINDS, m.doc);
+        if (m.step === 'kind')
+          return dialog({
+            title: 'Read into the form',
+            sub: esc(a.name),
+            icon: 'sparkles',
+            tint: ['var(--ai-soft)', 'var(--ai)'],
+            body: `<div class="field"><span class="label" id="dk-l">What is this document?</span>${choices(
+              'modal.doc',
+              DOC_KINDS.map(([k, l]) => ({ k, label: l })),
+              'c3',
+            )}</div>
+      <p class="small muted row" style="gap:8px">${aiLabel()} You check every field before anything is added.</p>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="exRead">${icon('sparkles', 15)} Read document</button>`,
+          });
+        if (m.step === 'reading')
+          return dialog({
+            title: 'Read into the form',
+            sub: `${esc(a.name)} · ${kindLabel}`,
+            icon: 'sparkles',
+            tint: ['var(--ai-soft)', 'var(--ai)'],
+            body: `<div class="ex-reading" role="status" aria-live="polite"><span class="spinner dark"></span><div><div style="font-weight:600">Reading…</div><div class="small muted">This can take up to a minute.</div></div></div>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button>`,
+          });
+        if (m.step === 'failed')
+          return dialog({
+            title: 'Read into the form',
+            sub: `${esc(a.name)} · ${kindLabel}`,
+            icon: 'sparkles',
+            tint: ['var(--ai-soft)', 'var(--ai)'],
+            body: `<div class="alert alert-danger" role="alert">${icon('alert', 17)}<div>Could not read this document (the photo is too blurred). You can enter the details manually.</div></div>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Close</button><button class="btn btn-primary" data-act="exRead">${icon('refresh', 15)} Try again</button>`,
+          });
+        const lowLeft = m.fields.filter((f) => f.c < 0.6 && !f.ok).length;
+        const clash = m.fields.filter(
+          (f) => String(it[f.k] ?? '').trim() && norm(it[f.k]) !== norm(f.v),
+        );
+        const rows = m.fields
+          .map((f, i) => {
+            const cur0 = String(it[f.k] ?? '').trim();
+            const differs = cur0 && norm(cur0) !== norm(f.v);
+            return `<div class="ex-row ${f.c < 0.6 ? 'low' : ''}"><div class="ex-top"><label class="label" for="f-modal-fields-${i}-v">${FIELD_LABEL[f.k] || f.k}</label><span class="spacer"></span>${confChip(f.c)}<span class="small muted">Page ${f.page}</span></div>${input(`modal.fields.${i}.v`, { cls: f.k === 'amount' ? 'tabular' : '' })}${differs ? `<div class="hint">You entered: ${esc(cur0)}${m.overwrite ? '' : ' (kept)'}</div>` : ''}${f.c < 0.6 ? `<div class="ex-tick">${checkbox(`modal.fields.${i}.ok`, 'I checked this against the document')}</div>` : ''}</div>`;
+          })
+          .join('');
+        return dialog({
+          title: 'Check what was read',
+          sub: `${esc(a.name)} · ${kindLabel}`,
+          icon: 'sparkles',
+          tint: ['var(--ai-soft)', 'var(--ai)'],
+          wide: true,
+          body: `<div class="row wrap" style="gap:8px">${aiLabel('AI-assisted', 'Read by the ai-gateway extractDocument task. Check each field.')}<span class="small muted">Edit anything that is wrong.</span></div>
+      ${m.warn.length ? `<div class="callout callout-warn">${icon('alert', 16)}<span>${m.warn.map(esc).join(' ')}</span></div>` : ''}
+      <div class="ex-list">${rows}</div>
+      ${clash.length ? toggle('modal.overwrite', 'Replace details I already entered') : ''}`,
+          foot: `${lowLeft ? `<span class="small muted ex-hint">Tick ${lowLeft === 1 ? 'the Low field' : 'the Low fields'} to continue.</span>` : ''}<button class="btn btn-secondary" data-act="exApply" data-arg="new" ${lowLeft ? 'disabled' : ''}>Add as new item</button><button class="btn btn-primary" data-act="exApply" data-arg="this" ${lowLeft ? 'disabled' : ''}>Apply to this item</button>`,
+        });
+      };
+      actions.exApply = (mode) => {
+        const m = S.modal;
+        const D = cur();
+        const it = findItem(m.cat, m.pk, m.id);
+        const a = it.atts.find((x) => x.id === m.aid);
+        const src = {
+          kind: 'document',
+          at: '2026-09-26T10:40:00',
+          ref: `${a.name}, page ${m.fields[0].page}`,
+        };
+        if (mode === 'this') {
+          m.fields.forEach((f) => {
+            if (!String(it[f.k] ?? '').trim() || m.overwrite) it[f.k] = f.v;
+          });
+          it.src = src;
+          a.read = true;
+        } else {
+          const n = m.cat === 'liabilities' ? newLiab() : newAsset();
+          n.type = it.type;
+          m.fields.forEach((f) => (n[f.k] = f.v));
+          n.src = src;
+          D.st[m.pk][m.cat].push(n);
+          S.ui.open = n.id;
+        }
+        a.read = true;
+        D.touched[m.pk] = 1;
+        S.modal = null;
+        markDirty();
+        Kit.render();
+        Kit.toast(mode === 'this' ? 'Details applied to this item' : 'Added as a new item');
+      };
+
+      /* =====================================================================
+       * SPEC 11: Ask Adili (#335), summary hints and help pages (#340),
+       * primitives round 15 (#330)
+       * ===================================================================== */
+      const RO = {
+        name: 'Joseph Kiplagat',
+        email: 'reporting.officer@tsc.go.ke',
+        phone: '020 289 2000',
+      };
+      const TOPICS = [
+        ['start', 'Getting started', 'Kuanza', 'home'],
+        ['people', 'Spouses and children', 'Wenzi na watoto', 'users'],
+        ['income', 'Income', 'Mapato', 'wallet'],
+        ['assets', 'Assets', 'Mali', 'landmark'],
+        ['liabilities', 'Liabilities', 'Madeni', 'card'],
+        ['changes', 'Material changes', 'Mabadiliko makubwa', 'refresh'],
+        ['submit', 'Submitting and slips', 'Kuwasilisha na risiti', 'send'],
+        ['law', 'The law', 'Sheria', 'scale'],
+      ];
+      const SOURCE_NAME = {
+        act: 'Conflict of Interest Act, 2025',
+        regs: 'Conflict of Interest Regulations, 2026',
+        am: 'Administrative Mechanisms',
+        help: 'Adili help',
+      };
+      /* Corpus passages (HelpPassage): statutory text is read-only; help articles per platform or Commission */
+      const CORPUS = [
+        {
+          id: 'act-31-1',
+          src: 'act',
+          cite: 'Act s.31(1)',
+          topic: 'people',
+          tags: ['household', 'income', 'assets', 'liabilities', 'overview'],
+          title: ['Who you declare for', 'Unatangaza kwa ajili ya nani'],
+          text: [
+            'Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities and the income, assets and liabilities of his or her spouse and dependent children under the age of eighteen years.',
+            'Kila afisa wa umma atawasilisha kwa Tume inayohusika tamko la mapato, mali na madeni yake, pamoja na mapato, mali na madeni ya mwenzi wake na watoto wanaomtegemea walio chini ya umri wa miaka kumi na minane.',
+          ],
+        },
+        {
+          id: 'act-31-4',
+          src: 'act',
+          cite: 'Act s.31(4)',
+          topic: 'changes',
+          tags: ['other', 'income', 'assets', 'liabilities'],
+          title: ['Material change', 'Mabadiliko makubwa'],
+          text: [
+            '"Material change" means: (a) at least twenty-five percent increase or decrease in the value of an income, asset or liability; (b) the disposal or acquisition of an asset or liability; (c) changes in marital status; (d) appointment to or changes in directorships; (e) changes in membership in companies or partnerships and other legal entities; or (f) changes in membership in social associations, societies, clubs, foundations or trusts.',
+            '"Mabadiliko makubwa" ni: (a) ongezeko au upungufu wa angalau asilimia ishirini na tano katika thamani ya mapato, mali au deni; (b) kuuza au kupata mali au deni; (c) mabadiliko ya hali ya ndoa; (d) uteuzi au mabadiliko katika ukurugenzi; (e) mabadiliko ya uanachama katika kampuni, ubia na vyombo vingine vya kisheria; au (f) mabadiliko ya uanachama katika vyama, jumuiya, vilabu, wakfu au amana.',
+          ],
+        },
+        {
+          id: 'act-34',
+          src: 'act',
+          cite: 'Act s.34',
+          topic: 'start',
+          tags: ['overview', 'summary'],
+          title: ['When to declare', 'Wakati wa kutangaza'],
+          text: [
+            '(1) A public officer shall, within thirty days of appointment, submit an initial declaration for the period of one year prior to appointment. (2) Every public officer shall, once every two years, submit a declaration as at the first day of November of the declaration year, within the month of December next following. (3) A public officer shall, within thirty days after ceasing to be a public officer, submit a final declaration.',
+            '(1) Afisa wa umma atawasilisha tamko la kwanza ndani ya siku thelathini baada ya uteuzi, kwa kipindi cha mwaka mmoja kabla ya uteuzi. (2) Kila afisa wa umma atawasilisha tamko kila baada ya miaka miwili, kufikia tarehe moja Novemba ya mwaka wa tamko, ndani ya mwezi wa Desemba unaofuata. (3) Afisa wa umma atawasilisha tamko la mwisho ndani ya siku thelathini baada ya kuacha kuwa afisa wa umma.',
+          ],
+        },
+        {
+          id: 'act-35',
+          src: 'act',
+          cite: 'Act s.35(2)',
+          topic: 'submit',
+          tags: ['summary'],
+          title: ['Clarification', null],
+          text: [
+            'The responsible Commission may, within six months of receipt of a declaration, request, in writing, for clarification from the public officer who submitted the declaration. The public officer shall, within thirty days of receipt of the request, provide the clarification.',
+            null,
+          ],
+        },
+        {
+          id: 'act-39',
+          src: 'act',
+          cite: 'Act s.39',
+          topic: 'law',
+          tags: ['summary'],
+          title: ['False information', 'Taarifa za uongo'],
+          text: [
+            'A public officer who submits information that the public officer knows, or ought to know, is false or misleading, commits an offence.',
+            'Afisa wa umma anayewasilisha taarifa anazojua, au anazopaswa kujua, kuwa ni za uongo au za kupotosha, anatenda kosa.',
+          ],
+        },
+        {
+          id: 'fs-5',
+          src: 'act',
+          cite: 'First Schedule, para 5',
+          topic: 'start',
+          tags: ['bio'],
+          title: ['Employment information', 'Maelezo ya ajira'],
+          text: [
+            'Employment information: (a) designation; (b) name of employer; (c) nature of employment (permanent, temporary, contract, etc.).',
+            'Maelezo ya ajira: (a) cheo; (b) jina la mwajiri; (c) aina ya ajira (ya kudumu, ya muda, ya mkataba, n.k.).',
+          ],
+        },
+        {
+          id: 'fs-8',
+          src: 'act',
+          cite: 'First Schedule, para 8',
+          topic: 'assets',
+          tags: ['income', 'assets', 'liabilities'],
+          title: ['The financial statement', 'Taarifa ya kifedha'],
+          text: [
+            'A separate statement is required for the officer and each spouse and dependent child under the age of 18 years. Income, including emoluments, is for the period from the previous statement date to the current statement date; for an initial declaration, the year ending on the statement date. Assets include land, buildings, vehicles, investments and financial obligations owed to the person, with their location and approximate value as of the statement date.',
+            'Taarifa tofauti inahitajika kwa afisa na kila mwenzi na mtoto anayemtegemea aliye chini ya miaka 18. Mapato ni ya kipindi kutoka tarehe ya taarifa iliyotangulia hadi tarehe ya taarifa ya sasa; kwa tamko la kwanza, ni mwaka unaoishia tarehe ya taarifa. Mali ni pamoja na ardhi, majengo, magari, uwekezaji na madeni unayodai, pamoja na mahali ilipo na thamani ya kukadiria kufikia tarehe ya taarifa.',
+          ],
+        },
+        {
+          id: 'fs-note-1',
+          src: 'act',
+          cite: 'First Schedule, note 1',
+          topic: 'submit',
+          tags: ['summary'],
+          title: ['Filing online', null],
+          text: [
+            'Where the responsible Commission has a web application for filing the declaration, a public officer may fill and submit the declaration online. In such a case, a physical signature or delivery acknowledgment slip will not be necessary.',
+            null,
+          ],
+        },
+        {
+          id: 'regs-21',
+          src: 'regs',
+          cite: 'Regs r.21',
+          topic: 'changes',
+          tags: ['other'],
+          title: ['Declaring a material change', 'Kutangaza mabadiliko makubwa'],
+          text: [
+            'A material change shall, for purposes of section 31(4) of the Act, be specified by the declarant in paragraph 9 of the declaration form set out in the First Schedule to the Act.',
+            'Mabadiliko makubwa, kwa madhumuni ya kifungu 31(4) cha Sheria, yataelezwa na mtangazaji katika aya ya 9 ya fomu ya tamko iliyo katika Jedwali la Kwanza la Sheria.',
+          ],
+        },
+        {
+          id: 'regs-33',
+          src: 'regs',
+          cite: 'Regs r.33',
+          topic: 'submit',
+          tags: ['summary'],
+          title: ['Electronic submission', 'Kuwasilisha kielektroniki'],
+          text: [
+            'Any report, declaration or other information required to be made under the Act and these Regulations may be made or submitted in electronic format.',
+            'Ripoti, tamko au taarifa nyingine yoyote inayohitajika chini ya Sheria na Kanuni hizi inaweza kutolewa au kuwasilishwa kwa njia ya kielektroniki.',
+          ],
+        },
+        {
+          id: 'am-24',
+          src: 'am',
+          cite: 'AM 24',
+          topic: 'assets',
+          tags: ['assets'],
+          title: ['Approximate values', 'Thamani za kukadiria'],
+          text: [
+            'Declare approximate values as at the statement date. A reasonable estimate of what the asset would sell for is enough; a professional valuation is not required. Declare jointly held assets at their whole value and state your share.',
+            'Tangaza thamani za kukadiria kufikia tarehe ya taarifa. Makadirio ya busara ya bei ambayo mali ingeuzwa yanatosha; tathmini ya kitaalamu haihitajiki. Tangaza mali inayomilikiwa kwa pamoja kwa thamani yake yote na ueleze sehemu yako.',
+          ],
+        },
+        {
+          id: 'help-joint',
+          src: 'help',
+          cite: 'Help: Joint assets',
+          topic: 'assets',
+          tags: ['assets'],
+          based: ['am-24', 'fs-8'],
+          title: ['Joint assets', 'Mali ya pamoja'],
+          text: [
+            'If you own an asset with someone else, declare it once in your statement at its whole value. Switch on "Jointly held" and enter your share, for example 50%. If your spouse or child is a co-owner, use "Also declare for…" to add it to their statement with the other share.',
+            'Ukimiliki mali pamoja na mtu mwingine, itangaze mara moja katika taarifa yako kwa thamani yake yote. Washa "Inamilikiwa kwa pamoja" na uandike sehemu yako, kwa mfano 50%. Ikiwa mwenzi au mtoto wako ni mmiliki mwenza, tumia "Tangaza pia kwa…" kuiongeza kwenye taarifa yake kwa sehemu iliyobaki.',
+          ],
+        },
+        {
+          id: 'help-value',
+          src: 'help',
+          cite: 'Help: Valuing assets',
+          topic: 'assets',
+          tags: ['assets'],
+          based: ['am-24'],
+          title: ['Valuing assets', 'Kuthamini mali'],
+          text: [
+            'Use what the asset would sell for on the statement date. For a car, compare prices of similar cars; for land, recent sales nearby. A rough figure is fine.',
+            'Tumia bei ambayo mali ingeuzwa tarehe ya taarifa. Kwa gari, linganisha bei za magari yanayofanana; kwa ardhi, mauzo ya karibuni jirani. Kiasi cha kukadiria kinatosha.',
+          ],
+        },
+        {
+          id: 'help-file',
+          src: 'help',
+          cite: 'Help: File numbers',
+          topic: 'start',
+          tags: ['bio'],
+          tenant: 'tsc',
+          title: ['File numbers at TSC', null],
+          text: [
+            'Your personnel file number is the TSC number on your payslip, without the "TSC/" prefix. If it is missing or wrong, contact your county TSC office.',
+            null,
+          ],
+        },
+        {
+          id: 'help-nil',
+          src: 'help',
+          cite: 'Help: Nothing to declare',
+          topic: 'start',
+          tags: ['income', 'assets', 'liabilities', 'summary'],
+          based: ['fs-8'],
+          title: ['Nothing to declare', 'Hakuna cha kutangaza'],
+          text: [
+            'Every part of every statement needs at least one item or the "Nothing to declare" tick before you can submit. Tick it only when the person had none of that kind.',
+            'Kila sehemu ya kila taarifa inahitaji angalau kipengele kimoja au alama ya "Hakuna cha kutangaza" kabla ya kuwasilisha. Iweke tu ikiwa mtu huyo hakuwa na chochote cha aina hiyo.',
+          ],
+        },
+        {
+          id: 'help-registries',
+          src: 'help',
+          cite: 'Help: Checking registries',
+          topic: 'assets',
+          tags: ['assets', 'income'],
+          title: ['Checking registries', null],
+          text: [
+            'Ask KRA, NTSA, BRS and ArdhiSasa what they hold about you, or about a household member with a national ID. Results are suggestions: nothing is added unless you accept it. Registry items come without a value, so add your own.',
+            null,
+          ],
+        },
+        {
+          id: 'help-read',
+          src: 'help',
+          cite: 'Help: Reading documents',
+          topic: 'assets',
+          tags: ['assets', 'liabilities'],
+          title: ['Reading documents into the form', null],
+          text: [
+            'On an attached title deed, logbook, payslip, bank letter or share certificate, choose "Read into the form". Check every field before you add it. Fields marked Low need a tick.',
+            null,
+          ],
+        },
+        {
+          id: 'help-children',
+          src: 'help',
+          cite: 'Help: Dependent children',
+          topic: 'people',
+          tags: ['household'],
+          based: ['act-31-1'],
+          title: ['Dependent children', 'Watoto wanaokutegemea'],
+          text: [
+            'Include children who are under 18 on the statement date. A child who turned 18 before that date is not included and needs no statement.',
+            'Jumuisha watoto walio chini ya miaka 18 tarehe ya taarifa. Mtoto aliyetimiza miaka 18 kabla ya tarehe hiyo hajumuishwi na hahitaji taarifa.',
+          ],
+        },
+        {
+          id: 'help-spouse',
+          src: 'help',
+          cite: "Help: Your spouse's income",
+          topic: 'people',
+          tags: ['household', 'income'],
+          based: ['act-31-1'],
+          title: ["Your spouse's income", 'Mapato ya mwenzi wako'],
+          text: [
+            "Declare your spouse's salary and other income in their own financial statement, as an approximate amount for the income period.",
+            'Tangaza mshahara na mapato mengine ya mwenzi wako katika taarifa yake ya kifedha, kwa kiasi cha kukadiria kwa kipindi cha mapato.',
+          ],
+        },
+        {
+          id: 'help-loans',
+          src: 'help',
+          cite: 'Help: Loans',
+          topic: 'liabilities',
+          tags: ['liabilities'],
+          based: ['fs-8'],
+          title: ['Loans and other debts', 'Mikopo na madeni mengine'],
+          text: [
+            'Declare what was owed on the statement date: the balance on your loan statement, not the amount you first borrowed. Include SACCO loans, mortgages, hire purchase and money owed to people.',
+            'Tangaza kiasi kilichodaiwa tarehe ya taarifa: salio kwenye taarifa ya mkopo wako, si kiasi ulichokopa mwanzoni. Jumuisha mikopo ya SACCO, rehani, mikopo ya kununua kwa awamu na pesa unazodaiwa na watu.',
+          ],
+        },
+        {
+          id: 'help-slip',
+          src: 'help',
+          cite: 'Help: Acknowledgement slip',
+          topic: 'submit',
+          tags: ['summary'],
+          title: ['Your acknowledgement slip', 'Risiti yako'],
+          text: [
+            'After you submit, you get a reference number and a signed slip with a verification code. Anyone can check the slip on the verify page.',
+            'Baada ya kuwasilisha, unapata nambari ya kumbukumbu na risiti iliyotiwa sahihi yenye nambari ya uthibitisho. Mtu yeyote anaweza kuikagua risiti kwenye ukurasa wa uthibitisho.',
+          ],
+        },
+        {
+          id: 'help-amend',
+          src: 'help',
+          cite: 'Help: Amending',
+          topic: 'submit',
+          tags: ['summary'],
+          title: ['Amending a declaration', null],
+          text: [
+            'After you submit, you can amend your declaration until the due date. Each amendment files a new version, and earlier versions are kept.',
+            null,
+          ],
+        },
+      ];
+      const psg = (id) => CORPUS.find((p) => p.id === id);
+      const L = (pair, lang) => (lang === 'sw' && pair[1]) || pair[0];
+      const topicName = (k, lang) => {
+        const t = TOPICS.find((x) => x[0] === k);
+        return lang === 'sw' ? t[2] : t[1];
+      };
+      /* deterministic help search: tokens, section-tag boost, top 8 (GET /v1/help/search) */
+      function helpSearch(q, lang, sectionKey = null) {
+        const toks = q
+          .toLowerCase()
+          .split(/[^a-z0-9áéíóúà-ÿ']+/i)
+          .filter(
+            (t) =>
+              t.length > 1 &&
+              !['the', 'and', 'my', 'do', 'is', 'a', 'of', 'ya', 'na', 'je'].includes(t),
+          );
+        if (!toks.length) return [];
+        return CORPUS.map((p) => {
+          const hay =
+            `${p.cite} ${L(p.title, lang)} ${L(p.text, lang)} ${p.title[0]} ${p.text[0]}`.toLowerCase();
+          const hits = toks.filter((t) => hay.includes(t)).length;
+          return { p, score: hits + (sectionKey && p.tags.includes(sectionKey) ? 0.5 : 0), hits };
+        })
+          .filter((x) => x.hits)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 8)
+          .map((x) => x.p);
+      }
+      function snippet(p, q, lang, n = 150) {
+        const text = L(p.text, lang);
+        const toks = q
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => t.length > 2);
+        const low = text.toLowerCase();
+        const at =
+          toks
+            .map((t) => low.indexOf(t))
+            .filter((i) => i >= 0)
+            .sort((a, b) => a - b)[0] || 0;
+        let start = Math.max(0, at - 40);
+        if (start) start = text.indexOf(' ', start) + 1 || start;
+        let s =
+          (start ? '…' : '') + text.slice(start, start + n) + (start + n < text.length ? '…' : '');
+        s = esc(s);
+        toks.forEach((t) => {
+          s = s.replace(
+            new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'),
+            '<mark>$1</mark>',
+          );
+        });
+        return s;
+      }
+      const srcTag = (p) =>
+        `<span class="cite-tag ${p.src}">${p.src === 'help' ? icon('help', 12) : icon('scale', 12)}${esc(p.src === 'help' ? (p.tenant ? 'TSC help' : 'Help') : p.cite)}</span>`;
+      const inTopic = (p, k) =>
+        p.topic === k || (['income', 'assets', 'liabilities'].includes(k) && p.tags.includes(k));
+
+      /* ---- Ask Adili copy (English and Kiswahili UI keys) ---- */
+      const ASK_T = {
+        en: {
+          title: 'Ask Adili',
+          label: 'AI-assisted · not legal advice',
+          ph: 'Ask about this section…',
+          send: 'Send',
+          privacy:
+            'Adili does not read your amounts, names or ID numbers. It knows which section you are on and what is still missing.',
+          idle: 'Ask in your own words, in English or Kiswahili.',
+          suggested: 'Suggested questions',
+          on: 'On',
+          declined: 'I could not find this in the Act or Regulations. Ask your reporting officer:',
+          noai: 'Answers are unavailable right now. Search the help instead.',
+          search: 'Search the help',
+          forSection: 'For this section',
+          missing: 'Still missing',
+          helpful: 'Helpful',
+          notHelpful: 'Not helpful',
+          why: 'What was wrong?',
+          reasons: ['Inaccurate', 'Missed something', 'Unclear', 'Too long', 'Other'],
+          note: 'Add a note (optional)',
+          thanks: 'Thanks for your feedback.',
+          answering: 'Adili is answering…',
+          stopped: 'The answer stopped before it finished.',
+          retry: 'Try again',
+          rate: 'You have asked many questions in a short time. Try again in a minute.',
+          close: 'Close',
+          readHelp: 'Read in help',
+          fab: 'Ask Adili',
+          kept: 'Kept with this draft and deleted with it.',
+          noHits: 'No help matches that. Try other words.',
+          more: (n) => `and ${n} more`,
+          fix: 'Fix',
+          lang: 'Language',
+        },
+        sw: {
+          title: 'Uliza Adili',
+          label: 'Kwa usaidizi wa AI · si ushauri wa kisheria',
+          ph: 'Uliza kuhusu sehemu hii…',
+          send: 'Tuma',
+          privacy:
+            'Adili haisomi kiasi, majina wala nambari zako za kitambulisho. Inajua uko sehemu gani na kinachokosekana.',
+          idle: 'Uliza kwa maneno yako, kwa Kiingereza au Kiswahili.',
+          suggested: 'Maswali yanayopendekezwa',
+          on: 'Sehemu',
+          declined:
+            'Sikupata jambo hili katika Sheria wala Kanuni. Muulize afisa wako wa kuripoti:',
+          noai: 'Majibu hayapatikani kwa sasa. Tafuta katika msaada badala yake.',
+          search: 'Tafuta katika msaada',
+          forSection: 'Kwa sehemu hii',
+          missing: 'Bado kinakosekana',
+          helpful: 'Imesaidia',
+          notHelpful: 'Haijasaidia',
+          why: 'Kulikuwa na tatizo gani?',
+          reasons: ['Si sahihi', 'Imekosa kitu', 'Haieleweki', 'Ndefu mno', 'Nyingine'],
+          note: 'Ongeza maelezo (si lazima)',
+          thanks: 'Asante kwa maoni yako.',
+          answering: 'Adili inajibu…',
+          stopped: 'Jibu limekatika kabla ya kukamilika.',
+          retry: 'Jaribu tena',
+          rate: 'Umeuliza maswali mengi kwa muda mfupi. Jaribu tena baada ya dakika moja.',
+          close: 'Funga',
+          readHelp: 'Soma katika msaada',
+          fab: 'Uliza Adili',
+          kept: 'Huhifadhiwa pamoja na rasimu hii na hufutwa pamoja nayo.',
+          noHits: 'Hakuna msaada unaolingana. Jaribu maneno mengine.',
+          more: (n) => `na ${n} zaidi`,
+          fix: 'Rekebisha',
+          lang: 'Lugha',
+        },
+      };
+      const REASON_KEYS = ['inaccurate', 'missed-something', 'unclear', 'too-long', 'other'];
+      const AT = () => ASK_T[S.ask.lang];
+      const SEC_NAME = {
+        home: ['Home', 'Nyumbani'],
+        overview: ['Overview', 'Muhtasari wa tamko'],
+        bio: ['Your details', 'Maelezo yako'],
+        household: ['Spouses and children', 'Wenzi na watoto'],
+        income: ['Income', 'Mapato'],
+        assets: ['Assets', 'Mali'],
+        liabilities: ['Liabilities', 'Madeni'],
+        other: ['Other information', 'Maelezo mengine'],
+        summary: ['Summary', 'Muhtasari'],
+      };
+      function askCtx() {
+        const m = {
+          home: 'home',
+          'decl-overview': 'overview',
+          'decl-bio': 'bio',
+          'decl-household': 'household',
+          'decl-other': 'other',
+          'decl-summary': 'summary',
+        };
+        let key = m[S.screen] || 'home';
+        let who = '';
+        if (S.screen === 'decl-statement' && cur()) {
+          key = S.ui.tab[S.ui.person] || 'income';
+          const p = persons(cur()).find((x) => x.key === S.ui.person);
+          if (p && p.kind !== 'self') who = p.short;
+        }
+        const sw = S.ask.lang === 'sw';
+        return { key, label: L(SEC_NAME[key], S.ask.lang) + (who ? ` · ${who}` : '') };
+      }
+      const SUGGEST = {
+        home: [
+          [
+            'When is my declaration due?',
+            'Who do I declare for?',
+            'What counts as a material change?',
+          ],
+          [
+            'Tamko langu linapaswa kuwasilishwa lini?',
+            'Ninatangaza kwa ajili ya nani?',
+            'Mabadiliko makubwa ni nini?',
+          ],
+        ],
+        bio: [
+          ["What does 'nature of employment' mean?", 'Where do I find my personnel file number?'],
+          [
+            "Nitaandika nini kwenye 'nature of employment'?",
+            'Nitapata wapi nambari yangu ya faili?',
+          ],
+        ],
+        household: [
+          ["Do I declare my wife's salary?", 'Do I include a child who turned 18?'],
+          ['Je, nitaje mshahara wa mke wangu?', 'Je, nimjumuishe mtoto aliyetimiza miaka 18?'],
+        ],
+        income: [
+          ["Do I declare my wife's salary?", 'What counts as a material change?'],
+          ['Je, nitaje mshahara wa mke wangu?', 'Mabadiliko makubwa ni nini?'],
+        ],
+        assets: [
+          [
+            'Is a matatu I co-own with my brother an asset?',
+            'How do I value my car?',
+            "Do I include my late father's land that has not been transferred?",
+          ],
+          [
+            'Je, matatu ninayomiliki pamoja na kaka yangu ni mali?',
+            'Nitathaminije gari langu?',
+            'Je, nitaje ardhi ya marehemu baba yangu ambayo bado haijahamishwa?',
+          ],
+        ],
+        liabilities: [
+          ['What counts as a material change?', 'Do I declare a loan I guaranteed for a friend?'],
+          ['Mabadiliko makubwa ni nini?', 'Je, nitaje mkopo niliomdhamini rafiki?'],
+        ],
+        other: [
+          ['What counts as a material change?', 'Where do I declare a directorship?'],
+          ['Mabadiliko makubwa ni nini?', 'Nitaje wapi ukurugenzi wangu?'],
+        ],
+        summary: [
+          ['What is still missing?', 'Can I change my declaration after I submit?'],
+          [
+            'Ni nini bado kinakosekana?',
+            'Je, naweza kubadilisha tamko langu baada ya kuwasilisha?',
+          ],
+        ],
+      };
+      SUGGEST.overview = SUGGEST.home;
+      const firstVehicle = () => {
+        const D = cur();
+        const i = D ? D.st.officer.assets.findIndex((x) => x.type === 'vehicle') : -1;
+        return i;
+      };
+      /* canned grounded answers (the fake gateway); anything else declines */
+      const ANSWERS = [
+        {
+          re: /matatu|co-?own|jointly|pamoja/i,
+          cites: ['fs-8', 'help-joint'],
+          en: 'Yes. A vehicle you own with someone else is an asset. Declare it under Assets as a vehicle, at its whole value. Then switch on "Jointly held" and enter your share, for example 50%.',
+          sw: 'Ndiyo. Gari unalomiliki pamoja na mtu mwingine ni mali. Litaje chini ya Mali kama gari, kwa thamani yake yote. Kisha washa "Inamilikiwa kwa pamoja" na uandike sehemu yako, kwa mfano 50%.',
+          link: () => ({
+            en: 'Open Assets',
+            sw: 'Fungua Mali',
+            screen: 'decl-statement',
+            pk: 'officer',
+            tab: 'assets',
+          }),
+          follow: [['How do I value my car?'], ['Nitathaminije gari langu?']],
+        },
+        {
+          re: /value|worth|thamin/i,
+          cites: ['am-24', 'help-value'],
+          en: 'Give an approximate value as at the statement date: roughly what it would sell for then. You do not need a professional valuation.',
+          sw: 'Weka thamani ya kukadiria kufikia tarehe ya taarifa: takriban bei ambayo lingeuzwa wakati huo. Huhitaji tathmini ya kitaalamu.',
+          link: () =>
+            firstVehicle() >= 0
+              ? {
+                  en: 'Open Vehicle → value',
+                  sw: 'Fungua Gari → thamani',
+                  screen: 'decl-statement',
+                  pk: 'officer',
+                  tab: 'assets',
+                  idx: firstVehicle(),
+                  field: 'value',
+                }
+              : null,
+        },
+        {
+          re: /after I submit|amend|badilisha tamko/i,
+          cites: ['help-amend'],
+          en: 'Yes. After you submit, you can amend your declaration until the due date. Each amendment files a new version, and earlier versions are kept.',
+          sw: 'Ndiyo. Baada ya kuwasilisha, unaweza kurekebisha tamko lako hadi tarehe ya mwisho. Kila marekebisho yanawasilisha toleo jipya, na matoleo ya awali yanahifadhiwa.',
+        },
+        {
+          re: /material|mabadiliko/i,
+          cites: ['act-31-4', 'regs-21'],
+          en: 'A material change since your last declaration is any of these: a rise or fall of 25% or more in an income, asset or liability; buying or disposing of an asset, or taking on or settling a liability; a change in marital status; a new or changed directorship; or a change in your memberships. Mark the item "Changed since my last declaration" and explain it.',
+          sw: 'Mabadiliko makubwa tangu tamko lako la mwisho ni mojawapo ya haya: ongezeko au upungufu wa asilimia 25 au zaidi katika mapato, mali au deni; kununua au kuuza mali, au kuchukua au kulipa deni; mabadiliko ya hali ya ndoa; ukurugenzi mpya au uliobadilika; au mabadiliko ya uanachama wako. Weka alama "Imebadilika tangu tamko langu la mwisho" kwenye kipengele na ueleze.',
+          link: () => ({
+            en: 'Open Other information',
+            sw: 'Fungua Maelezo mengine',
+            screen: 'decl-other',
+          }),
+        },
+        {
+          re: /wife|husband|spouse|mke|mume|mwenzi/i,
+          cites: ['act-31-1', 'help-spouse'],
+          en: 'Yes. Your declaration covers your spouse too. Add their salary as income in their own financial statement, as an approximate amount for the income period.',
+          sw: 'Ndiyo. Tamko lako linamhusu mwenzi wako pia. Ongeza mshahara wake kama mapato katika taarifa yake ya kifedha, kwa kiasi cha kukadiria kwa kipindi cha mapato.',
+          link: () =>
+            cur() && cur().hh.spouses.some((s) => !s.archived)
+              ? {
+                  en: "Open Mary's income",
+                  sw: 'Fungua mapato ya Mary',
+                  screen: 'decl-statement',
+                  pk: 'spouse:' + cur().hh.spouses[0].id,
+                  tab: 'income',
+                }
+              : null,
+        },
+        {
+          re: /turned 18|child|mtoto|miaka 18/i,
+          cites: ['act-31-1', 'help-children'],
+          en: 'Include children who are under 18 on your statement date. A child who turned 18 before that date is not included and needs no statement.',
+          sw: 'Jumuisha watoto walio chini ya miaka 18 tarehe ya taarifa yako. Mtoto aliyetimiza miaka 18 kabla ya tarehe hiyo hajumuishwi na hahitaji taarifa.',
+          link: () => ({
+            en: 'Open Spouses and children',
+            sw: 'Fungua Wenzi na watoto',
+            screen: 'decl-household',
+          }),
+        },
+        {
+          re: /nature of employment|permanent|contract/i,
+          cites: ['fs-5'],
+          en: 'Choose the terms of your appointment: permanent, temporary or contract. If none fits, choose Other and describe it, for example a secondment.',
+          sw: 'Chagua masharti ya uteuzi wako: wa kudumu, wa muda au wa mkataba. Ikiwa hakuna kinachofaa, chagua Nyingine na ueleze, kwa mfano uhamisho wa muda.',
+          link: () => ({
+            en: 'Open Your details → nature of employment',
+            sw: 'Fungua Maelezo yako → aina ya ajira',
+            screen: 'decl-bio',
+            field: 'bio.nature',
+          }),
+        },
+        {
+          re: /file number|personnel|nambari yangu ya faili/i,
+          cites: ['help-file'],
+          en: 'Your personnel file number is the TSC number on your payslip, without the "TSC/" prefix. If it is missing or wrong, contact your county TSC office.',
+          sw: 'Nambari yako ya faili ni nambari ya TSC iliyo kwenye hati yako ya mshahara, bila "TSC/" mwanzoni. Ikikosekana au ikiwa na kosa, wasiliana na ofisi ya TSC ya kaunti yako.',
+        },
+        {
+          re: /due|when|lini|days/i,
+          cites: ['act-34'],
+          en: 'An initial declaration is due within 30 days of your appointment. It covers your finances as at your appointment date and your income for the year before it.',
+          sw: 'Tamko la kwanza linapaswa kuwasilishwa ndani ya siku 30 baada ya uteuzi wako. Linahusu hali yako ya kifedha kufikia tarehe ya uteuzi na mapato yako ya mwaka uliotangulia.',
+        },
+        {
+          re: /who do i declare|kwa ajili ya nani/i,
+          cites: ['act-31-1'],
+          en: 'You declare for yourself, your spouse or spouses, and your dependent children who are under 18 on the statement date. Each person gets a separate financial statement.',
+          sw: 'Unatangaza kwa ajili yako, mwenzi au wenzi wako, na watoto wanaokutegemea walio chini ya miaka 18 tarehe ya taarifa. Kila mtu ana taarifa yake ya kifedha.',
+        },
+        {
+          re: /missing|kinakosekana|left to do/i,
+          cites: ['help-nil'],
+          dynamic: true,
+        },
+      ];
+      const isSw = (q) =>
+        /\b(je|nini|gani|lini|nitaje|ninatangaza|mke|mali|nitathaminije|ninayomiliki|kinakosekana|wapi)\b/i.test(
+          q,
+        );
+      function findAnswer(q, lang) {
+        const a = ANSWERS.find((x) => x.re.test(q));
+        if (!a) return null;
+        if (a.dynamic) {
+          const D = cur();
+          const iss = D ? completeness(D).issues : [];
+          if (!D) return null;
+          const txt = !iss.length
+            ? lang === 'sw'
+              ? 'Hakuna kinachokosekana. Kagua muhtasari, kisha uwasilishe.'
+              : 'Nothing is missing. Check the summary, then submit.'
+            : lang === 'sw'
+              ? `Vitu ${iss.length} bado vinakosekana. Cha kwanza: ${iss[0].text}`
+              : `${plural(iss.length, 'thing')} still ${iss.length === 1 ? 'needs' : 'need'} an answer. First: ${iss[0].text}`;
+          return {
+            text: txt,
+            cites: a.cites,
+            link: iss.length ? { en: 'Open it', sw: 'Fungua', issue: iss[0].go } : null,
+          };
+        }
+        const link = a.link ? a.link() : null;
+        return {
+          text: a[lang],
+          cites: a.cites,
+          link,
+          follow: a.follow ? a.follow[lang === 'sw' ? 1 : 0] : null,
+        };
+      }
+      let streamT = null;
+      let askScroll = 0;
+      let askBottom = false;
+      let askAnim = false;
+      function stopStream() {
+        clearInterval(streamT);
+        clearTimeout(stopStream.t);
+      }
+      function askAnnounce(t) {
+        const el = document.getElementById('ask-live');
+        if (el) el.textContent = t;
+      }
+      function askSend(q) {
+        q = String(q || '').trim();
+        if (!q) return;
+        const A = S.ask;
+        A.msgs.push({ id: uid('m'), role: 'user', text: q });
+        A.draft = '';
+        askBottom = true;
+        if (A.rate) {
+          A.msgs.push({ id: uid('m'), role: 'assistant', st: 'rate', text: '' });
+          Kit.render();
+          return;
+        }
+        const lang = A.lang === 'sw' || isSw(q) ? 'sw' : 'en';
+        const ans = findAnswer(q, lang);
+        const m = {
+          id: uid('m'),
+          role: 'assistant',
+          q,
+          lang,
+          text: '',
+          full: ans ? ans.text : '',
+          cites: ans ? ans.cites : [],
+          link: ans ? ans.link : null,
+          follow: ans ? ans.follow : null,
+          st: 'thinking',
+          rating: null,
+        };
+        A.msgs.push(m);
+        Kit.render();
+        askAnnounce(ASK_T[lang].answering);
+        stopStream();
+        stopStream.t = setTimeout(() => {
+          if (!S.ask.msgs.includes(m)) return;
+          if (!ans) {
+            m.st = 'declined';
+            askBottom = true;
+            Kit.render();
+            askAnnounce(ASK_T[lang].declined + ' ' + RO.name);
+            return;
+          }
+          m.st = 'streaming';
+          askBottom = true;
+          Kit.render();
+          streamOn(m);
+        }, 700);
+      }
+      function streamOn(m) {
+        const words = m.full.split(/(\s+)/);
+        let i = Math.round(m.text ? m.text.split(/(\s+)/).length : 0);
+        let sent = m.text.length;
+        stopStream();
+        streamT = setInterval(() => {
+          if (!S.ask.msgs.includes(m) || !S.ask.open) return stopStream();
+          if (S.ask.failNext && i > words.length / 2) {
+            stopStream();
+            S.ask.failNext = false;
+            m.st = 'error';
+            askBottom = true;
+            Kit.render();
+            askAnnounce(ASK_T[m.lang].stopped);
+            return;
+          }
+          m.text += words[i++] || '';
+          const el = document.getElementById('mt-' + m.id);
+          if (el) el.innerHTML = esc(m.text) + '<span class="caret" aria-hidden="true"></span>';
+          const box = document.getElementById('ask-msgs');
+          if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 90)
+            box.scrollTop = box.scrollHeight;
+          if (/[.!?]"?$/.test(m.text.trim()) && m.text.length > sent) {
+            askAnnounce(m.text.slice(sent).trim());
+            sent = m.text.length;
+          }
+          if (i >= words.length) {
+            stopStream();
+            m.st = 'done';
+            askBottom = true;
+            Kit.render();
+          }
+        }, 38);
+      }
+      actions.askOpen = () => {
+        S.ask.open = true;
+        askAnim = true;
+        askBottom = true;
+        Kit.render();
+        setTimeout(
+          () => document.getElementById(S.ai.assistant === 'down' ? 'ask-q' : 'ask-input')?.focus(),
+          30,
+        );
+      };
+      actions.askClose = () => {
+        S.ask.open = false;
+        stopStream();
+        S.ask.msgs.forEach((m) => {
+          if (m.st === 'streaming' || m.st === 'thinking') m.st = 'error';
+        });
+        Kit.render();
+        setTimeout(() => document.querySelector('.ask-fab')?.focus(), 30);
+      };
+      actions.askLang = (l) => {
+        S.ask.lang = l;
+        Kit.render();
+        askAnnounce(l === 'sw' ? 'Lugha: Kiswahili' : 'Language: English');
+      };
+      actions.askSend = () => askSend(S.ask.draft);
+      actions.askQ = (q) => askSend(q);
+      const askMsg = (id) =>
+        S.ask.msgs.find((x) => x.id === id) || S.demo.askMsgs.find((x) => x.id === id);
+      actions.askRetry = (id) => {
+        const m = S.ask.msgs.find((x) => x.id === id);
+        if (!m) return Kit.toast('Asks the same question again');
+        S.ask.msgs = S.ask.msgs.filter((x) => x !== m);
+        const u = S.ask.msgs[S.ask.msgs.length - 1];
+        if (u && u.role === 'user') S.ask.msgs.pop();
+        S.ask.rate = false;
+        askSend(m.q || (u && u.text));
+      };
+      actions.askCite = (a) => {
+        S.ask.cite = S.ask.cite === a ? null : a;
+        Kit.render();
+      };
+      actions.askRate = (a) => {
+        const [id, r] = a.split('|');
+        const m = askMsg(id);
+        m.rating = m.rating === r ? null : r;
+        m.fbDone = r === 'helpful' && m.rating === r;
+        m.reason = null;
+        Kit.render();
+      };
+      actions.askReason = (a) => {
+        const [id, r] = a.split('|');
+        askMsg(id).reason = r;
+        Kit.render();
+      };
+      actions.askFbSend = (id) => {
+        const m = askMsg(id);
+        m.fbDone = true;
+        Kit.render();
+        askAnnounce(AT().thanks);
+      };
+      actions.askLink = (id) => {
+        const m = askMsg(id);
+        const k = m.link;
+        if (!cur()) return Kit.toast('Start your declaration first');
+        if (document.getElementById('app').clientWidth < 700) S.ask.open = false;
+        if (k.issue) return actions.goIssue(JSON.stringify(k.issue));
+        if (k.pk) {
+          S.ui.person = k.pk;
+          S.ui.tab[k.pk] = k.tab;
+        }
+        const D = cur();
+        const it = k.idx != null ? D.st[k.pk][k.tab][k.idx] : null;
+        S.ui.open = it ? it.id : null;
+        Kit.go(k.screen);
+        setTimeout(() => {
+          const el = it
+            ? document.getElementById(fid(P(`st.${k.pk}.${k.tab}.${k.idx}.${k.field}`)))
+            : k.field
+              ? document.getElementById(fid(P(k.field)))
+              : document.querySelector('#view .dhead h1');
+          if (!el) return;
+          el.scrollIntoView({ block: 'center' });
+          if (el.tagName === 'H1') el.setAttribute('tabindex', '-1');
+          el.focus();
+          const box = el.closest('.field, .input-group') || el;
+          box.classList.add('flash');
+          setTimeout(() => box.classList.remove('flash'), 1600);
+        }, 40);
+      };
+      actions.askHelp = (id) => {
+        S.help.article = id;
+        S.help.q = '';
+        Kit.go('help-article');
+      };
+      /* CitationChip: button with the citation text; expands the passage inline */
+      function citeChips(m, lang) {
+        if (!m.cites.length) return '';
+        const open =
+          S.ask.cite && S.ask.cite.startsWith(m.id + '|') ? S.ask.cite.split('|')[1] : null;
+        const p = open && psg(open);
+        return `<div class="cites">${m.cites
+          .map((c) => {
+            const x = psg(c);
+            return `<button class="cite ${open === c ? 'on' : ''}" data-act="askCite" data-arg="${m.id}|${c}" aria-expanded="${open === c}">${icon(x.src === 'help' ? 'help' : 'scale', 12)}${esc(x.cite)}</button>`;
+          })
+          .join(
+            '',
+          )}</div>${p ? `<div class="passage"><div class="ph">${esc(L(p.title, lang))} <span class="muted">· ${esc(SOURCE_NAME[p.src])}</span></div><p>${esc(L(p.text, lang))}</p><button class="linklike small" data-act="askHelp" data-arg="${p.id}">${ASK_T[lang].readHelp}</button></div>` : ''}`;
+      }
+      /* FeedbackControl (spec 07c primitive) */
+      function feedback(m) {
+        const t = ASK_T[m.lang || S.ask.lang];
+        if (m.fbDone)
+          return `<div class="fb"><span class="small muted">${icon('check', 13, 2.6)} ${t.thanks}</span></div>`;
+        const b = (r, ic, label) =>
+          `<button class="fb-b ${m.rating === r ? 'on' : ''}" data-act="askRate" data-arg="${m.id}|${r}" aria-pressed="${m.rating === r}" aria-label="${label}" title="${label}">${icon(ic, 14)}</button>`;
+        const why =
+          m.rating === 'not-helpful'
+            ? `<div class="fb-why"><div class="small" style="font-weight:500">${t.why}</div><div class="fb-reasons" role="radiogroup" aria-label="${t.why}">${t.reasons.map((r, i) => `<button class="chip ${m.reason === REASON_KEYS[i] ? 'on' : ''}" role="radio" aria-checked="${m.reason === REASON_KEYS[i]}" data-act="askReason" data-arg="${m.id}|${REASON_KEYS[i]}">${r}</button>`).join('')}</div><input class="input" id="fb-note-${m.id}" data-bind="ask.note" placeholder="${t.note}" aria-label="${t.note}" maxlength="500"/><div><button class="btn btn-primary btn-sm" data-act="askFbSend" data-arg="${m.id}" ${m.reason ? '' : 'disabled'}>${t.send}</button></div></div>`
+            : '';
+        return `<div class="fb">${b('helpful', 'thumbUp', t.helpful)}${b('not-helpful', 'thumbDown', t.notHelpful)}</div>${why}`;
+      }
+      /* StreamingMessage and the other message states */
+      function msgHtml(m) {
+        if (m.role === 'user')
+          return `<div class="msg u"><div class="bubble">${esc(m.text)}</div></div>`;
+        const t = ASK_T[m.lang || S.ask.lang];
+        if (m.st === 'thinking')
+          return `<div class="msg a"><div class="bubble typing" aria-label="${t.answering}"><span></span><span></span><span></span></div></div>`;
+        if (m.st === 'rate')
+          return `<div class="msg a"><div class="bubble warn">${icon('clock', 15)}<span>${t.rate}</span></div></div>`;
+        if (m.st === 'error')
+          return `<div class="msg a">${m.text ? `<div class="bubble">${esc(m.text)}…</div>` : ''}<div class="bubble warn">${icon('alert', 15)}<span>${t.stopped} <button class="linklike" data-act="askRetry" data-arg="${m.id}">${t.retry}</button></span></div></div>`;
+        if (m.st === 'declined')
+          return `<div class="msg a"><div class="bubble declined">${icon('help', 16)}<div><p>${t.declined}</p><div class="ro"><b>${RO.name}</b><a href="mailto:${RO.email}">${RO.email}</a><a href="tel:${RO.phone.replace(/\s/g, '')}">${RO.phone}</a></div></div></div>${feedback(m)}</div>`;
+        const streaming = m.st === 'streaming';
+        return `<div class="msg a"><div class="bubble" id="mt-${m.id}">${esc(m.text)}${streaming ? '<span class="caret" aria-hidden="true"></span>' : ''}</div>${
+          streaming
+            ? ''
+            : `${citeChips(m, m.lang)}${m.link ? `<button class="btn btn-secondary btn-sm ask-link" data-act="askLink" data-arg="${m.id}">${icon('arrowRight', 14)} ${esc(m.link[m.lang] || m.link.en)}</button>` : ''}${feedback(m)}`
+        }</div>`;
+      }
+      function askUi() {
+        const t = AT();
+        if (!S.ask.open)
+          return `<button class="ask-fab" data-act="askOpen" aria-expanded="false" aria-controls="ask-panel" aria-label="${t.fab}">${icon('sparkles', 17)}<span>${t.fab}</span></button>`;
+        const ctx = askCtx();
+        const sw = S.ask.lang === 'sw';
+        const head = `<header class="ask-head"><div class="ask-grab" aria-hidden="true"></div><div class="row" style="gap:10px"><span class="ask-av">${icon('sparkles', 16)}</span><h2 id="ask-h" class="grow">${t.title}</h2>${Kit.tip(t.kept, { label: 'Conversation' })}<button class="btn btn-ghost icon-btn" data-act="askClose" aria-label="${t.close}">${icon('x', 18)}</button></div>
+    <div class="row wrap" style="gap:8px;justify-content:space-between;margin-top:8px">${aiLabel(t.label)}<div class="seg ask-lang" role="group" aria-label="${t.lang}"><button class="${sw ? '' : 'on'}" data-act="askLang" data-arg="en" aria-pressed="${!sw}">English</button><button class="${sw ? 'on' : ''}" data-act="askLang" data-arg="sw" aria-pressed="${sw}">Kiswahili</button></div></div></header>`;
+        let body;
+        if (S.ai.assistant === 'down') {
+          const hits =
+            S.ask.q.trim().length > 1
+              ? helpSearch(S.ask.q, S.ask.lang, ctx.key)
+              : CORPUS.filter((p) => p.tags.includes(ctx.key)).slice(0, 4);
+          const D = cur();
+          const inWs = D && S.screen.startsWith('decl-');
+          const iss = inWs ? completeness(D).issues : [];
+          body = `<div class="ask-msgs" id="ask-msgs">
+      <div class="callout callout-warn" role="status">${icon('wifiOff', 16)}<span>${t.noai}</span></div>
+      <div class="input-group"><span class="addon">${icon('search', 16)}</span><input id="ask-q" class="input" data-bind="ask.q" data-live value="${esc(S.ask.q)}" placeholder="${t.search}" aria-label="${t.search}" autocomplete="off"/></div>
+      <div><div class="ask-sub">${S.ask.q.trim().length > 1 ? `${hits.length} ${sw ? 'matokeo' : hits.length === 1 ? 'result' : 'results'}` : t.forSection}</div>${hits.length ? `<ul class="ask-hits">${hits.map((p) => `<li><button class="hit" data-act="askHelp" data-arg="${p.id}">${srcTag(p)}<b>${esc(L(p.title, S.ask.lang))}</b><span class="sn">${S.ask.q.trim().length > 1 ? snippet(p, S.ask.q, S.ask.lang, 110) : esc(L(p.text, S.ask.lang).slice(0, 110)) + '…'}</span></button></li>`).join('')}</ul>` : `<p class="small muted">${t.noHits}</p>`}</div>
+      ${
+        inWs && iss.length
+          ? `<div><div class="ask-sub">${t.missing} (${iss.length})</div><ul class="ask-miss">${iss
+              .slice(0, 5)
+              .map(
+                (i) =>
+                  `<li><span>${esc(i.text)}</span><button class="linklike" data-act="goIssue" data-arg="${esc(JSON.stringify(i.go))}">${t.fix}</button></li>`,
+              )
+              .join(
+                '',
+              )}${iss.length > 5 ? `<li class="muted">${t.more(iss.length - 5)}</li>` : ''}</ul></div>`
+          : ''
+      }
+    </div>`;
+        } else {
+          const qs = (SUGGEST[ctx.key] || SUGGEST.home)[sw ? 1 : 0];
+          const last = S.ask.msgs[S.ask.msgs.length - 1];
+          const follow = last && last.st === 'done' && last.follow ? last.follow : null;
+          body = `<div class="ask-msgs" id="ask-msgs" role="log" aria-label="${sw ? 'Mazungumzo' : 'Conversation'}">
+      ${
+        S.ask.msgs.length
+          ? S.ask.msgs.map(msgHtml).join('') +
+            (follow
+              ? `<ul class="sq" aria-label="${t.suggested}">${follow.map((q) => `<li><button class="sq-chip" data-act="askQ" data-arg="${esc(q)}">${esc(q)}</button></li>`).join('')}</ul>`
+              : '')
+          : `<div class="ask-idle"><p>${t.idle}</p><div class="ask-sub">${t.suggested}</div><ul class="sq">${qs.map((q) => `<li><button class="sq-chip" data-act="askQ" data-arg="${esc(q)}">${esc(q)}</button></li>`).join('')}</ul></div>`
+      }
+    </div>
+    <div class="ask-foot">
+      <div class="ask-ctx">${icon('file', 13)} ${t.on}: ${esc(ctx.label)}</div>
+      <div class="ask-compose"><textarea id="ask-input" rows="1" data-bind="ask.draft" placeholder="${t.ph}" aria-label="${t.ph}" maxlength="2000">${esc(S.ask.draft)}</textarea><button class="btn btn-primary icon-btn" data-act="askSend" aria-label="${t.send}">${icon('send', 16)}</button></div>
+      <p class="ask-privacy">${t.privacy}</p>
+    </div>`;
+        }
+        return `<div class="ask-scrim" data-act="askClose"></div><aside class="ask-panel ${askAnim ? '' : 'still'}" id="ask-panel" role="complementary" aria-labelledby="ask-h">${head}${body}<div id="ask-live" class="sr-only" aria-live="polite"></div></aside>`;
+      }
+
+      /* ---- Summary completeness hints (#340) ---- */
+      function hintFor(D, i) {
+        if (S.ai.hints !== 'ok') return null;
+        if (i.key === 'bio')
+          return (
+            {
+              physical: 'Give the house, estate or road and the town where you live now.',
+              dob: 'Use the date on your national ID.',
+              place: 'The town and county where you were born is enough.',
+              postal: 'Use the P.O. Box where letters reach you.',
+              nature: 'Pick the terms of your appointment, for example permanent.',
+            }[i.field] || null
+          );
+        if (i.key === 'other')
+          return (
+            {
+              'dual-pending': 'If you have not applied for another citizenship, answer No.',
+              'dual-holds': 'Answer No if Kenya is your only citizenship.',
+            }[i.field] || null
+          );
+        if (i.key === 'household')
+          return 'Add each spouse with their names. The national ID is optional.';
+        if (i.go && i.go[0] === 'decl-statement') {
+          const p = persons(D).find((x) => x.key === i.key);
+          const self = p.kind === 'self';
+          if (CAT[i.field]) {
+            const pr = self ? 'you' : p.kind === 'spouse' ? 'she' : 'they';
+            return `${self ? 'Your' : p.short + "'s"} statement has no ${CAT[i.field].label.toLowerCase()}. If ${pr} had none, tick "Nothing to declare".`;
+          }
+          if (/explain/i.test(i.text))
+            return 'Say briefly what changed, for example what was bought and how it was paid for.';
+          if (/value|amount/i.test(i.text))
+            return 'A rough figure is fine: what it would sell for on the statement date.';
+          if (/county/i.test(i.text)) return 'Choose the county where the asset is.';
+        }
+        return null;
+      }
+
+      /* ---- Help pages (#340) ---- */
+      function helpShell(body) {
+        return portalShell(`<div class="page help-page">${body}</div>`, { active: '' });
+      }
+      const helpLangSeg = () => {
+        const sw = S.help.lang === 'sw';
+        return `<div class="seg" role="group" aria-label="Language"><button class="${sw ? '' : 'on'}" data-act="helpLang" data-arg="en" aria-pressed="${!sw}">English</button><button class="${sw ? 'on' : ''}" data-act="helpLang" data-arg="sw" aria-pressed="${sw}">Kiswahili</button></div>`;
+      };
+      const visibleCorpus = () => CORPUS.filter((p) => !p.tenant || p.tenant === 'tsc');
+      function hitRow(p, q, lang) {
+        const onlyEn = lang === 'sw' && !p.text[1];
+        return `<li><button class="help-hit" data-act="helpOpen" data-arg="${p.id}"><span class="row wrap" style="gap:8px">${srcTag(p)}<b>${esc(L(p.title, lang))}</b>${p.tenant ? Kit.badge('TSC') : ''}${onlyEn ? `<span class="small muted">English only</span>` : ''}</span><span class="sn">${q ? snippet(p, q, lang) : esc(L(p.text, lang).slice(0, 150)) + (L(p.text, lang).length > 150 ? '…' : '')}</span></button></li>`;
+      }
+      screens.help = () => {
+        const lang = S.help.lang;
+        const sw = lang === 'sw';
+        const q = S.help.q.trim();
+        const tp = S.help.topic;
+        let content;
+        if (q.length > 1) {
+          const hits = helpSearch(q, lang).filter((p) => !p.tenant || p.tenant === 'tsc');
+          content = hits.length
+            ? `<div class="small muted" role="status">${hits.length} ${sw ? 'matokeo' : hits.length === 1 ? 'result' : 'results'}</div><ul class="help-list">${hits.map((p) => hitRow(p, q, lang)).join('')}</ul>`
+            : `<div class="card">${Kit.empty(sw ? 'Hakuna matokeo' : 'No results', sw ? 'Jaribu maneno mengine, kwa mfano "mali".' : 'Try other words, for example "joint".', { icon: 'search' })}</div>`;
+        } else if (tp) {
+          const list = visibleCorpus().filter((p) => inTopic(p, tp));
+          content = `<button class="btn btn-ghost btn-sm" style="margin-left:-10px;align-self:flex-start" data-act="helpTopic" data-arg="">${icon('left', 16)} ${sw ? 'Mada zote' : 'All topics'}</button><h2 class="help-h2">${esc(topicName(tp, lang))}</h2><ul class="help-list">${list.map((p) => hitRow(p, '', lang)).join('')}</ul>`;
+        } else {
+          content = `<div class="help-topics">${TOPICS.map(([k, en, swn, ic]) => `<button class="help-topic" data-act="helpTopic" data-arg="${k}"><span class="ico">${icon(ic, 18)}</span><span class="grow"><b>${sw ? swn : en}</b><span class="small muted">${((n) => (sw ? `Makala ${n}` : plural(n, 'article')))(visibleCorpus().filter((p) => inTopic(p, k)).length)}</span></span>${icon('right', 16)}</button>`).join('')}</div>`;
+        }
+        return helpShell(`<div class="row wrap" style="justify-content:space-between;gap:12px"><h1 class="page-title" style="margin:0">${sw ? 'Msaada' : 'Help'}</h1>${helpLangSeg()}</div>
+    <div class="input-group help-search"><span class="addon" style="padding-left:14px">${icon('search', 18)}</span><input id="help-q" class="input" data-bind="help.q" data-live value="${esc(S.help.q)}" placeholder="${sw ? 'Tafuta, kwa mfano mali ya pamoja' : 'Search, e.g. joint assets'}" aria-label="${sw ? 'Tafuta katika msaada' : 'Search the help'}" autocomplete="off"/>${q ? `<button class="btn btn-ghost icon-btn" data-act="helpClear" aria-label="Clear search">${icon('x', 16)}</button>` : ''}</div>
+    ${content}`);
+      };
+      screens['help-article'] = () => {
+        const lang = S.help.lang;
+        const sw = lang === 'sw';
+        const p = psg(S.help.article) || psg('help-joint');
+        const onlyEn = sw && !p.text[1];
+        const based = (p.based || []).map(psg);
+        const related = visibleCorpus()
+          .filter((x) => x.topic === p.topic && x.id !== p.id && !based.includes(x))
+          .slice(0, 3);
+        const srcName = p.tenant ? 'Teachers Service Commission' : SOURCE_NAME[p.src];
+        const D = S.decls.find((d) => d.status === 'draft' || d.status === 'amending');
+        const openSec = {
+          assets: ['Open Assets', 'assets'],
+          income: ['Open Income', 'income'],
+          liabilities: ['Open Liabilities', 'liabilities'],
+        }[p.topic];
+        return helpShell(`<div class="crumbs-p"><button class="linklike" data-act="helpTopic" data-arg="">${sw ? 'Msaada' : 'Help'}</button>${icon('right', 14)}<button class="linklike" data-act="helpTopic" data-arg="${p.topic}">${esc(topicName(p.topic, lang))}</button></div>
+    <article class="card card-pad help-art" aria-labelledby="art-h">
+      <div class="row wrap" style="justify-content:space-between;gap:10px">${srcTag(p)}${helpLangSeg()}</div>
+      <h1 id="art-h">${esc(L(p.title, lang))}</h1>
+      <div class="meta">${esc(srcName)} · ${sw ? 'Inatumika tangu' : 'In force from'} ${p.tenant ? '1 Jul 2026' : '1 Jan 2026'}${p.src !== 'help' ? ` · ${sw ? 'Maandishi ya kisheria' : 'Statutory text, read only'}` : ''}</div>
+      ${onlyEn ? `<div class="callout callout-info">${icon('globe', 16)}<span>Bado haipatikani kwa Kiswahili. Inaonyeshwa kwa Kiingereza.</span></div>` : ''}
+      ${p.src === 'help' ? `<p class="art-body">${esc(L(p.text, lang))}</p>` : `<blockquote class="art-law">${esc(L(p.text, lang))}</blockquote>`}
+      ${based.length ? `<div><div class="ask-sub">${sw ? 'Inategemea' : 'Based on'}</div><div class="cites">${based.map((b) => `<button class="cite" data-act="helpOpen" data-arg="${b.id}">${icon('scale', 12)}${esc(b.cite)}</button>`).join('')}</div></div>` : ''}
+      ${D && openSec ? `<div><button class="btn btn-secondary btn-sm" data-act="helpToSection" data-arg="${openSec[1]}">${icon('arrowRight', 14)} ${openSec[0]}</button></div>` : ''}
+    </article>
+    ${related.length ? `<section><h2 class="help-h2">${sw ? 'Zinazohusiana' : 'Related'}</h2><ul class="help-list">${related.map((x) => hitRow(x, '', lang)).join('')}</ul></section>` : ''}`);
+      };
+      actions.helpLang = (l) => {
+        S.help.lang = l;
+        Kit.render();
+      };
+      actions.helpTopic = (k) => {
+        S.help.topic = k || null;
+        S.help.q = '';
+        Kit.go('help');
+      };
+      actions.helpOpen = (id) => {
+        S.help.article = id;
+        Kit.go('help-article');
+      };
+      actions.helpClear = () => {
+        S.help.q = '';
+        Kit.render();
+        document.getElementById('help-q')?.focus();
+      };
+      actions.helpToSection = (tab) => {
+        const D = S.decls.find((d) => d.status === 'draft' || d.status === 'amending');
+        S.cur = D.id;
+        S.ui.person = 'officer';
+        S.ui.tab.officer = tab;
+        Kit.go('decl-statement');
+      };
+      /* portal topbar help button opens the help pages (kit shell fires a toast) */
+      actions.toast = (a, el) => {
+        if (a === 'Help centre would open here' && el && el.closest('.topbar')) {
+          S.help.q = '';
+          S.help.topic = null;
+          return Kit.go('help');
+        }
+        Kit.toast(a);
+      };
+
+      /* =====================================================================
        * DEMO SETUPS, JUMPS, COVERAGE, MOUNT
        * ===================================================================== */
       function resetState() {
+        clearRegTimers();
+        stopStream();
+        clearTimeout(exT);
         clearInterval(pollT);
         clearTimeout(saveT);
         clearTimeout(saveT2);
@@ -6213,6 +9470,112 @@
           D.amendingFrom = versions;
         }
         return D;
+      }
+      /* spec 05b / 11 demo setups */
+      function regSetup(state = 'ready', o = {}) {
+        const pk = o.person || 'officer';
+        const D = setupDraft('complete', { person: pk, tab: o.tab || 'assets' });
+        D.st.officer.assets[2].makeModel = ''; // John typed only the registration of his car
+        if (state === 'idle') return D;
+        runLookups(pk, REGS, { instant: true });
+        if (state === 'mixed') {
+          const by = (t) => D.sug.list.find((x) => x.pk === pk && x.title.startsWith(t));
+          acceptSug(by('KCA 123A'), by('KCA 123A').fields);
+          acceptSug(by('KDA 123X'), by('KDA 123X').fields);
+          acceptSug(by('KRA PIN'), by('KRA PIN').fields);
+          by('Kapsoya Water').status = 'dismissed';
+          S.ui.regFold[pk] = true;
+          S.save = 'saved';
+        }
+        return D;
+      }
+      function docItem(D) {
+        const it = newAsset();
+        Object.assign(it, {
+          type: 'vehicle',
+          desc: 'Double cab pickup',
+          reg: 'KCB 782M',
+          makeModel: 'Isuzu D-Max, 2019',
+          county: 'Uasin Gishu',
+          value: '2,300,000',
+          src: { kind: 'document', at: '2026-09-26T10:40:00', ref: 'logbook-KCB782M.pdf, page 1' },
+          atts: [
+            { id: 'ax1', name: 'logbook-KCB782M.pdf', size: 1210000, st: 'linked', read: true },
+          ],
+        });
+        D.st.officer.assets.push(it);
+        return it;
+      }
+      function exSetup(step, { deed = false } = {}) {
+        const D = setupDraft('complete', { person: 'officer', tab: 'assets' });
+        let it;
+        let aid;
+        if (deed) {
+          it = D.st.officer.assets[0];
+          aid = it.atts[0].id;
+        } else {
+          it = newAsset();
+          Object.assign(it, {
+            type: 'vehicle',
+            county: 'Uasin Gishu',
+            atts: [{ id: 'ax1', name: 'logbook-KCB782M.pdf', size: 1210000, st: 'linked' }],
+          });
+          D.st.officer.assets.push(it);
+          aid = 'ax1';
+        }
+        S.ui.open = it.id;
+        to('decl-statement');
+        setTimeout(() => {
+          if (step === 'menu') S.menu = 'am-' + aid;
+          else {
+            const m = {
+              kind: 'extract',
+              cat: 'assets',
+              pk: 'officer',
+              id: it.id,
+              aid,
+              step,
+              doc: deed ? 'title-deed' : 'logbook',
+            };
+            if (step === 'review') exReview(m);
+            if (step === 'review' && !deed) m.fields[0].ok = false;
+            S.modal = m;
+          }
+          Kit.render();
+          setTimeout(
+            () =>
+              document
+                .getElementById('card-' + it.id)
+                ?.querySelector('.att-list')
+                ?.scrollIntoView({ block: 'center' }),
+            80,
+          );
+        }, 0);
+      }
+      function askSetup(o = {}) {
+        setupDraft('complete', { person: 'officer', tab: 'assets' });
+        S.ask.open = true;
+        Object.assign(S.ask, o);
+        to('decl-statement');
+      }
+      function askPreset(q, { st = 'done', lang = 'en', partial = false } = {}) {
+        const ans = findAnswer(q, lang);
+        S.ask.msgs.push({ id: uid('m'), role: 'user', text: q });
+        const m = {
+          id: uid('m'),
+          role: 'assistant',
+          q,
+          lang,
+          full: ans ? ans.text : '',
+          text: ans ? (partial ? ans.text.split(' ').slice(0, 14).join(' ') : ans.text) : '',
+          cites: ans ? ans.cites : [],
+          link: ans ? ans.link : null,
+          follow: ans ? ans.follow : null,
+          st: ans ? st : 'declined',
+          rating: null,
+        };
+        S.ask.msgs.push(m);
+        return m;
       }
       const go = (scr) => Kit.go(scr);
       const J = (k, l, fn) => [
@@ -6428,6 +9791,10 @@
           setupSubmitted('o-tsc-initial');
           to('home');
         }),
+        J('j-home-access', '#255 Home: access request waiting for a response', () => {
+          home({ access: true });
+          to('home');
+        }),
         J('j-drawer', '#89 #93 Obligation drawer: skipped reminders', () => {
           to('home');
           withModal({ kind: 'obligation', id: 'o-tsc-initial' });
@@ -6625,6 +9992,106 @@
             60,
           );
         }),
+        J('j-reg-idle', '#312 Registries: not checked yet', () => {
+          regSetup('idle');
+          to('decl-statement');
+        }),
+        J('j-reg-consent', '#309 #312 Registries: consent dialog', () => {
+          regSetup('idle');
+          to('decl-statement');
+          withModal({
+            kind: 'consent',
+            pk: 'officer',
+            name: ME.full,
+            idm: maskNid(ME.nid),
+            ok: false,
+          });
+        }),
+        J('j-reg-checking', '#312 Registries: checking (live)', () => {
+          regSetup('idle');
+          to('decl-statement');
+          setTimeout(() => {
+            runLookups('officer');
+            Kit.render();
+          }, 0);
+        }),
+        J('j-reg-ready', '#312 Registries: suggestions ready', () => {
+          regSetup('ready');
+          to('decl-statement');
+        }),
+        J('j-reg-mixed', '#312 Registries: added, applied and dismissed', () => {
+          regSetup('mixed');
+          to('decl-statement');
+        }),
+        J('j-reg-edit', '#312 Registries: edit and add', () => {
+          const D = regSetup('ready');
+          to('decl-statement');
+          const s = D.sug.list.find((x) => x.title.startsWith('KCA 123A'));
+          withModal({ kind: 'sugEdit', id: s.id, f: { value: '', county: '', ...s.fields } });
+        }),
+        J('j-reg-conflict', '#312 Registries: accept hit 412, refresh and retry', () => {
+          const D = regSetup('ready');
+          to('decl-statement');
+          S.ai.acceptConflict = true;
+          setTimeout(
+            () => actions.sugAdd(D.sug.list.find((x) => x.title.startsWith('KCA 123A')).id),
+            0,
+          );
+        }),
+        J('j-reg-spouse', '#312 Registries: spouse, ArdhiSasa not available', () => {
+          setupDraft('complete', { person: 'spouse:sp1', tab: 'assets' });
+          runLookups('spouse:sp1', REGS, { instant: true });
+          to('decl-statement');
+        }),
+        J('j-reg-noid', '#312 Registries: child without national ID', () => {
+          setupDraft('complete', { person: 'child:ch1', tab: 'assets' });
+          to('decl-statement');
+        }),
+        J('j-bio-kra', '#312 Bio: KRA PIN line with Apply', () => {
+          regSetup('ready');
+          to('decl-bio');
+          setTimeout(
+            () => document.querySelector('.kra-line')?.scrollIntoView({ block: 'center' }),
+            40,
+          );
+        }),
+        J('j-ex-menu', '#316 Read into the form: attachment menu', () => exSetup('menu')),
+        J('j-ex-kind', '#316 Read into the form: choose the document kind', () => exSetup('kind')),
+        J('j-ex-reading', '#316 Read into the form: reading', () => exSetup('reading')),
+        J('j-ex-review', '#316 Read into the form: review, Low field needs a tick', () =>
+          exSetup('review'),
+        ),
+        J('j-ex-deed', '#316 Read into the form: title deed, unreadable page', () =>
+          exSetup('review', { deed: true }),
+        ),
+        J('j-ex-failed', '#316 Read into the form: could not read', () => exSetup('failed')),
+        J('j-ex-off', '#316 Read into the form: not enabled for your Commission', () => {
+          exSetup('menu');
+          S.ai.extract = 'not-enabled';
+        }),
+        J('j-bio-hr', '#319 Bio: HR fields pre-filled from the roster', () => {
+          setupDraft('fresh');
+          to('decl-bio');
+          setTimeout(
+            () => document.getElementById('emp-h')?.scrollIntoView({ block: 'start' }),
+            40,
+          );
+        }),
+        J('j-bio-nohr', '#319 Bio: roster supplied no HR fields (PSC)', () => {
+          home({ show: ['o-tsc-initial', 'o-psc-final'], multi: true });
+          setupDraft('fresh', { obl: 'o-psc-final' });
+          to('decl-bio');
+          setTimeout(
+            () => document.getElementById('emp-h')?.scrollIntoView({ block: 'start' }),
+            40,
+          );
+        }),
+        J('j-src-items', '#319 Items with source badges', () => {
+          const D = regSetup('mixed');
+          docItem(D);
+          S.ui.regOpen.officer = false;
+          to('decl-statement');
+        }),
         J('decl-other', '#128 Other information: complete', () => setupDraft('complete')),
         J('j-other-empty', '#128 Other information: nothing flagged yet', () => {
           setupDraft('fresh');
@@ -6645,6 +10112,32 @@
         J('j-sum-upcoming', '#128 Summary: upcoming biennial, available from 1 Nov 2027', () => {
           home({ show: ['o-tsc-initial', 'o-tsc-b2027'] });
           setupDraft('complete', { obl: 'o-tsc-b2027' });
+          to('decl-summary');
+        }),
+        J('j-sum-src', '#319 Summary: items from registries and documents', () => {
+          const D = regSetup('mixed');
+          docItem(D);
+          S.ui.srcFold = true;
+          to('decl-summary');
+        }),
+        J('j-sum-hints', '#340 Summary: hints under each residual', () => {
+          setupDraft('blocking');
+          to('decl-summary');
+        }),
+        J('j-sum-hints-loading', '#340 Summary: hints loading', () => {
+          setupDraft('blocking');
+          S.ai.hints = 'loading';
+          regTimers.push(
+            setTimeout(() => {
+              S.ai.hints = 'ok';
+              Kit.render();
+            }, 2500),
+          );
+          to('decl-summary');
+        }),
+        J('j-sum-hints-off', '#340 Summary: no AI, rows unchanged', () => {
+          setupDraft('blocking');
+          S.ai.hints = 'off';
           to('decl-summary');
         }),
         J('j-discard', '#128 Discard draft confirmation', () => {
@@ -6786,7 +10279,85 @@
           withModal({ kind: 'discardAmend', id: D.id });
         }),
         J('j-decl-empty', '#148 My declarations: empty', () => to('declarations')),
-        J('primitives', '#64 #87 #114 #137 UI primitives in portal context'),
+        J('j-ask-idle', '#335 Ask Adili: suggested questions (Assets)', () => askSetup()),
+        J('j-ask-stream', '#335 Ask Adili: streaming answer (live)', () => {
+          askSetup();
+          setTimeout(() => askSend('Is a matatu I co-own with my brother an asset?'), 0);
+        }),
+        J('j-ask-answer', '#335 Ask Adili: answer with citations and field link', () => {
+          askSetup();
+          askPreset('How do I value my car?');
+        }),
+        J('j-ask-cite', '#330 #335 Ask Adili: citation expanded', () => {
+          askSetup();
+          const m = askPreset('Is a matatu I co-own with my brother an asset?');
+          S.ask.cite = m.id + '|help-joint';
+        }),
+        J('j-ask-sw', '#335 Ask Adili: Kiswahili', () => {
+          askSetup({ lang: 'sw' });
+          askPreset('Je, matatu ninayomiliki pamoja na kaka yangu ni mali?', { lang: 'sw' });
+        }),
+        J('j-ask-declined', '#335 Ask Adili: declined, ask your reporting officer', () => {
+          askSetup();
+          askPreset("Do I include my late father's land that has not been transferred?");
+        }),
+        J('j-ask-fb', '#335 Ask Adili: feedback, not helpful', () => {
+          askSetup();
+          const m = askPreset('How do I value my car?');
+          Object.assign(m, { rating: 'not-helpful', reason: 'missed-something' });
+        }),
+        J('j-ask-error', '#335 Ask Adili: answer stopped', () => {
+          askSetup();
+          askPreset('What counts as a material change?', { st: 'error', partial: true });
+        }),
+        J('j-ask-rate', '#335 Ask Adili: too many questions (429)', () => {
+          askSetup({ rate: true });
+          S.ask.msgs.push({ id: uid('m'), role: 'user', text: 'How do I value my car?' });
+          S.ask.msgs.push({ id: uid('m'), role: 'assistant', st: 'rate', text: '' });
+        }),
+        J('j-ask-noai', '#335 Ask Adili: unavailable, help search', () => {
+          askSetup();
+          S.ai.assistant = 'down';
+        }),
+        J('j-ask-noai-q', '#335 Ask Adili: unavailable, searching "joint"', () => {
+          askSetup({ q: 'joint' });
+          S.ai.assistant = 'down';
+        }),
+        J('j-ask-home', '#335 Ask Adili: on the dashboard', () => {
+          S.ask.open = true;
+          to('home');
+        }),
+        J('help', '#340 Help: topics'),
+        J('j-help-search', '#340 Help: search results', () => {
+          S.help.q = 'joint';
+          to('help');
+        }),
+        J('j-help-topic', '#340 Help: topic', () => {
+          S.help.topic = 'assets';
+          to('help');
+        }),
+        J('j-help-empty', '#340 Help: no results', () => {
+          S.help.q = 'pension';
+          to('help');
+        }),
+        J('help-article', '#340 Help: article with citations', () => {
+          setupDraft('complete');
+          S.help.article = 'help-joint';
+        }),
+        J('j-help-tenant', '#340 Help: Commission article', () => {
+          S.help.article = 'help-file';
+          to('help-article');
+        }),
+        J('j-help-law', '#340 Help: law passage (read only)', () => {
+          S.help.article = 'act-31-4';
+          to('help-article');
+        }),
+        J('j-help-sw', '#340 Help: Kiswahili, English-only fallback', () => {
+          S.help.lang = 'sw';
+          S.help.article = 'act-35';
+          to('help-article');
+        }),
+        J('primitives', '#64 #87 #114 #137 #309 #330 UI primitives in portal context'),
       ];
       const coverage = [
         {
@@ -7007,6 +10578,104 @@
             'j-decl-empty',
           ],
         },
+        {
+          ticket: 255,
+          title: 'Access requests about my declaration (home card only)',
+          screens: ['j-home-access'],
+          note: 'Hidden when there is no request (John by default). List, detail and representations live in declarant-after-submission.prototype.html.',
+        },
+        {
+          ticket: 269,
+          title: 'Certified copies (entry from each submitted version)',
+          screens: ['j-decl-versions'],
+          note: 'Request, preparing and download live in declarant-profile.prototype.html#certified-copies.',
+        },
+        {
+          ticket: 309,
+          title:
+            'UI primitives round 14: suggestion card, consent dialog, registry status row, confidence chip, source badge',
+          screens: ['primitives', 'j-reg-consent', 'j-reg-ready', 'j-ex-review', 'j-src-items'],
+        },
+        {
+          ticket: 312,
+          title: 'Check registries per person with suggestion cards',
+          screens: [
+            'j-reg-idle',
+            'j-reg-consent',
+            'j-reg-checking',
+            'j-reg-ready',
+            'j-reg-mixed',
+            'j-reg-edit',
+            'j-reg-conflict',
+            'j-reg-spouse',
+            'j-reg-noid',
+            'j-bio-kra',
+          ],
+          note: 'Lookups, consent records and the legal basis header are server-side. Registry results are demo fixtures; re-checking keeps accepted and dismissed suggestions.',
+        },
+        {
+          ticket: 316,
+          title: 'Read into the form and extraction review sheet',
+          screens: [
+            'j-ex-menu',
+            'j-ex-kind',
+            'j-ex-reading',
+            'j-ex-review',
+            'j-ex-deed',
+            'j-ex-failed',
+            'j-ex-off',
+          ],
+          note: 'Polling is simulated (about 2 seconds). Applied fields go through accept with source.kind = document.',
+        },
+        {
+          ticket: 319,
+          title: 'HR pre-filled bio fields and source badges on items and summary',
+          screens: ['j-bio-hr', 'j-bio-nohr', 'j-src-items', 'j-sum-src'],
+        },
+        {
+          ticket: 330,
+          title:
+            'UI primitives round 15: chat panel shell, streaming message, citation chip, suggested-question chips',
+          screens: ['primitives', 'j-ask-idle', 'j-ask-stream', 'j-ask-cite'],
+        },
+        {
+          ticket: 335,
+          title:
+            'Ask Adili panel with streaming answers, citations, section links, decline and no-AI mode',
+          screens: [
+            'j-ask-idle',
+            'j-ask-stream',
+            'j-ask-answer',
+            'j-ask-cite',
+            'j-ask-sw',
+            'j-ask-declined',
+            'j-ask-fb',
+            'j-ask-error',
+            'j-ask-rate',
+            'j-ask-noai',
+            'j-ask-noai-q',
+            'j-ask-home',
+          ],
+          note: 'The gateway is faked with canned grounded answers; any other question declines. Type a question and press Enter. The Mobile toggle shows the bottom sheet.',
+        },
+        {
+          ticket: 340,
+          title: 'Summary completeness hints and help pages',
+          screens: [
+            'j-sum-hints',
+            'j-sum-hints-loading',
+            'j-sum-hints-off',
+            'help',
+            'j-help-search',
+            'j-help-topic',
+            'j-help-empty',
+            'help-article',
+            'j-help-tenant',
+            'j-help-law',
+            'j-help-sw',
+          ],
+          note: 'The portal Help button (question mark in the top bar) opens these pages.',
+        },
       ];
 
       /* restore state after the Keycloak step-up round trip */
@@ -7048,6 +10717,15 @@
           }
           markDirty();
         },
+        afterRender: () => {
+          askAnim = false;
+          const el = document.getElementById('ask-msgs');
+          if (!el) return;
+          if (askBottom) {
+            el.scrollTop = el.scrollHeight;
+            askBottom = false;
+          } else el.scrollTop = askScroll;
+        },
         reset: () => {
           sessionStorage.removeItem(SNAP_KEY);
           location.hash = '';
@@ -7057,6 +10735,26 @@
       document.body.insertAdjacentHTML(
         'beforeend',
         '<div id="sr-live" class="sr-only" aria-live="polite"></div>',
+      );
+
+      /* scrollIntoView can scroll the clipped #app frame itself (phone preview); keep it pinned */
+      const appEl = document.getElementById('app');
+      appEl.addEventListener('scroll', () => {
+        if (appEl.scrollTop) appEl.scrollTop = 0;
+      });
+      /* Ask Adili: Enter sends, Shift+Enter adds a line; keep the conversation scroll across renders */
+      document.getElementById('app').addEventListener('keydown', (e) => {
+        if (e.target.id === 'ask-input' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+          e.preventDefault();
+          askSend(e.target.value);
+        }
+      });
+      document.addEventListener(
+        'scroll',
+        (e) => {
+          if (e.target.id === 'ask-msgs') askScroll = e.target.scrollTop;
+        },
+        true,
       );
 
       /* input shaping that must run before the kit's two-way binding (capture phase) */

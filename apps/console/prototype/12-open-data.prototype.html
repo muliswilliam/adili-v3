@@ -1,0 +1,2551 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: how do EACC analysts and supervisors preview, publish, withdraw and version open-data releases, and what does a Commission administrator see before publication? Covers tickets #349, #350, #353, #356, #360 (spec 09b #297). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Open data (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      /* ---------- shared open-data primitives (#349, #356) ---------- */
+      .sup {
+        display: inline-flex;
+        align-items: center;
+        height: 19px;
+        padding: 0 6px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+        background: repeating-linear-gradient(135deg, #f4f3f1 0 4px, #e9e7e3 4px 6px);
+        box-shadow: inset 0 0 0 1px var(--line);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        cursor: help;
+      }
+      .sup.comp {
+        font-weight: 500;
+      }
+      .sup.nr {
+        background: var(--sunken);
+        color: var(--muted);
+        font-weight: 500;
+        cursor: default;
+      }
+      .sup-legend {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .sup-legend > svg {
+        color: var(--muted);
+        flex: none;
+      }
+      .sup-legend > span:first-of-type {
+        flex: 1 1 260px;
+        min-width: 0;
+      }
+      .sup-keys {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12.5px;
+        flex-wrap: wrap;
+      }
+      .sup-keys .sup + span {
+        margin-right: 6px;
+      }
+      .sup-n {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .kind {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink-2);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+        white-space: nowrap;
+      }
+
+      /* data tables */
+      .dtable tbody th[scope='row'],
+      .viz-table tbody th[scope='row'] {
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--ink);
+        background: none;
+        text-align: left;
+        white-space: nowrap;
+        position: static;
+        border-bottom: 1px solid var(--line);
+      }
+      .dtable tbody tr:last-child th {
+        border-bottom: 0;
+      }
+      .dtable td,
+      .dtable th {
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+      .dtable thead th {
+        position: static;
+      }
+      .dtable.grouped thead tr:first-child th.grp {
+        text-align: center;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+      }
+      .dtable.grouped thead tr:first-child th[rowspan] {
+        vertical-align: bottom;
+      }
+      .dtable tr.nr th {
+        color: var(--muted);
+      }
+      .th-sort {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+      }
+      .th-sort.on {
+        color: var(--ink);
+      }
+      th.num .th-sort {
+        flex-direction: row-reverse;
+      }
+
+      /* charts */
+      .viz {
+        margin: 0;
+        min-width: 0;
+        /* The table fallback can be wider than the card on phones: scroll it sideways. */
+        overflow-x: auto;
+      }
+      .viz-plot {
+        width: 100%;
+      }
+      .viz-svg {
+        display: block;
+        overflow: visible;
+      }
+      .viz-svg text {
+        font-family: inherit;
+        fill: var(--ink-2);
+        font-size: 12px;
+      }
+      .viz-svg .tk {
+        fill: var(--muted);
+        font-size: 11.5px;
+        font-variant-numeric: tabular-nums;
+      }
+      .viz-svg .cat {
+        fill: var(--ink);
+        font-size: 12.5px;
+      }
+      .viz-svg .val {
+        paint-order: stroke;
+        stroke: #fff;
+        stroke-width: 4px;
+        stroke-linejoin: round;
+        fill: var(--ink);
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .viz-svg .nullv {
+        fill: var(--ink-2);
+        font-size: 11.5px;
+        font-weight: 600;
+      }
+      .viz-svg .axt {
+        fill: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .viz-svg .reflab {
+        fill: var(--ink-2);
+        font-size: 11.5px;
+        font-weight: 600;
+      }
+      .viz-svg .hit:hover {
+        fill: rgba(42, 120, 214, 0.06);
+      }
+      .viz-legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: var(--ink-2);
+        margin-bottom: 8px;
+      }
+      .viz-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .viz-legend i {
+        width: 14px;
+        height: 3px;
+        border-radius: 2px;
+      }
+      .viz-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 180px;
+        border-radius: 12px;
+        background: var(--sunken);
+        color: var(--muted);
+        font-size: 14px;
+        gap: 6px;
+        padding: 20px;
+      }
+      .viz-empty b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .dtable tbody th[scope='row'],
+      .dtable thead tr:first-child th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+      }
+      .dtable tbody th[scope='row'] {
+        background: var(--surface);
+      }
+      @container app (max-width: 699px) {
+        .dtable tbody th[scope='row'] {
+          white-space: normal;
+          max-width: 200px;
+          box-shadow: 1px 0 0 var(--line);
+        }
+        .dtable .rn {
+          display: inline-block;
+          min-width: 150px;
+        }
+        .tbar .spacer {
+          display: none;
+        }
+        .tbar .sup-legend {
+          flex-basis: 100%;
+        }
+        .tbar .seg button {
+          padding: 0 9px;
+        }
+      }
+      @container app (max-width: 599px) {
+        .lg-only {
+          display: none;
+        }
+      }
+      .card .table-wrap,
+      .viz {
+        position: relative;
+      }
+
+      /* ---------- console: open data ---------- */
+      .head-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .rel-banner {
+        margin-bottom: 14px;
+        align-items: flex-start;
+      }
+      .rel-banner > div:not(.acts) {
+        flex: 1 1 240px;
+        min-width: 0;
+      }
+      .rel-banner .acts {
+        display: flex;
+        gap: 8px;
+        flex: none;
+        align-self: center;
+      }
+      @container app (max-width: 699px) {
+        .rel-banner {
+          flex-wrap: wrap;
+        }
+        .rel-banner .acts {
+          margin-left: 30px;
+        }
+      }
+      .build-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 16px 20px;
+        margin-bottom: 14px;
+      }
+      .bsteps {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .bsteps li {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .bsteps li.done {
+        color: var(--ok);
+      }
+      .bsteps li.on {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .bsteps .n {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .bsteps li.on .n {
+        background: var(--ink);
+        color: #fff;
+      }
+      .rel-table .rowlink {
+        text-decoration: none;
+      }
+      .recon {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 13.5px;
+        color: var(--ink-2);
+        margin: -6px 0 16px;
+      }
+      .recon svg {
+        color: var(--ok);
+        flex: none;
+        margin-top: 2px;
+      }
+      .recon .ref {
+        font-size: 13px;
+      }
+      .rel-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+      }
+      @container app (min-width: 1180px) {
+        .rel-grid {
+          grid-template-columns: minmax(0, 1fr) 320px;
+        }
+      }
+      .rel-tabs {
+        padding: 0 12px;
+      }
+      .tbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tbar .sup-legend {
+        flex: 1 1 280px;
+      }
+      .side-card .sec-h {
+        padding: 14px 16px;
+      }
+      .side-card .sec-b {
+        padding: 14px 16px;
+      }
+      .files {
+        list-style: none;
+        margin: 0;
+        padding: 4px 0;
+      }
+      .files li {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 12px 8px 16px;
+        font-size: 13.5px;
+      }
+      .files li + li {
+        border-top: 1px solid var(--line);
+      }
+      .files .sub {
+        font-size: 12.5px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .man {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .man .qrw {
+        padding: 4px;
+        border-radius: 8px;
+        box-shadow: 0 0 0 1px var(--line);
+        flex: none;
+        line-height: 0;
+      }
+      .vcode {
+        font-size: 12.5px;
+        word-break: break-all;
+        line-height: 1.45;
+      }
+      .versions {
+        list-style: none;
+        margin: 0;
+        padding: 4px 0;
+      }
+      .versions > li {
+        padding: 12px 16px;
+      }
+      .versions > li + li {
+        border-top: 1px solid var(--line);
+      }
+      .versions > li.cur {
+        background: #fcfbfa;
+      }
+      .versions .vh {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .versions .vh a {
+        color: var(--ink);
+      }
+      .versions blockquote {
+        margin: 8px 0 0;
+        padding: 6px 10px;
+        border-left: 2px solid var(--danger);
+        background: var(--danger-soft);
+        border-radius: 0 6px 6px 0;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .vev {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        font-size: 12.5px;
+        color: var(--muted);
+        display: grid;
+        gap: 2px;
+      }
+      .conseq {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+        font-size: 14px;
+      }
+      .conseq li {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .conseq svg {
+        flex: none;
+        margin-top: 3px;
+        color: var(--ink-2);
+      }
+      .cp-src {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 14px;
+        color: var(--ink-2);
+        margin: -8px 0 14px;
+      }
+      .cp-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+      }
+      @container app (min-width: 900px) {
+        .cp-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .prim-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 6px 0;
+      }
+      .viz-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .state-page {
+        max-width: 520px;
+        margin: 60px auto;
+        text-align: center;
+      }
+      .state-page .ico {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 16px;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .state-page h1 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .state-page p {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      .rel-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: none;
+      }
+      .rel-list li + li {
+        border-top: 1px solid var(--line);
+      }
+      .rel-list a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        text-decoration: none;
+      }
+      .rel-list .t {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .rel-list .s {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      @container app (max-width: 699px) {
+        .rel-list {
+          display: block;
+        }
+        .rel-table-wrap {
+          display: none;
+        }
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const {
+        icon,
+        esc,
+        field,
+        input,
+        select,
+        textarea,
+        dialog,
+        consoleShell,
+        portalShell,
+        fmtDate,
+        fmtDateTime,
+        num,
+        badge,
+        empty,
+      } = Kit;
+      /* ==================== shared: open-data demo world, suppression, primitives (#349, #356) ==================== */
+      // The same block is inlined in apps/console/prototype/12-open-data and apps/portal/prototype/open-data.
+      const FYL = (y) => `FY ${y}/${y + 1}`;
+      const FYS = (y) => `${y}/${String(y + 1).slice(2)}`;
+      const hash01 = (s) => {
+        let h = 2166136261;
+        for (const ch of String(s)) {
+          h ^= ch.charCodeAt(0);
+          h = Math.imul(h, 16777619);
+        }
+        h ^= h >>> 13;
+        h = Math.imul(h, 2246822507);
+        h ^= h >>> 16;
+        return (h >>> 0) / 4294967295;
+      };
+      const rr = (key, a, b) => a + (b - a) * hash01(key);
+      const fakeSha = (s) =>
+        Array.from({ length: 8 }, (_, i) =>
+          Math.floor(hash01(s + '#' + i) * 4294967295)
+            .toString(16)
+            .padStart(8, '0'),
+        ).join('');
+      const rateOf = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : null);
+      const pctS = (v) => (v == null ? '-' : `${v.toFixed(1)}%`);
+
+      /* ---------- Responsible Commissions ---------- */
+      const COUNTIES = [
+        'Mombasa',
+        'Kwale',
+        'Kilifi',
+        'Tana River',
+        'Lamu',
+        'Taita-Taveta',
+        'Garissa',
+        'Wajir',
+        'Mandera',
+        'Marsabit',
+        'Isiolo',
+        'Meru',
+        'Tharaka-Nithi',
+        'Embu',
+        'Kitui',
+        'Machakos',
+        'Makueni',
+        'Nyandarua',
+        'Nyeri',
+        'Kirinyaga',
+        "Murang'a",
+        'Kiambu',
+        'Turkana',
+        'West Pokot',
+        'Samburu',
+        'Trans Nzoia',
+        'Uasin Gishu',
+        'Elgeyo-Marakwet',
+        'Nandi',
+        'Baringo',
+        'Laikipia',
+        'Nakuru',
+        'Narok',
+        'Kajiado',
+        'Kericho',
+        'Bomet',
+        'Kakamega',
+        'Vihiga',
+        'Bungoma',
+        'Busia',
+        'Siaya',
+        'Kisumu',
+        'Homa Bay',
+        'Migori',
+        'Kisii',
+        'Nyamira',
+        'Nairobi City',
+      ];
+      const COMMS = [
+        {
+          code: 'PSC',
+          name: 'Public Service Commission',
+          short: 'Public Service Comm.',
+          size: { initial: 2920, biennial: 46480, final: 912 },
+          decl2025: [2808, 45210, 861],
+          clar2025: 402,
+        },
+        {
+          code: 'TSC',
+          name: 'Teachers Service Commission',
+          short: 'Teachers Service Comm.',
+          size: { initial: 9412, biennial: 331870, final: 7905 },
+          decl2025: [8960, 318402, 6811],
+          clar2025: 1284,
+        },
+        {
+          code: 'JSC',
+          name: 'Judicial Service Commission',
+          short: 'Judicial Service Comm.',
+          size: { initial: 410, biennial: 6120, final: 88 },
+          notReported: [2024, 2025],
+        },
+        {
+          code: 'PARLSC',
+          name: 'Parliamentary Service Commission',
+          short: 'Parliamentary Service',
+          size: { initial: 214, biennial: 2890, final: 96 },
+          decl2025: [206, 2811, 90],
+          clar2025: 41,
+        },
+        {
+          code: 'NPSC',
+          name: 'National Police Service Commission',
+          short: 'National Police Service',
+          size: { initial: 6120, biennial: 104300, final: 2410 },
+          decl2025: [5988, 101120, 2209],
+          clar2025: 612,
+        },
+        ...COUNTIES.map((county, i) => {
+          const k = i + 1;
+          const code = `CPSB${String(k).padStart(3, '0')}`;
+          const c = {
+            code,
+            name: `${county} County Public Service Board`,
+            short: `${county} CPSB`,
+            county: true,
+            size: {
+              initial: 180 + ((k * 37) % 320),
+              biennial: 2400 + ((k * 211) % 4200),
+              final: 40 + ((k * 13) % 90),
+            },
+          };
+          const over = {
+            47: {
+              size: { initial: 1840, biennial: 16240, final: 410 },
+              decl2025: [1702, 10069, 351],
+              clar2025: 97,
+            },
+            1: {
+              size: { initial: 620, biennial: 7410, final: 48 },
+              decl2025: [598, 7102, 44],
+              clar2025: 22,
+            },
+            32: {
+              size: { initial: 512, biennial: 6802, final: 133 },
+              decl2025: [501, 6590, 127],
+              clar2025: 18,
+            },
+            22: {
+              size: { initial: 455, biennial: 6120, final: 148 },
+              decl2025: [440, 5890, 101],
+              clar2025: 30,
+            },
+            27: {
+              size: { initial: 402, biennial: 5980, final: 121 },
+              decl2025: [390, 5801, 116],
+              clar2025: 15,
+            },
+            37: { notReported: [2024, 2025] },
+            42: { notReported: [2025] },
+            // Small final cycles drive suppression (fewer than 10 officers).
+            5: { small: { 2024: { final: 6 }, 2025: { final: 6 } } },
+            4: { small: { 2025: { final: 7 } } },
+            11: { small: { 2025: { final: 8 } } },
+            25: { small: { 2025: { final: 9 } } },
+          }[k];
+          return Object.assign(c, over || {});
+        }),
+      ];
+      const byCode = (code) => COMMS.find((c) => c.code === code);
+      const CYCLES = ['initial', 'biennial', 'final'];
+      const CYCLE_L = {
+        initial: 'Initial',
+        biennial: 'Biennial',
+        final: 'Final',
+        all: 'All cycles',
+      };
+      const ENTITY_TYPES = [
+        ['Public school or college', 0.5],
+        ['Ministry or state department', 0.12],
+        ['Police service', 0.16],
+        ['County executive', 0.1],
+        ['County assembly', 0.03],
+        ['State corporation', 0.05],
+        ['Constitutional commission or independent office', 0.02],
+        ['Parliament', 0.012],
+        ['Judiciary', 0.008],
+      ];
+
+      /* ---------- releases (OpenDataRelease, reporting.yaml) ---------- */
+      const NCR_REF = { 2024: 'NCR-EACC-2024-0000001-C', 2025: 'NCR-EACC-2025-0000001-Q' };
+      const RELEASES_SEED = [
+        {
+          id: 'rel-2025-annual-1',
+          fy: 2025,
+          kind: 'annual',
+          version: 1,
+          status: 'published',
+          asAt: '2026-06-30',
+          builtAt: '2026-09-18T15:10:00',
+          builtBy: null,
+          publishedAt: '2026-09-18T15:12:00',
+          publishedBy: null,
+          auto: true,
+          manifestVerificationId: 'ADL-8KQD-3TWM-6HXC-2RPA-9VNF-4E',
+        },
+        {
+          id: 'rel-2025-snapshot-1',
+          fy: 2025,
+          kind: 'snapshot',
+          version: 1,
+          status: 'published',
+          asAt: '2026-01-31',
+          builtAt: '2026-02-12T09:40:00',
+          builtBy: 'Brian Otieno',
+          publishedAt: '2026-02-16T10:05:00',
+          publishedBy: 'Esther Chebet',
+          manifestVerificationId: 'ADL-5MRX-7QCK-1WHT-8DNP-3JFA-6B',
+        },
+        {
+          id: 'rel-2024-annual-2',
+          fy: 2024,
+          kind: 'annual',
+          version: 2,
+          status: 'published',
+          asAt: '2025-06-30',
+          builtAt: '2025-10-06T08:55:00',
+          builtBy: 'Brian Otieno',
+          publishedAt: '2025-10-06T09:30:00',
+          publishedBy: 'Esther Chebet',
+          manifestVerificationId: 'ADL-2HVN-9KDT-4QXM-7CPW-1RFE-8K',
+        },
+        {
+          id: 'rel-2024-annual-1',
+          fy: 2024,
+          kind: 'annual',
+          version: 1,
+          status: 'withdrawn',
+          asAt: '2025-06-30',
+          builtAt: '2025-09-19T16:02:00',
+          builtBy: null,
+          publishedAt: '2025-09-19T16:04:00',
+          publishedBy: null,
+          auto: true,
+          withdrawnAt: '2025-10-03T11:20:00',
+          withdrawnBy: 'Esther Chebet',
+          withdrawnReason:
+            'Initial declarations for the Teachers Service Commission were counted twice for 1,204 declarants. Version 2 corrects this.',
+          manifestVerificationId: 'ADL-6TCW-2MKR-8HQD-5XNA-3VPE-1F',
+        },
+      ];
+      const relTitle = (r) => `${FYL(r.fy)} ${r.kind === 'annual' ? 'annual' : 'snapshot'}`;
+      const relName = (r) => `${relTitle(r)} v${r.version}`;
+
+      /* ---------- dataset builder: the six tables with suppression ---------- */
+      function expectedFor(c, fy, cycle, kind, asAt) {
+        if (cycle === 'biennial' && fy % 2 === 0) return 0; // no biennial cycle in even FYs
+        const small = c.small?.[fy]?.[cycle];
+        let e =
+          small != null
+            ? small
+            : Math.round(c.size[cycle] * (fy === 2024 ? 0.96 : fy === 2026 ? 1.02 : 1));
+        if (kind === 'snapshot' && small == null) {
+          const f =
+            fy === 2026
+              ? { initial: 0.22, biennial: 0, final: 0.24 }
+              : { initial: 0.6, biennial: 0.42, final: 0.58 };
+          e = Math.round(e * f[cycle]);
+        }
+        return e;
+      }
+      function commissionFigures(c, rel) {
+        const { fy, kind } = rel;
+        const key = `${c.code}-${fy}-${kind}`;
+        if (c.notReported?.includes(fy) && kind === 'annual') return null;
+        const f = {};
+        CYCLES.forEach((cy, i) => {
+          const e = expectedFor(c, fy, cy, kind);
+          let d;
+          if (fy === 2025 && kind === 'annual' && c.decl2025) d = c.decl2025[i];
+          else {
+            let miss =
+              rr(key + cy, 0.012, 0.075) +
+              (fy === 2024 ? 0.025 : 0) +
+              (kind === 'snapshot' ? 0.05 : 0);
+            if (c.code === 'CPSB047' && cy === 'biennial') miss = 0.36;
+            d = e - Math.round(e * miss);
+            if (e && e < 10) d = e - Math.round(rr(key + cy + 's', 0, 2.4));
+          }
+          if (rel.id === 'rel-2024-annual-1' && c.code === 'TSC' && cy === 'initial') d += 1204;
+          const late = Math.round(d * rr(key + cy + 'l', 0.03, 0.13));
+          f[cy] = { e, d, late };
+        });
+        const E = CYCLES.reduce((a, cy) => a + f[cy].e, 0);
+        const D = CYCLES.reduce((a, cy) => a + f[cy].d, 0);
+        const nonFilers = Math.max(0, E - D);
+        const dets = Math.round(D * rr(key + 'dr', 0.22, 0.5));
+        const comp = Math.round(dets * rr(key + 'cr', 0.88, 0.965));
+        const nonc = Math.round((dets - comp) * rr(key + 'nc', 0.45, 0.7));
+        const further = dets - comp - nonc;
+        const clarI =
+          fy === 2025 && kind === 'annual' && c.clar2025
+            ? c.clar2025
+            : Math.round(D * rr(key + 'cl', 0.004, 0.012));
+        const clarR = Math.round(clarI * rr(key + 'cz', 0.78, 0.93));
+        const notice = Math.round(
+          (nonFilers * rr(key + 'an', 0.45, 0.7) + nonc * 0.4) * (kind === 'snapshot' ? 0.45 : 1),
+        );
+        const warning = Math.round(notice * rr(key + 'aw', 0.18, 0.34));
+        const stoppage = Math.round(warning * rr(key + 'as', 0.12, 0.28));
+        const disciplinary = Math.round(stoppage * rr(key + 'ad', 0.2, 0.45));
+        const referrals = Math.round(
+          disciplinary * rr(key + 'rf', 0.3, 0.8) + (c.county ? 0 : rr(key + 'rx', 1, 6)),
+        );
+        const big = !c.county || ['CPSB047', 'CPSB001', 'CPSB022', 'CPSB032'].includes(c.code);
+        const acc = big
+          ? Math.round(rr(key + 'ac', 6, c.code === 'TSC' ? 60 : 34))
+          : Math.round(rr(key + 'ac', -3, 5));
+        const received = Math.max(0, acc);
+        const granted = Math.round(received * rr(key + 'ag', 0.4, 0.6));
+        const partly = Math.round((received - granted) * rr(key + 'ap', 0.2, 0.5));
+        const denied = received - granted - partly;
+        const dPurpose = Math.round(denied * 0.55);
+        const dInv = Math.round((denied - dPurpose) * 0.6);
+        const lea = big
+          ? Math.round(rr(key + 'le', 1, c.code === 'TSC' ? 24 : 12))
+          : Math.round(rr(key + 'le', -2, 3));
+        return {
+          f,
+          E,
+          D,
+          late: CYCLES.reduce((a, cy) => a + f[cy].late, 0),
+          nonFilers,
+          dets,
+          comp,
+          nonc,
+          further,
+          clarI,
+          clarR,
+          notice,
+          warning,
+          stoppage,
+          disciplinary,
+          referrals,
+          received,
+          granted,
+          partly,
+          dPurpose,
+          dInv,
+          dOther: denied - dPurpose - dInv,
+          lea: Math.max(0, lea),
+        };
+      }
+
+      // Pure suppression module (spec 09b "Suppression"): cells derived from fewer than 10 officers become
+      // null with a marker; complementary suppression hides the next smallest cell wherever a single hidden
+      // cell could be recovered from a published total. Markers: 'p' primary, 'c' complementary.
+      const SUP_T = 10;
+      function suppressCells(rows, cols) {
+        rows.forEach((r) => {
+          r._sup = r._sup || {};
+          if (r._nr) return;
+          cols.forEach((c) => {
+            if (r[c] > 0 && r[c] < SUP_T) r._sup[c] = 'p';
+          });
+        });
+        complementCols(rows, cols, false);
+      }
+      function complementCols(rows, cols, wholeRow, rowCols) {
+        let changed = true;
+        let guard = 0;
+        while (changed && guard++ < 20) {
+          changed = false;
+          cols.forEach((c) => {
+            const hidden = rows.filter((r) => r._sup[c]);
+            if (hidden.length !== 1) return;
+            const cand = rows
+              .filter((r) => !r._nr && !r._sup[c] && r[c] > 0)
+              .sort((a, b) => a[c] - b[c])[0];
+            if (!cand) return;
+            (wholeRow ? rowCols : [c]).forEach((cc) => {
+              if (!cand._sup[cc]) cand._sup[cc] = 'c';
+            });
+            changed = true;
+          });
+        }
+      }
+
+      const DS_CACHE = {};
+      function dataset(rel) {
+        if (DS_CACHE[rel.id]) return DS_CACHE[rel.id];
+        const figs = COMMS.map((c) => ({ c, x: commissionFigures(c, rel) }));
+        const T = {};
+
+        /* filing-by-commission: Commission x cycle, plus all cycles */
+        const fcols = ['expected', 'filed', 'late', 'nonFilers', 'filingRate'];
+        const frows = [];
+        figs.forEach(({ c, x }) => {
+          [...CYCLES, 'all'].forEach((cy) => {
+            const base = { commission: c.name, commissionCode: c.code, short: c.short, cycle: cy };
+            if (!x) return frows.push({ ...base, _nr: true, _sup: {} });
+            const v = cy === 'all' ? { e: x.E, d: x.D, late: x.late } : x.f[cy];
+            if (!v.e && !v.d) return; // no obligations in this cycle
+            frows.push({
+              ...base,
+              expected: v.e,
+              filed: v.d,
+              late: v.late,
+              nonFilers: Math.max(0, v.e - v.d),
+              filingRate: rateOf(v.d, v.e),
+              _sup: {},
+            });
+          });
+        });
+        // Primary: a row whose officer denominator (expected) is under 10 is hidden entirely.
+        frows.forEach((r) => {
+          if (!r._nr && r.expected > 0 && r.expected < SUP_T)
+            fcols.forEach((k) => (r._sup[k] = 'p'));
+        });
+        // Complementary: per cycle (column totals are published in by-cycle) and per Commission (all cycles total).
+        for (let pass = 0; pass < 4; pass++) {
+          CYCLES.forEach((cy) =>
+            complementCols(
+              frows.filter((r) => r.cycle === cy),
+              ['expected'],
+              true,
+              fcols,
+            ),
+          );
+          COMMS.forEach((c) => {
+            const mine = frows.filter(
+              (r) => r.commissionCode === c.code && r.cycle !== 'all' && !r._nr,
+            );
+            const hidden = mine.filter((r) => r._sup.expected);
+            if (hidden.length === 1) {
+              const cand = mine
+                .filter((r) => !r._sup.expected)
+                .sort((a, b) => a.expected - b.expected)[0];
+              if (cand) fcols.forEach((k) => (cand._sup[k] = cand._sup[k] || 'c'));
+            }
+          });
+        }
+        T['filing-by-commission'] = { rows: frows };
+
+        /* compliance-by-commission */
+        const ccols = [
+          'determinationsCompliant',
+          'determinationsNonCompliant',
+          'determinationsFurtherAction',
+          'clarificationsIssued',
+          'clarificationsResolved',
+          'actionsNotice',
+          'actionsWarning',
+          'actionsSalaryStoppage',
+          'actionsDisciplinary',
+          'referrals',
+        ];
+        const crows = figs.map(({ c, x }) => {
+          const base = { commission: c.name, commissionCode: c.code, short: c.short, _sup: {} };
+          if (!x) return { ...base, _nr: true };
+          return {
+            ...base,
+            determinationsCompliant: x.comp,
+            determinationsNonCompliant: x.nonc,
+            determinationsFurtherAction: x.further,
+            clarificationsIssued: x.clarI,
+            clarificationsResolved: x.clarR,
+            actionsNotice: x.notice,
+            actionsWarning: x.warning,
+            actionsSalaryStoppage: x.stoppage,
+            actionsDisciplinary: x.disciplinary,
+            referrals: x.referrals,
+            complianceRate: rateOf(x.comp, x.dets),
+            _dets: x.dets,
+          };
+        });
+        suppressCells(crows, ccols);
+        crows.forEach((r) => {
+          if (!r._nr && r._dets < SUP_T) r._sup.complianceRate = 'p';
+        });
+        T['compliance-by-commission'] = { rows: crows };
+
+        /* national sums (published rows only use real values; suppression never changes totals) */
+        const rep = figs.filter((f) => f.x);
+        const sum = (fn) => rep.reduce((a, { x }) => a + fn(x), 0);
+        const byCy = CYCLES.map((cy) => {
+          const e = sum((x) => x.f[cy].e);
+          const d = sum((x) => x.f[cy].d);
+          return {
+            cycle: cy,
+            expected: e,
+            filed: d,
+            late: sum((x) => x.f[cy].late),
+            nonFilers: Math.max(0, e - d),
+            filingRate: rateOf(d, e),
+            _sup: {},
+          };
+        }).filter((r) => r.expected);
+        T['by-cycle'] = { rows: byCy };
+        const NT = {
+          expected: sum((x) => x.E),
+          filed: sum((x) => x.D),
+          late: sum((x) => x.late),
+          dets: sum((x) => x.dets),
+          comp: sum((x) => x.comp),
+          nonc: sum((x) => x.nonc),
+          further: sum((x) => x.further),
+          clarI: sum((x) => x.clarI),
+          clarR: sum((x) => x.clarR),
+          actions: sum((x) => x.notice + x.warning + x.stoppage + x.disciplinary),
+          referrals: sum((x) => x.referrals),
+          received: sum((x) => x.received),
+          granted: sum((x) => x.granted),
+          lea: sum((x) => x.lea),
+          reporting: rep.length,
+          commissions: COMMS.length,
+        };
+        NT.nonFilers = Math.max(0, NT.expected - NT.filed);
+        NT.filingRate = rateOf(NT.filed, NT.expected);
+        NT.complianceRate = rateOf(NT.comp, NT.dets);
+
+        /* by-entity-type */
+        T['by-entity-type'] = {
+          rows: ENTITY_TYPES.map(([t, share], i) => {
+            const e = Math.round(NT.expected * share);
+            const d = Math.round(e * (1 - rr(rel.id + t, 0.02, 0.09)));
+            const referrals = Math.round(NT.referrals * share * rr(rel.id + t + 'r', 0.6, 1.4));
+            return {
+              entityType: t,
+              expected: e,
+              filed: Math.min(d, e),
+              late: Math.round(d * rr(rel.id + t + 'l', 0.04, 0.11)),
+              nonFilers: e - Math.min(d, e),
+              filingRate: rateOf(Math.min(d, e), e),
+              determinations: Math.round(NT.dets * share),
+              clarificationsIssued: Math.round(NT.clarI * share),
+              actions: Math.round(NT.actions * share),
+              referrals,
+              _sup: {},
+            };
+          }),
+        };
+        suppressCells(T['by-entity-type'].rows, [
+          'determinations',
+          'clarificationsIssued',
+          'actions',
+          'referrals',
+        ]);
+
+        /* access-requests */
+        const acols = [
+          'received',
+          'granted',
+          'partlyGranted',
+          'deniedPurpose',
+          'deniedInvestigation',
+          'deniedOther',
+          'lawEnforcementRequests',
+        ];
+        const arows = figs.map(({ c, x }) => {
+          const base = { commission: c.name, commissionCode: c.code, short: c.short, _sup: {} };
+          if (!x) return { ...base, _nr: true };
+          return {
+            ...base,
+            received: x.received,
+            granted: x.granted,
+            partlyGranted: x.partly,
+            deniedPurpose: x.dPurpose,
+            deniedInvestigation: x.dInv,
+            deniedOther: x.dOther,
+            lawEnforcementRequests: x.lea,
+          };
+        });
+        suppressCells(arows, acols);
+        T['access-requests'] = { rows: arows };
+
+        /* national-totals */
+        T['national-totals'] = {
+          rows: [
+            ['Responsible Commissions reporting', NT.reporting, `of ${NT.commissions}`],
+            ['Declarations expected', NT.expected],
+            ['Declarations made', NT.filed],
+            ['Declaration rate', NT.filingRate, '%'],
+            ['Made late', NT.late],
+            ['Not made', NT.nonFilers],
+            ['Compliance determinations', NT.dets],
+            ['Compliance rate', NT.complianceRate, '%'],
+            ['Clarifications issued', NT.clarI],
+            ['Clarifications resolved', NT.clarR],
+            ['Administrative actions', NT.actions],
+            ['Referrals to EACC', NT.referrals],
+            ['Access requests received', NT.received],
+            ['Access requests granted', NT.granted],
+            ['Law enforcement requests', NT.lea],
+          ].map(([measure, value, unit]) => ({ measure, value, unit, _sup: {} })),
+        };
+
+        const hiddenCount = (rows) =>
+          rows.reduce((a, r) => a + Object.keys(r._sup || {}).length, 0);
+        Object.entries(T).forEach(([k, t]) => {
+          const rowsForFile = k === 'filing-by-commission' ? t.rows : t.rows;
+          t.hidden = hiddenCount(rowsForFile);
+          t.count = rowsForFile.length;
+          t.sha256Json = fakeSha(rel.id + k + 'json');
+          t.sha256Csv = fakeSha(rel.id + k + 'csv');
+        });
+        return (DS_CACHE[rel.id] = { T, NT });
+      }
+
+      /* ---------- table definitions (columns: key, English label, Kiswahili label, format) ---------- */
+      const TABLES = [
+        { key: 'filing-by-commission', l: 'Declarations by Commission', sw: 'Matamko kwa Tume' },
+        { key: 'compliance-by-commission', l: 'Compliance by Commission', sw: 'Utiifu kwa Tume' },
+        { key: 'by-entity-type', l: 'By reporting entity type', sw: 'Kwa aina ya shirika' },
+        { key: 'by-cycle', l: 'By cycle', sw: 'Kwa mzunguko' },
+        { key: 'access-requests', l: 'Access requests', sw: 'Maombi ya kuona' },
+        { key: 'national-totals', l: 'National totals', sw: 'Jumla ya kitaifa' },
+      ];
+      const COLS = {
+        'filing-by-commission': [
+          ['commission', 'Commission', 'Tume', 'name'],
+          ['expected', 'Expected', 'Wanaotarajiwa', 'n'],
+          ['filed', 'Declared', 'Walitamka', 'n'],
+          ['late', 'Late', 'Kwa kuchelewa', 'n'],
+          ['nonFilers', 'Did not declare', 'Hawakutamka', 'n'],
+          ['filingRate', 'Rate', 'Kiwango', 'p'],
+        ],
+        'compliance-by-commission': [
+          ['commission', 'Commission', 'Tume', 'name'],
+          ['determinationsCompliant', 'Compliant', 'Wametii', 'n', 'Determinations'],
+          ['determinationsNonCompliant', 'Non-compliant', 'Hawajatii', 'n', 'Determinations'],
+          ['determinationsFurtherAction', 'Further action', 'Hatua zaidi', 'n', 'Determinations'],
+          ['clarificationsIssued', 'Issued', 'Yaliyotolewa', 'n', 'Clarifications'],
+          ['clarificationsResolved', 'Resolved', 'Yaliyotatuliwa', 'n', 'Clarifications'],
+          ['actionsNotice', 'Notice', 'Notisi', 'n', 'Administrative actions'],
+          ['actionsWarning', 'Warning', 'Onyo', 'n', 'Administrative actions'],
+          [
+            'actionsSalaryStoppage',
+            'Salary stoppage',
+            'Kusimamisha mshahara',
+            'n',
+            'Administrative actions',
+          ],
+          ['actionsDisciplinary', 'Disciplinary', 'Nidhamu', 'n', 'Administrative actions'],
+          ['referrals', 'Referrals', 'Rufaa', 'n'],
+          ['complianceRate', 'Compliance rate', 'Kiwango cha utiifu', 'p'],
+        ],
+        'by-entity-type': [
+          ['entityType', 'Reporting entity type', 'Aina ya shirika', 'name'],
+          ['expected', 'Expected', 'Wanaotarajiwa', 'n'],
+          ['filed', 'Declared', 'Walitamka', 'n'],
+          ['nonFilers', 'Did not declare', 'Hawakutamka', 'n'],
+          ['filingRate', 'Rate', 'Kiwango', 'p'],
+          ['determinations', 'Determinations', 'Maamuzi', 'n'],
+          ['actions', 'Actions', 'Hatua', 'n'],
+          ['referrals', 'Referrals', 'Rufaa', 'n'],
+        ],
+        'by-cycle': [
+          ['cycle', 'Cycle', 'Mzunguko', 'cycle'],
+          ['expected', 'Expected', 'Wanaotarajiwa', 'n'],
+          ['filed', 'Declared', 'Walitamka', 'n'],
+          ['late', 'Late', 'Kwa kuchelewa', 'n'],
+          ['nonFilers', 'Did not declare', 'Hawakutamka', 'n'],
+          ['filingRate', 'Rate', 'Kiwango', 'p'],
+        ],
+        'access-requests': [
+          ['commission', 'Commission', 'Tume', 'name'],
+          ['received', 'Received', 'Yaliyopokelewa', 'n'],
+          ['granted', 'Granted', 'Yamekubaliwa', 'n'],
+          ['partlyGranted', 'Partly granted', 'Kwa sehemu', 'n'],
+          ['deniedPurpose', 'Purpose', 'Madhumuni', 'n', 'Denied'],
+          ['deniedInvestigation', 'Investigation', 'Uchunguzi', 'n', 'Denied'],
+          ['deniedOther', 'Other', 'Mengine', 'n', 'Denied'],
+          ['lawEnforcementRequests', 'Law enforcement', 'Vyombo vya sheria', 'n'],
+        ],
+        'national-totals': [
+          ['measure', 'Measure', 'Kipimo', 'name'],
+          ['value', 'Value', 'Thamani', 'nt'],
+        ],
+      };
+
+      /* ---------- SuppressionMarker (#349) ---------- */
+      // kind: 'p' fewer than 10 officers | 'c' hidden so a small group cannot be worked out | 'nr' not reported
+      function supMark(kind = 'p', { sw = false } = {}) {
+        if (kind === 'nr')
+          return `<span class="sup nr">${sw ? 'Haikuripoti' : 'Not reported'}</span>`;
+        if (kind === 'c')
+          return `<span class="sup comp" title="${sw ? 'Imefichwa ili kikundi kidogo kisitambulike' : 'Hidden so a small group cannot be worked out from the totals'}"><span aria-hidden="true">${sw ? 'Imefichwa' : 'Hidden'}</span><span class="sr-only">${sw ? 'Imefichwa ili kulinda kikundi kidogo' : 'Hidden to protect a small group'}</span></span>`;
+        return `<span class="sup" title="${sw ? 'Maafisa chini ya 10' : 'Fewer than 10 officers'}"><span aria-hidden="true">‹10</span><span class="sr-only">${sw ? 'Maafisa chini ya 10, haionyeshwi' : 'Fewer than 10 officers, not shown'}</span></span>`;
+      }
+      function supLegend({ sw = false, hidden = null, compact = false } = {}) {
+        return `<div class="sup-legend" role="note">${icon('eyeOff', 15)}<span>${sw ? 'Visanduku vinavyotokana na maafisa chini ya 10 havionyeshwi ili kulinda faragha.' : 'Cells based on fewer than 10 officers are not shown to protect privacy.'}${hidden != null ? ` <span class="sup-n">${num(hidden)} ${sw ? 'vimefichwa' : 'hidden'}</span>` : ''}</span>${compact ? '' : `<span class="sup-keys">${supMark('p', { sw })}<span>${sw ? 'Chini ya 10' : 'Under 10'}</span>${supMark('c', { sw })}<span>${sw ? 'Kinga ya jumla' : 'Protects a total'}</span></span>`}</div>`;
+      }
+
+      /* ---------- ReleaseStatusBadge (#349) ---------- */
+      function relBadge(status, { sw = false } = {}) {
+        if (status === 'published')
+          return `<span class="badge badge-ok">${icon('check', 13, 2.4)} ${sw ? 'Imechapishwa' : 'Published'}</span>`;
+        if (status === 'withdrawn')
+          return `<span class="badge badge-danger">${icon('ban', 13, 2.2)} ${sw ? 'Imeondolewa' : 'Withdrawn'}</span>`;
+        if (status === 'building')
+          return `<span class="badge">${'<span class="spinner dark" style="width:11px;height:11px;border-width:1.5px"></span>'} Building</span>`;
+        return `<span class="badge badge-info">${icon('eye', 13)} ${sw ? 'Onyesho la awali' : 'Preview'}</span>`;
+      }
+      const kindTag = (kind, { sw = false } = {}) =>
+        `<span class="kind">${kind === 'annual' ? (sw ? 'La mwaka' : 'Annual') : sw ? 'Muhtasari' : 'Snapshot'}</span>`;
+
+      /* ---------- data cell ---------- */
+      function cellVal(r, key, fmt, { sw = false } = {}) {
+        if (r._nr) return key === 'commission' || key === 'entityType' ? '' : '';
+        const s = r._sup?.[key];
+        if (s) return supMark(s, { sw });
+        const v = r[key];
+        if (v == null) return '<span class="muted">-</span>';
+        if (fmt === 'p') return pctS(v);
+        return num(v);
+      }
+
+      /* ---------- Chart wrapper (#356): bar and line, hand-built SVG, table fallback, null-safe ---------- */
+      // Widths are measured after render (afterRender -> vizMeasure) so the SVG is drawn 1:1 and stays crisp.
+      const VIZ_W = {};
+      const VIZ = {
+        s1: '#2a78d6',
+        s2: '#eb6834',
+        grid: '#ecebe8',
+        axis: '#b9b7b2',
+        ref: '#6f6e6b',
+      };
+      function vizMeasure() {
+        let changed = false;
+        document.querySelectorAll('.viz[data-vid]').forEach((f) => {
+          const w = Math.round(f.clientWidth);
+          if (w && Math.abs((VIZ_W[f.dataset.vid] || 0) - w) > 3) {
+            VIZ_W[f.dataset.vid] = w;
+            changed = true;
+          }
+        });
+        if (changed) Kit.render();
+      }
+      let vizResize = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(vizResize);
+        vizResize = setTimeout(() => {
+          Object.keys(VIZ_W).forEach((k) => delete VIZ_W[k]);
+          Kit.render();
+        }, 120);
+      });
+      // Chart tooltip: reuses the kit's fixed tooltip box for any element with data-tt.
+      document.addEventListener('mouseover', (e) => {
+        const t = e.target.closest?.('[data-tt]');
+        const box = document.getElementById('kit-tipbox');
+        if (!box) return;
+        if (!t) {
+          if (box.dataset.viz) {
+            box.classList.remove('show');
+            delete box.dataset.viz;
+          }
+          return;
+        }
+        box.dataset.viz = '1';
+        box.textContent = t.dataset.tt;
+        box.classList.add('show');
+        const r = t.getBoundingClientRect();
+        const b = box.getBoundingClientRect();
+        let x = r.left + r.width / 2 - b.width / 2;
+        x = Math.max(8, Math.min(x, window.innerWidth - b.width - 8));
+        let y = r.top - b.height - 8;
+        if (y < 8) y = r.bottom + 8;
+        box.style.left = x + 'px';
+        box.style.top = y + 'px';
+      });
+      const trunc = (s, n) => (s.length > n ? s.slice(0, Math.max(1, n - 1)) + '…' : s);
+      const xmlEsc = (s) => esc(s);
+
+      // barChart: horizontal bars (long Commission names read best this way). rows: [{label, full, value|null, marker, tip}]
+      function barChart({
+        id,
+        title,
+        desc,
+        rows,
+        xLabel,
+        catLabel,
+        ref = null,
+        refLabel = '',
+        showTable = false,
+        valueFmt = pctS,
+        max = 100,
+        sw = false,
+        tableCols = null,
+      }) {
+        const W = VIZ_W[id] || 640;
+        const narrow = W < 520;
+        const LW = narrow ? 118 : 196;
+        const RP = 52;
+        const top = ref != null ? 26 : 8;
+        const rowH = 26;
+        const plotW = Math.max(60, W - LW - RP);
+        const H = top + rows.length * rowH + 44;
+        const x = (v) => LW + (Math.max(0, Math.min(max, v)) / max) * plotW;
+        const ticks = [0, 25, 50, 75, 100].map((t) => (t / 100) * max);
+        const maxChars = Math.floor((LW - 10) / 6.4);
+        let g = '';
+        ticks.forEach((t) => {
+          g += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${top + rows.length * rowH}" stroke="${VIZ.grid}" stroke-width="1"/>`;
+          g += `<text x="${x(t)}" y="${top + rows.length * rowH + 16}" text-anchor="middle" class="tk">${t}%</text>`;
+        });
+        if (ref != null) {
+          g += `<line x1="${x(ref)}" x2="${x(ref)}" y1="${top - 6}" y2="${top + rows.length * rowH}" stroke="${VIZ.ref}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+          const anchor = x(ref) > LW + plotW - 60 ? 'end' : 'middle';
+          g += `<text x="${x(ref)}" y="${top - 12}" text-anchor="${anchor}" class="reflab">${xmlEsc(refLabel)}</text>`;
+        }
+        rows.forEach((r, i) => {
+          const y = top + i * rowH;
+          const cy = y + rowH / 2;
+          g += `<text x="${LW - 10}" y="${cy + 4}" text-anchor="end" class="cat">${xmlEsc(trunc(r.label, maxChars))}<title>${xmlEsc(r.full || r.label)}</title></text>`;
+          if (r.value == null) {
+            const m =
+              r.marker === 'nr'
+                ? sw
+                  ? 'Haikuripoti'
+                  : 'Not reported'
+                : r.marker === 'c'
+                  ? sw
+                    ? 'Imefichwa'
+                    : 'Hidden'
+                  : '‹10';
+            g += `<rect x="${LW}" y="${y + 6}" width="${Math.min(plotW, narrow ? 64 : 84)}" height="${rowH - 12}" rx="4" fill="url(#hatch-${id})"/><text x="${LW + 8}" y="${cy + 4}" class="nullv">${m}</text>`;
+            g += `<rect x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent" data-tt="${esc((r.full || r.label) + ': ' + (r.marker === 'nr' ? (sw ? 'haikuripoti' : 'not reported') : sw ? 'haionyeshwi (maafisa chini ya 10)' : 'not shown (fewer than 10 officers)'))}"/>`;
+            return;
+          }
+          const w = Math.max(4, x(r.value) - LW);
+          g += `<path d="M${LW},${y + 6} h${w - 4} a4,4 0 0 1 4,4 v${rowH - 20} a4,4 0 0 1 -4,4 h-${w - 4} z" fill="${VIZ.s1}"/>`;
+          g += `<text x="${LW + w + 6}" y="${cy + 4}" class="val">${valueFmt(r.value)}</text>`;
+          g += `<rect x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent" class="hit" data-tt="${esc(r.tip || `${r.full || r.label}: ${valueFmt(r.value)}`)}"/>`;
+        });
+        g += `<line x1="${LW}" x2="${LW}" y1="${top - 4}" y2="${top + rows.length * rowH}" stroke="${VIZ.axis}" stroke-width="1"/>`;
+        g += `<text x="${LW + plotW / 2}" y="${H - 6}" text-anchor="middle" class="axt">${xmlEsc(xLabel)}</text>`;
+        g += `<text x="${LW - 10}" y="${top - 12}" text-anchor="end" class="axt">${xmlEsc(catLabel)}</text>`;
+        const svg = `<svg class="viz-svg" width="100%" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-t ${id}-d"><title id="${id}-t">${xmlEsc(title)}</title><desc id="${id}-d">${xmlEsc(desc || '')}</desc><defs><pattern id="hatch-${id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f4f3f1"/><line x1="0" y1="0" x2="0" y2="6" stroke="#dcdad5" stroke-width="2"/></pattern></defs>${g}</svg>`;
+        const cols = tableCols || [catLabel, xLabel];
+        const table = `<table class="table viz-table ${showTable ? '' : 'sr-only'}"><caption class="sr-only">${xmlEsc(title)}</caption><thead><tr><th scope="col">${xmlEsc(cols[0])}</th><th scope="col" class="num">${xmlEsc(cols[1])}</th></tr></thead><tbody>${rows.map((r) => `<tr><th scope="row" style="font-weight:500;text-align:left">${xmlEsc(r.full || r.label)}</th><td class="num">${r.value == null ? supMark(r.marker || 'p', { sw }) : valueFmt(r.value)}</td></tr>`).join('')}</tbody></table>`;
+        return `<figure class="viz" data-vid="${id}">${showTable ? '' : `<div class="viz-plot" aria-hidden="false">${svg}</div>`}${table}</figure>`;
+      }
+
+      // lineChart: x categories, 1-4 series with legend and direct end labels; null values break the line.
+      function lineChart({
+        id,
+        title,
+        desc,
+        cats,
+        series,
+        yLabel,
+        xLabel,
+        showTable = false,
+        sw = false,
+        valueFmt = pctS,
+      }) {
+        const W = VIZ_W[id] || 640;
+        const narrow = W < 520;
+        const H = narrow ? 230 : 260;
+        const L = 52;
+        const R = narrow ? 64 : 160;
+        const T = 16;
+        const B = 52;
+        const all = series.flatMap((s) => s.values).filter((v) => v != null);
+        let lo = Math.floor((Math.min(...all, 100) - 4) / 5) * 5;
+        lo = Math.max(0, Math.min(lo, 80));
+        const hi = 100;
+        const pw = W - L - R;
+        const ph = H - T - B;
+        const px = (i) =>
+          cats.length === 1 ? L + pw / 2 : L + 28 + (i / (cats.length - 1)) * (pw - 56);
+        const py = (v) => T + ph - ((v - lo) / (hi - lo)) * ph;
+        const step = (hi - lo) / 4;
+        let g = '';
+        for (let k = 0; k <= 4; k++) {
+          const v = lo + k * step;
+          g += `<line x1="${L}" x2="${L + pw}" y1="${py(v)}" y2="${py(v)}" stroke="${k === 0 ? VIZ.axis : VIZ.grid}" stroke-width="1"/><text x="${L - 8}" y="${py(v) + 4}" text-anchor="end" class="tk">${Math.round(v)}%</text>`;
+        }
+        cats.forEach((c, i) => {
+          g += `<text x="${px(i)}" y="${T + ph + 18}" text-anchor="middle" class="tk">${xmlEsc(narrow && cats.length > 3 ? c.replace(/^20/, '') : c)}</text>`;
+        });
+        const colors = [VIZ.s1, VIZ.s2];
+        const endLabels = [];
+        series.forEach((s, si) => {
+          const col = colors[si];
+          let d = '';
+          let pen = false;
+          s.values.forEach((v, i) => {
+            if (v == null) {
+              pen = false;
+              return;
+            }
+            d += `${pen ? 'L' : 'M'}${px(i)},${py(v)} `;
+            pen = true;
+          });
+          g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+          s.values.forEach((v, i) => {
+            if (v == null) return;
+            g += `<circle cx="${px(i)}" cy="${py(v)}" r="5" fill="${col}" stroke="#fff" stroke-width="2"/>`;
+            g += `<circle cx="${px(i)}" cy="${py(v)}" r="14" fill="transparent" data-tt="${esc(`${s.name}, ${cats[i]}: ${valueFmt(v)}`)}"/>`;
+          });
+          const li = s.values
+            .map((v, i) => (v == null ? -1 : i))
+            .filter((i) => i >= 0)
+            .pop();
+          if (li != null)
+            endLabels.push({
+              y: py(s.values[li]),
+              x: px(li),
+              t: narrow ? valueFmt(s.values[li]) : `${s.name} ${valueFmt(s.values[li])}`,
+              col,
+            });
+        });
+        endLabels.sort((a, b) => a.y - b.y);
+        for (let i = 1; i < endLabels.length; i++)
+          if (endLabels[i].y - endLabels[i - 1].y < 15) endLabels[i].y = endLabels[i - 1].y + 15;
+        endLabels.forEach(
+          (e) => (g += `<text x="${e.x + 10}" y="${e.y + 4}" class="val">${xmlEsc(e.t)}</text>`),
+        );
+        g += `<text x="${L + pw / 2}" y="${H - 8}" text-anchor="middle" class="axt">${xmlEsc(xLabel)}</text>`;
+        g += `<text transform="translate(14 ${T + ph / 2}) rotate(-90)" text-anchor="middle" class="axt">${xmlEsc(yLabel)}</text>`;
+        const svg = `<svg class="viz-svg" width="100%" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-t ${id}-d"><title id="${id}-t">${xmlEsc(title)}</title><desc id="${id}-d">${xmlEsc(desc || '')}</desc>${g}</svg>`;
+        const legend = `<div class="viz-legend" aria-hidden="true">${series.map((s, i) => `<span><i style="background:${colors[i]}"></i>${xmlEsc(s.name)}</span>`).join('')}</div>`;
+        const table = `<table class="table viz-table ${showTable ? '' : 'sr-only'}"><caption class="sr-only">${xmlEsc(title)}</caption><thead><tr><th scope="col">${xmlEsc(xLabel)}</th>${series.map((s) => `<th scope="col" class="num">${xmlEsc(s.name)}</th>`).join('')}</tr></thead><tbody>${cats.map((c, i) => `<tr><th scope="row" style="font-weight:500;text-align:left">${xmlEsc(c)}</th>${series.map((s) => `<td class="num">${s.values[i] == null ? supMark('p', { sw }) : valueFmt(s.values[i])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        return `<figure class="viz" data-vid="${id}">${showTable ? '' : `${legend}<div class="viz-plot">${svg}</div>`}${table}</figure>`;
+      }
+
+      /* ---------- files: CSV and JSON exactly as the public API serves them ---------- */
+      function tableCsv(rel, key) {
+        const { T } = dataset(rel);
+        const t = T[key];
+        const cols =
+          key === 'filing-by-commission'
+            ? [
+                'commission',
+                'commissionCode',
+                'cycle',
+                'expected',
+                'filed',
+                'late',
+                'nonFilers',
+                'filingRate',
+              ]
+            : key === 'national-totals'
+              ? ['measure', 'value']
+              : Object.keys(t.rows.find((r) => !r._nr) || {}).filter(
+                  (k) => !k.startsWith('_') && k !== 'short',
+                );
+        const q = (v) =>
+          /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+        const lines = [[...cols, '_suppressed'].join(',')];
+        t.rows.forEach((r) => {
+          const sup = Object.keys(r._sup || {});
+          lines.push(
+            [
+              ...cols.map((c) =>
+                r._sup?.[c] || (r._nr && !['commission', 'commissionCode', 'cycle'].includes(c))
+                  ? ''
+                  : q(r[c] ?? ''),
+              ),
+              q(r._nr ? 'not-reported' : sup.join(' ')),
+            ].join(','),
+          );
+        });
+        return lines.join('\n');
+      }
+      function releaseJson(rel) {
+        const { T } = dataset(rel);
+        return JSON.stringify(
+          {
+            id: rel.id,
+            fy: rel.fy,
+            kind: rel.kind,
+            version: rel.version,
+            status: rel.status,
+            builtAt: rel.builtAt,
+            publishedAt: rel.publishedAt || null,
+            withdrawnAt: rel.withdrawnAt || null,
+            withdrawnReason: rel.withdrawnReason || null,
+            manifestVerificationId: rel.manifestVerificationId || null,
+            tables: TABLES.map((tb) => ({
+              table: tb.key,
+              rows: T[tb.key].count,
+              sha256Json: T[tb.key].sha256Json,
+              sha256Csv: T[tb.key].sha256Csv,
+            })),
+          },
+          null,
+          2,
+        );
+      }
+      function downloadText(name, text, type) {
+        const url = URL.createObjectURL(new Blob([text], { type }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      const fileSize = (text) => {
+        const b = new Blob([text]).size;
+        return b > 1024 ? `${(b / 1024).toFixed(1)} KB` : `${b} B`;
+      };
+
+      /* ---------- data table (sortable, paged, suppression-aware) ---------- */
+      const CYCLE_SW = {
+        initial: 'Awali',
+        biennial: 'Kila miaka miwili',
+        final: 'Mwisho',
+        all: 'Mizunguko yote',
+      };
+      const GROUP_SW = {
+        Determinations: 'Maamuzi',
+        Clarifications: 'Ufafanuzi',
+        'Administrative actions': 'Hatua za kiutawala',
+        Denied: 'Yamekataliwa',
+      };
+      function tableRows(rel, key, { cycle = 'all', only = null } = {}) {
+        let rows = dataset(rel).T[key].rows;
+        if (key === 'filing-by-commission') rows = rows.filter((r) => r.cycle === cycle);
+        if (only) rows = rows.filter((r) => r.commissionCode === only);
+        return rows;
+      }
+      function dataTable(
+        rel,
+        key,
+        {
+          sw = false,
+          cycle = 'all',
+          sort = null,
+          sortAct = '',
+          page = 1,
+          pageSize = 15,
+          pageAct = '',
+          only = null,
+          rows: given = null,
+          caption = '',
+        } = {},
+      ) {
+        const cols = COLS[key];
+        let rows = given || tableRows(rel, key, { cycle, only });
+        if (sort && sort.k) {
+          const k = sort.k;
+          const val = (r) => (r._nr || r._sup?.[k] ? null : r[k]);
+          rows = [...rows].sort((a, b) => {
+            const va = val(a);
+            const vb = val(b);
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            const c = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+            return sort.dir === 'desc' ? -c : c;
+          });
+        }
+        const paged = pageAct && rows.length > pageSize;
+        const pg = paged ? Math.min(page, Math.ceil(rows.length / pageSize)) : 1;
+        const view = paged ? rows.slice((pg - 1) * pageSize, pg * pageSize) : rows;
+        const L = (c) => (sw ? c[2] : c[1]);
+        const th = (c, extra = '') => {
+          const numc = c[3] !== 'name' && c[3] !== 'cycle';
+          const on = sort?.k === c[0];
+          const lab = sortAct
+            ? `<button class="th-sort ${on ? 'on' : ''}" data-act="${sortAct}" data-arg="${c[0]}" aria-label="${esc(L(c))}, sort">${esc(L(c))}${icon(on ? (sort.dir === 'desc' ? 'arrowDown' : 'arrowUp') : 'sort', 13)}</button>`
+            : esc(L(c));
+          return `<th scope="col" class="${numc ? 'num' : ''}" ${on ? `aria-sort="${sort.dir === 'desc' ? 'descending' : 'ascending'}"` : ''} ${extra}>${lab}</th>`;
+        };
+        const grouped = cols.some((c) => c[4]);
+        let head;
+        if (grouped) {
+          let r1 = '';
+          let r2 = '';
+          for (let i = 0; i < cols.length; i++) {
+            const c = cols[i];
+            if (!c[4]) {
+              r1 += th(c, 'rowspan="2"');
+              continue;
+            }
+            let n = 0;
+            while (cols[i + n] && cols[i + n][4] === c[4]) n++;
+            r1 += `<th scope="colgroup" colspan="${n}" class="grp">${esc(sw ? GROUP_SW[c[4]] || c[4] : c[4])}</th>`;
+            for (let k = 0; k < n; k++) r2 += th(cols[i + k]);
+            i += n - 1;
+          }
+          head = `<tr>${r1}</tr><tr>${r2}</tr>`;
+        } else head = `<tr>${cols.map((c) => th(c)).join('')}</tr>`;
+        const body = view
+          .map((r) => {
+            if (r._nr)
+              return `<tr class="nr"><th scope="row"><span class="rn">${esc(r.commission)}</span></th><td colspan="${cols.length - 1}">${supMark('nr', { sw })}</td></tr>`;
+            return `<tr>${cols
+              .map((c, i) => {
+                if (i === 0) {
+                  const v =
+                    c[3] === 'cycle' ? (sw ? CYCLE_SW[r.cycle] : CYCLE_L[r.cycle]) : r[c[0]];
+                  return `<th scope="row"><span class="rn">${esc(v)}</span></th>`;
+                }
+                if (c[3] === 'nt')
+                  return `<td class="num">${r.unit === '%' ? pctS(r.value) : num(r.value)}${r.unit && r.unit !== '%' ? ` <span class="muted">${esc(r.unit)}</span>` : ''}</td>`;
+                return `<td class="num">${cellVal(r, c[0], c[3], { sw })}</td>`;
+              })
+              .join('')}</tr>`;
+          })
+          .join('');
+        const table = `<div class="table-wrap"><table class="table dtable ${grouped ? 'grouped' : ''}">${caption ? `<caption class="sr-only">${esc(caption)}</caption>` : ''}<thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+        const pager = paged
+          ? Kit.pager({ page: pg, pageSize, total: rows.length, act: pageAct })
+          : '';
+        return table + pager;
+      }
+      /* ==================== console: open data (#350, #353, #360) ==================== */
+      const PORTAL = '../../portal/prototype/open-data.prototype.html#open-data';
+      const VERIFY = '../../verify/prototype/verify.prototype.html#home';
+      const P = () => Kit.persona();
+      const isEacc = () => ['eacc-analyst', 'eacc-supervisor'].includes(P());
+      const isSup = () => P() === 'eacc-supervisor';
+      const ME = () => Kit.PERSONAS[P()]?.name || 'Brian Otieno';
+      const setPersona = (p) => localStorage.setItem('dials-proto-persona', p);
+      const NOW = '2026-09-26T10:42:00';
+      const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+      const fresh = () => ({
+        releases: JSON.parse(JSON.stringify(RELEASES_SEED)),
+        list: { view: 'ok', page: 1 },
+        build: null,
+        sel: 'rel-2025-annual-1',
+        tab: 'filing-by-commission',
+        cycle: 'all',
+        tpage: 1,
+        sort: null,
+        wd: { reason: '', err: '' },
+        pubErr: false,
+        cp: { view: 'latest' },
+        vizTable: {},
+      });
+      const S = Kit.state(fresh());
+      const relById = (id) => S.releases.find((r) => r.id === id);
+      const sorted = () =>
+        [...S.releases].sort(
+          (a, b) =>
+            (b.status === 'preview') - (a.status === 'preview') ||
+            String(b.publishedAt || b.builtAt).localeCompare(String(a.publishedAt || a.builtAt)),
+        );
+      const previewRel = () => S.releases.find((r) => r.status === 'preview');
+      function addPreview(kind = 'snapshot', fy = 2026, by = ME()) {
+        const same = S.releases.filter((r) => r.fy === fy && r.kind === kind);
+        const version = same.length ? Math.max(...same.map((r) => r.version)) + 1 : 1;
+        S.releases = S.releases.filter(
+          (r) => !(r.fy === fy && r.kind === kind && r.status === 'preview'),
+        );
+        const r = {
+          id: `rel-${fy}-${kind}-${version}`,
+          fy,
+          kind,
+          version,
+          status: 'preview',
+          asAt: kind === 'annual' ? `${fy + 1}-06-30` : NOW.slice(0, 10),
+          builtAt: NOW,
+          builtBy: by,
+          publishedAt: null,
+          publishedBy: null,
+          manifestVerificationId: null,
+        };
+        S.releases.push(r);
+        return r;
+      }
+
+      /* ---------- shared bits ---------- */
+      function denied(crumbs, msg = 'This page is for EACC analysts and supervisors.') {
+        return consoleShell(
+          `<main class="cpage"><div class="state-page"><div class="ico">${icon('ban', 24)}</div><h1>You do not have access to this page</h1><p>${msg}</p><div style="margin-top:20px"><a class="btn btn-secondary" href="01-commissions.prototype.html#${isEacc() || P() === 'platform-admin' ? 'commissions' : 'my-commission'}">Go to overview</a></div></div></main>`,
+          { crumbs },
+        );
+      }
+      const loadError = (what, act) =>
+        `<div class="card"><div class="empty" style="padding:48px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--danger-soft);color:var(--danger)">${icon('wifiOff', 16)}</span></div><h4>We could not load ${what}</h4><p>Check your connection and try again.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="${act}">${icon('refresh', 16)} Try again</button></div></div></div>`;
+      const who = (name) => name || 'System';
+      const publishedLine = (r) =>
+        r.publishedAt ? `${fmtDateTime(r.publishedAt)}` : '<span class="muted">-</span>';
+      const publishedSub = (r) =>
+        r.status === 'withdrawn'
+          ? `Withdrawn ${fmtDate(r.withdrawnAt)}`
+          : r.status === 'preview'
+            ? `Built by ${esc(r.builtBy)}, ${fmtDate(r.builtAt)}`
+            : r.auto
+              ? 'Automatic on NCR approval'
+              : esc(r.publishedBy);
+
+      /* ---------- releases list (#350) ---------- */
+      const BUILD_STEPS = [
+        'Building tables',
+        'Applying suppression',
+        'Reconciling totals',
+        'Writing files',
+      ];
+      function buildCard() {
+        const b = S.build;
+        if (!b) return '';
+        if (b.failed)
+          return `<div class="callout callout-danger rel-banner" role="alert">${icon('alert', 18)}<div><b>Snapshot build stopped.</b> National totals did not match the Form M projections (${num(b.got)} declarations in the release, ${num(b.want)} expected). Nothing was written.</div><div class="acts"><button class="btn btn-secondary btn-sm" data-act="modal" data-arg="build">Try again</button><button class="btn btn-ghost btn-sm" data-act="dismissBuild">Dismiss</button></div></div>`;
+        return `<div class="card build-card" role="status" aria-live="polite"><span class="spinner dark" style="width:22px;height:22px"></span><div style="flex:1;min-width:0"><div style="font-weight:600">Building ${FYL(b.fy)} snapshot…</div><ol class="bsteps">${BUILD_STEPS.map((s, i) => `<li class="${i < b.step ? 'done' : i === b.step ? 'on' : ''}">${i < b.step ? icon('check', 13, 2.6) : `<span class="n">${i + 1}</span>`}${s}</li>`).join('')}</ol></div></div>`;
+      }
+      function scrReleases() {
+        const crumbs = [['Open data', 'releases']];
+        if (!isEacc()) return denied(crumbs);
+        const building = S.build && !S.build.failed;
+        const head = `<div class="page-head"><div><h1>Open data</h1></div><div class="actions-r"><a class="btn btn-secondary" href="${PORTAL}" target="_blank" rel="noopener">${icon('external', 16)} Public page</a><button class="btn btn-primary" data-act="modal" data-arg="build" ${building ? 'disabled' : ''}>${icon('plus', 17)} Build snapshot</button></div></div>`;
+        let body;
+        const v = S.list.view;
+        if (v === 'loading')
+          body = `<div class="card" aria-busy="true"><div class="table-wrap"><table class="table"><thead><tr><th>Financial year</th><th>Kind</th><th>Version</th><th>Status</th><th>Published</th></tr></thead><tbody>${Kit.skeletonRows(4, 5)}</tbody></table></div></div>`;
+        else if (v === 'error') body = loadError('releases', 'retryList');
+        else if (v === 'empty' || !S.releases.length)
+          body = `<div class="card">${empty('No releases yet', 'The annual release publishes when the national report is approved.', { icon: 'chart', action: `<button class="btn btn-secondary" data-act="modal" data-arg="build">${icon('plus', 16)} Build snapshot</button>` })}</div>`;
+        else {
+          const rows = sorted();
+          const PS = 10;
+          const pg = Math.min(S.list.page, Math.ceil(rows.length / PS));
+          const view = rows.slice((pg - 1) * PS, pg * PS);
+          const list = `<ul class="rel-list">${view.map((r) => `<li><a href="#release" data-act="open" data-arg="${r.id}"><div style="flex:1;min-width:0"><div class="t">${FYL(r.fy)} ${kindTag(r.kind)}<span class="small muted" style="font-weight:500">v${r.version}</span></div><div class="s">${relBadge(r.status)} ${r.publishedAt ? fmtDate(r.publishedAt) + ' · ' : ''}${publishedSub(r)}</div></div><span style="color:var(--muted);display:flex">${icon('right', 17)}</span></a></li>`).join('')}</ul>`;
+          body = `<div class="card">${list}<div class="table-wrap rel-table-wrap"><table class="table rel-table"><caption class="sr-only">Open-data releases</caption><thead><tr><th>Financial year</th><th>Kind</th><th class="num">Version</th><th>Status</th><th>Published</th><th aria-label="Open"></th></tr></thead><tbody>${rows
+            .slice((pg - 1) * PS, pg * PS)
+            .map(
+              (r) =>
+                `<tr class="click" data-act="open" data-arg="${r.id}"><td style="font-weight:600"><a href="#release" data-act="open" data-arg="${r.id}" class="rowlink">${FYL(r.fy)}</a></td><td>${kindTag(r.kind)}</td><td class="num">v${r.version}</td><td>${relBadge(r.status)}</td><td><div>${publishedLine(r)}</div><div class="sub">${publishedSub(r)}</div></td><td class="num" style="color:var(--muted)">${icon('right', 17)}</td></tr>`,
+            )
+            .join(
+              '',
+            )}</tbody></table></div>${Kit.pager({ page: pg, pageSize: PS, total: rows.length, act: 'listPage' })}</div>`;
+        }
+        return consoleShell(`<main class="cpage">${head}${buildCard()}${body}</main>`, {
+          crumbs,
+          active: 'Open data',
+        });
+      }
+
+      /* ---------- release page: preview, publish, withdraw, versions (#350, #353) ---------- */
+      function reconLine(r, NT) {
+        const src =
+          r.kind === 'annual'
+            ? `<span class="ref">${NCR_REF[r.fy] || 'the national report'}</span>`
+            : 'the Form M projections at build';
+        return `<div class="recon">${icon('check', 15, 2.4)}<span>Totals match ${src}: ${num(NT.filed)} of ${num(NT.expected)} declarations.</span></div>`;
+      }
+      function tablesCard(r) {
+        const { T } = dataset(r);
+        const tabs = `<div class="tabs rel-tabs" role="tablist">${TABLES.map((t) => `<button role="tab" aria-selected="${S.tab === t.key}" class="${S.tab === t.key ? 'on' : ''}" data-act="tab" data-arg="${t.key}">${t.l}</button>`).join('')}</div>`;
+        const cyc =
+          S.tab === 'filing-by-commission'
+            ? `<div class="seg" role="group" aria-label="Cycle">${['all', ...CYCLES.filter((c) => T['by-cycle'].rows.some((x) => x.cycle === c))].map((c) => `<button class="${S.cycle === c ? 'on' : ''}" data-act="cycle" data-arg="${c}" aria-pressed="${S.cycle === c}">${CYCLE_L[c]}</button>`).join('')}</div>`
+            : '';
+        const tbl = dataTable(r, S.tab, {
+          cycle: S.cycle,
+          sort: S.sort,
+          sortAct: 'sortT',
+          page: S.tpage,
+          pageSize: 15,
+          pageAct: 'tpage',
+          caption: TABLES.find((t) => t.key === S.tab).l,
+        });
+        return `<section class="card">${tabs}<div class="tbar">${supLegend({ compact: true, hidden: T[S.tab].hidden || null })}<span class="spacer"></span>${cyc}<button class="btn btn-secondary btn-sm" data-act="dlCsv" data-arg="${r.id}|${S.tab}" aria-label="Download CSV">${icon('download', 15)}<span class="lg-only">CSV</span></button></div>${tbl}</section>`;
+      }
+      function filesCard(r) {
+        const { T } = dataset(r);
+        return `<section class="card side-card"><div class="sec-h"><h3>Files</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="dlJson" data-arg="${r.id}">${icon('download', 15)} release.json</button></div><ul class="files">${TABLES.map(
+          (t) =>
+            `<li><div style="min-width:0;flex:1"><div class="truncate" style="font-weight:500">${t.key}</div><div class="sub">${num(T[t.key].count)} rows${T[t.key].hidden ? ` · ${T[t.key].hidden} hidden` : ''} ${Kit.tip(`SHA-256 (CSV) ${T[t.key].sha256Csv}`, { label: 'File fingerprint' })}</div></div><button class="btn btn-ghost btn-xs" data-act="dlCsv" data-arg="${r.id}|${t.key}" aria-label="Download ${t.key} CSV">CSV</button><button class="btn btn-ghost btn-xs" data-act="dlTableJson" data-arg="${r.id}|${t.key}" aria-label="Download ${t.key} JSON">JSON</button></li>`,
+        ).join('')}</ul></section>`;
+      }
+      function manifestCard(r) {
+        if (!r.manifestVerificationId)
+          return `<section class="card side-card"><div class="sec-h"><h3>Manifest</h3></div><div class="sec-b small muted">Issued as a Public verifiable document when published.</div></section>`;
+        return `<section class="card side-card"><div class="sec-h"><h3>Manifest</h3><span class="spacer"></span><span class="badge">${icon('globe', 12)} Public</span></div><div class="sec-b man"><div class="qrw">${Kit.qr(r.manifestVerificationId, 64, 'Manifest QR code')}</div><div style="min-width:0"><div class="mono vcode">${r.manifestVerificationId}</div><div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><a class="btn btn-secondary btn-xs" href="${VERIFY}" target="_blank" rel="noopener">${icon('shield', 13)} Verify</a><button class="btn btn-ghost btn-xs" data-act="copy" data-arg="${r.manifestVerificationId}">${icon('copy', 13)} Copy</button></div></div></div></section>`;
+      }
+      function versionsCard(r) {
+        const vs = S.releases
+          .filter((x) => x.fy === r.fy && x.kind === r.kind)
+          .sort((a, b) => b.version - a.version);
+        const ev = (x) => {
+          const out = [];
+          if (x.withdrawnAt)
+            out.push(`Withdrawn ${fmtDateTime(x.withdrawnAt)} by ${esc(x.withdrawnBy)}`);
+          if (x.publishedAt)
+            out.push(
+              `Published ${fmtDateTime(x.publishedAt)}${x.auto ? ' on NCR approval' : ` by ${esc(x.publishedBy)}`}`,
+            );
+          out.push(`Built ${fmtDateTime(x.builtAt)}${x.builtBy ? ` by ${esc(x.builtBy)}` : ''}`);
+          return out;
+        };
+        return `<section class="card side-card"><div class="sec-h"><h3>Versions</h3></div><ol class="versions">${vs
+          .map(
+            (x) =>
+              `<li class="${x.id === r.id ? 'cur' : ''}"><div class="vh">${x.id === r.id ? `<b>v${x.version}</b>` : `<a href="#release" data-act="open" data-arg="${x.id}"><b>v${x.version}</b></a>`}${relBadge(x.status)}${x.id === r.id ? '<span class="small muted">Viewing</span>' : ''}</div>${x.withdrawnReason ? `<blockquote>${esc(x.withdrawnReason)}</blockquote>` : ''}<ul class="vev">${ev(
+                x,
+              )
+                .map((e) => `<li>${e}</li>`)
+                .join('')}</ul></li>`,
+          )
+          .join('')}</ol></section>`;
+      }
+      function scrRelease() {
+        const r = relById(S.sel) || sorted()[0];
+        const crumbs = [
+          ['Open data', 'releases'],
+          [`${relTitle(r)} v${r.version}`, 'release'],
+        ];
+        if (!isEacc()) return denied(crumbs);
+        const { NT } = dataset(r);
+        const sup = isSup();
+        let acts = '';
+        if (r.status === 'preview' && sup)
+          acts = `<button class="btn btn-primary" data-act="openPublish">${icon('globe', 17)} Publish</button>`;
+        if (r.status === 'published' && sup)
+          acts = `<button class="btn btn-danger-ghost" data-act="openWithdraw">${icon('ban', 16)} Withdraw</button>`;
+        if (r.status === 'withdrawn') {
+          const newer = S.releases.some(
+            (x) => x.fy === r.fy && x.kind === r.kind && x.version > r.version,
+          );
+          if (!newer)
+            acts = `<button class="btn btn-secondary" data-act="rebuild">${icon('refresh', 16)} Build v${r.version + 1}</button>`;
+        }
+        const meta =
+          r.status === 'preview'
+            ? `Built ${fmtDateTime(r.builtAt)} by ${esc(r.builtBy)} · As at ${fmtDate(r.asAt)}`
+            : `Published ${fmtDateTime(r.publishedAt)}${r.auto ? ' on NCR approval' : ` by ${esc(r.publishedBy)}`} · As at ${fmtDate(r.asAt)}`;
+        const head = `<div class="page-head"><div style="min-width:0"><h1>${cap(relTitle(r))}</h1><div class="head-meta">${relBadge(r.status)}<span class="kind">Version ${r.version}</span><span class="small muted">${meta}</span></div></div><div class="actions-r">${acts}</div></div>`;
+        let banner = '';
+        if (r.status === 'withdrawn') {
+          const next = S.releases.find(
+            (x) => x.fy === r.fy && x.kind === r.kind && x.version === r.version + 1,
+          );
+          banner = `<div class="callout callout-danger rel-banner">${icon('ban', 18)}<div><b>Withdrawn ${fmtDate(r.withdrawnAt)} by ${esc(r.withdrawnBy)}.</b> “${esc(r.withdrawnReason)}”</div>${next ? `<div class="acts"><button class="btn btn-secondary btn-sm" data-act="open" data-arg="${next.id}">Open v${next.version}</button></div>` : ''}</div>`;
+        } else if (r.status === 'preview' && !sup)
+          banner = `<div class="callout callout-info rel-banner">${icon('lock', 17)}<div>Not public. An EACC supervisor publishes it.</div></div>`;
+        return consoleShell(
+          `<main class="cpage">${head}${banner}${reconLine(r, NT)}<div class="rel-grid"><div class="stack" style="min-width:0">${tablesCard(r)}</div><div class="stack rel-side">${manifestCard(r)}${versionsCard(r)}${filesCard(r)}</div></div></main>`,
+          { crumbs, active: 'Open data' },
+        );
+      }
+
+      /* ---------- Commission settings: open-data preview (#360) ---------- */
+      function transposed(r, key, code, title) {
+        const row = tableRows(r, key, { only: code })[0];
+        const cols = COLS[key].slice(1);
+        if (!row) return '';
+        return `<section class="card"><div class="sec-h"><h3>${title}</h3></div><div class="table-wrap"><table class="table dtable"><caption class="sr-only">${title}</caption><tbody>${cols
+          .map(
+            (c) =>
+              `<tr><th scope="row">${c[4] ? `${c[4]}: ${c[1].toLowerCase()}` : c[1]}</th><td class="num">${row._nr ? supMark('nr') : cellVal(row, c[0], c[3])}</td></tr>`,
+          )
+          .join('')}</tbody></table></div></section>`;
+      }
+      function scrCommissionPreview() {
+        const crumbs = [['Open data preview', 'commission-preview']];
+        if (P() !== 'commission-admin')
+          return denied(
+            crumbs,
+            isEacc()
+              ? 'EACC sees every Commission in Open data.'
+              : 'This page is for your Commission administrator.',
+          );
+        const code = 'PSC';
+        const head = `<div class="page-head"><div><h1>Open data preview</h1></div></div>`;
+        const v = S.cp.view;
+        let body;
+        if (v === 'loading')
+          body = `<div class="card card-pad" aria-busy="true"><span class="skeleton" style="width:40%"></span><div style="height:14px"></div><span class="skeleton" style="width:90%"></span><div style="height:10px"></div><span class="skeleton" style="width:75%"></span><div style="height:10px"></div><span class="skeleton" style="width:82%"></span></div>`;
+        else if (v === 'error') body = loadError('your open-data figures', 'cpRetry');
+        else if (v === 'empty')
+          body = `<div class="card">${empty('No open data yet', 'Your figures appear here when EACC builds a release.', { icon: 'chart' })}</div>`;
+        else {
+          const r =
+            v === 'preview'
+              ? previewRel() || addPreview('snapshot', 2026, 'Brian Otieno')
+              : relById('rel-2025-annual-1');
+          const src =
+            r.status === 'preview'
+              ? `<div class="cp-src">${relBadge('preview')}<span>From <b>${relName(r)}</b> · Built ${fmtDate(r.builtAt)} · Not public yet</span></div>`
+              : `<div class="cp-src">${relBadge('published')}<span>From <b>${relName(r)}</b> · Published ${fmtDate(r.publishedAt)}</span><a class="btn btn-ghost btn-sm" href="${PORTAL}" target="_blank" rel="noopener" style="margin-left:auto">${icon('external', 15)} Public page</a></div>`;
+          const rows = tableRows(r, 'filing-by-commission', { only: code, cycle: 'all' })
+            .concat(
+              CYCLES.flatMap((cy) =>
+                tableRows(r, 'filing-by-commission', { only: code, cycle: cy }),
+              ),
+            )
+            .sort(
+              (a, b) => [...CYCLES, 'all'].indexOf(a.cycle) - [...CYCLES, 'all'].indexOf(b.cycle),
+            );
+          body = `${src}<div class="card card-pad" style="padding:12px 16px;margin-bottom:14px">${supLegend()}</div><div class="stack"><section class="card"><div class="sec-h"><h3>Declarations</h3></div>${dataTable(r, 'by-cycle', { rows, caption: 'Declarations by cycle' })}</section><div class="cp-grid">${transposed(r, 'compliance-by-commission', code, 'Compliance')}${transposed(r, 'access-requests', code, 'Access requests')}</div></div>`;
+        }
+        return consoleShell(`<main class="cpage narrow">${head}${body}</main>`, {
+          crumbs,
+          active: 'Overview',
+        });
+      }
+
+      /* ---------- primitives gallery (#349, #356) ---------- */
+      function scrPrimitives() {
+        const r = relById('rel-2025-annual-1');
+        const rows = tableRows(r, 'filing-by-commission', { cycle: 'final' })
+          .filter((x) =>
+            [
+              'PSC',
+              'JSC',
+              'CPSB005',
+              'CPSB004',
+              'CPSB047',
+              'CPSB001',
+              'CPSB022',
+              'CPSB011',
+            ].includes(x.commissionCode),
+          )
+          .map((x) => ({
+            label: x.short,
+            full: x.commission,
+            value: x._nr || x._sup.filingRate ? null : x.filingRate,
+            marker: x._nr ? 'nr' : x._sup.filingRate,
+          }));
+        const showB = !!S.vizTable.pb;
+        const showL = !!S.vizTable.pl;
+        const card = (t, inner) =>
+          `<section class="card"><div class="sec-h"><h3>${t}</h3></div><div class="sec-b">${inner}</div></section>`;
+        return consoleShell(
+          `<main class="cpage"><div class="page-head"><div><h1>Primitives</h1></div></div><div class="stack">
+          ${card('SuppressionMarker', `<div class="prim-row">${supMark('p')}<span class="small muted">Under 10 officers</span></div><div class="prim-row">${supMark('c')}<span class="small muted">Complementary: protects a total</span></div><div class="prim-row">${supMark('nr')}<span class="small muted">Commission did not report</span></div><div style="margin-top:14px">${supLegend({ hidden: 6 })}</div>`)}
+          ${card('ReleaseStatusBadge', `<div class="prim-row">${relBadge('preview')}${relBadge('published')}${relBadge('withdrawn')}${relBadge('building')}</div><div class="prim-row">${kindTag('annual')}${kindTag('snapshot')}</div>`)}
+          ${card('Chart: bar, with nulls and reference line', `<div class="viz-head"><span class="small muted">Final declarations, ${FYL(2025)}</span><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="vizToggle" data-arg="pb" aria-pressed="${showB}">${icon(showB ? 'chart' : 'table', 15)} ${showB ? 'Chart' : 'Table'}</button></div>${barChart({ id: 'pb', title: 'Final declaration rate by Commission', desc: 'Horizontal bars; suppressed and not-reported Commissions are listed but not plotted.', rows, xLabel: 'Declaration rate (%)', catLabel: 'Commission', ref: 88.6, refLabel: 'National 88.6%', showTable: showB })}`)}
+          ${card(
+            'Chart: line, two series, null gap',
+            `<div class="viz-head"><span class="small muted">National rates</span><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="vizToggle" data-arg="pl" aria-pressed="${showL}">${icon(showL ? 'chart' : 'table', 15)} ${showL ? 'Chart' : 'Table'}</button></div>${lineChart(
+              {
+                id: 'pl',
+                title: 'National declaration and compliance rates by financial year',
+                desc: 'Line chart with a missing year.',
+                cats: ['2022/23', '2023/24', '2024/25', '2025/26'],
+                series: [
+                  { name: 'Declaration rate', values: [90.4, null, 93.1, 95.9] },
+                  { name: 'Compliance rate', values: [88.2, null, 91.7, 92.8] },
+                ],
+                yLabel: 'Rate (%)',
+                xLabel: 'Financial year',
+                showTable: showL,
+              },
+            )}`,
+          )}
+          </div></main>`,
+          { crumbs: [['Primitives', 'primitives']] },
+        );
+      }
+
+      /* ---------- modals ---------- */
+      const modals = {
+        build: () => {
+          const pv = S.releases.find(
+            (r) => r.fy === 2026 && r.kind === 'snapshot' && r.status === 'preview',
+          );
+          return dialog({
+            title: `Build ${FYL(2026)} snapshot`,
+            icon: 'chart',
+            body: `<p>Builds the six tables from today's figures with suppression applied.</p><ul class="conseq" style="margin-top:14px"><li>${icon('lock', 15)}<span>Preview only. Nothing is public until a supervisor publishes.</span></li>${pv ? `<li>${icon('refresh', 15)}<span>Replaces the current preview (v${pv.version}).</span></li>` : ''}</ul>`,
+            foot: `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="doBuild">${icon('plus', 16)} Build</button>`,
+          });
+        },
+        publish: () => {
+          const r = relById(S.sel);
+          const busy = S.modal.busy;
+          return dialog({
+            title: `Publish ${relName(r)}?`,
+            icon: 'globe',
+            tint: ['var(--brand-soft)', 'var(--brand-ink)'],
+            body: busy
+              ? `<div class="empty" role="status" style="padding:24px 0"><span class="spinner dark" style="width:26px;height:26px;margin-bottom:12px"></span><h4>Publishing…</h4><p>Issuing the manifest.</p></div>`
+              : S.pubErr
+                ? `<div class="callout callout-danger" role="alert">${icon('alert', 16)}<span>Could not publish. The figures changed since this preview was built. Build a new snapshot.</span></div>`
+                : `<div class="callout callout-warn" style="margin-bottom:14px">${icon('alert', 16)}<span><b>This will be public immediately.</b></span></div><ul class="conseq"><li>${icon('globe', 15)}<span>Anyone can view and download it on the open-data page and API.</span></li><li>${icon('shield', 15)}<span>A manifest is issued as a Public verifiable document.</span></li><li>${icon('lock', 15)}<span>It cannot be edited. To correct it, withdraw it and publish a new version.</span></li></ul>`,
+            foot: busy
+              ? ''
+              : `<button class="btn btn-ghost" data-act="closeModal">Cancel</button>${S.pubErr ? `<button class="btn btn-primary" data-act="doBuild">${icon('refresh', 16)} Build new snapshot</button>` : `<button class="btn btn-primary" data-act="doPublish">${icon('globe', 16)} Publish</button>`}`,
+          });
+        },
+        withdraw: () => {
+          const r = relById(S.sel);
+          const busy = S.modal.busy;
+          const n = S.wd.reason.length;
+          return dialog({
+            title: `Withdraw ${relName(r)}?`,
+            icon: 'ban',
+            tint: ['var(--danger-soft)', 'var(--danger)'],
+            body: busy
+              ? `<div class="empty" role="status" style="padding:24px 0"><span class="spinner dark" style="width:26px;height:26px;margin-bottom:12px"></span><h4>Withdrawing…</h4></div>`
+              : `<ul class="conseq" style="margin-bottom:16px"><li>${icon('eye', 15)}<span>It stays online, marked withdrawn with your reason.</span></li><li>${icon('download', 15)}<span>Its files can still be downloaded.</span></li><li>${icon('refresh', 15)}<span>To correct it, build and publish a new version.</span></li></ul>${field('Reason', textarea('wd.reason', { rows: 4, ph: 'What was wrong, and what the next version will change', extra: 'maxlength="1000" data-live' }), { id: 'f-wd-reason', hint: S.wd.err ? '' : `Shown publicly. ${n}/1000`, error: S.wd.err })}`,
+            foot: busy
+              ? ''
+              : `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-danger" data-act="doWithdraw">${icon('ban', 16)} Withdraw</button>`,
+          });
+        },
+      };
+
+      /* ---------- actions ---------- */
+      let buildTimer = null;
+      const actions = {
+        open: (id, el, e) => {
+          e?.stopPropagation?.();
+          S.sel = id;
+          S.tab = 'filing-by-commission';
+          S.cycle = 'all';
+          S.tpage = 1;
+          S.sort = null;
+          Kit.go('release');
+        },
+        listPage: (p) => {
+          S.list.page = +p;
+          Kit.render();
+        },
+        retryList: () => {
+          S.list.view = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.list.view = 'ok';
+            Kit.render();
+          }, 800);
+        },
+        tab: (k) => {
+          S.tab = k;
+          S.tpage = 1;
+          S.sort = null;
+          Kit.render();
+        },
+        cycle: (c) => {
+          S.cycle = c;
+          S.tpage = 1;
+          Kit.render();
+        },
+        tpage: (p) => {
+          S.tpage = +p;
+          Kit.render();
+        },
+        sortT: (k) => {
+          S.sort =
+            S.sort?.k === k
+              ? S.sort.dir === 'asc'
+                ? { k, dir: 'desc' }
+                : null
+              : { k, dir: 'asc' };
+          S.tpage = 1;
+          Kit.render();
+        },
+        dlCsv: (a) => {
+          const [id, key] = a.split('|');
+          const r = relById(id);
+          downloadText(`${key}-fy${r.fy}-v${r.version}.csv`, tableCsv(r, key), 'text/csv');
+          Kit.toast(`Downloaded ${key}.csv`);
+        },
+        dlTableJson: (a) => {
+          const [id, key] = a.split('|');
+          const r = relById(id);
+          const t = dataset(r).T[key];
+          downloadText(
+            `${key}-fy${r.fy}-v${r.version}.json`,
+            JSON.stringify(
+              {
+                table: key,
+                columns: COLS[key].map((c) => c[0]),
+                rows: t.rows.map((x) => {
+                  const o = {};
+                  Object.keys(x)
+                    .filter((k) => !k.startsWith('_') && k !== 'short')
+                    .forEach((k) => (o[k] = x._sup?.[k] ? null : x[k]));
+                  if (Object.keys(x._sup || {}).length) o.suppressed = Object.keys(x._sup);
+                  return o;
+                }),
+                suppression: { threshold: SUP_T, cellsSuppressed: t.hidden },
+              },
+              null,
+              2,
+            ),
+            'application/json',
+          );
+          Kit.toast(`Downloaded ${key}.json`);
+        },
+        dlJson: (id) => {
+          const r = relById(id);
+          downloadText(
+            `release-fy${r.fy}-${r.kind}-v${r.version}.json`,
+            releaseJson(r),
+            'application/json',
+          );
+          Kit.toast('Downloaded release.json');
+        },
+        doBuild: () => {
+          S.modal = null;
+          S.build = { fy: 2026, step: 0 };
+          if (S.screen !== 'releases') Kit.go('releases');
+          else Kit.render();
+          clearInterval(buildTimer);
+          buildTimer = setInterval(() => {
+            if (!S.build || S.build.failed) return clearInterval(buildTimer);
+            S.build.step++;
+            if (S.build.step >= BUILD_STEPS.length) {
+              clearInterval(buildTimer);
+              const r = addPreview('snapshot', 2026);
+              S.build = null;
+              actions.open(r.id);
+              Kit.toast('Snapshot built. Preview only.');
+              return;
+            }
+            Kit.render();
+          }, 850);
+        },
+        dismissBuild: () => {
+          S.build = null;
+          Kit.render();
+        },
+        rebuild: () => {
+          const r = relById(S.sel);
+          const n = addPreview(r.kind, r.fy);
+          actions.open(n.id);
+          Kit.toast(`v${n.version} built. Preview only.`);
+        },
+        openPublish: () => {
+          S.pubErr = false;
+          S.modal = { kind: 'publish' };
+          Kit.render();
+        },
+        doPublish: () => {
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            const r = relById(S.sel);
+            Object.assign(r, {
+              status: 'published',
+              publishedAt: NOW.replace('10:42', '10:51'),
+              publishedBy: ME(),
+              manifestVerificationId: 'ADL-3WFN-6KQP-9TDX-2HMC-7RVA-5D',
+            });
+            S.modal = null;
+            Kit.toast('Published. It is public now.');
+          }, 1300);
+        },
+        openWithdraw: () => {
+          S.wd = { reason: '', err: '' };
+          S.modal = { kind: 'withdraw' };
+          Kit.render();
+        },
+        doWithdraw: () => {
+          if (!S.wd.reason.trim()) {
+            S.wd.err = 'Enter a reason. It is shown publicly with the release.';
+            Kit.render();
+            document.getElementById('f-wd-reason')?.focus();
+            return;
+          }
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            const r = relById(S.sel);
+            Object.assign(r, {
+              status: 'withdrawn',
+              withdrawnAt: NOW.replace('10:42', '10:55'),
+              withdrawnBy: ME(),
+              withdrawnReason: S.wd.reason.trim(),
+            });
+            S.modal = null;
+            Kit.toast('Withdrawn. The reason is public.');
+          }, 1100);
+        },
+        cpRetry: () => {
+          S.cp.view = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.cp.view = 'latest';
+            Kit.render();
+          }, 800);
+        },
+        vizToggle: (id) => {
+          S.vizTable[id] = !S.vizTable[id];
+          Kit.render();
+        },
+      };
+
+      /* ---------- mount ---------- */
+      const reset = () => {
+        clearInterval(buildTimer);
+        Object.assign(S, fresh());
+      };
+      const J = (id, label, setup) => [
+        id,
+        label,
+        () => {
+          reset();
+          setup();
+        },
+      ];
+      Kit.mount({
+        app: 'console',
+        start: 'releases',
+        home: 'releases',
+        defaultPersona: 'eacc-analyst',
+        screens: {
+          releases: scrReleases,
+          release: scrRelease,
+          'commission-preview': scrCommissionPreview,
+          primitives: scrPrimitives,
+        },
+        modals,
+        actions,
+        afterRender: vizMeasure,
+        onBind: (b) => {
+          if (b === 'wd.reason' && S.wd.err && S.wd.reason.trim()) {
+            S.wd.err = '';
+          }
+        },
+        jumps: [
+          J('releases', '#350 Releases list (analyst)', () => {
+            setPersona('eacc-analyst');
+            Kit.go('releases');
+          }),
+          J('j-list-sup', '#350 Releases list (supervisor)', () => {
+            setPersona('eacc-supervisor');
+            Kit.go('releases');
+          }),
+          J('j-list-loading', '#350 Releases list: loading', () => {
+            setPersona('eacc-analyst');
+            S.list.view = 'loading';
+            Kit.go('releases');
+          }),
+          J('j-list-error', '#350 Releases list: error', () => {
+            setPersona('eacc-analyst');
+            S.list.view = 'error';
+            Kit.go('releases');
+          }),
+          J('j-list-empty', '#350 Releases list: empty', () => {
+            setPersona('eacc-analyst');
+            S.list.view = 'empty';
+            Kit.go('releases');
+          }),
+          J('j-build-dialog', '#350 Build snapshot: dialog', () => {
+            setPersona('eacc-analyst');
+            Kit.go('releases');
+            S.modal = { kind: 'build' };
+            Kit.render();
+          }),
+          J('j-building', '#350 Build snapshot: in progress', () => {
+            setPersona('eacc-analyst');
+            S.build = { fy: 2026, step: 2 };
+            Kit.go('releases');
+          }),
+          J('j-build-fail', '#350 Build snapshot: reconciliation failed', () => {
+            setPersona('eacc-analyst');
+            const nt = dataset({ id: 'rel-2026-snapshot-1', fy: 2026, kind: 'snapshot' }).NT;
+            S.build = { fy: 2026, failed: true, got: nt.filed - 5, want: nt.filed };
+            Kit.go('releases');
+          }),
+          J('j-preview', '#350 Snapshot preview (analyst)', () => {
+            setPersona('eacc-analyst');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+          }),
+          J('j-preview-final', '#350 Release tables: Final cycle with ‹10 markers', () => {
+            setPersona('eacc-analyst');
+            S.sel = 'rel-2025-annual-1';
+            Kit.go('release');
+            S.cycle = 'final';
+            Kit.render();
+          }),
+          J('j-preview-comp', '#350 Preview: compliance table (grouped columns)', () => {
+            setPersona('eacc-analyst');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+            S.tab = 'compliance-by-commission';
+            Kit.render();
+          }),
+          J('j-preview-page', '#350 Preview: table page 3', () => {
+            setPersona('eacc-analyst');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+            S.tpage = 3;
+            Kit.render();
+          }),
+          J('j-preview-other', '#350 Preview: national totals tab', () => {
+            setPersona('eacc-analyst');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+            S.tab = 'national-totals';
+            Kit.render();
+          }),
+          J('j-preview-sup', '#353 Preview: supervisor can publish', () => {
+            setPersona('eacc-supervisor');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+          }),
+          J('j-publish', '#353 Publish: confirm', () => {
+            setPersona('eacc-supervisor');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+            actions.openPublish();
+          }),
+          J('j-publish-busy', '#353 Publish: publishing', () => {
+            setPersona('eacc-supervisor');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+            S.modal = { kind: 'publish', busy: true };
+            Kit.render();
+          }),
+          J('j-publish-409', '#353 Publish: 409 figures changed', () => {
+            setPersona('eacc-supervisor');
+            const r = addPreview('snapshot', 2026, 'Brian Otieno');
+            actions.open(r.id);
+            actions.openPublish();
+            S.pubErr = true;
+            Kit.render();
+          }),
+          J('j-annual', '#353 Annual release: published on NCR approval (supervisor)', () => {
+            setPersona('eacc-supervisor');
+            actions.open('rel-2025-annual-1');
+          }),
+          J('j-annual-an', '#353 Annual release: analyst sees no actions', () => {
+            setPersona('eacc-analyst');
+            actions.open('rel-2025-annual-1');
+          }),
+          J('j-withdraw', '#353 Withdraw: dialog', () => {
+            setPersona('eacc-supervisor');
+            actions.open('rel-2025-annual-1');
+            actions.openWithdraw();
+          }),
+          J('j-withdraw-err', '#353 Withdraw: reason required', () => {
+            setPersona('eacc-supervisor');
+            actions.open('rel-2025-annual-1');
+            actions.openWithdraw();
+            actions.doWithdraw();
+          }),
+          J('j-withdrawn', '#353 Withdrawn release with reason and history', () => {
+            setPersona('eacc-supervisor');
+            actions.open('rel-2024-annual-1');
+          }),
+          J('j-v2', '#353 Version history: v2 after withdrawal', () => {
+            setPersona('eacc-analyst');
+            actions.open('rel-2024-annual-2');
+          }),
+          J('j-snap-pub', '#353 Published mid-year snapshot', () => {
+            setPersona('eacc-analyst');
+            actions.open('rel-2025-snapshot-1');
+          }),
+          J('j-403', '#350 Not EACC: no access', () => {
+            setPersona('reviewer');
+            Kit.go('releases');
+          }),
+          J('commission-preview', '#360 Commission preview: latest release', () => {
+            setPersona('commission-admin');
+            Kit.go('commission-preview');
+          }),
+          J('j-cp-preview', '#360 Commission preview: current preview', () => {
+            setPersona('commission-admin');
+            S.cp.view = 'preview';
+            Kit.go('commission-preview');
+          }),
+          J('j-cp-empty', '#360 Commission preview: empty', () => {
+            setPersona('commission-admin');
+            S.cp.view = 'empty';
+            Kit.go('commission-preview');
+          }),
+          J('j-cp-loading', '#360 Commission preview: loading', () => {
+            setPersona('commission-admin');
+            S.cp.view = 'loading';
+            Kit.go('commission-preview');
+          }),
+          J('j-cp-error', '#360 Commission preview: error', () => {
+            setPersona('commission-admin');
+            S.cp.view = 'error';
+            Kit.go('commission-preview');
+          }),
+          J('j-cp-403', '#360 Commission preview: other role, no access', () => {
+            setPersona('reporting-officer');
+            Kit.go('commission-preview');
+          }),
+          J('primitives', '#349 #356 Primitives: marker, badge, charts', () => {
+            Kit.go('primitives');
+          }),
+          J('j-prim-table', '#356 Primitives: charts as tables', () => {
+            S.vizTable = { pb: true, pl: true };
+            Kit.go('primitives');
+          }),
+        ],
+        coverage: [
+          {
+            ticket: 349,
+            title: 'UI primitives round 16b: suppression marker, release status badge',
+            screens: ['primitives', 'j-preview-final', 'releases'],
+            note: 'Marker has sr-only text and a title; badges pair icon + text. Complementary-suppression variant "Hidden" added (see report).',
+          },
+          {
+            ticket: 350,
+            title: 'Console: open-data releases list and snapshot preview page',
+            screens: [
+              'releases',
+              'j-list-loading',
+              'j-list-error',
+              'j-list-empty',
+              'j-build-dialog',
+              'j-building',
+              'j-build-fail',
+              'j-preview',
+              'j-preview-final',
+              'j-preview-comp',
+              'j-preview-page',
+              'j-preview-other',
+              'j-403',
+            ],
+          },
+          {
+            ticket: 353,
+            title: 'Console: publish, withdraw and release version history',
+            screens: [
+              'j-preview-sup',
+              'j-publish',
+              'j-publish-busy',
+              'j-publish-409',
+              'j-annual',
+              'j-annual-an',
+              'j-withdraw',
+              'j-withdraw-err',
+              'j-withdrawn',
+              'j-v2',
+              'j-snap-pub',
+            ],
+            note: 'Publish and Withdraw render for eacc-supervisor only.',
+          },
+          {
+            ticket: 356,
+            title: 'UI primitives: bar/line chart wrapper with table fallback',
+            screens: ['primitives', 'j-prim-table'],
+            note: 'Also used on the portal page. Nulls are listed with a marker, never plotted.',
+          },
+          {
+            ticket: 360,
+            title: 'Console: Commission settings open-data preview',
+            screens: [
+              'commission-preview',
+              'j-cp-preview',
+              'j-cp-empty',
+              'j-cp-loading',
+              'j-cp-error',
+              'j-cp-403',
+            ],
+            note: 'Entry point: Overview (01-commissions #my-commission) card for commission-admin.',
+          },
+        ],
+        reset: () => {
+          reset();
+          Kit.go('releases');
+        },
+      });
+    </script>
+  </body>
+</html>

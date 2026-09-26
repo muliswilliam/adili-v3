@@ -64,7 +64,8 @@
         line-height: 1.35;
         padding: 7px 10px;
         border-radius: 8px;
-        white-space: nowrap;
+        width: max-content;
+        max-width: 260px;
         opacity: 0;
         transform: translateY(3px);
         pointer-events: none;
@@ -355,6 +356,98 @@
       .tile-link:hover {
         text-decoration: underline;
         text-underline-offset: 3px;
+      }
+      /* ---------- coverage (#301) ---------- */
+      .cov-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .cov-meta .select {
+        width: auto;
+        height: 38px;
+        font-size: 14px;
+      }
+      .sbar {
+        display: flex;
+        height: 8px;
+        border-radius: 99px;
+        overflow: hidden;
+        background: var(--sunken);
+        min-width: 100px;
+      }
+      .sbar i {
+        display: block;
+        height: 100%;
+      }
+      .sbar i.s {
+        background: var(--ok);
+      }
+      .sbar i.p {
+        background: #7aa7e0;
+      }
+      .legend {
+        display: inline-flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-left: auto;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: var(--sunken);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+      }
+      .legend i.s {
+        background: var(--ok);
+        box-shadow: none;
+      }
+      .legend i.p {
+        background: #7aa7e0;
+        box-shadow: none;
+      }
+      .late {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .table tfoot td {
+        font-weight: 600;
+        border-top: 1px solid var(--line);
+        background: #fcfcfb;
+      }
+      .cov-m {
+        display: none;
+      }
+      .citem {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .citem.tot {
+        background: #fcfcfb;
+        border-bottom: 0;
+      }
+      @container app (max-width: 699px) {
+        .cov-d {
+          display: none;
+        }
+        .cov-m {
+          display: block;
+        }
+        .legend {
+          margin-left: 0;
+        }
       }
       .tile.warn {
         box-shadow: 0 0 0 1px #f0d9a8;
@@ -1176,6 +1269,15 @@
         exitOne: { date: TODAY_ISO, err: '' },
         rep: { page: 1 },
         hist: { load: 'ok', page: 1 },
+        cov: {
+          cycle: 'initial',
+          q: '',
+          page: 1,
+          load: 'ok',
+          updatedAt: '10:30',
+          refreshing: false,
+          biennialOpen: false,
+        },
         api: {
           state: 'active',
           clientId: 'roster-psc',
@@ -1386,7 +1488,7 @@
     <div><button class="btn btn-secondary btn-sm" data-act="go" data-arg="import-report|${last.id}">View report ${icon('right', 15)}</button></div>
   </div></div>`;
         const nextCard = `<div class="card nextlist"><div class="sec-h"><h3>Next steps</h3></div>${next.map(([ic, t, a, arg]) => `<div class="item" role="link" tabindex="0" data-act="${a}" data-arg="${arg}"><span class="ico">${icon(ic, 17)}</span><div class="item-body"><div class="t">${t}</div></div><span class="muted">${icon('right', 17)}</span></div>`).join('')}</div>`;
-        const links = `<div class="linkrow"><button class="btn btn-secondary btn-sm" data-act="go" data-arg="records">${icon('list', 15)} Records</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="flagged">${icon('flag', 15)} Flagged officers</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="imports">${icon('clock', 15)} Import history</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="api-access">${icon('key', 15)} API access</button></div>`;
+        const links = `<div class="linkrow"><button class="btn btn-secondary btn-sm" data-act="go" data-arg="coverage">${icon('chart', 15)} Coverage</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="records">${icon('list', 15)} Records</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="flagged">${icon('flag', 15)} Flagged officers</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="imports">${icon('clock', 15)} Import history</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="api-access">${icon('key', 15)} API access</button></div>`;
         return shell(
           head('Roster', sub, `${tplMenu('tpl')}${isRO() ? importBtn() : ''}`) +
             runningBanner() +
@@ -1394,6 +1496,181 @@
             links +
             `<div class="ov-grid">${lastCard}${nextCard}</div>`,
           { crumbs: [['Roster', 'overview']] },
+        );
+      }
+
+      /* ---------------- screen: coverage per reporting entity (#301, spec 05 slice #299) ---------------- */
+      const COV_ENTITIES = [
+        'State Department for Public Service',
+        'Ministry of Health',
+        'Kenya School of Government',
+        'Ministry of Interior and National Administration',
+        'State Department for Water and Sanitation',
+        'Ministry of Agriculture and Livestock Development',
+        'Huduma Kenya Secretariat',
+        'The National Treasury',
+        'State Department for Basic Education',
+        'State Department for Higher Education and Research',
+        'State Department for Roads',
+        'State Department for Housing and Urban Development',
+        'Ministry of Lands, Public Works, Housing and Urban Development',
+        'Ministry of Foreign and Diaspora Affairs',
+        'State Department for Immigration and Citizen Services',
+        'Ministry of Environment, Climate Change and Forestry',
+        'Ministry of Energy and Petroleum',
+        'Ministry of Investments, Trade and Industry',
+        'State Department for Labour and Skills Development',
+        'State Department for Youth Affairs and Creative Economy',
+        'State Department for Correctional Services',
+        'State Department for Internal Security and National Administration',
+        'Office of the Attorney-General and Department of Justice',
+        'Ministry of Information, Communications and the Digital Economy',
+        'State Department for Cooperatives',
+        'State Department for Tourism',
+        'Ministry of Mining, Blue Economy and Maritime Affairs',
+        'State Department for Gender and Affirmative Action',
+      ];
+      const COV_CYCLES = [
+        ['initial', 'Initial declarations'],
+        ['final', 'Final declarations'],
+        ['biennial:2027', 'Biennial 2027'],
+      ];
+      // Counts per reporting entity and cycle, as the declarations counts endpoint returns them (#300).
+      // Late = past the due date and not submitted; it overlaps not started and in progress.
+      function covRows(cycle) {
+        if (cycle === 'biennial:2027' && !S.cov.biennialOpen) return [];
+        return COV_ENTITIES.map((name, i) => {
+          const k = i + 1;
+          let expected, submitted, inProgress, late;
+          if (cycle === 'initial') {
+            expected = 6 + ((k * 37) % 58);
+            submitted = Math.round(expected * (0.42 + ((k * 7) % 40) / 100));
+            inProgress = Math.round((expected - submitted) * (0.3 + ((k * 3) % 30) / 100));
+            late = Math.round((expected - submitted) * (0.2 + ((k * 11) % 35) / 100));
+          } else if (cycle === 'final') {
+            expected = (k * 13) % 9;
+            submitted = Math.round(expected * 0.6);
+            inProgress = expected - submitted > 1 ? 1 : 0;
+            late = expected - submitted > 0 && k % 3 === 0 ? 1 : 0;
+          } else {
+            const w = (j) => 300 + ((j * 1733) % 2900);
+            const ws = COV_ENTITIES.reduce((a, _, j) => a + w(j + 1), 0);
+            expected = Math.round((w(k) * S.roster.expected) / ws);
+            submitted = Math.round(expected * (0.08 + ((k * 7) % 18) / 100));
+            inProgress = Math.round(expected * (0.22 + ((k * 5) % 20) / 100));
+            late = 0;
+          }
+          return {
+            name,
+            expected,
+            submitted,
+            inProgress,
+            notStarted: expected - submitted - inProgress,
+            late,
+          };
+        })
+          .filter((r) => r.expected > 0)
+          .map((r, i, arr) => {
+            // Biennial covers the whole roster: make the entity counts add up to the expected declarants.
+            if (cycle !== 'biennial:2027' || i !== 0) return r;
+            const diff = S.roster.expected - arr.reduce((a, x) => a + x.expected, 0);
+            return { ...r, expected: r.expected + diff, notStarted: r.notStarted + diff };
+          });
+      }
+      const covSum = (rows) =>
+        rows.reduce(
+          (a, r) => ({
+            expected: a.expected + r.expected,
+            notStarted: a.notStarted + r.notStarted,
+            inProgress: a.inProgress + r.inProgress,
+            submitted: a.submitted + r.submitted,
+            late: a.late + r.late,
+          }),
+          { expected: 0, notStarted: 0, inProgress: 0, submitted: 0, late: 0 },
+        );
+      function sbar(r) {
+        const p = (n) => (r.expected ? (n / r.expected) * 100 : 0);
+        return `<div class="sbar" role="img" aria-label="${pctOf(r.submitted, r.expected)}% submitted, ${pctOf(r.inProgress, r.expected)}% in progress"><i class="s" style="width:${p(r.submitted)}%"></i><i class="p" style="width:${p(r.inProgress)}%"></i></div>`;
+      }
+      function coverageScreen() {
+        const crumbs = [
+          ['Roster', 'overview'],
+          ['Coverage', 'coverage'],
+        ];
+        if (!isCommissionRole())
+          return shell(
+            head('Coverage') +
+              `<div class="card">${Kit.empty('Page not found', 'This page does not exist or you do not have access to it.', { icon: 'search' })}</div>`,
+            { crumbs },
+          );
+        const c = S.cov;
+        const cyc = COV_CYCLES.find((x) => x[0] === c.cycle);
+        const opt = ([v, l]) =>
+          `<option value="${v}" ${c.cycle === v ? 'selected' : ''}>${l}${v === 'biennial:2027' && !c.biennialOpen ? ' (opens 4 Jul 2027)' : ''}</option>`;
+        const updated = c.refreshing
+          ? `<span class="spinner dark" style="width:12px;height:12px"></span> Updating…`
+          : `Updated ${c.updatedAt}`;
+        const meta = `<div class="cov-meta"><label class="sr-only" for="f-cov-cycle">Cycle</label><select id="f-cov-cycle" class="select" data-bind="cov.cycle" data-rerender>${COV_CYCLES.map(opt).join('')}</select><span class="small muted row" style="gap:6px" aria-live="polite">${updated}<button class="btn btn-ghost icon-btn" style="width:28px;height:28px" data-act="covRefresh" aria-label="Refresh counts" title="Refresh">${icon('refresh', 14)}</button></span></div>`;
+        const title = head('Coverage', '', meta);
+        if (S.roster.status === 'none')
+          return shell(
+            title +
+              `<div class="card">${Kit.empty('No roster yet', 'Coverage appears once the roster is imported.', { icon: 'users', action: isRO() ? importBtn() : '' })}</div>`,
+            { crumbs },
+          );
+        if (c.load === 'error')
+          return shell(
+            title +
+              `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div style="flex:1"><b>Counts could not be loaded</b><div>Check your connection and try again.</div></div><button class="btn btn-secondary btn-sm" data-act="retryCov">${icon('refresh', 15)} Retry</button></div>`,
+            { crumbs },
+          );
+        const loading = c.load === 'loading';
+        const all = loading ? [] : covRows(c.cycle);
+        if (!loading && !all.length)
+          return shell(
+            title +
+              `<div class="card">${Kit.empty(`Nothing due in ${cyc[1]} yet`, c.cycle === 'biennial:2027' ? 'Obligations open on 4 Jul 2027.' : 'No declarants have this obligation right now.', { icon: 'calendar' })}</div>`,
+            { crumbs },
+          );
+        const t = covSum(all);
+        const tile = (k, ic, label, n, cls = '') =>
+          `<div class="tile ${cls}"><span class="k">${icon(ic, 15)} ${label}${k ? Kit.tip(k) : ''}</span>${loading ? '<span class="skeleton" style="width:40%;height:26px;margin-top:4px"></span>' : `<span class="v">${num(n)} <small>${pctOf(n, t.expected)}%</small></span>`}</div>`;
+        const tiles = `<div class="tiles">${tile('', 'minus', 'Not started', t.notStarted)}${tile('A draft exists. Nobody at the Commission can see its content.', 'pencil', 'In progress', t.inProgress)}${tile('', 'check', 'Submitted', t.submitted)}${tile('Past the due date and not submitted. Also counted in Not started or In progress.', 'clock', 'Late', t.late, t.late ? 'warn' : '')}</div>`;
+        const q = c.q.trim().toLowerCase();
+        const rows = all.filter((r) => !q || r.name.toLowerCase().includes(q));
+        const PG = 10;
+        const pages = Math.max(1, Math.ceil(rows.length / PG));
+        const page = Math.min(c.page, pages);
+        const items = rows.slice((page - 1) * PG, page * PG);
+        const toolbar = `<div class="toolbar" role="search"><div class="input-group"><span class="addon">${icon('search', 16)}</span><label class="sr-only" for="f-cov-q">Search reporting entities</label><input id="f-cov-q" class="input" type="search" data-bind="cov.q" data-live value="${esc(c.q)}" placeholder="Reporting entity"/></div><span class="legend"><span><i class="s"></i>Submitted</span><span><i class="p"></i>In progress</span><span><i></i>Not started</span></span></div>`;
+        const head_ = `<thead><tr><th scope="col">Reporting entity</th><th scope="col" class="num">Declarants</th><th scope="col" class="num">Not started</th><th scope="col" class="num">In progress</th><th scope="col" class="num">Submitted</th><th scope="col" class="num">Late</th><th scope="col" style="min-width:150px"><span class="sr-only">Progress</span></th></tr></thead>`;
+        let body;
+        if (loading)
+          body = `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="sr-only">Coverage per reporting entity (loading)</caption>${head_}<tbody>${Kit.skeletonRows(6, 7)}</tbody></table></div>`;
+        else if (!rows.length)
+          body = Kit.empty('No matches', 'Try another name.', {
+            icon: 'search',
+            action: `<button class="btn btn-secondary btn-sm" data-act="covClear">Clear search</button>`,
+          });
+        else {
+          const ft = covSum(rows);
+          const tr = items
+            .map(
+              (r) =>
+                `<tr><td class="primary" style="font-weight:500;white-space:normal;min-width:240px">${esc(r.name)}</td><td class="num">${num(r.expected)}</td><td class="num">${num(r.notStarted)}</td><td class="num">${num(r.inProgress)}</td><td class="num">${num(r.submitted)}</td><td class="num">${r.late ? `<span class="late">${num(r.late)}</span>` : '0'}</td><td>${sbar(r)}</td></tr>`,
+            )
+            .join('');
+          const m = items
+            .map(
+              (r) =>
+                `<div class="citem"><div class="row" style="justify-content:space-between;gap:10px;align-items:flex-start"><span style="font-weight:500">${esc(r.name)}</span><span class="small muted nowrap">${num(r.expected)}</span></div>${sbar(r)}<div class="small muted">${num(r.notStarted)} not started · ${num(r.inProgress)} in progress · ${num(r.submitted)} submitted${r.late ? ` · <span class="late nowrap">${num(r.late)} late</span>` : ''}</div></div>`,
+            )
+            .join('');
+          body = `<div class="table-wrap cov-d"><table class="table"><caption class="sr-only">Declarants per reporting entity for ${esc(cyc[1])}, with totals</caption>${head_}<tbody>${tr}</tbody><tfoot><tr><td>${q ? `Total, ${rows.length} matching` : 'Total'}</td><td class="num">${num(ft.expected)}</td><td class="num">${num(ft.notStarted)}</td><td class="num">${num(ft.inProgress)}</td><td class="num">${num(ft.submitted)}</td><td class="num">${num(ft.late)}</td><td>${sbar(ft)}</td></tr></tfoot></table></div><div class="cov-m">${m}<div class="citem tot"><div class="row" style="justify-content:space-between"><span style="font-weight:600">${q ? `Total, ${rows.length} matching` : 'Total'}</span><span class="small nowrap" style="font-weight:600">${num(ft.expected)}</span></div><div class="small muted">${num(ft.notStarted)} not started · ${num(ft.inProgress)} in progress · ${num(ft.submitted)} submitted · ${num(ft.late)} late</div></div></div>${Kit.pager({ page, pageSize: PG, total: rows.length, act: 'covPage' })}`;
+        }
+        return shell(
+          `${title}${tiles}<div class="card" style="margin-top:16px">${toolbar}${body}</div>`,
+          { crumbs },
         );
       }
 
@@ -2476,7 +2753,38 @@
         );
       }
       const asPersona = (p) => localStorage.setItem('dials-proto-persona', p);
+      function covRefresh(quiet) {
+        if (S.screen !== 'coverage' || S.cov.refreshing) return;
+        S.cov.refreshing = true;
+        Kit.render();
+        setTimeout(() => {
+          S.cov.refreshing = false;
+          S.cov.updatedAt = 'just now';
+          Kit.render();
+          if (!quiet) Kit.toast('Counts updated');
+        }, 700);
+      }
+      // Refresh on focus: counts come from declaration events, so re-fetch when the officer comes back to the tab.
+      window.addEventListener('focus', () => covRefresh(true));
       const actions = {
+        covPage: (p) => {
+          S.cov.page = +p;
+          Kit.render();
+        },
+        covClear: () => {
+          S.cov.q = '';
+          S.cov.page = 1;
+          Kit.render();
+        },
+        covRefresh: () => covRefresh(false),
+        retryCov: () => {
+          S.cov.load = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.cov.load = 'ok';
+            Kit.render();
+          }, 800);
+        },
         go: (a) => {
           const [scr, p] = String(a).split('|');
           if (needsGuard() && scr !== 'import') {
@@ -2900,6 +3208,15 @@
         S.flag = { sel: [], page: 1, date: TODAY_ISO, per: {}, err: '', fail: false, busy: false };
         S.rec = { q: '', state: '', flagged: false, mismatch: false, page: 1, load: 'ok' };
         S.hist = { load: 'ok', page: 1 };
+        S.cov = {
+          cycle: 'initial',
+          q: '',
+          page: 1,
+          load: 'ok',
+          updatedAt: '10:30',
+          refreshing: false,
+          biennialOpen: false,
+        };
         S.rep.page = 1;
         S.api = {
           state: 'active',
@@ -3762,6 +4079,39 @@
             Kit.go('commission-card');
           },
         ],
+        ...[
+          ['coverage', '#301 Coverage: initial declarations', {}],
+          ['cov-page2', '#301 Coverage: page 2', { page: 2 }],
+          ['cov-final', '#301 Coverage: final declarations', { cycle: 'final' }],
+          [
+            'cov-bi-closed',
+            '#301 Coverage: Biennial 2027 not open (empty)',
+            { cycle: 'biennial:2027' },
+          ],
+          [
+            'cov-bi-open',
+            '#301 Coverage: Biennial 2027 in progress (after 4 Jul 2027)',
+            { cycle: 'biennial:2027', biennialOpen: true },
+          ],
+          ['cov-search', '#301 Coverage: search', { q: 'state department for' }],
+          ['cov-nomatch', '#301 Coverage: no matches', { q: 'county' }],
+          ['cov-loading', '#301 Coverage: loading', { load: 'loading' }],
+          ['cov-refresh', '#301 Coverage: refreshing on focus', { refreshing: true }],
+          ['cov-error', '#301 Coverage: error', { load: 'error' }],
+          ['cov-ca', '#301 Coverage: commission administrator', {}, 'commission-admin'],
+          ['cov-none', '#301 Coverage: no roster yet', {}, 'none'],
+          ['cov-404', '#301 Coverage: platform admin (404)', {}, 'platform-admin'],
+        ].map(([id, label, extra, who]) => [
+          id,
+          label,
+          () => {
+            asPersona(who && who !== 'none' ? who : 'reporting-officer');
+            if (who === 'none') emptyWorld();
+            else resetWorld();
+            Object.assign(S.cov, extra);
+            Kit.go('coverage');
+          },
+        ]),
         ['primitives', '#32 UI primitives round 2', () => Kit.go('primitives')],
       ];
 
@@ -3781,6 +4131,7 @@
           'api-access': apiScreen,
           'api-docs': apiDocsScreen,
           'commission-card': commissionCardScreen,
+          coverage: coverageScreen,
           primitives: primitivesScreen,
         },
         modals,
@@ -3788,6 +4139,7 @@
         jumps,
         onBind: (path) => {
           if (path === 'rec.q' || path === 'rec.state') S.rec.page = 1;
+          if (path === 'cov.q' || path === 'cov.cycle') S.cov.page = 1;
           if (path.startsWith('flag.')) S.flag.err = '';
           if (path.startsWith('exitOne.')) S.exitOne.err = '';
         },
@@ -3963,6 +4315,26 @@
             ticket: 55,
             title: 'API imports in history and last-used on API access',
             screens: ['imports', 'rep-api', 'api-access', 'api-docs'],
+          },
+          {
+            ticket: 301,
+            title: 'Console: In progress column and cycle filter on roster coverage',
+            screens: [
+              'coverage',
+              'cov-page2',
+              'cov-final',
+              'cov-bi-closed',
+              'cov-bi-open',
+              'cov-search',
+              'cov-nomatch',
+              'cov-loading',
+              'cov-refresh',
+              'cov-error',
+              'cov-ca',
+              'cov-none',
+              'cov-404',
+            ],
+            note: 'New Roster > Coverage page (linked from the overview). Counts only, per reporting entity and cycle; totals row covers all entities (or the matching ones when searching). Late overlaps Not started and In progress (tooltip). Refreshes when the window regains focus and on the refresh button. Other roles get 404 as the counts endpoint does.',
           },
           {
             ticket: 75,

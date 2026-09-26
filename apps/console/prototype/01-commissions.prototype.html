@@ -1293,6 +1293,7 @@
         resendSim: null,
         _ret: null,
         myFresh: false,
+        aiOn: true,
       });
       const S = Kit.state(init());
 
@@ -1849,7 +1850,7 @@
     }</section>`;
       }
       /* spec 04 FE-4: policy card (commission-admin of the tenant, platform-admin); read only for other staff of the tenant */
-      function policyCard(c, { canChange }) {
+      function policyCard(c, { canChange, ai = false }) {
         const pv = S.policies[c.slug];
         const v = pv[pv.length - 1];
         const hist = pv.slice().reverse();
@@ -1858,6 +1859,7 @@
       <div class="prow"><div class="k">Statutory periods</div><div class="v">Initial: ${v.initialDueAfterAppointmentDays} days after appointment<br/>Biennial: statement 1 Nov, due 31 Dec<br/>Final: ${v.finalDueAfterExitDays} days after leaving office</div><div></div></div>
       <div class="prow"><div class="k">Reminders</div><div class="v">${v.reminderOffsetsDays.join(', ').replace(/, (\d+)$/, ' and $1')} days before due</div><div></div></div>
       <div class="prow"><div class="k">Obligations start date</div><div class="v">${fd(v.obligationsStartDate)} ${Kit.tip('Initial declarations are created only for appointments on or after this date.')}</div><div>${canChange ? `<button class="btn btn-secondary btn-sm" data-act="openPolicy">${icon('pencil', 14)} Change</button>` : ''}</div></div>
+      ${ai ? `<div class="prow"><div class="k">AI assistance</div><div class="v row" style="gap:8px;flex-wrap:wrap">${S.aiOn ? Kit.badge(icon('check', 12, 2.6) + ' Enabled', 'ok') : Kit.badge(icon('ban', 12) + ' Not enabled')}<span style="font-weight:400;color:var(--ink-2)">${S.aiOn ? 'External provider, synthetic data only' : 'No declaration data is sent to an AI provider'}</span></div><div><a class="btn btn-secondary btn-sm" href="07c-copilot.prototype.html#commission-ai">Details</a></div></div>` : ''}
     </div></div>
     <div style="padding:0 20px 16px"><h4 class="small" style="font-weight:600;margin:4px 0 2px">Version history</h4><ul class="vh-list">${hist.map((h, i) => `<li><span class="vnum ${i === 0 ? 'cur' : ''}">v${h.version}</span><div><div style="font-weight:500">Effective ${fdt(h.effectiveFrom)}${i === 0 ? ' <span class="badge badge-ok" style="height:20px;margin-left:4px">In force</span>' : ''}</div><div class="small muted">${h.version === 1 ? 'Platform defaults' : `Obligations start date ${fd(h.obligationsStartDate)}`} · by ${esc(h.createdBy)}</div></div></li>`).join('')}</ul></div></section>`;
       }
@@ -1966,8 +1968,9 @@
     ${isEacc() ? '' : sumCards(c, role)}
     <div class="dgrid">
       <div class="dcol">${detailsCard(c)}</div>
-      <div class="dcol">${roCard(c, { readOnly: true })}${showPolicy ? policyCard(c, { canChange }) : ''}
-        ${showPolicy && !canChange ? `<div class="note" style="padding:0 4px">${icon('lock', 15)}<span>Only your Commission administrator can change the start date.</span></div>` : ''}</div>
+      <div class="dcol">${roCard(c, { readOnly: true })}${showPolicy ? policyCard(c, { canChange, ai: ['commission-admin', 'supervisor'].includes(role) }) : ''}
+        ${showPolicy && !canChange ? `<div class="note" style="padding:0 4px">${icon('lock', 15)}<span>Only your Commission administrator can change the start date.</span></div>` : ''}
+        ${canChange ? `<a class="sumcard" href="12-open-data.prototype.html#commission-preview" aria-label="Open data preview"><div class="hd"><span class="ico">${icon('chart', 17)}</span><h3>Open data preview</h3><span class="r">${icon('right', 17)}</span></div><div class="ln">FY 2025/2026 annual · Published 18 Sep 2026</div></a>` : ''}</div>
     </div>
   </main>`,
           { crumbs: [['Overview', 'my-commission']] },
@@ -2892,6 +2895,16 @@
           () => {
             reset();
             as('commission-admin');
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-admin-ai-off',
+          '#291 Your Commission as commission admin: AI assistance not enabled',
+          () => {
+            reset();
+            as('commission-admin');
+            S.aiOn = false;
             Kit.go('my-commission');
           },
         ],
