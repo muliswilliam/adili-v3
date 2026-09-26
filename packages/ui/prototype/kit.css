@@ -3272,3 +3272,19 @@ dl.dl {
 .table-wrap {
   position: relative;
 }
+/* Ticket links in the PROTOTYPE bar's Tickets panel. */
+.proto .cov a.tk {
+  display: inline;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  background: none;
+  color: #ffb48f;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.proto .cov a.tk:hover {
+  color: #fff;
+}

@@ -1078,6 +1078,7 @@
     });
     render();
   }
+  const ISSUES = 'https://github.com/muliswilliam/adili-v3/issues/';
   function renderProto() {
     const el = document.getElementById('proto');
     if (!el) return;
@@ -1112,7 +1113,9 @@
           ? `<div class="panel"><h4>Tickets covered in this file</h4><div class="cov">${cov
               .map(
                 (t) =>
-                  `<div><b>#${t.ticket}</b> ${esc(t.title)}<div>${(t.screens || [])
+                  `<div>${t.ticket ? `<a class="tk" href="${ISSUES}${t.ticket}" target="_blank" rel="noopener" title="Open issue #${t.ticket} on GitHub">#${t.ticket}</a>` : '<b>Ahead of spec</b>'} ${esc(t.title)}<div>${(
+                    t.screens || []
+                  )
                     .map((s) => {
                       const j = jumps.find((x) => x[0] === s);
                       return `<a data-p="jumpcov" data-arg="${s}">${esc(j ? j[1] : s)}</a>`;
