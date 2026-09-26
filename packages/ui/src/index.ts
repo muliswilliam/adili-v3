@@ -18,6 +18,8 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
+export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export {
   DataTable,
   type DataTableColumn,
@@ -52,6 +54,15 @@ export { Icon, type IconProps } from './components/icon';
 export { Input } from './components/input';
 export { Label } from './components/label';
 export { Logo, LogoMark, type LogoProps } from './components/logo';
+export {
+  type ContactKind,
+  maskContact,
+  MaskedContact,
+  type MaskedContactProps,
+  maskEmail,
+  maskPhone,
+} from './components/masked-contact';
+export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
