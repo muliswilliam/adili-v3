@@ -4,7 +4,7 @@ info:
   version: '1'
   description: |
     Draft contract for specs 03 (IPRS identity lookup), 07b (KRA, NTSA, BRS, ArdhiSasa
-    cross-checks, coverage and pause) and 08 (payroll instructions). Cached, circuit-broken, rate-limited lookups with a
+    cross-checks, coverage and pause), 08 (payroll instructions) and 09 (ICMS referrals). Cached, circuit-broken, rate-limited lookups with a
     verification-results row per call carrying the legal basis. Internal paths are not routed by the public
     entrypoint. The integration-gateway's Swagger document becomes the source of truth
     once implemented.
@@ -306,6 +306,65 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/icms/referrals:
+    post:
+      tags: [internal]
+      operationId: submitIcmsReferral
+      summary: Register a referral with ICMS and return the case number (idempotent by referral reference)
+      parameters:
+        - $ref: '#/components/parameters/CaseRef'
+        - $ref: '#/components/parameters/LegalBasis'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IcmsReferralRequest'
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcmsReferral'
+        '200':
+          description: Already registered (replay)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcmsReferral'
+        '400':
+          $ref: '#/components/responses/MissingLegalBasis'
+        '503':
+          description: ICMS unavailable; nothing registered
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/icms/referrals/{referralReference}:
+    parameters:
+      - name: referralReference
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [internal]
+      operationId: getIcmsReferral
+      summary: Stored ICMS registration for a referral reference
+      responses:
+        '200':
+          description: Registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IcmsReferral'
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   parameters:
     NationalIdPath:
@@ -391,7 +450,7 @@ components:
           type: string
     System:
       type: string
-      enum: [iprs, kra, ntsa, brs, ardhisasa, payroll]
+      enum: [iprs, kra, ntsa, brs, ardhisasa, payroll, icms]
     LookupOutcome:
       type: string
       enum: [found, not-found, unavailable]
@@ -631,6 +690,42 @@ components:
         payrollReference:
           type: [string, 'null']
         receivedAt:
+          type: [string, 'null']
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+    IcmsReferralRequest:
+      type: object
+      required: [referralReference, nationalId, fullName, referringCommission, grounds, details]
+      properties:
+        referralReference:
+          type: string
+          description: The RFL reference
+        nationalId:
+          type: string
+        fullName:
+          type: string
+        referringCommission:
+          type: string
+          description: Issuer code
+        grounds:
+          type: string
+        details:
+          type: string
+          maxLength: 8000
+    IcmsReferral:
+      type: object
+      required: [referralReference, caseNumber, status, registeredAt, sentAt]
+      properties:
+        referralReference:
+          type: string
+        caseNumber:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [registered, pending, failed]
+        registeredAt:
           type: [string, 'null']
           format: date-time
         sentAt:
