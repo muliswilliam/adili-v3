@@ -72,8 +72,9 @@ Inside a `Card`, `shadow-control` becomes a flat 1px ring (8% black) and `bg-con
 | `Label` | muted, regular weight | turns red when its field has an error |
 | `FormField` | label → control 6px apart | hint below the label, error below the control with `role="alert"` |
 | `Card` | white, 20px radius and padding, no border or shadow | `CardHeader` (optional `CardIcon`: 24px, `success` colour, 12px above the title; title 16px semibold; description 14px muted, 1.6 line height), then 32px to `CardContent` (fields 16px apart), then 20px to `CardFooter` (buttons 12px apart; `flex-1` for an equal-width pair) |
+| `Select` | *derived* | same fill, shadows and error state as `Input`; its trigger takes the id and aria attributes from `FormField` |
 | `Badge` | *derived* | `default`, `neutral`, `outline`, `warning`, `success`, `destructive` |
-| `Alert`, `Dialog`, `Toast`, `Table`, `EmptyState`, `Skeleton`, `Checkbox` | *not designed yet* | styled from the tokens above until screens are designed |
+| `Alert`, `Dialog`, `Toast`, `Table`, `DataTable`, `EmptyState`, `Skeleton`, `Checkbox`, `FileDropZone`, `ProgressBar`, `Stepper`, `Tabs`, `Tooltip` | *not designed yet* | styled from the tokens above until screens are designed |
 
 ## Dark theme
 
