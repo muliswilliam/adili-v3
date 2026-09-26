@@ -10,24 +10,39 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
     "@nestjs/common": "^12.1.0",
-    "@temporalio/client": "^1.24.0"
+    "@temporalio/client": "^1.24.0",
+    "@temporalio/testing": "^1.24.0",
+    "@temporalio/worker": "^1.24.0",
+    "@temporalio/workflow": "^1.24.0"
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@nestjs/core": "^12.1.0",
+    "@nestjs/testing": "^12.1.0",
+    "@swc/core": "^1.16.2",
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
-    "typescript": "~6.0.3"
+    "reflect-metadata": "^0.2.2",
+    "typescript": "~6.0.3",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^5.0.1"
   }
 }

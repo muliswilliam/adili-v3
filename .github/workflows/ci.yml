@@ -29,7 +29,7 @@ jobs:
       - run: pnpm deps:check
 
   integration:
-    name: Integration (Postgres, RabbitMQ)
+    name: Integration (Postgres, RabbitMQ, Temporal)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -52,6 +52,8 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://adili_test:adili_test_dev@localhost:5432/adili_test
       TEST_RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
+      TEST_TEMPORAL_ADDRESS: localhost:7233
+      TEST_TEMPORAL_NAMESPACE: adili
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -60,6 +62,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Temporal's single-binary dev server (service containers cannot pass it arguments).
+      - name: Start Temporal
+        run: |
+          docker run -d --name temporal -p 7233:7233 temporalio/temporal:1.6.1 \
+            server start-dev --ip 0.0.0.0 --namespace adili
+          timeout 60 sh -c 'until docker exec temporal temporal operator namespace describe --namespace adili >/dev/null 2>&1; do sleep 1; done'
       - run: pnpm test:integration
 
   python:
