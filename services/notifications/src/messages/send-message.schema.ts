@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { isTemplateId, templateChannel } from './templates.js';
+import { CHANNELS, isTemplateId, LOCALES, templateChannel, templateParams } from './templates.js';
 
 // ITU-T E.164: a plus, a country code that never starts with 0, at most 15 digits.
 const E164 = /^\+[1-9]\d{7,14}$/;
@@ -9,18 +9,19 @@ const email = z.email();
 /** Body of `POST /internal/v1/messages` (notifications.yaml `SendMessage`). */
 export const sendMessageSchema = z
   .object({
-    channel: z.enum(['email', 'sms']),
+    channel: z.enum(CHANNELS),
     recipient: z.discriminatedUnion('kind', [
       z.object({ kind: z.literal('address'), to: z.string().trim().min(1).max(254) }),
       z.object({ kind: z.literal('person'), personId: z.uuid() }),
     ]),
     template: z.string().min(1),
     params: z.record(z.string(), z.unknown()),
-    locale: z.enum(['en', 'sw']).default('en'),
+    locale: z.enum(LOCALES).default('en'),
     tenant: z.string().min(1).max(64).optional(),
   })
+  // One pass, so a caller sees every recipient, template and params error in one response.
   .superRefine((body, ctx) => {
-    const { channel, recipient, template } = body;
+    const { channel, recipient, template, params } = body;
     if (recipient.kind === 'person') {
       // Needs the directory's contact lookup, which does not exist yet.
       ctx.addIssue({
@@ -43,13 +44,26 @@ export const sendMessageSchema = z
     }
     if (!isTemplateId(template)) {
       ctx.addIssue({ code: 'custom', path: ['template'], message: 'unknown template' });
-    } else if (templateChannel(template) !== channel) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['template'],
-        message: `is a ${templateChannel(template)} template, not ${channel}`,
-      });
+    } else {
+      if (templateChannel(template) !== channel) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['template'],
+          message: `is a ${templateChannel(template)} template, not ${channel}`,
+        });
+      }
+      for (const issue of templateParams(template).safeParse(params).error?.issues ?? []) {
+        ctx.addIssue({ ...issue, path: ['params', ...issue.path] });
+      }
     }
+  })
+  .transform(({ template, ...body }, ctx) => {
+    // Narrows the type; the refinement above has already rejected unknown templates.
+    if (!isTemplateId(template)) {
+      ctx.addIssue({ code: 'custom', path: ['template'], message: 'unknown template' });
+      return z.NEVER;
+    }
+    return { ...body, template };
   });
 
 export type SendMessage = z.infer<typeof sendMessageSchema>;

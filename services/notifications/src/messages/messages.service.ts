@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { messages, type schema } from '../db/schema.js';
@@ -15,7 +15,7 @@ import {
   SMS_SENDER,
 } from './message-sender.js';
 import type { SendMessage } from './send-message.schema.js';
-import { renderTemplate, type TemplateId } from './templates.js';
+import { type Channel, renderTemplate } from './templates.js';
 
 export const MESSAGES_OPTIONS = Symbol('MESSAGES_OPTIONS');
 
@@ -27,7 +27,7 @@ export interface MessagesOptions {
 /** notifications.yaml `Message`. */
 export interface MessageView {
   id: string;
-  channel: 'email' | 'sms';
+  channel: Channel;
   template: string;
   status: 'sent' | 'failed';
   error: string | null;
@@ -56,7 +56,7 @@ export class MessagesService {
       throw new Error('unsupported recipient kind');
     }
     const to = request.recipient.to;
-    const content = renderTemplate(request.template as TemplateId, request.locale, request.params);
+    const content = renderTemplate(request.template, request.locale, request.params);
     const id = uuidv7();
 
     let providerMessageId: string | null = null;
@@ -84,7 +84,7 @@ export class MessagesService {
         locale: request.locale,
         recipientHash: this.hashRecipient(to),
         tenant: request.tenant ?? null,
-        caller: caller.clientId,
+        caller: callerOf(caller),
         status: error ? 'failed' : 'sent',
         providerMessageId,
         error,
@@ -96,8 +96,12 @@ export class MessagesService {
     return toView(row);
   }
 
-  async get(id: string): Promise<MessageView | undefined> {
-    const [row] = await this.db.select().from(messages).where(eq(messages.id, id));
+  /** A message is visible only to the caller that sent it. */
+  async get(id: string, caller: Principal): Promise<MessageView | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.id, id), eq(messages.caller, callerOf(caller))));
     return row && toView(row);
   }
 
@@ -124,6 +128,11 @@ async function withBudget<T>(ms: number, work: (signal: AbortSignal) => Promise<
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Services are identified by OAuth client; tokens without one fall back to the subject. */
+function callerOf(principal: Principal): string {
+  return principal.clientId ?? principal.subject;
 }
 
 function errorType(error: unknown): string {

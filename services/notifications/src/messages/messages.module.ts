@@ -27,6 +27,7 @@ import { SmtpSender } from './smtp-sender.js';
           port: config.SMTP_PORT,
           from: config.SMTP_FROM,
           timeoutMs: config.PROVIDER_TIMEOUT_MS,
+          requireTls: config.SMTP_REQUIRE_TLS,
         }),
     },
     {

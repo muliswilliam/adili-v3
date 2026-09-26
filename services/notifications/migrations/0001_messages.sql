@@ -5,7 +5,7 @@ CREATE TABLE "messages" (
 	"locale" text NOT NULL,
 	"recipient_hash" text NOT NULL,
 	"tenant" text,
-	"caller" text,
+	"caller" text NOT NULL,
 	"status" text NOT NULL,
 	"provider_message_id" text,
 	"error" text,

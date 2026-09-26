@@ -14,6 +14,8 @@ export interface SmtpSenderOptions {
   from: string;
   /** Connection, greeting and socket timeout; the caller's budget also bounds the whole send. */
   timeoutMs: number;
+  /** Refuse to send unless the server upgrades the connection with STARTTLS. */
+  requireTls: boolean;
 }
 
 /** Email over SMTP (Mailpit in development). */
@@ -25,8 +27,9 @@ export class SmtpSender extends MessageSender implements OnApplicationShutdown {
     this.transport = nodemailer.createTransport({
       host: options.host,
       port: options.port,
-      // STARTTLS is used when the server offers it.
+      // STARTTLS is used when the server offers it, and mandatory with `requireTls`.
       secure: false,
+      requireTLS: options.requireTls,
       connectionTimeout: options.timeoutMs,
       greetingTimeout: options.timeoutMs,
       socketTimeout: options.timeoutMs,
@@ -34,7 +37,8 @@ export class SmtpSender extends MessageSender implements OnApplicationShutdown {
   }
 
   async send(message: OutboundMessage, signal: AbortSignal): Promise<Delivery> {
-    // Nodemailer cannot cancel a send; the budget stops the caller waiting instead.
+    // Nodemailer cannot cancel a send; the budget stops the caller waiting instead. A send that
+    // outlives the budget may still be delivered, so callers treat `timeout` as delivery unknown.
     signal.throwIfAborted();
     try {
       const info = await this.transport.sendMail({

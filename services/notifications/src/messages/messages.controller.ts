@@ -37,8 +37,12 @@ export class MessagesController {
   @Get(':id')
   @ApiOperation({ operationId: 'getMessage', summary: 'Delivery status of a message' })
   @ApiOkResponse({ description: 'The message' })
-  async get(@Param('id', new ZodValidationPipe(z.uuid())) id: string): Promise<MessageView> {
-    const message = await this.messages.get(id);
+  async get(
+    @Param('id', new ZodValidationPipe(z.uuid())) id: string,
+    @CurrentPrincipal() caller: Principal,
+  ): Promise<MessageView> {
+    // Another caller's message is indistinguishable from a missing one.
+    const message = await this.messages.get(id, caller);
     if (!message) {
       throw new NotFoundException('No message with this id');
     }

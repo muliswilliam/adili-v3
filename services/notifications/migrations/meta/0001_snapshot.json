@@ -1,5 +1,5 @@
 {
-  "id": "41974d34-6980-4224-a635-23b0035caa58",
+  "id": "23aa9c64-1861-4bbe-97a0-22c1d4a3cc62",
   "prevId": "d611f740-5e0a-49f9-8f59-49a6f0b364ca",
   "version": "7",
   "dialect": "postgresql",
@@ -48,7 +48,7 @@
           "name": "caller",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "status": {
           "name": "status",

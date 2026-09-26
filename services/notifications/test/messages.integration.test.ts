@@ -116,6 +116,19 @@ describe('internal messages API', () => {
     expect(response.headers['content-type']).toContain('application/problem+json');
   });
 
+  it('hides a message from other callers', async () => {
+    const { id } = (await send(loginSms)).json<{ id: string }>();
+    const otherCaller = await t.token({ clientId: 'keycloak-otp' });
+
+    const response = await t.app.inject({
+      method: 'GET',
+      url: `/internal/v1/messages/${id}`,
+      headers: { authorization: `Bearer ${otherCaller}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it('stores the recipient only as a hash', async () => {
     const { id } = (await send(onboardingEmail)).json<{ id: string }>();
 
@@ -187,6 +200,24 @@ describe('internal messages API', () => {
       expect.arrayContaining(['params.code', 'params.expiresInMinutes']) as string[],
     );
     expect(sms.sent).toHaveLength(0);
+  });
+
+  it('reports recipient and params errors in one response', async () => {
+    const response = await send({
+      ...loginSms,
+      recipient: { kind: 'address', to: '0712345678' },
+      params: { code: 'abc' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const paths = response.json<{ errors: { path: string }[] }>().errors.map((e) => e.path);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'recipient.to',
+        'params.code',
+        'params.expiresInMinutes',
+      ]) as string[],
+    );
   });
 
   it('records a provider timeout as failed within the budget', async () => {

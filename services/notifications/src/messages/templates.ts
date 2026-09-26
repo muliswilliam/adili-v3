@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
-export type Channel = 'email' | 'sms';
-export type Locale = 'en' | 'sw';
+export const CHANNELS = ['email', 'sms'] as const;
+export type Channel = (typeof CHANNELS)[number];
+
+/** English now; Swahili renders English until its copy is written. */
+export const LOCALES = ['en', 'sw'] as const;
+export type Locale = (typeof LOCALES)[number];
 
 export interface RenderedEmail {
   subject: string;
@@ -110,6 +114,11 @@ export function isTemplateId(id: string): id is TemplateId {
 
 export function templateChannel(id: TemplateId): Channel {
   return templates[id].channel;
+}
+
+/** Schema the template's params must satisfy. */
+export function templateParams(id: TemplateId): z.ZodType {
+  return templates[id].params;
 }
 
 type RenderFn = (params: unknown) => RenderedEmail | RenderedSms;

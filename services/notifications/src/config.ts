@@ -13,6 +13,8 @@ export const envSchema = baseEnvSchema.extend({
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().positive(),
   SMTP_FROM: z.string().min(1),
+  /** Refuse plaintext SMTP. Off only for local Mailpit, which has no TLS. */
+  SMTP_REQUIRE_TLS: z.stringbool().default(false),
   SMS_GATEWAY_URL: z.url(),
   /** Alphanumeric sender shown on handsets; gateways cap it at 11 characters. */
   SMS_SENDER_ID: z.string().min(1).max(11),
