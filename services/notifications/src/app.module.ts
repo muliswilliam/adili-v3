@@ -6,6 +6,7 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { MessagesModule } from './messages/messages.module.js';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { schema } from './db/schema.js';
       address: config.TEMPORAL_ADDRESS,
       namespace: config.TEMPORAL_NAMESPACE,
     }),
+    MessagesModule,
   ],
 })
 export class AppModule {}
