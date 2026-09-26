@@ -3,18 +3,26 @@
  * used when DIRECTORY_MOCK is set until the directory implements them (#67).
  *
  * Demo declarants (personnel file number / national ID):
- * - TSC/100200 / 12345678 at the Teachers Service Commission: match, code sent to the roster email
- * - PSC/300400 / 23456789 at the Public Service Commission: match, roster has no email
+ * - TSC/100200 / 12345678 at the Teachers Service Commission: match, codes go to the roster
+ *   email and phone
+ * - PSC/300400 / 23456789 at the Public Service Commission: match, roster has no email or phone,
+ *   so the declarant enters both
  * - TSC/999999 / 11111111 at the Teachers Service Commission: already onboarded
  * Anything else is `no-match`; five misses from one address in a row are rate-limited.
  * The Judicial Service Commission has no roster yet.
+ *
+ * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
+ * five wrong codes or a fourth resend end the session, and resends wait 60 seconds.
  */
+import { maskContact } from '@adili/ui';
+
 import type {
   IdentifyDeclarant,
   OnboardingCommission,
   OnboardingProblem,
   OnboardingSession,
   OnboardingSessionCreated,
+  OtpChannel,
 } from './types';
 
 export const ONBOARDING_COMMISSIONS: OnboardingCommission[] = [
@@ -27,6 +35,9 @@ export const ONBOARDING_COMMISSIONS: OnboardingCommission[] = [
 
 interface RosterRecord {
   commission: string;
+  fullName: string;
+  designation: string | null;
+  reportingEntity: string | null;
   personnelFileNumber: string;
   nationalId: string;
   email: string | null;
@@ -37,6 +48,9 @@ interface RosterRecord {
 const ROSTER: RosterRecord[] = [
   {
     commission: 'tsc',
+    fullName: 'Wanjiru Achieng Otieno',
+    designation: 'Senior Teacher',
+    reportingEntity: 'Kisumu Girls High School',
     personnelFileNumber: 'TSC/100200',
     nationalId: '12345678',
     email: 'j***@tsc.go.ke',
@@ -45,14 +59,20 @@ const ROSTER: RosterRecord[] = [
   },
   {
     commission: 'psc',
+    fullName: 'Kiprono Mutai Chebet',
+    designation: 'Principal Accountant',
+    reportingEntity: 'State Department for Devolution',
     personnelFileNumber: 'PSC/300400',
     nationalId: '23456789',
     email: null,
-    phone: '07** *** 456',
+    phone: null,
     onboarded: false,
   },
   {
     commission: 'tsc',
+    fullName: 'Mwangi Njoroge Kamau',
+    designation: 'Deputy Principal',
+    reportingEntity: 'Nyeri High School',
     personnelFileNumber: 'TSC/999999',
     nationalId: '11111111',
     email: 'm***@tsc.go.ke',
@@ -62,10 +82,24 @@ const ROSTER: RosterRecord[] = [
 ];
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
+const STEP_EXTENSION_MS = 10 * 60 * 1000;
+const SESSION_CAP_MS = 60 * 60 * 1000;
 const MISSES_BEFORE_LIMIT = 5;
 const LIMIT_SECONDS = 15 * 60;
+const CODE_ATTEMPTS = 5;
+const RESENDS = 3;
+const RESEND_COOLDOWN_MS = 60_000;
+const DEMO_CODE = '123456';
+const EXPIRED_CODE = '000000';
 
-const sessions = new Map<string, { secret: string; session: OnboardingSession }>();
+interface MockSession {
+  secret: string;
+  session: OnboardingSession;
+  record: RosterRecord;
+  createdAt: number;
+}
+
+const sessions = new Map<string, MockSession>();
 const misses = new Map<string, { count: number; blockedUntil: number }>();
 
 /** Clears sessions and rate-limit counters; for tests. */
@@ -105,6 +139,7 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
   const id = crypto.randomUUID();
   const secret = crypto.randomUUID();
   const hasEmail = record.email !== null;
+  const now = Date.now();
   const session: OnboardingSession = {
     id,
     state: hasEmail ? 'email-pending' : 'email-contact-required',
@@ -115,17 +150,12 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
         record.phone === null ? null : { masked: record.phone, source: 'roster', verified: false },
     },
     details: null,
-    otp: {
-      channel: hasEmail ? 'email' : null,
-      resendAvailableAt: hasEmail ? new Date(Date.now() + 60_000).toISOString() : null,
-      resendsLeft: 3,
-      attemptsLeft: 5,
-    },
+    otp: hasEmail ? freshOtp('email') : idleOtp(),
     outcome: null,
     ofr: null,
-    expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
+    expiresAt: new Date(now + SESSION_TTL_MS).toISOString(),
   };
-  sessions.set(id, { secret, session });
+  sessions.set(id, { secret, session, record, createdAt: now });
   const created: OnboardingSessionCreated = { ...session, secret };
   return created;
 }
@@ -177,16 +207,136 @@ function identify(body: IdentifyDeclarant, clientIp: string) {
   return json(201, createSession(record, commission));
 }
 
-function getSession(sessionId: string, secret: string | null) {
+function freshOtp(channel: OtpChannel): OnboardingSession['otp'] {
+  return {
+    channel,
+    resendAvailableAt: new Date(Date.now() + RESEND_COOLDOWN_MS).toISOString(),
+    resendsLeft: RESENDS,
+    attemptsLeft: CODE_ATTEMPTS,
+  };
+}
+
+function idleOtp(): OnboardingSession['otp'] {
+  return { channel: null, resendAvailableAt: null, resendsLeft: 0, attemptsLeft: 0 };
+}
+
+const notFound = () => json(404, { type: 'about:blank', title: 'Not found', status: 404 });
+const sessionEnded = () => problem(410, 'session-expired', 'Session ended');
+// The contract names no problem code for a 409; the portal goes by the status.
+const wrongStep = () => problem(409, 'session-expired', 'Session is not waiting for this');
+
+/** The live session for an id and secret, or the response that refuses it. */
+function liveSession(sessionId: string, secret: string | null): MockSession | Response {
   const entry = sessions.get(sessionId);
-  const notFound = json(404, { type: 'about:blank', title: 'Not found', status: 404 });
-  if (!entry) return notFound;
-  if (entry.secret !== secret) return notFound;
+  if (!entry) return notFound();
+  if (entry.secret !== secret) return notFound();
   if (Date.parse(entry.session.expiresAt) <= Date.now()) {
     sessions.delete(sessionId);
-    return problem(410, 'session-expired', 'Session ended');
+    return sessionEnded();
   }
-  return json(200, entry.session);
+  return entry;
+}
+
+function endSession(sessionId: string) {
+  sessions.delete(sessionId);
+  return sessionEnded();
+}
+
+/** Each successful step adds ten minutes, up to an hour after the session opened. */
+function extend(entry: MockSession) {
+  const expiresAt = Math.min(
+    Date.parse(entry.session.expiresAt) + STEP_EXTENSION_MS,
+    entry.createdAt + SESSION_CAP_MS,
+  );
+  entry.session.expiresAt = new Date(expiresAt).toISOString();
+}
+
+function getSession(sessionId: string, secret: string | null) {
+  const entry = liveSession(sessionId, secret);
+  return entry instanceof Response ? entry : json(200, entry.session);
+}
+
+/** Moves the session on to the phone once the email is verified. */
+function afterEmail(entry: MockSession) {
+  const { session } = entry;
+  session.contacts.email = session.contacts.email && { ...session.contacts.email, verified: true };
+  if (session.contacts.phone) {
+    session.state = 'phone-pending';
+    session.otp = freshOtp('phone');
+  } else {
+    session.state = 'phone-contact-required';
+    session.otp = idleOtp();
+  }
+}
+
+function afterPhone(entry: MockSession) {
+  const { session, record } = entry;
+  session.contacts.phone = session.contacts.phone && { ...session.contacts.phone, verified: true };
+  session.state = 'phone-verified';
+  session.otp = idleOtp();
+  session.details = {
+    fullName: record.fullName,
+    personnelFileNumber: record.personnelFileNumber,
+    designation: record.designation,
+    reportingEntity: record.reportingEntity,
+  };
+}
+
+function verify(entry: MockSession, sessionId: string, channel: OtpChannel, code: string) {
+  const { session } = entry;
+  if (session.state !== `${channel}-pending`) return wrongStep();
+  if (code === EXPIRED_CODE) return problem(400, 'otp-expired', 'Code expired');
+  if (code !== DEMO_CODE) {
+    session.otp.attemptsLeft -= 1;
+    if (session.otp.attemptsLeft <= 0) return endSession(sessionId);
+    return problem(400, 'otp-invalid', 'Wrong code', { attemptsLeft: session.otp.attemptsLeft });
+  }
+  if (channel === 'email') afterEmail(entry);
+  else afterPhone(entry);
+  extend(entry);
+  return json(200, session);
+}
+
+function resend(entry: MockSession, sessionId: string, channel: OtpChannel) {
+  const { otp } = entry.session;
+  if (entry.session.state !== `${channel}-pending`) return wrongStep();
+  const wait = otp.resendAvailableAt === null ? 0 : Date.parse(otp.resendAvailableAt) - Date.now();
+  if (wait > 0) {
+    const retryAfterSeconds = Math.ceil(wait / 1000);
+    return problem(
+      429,
+      'resend-cooldown',
+      'Wait before asking for another code',
+      { retryAfterSeconds },
+      { 'RateLimit-Reset': String(retryAfterSeconds) },
+    );
+  }
+  if (otp.resendsLeft <= 0) return endSession(sessionId);
+  entry.session.otp = {
+    ...freshOtp(channel),
+    resendsLeft: otp.resendsLeft - 1,
+  };
+  return new Response(null, { status: 202 });
+}
+
+function provide(entry: MockSession, channel: OtpChannel, value: string) {
+  const { session } = entry;
+  if (session.state !== `${channel}-contact-required`) return wrongStep();
+  const valid =
+    channel === 'email'
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+      : /^\+[1-9]\d{7,14}$/.test(value);
+  if (!valid) {
+    return json(400, { type: 'about:blank', title: 'Invalid contact', status: 400 });
+  }
+  session.contacts[channel] = {
+    masked: maskContact(channel, value),
+    source: 'declarant',
+    verified: false,
+  };
+  session.state = `${channel}-pending`;
+  session.otp = freshOtp(channel);
+  return json(200, session);
 }
 
 export async function mockDirectoryFetch(request: Request): Promise<Response> {
@@ -206,9 +356,30 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
     return identify(body, request.headers.get('x-forwarded-for') ?? 'unknown');
   }
 
+  const secret = request.headers.get('x-onboarding-secret');
   const sessionMatch = /^\/v1\/onboarding\/sessions\/([^/]+)$/.exec(path);
   if (request.method === 'GET' && sessionMatch?.[1]) {
-    return getSession(sessionMatch[1], request.headers.get('x-onboarding-secret'));
+    return getSession(sessionMatch[1], secret);
+  }
+
+  const stepMatch =
+    /^\/v1\/onboarding\/sessions\/([^/]+)\/(contacts|otp\/(email|phone)\/(verify|resend))$/.exec(
+      path,
+    );
+  const sessionId = stepMatch?.[1];
+  if (request.method === 'POST' && stepMatch && sessionId) {
+    const entry = liveSession(sessionId, secret);
+    if (entry instanceof Response) return entry;
+    const channel = stepMatch[3] as OtpChannel | undefined;
+    if (stepMatch[2] === 'contacts') {
+      const body = (await request.json()) as { channel: OtpChannel; value: string };
+      return provide(entry, body.channel, body.value);
+    }
+    if (channel && stepMatch[4] === 'verify') {
+      const body = (await request.json()) as { code: string };
+      return verify(entry, sessionId, channel, body.code);
+    }
+    if (channel) return resend(entry, sessionId, channel);
   }
 
   return json(404, { type: 'about:blank', title: 'Not in the onboarding mock', status: 404 });

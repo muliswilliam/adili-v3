@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   expireMockSession,
@@ -7,7 +7,14 @@ import {
   resetOnboardingMock,
 } from './directory/mock.server';
 import type { paths } from './directory/schema.gen';
-import { identify, listCommissions, lookupSession } from './onboarding.server';
+import {
+  identify,
+  listCommissions,
+  lookupSession,
+  provideContact,
+  resendCode,
+  verifyCode,
+} from './onboarding.server';
 
 function client(send: (request: Request) => Promise<Response> = mockDirectoryFetch) {
   return createClient<paths>({
@@ -127,5 +134,169 @@ describe('listCommissions', () => {
   it('returns the Commissions, or null when the directory is unreachable', async () => {
     expect((await listCommissions(client()))?.map((entry) => entry.slug)).toContain('tsc');
     expect(await listCommissions(client(() => Promise.reject(new Error('down'))))).toBeNull();
+  });
+});
+
+describe('verification steps', () => {
+  const noContacts = {
+    commission: 'psc',
+    personnelFileNumber: 'PSC/300400',
+    nationalId: '23456789',
+  };
+
+  async function openSession(details = teacher) {
+    const { created } = await identify(client(), details);
+    if (!created) throw new Error('no session');
+    return created;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // S7
+  it('moves on to the phone, masked, once the email code is right', async () => {
+    const session = await openSession();
+
+    const result = await verifyCode(client(), session, { channel: 'email', code: '123456' });
+
+    expect(result).toMatchObject({
+      ok: true,
+      session: { state: 'phone-pending', contacts: { phone: { masked: '07** *** 123' } } },
+    });
+    expect(JSON.stringify(result)).not.toContain(session.secret);
+  });
+
+  it('counts down the attempts on a wrong code and ends the session after five', async () => {
+    const session = await openSession();
+    const wrong = { channel: 'email', code: '999999' } as const;
+
+    expect(await verifyCode(client(), session, wrong)).toEqual({
+      ok: false,
+      code: 'otp-invalid',
+      attemptsLeft: 4,
+    });
+    for (let attempt = 0; attempt < 3; attempt += 1) await verifyCode(client(), session, wrong);
+
+    expect(await verifyCode(client(), session, wrong)).toEqual({ ok: false, code: 'ended' });
+    expect(await lookupSession(client(), session)).toEqual({ status: 'ended' });
+  });
+
+  it('reports an expired code', async () => {
+    const session = await openSession();
+
+    expect(await verifyCode(client(), session, { channel: 'email', code: '000000' })).toEqual({
+      ok: false,
+      code: 'otp-expired',
+    });
+  });
+
+  it('reports a code for the wrong channel as a session that has moved', async () => {
+    const session = await openSession();
+
+    expect(await verifyCode(client(), session, { channel: 'phone', code: '123456' })).toEqual({
+      ok: false,
+      code: 'moved',
+    });
+  });
+
+  // S8
+  it('holds a resend for 60 seconds, then sends a new code, and ends on the fourth', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const session = await openSession();
+
+    expect(await resendCode(client(), session, { channel: 'email' })).toEqual({
+      ok: false,
+      code: 'resend-cooldown',
+      retryAfterSeconds: 60,
+    });
+
+    for (const left of [2, 1, 0]) {
+      vi.advanceTimersByTime(60_000);
+      expect(await resendCode(client(), session, { channel: 'email' })).toMatchObject({
+        ok: true,
+        session: { otp: { resendsLeft: left, attemptsLeft: 5 } },
+      });
+    }
+
+    vi.advanceTimersByTime(60_000);
+    expect(await resendCode(client(), session, { channel: 'email' })).toEqual({
+      ok: false,
+      code: 'ended',
+    });
+  });
+
+  // S9
+  it('takes a contact the record lacks, in E.164, and sends the code there', async () => {
+    const session = await openSession(noContacts);
+
+    const result = await provideContact(client(), session, {
+      channel: 'email',
+      value: 'kiprono@devolution.go.ke',
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      session: {
+        state: 'email-pending',
+        contacts: { email: { masked: 'k***@devolution.go.ke', source: 'declarant' } },
+      },
+    });
+
+    const verified = await verifyCode(client(), session, { channel: 'email', code: '123456' });
+    expect(verified).toMatchObject({ ok: true, session: { state: 'phone-contact-required' } });
+
+    const phone = await provideContact(client(), session, {
+      channel: 'phone',
+      value: '0712 345 678',
+    });
+    expect(phone).toMatchObject({
+      ok: true,
+      session: { state: 'phone-pending', contacts: { phone: { masked: '07** *** 678' } } },
+    });
+  });
+
+  it('rejects a contact it cannot use before calling the directory', async () => {
+    let called = false;
+    const result = await provideContact(
+      client(() => {
+        called = true;
+        return Promise.resolve(new Response(null, { status: 500 }));
+      }),
+      { sessionId: 'id', secret: 'secret' },
+      { channel: 'phone', value: '12345' },
+    );
+
+    expect(result).toEqual({ ok: false, code: 'invalid' });
+    expect(called).toBe(false);
+  });
+
+  // S10
+  it('treats a wrong secret or an expired session as ended on every step', async () => {
+    const session = await openSession();
+    const guess = { ...session, secret: 'guess' };
+
+    expect(await verifyCode(client(), guess, { channel: 'email', code: '123456' })).toEqual({
+      ok: false,
+      code: 'ended',
+    });
+    expireMockSession(session.sessionId);
+    expect(await resendCode(client(), session, { channel: 'email' })).toEqual({
+      ok: false,
+      code: 'ended',
+    });
+  });
+
+  it('treats outages as unavailable', async () => {
+    const down = client(() => Promise.reject(new Error('ECONNREFUSED')));
+    const session = { sessionId: 'id', secret: 'secret' };
+
+    expect(await verifyCode(down, session, { channel: 'email', code: '123456' })).toEqual({
+      ok: false,
+      code: 'unavailable',
+    });
+    expect(await resendCode(down, session, { channel: 'email' })).toEqual({
+      ok: false,
+      code: 'unavailable',
+    });
   });
 });

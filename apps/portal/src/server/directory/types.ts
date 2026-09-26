@@ -9,3 +9,4 @@ export type OnboardingProblemCode = OnboardingProblem['code'];
 export type OnboardingSession = Schemas['OnboardingSession'];
 export type OnboardingSessionCreated = Schemas['OnboardingSessionCreated'];
 export type OnboardingState = Schemas['OnboardingState'];
+export type OtpChannel = Schemas['OtpChannel'];
