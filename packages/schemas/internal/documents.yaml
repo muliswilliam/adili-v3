@@ -185,7 +185,7 @@ paths:
     get:
       tags: [documents]
       operationId: getDocumentDownload
-      summary: Short-lived presigned download of an issued PDF (owner; audited)
+      summary: Short-lived presigned download of an issued PDF (owner; audited; emits document.downloaded.v1)
       responses:
         '200':
           description: Download URL valid for five minutes
@@ -205,6 +205,12 @@ paths:
                     type: string
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          description: Download window has ended
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:
@@ -249,7 +255,12 @@ components:
     UploadPurpose:
       type: string
       description: Sets allowed content types and the size limit
-      enum: [roster-import, declaration-attachment, clarification-attachment, action-response]
+      enum:
+        - roster-import
+        - declaration-attachment
+        - clarification-attachment
+        - action-response
+        - access-representation
     UploadState:
       type: string
       enum: [awaiting-upload, clean, infected, rejected, expired]
@@ -382,6 +393,8 @@ components:
         - form-m
         - compliance-report-receipt
         - ncr
+        - access-package
+        - certified-copy
     DisclosureLevel:
       type: string
       enum: [public, restricted, confidential]
@@ -426,6 +439,28 @@ components:
           type: object
           description: Fields shown on the verify page for public and restricted levels
           additionalProperties: true
+        watermark:
+          oneOf:
+            - $ref: '#/components/schemas/Watermark'
+            - type: 'null'
+          description: Rendered on every page (access packages)
+        downloadWindowDays:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 365
+          description: Downloads refused after issuedAt + window (410); null means no window
+    Watermark:
+      type: object
+      required: [recipientName, reference, date]
+      properties:
+        recipientName:
+          type: string
+        reference:
+          type: string
+          description: ARQ or LEA reference
+        date:
+          type: string
+          format: date
     IssuedDocument:
       type: object
       required:
@@ -440,6 +475,7 @@ components:
         - status
         - supersededBy
         - issuedAt
+        - downloadExpiresAt
       properties:
         id:
           type: string
@@ -467,4 +503,7 @@ components:
           format: uuid
         issuedAt:
           type: string
+          format: date-time
+        downloadExpiresAt:
+          type: [string, 'null']
           format: date-time
