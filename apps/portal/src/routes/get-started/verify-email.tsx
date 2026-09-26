@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { requireStep } from '../../components/onboarding/guard';
-import { StepPending } from '../../components/onboarding/step-pending';
+import { VerifyStep } from '../../components/onboarding/verify-step';
 
 export const Route = createFileRoute('/get-started/verify-email')({
   loader: () => requireStep('/get-started/verify-email'),
@@ -9,5 +9,7 @@ export const Route = createFileRoute('/get-started/verify-email')({
 });
 
 function VerifyEmail() {
-  return <StepPending title="Verify your email" guard={Route.useLoaderData()} />;
+  return (
+    <VerifyStep channel="email" route="/get-started/verify-email" guard={Route.useLoaderData()} />
+  );
 }

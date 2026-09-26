@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { requireStep } from '../../components/onboarding/guard';
-import { StepPending } from '../../components/onboarding/step-pending';
+import { VerifyStep } from '../../components/onboarding/verify-step';
 
 export const Route = createFileRoute('/get-started/verify-phone')({
   loader: () => requireStep('/get-started/verify-phone'),
@@ -9,5 +9,7 @@ export const Route = createFileRoute('/get-started/verify-phone')({
 });
 
 function VerifyPhone() {
-  return <StepPending title="Verify your phone" guard={Route.useLoaderData()} />;
+  return (
+    <VerifyStep channel="phone" route="/get-started/verify-phone" guard={Route.useLoaderData()} />
+  );
 }

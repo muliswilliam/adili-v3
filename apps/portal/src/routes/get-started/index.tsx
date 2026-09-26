@@ -21,6 +21,7 @@ import {
 import { HelpFooter, StepHeading } from '../../components/onboarding/onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from '../../components/onboarding/problems';
 import { routeForSession } from '../../components/onboarding/steps';
+import { formatClock, useCountdown } from '../../components/onboarding/countdown';
 import type { OnboardingCommission } from '../../server/directory/types';
 import {
   getOnboardingCommissions,
@@ -274,31 +275,4 @@ function ProblemAlert({
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );
-}
-
-/** Seconds left on a countdown, ticking once a second, and a function to start one. */
-function useCountdown(): [number, (seconds: number) => void] {
-  const [until, setUntil] = useState<number | null>(null);
-  const [now, setNow] = useState(0);
-  useEffect(() => {
-    if (until === null) return;
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [until]);
-  function start(seconds: number) {
-    const started = Date.now();
-    setNow(started);
-    setUntil(started + seconds * 1000);
-  }
-  const left = until === null ? 0 : Math.max(0, Math.ceil((until - now) / 1000));
-  return [left, start];
-}
-
-function formatClock(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  return `${String(minutes)}:${String(seconds % 60).padStart(2, '0')}`;
 }

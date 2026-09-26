@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+import {
+  channelSchema,
+  codeSchema,
+  type ContactInput,
+  contactSchema,
+} from '../components/onboarding/contact';
 import type { IdentifyInput } from '../components/onboarding/identify';
 import { identifySchema } from '../components/onboarding/identify';
 import { routeForSession, type StepRoute } from '../components/onboarding/steps';
@@ -9,12 +15,14 @@ import type {
   OnboardingCommission,
   OnboardingProblemCode,
   OnboardingSession,
+  OtpChannel,
 } from './directory/types';
 
 /** Logic behind the onboarding server functions, kept free of request context so it can be tested. */
 
 const problemSchema = z.object({
   code: z.string(),
+  attemptsLeft: z.number().optional(),
   retryAfterSeconds: z.number().optional(),
   links: z
     .object({ signIn: z.string().optional(), recoverAccess: z.string().optional() })
@@ -100,12 +108,121 @@ export async function lookupSession(
 ): Promise<SessionLookup> {
   try {
     const { data, response } = await client.GET('/v1/onboarding/sessions/{sessionId}', {
-      params: { path: { sessionId }, header: { 'X-Onboarding-Secret': secret } },
+      params: sessionParams({ sessionId, secret }),
     });
     if (data) return { status: 'active', session: data };
     if (response.status === 404 || response.status === 410) return { status: 'ended' };
     return { status: 'unavailable' };
   } catch {
     return { status: 'unavailable' };
+  }
+}
+
+/**
+ * Why a verification step failed. `ended` means the session is gone and the cookie should be
+ * cleared; `moved` means it is waiting on another step, e.g. after a second tab moved it on.
+ */
+export type StepProblem =
+  | { code: 'otp-invalid'; attemptsLeft?: number }
+  | { code: 'otp-expired' }
+  | { code: 'resend-cooldown'; retryAfterSeconds?: number }
+  | { code: 'invalid' }
+  | { code: 'ended' }
+  | { code: 'moved' }
+  | { code: 'unavailable' };
+
+/** What the browser gets back from a verification step: the session (never its secret). */
+export type StepResult = { ok: true; session: OnboardingSession } | ({ ok: false } & StepProblem);
+
+function stepProblem(response: Response, error: unknown): StepProblem {
+  if (response.status === 404 || response.status === 410) return { code: 'ended' };
+  if (response.status === 409) return { code: 'moved' };
+  const problem = problemSchema.safeParse(error);
+  const code = problem.success ? problem.data.code : undefined;
+  if (response.status === 400 && code === 'otp-invalid') {
+    // The last wrong code ends the session.
+    if (problem.data?.attemptsLeft === 0) return { code: 'ended' };
+    return { code: 'otp-invalid', attemptsLeft: problem.data?.attemptsLeft };
+  }
+  if (response.status === 400 && code === 'otp-expired') return { code: 'otp-expired' };
+  if (response.status === 400) return { code: 'invalid' };
+  if (response.status === 429 && code === 'resend-cooldown') {
+    return {
+      code: 'resend-cooldown',
+      retryAfterSeconds: retryAfter(response, problem.data?.retryAfterSeconds),
+    };
+  }
+  return { code: 'unavailable' };
+}
+
+function sessionParams({ sessionId, secret }: OnboardingCredentials) {
+  return { path: { sessionId }, header: { 'X-Onboarding-Secret': secret } };
+}
+
+function channelParams({ sessionId, secret }: OnboardingCredentials, channel: OtpChannel) {
+  return { path: { sessionId, channel }, header: { 'X-Onboarding-Secret': secret } };
+}
+
+export async function verifyCode(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: z.input<typeof codeSchema>,
+): Promise<StepResult> {
+  const parsed = codeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  const { channel, code } = parsed.data;
+  try {
+    const { data, error, response } = await client.POST(
+      '/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify',
+      { params: channelParams(credentials, channel), body: { code } },
+    );
+    if (data) return { ok: true, session: data };
+    return { ok: false, ...stepProblem(response, error) };
+  } catch {
+    return { ok: false, code: 'unavailable' };
+  }
+}
+
+/** Sends a new code, then reads the session back for the new cooldown and resends left. */
+export async function resendCode(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: z.input<typeof channelSchema>,
+): Promise<StepResult> {
+  const parsed = channelSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  try {
+    const { error, response } = await client.POST(
+      '/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend',
+      {
+        params: channelParams(credentials, parsed.data.channel),
+      },
+    );
+    if (response.status !== 202) return { ok: false, ...stepProblem(response, error) };
+  } catch {
+    return { ok: false, code: 'unavailable' };
+  }
+  const lookup = await lookupSession(client, credentials);
+  if (lookup.status === 'active') return { ok: true, session: lookup.session };
+  return { ok: false, code: lookup.status === 'unavailable' ? 'unavailable' : 'ended' };
+}
+
+/** Supplies the email or phone the roster record lacks; the directory sends a code to it. */
+export async function provideContact(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: ContactInput,
+): Promise<StepResult> {
+  const parsed = contactSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  try {
+    const { data, error, response } = await client.POST(
+      '/v1/onboarding/sessions/{sessionId}/contacts',
+      { params: sessionParams(credentials), body: parsed.data },
+    );
+    if (data) return { ok: true, session: data };
+    return { ok: false, ...stepProblem(response, error) };
+  } catch {
+    return { ok: false, code: 'unavailable' };
   }
 }

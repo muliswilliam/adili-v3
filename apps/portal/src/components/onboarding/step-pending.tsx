@@ -4,7 +4,7 @@ import type { StepGuard } from './guard';
 import { StepHeading } from './onboarding-layout';
 
 /**
- * Stand-in body for steps whose screens come in later tickets (#69, #72). The route and its
+ * Stand-in body for steps whose screens come in a later ticket (#72). The route and its
  * guard are real, so the flow already lands on the right step.
  */
 export function StepPending({ title, guard }: { title: string; guard: StepGuard }) {

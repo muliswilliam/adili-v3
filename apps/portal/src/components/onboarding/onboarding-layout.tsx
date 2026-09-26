@@ -37,10 +37,10 @@ export function StepHeading({ title, description }: { title: ReactNode; descript
   );
 }
 
-export function HelpFooter() {
-  return (
-    <p className="mt-8 text-center text-[13px] text-muted-foreground">
-      Need help? Contact your Commission's reporting officer.
-    </p>
-  );
+export function HelpFooter({
+  children = "Need help? Contact your Commission's reporting officer.",
+}: {
+  children?: ReactNode;
+}) {
+  return <p className="mt-8 text-center text-[13px] text-muted-foreground">{children}</p>;
 }
