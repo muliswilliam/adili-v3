@@ -1,0 +1,3844 @@
+<!doctype html>
+<!--
+  PROTOTYPE - throwaway. Do not import into the portal.
+  Question it answers: what should the declarant journey (ADR-014 onboarding, declaration, assets)
+  look and feel like? Improves on the designer's Figma "Dials" file.
+  Open by double-clicking. State is in memory only; refresh resets.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - declarant journey (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fafaf9;
+        --surface: #ffffff;
+        --sunken: #f4f3f1;
+        --ink: #1a1a1a;
+        --ink-2: #4a4a48;
+        --muted: #6f6e6b;
+        --line: #e8e6e3;
+        --line-2: #d9d7d3;
+        --brand: #e95a24;
+        --brand-ink: #b8430f;
+        --brand-soft: #fdf0e9;
+        --brand-softer: #fef7f3;
+        --ok: #167a3e;
+        --ok-soft: #e9f6ee;
+        --warn: #9a5a00;
+        --warn-soft: #fdf4e2;
+        --danger: #c9291e;
+        --danger-soft: #fdeceb;
+        --ai: #6d4ae0;
+        --ai-soft: #f1edfd;
+        --r-sm: 8px;
+        --r: 10px;
+        --r-lg: 16px;
+        --shadow-input: 0 1px 2px rgba(20, 20, 20, 0.05), 0 0 0 1px var(--line);
+        --shadow-card: 0 1px 2px rgba(20, 20, 20, 0.04), 0 0 0 1px var(--line);
+        --shadow-pop: 0 12px 40px -8px rgba(20, 20, 20, 0.22), 0 0 0 1px rgba(20, 20, 20, 0.06);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--ink);
+        background: #ecebe8;
+        -webkit-font-smoothing: antialiased;
+        font-feature-settings: 'cv11', 'ss01';
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      a {
+        color: inherit;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      /* App frame. #app is a size container so the mobile preview triggers the same layout as a phone. */
+      #app {
+        container: app / inline-size;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
+        position: relative;
+      }
+      #view {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      body.mobile {
+        display: grid;
+        place-items: center;
+        background: #e4e2de;
+      }
+      body.mobile #app {
+        width: 390px;
+        height: min(844px, calc(100vh - 110px));
+        border-radius: 40px;
+        box-shadow:
+          0 0 0 10px #1c1c1c,
+          0 30px 80px -20px rgba(0, 0, 0, 0.45);
+      }
+      body.mobile #view {
+        scrollbar-width: none;
+      }
+      body.mobile #view::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* ---------- primitives ---------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 44px;
+        padding: 0 18px;
+        border-radius: var(--r);
+        border: 0;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 15px;
+        white-space: nowrap;
+        text-decoration: none;
+        transition:
+          background 0.15s,
+          box-shadow 0.15s,
+          transform 0.05s;
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn-primary {
+        background: linear-gradient(#2a2a2a, #161616);
+        color: #fff;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.25),
+          inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      }
+      .btn-primary:hover {
+        background: linear-gradient(#333, #1c1c1c);
+      }
+      .btn-primary[disabled] {
+        background: #c9c7c3;
+        box-shadow: none;
+        cursor: not-allowed;
+      }
+      .btn-secondary {
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+      }
+      .btn-secondary:hover {
+        background: var(--sunken);
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--ink-2);
+      }
+      .btn-ghost:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+      .btn-danger-ghost {
+        background: transparent;
+        color: var(--danger);
+      }
+      .btn-danger-ghost:hover {
+        background: var(--danger-soft);
+      }
+      .btn-brand {
+        background: var(--brand);
+        color: #fff;
+        box-shadow:
+          0 1px 2px rgba(180, 60, 10, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+      .btn-sm {
+        height: 34px;
+        padding: 0 12px;
+        font-size: 14px;
+        border-radius: var(--r-sm);
+      }
+      .btn-block {
+        width: 100%;
+      }
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: var(--r-sm);
+      }
+      .link {
+        color: var(--ink);
+        font-weight: 500;
+        text-decoration: underline;
+        text-decoration-color: var(--line-2);
+        text-underline-offset: 3px;
+        cursor: pointer;
+        background: none;
+        border: 0;
+        padding: 0;
+      }
+      .link:hover {
+        text-decoration-color: var(--ink);
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ink-2);
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .label .opt {
+        font-weight: 400;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .input,
+      .select,
+      .textarea {
+        width: 100%;
+        height: 44px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: var(--r);
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        outline: none;
+        font-size: 15px;
+        transition: box-shadow 0.15s;
+      }
+      .input::placeholder,
+      .textarea::placeholder {
+        color: #8f8d89;
+      }
+      .input:focus,
+      .select:focus,
+      .textarea:focus {
+        box-shadow:
+          0 0 0 1px var(--ink),
+          0 0 0 4px rgba(26, 26, 26, 0.08);
+      }
+      .input[readonly] {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .select {
+        appearance: none;
+        padding-right: 36px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236f6e6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+      }
+      .textarea {
+        height: auto;
+        min-height: 110px;
+        padding: 10px 12px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+      .input-group {
+        display: flex;
+        align-items: stretch;
+        border-radius: var(--r);
+        box-shadow: var(--shadow-input);
+        background: var(--surface);
+      }
+      .input-group:focus-within {
+        box-shadow:
+          0 0 0 1px var(--ink),
+          0 0 0 4px rgba(26, 26, 26, 0.08);
+      }
+      .input-group .input,
+      .input-group .select {
+        box-shadow: none !important;
+        background-color: transparent;
+      }
+      .input-group .addon {
+        display: flex;
+        align-items: center;
+        padding: 0 0 0 12px;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .input-group .select {
+        width: auto;
+        border-left: 1px solid var(--line);
+        border-radius: 0 var(--r) var(--r) 0;
+      }
+      .ai-filled {
+        box-shadow:
+          0 0 0 1px #c9bcf5,
+          0 0 0 4px var(--ai-soft) !important;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      @container app (min-width: 520px) {
+        .grid-2 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .stack-lg {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .spacer {
+        flex: 1;
+      }
+
+      .card {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+      }
+      .card-pad {
+        padding: 20px;
+      }
+      @container app (min-width: 700px) {
+        .card-pad {
+          padding: 24px;
+        }
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 500;
+        white-space: nowrap;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .badge-ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .badge-warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .badge-brand {
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+      }
+      .badge-ai {
+        background: var(--ai-soft);
+        color: var(--ai);
+      }
+      .badge-danger {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .callout {
+        display: flex;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: var(--r);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .callout svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .callout-info {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .callout-warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+      }
+      .callout-ok {
+        background: var(--ok-soft);
+        color: #0f5a2d;
+      }
+      .callout-ai {
+        background: var(--ai-soft);
+        color: #43299f;
+      }
+
+      /* radio cards / segmented */
+      .choices {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(2, 1fr);
+      }
+      @container app (min-width: 520px) {
+        .choices.c3 {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .choices.c4 {
+          grid-template-columns: repeat(4, 1fr);
+        }
+        .choices.c5 {
+          grid-template-columns: repeat(5, 1fr);
+        }
+      }
+      .choice {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 10px 12px;
+        border-radius: var(--r);
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        cursor: pointer;
+        font-size: 14.5px;
+        font-weight: 500;
+        user-select: none;
+      }
+      .choice input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .choice .dot {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        display: grid;
+        place-items: center;
+      }
+      .choice:has(input:checked) {
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+      .choice:has(input:checked) .dot {
+        box-shadow: inset 0 0 0 5px var(--ink);
+      }
+      .choice:has(input:focus-visible) {
+        outline: 3px solid rgba(26, 26, 26, 0.15);
+      }
+      .choice.tile {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px;
+        min-height: 78px;
+      }
+      .choice.tile .tile-ico {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .choice.tile:has(input:checked) .tile-ico {
+        background: var(--ink);
+        color: #fff;
+      }
+
+      .check {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        cursor: pointer;
+        font-size: 14.5px;
+        user-select: none;
+      }
+      .check input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .check .box {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        background: var(--surface);
+        display: grid;
+        place-items: center;
+        color: transparent;
+        margin-top: 1px;
+      }
+      .check:has(input:checked) .box {
+        background: var(--ink);
+        box-shadow: none;
+        color: #fff;
+      }
+      .check:has(input:disabled) {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .check:has(input:focus-visible) .box {
+        outline: 3px solid rgba(26, 26, 26, 0.15);
+      }
+
+      /* logo */
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 1px;
+        color: var(--brand);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        text-decoration: none;
+      }
+      .logo svg {
+        display: block;
+      }
+
+      /* ---------- auth / onboarding layout ---------- */
+      .auth {
+        min-height: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+      @container app (min-width: 1000px) {
+        .auth {
+          grid-template-columns: minmax(460px, 1fr) minmax(0, 1.15fr);
+        }
+      }
+      .auth-main {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      body.mobile .auth-main {
+        min-height: 100%;
+      }
+      @container app (min-width: 700px) {
+        .auth-main {
+          padding: 28px 40px;
+        }
+      }
+      .auth-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 36px;
+      }
+      .auth-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 32px 0;
+      }
+      @container app (max-width: 699px) {
+        .auth-body {
+          justify-content: flex-start;
+          padding-top: 28px;
+        }
+      }
+      .auth-foot {
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+      }
+      .auth-art {
+        display: none;
+        position: relative;
+        margin: 10px;
+        border-radius: 24px;
+        overflow: hidden;
+        background: #f3d2bd;
+      }
+      @container app (min-width: 1000px) {
+        .auth-art {
+          display: block;
+        }
+      }
+      .auth-art svg.hills {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .auth-art .halftone {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1.4px);
+        background-size: 5px 5px;
+        mix-blend-mode: soft-light;
+      }
+      .auth-art .art-copy {
+        position: absolute;
+        left: 44px;
+        right: 44px;
+        top: 48px;
+        color: #3b1d0c;
+      }
+      .auth-art .art-copy h2 {
+        font-size: 34px;
+        line-height: 1.12;
+        letter-spacing: -0.025em;
+        font-weight: 600;
+        max-width: 460px;
+      }
+      .auth-art .art-list {
+        position: absolute;
+        left: 44px;
+        bottom: 40px;
+        right: 44px;
+        display: grid;
+        gap: 10px;
+      }
+      .auth-art .art-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(10px);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+        max-width: 400px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      .auth-art .art-item .ico {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        color: var(--brand);
+        flex: none;
+      }
+
+      .title {
+        font-size: 26px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        font-weight: 600;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin-top: 8px;
+        font-size: 15px;
+      }
+      .eyebrow {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--brand-ink);
+        letter-spacing: 0.01em;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 28px;
+      }
+      .stepper .s {
+        flex: 1;
+        height: 4px;
+        border-radius: 4px;
+        background: var(--line);
+      }
+      .stepper .s.done {
+        background: var(--ink);
+      }
+      .stepper .s.cur {
+        background: linear-gradient(90deg, var(--ink) 50%, var(--line) 50%);
+      }
+
+      .otp {
+        display: flex;
+        gap: 8px;
+      }
+      .otp input {
+        width: 100%;
+        max-width: 54px;
+        height: 58px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 600;
+        border: 0;
+        border-radius: var(--r);
+        box-shadow: var(--shadow-input);
+        background: var(--surface);
+        outline: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .otp input:focus {
+        box-shadow:
+          0 0 0 1.5px var(--ink),
+          0 0 0 5px rgba(26, 26, 26, 0.08);
+      }
+      .otp .sep {
+        width: 10px;
+        flex: none;
+      }
+
+      .commission-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 360px;
+        overflow-y: auto;
+        margin: 0 -4px;
+        padding: 4px;
+      }
+      .commission {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: var(--r);
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        cursor: pointer;
+        text-align: left;
+        border: 0;
+        width: 100%;
+      }
+      .commission:hover {
+        background: var(--brand-softer);
+      }
+      .commission.sel {
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+      .commission .mono {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+        font-weight: 700;
+        font-size: 12.5px;
+        letter-spacing: 0.02em;
+      }
+      .commission .t {
+        font-weight: 500;
+        font-size: 15px;
+        line-height: 1.3;
+      }
+      .commission .d {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.35;
+        margin-top: 2px;
+      }
+
+      .dl {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .dl > div {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14.5px;
+      }
+      .dl > div:last-child {
+        border-bottom: 0;
+      }
+      .dl dt {
+        color: var(--muted);
+      }
+      .dl dd {
+        margin: 0;
+        font-weight: 500;
+        text-align: right;
+      }
+
+      .secure-opt {
+        display: flex;
+        gap: 14px;
+        padding: 16px;
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        cursor: pointer;
+        align-items: flex-start;
+        position: relative;
+      }
+      .secure-opt input {
+        position: absolute;
+        opacity: 0;
+      }
+      .secure-opt:has(input:checked) {
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+      .secure-opt .ico {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+      }
+      .secure-opt:has(input:checked) .ico {
+        background: var(--ink);
+        color: #fff;
+      }
+
+      .success-mark {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--ok-soft);
+        color: var(--ok);
+        display: grid;
+        place-items: center;
+        margin-bottom: 20px;
+        animation: pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+      }
+      @keyframes pop {
+        from {
+          transform: scale(0.6);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      /* ---------- app shell ---------- */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 60px;
+        padding: 0 16px;
+        background: rgba(250, 250, 249, 0.85);
+        backdrop-filter: saturate(1.4) blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .topbar {
+          padding: 0 28px;
+        }
+      }
+      .nav {
+        display: none;
+        gap: 2px;
+        margin-left: 20px;
+      }
+      @container app (min-width: 800px) {
+        .nav {
+          display: flex;
+        }
+      }
+      .nav a {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: var(--r-sm);
+        font-size: 14.5px;
+        font-weight: 500;
+        color: var(--ink-2);
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .nav a:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+      .nav a.on {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: var(--shadow-card);
+      }
+      .nav .count {
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: var(--brand);
+        color: #fff;
+        font-size: 12px;
+        display: grid;
+        place-items: center;
+        padding: 0 6px;
+      }
+      .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #f7b58d, #e95a24);
+        color: #fff;
+        flex: none;
+      }
+      .avatar.sm {
+        width: 28px;
+        height: 28px;
+        font-size: 11.5px;
+      }
+      .avatar.spouse {
+        background: linear-gradient(135deg, #a8c7f0, #3a6fc4);
+      }
+      .avatar.child {
+        background: linear-gradient(135deg, #b9e3c2, #2f9656);
+      }
+      .lang {
+        display: none;
+      }
+      @container app (min-width: 520px) {
+        .lang {
+          display: inline-flex;
+        }
+      }
+
+      .tabbar {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid var(--line);
+      }
+      @container app (min-width: 800px) {
+        .tabbar {
+          display: none;
+        }
+      }
+      .tabbar a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 0;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--muted);
+        text-decoration: none;
+        cursor: pointer;
+        border-radius: 10px;
+      }
+      .tabbar a.on {
+        color: var(--ink);
+      }
+
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+      @container app (min-width: 700px) {
+        .page {
+          padding: 36px 28px 64px;
+        }
+      }
+      .page-title {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      @container app (min-width: 700px) {
+        .page-title {
+          font-size: 28px;
+        }
+      }
+
+      .home-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: 1fr;
+        margin-top: 24px;
+      }
+      @container app (min-width: 960px) {
+        .home-grid {
+          grid-template-columns: minmax(0, 1fr) 340px;
+        }
+      }
+
+      .obligation {
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+        padding: 24px;
+        background: linear-gradient(135deg, #fff5ee 0%, #fde6d7 100%);
+        box-shadow: 0 0 0 1px #f6d9c6;
+      }
+      @container app (min-width: 700px) {
+        .obligation {
+          padding: 30px;
+        }
+      }
+      .obligation .glow {
+        position: absolute;
+        right: -80px;
+        top: -80px;
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(233, 90, 36, 0.22), transparent);
+        pointer-events: none;
+      }
+      .obligation h2 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      .obligation .meta {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin: 22px 0;
+      }
+      @container app (min-width: 700px) {
+        .obligation .meta {
+          grid-template-columns: repeat(3, auto);
+          justify-content: start;
+          gap: 12px 40px;
+        }
+      }
+      .obligation .meta .k {
+        font-size: 12.5px;
+        color: #8a5a3e;
+        font-weight: 500;
+      }
+      .obligation .meta .v {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .progress {
+        height: 6px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+      .progress > i {
+        display: block;
+        height: 100%;
+        background: var(--ink);
+        border-radius: 6px;
+        transition: width 0.3s;
+      }
+
+      .need-list {
+        display: grid;
+        gap: 2px;
+        margin-top: 12px;
+      }
+      .need-list div {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 0;
+        font-size: 14.5px;
+      }
+      .need-list .ico {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: var(--sunken);
+        display: grid;
+        place-items: center;
+        color: var(--ink-2);
+        flex: none;
+      }
+
+      .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 13.5px;
+      }
+      .tabular {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 28px 16px;
+      }
+      .empty .art {
+        display: grid;
+        grid-template-columns: repeat(2, 30px);
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .empty .art span {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+      }
+      .empty h4 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .empty p {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 4px;
+        max-width: 340px;
+      }
+
+      /* ---------- declaration wizard ---------- */
+      .wiz {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 28px;
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 16px 120px;
+      }
+      @container app (min-width: 960px) {
+        .wiz {
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 48px;
+          padding: 36px 28px 80px;
+        }
+      }
+      .rail {
+        display: none;
+      }
+      @container app (min-width: 960px) {
+        .rail {
+          display: block;
+          position: sticky;
+          top: 96px;
+          align-self: start;
+        }
+      }
+      .rail ol {
+        list-style: none;
+        margin: 18px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .rail li button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 9px 10px;
+        border: 0;
+        background: none;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        text-align: left;
+        font-size: 14.5px;
+        font-weight: 500;
+        color: var(--ink-2);
+      }
+      .rail li button:hover {
+        background: var(--sunken);
+      }
+      .rail li.on button {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: var(--shadow-card);
+      }
+      .rail .n {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        color: var(--muted);
+        flex: none;
+      }
+      .rail li.on .n {
+        box-shadow: none;
+        background: var(--ink);
+        color: #fff;
+      }
+      .rail li.done .n {
+        box-shadow: none;
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .rail .meta {
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 10px;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .rail .meta div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .mprog {
+        position: sticky;
+        top: 60px;
+        z-index: 15;
+        margin: 0 -16px;
+        padding: 12px 16px;
+        background: rgba(250, 250, 249, 0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 960px) {
+        .mprog {
+          display: none;
+        }
+      }
+      .mprog .row {
+        font-size: 13.5px;
+      }
+      .mprog .bar {
+        display: flex;
+        gap: 4px;
+        margin-top: 8px;
+      }
+      .mprog .bar i {
+        flex: 1;
+        height: 4px;
+        border-radius: 4px;
+        background: var(--line);
+      }
+      .mprog .bar i.done {
+        background: var(--ink);
+      }
+
+      .wiz-head {
+        margin-bottom: 24px;
+      }
+      @container app (min-width: 960px) {
+        .wiz-head {
+          margin-bottom: 28px;
+        }
+      }
+      .wiz-head h1 {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      @container app (min-width: 700px) {
+        .wiz-head h1 {
+          font-size: 28px;
+        }
+      }
+      .wiz-head p {
+        color: var(--muted);
+        margin-top: 6px;
+        max-width: 620px;
+      }
+      .wiz-main {
+        max-width: 760px;
+        min-width: 0;
+        padding-top: 20px;
+      }
+      @container app (min-width: 960px) {
+        .wiz-main {
+          padding-top: 0;
+        }
+      }
+
+      .actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 15;
+        display: flex;
+        gap: 10px;
+        margin: 28px -16px 0;
+        padding: 12px 16px;
+        background: rgba(250, 250, 249, 0.94);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid var(--line);
+      }
+      .actions .btn-primary {
+        flex: 1;
+      }
+      @container app (min-width: 700px) {
+        .actions {
+          position: static;
+          margin: 32px 0 0;
+          padding: 24px 0 0;
+          background: none;
+          backdrop-filter: none;
+        }
+        .actions .btn-primary {
+          flex: none;
+          min-width: 180px;
+        }
+      }
+
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .card-head {
+          padding: 18px 24px;
+        }
+      }
+      .card-head .ico {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .card-head h3 {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .card-foot {
+        padding: 14px 20px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      @container app (min-width: 700px) {
+        .card-foot {
+          padding: 14px 24px;
+        }
+      }
+
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .item {
+          padding: 14px 24px;
+        }
+      }
+      .item:last-child {
+        border-bottom: 0;
+      }
+      .item .ico {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+      }
+      .item .t {
+        font-weight: 500;
+        font-size: 15px;
+        line-height: 1.35;
+      }
+      .item .d {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin-top: 1px;
+        line-height: 1.4;
+      }
+      .item .amt {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        text-align: right;
+      }
+      .item .acts {
+        display: flex;
+        gap: 2px;
+      }
+      .item-body {
+        flex: 1;
+        min-width: 0;
+      }
+      @container app (max-width: 599px) {
+        .item {
+          display: grid;
+          grid-template-columns: 36px minmax(0, 1fr) auto;
+          column-gap: 12px;
+          row-gap: 4px;
+          align-items: start;
+        }
+        .item > .ico,
+        .item > .avatar {
+          grid-row: 1 / span 3;
+        }
+        .item .item-body {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        .item .amt,
+        .item .item-tag {
+          grid-column: 2;
+          grid-row: 2;
+          justify-self: start;
+          text-align: left;
+        }
+        .item .acts {
+          grid-column: 3;
+          grid-row: 1 / span 3;
+          margin-right: -8px;
+        }
+        .item .item-tag.wide {
+          display: none;
+        }
+      }
+
+      .persons {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        margin: 0 -16px 20px;
+        padding: 2px 16px 6px;
+        scrollbar-width: none;
+      }
+      @container app (min-width: 700px) {
+        .persons {
+          margin: 0 0 22px;
+          padding: 2px;
+          flex-wrap: wrap;
+        }
+      }
+      .person {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 14px 7px 7px;
+        border-radius: 999px;
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        border: 0;
+        cursor: pointer;
+        white-space: nowrap;
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      .person.on {
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+      .person .st {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+      }
+      .person .st.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .person .st.todo {
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+      }
+
+      .sum-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14.5px;
+      }
+      .sum-table th {
+        text-align: right;
+        font-weight: 500;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 10px 0 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .sum-table th:first-child,
+      .sum-table td:first-child {
+        text-align: left;
+        padding-left: 0;
+      }
+      .sum-table td {
+        text-align: right;
+        padding: 12px 0 12px 12px;
+        border-bottom: 1px solid var(--line);
+        font-variant-numeric: tabular-nums;
+      }
+      .sum-table tr:last-child td {
+        border-bottom: 0;
+      }
+      .hide-sm {
+        display: none;
+      }
+      @container app (min-width: 600px) {
+        .hide-sm {
+          display: table-cell;
+        }
+      }
+
+      .review-sec {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .review-sec {
+          padding: 18px 24px;
+        }
+      }
+      .review-sec:last-child {
+        border-bottom: 0;
+      }
+
+      details.help {
+        border-radius: var(--r);
+        background: var(--sunken);
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      details.help summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 12px 14px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-weight: 500;
+        color: var(--ink);
+      }
+      details.help summary::-webkit-details-marker {
+        display: none;
+      }
+      details.help summary .chev {
+        margin-left: auto;
+        transition: transform 0.15s;
+        color: var(--muted);
+      }
+      details.help[open] summary .chev {
+        transform: rotate(180deg);
+      }
+      details.help .body {
+        padding: 0 14px 14px 42px;
+        line-height: 1.6;
+      }
+      details.help ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
+      }
+
+      /* ---------- modal ---------- */
+      .overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        background: rgba(24, 20, 16, 0.42);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        animation: fade 0.15s;
+      }
+      @container app (min-width: 700px) {
+        .overlay {
+          align-items: center;
+          padding: 24px;
+        }
+      }
+      @keyframes fade {
+        from {
+          opacity: 0;
+        }
+      }
+      .dialog {
+        width: 100%;
+        max-height: 94%;
+        overflow-y: auto;
+        background: var(--surface);
+        border-radius: 22px 22px 0 0;
+        box-shadow: var(--shadow-pop);
+        animation: rise 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+      }
+      @container app (min-width: 700px) {
+        .dialog {
+          max-width: 560px;
+          border-radius: 20px;
+          max-height: calc(100% - 48px);
+        }
+      }
+      @keyframes rise {
+        from {
+          transform: translateY(24px);
+          opacity: 0;
+        }
+      }
+      .dialog-head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--surface);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 20px 20px 12px;
+      }
+      @container app (min-width: 700px) {
+        .dialog-head {
+          padding: 24px 24px 12px;
+        }
+      }
+      .dialog-head h3 {
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+      }
+      .dialog-body {
+        padding: 8px 20px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      @container app (min-width: 700px) {
+        .dialog-body {
+          padding: 8px 24px 24px;
+        }
+      }
+      .dialog-foot {
+        position: sticky;
+        bottom: 0;
+        background: var(--surface);
+        display: flex;
+        gap: 10px;
+        padding: 14px 20px 20px;
+        border-top: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .dialog-foot {
+          padding: 16px 24px 24px;
+          justify-content: flex-end;
+        }
+      }
+      .dialog-foot .btn {
+        flex: 1;
+      }
+      @container app (min-width: 700px) {
+        .dialog-foot .btn {
+          flex: none;
+        }
+      }
+      .grabber {
+        width: 40px;
+        height: 5px;
+        border-radius: 5px;
+        background: var(--line-2);
+        margin: 8px auto 0;
+      }
+      @container app (min-width: 700px) {
+        .grabber {
+          display: none;
+        }
+      }
+
+      .dropzone {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px;
+        border-radius: var(--r-lg);
+        background: linear-gradient(135deg, #f7f4ff, #fbf9ff);
+        box-shadow: inset 0 0 0 1.5px #dcd2fa;
+        cursor: pointer;
+        position: relative;
+      }
+      .dropzone input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .dropzone .ico {
+        flex: none;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        color: var(--ai);
+        box-shadow: 0 1px 2px rgba(80, 50, 180, 0.12);
+      }
+      .shimmer {
+        background: linear-gradient(90deg, #efeafd 25%, #f8f5ff 50%, #efeafd 75%);
+        background-size: 200% 100%;
+        animation: shim 1.1s infinite linear;
+      }
+      @keyframes shim {
+        to {
+          background-position: -200% 0;
+        }
+      }
+
+      .toast {
+        position: absolute;
+        left: 50%;
+        bottom: 90px;
+        z-index: 60;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 16px;
+        border-radius: 12px;
+        background: #1c1c1c;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: var(--shadow-pop);
+        animation: rise 0.2s;
+        white-space: nowrap;
+      }
+      @container app (min-width: 800px) {
+        .toast {
+          bottom: 80px;
+        }
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        animation: spin 0.7s linear infinite;
+      }
+      .spinner.dark {
+        border-color: rgba(0, 0, 0, 0.12);
+        border-top-color: var(--ink);
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .slip {
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+      }
+      .slip-head {
+        padding: 18px 20px;
+        background: repeating-linear-gradient(135deg, #fff7f2 0 10px, #fdf0e9 10px 20px);
+        border-bottom: 1px dashed #efcdb8;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .slip-body {
+        padding: 20px;
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1fr;
+      }
+      .slip-qr {
+        text-align: center;
+      }
+      @container app (min-width: 600px) {
+        .slip-body {
+          grid-template-columns: 1fr auto;
+          gap: 24px;
+          align-items: center;
+        }
+      }
+      .ref {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      /* ---------- prototype controls (not part of the design) ---------- */
+      .proto {
+        position: fixed;
+        z-index: 100;
+        right: 14px;
+        bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 14px;
+        background: #111;
+        color: #fff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        font-size: 13px;
+      }
+      .proto .tag {
+        padding: 0 8px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        font-size: 11px;
+        color: #ffb48f;
+      }
+      .proto select,
+      .proto button {
+        height: 30px;
+        border-radius: 8px;
+        border: 0;
+        background: #2a2a2a;
+        color: #fff;
+        padding: 0 10px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .proto button.on {
+        background: #fff;
+        color: #111;
+      }
+      .proto pre {
+        position: absolute;
+        bottom: 48px;
+        right: 0;
+        width: 420px;
+        max-height: 60vh;
+        overflow: auto;
+        margin: 0;
+        padding: 14px;
+        border-radius: 12px;
+        background: #111;
+        color: #d7f5d3;
+        font-size: 11.5px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+      body.mobile .proto {
+        bottom: 10px;
+      }
+      @media (max-width: 760px) {
+        .proto {
+          right: 50%;
+          transform: translateX(50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="view"></div>
+      <div id="layer"></div>
+    </div>
+    <div id="proto" class="proto"></div>
+
+    <script>
+      /* ============================== data ============================== */
+      const TODAY = new Date('2026-09-26');
+      const STATEMENT_DATE = new Date('2026-09-02');
+      const PERIOD_FROM = new Date('2025-09-03');
+      const DUE = new Date('2026-10-02');
+
+      const COMMISSIONS = [
+        { code: 'TSC', name: 'Teachers Service Commission', desc: 'Teachers and TSC staff' },
+        {
+          code: 'PSC',
+          name: 'Public Service Commission',
+          desc: 'Civil servants in ministries, state departments and agencies',
+        },
+        {
+          code: 'JSC',
+          name: 'Judicial Service Commission',
+          desc: 'Judges, magistrates and Judiciary staff',
+        },
+        {
+          code: 'PSCK',
+          name: 'Parliamentary Service Commission',
+          desc: 'Members and staff of Parliament',
+        },
+        { code: 'NPSC', name: 'National Police Service Commission', desc: 'Police officers' },
+        { code: 'CPSB', name: 'County Public Service Boards', desc: 'County government employees' },
+        {
+          code: 'CAB',
+          name: 'County Assembly Service Boards',
+          desc: 'Members and staff of county assemblies',
+        },
+        {
+          code: 'EACC',
+          name: 'Ethics and Anti-Corruption Commission',
+          desc: 'State officers without another Commission',
+        },
+      ];
+
+      const ROSTER = {
+        surname: 'Kennedy',
+        first: 'John',
+        other: 'Fitzgerald',
+        idNo: '26543219',
+        dob: '1977-12-12',
+        fileNo: '2012445581',
+        kra: 'A004512398K',
+        designation: 'Deputy Principal',
+        grade: 'D1',
+        entity: 'Moi Girls High School, Eldoret',
+        employment: 'Permanent',
+        appointed: '2 Sep 2026',
+        email: 'jo•••••••@gmail.com',
+        phone: '07•• ••• 123',
+      };
+
+      const MARITAL = ['Single', 'Married', 'Separated', 'Divorced', 'Widowed'];
+      const INCOME_TYPES = [
+        'Salary and allowances',
+        'Rent',
+        'Business or farming',
+        'Dividends and interest',
+        'Pension',
+        'Other income',
+      ];
+      const ASSET_TYPES = [
+        { k: 'land', label: 'Land', icon: 'pin', ph: 'e.g. 0.25 acre plot, title LR 7/1234' },
+        {
+          k: 'building',
+          label: 'Building',
+          icon: 'building',
+          ph: 'e.g. 3-bedroom house on plot LR 7/1234',
+        },
+        { k: 'vehicle', label: 'Vehicle', icon: 'car', ph: 'e.g. Toyota Fielder, KDA 123X' },
+        {
+          k: 'cash',
+          label: 'Bank & cash',
+          icon: 'banknote',
+          ph: 'e.g. KCB savings account ending 4471',
+        },
+        {
+          k: 'invest',
+          label: 'Investments',
+          icon: 'trend',
+          ph: 'e.g. 2,000 Safaricom shares, SACCO deposits',
+        },
+        {
+          k: 'owed',
+          label: 'Money owed to you',
+          icon: 'arrowIn',
+          ph: 'e.g. Personal loan to a relative',
+        },
+        { k: 'other', label: 'Other', icon: 'box', ph: 'e.g. Livestock, jewellery, equipment' },
+      ];
+      const LIAB_TYPES = [
+        'Mortgage',
+        'Bank loan',
+        'SACCO loan',
+        'HELB loan',
+        'Credit card',
+        'Other',
+      ];
+      const COUNTIES = [
+        'Baringo',
+        'Bomet',
+        'Bungoma',
+        'Busia',
+        'Elgeyo-Marakwet',
+        'Embu',
+        'Garissa',
+        'Homa Bay',
+        'Isiolo',
+        'Kajiado',
+        'Kakamega',
+        'Kericho',
+        'Kiambu',
+        'Kilifi',
+        'Kirinyaga',
+        'Kisii',
+        'Kisumu',
+        'Kitui',
+        'Kwale',
+        'Laikipia',
+        'Lamu',
+        'Machakos',
+        'Makueni',
+        'Mandera',
+        'Marsabit',
+        'Meru',
+        'Migori',
+        'Mombasa',
+        "Murang'a",
+        'Nairobi',
+        'Nakuru',
+        'Nandi',
+        'Narok',
+        'Nyamira',
+        'Nyandarua',
+        'Nyeri',
+        'Samburu',
+        'Siaya',
+        'Taita-Taveta',
+        'Tana River',
+        'Tharaka-Nithi',
+        'Trans Nzoia',
+        'Turkana',
+        'Uasin Gishu',
+        'Vihiga',
+        'Wajir',
+        'West Pokot',
+      ];
+
+      let uid = 100;
+      const id = () => 'x' + uid++;
+
+      function freshState() {
+        return {
+          screen: 'login',
+          mobile: false,
+          showState: false,
+          login: { email: 'john.kennedy@gmail.com', password: '', showPw: false },
+          ob: {
+            q: '',
+            commission: null,
+            fileNo: '',
+            idNo: '',
+            busy: false,
+            emailCode: ['', '', '', '', '', ''],
+            phoneCode: ['', '', '', '', '', ''],
+            secure: 'passkey',
+            pw: '',
+            resendIn: 30,
+          },
+          decl: {
+            started: false,
+            step: 0,
+            savedAt: null,
+            about: {
+              placeOfBirth: 'Eldoret',
+              marital: 'Married',
+              postal: 'P.O. Box 1234-30100, Eldoret',
+              county: 'Uasin Gishu',
+              physical: 'Elgon View, Eldoret',
+            },
+            spouses: [
+              {
+                id: 'sp1',
+                surname: 'Kennedy',
+                first: 'Jacqueline',
+                other: 'Bouvier',
+                idNo: '27781034',
+                kra: 'A005339120P',
+                occupation: 'Private sector',
+                separated: false,
+                fromHR: true,
+              },
+            ],
+            noSpouse: false,
+            children: [
+              {
+                id: 'ch1',
+                surname: 'Kennedy',
+                first: 'Caroline',
+                other: '',
+                dob: '2009-05-14',
+                fromHR: true,
+              },
+              {
+                id: 'ch2',
+                surname: 'Kennedy',
+                first: 'Patrick',
+                other: '',
+                dob: '2007-01-20',
+                fromHR: true,
+              },
+            ],
+            noChildren: false,
+            statements: {},
+            person: 'self',
+            other: '',
+            declared: false,
+          },
+          submitted: null,
+          modal: null,
+          toast: null,
+        };
+      }
+      let S = freshState();
+      function ensureStatement(pid) {
+        if (!S.decl.statements[pid])
+          S.decl.statements[pid] = {
+            income: [],
+            assets: [],
+            liabilities: [],
+            none: { income: false, assets: false, liabilities: false },
+          };
+        return S.decl.statements[pid];
+      }
+      // Payroll pre-fills the declarant's salary.
+      ensureStatement('self').income.push({
+        id: id(),
+        type: 'Salary and allowances',
+        desc: 'TSC salary, house and commuter allowances',
+        amount: 1284000,
+        currency: 'KES',
+        fromHR: true,
+      });
+
+      /* ============================== helpers ============================== */
+      const esc = (s) =>
+        String(s ?? '').replace(
+          /[&<>"']/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+        );
+      const MONTHS = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      const fmtDate = (d) => {
+        const x = new Date(d);
+        return `${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()}`;
+      };
+      const money = (n, cur = 'KES') => `${cur} ${Number(n || 0).toLocaleString('en-KE')}`;
+      const toKES = (n, cur) =>
+        Number(n || 0) * ({ KES: 1, USD: 129, GBP: 172, EUR: 150 }[cur] || 1);
+      const daysLeft = Math.round((DUE - TODAY) / 86400000);
+      function ageAt(dob, at = STATEMENT_DATE) {
+        const d = new Date(dob);
+        let a = at.getFullYear() - d.getFullYear();
+        if (
+          at.getMonth() < d.getMonth() ||
+          (at.getMonth() === d.getMonth() && at.getDate() < d.getDate())
+        )
+          a--;
+        return a;
+      }
+      function persons() {
+        const d = S.decl;
+        const list = [
+          {
+            id: 'self',
+            name: 'You',
+            full: `${ROSTER.first} ${ROSTER.surname}`,
+            first: ROSTER.first,
+            kind: 'self',
+            initials: 'JK',
+          },
+        ];
+        d.spouses.forEach((s) =>
+          list.push({
+            id: s.id,
+            name: s.first,
+            full: `${s.first} ${s.surname}`,
+            first: s.first,
+            kind: 'spouse',
+            initials: (s.first[0] || '') + (s.surname[0] || ''),
+          }),
+        );
+        d.children
+          .filter((c) => c.dob && ageAt(c.dob) < 18)
+          .forEach((c) =>
+            list.push({
+              id: c.id,
+              name: c.first,
+              full: `${c.first} ${c.surname}`,
+              first: c.first,
+              kind: 'child',
+              initials: (c.first[0] || '') + (c.surname[0] || ''),
+            }),
+          );
+        return list;
+      }
+      const SECTIONS = ['income', 'assets', 'liabilities'];
+      const secDone = (st, k) => st[k].length > 0 || st.none[k];
+      const personDone = (pid) => {
+        const st = ensureStatement(pid);
+        return SECTIONS.every((k) => secDone(st, k));
+      };
+      const STEPS = [
+        { key: 'about', label: 'About you' },
+        { key: 'family', label: 'Spouse and children' },
+        { key: 'statements', label: 'Financial statements' },
+        { key: 'other', label: 'Other information' },
+        { key: 'review', label: 'Review and submit' },
+      ];
+      function stepDone(i) {
+        const d = S.decl;
+        if (i === 0) return !!(d.about.placeOfBirth && d.about.marital && d.about.postal);
+        if (i === 1)
+          return (
+            (d.spouses.length > 0 ||
+              d.noSpouse ||
+              !['Married', 'Separated'].includes(d.about.marital)) &&
+            (d.children.length > 0 || d.noChildren)
+          );
+        if (i === 2) return persons().every((p) => personDone(p.id));
+        if (i === 3) return d.step > 3;
+        return false;
+      }
+      function issues() {
+        const out = [];
+        if (!stepDone(0)) out.push({ text: 'Add your place of birth and postal address', step: 0 });
+        if (!stepDone(1))
+          out.push({
+            text: 'Tell us about your spouse and children, or confirm you have none',
+            step: 1,
+          });
+        persons().forEach((p) => {
+          const st = ensureStatement(p.id);
+          const missing = SECTIONS.filter((k) => !secDone(st, k));
+          if (missing.length)
+            out.push({
+              text: `${p.kind === 'self' ? 'Your' : p.first + "'s"} statement: ${missing.join(', ').replace(/, ([^,]*)$/, ' and $1')} not filled in`,
+              step: 2,
+              person: p.id,
+            });
+        });
+        return out;
+      }
+      function totals(pid) {
+        const st = ensureStatement(pid);
+        const sum = (arr) => arr.reduce((a, x) => a + toKES(x.amount, x.currency), 0);
+        return {
+          income: sum(st.income),
+          assets: sum(
+            st.assets.map((a) => ({
+              ...a,
+              amount: a.ownership === 'Joint' ? (a.amount * (a.share || 100)) / 100 : a.amount,
+            })),
+          ),
+          liabilities: sum(st.liabilities),
+        };
+      }
+      function progressPct() {
+        if (!S.decl.started) return 0;
+        return Math.round(([0, 1, 2, 3].filter(stepDone).length / 5) * 100);
+      }
+      function setPath(obj, path, val) {
+        const ks = path.split('.');
+        let o = obj;
+        for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
+        o[ks[ks.length - 1]] = val;
+      }
+      function getPath(obj, path) {
+        return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+      }
+
+      /* ============================== icons ============================== */
+      const I = {
+        check: '<path d="M20 6 9 17l-5-5"/>',
+        right: '<path d="m9 18 6-6-6-6"/>',
+        left: '<path d="m15 18-6-6 6-6"/>',
+        down: '<path d="m6 9 6 6 6-6"/>',
+        plus: '<path d="M5 12h14M12 5v14"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        building:
+          '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"/>',
+        mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+        phone: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+        shield:
+          '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+        key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+        finger:
+          '<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4M14 13.12c0 2.38 0 6.38-1 8.88M17.29 21.02c.12-.6.43-2.3.5-3.02M2 12a10 10 0 0 1 18-6M2 16h.01M21.8 16c.2-2 .131-5.354 0-6M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2M8.65 22c.21-.66.45-1.32.57-2M9 6.8a6 6 0 0 1 9 5.2v2"/>',
+        user: '<circle cx="12" cy="8" r="4.5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+        users:
+          '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+        home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+        file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8"/>',
+        msg: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+        wallet:
+          '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+        landmark: '<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/>',
+        card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+        car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
+        pin: '<path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+        trend: '<path d="M22 7 13.5 15.5l-5-5L2 17"/><path d="M16 7h6v6"/>',
+        banknote:
+          '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+        arrowIn: '<path d="M17 7 7 17M17 17H7V7"/>',
+        box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
+        sparkles:
+          '<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/>',
+        upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+        download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+        trash:
+          '<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+        pencil:
+          '<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+        x: '<path d="M18 6 6 18M6 6l12 12"/>',
+        info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+        alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+        lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        calendar:
+          '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+        clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+        logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+        help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
+        heart:
+          '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+        eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+        globe:
+          '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/>',
+        cloud:
+          '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m9 14 2 2 4-4"/>',
+        copy: '<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+        send: '<path d="M14.54 21.69a.5.5 0 0 0 .94-.02l6.5-19a.5.5 0 0 0-.64-.64l-19 6.5a.5.5 0 0 0-.02.94l7.93 3.18a2 2 0 0 1 1.11 1.11z"/><path d="m21.85 2.15-10.94 10.94"/>',
+        baby: '<path d="M9 12h.01M15 12h.01M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/>',
+      };
+      const icon = (n, s = 18, sw = 1.8) =>
+        `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
+
+      const logo = (
+        h = 24,
+      ) => `<a class="logo" data-act="goHome" aria-label="Dials home" style="font-size:${h}px">
+  <svg width="${h * 0.95}" height="${h}" viewBox="0 0 19 20"><path fill="currentColor" d="M0 2.5A2.5 2.5 0 0 1 2.5 0H9a10 10 0 0 1 0 20H2.5A2.5 2.5 0 0 1 0 17.5V13h5V7H0Z"/><rect x="7.5" y="7" width="5" height="6" rx="1" fill="#fff"/></svg><span style="line-height:1;margin-top:-0.08em">ials</span></a>`;
+
+      /* ============================== templates ============================== */
+      const field = (label, control, { hint = '', opt = false, id: fid = '' } = {}) =>
+        `<div class="field"><label class="label" ${fid ? `for="${fid}"` : ''}><span>${label}</span>${opt ? '<span class="opt">Optional</span>' : ''}</label>${control}${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+      const input = (bind, { ph = '', type = 'text', cls = '', extra = '', val } = {}) => {
+        const v = val !== undefined ? val : getPath(S, bind);
+        return `<input id="f-${bind.replace(/\./g, '-')}" class="input ${cls}" type="${type}" data-bind="${bind}" value="${esc(v)}" placeholder="${esc(ph)}" ${extra}/>`;
+      };
+      const select = (bind, options, { ph = 'Select', cls = '', rerender = false } = {}) => {
+        const v = getPath(S, bind);
+        return `<select id="f-${bind.replace(/\./g, '-')}" class="select ${cls}" data-bind="${bind}" ${rerender ? 'data-rerender' : ''}><option value="" ${!v ? 'selected' : ''} disabled>${esc(ph)}</option>${options.map((o) => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+      };
+      const choices = (bind, options, cols = 'c3', { tiles = null, rerender = true } = {}) => {
+        const v = getPath(S, bind);
+        return `<div class="choices ${cols}" role="radiogroup">${options
+          .map((o, i) => {
+            const val = typeof o === 'string' ? o : o.k;
+            const lab = typeof o === 'string' ? o : o.label;
+            return `<label class="choice ${tiles ? 'tile' : ''}"><input type="radio" name="${bind}" value="${esc(val)}" data-bind="${bind}" ${rerender ? 'data-rerender' : ''} ${val === v ? 'checked' : ''}/>${tiles ? `<span class="tile-ico">${icon(o.icon, 17)}</span>` : '<span class="dot"></span>'}<span>${esc(lab)}</span></label>`;
+          })
+          .join('')}</div>`;
+      };
+      const checkbox = (bind, label, { disabled = false, sub = '' } = {}) =>
+        `<label class="check"><input type="checkbox" data-bind="${bind}" data-rerender ${getPath(S, bind) ? 'checked' : ''} ${disabled ? 'disabled' : ''}/><span class="box">${icon('check', 14, 3)}</span><span>${label}${sub ? `<div class="hint" style="margin-top:2px">${sub}</div>` : ''}</span></label>`;
+
+      /* ---------- auth + onboarding ---------- */
+      function authArt(variant = 'onboard') {
+        const items =
+          variant === 'login'
+            ? [
+                ['shield', 'Your declaration goes only to your Responsible Commission'],
+                ['cloud', 'Progress saves automatically as you go'],
+                ['file', 'Get a signed acknowledgement slip the moment you submit'],
+              ]
+            : [
+                ['building', 'Only officers on a Commission roster can set up an account'],
+                ['lock', 'Codes go to the email and phone your Commission holds'],
+                ['clock', 'About 5 minutes to set up, then declare at your own pace'],
+              ];
+        return `<aside class="auth-art" aria-hidden="true">
+    <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3d2"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
+        <radialGradient id="sun" cx=".72" cy=".47" r=".22"><stop offset="0" stop-color="#fff4e6"/><stop offset=".5" stop-color="#ffd9b8" stop-opacity=".8"/><stop offset="1" stop-color="#ffd9b8" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="800" height="1000" fill="url(#sky)"/>
+      <rect width="800" height="1000" fill="url(#sun)"/>
+      <circle cx="576" cy="470" r="46" fill="#fff6ea" opacity=".95"/>
+      <path d="M0 560 C120 520 200 540 300 510 C420 470 520 520 640 490 C720 470 770 480 800 470 V1000 H0Z" fill="#e7936a" opacity=".55"/>
+      <path d="M0 610 C140 570 230 620 360 580 C500 540 600 600 800 555 V1000 H0Z" fill="#d97a4f" opacity=".7"/>
+      <path d="M0 680 C160 640 260 700 420 660 C560 625 660 690 800 650 V1000 H0Z" fill="#b95b35"/>
+      <path d="M0 770 C180 730 300 790 470 750 C610 720 700 770 800 745 V1000 H0Z" fill="#8f3f22"/>
+      <path d="M0 860 C200 830 330 880 520 845 C650 822 730 850 800 840 V1000 H0Z" fill="#5e2814"/>
+      <g fill="#4a1f0f"><path d="M150 745c-40-6-70 4-80 10 18 2 36-2 56 0-6 4-12 10-12 26h4c2-14 8-20 16-24 10 2 24 6 34 4-6-8-12-14-18-16Z"/><rect x="146" y="748" width="4" height="40"/></g>
+      <g fill="#4a1f0f"><path d="M640 735c-30-5-52 3-60 8 14 2 27-1 42 0-5 3-9 8-9 20h3c2-11 6-15 12-18 8 1 18 4 26 3-5-6-9-11-14-13Z"/><rect x="637" y="738" width="3" height="30"/></g>
+    </svg>
+    <div class="halftone"></div>
+    <div class="art-copy"><h2>${variant === 'login' ? 'Welcome back.<br/>Pick up where you left off.' : 'Declare your income, assets and liabilities, simply and securely.'}</h2></div>
+    <div class="art-list">${items.map(([ic, t]) => `<div class="art-item"><span class="ico">${icon(ic, 17)}</span>${t}</div>`).join('')}</div>
+  </aside>`;
+      }
+      function authLayout(body, { step = null, art = 'onboard', top = '' } = {}) {
+        const stepper =
+          step === null
+            ? ''
+            : `<div class="stepper" aria-label="Step ${step + 1} of 5">${[0, 1, 2, 3, 4].map((i) => `<span class="s ${i < step ? 'done' : i === step ? 'cur' : ''}"></span>`).join('')}</div>`;
+        return `<div class="auth"><main class="auth-main">
+    <div class="auth-top">${logo(24)}${top}</div>
+    <div class="auth-body">${stepper}${body}</div>
+    <div class="auth-foot">Conflict of Interest Act, 2025 · <a class="link" style="font-weight:400">Privacy</a> · <a class="link" style="font-weight:400">Help</a></div>
+  </main>${authArt(art)}</div>`;
+      }
+      const langToggle = () =>
+        `<div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="lang">${icon('globe', 16)} English</button></div>`;
+      const backLink = (to, label = 'Back') =>
+        `<button class="btn btn-ghost btn-sm" style="margin:-6px 0 18px -10px;align-self:flex-start" data-act="go" data-arg="${to}">${icon('left', 16)} ${label}</button>`;
+
+      const screens = {};
+
+      screens.login = () =>
+        authLayout(
+          `
+  <h1 class="title">Log in to Dials</h1>
+  <p class="subtitle">Declare your income, assets and liabilities to your Responsible Commission.</p>
+  <div class="stack" style="margin-top:28px">
+    <button class="btn btn-secondary btn-block" data-act="loginPasskey">${icon('finger', 18)} Log in with a passkey</button>
+    <div class="row muted small" style="gap:12px"><span style="flex:1;height:1px;background:var(--line)"></span>or<span style="flex:1;height:1px;background:var(--line)"></span></div>
+    ${field('Email address', input('login.email', { type: 'email', ph: 'name@example.com', extra: 'autocomplete="username"' }), { id: 'f-login-email' })}
+    <div class="field">
+      <label class="label" for="f-login-password"><span>Password</span><a class="link small" style="font-weight:500">Forgot password?</a></label>
+      <div class="input-group">${input('login.password', { type: S.login.showPw ? 'text' : 'password', ph: 'Your password', extra: 'autocomplete="current-password"' })}<button class="btn btn-ghost icon-btn" style="margin:4px" data-act="togglePw" aria-label="Show password">${icon('eye', 17)}</button></div>
+    </div>
+    <button class="btn btn-primary btn-block" data-act="go" data-arg="login-mfa">Log in</button>
+  </div>
+  <div class="card card-pad" style="margin-top:28px;display:flex;gap:14px;align-items:center;padding:16px 18px">
+    <span class="avatar" style="background:var(--brand-soft);color:var(--brand-ink)">${icon('user', 17)}</span>
+    <div style="flex:1"><div style="font-weight:500">First time here?</div><div class="small muted">Set up your account with your personnel file number.</div></div>
+    <button class="btn btn-secondary btn-sm" data-act="go" data-arg="ob-commission">Set up</button>
+  </div>`,
+          { art: 'login', top: langToggle() },
+        );
+
+      screens['login-mfa'] = () =>
+        authLayout(
+          `
+  ${backLink('login')}
+  <div class="eyebrow">${icon('shield', 16)} Two-step verification</div>
+  <h1 class="title">Enter the code from your authenticator app</h1>
+  <p class="subtitle">Open Google Authenticator or Microsoft Authenticator and enter the 6-digit code for Dials.</p>
+  <div style="margin-top:28px">${otp('ob.phoneCode', 'home')}</div>
+  <p class="hint" style="margin-top:14px">Prototype: type any 6 digits.</p>
+  <p class="small muted" style="margin-top:24px">Lost your phone? <a class="link">Use a recovery code</a></p>`,
+          { art: 'login' },
+        );
+
+      screens['ob-commission'] = () => {
+        const q = S.ob.q.toLowerCase();
+        const list = COMMISSIONS.filter(
+          (c) => !q || (c.name + c.code + c.desc).toLowerCase().includes(q),
+        );
+        return authLayout(
+          `
+  ${backLink('login', 'Log in instead')}
+  <div class="eyebrow">Step 1 of 5 · Commission</div>
+  <h1 class="title">Which Commission are you declaring to?</h1>
+  <p class="subtitle">Your Responsible Commission receives and reviews your declaration. It is usually the body that appointed you.</p>
+  <div class="stack" style="margin-top:24px">
+    <div class="input-group"><span class="addon">${icon('search', 17)}</span><input id="f-ob-q" class="input" data-bind="ob.q" data-live placeholder="Search, e.g. teachers or TSC" value="${esc(S.ob.q)}"/></div>
+    <div class="commission-list" role="listbox">
+      ${
+        list
+          .map(
+            (
+              c,
+            ) => `<button class="commission ${S.ob.commission === c.code ? 'sel' : ''}" role="option" aria-selected="${S.ob.commission === c.code}" data-act="pickCommission" data-arg="${c.code}">
+        <span class="mono">${c.code}</span><span style="flex:1"><div class="t">${c.name}</div><div class="d">${c.desc}</div></span>${S.ob.commission === c.code ? `<span style="color:var(--ink)">${icon('check', 18, 2.4)}</span>` : ''}</button>`,
+          )
+          .join('') ||
+        `<div class="empty"><h4>No Commission matches "${esc(S.ob.q)}"</h4><p>Try a shorter word, or ask your HR office which Commission you declare to.</p></div>`
+      }
+    </div>
+    <button class="btn btn-primary btn-block" ${S.ob.commission ? '' : 'disabled'} data-act="go" data-arg="ob-identify">Continue</button>
+  </div>`,
+          { step: 0, top: langToggle() },
+        );
+      };
+
+      screens['ob-identify'] = () => {
+        const c = COMMISSIONS.find((x) => x.code === S.ob.commission) || COMMISSIONS[0];
+        return authLayout(
+          `
+  ${backLink('ob-commission')}
+  <div class="eyebrow">Step 2 of 5 · Find your record</div>
+  <h1 class="title">Find your record</h1>
+  <p class="subtitle">We'll match these against the officer list ${c.name} gave us.</p>
+  <div class="card" style="margin-top:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+    <span class="mono" style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-ink);font-weight:700;font-size:11.5px">${c.code}</span>
+    <div style="flex:1;font-weight:500;font-size:14.5px">${c.name}</div>
+    <button class="btn btn-ghost btn-sm" data-act="go" data-arg="ob-commission">Change</button>
+  </div>
+  <div class="stack" style="margin-top:20px">
+    ${field('Personnel file number', input('ob.fileNo', { ph: 'e.g. 2012445581', extra: 'inputmode="numeric" autocomplete="off"' }), { id: 'f-ob-fileNo', hint: 'On your payslip, appointment letter or staff ID. TSC calls it the TSC number.' })}
+    ${field('National ID number', input('ob.idNo', { ph: 'e.g. 26543219', extra: 'inputmode="numeric" autocomplete="off"' }), { id: 'f-ob-idNo' })}
+    <button class="btn btn-primary btn-block" data-act="identify">${S.ob.busy ? '<span class="spinner"></span> Checking' : 'Find my record'}</button>
+    <p class="hint">Prototype: any values match. Use file number <b>999</b> to see "no match", <b>111</b> for "already set up".</p>
+  </div>`,
+          { step: 1, top: langToggle() },
+        );
+      };
+
+      screens['ob-nomatch'] = () => {
+        const c = COMMISSIONS.find((x) => x.code === S.ob.commission) || COMMISSIONS[0];
+        return authLayout(
+          `
+  <div class="success-mark" style="background:var(--warn-soft);color:var(--warn)">${icon('alert', 30)}</div>
+  <h1 class="title">We couldn't find a matching record</h1>
+  <p class="subtitle">The details you entered don't match an officer on ${c.name}'s list. This can happen if you were appointed recently or your details were recorded differently.</p>
+  <div class="card card-pad stack" style="margin-top:24px">
+    <div class="section-title">What to do</div>
+    <div class="row" style="align-items:flex-start"><span class="badge">1</span><span class="small">Check your file number and ID number, then try again.</span></div>
+    <div class="row" style="align-items:flex-start"><span class="badge">2</span><span class="small">If they're correct, contact your ${c.code} reporting officer. They can add or correct your record, usually within 2 working days.</span></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px"><a class="btn btn-secondary btn-sm">${icon('mail', 16)} reporting@${c.code.toLowerCase()}.go.ke</a><a class="btn btn-secondary btn-sm">${icon('phone', 16)} 020 289 2000</a></div>
+  </div>
+  <button class="btn btn-primary btn-block" style="margin-top:20px" data-act="go" data-arg="ob-identify">Try again</button>`,
+          { step: 1 },
+        );
+      };
+
+      screens['ob-already'] = () =>
+        authLayout(
+          `
+  <div class="success-mark" style="background:var(--sunken);color:var(--ink)">${icon('user', 30)}</div>
+  <h1 class="title">You already have an account</h1>
+  <p class="subtitle">An account is already set up for this record. Log in, or reset your password if you can't remember it.</p>
+  <div class="stack" style="margin-top:24px">
+    <button class="btn btn-primary btn-block" data-act="go" data-arg="login">Log in</button>
+    <button class="btn btn-secondary btn-block">Reset my password</button>
+    <p class="small muted">Didn't set this account up? <a class="link">Tell your reporting officer</a> straight away.</p>
+  </div>`,
+          { step: 1 },
+        );
+
+      function otp(bind, next) {
+        const vals = getPath(S, bind);
+        return `<div class="otp" data-otp="${bind}" data-next="${next}">${vals.map((v, i) => `${i === 3 ? '<span class="sep"></span>' : ''}<input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit ${i + 1}" data-otp-i="${i}" value="${esc(v)}"/>`).join('')}</div>`;
+      }
+      screens['ob-email'] = () =>
+        authLayout(
+          `
+  ${backLink('ob-identify')}
+  <div class="eyebrow">Step 3 of 5 · Verify</div>
+  <h1 class="title">Check your email</h1>
+  <p class="subtitle">We sent a 6-digit code to <b style="color:var(--ink)">${ROSTER.email}</b>, the email your Commission has for you.</p>
+  <div style="margin-top:28px">${otp('ob.emailCode', 'ob-phone')}</div>
+  <div class="row small muted" style="margin-top:18px;justify-content:space-between;flex-wrap:wrap">
+    <span>Didn't get it? Check spam, or <a class="link">resend in 0:${String(S.ob.resendIn).padStart(2, '0')}</a></span>
+    <a class="link">Not your email?</a>
+  </div>
+  <p class="hint" style="margin-top:14px">Prototype: type any 6 digits.</p>`,
+          { step: 2 },
+        );
+
+      screens['ob-phone'] = () =>
+        authLayout(
+          `
+  ${backLink('ob-email')}
+  <div class="eyebrow">Step 3 of 5 · Verify</div>
+  <div class="callout callout-ok" style="margin-bottom:20px">${icon('check', 16, 2.4)}<span>Email verified</span></div>
+  <h1 class="title">Now check your phone</h1>
+  <p class="subtitle">We sent an SMS code to <b style="color:var(--ink)">${ROSTER.phone}</b>.</p>
+  <div style="margin-top:28px">${otp('ob.phoneCode', 'ob-confirm')}</div>
+  <div class="row small muted" style="margin-top:18px;justify-content:space-between;flex-wrap:wrap">
+    <span>No SMS? <a class="link">Resend in 0:${String(S.ob.resendIn).padStart(2, '0')}</a></span>
+    <a class="link">Not your number?</a>
+  </div>
+  <p class="hint" style="margin-top:14px">Prototype: type any 6 digits.</p>`,
+          { step: 2 },
+        );
+
+      screens['ob-confirm'] = () => {
+        const c = COMMISSIONS.find((x) => x.code === S.ob.commission) || COMMISSIONS[0];
+        return authLayout(
+          `
+  ${backLink('ob-phone')}
+  <div class="eyebrow">Step 4 of 5 · Confirm</div>
+  <h1 class="title">Is this you?</h1>
+  <p class="subtitle">These details come from ${c.code} records and were checked against the national population register.</p>
+  <div class="card" style="margin-top:22px">
+    <div style="display:flex;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)">
+      <span class="avatar" style="width:44px;height:44px;font-size:15px">JK</span>
+      <div style="flex:1"><div style="font-weight:600;font-size:16.5px">${ROSTER.first} ${ROSTER.other} ${ROSTER.surname}</div><div class="small muted">${ROSTER.designation} · ${ROSTER.entity}</div></div>
+    </div>
+    <dl class="dl" style="padding:4px 20px">
+      <div><dt>National ID</dt><dd>${ROSTER.idNo}</dd></div>
+      <div><dt>Date of birth</dt><dd>${fmtDate(ROSTER.dob)}</dd></div>
+      <div><dt>Personnel file number</dt><dd>${ROSTER.fileNo}</dd></div>
+      <div><dt>Commission</dt><dd>${c.name}</dd></div>
+    </dl>
+    <div style="padding:12px 20px;border-top:1px solid var(--line)"><span class="badge badge-ok">${icon('shield', 14)} Verified with IPRS</span></div>
+  </div>
+  <div class="stack" style="margin-top:20px">
+    <button class="btn btn-primary btn-block" data-act="go" data-arg="ob-secure">Yes, this is me</button>
+    <button class="btn btn-ghost btn-block" data-act="go" data-arg="ob-nomatch">Something is wrong</button>
+  </div>`,
+          { step: 3 },
+        );
+      };
+
+      screens['ob-secure'] = () =>
+        authLayout(
+          `
+  ${backLink('ob-confirm')}
+  <div class="eyebrow">Step 5 of 5 · Secure your account</div>
+  <h1 class="title">How do you want to log in?</h1>
+  <p class="subtitle">Your declaration holds sensitive financial information, so your account needs strong protection.</p>
+  <div class="stack" style="margin-top:24px">
+    <label class="secure-opt"><input type="radio" name="sec" data-bind="ob.secure" data-rerender value="passkey" ${S.ob.secure === 'passkey' ? 'checked' : ''}/>
+      <span class="ico">${icon('finger', 20)}</span>
+      <span style="flex:1"><div class="row" style="gap:8px"><b style="font-weight:600">Passkey</b><span class="badge badge-ok">Recommended</span></div><div class="small muted" style="margin-top:3px">Use your phone's fingerprint, face or PIN. Nothing to remember and can't be phished.</div></span></label>
+    <label class="secure-opt"><input type="radio" name="sec" data-bind="ob.secure" data-rerender value="password" ${S.ob.secure === 'password' ? 'checked' : ''}/>
+      <span class="ico">${icon('key', 20)}</span>
+      <span style="flex:1"><b style="font-weight:600">Password and authenticator app</b><div class="small muted" style="margin-top:3px">A password plus a 6-digit code from an app like Google Authenticator.</div></span></label>
+    ${
+      S.ob.secure === 'password'
+        ? `<div class="stack" style="padding:4px 2px">${field('Create a password', input('ob.pw', { type: 'password', ph: 'At least 12 characters', extra: 'autocomplete="new-password" data-rerender-input' }), { id: 'f-ob-pw' })}
+      ${pwRules(S.ob.pw)}</div>`
+        : ''
+    }
+    <button class="btn btn-primary btn-block" data-act="secure">${S.ob.secure === 'passkey' ? `${icon('finger', 18)} Create passkey` : 'Continue to authenticator setup'}</button>
+  </div>`,
+          { step: 4 },
+        );
+
+      function pwRules(pw) {
+        const rules = [
+          [pw.length >= 12, 'At least 12 characters'],
+          [/[A-Z]/.test(pw) && /[a-z]/.test(pw), 'Upper and lower case letters'],
+          [/\d/.test(pw), 'A number'],
+          [pw.length > 0 && !/password|1234|dials/i.test(pw), 'Not a common password'],
+        ];
+        return `<div id="pw-rules" style="display:grid;gap:6px">${rules.map(([ok, t]) => `<div class="row small" style="gap:8px;color:${ok ? 'var(--ok)' : 'var(--muted)'}">${ok ? icon('check', 15, 2.4) : '<span style="width:15px;height:15px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line-2)"></span>'}${t}</div>`).join('')}</div>`;
+      }
+
+      screens['ob-done'] = () =>
+        authLayout(`
+  <div class="success-mark">${icon('check', 32, 2.4)}</div>
+  <h1 class="title">You're all set, ${ROSTER.first}</h1>
+  <p class="subtitle">Your account is ready. You have one declaration to make.</p>
+  <div class="card" style="margin-top:24px;overflow:hidden">
+    <div style="padding:18px 20px;display:flex;gap:14px;align-items:center">
+      <span class="avatar" style="background:var(--brand-soft);color:var(--brand-ink)">${icon('file', 17)}</span>
+      <div style="flex:1"><div style="font-weight:600">Initial declaration</div><div class="small muted">Due ${fmtDate(DUE)} · ${daysLeft} days left</div></div>
+      <span class="badge badge-warn">Due soon</span>
+    </div>
+  </div>
+  <div class="callout callout-info" style="margin-top:14px">${icon('info', 16)}<span>Your officer reference is <b>OFR-TSC-0012345</b>. Quote it if you contact your Commission.</span></div>
+  <button class="btn btn-primary btn-block" style="margin-top:22px" data-act="go" data-arg="home">Go to my dashboard</button>`);
+
+      /* ---------- app shell ---------- */
+      function shell(body, active = 'home', { tabbar = true } = {}) {
+        const nav = [
+          ['home', 'Home', 'home'],
+          ['declarations', 'Declarations', 'file'],
+          ['clarifications', 'Clarifications', 'msg'],
+        ];
+        return `<header class="topbar">
+    ${logo(22)}
+    <nav class="nav">${nav.map(([k, l, ic]) => `<a class="${active === k ? 'on' : ''}" data-act="go" data-arg="${k}">${icon(ic, 17)} ${l}</a>`).join('')}</nav>
+    <div class="spacer"></div>
+    ${langToggle()}
+    <button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Help centre and chat would open here" aria-label="Help">${icon('help', 19)}</button>
+    <button class="avatar" style="border:0;cursor:pointer;margin-left:4px" data-act="logout" title="Log out">JK</button>
+  </header>
+  ${body}
+  ${tabbar ? `<nav class="tabbar">${nav.map(([k, l, ic]) => `<a class="${active === k ? 'on' : ''}" data-act="go" data-arg="${k}">${icon(ic, 21)}<span>${l}</span></a>`).join('')}</nav>` : ''}`;
+      }
+
+      function greeting() {
+        return 'Good morning';
+      }
+
+      screens.home = () => {
+        const pct = progressPct();
+        const done = !!S.submitted;
+        const oblig = done
+          ? `<div class="obligation" style="background:linear-gradient(135deg,#f1faf4,#dff2e6);box-shadow:0 0 0 1px #cbe8d5">
+        <div class="row" style="gap:8px;margin-bottom:12px"><span class="badge badge-ok">${icon('check', 14, 2.4)} Submitted</span></div>
+        <h2>Initial declaration received</h2>
+        <p class="muted" style="margin-top:6px">Submitted ${S.submitted.at}. ${ROSTER.first}, there's nothing more you need to do right now.</p>
+        <div class="row" style="margin-top:20px;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" data-act="go" data-arg="submitted">View acknowledgement</button><button class="btn btn-secondary">${icon('download', 17)} Download slip</button></div>
+      </div>`
+          : `<div class="obligation"><div class="glow"></div>
+        <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap"><span class="badge badge-brand">${icon('clock', 14)} ${daysLeft} days left</span>${S.decl.started ? '<span class="badge">In progress</span>' : ''}</div>
+        <h2>Make your initial declaration</h2>
+        <p style="margin-top:6px;color:#6b4a36;max-width:520px">Declare the income, assets and liabilities of you, your spouse and your children under 18, as they stood on the day you were appointed.</p>
+        <div class="meta">
+          <div><div class="k">Due by</div><div class="v">${fmtDate(DUE)}</div></div>
+          <div><div class="k">Statement date</div><div class="v">${fmtDate(STATEMENT_DATE)}</div></div>
+          <div><div class="k">Declaring to</div><div class="v">TSC</div></div>
+        </div>
+        ${S.decl.started ? `<div class="row small" style="margin-bottom:8px;justify-content:space-between"><span style="font-weight:500">${pct}% complete</span><span class="muted">Saved automatically</span></div><div class="progress" style="margin-bottom:20px"><i style="width:${pct}%"></i></div>` : ''}
+        <button class="btn btn-primary" data-act="startDecl">${S.decl.started ? 'Continue declaration' : 'Start declaration'} ${icon('right', 17)}</button>
+      </div>`;
+        return shell(
+          `<div class="page">
+    <p class="muted small" style="font-weight:500">${greeting()}, ${ROSTER.first}</p>
+    <h1 class="page-title" style="margin-top:2px">${done ? 'You are up to date' : 'You have 1 declaration to make'}</h1>
+    <div class="home-grid">
+      <div class="stack-lg">
+        ${oblig}
+        ${
+          done
+            ? ''
+            : `<div class="card card-pad">
+          <div class="section-title">Have these to hand</div>
+          <p class="small muted" style="margin-top:2px">Approximate values are fine. You can save and come back any time.</p>
+          <div class="need-list">
+            ${[
+              ['wallet', 'Payslip or P9 form for your income'],
+              ['landmark', 'Title deeds, logbooks and share statements'],
+              ['banknote', 'Bank and M-Pesa balances on ' + fmtDate(STATEMENT_DATE)],
+              ['card', 'Loan and mortgage statements'],
+              ['users', "Your spouse's and children's details"],
+            ]
+              .map(([ic, t]) => `<div><span class="ico">${icon(ic, 16)}</span>${t}</div>`)
+              .join('')}
+          </div>
+        </div>`
+        }
+      </div>
+      <div class="stack-lg">
+        <div class="card">
+          <div class="card-head"><h3>Your details</h3><div class="spacer"></div><span class="badge badge-ok">${icon('shield', 13)} Verified</span></div>
+          <dl class="dl" style="padding:2px 20px 6px">
+            <div><dt>Name</dt><dd>${ROSTER.first} ${ROSTER.surname}</dd></div>
+            <div><dt>Designation</dt><dd>${ROSTER.designation}</dd></div>
+            <div><dt>Workstation</dt><dd>${ROSTER.entity.split(',')[0]}</dd></div>
+            <div><dt>Commission</dt><dd>TSC</dd></div>
+          </dl>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Clarifications</h3></div>
+          <div class="empty" style="padding:24px 20px">
+            <div class="art" style="grid-template-columns:30px"><span style="background:var(--sunken);color:var(--muted)">${icon('msg', 16)}</span></div>
+            <h4>No requests</h4><p>If your Commission needs more information about a declaration, we'll SMS you and it will show here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`,
+          'home',
+        );
+      };
+
+      screens.declarations = () =>
+        shell(
+          `<div class="page">
+  <h1 class="page-title">Declarations</h1>
+  <p class="muted" style="margin-top:4px">Everything you have declared, and what's due next.</p>
+  <div class="card" style="margin-top:24px">
+    ${
+      S.submitted
+        ? `<div class="item"><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${icon('check', 17, 2.4)}</span><div class="item-body"><div class="t">Initial declaration</div><div class="d">Statement date ${fmtDate(STATEMENT_DATE)} · <span class="ref" style="font-size:13px">${S.submitted.ref}</span></div></div><span class="badge badge-ok item-tag">Received</span><button class="btn btn-ghost icon-btn" data-act="go" data-arg="submitted" aria-label="Open">${icon('right', 18)}</button></div>`
+        : `<div class="item"><span class="ico" style="background:var(--brand-soft);color:var(--brand-ink)">${icon('file', 17)}</span><div class="item-body"><div class="t">Initial declaration</div><div class="d">Due ${fmtDate(DUE)} · statement date ${fmtDate(STATEMENT_DATE)}</div></div><span class="badge badge-warn item-tag">${S.decl.started ? 'In progress' : 'Not started'}</span><button class="btn btn-ghost icon-btn" data-act="startDecl" aria-label="Open">${icon('right', 18)}</button></div>`
+    }
+    <div class="item"><span class="ico">${icon('calendar', 17)}</span><div class="item-body"><div class="t" style="color:var(--muted)">Biennial declaration</div><div class="d">Opens 1 Nov 2027 · due 31 Dec 2027</div></div><span class="badge item-tag">Upcoming</span></div>
+  </div>
+</div>`,
+          'declarations',
+        );
+
+      screens.clarifications = () =>
+        shell(
+          `<div class="page">
+  <h1 class="page-title">Clarifications</h1>
+  <p class="muted" style="margin-top:4px">Requests from your Commission to explain or complete a declaration.</p>
+  <div class="card" style="margin-top:24px">
+    <div class="empty" style="padding:56px 20px">
+      <div class="art"><span style="background:var(--brand-soft);color:var(--brand-ink)">${icon('msg', 16)}</span><span style="background:var(--sunken);color:var(--muted)">${icon('file', 16)}</span><span style="background:var(--sunken);color:var(--muted)">${icon('check', 16)}</span><span style="background:var(--ok-soft);color:var(--ok)">${icon('shield', 16)}</span></div>
+      <h4>You have no clarification requests</h4>
+      <p>If one arrives you'll have 30 days to reply. We'll SMS and email you, and it will appear here.</p>
+    </div>
+  </div>
+</div>`,
+          'clarifications',
+        );
+
+      /* ---------- declaration wizard ---------- */
+      function wizard(
+        content,
+        {
+          title,
+          sub,
+          nextLabel = 'Save and continue',
+          nextAct = 'next',
+          nextDisabled = false,
+        } = {},
+      ) {
+        const d = S.decl;
+        const i = d.step;
+        const saved = d.savedAt ? 'Saved just now' : 'All changes saved';
+        return shell(
+          `<div class="wiz">
+    <aside class="rail">
+      <button class="btn btn-ghost btn-sm" style="margin-left:-10px" data-act="go" data-arg="home">${icon('left', 16)} Dashboard</button>
+      <div style="margin-top:14px"><div style="font-weight:600;font-size:16px">Initial declaration</div><div class="small muted">To Teachers Service Commission</div></div>
+      <ol>${STEPS.map((s, k) => `<li class="${k === i ? 'on' : stepDone(k) ? 'done' : ''}"><button data-act="step" data-arg="${k}"><span class="n">${stepDone(k) && k !== i ? icon('check', 13, 2.8) : k + 1}</span>${s.label}</button></li>`).join('')}</ol>
+      <div class="meta">
+        <div>${icon('cloud', 16)} ${saved}</div>
+        <div>${icon('calendar', 16)} Statement date ${fmtDate(STATEMENT_DATE)}</div>
+        <div>${icon('clock', 16)} Due ${fmtDate(DUE)} · ${daysLeft} days left</div>
+      </div>
+    </aside>
+    <section class="wiz-main">
+      <div class="mprog">
+        <div class="row"><button class="btn btn-ghost icon-btn" style="margin-left:-8px;width:30px;height:30px" data-act="${i === 0 ? 'go' : 'prev'}" data-arg="home" aria-label="Back">${icon('left', 18)}</button><span style="font-weight:600">Step ${i + 1} of 5</span><span class="muted">· ${STEPS[i].label}</span><span class="spacer"></span><span class="muted small row" style="gap:5px">${icon('cloud', 15)} Saved</span></div>
+        <div class="bar">${STEPS.map((s, k) => `<i class="${k <= i ? 'done' : ''}"></i>`).join('')}</div>
+      </div>
+      <div class="wiz-head" style="margin-top:4px"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>
+      ${content}
+      <div class="actions">
+        ${i > 0 ? `<button class="btn btn-secondary" data-act="prev">${icon('left', 17)}<span class="hide-sm" style="display:inline">Back</span></button>` : ''}
+        <button class="btn btn-primary" data-act="${nextAct}" ${nextDisabled ? 'disabled' : ''}>${nextLabel}</button>
+      </div>
+    </section>
+  </div>`,
+          'declarations',
+          { tabbar: false },
+        );
+      }
+
+      function stepAbout() {
+        const a = S.decl.about;
+        return wizard(
+          `<div class="stack-lg">
+    <div class="card">
+      <div class="card-head"><span class="ico" style="background:var(--sunken)">${icon('user', 17)}</span><div style="flex:1"><h3>From your Commission's records</h3><div class="small muted">You can't edit these here</div></div><span class="badge badge-ok">${icon('shield', 13)} Verified</span></div>
+      <dl class="dl" style="padding:4px 20px">
+        <div><dt>Full name</dt><dd>${ROSTER.first} ${ROSTER.other} ${ROSTER.surname}</dd></div>
+        <div><dt>Date of birth</dt><dd>${fmtDate(ROSTER.dob)}</dd></div>
+        <div><dt>National ID</dt><dd>${ROSTER.idNo}</dd></div>
+        <div><dt>KRA PIN</dt><dd>${ROSTER.kra}</dd></div>
+        <div><dt>Designation</dt><dd>${ROSTER.designation}, ${ROSTER.grade}</dd></div>
+        <div><dt>Employer</dt><dd>Teachers Service Commission</dd></div>
+        <div><dt>Workstation</dt><dd>${ROSTER.entity}</dd></div>
+        <div><dt>Nature of employment</dt><dd>${ROSTER.employment}</dd></div>
+      </dl>
+      <div class="card-foot small muted">${icon('info', 15)} Something wrong? <a class="link">Ask your reporting officer to correct it</a></div>
+    </div>
+    <div class="card card-pad stack-lg">
+      <div class="section-title">Confirm the rest</div>
+      ${field('Place of birth', input('decl.about.placeOfBirth', { ph: 'Town or county' }), { id: 'f-decl-about-placeOfBirth' })}
+      <div class="field"><span class="label">Marital status</span>${choices('decl.about.marital', MARITAL, 'c5')}</div>
+      ${field('Postal address', input('decl.about.postal', { ph: 'P.O. Box 1234-00100, Nairobi' }), { id: 'f-decl-about-postal' })}
+      <div class="grid-2">
+        ${field('County you live in', select('decl.about.county', COUNTIES, { ph: 'Select county' }), { id: 'f-decl-about-county' })}
+        ${field('Estate, road or village', input('decl.about.physical', { ph: 'e.g. Elgon View, Eldoret' }), { id: 'f-decl-about-physical' })}
+      </div>
+    </div>
+  </div>`,
+          {
+            title: 'About you',
+            sub: 'Check your details. Most come from your Commission, so there is little to type.',
+          },
+        );
+      }
+
+      function stepFamily() {
+        const d = S.decl;
+        const needsSpouse = ['Married', 'Separated'].includes(d.about.marital);
+        const spouseCards = d.spouses
+          .map(
+            (s) => `<div class="item">
+      <span class="avatar spouse">${esc((s.first[0] || '') + (s.surname[0] || ''))}</span>
+      <div class="item-body"><div class="t">${esc(s.first)} ${esc(s.other)} ${esc(s.surname)}</div><div class="d">ID ${esc(s.idNo || '-')} · ${esc(s.occupation || 'Occupation not set')}${s.separated ? ' · Separated' : ''}</div></div>
+      ${s.fromHR ? '<span class="badge item-tag wide">From TSC records</span>' : ''}
+      <div class="acts"><button class="btn btn-ghost icon-btn" data-act="editSpouse" data-arg="${s.id}" aria-label="Edit">${icon('pencil', 16)}</button><button class="btn btn-ghost icon-btn" data-act="removeSpouse" data-arg="${s.id}" aria-label="Remove">${icon('trash', 16)}</button></div>
+    </div>`,
+          )
+          .join('');
+        const childCards = d.children
+          .map((c) => {
+            const age = c.dob ? ageAt(c.dob) : null;
+            const inc = age !== null && age < 18;
+            return `<div class="item">
+      <span class="avatar child" style="${inc ? '' : 'filter:grayscale(1);opacity:.6'}">${esc((c.first[0] || '') + (c.surname[0] || ''))}</span>
+      <div class="item-body"><div class="t">${esc(c.first)} ${esc(c.surname)}</div><div class="d">Born ${c.dob ? fmtDate(c.dob) : '-'} · ${age !== null ? `${age} on the statement date` : ''}</div></div>
+      ${inc ? '<span class="badge badge-ok item-tag">Included</span>' : '<span class="badge item-tag" title="18 or older on the statement date">Not included, 18+</span>'}
+      <div class="acts"><button class="btn btn-ghost icon-btn" data-act="editChild" data-arg="${c.id}" aria-label="Edit">${icon('pencil', 16)}</button><button class="btn btn-ghost icon-btn" data-act="removeChild" data-arg="${c.id}" aria-label="Remove">${icon('trash', 16)}</button></div>
+    </div>`;
+          })
+          .join('');
+        const excluded = d.children.filter((c) => c.dob && ageAt(c.dob) >= 18).length;
+        return wizard(
+          `<div class="stack-lg">
+    <div class="card">
+      <div class="card-head"><span class="ico" style="background:#e8f0fb;color:#2f5fae">${icon('heart', 17)}</span><div style="flex:1"><h3>Spouse or spouses</h3><div class="small muted">Include every spouse, even if separated</div></div></div>
+      ${
+        spouseCards ||
+        (needsSpouse
+          ? `<div class="empty"><h4>No spouse added</h4><p>You said you're ${d.about.marital.toLowerCase()}. Add your spouse so we can prepare their financial statement.</p></div>`
+          : `<div class="empty"><h4>No spouse to declare</h4><p>You said you're ${d.about.marital.toLowerCase()}. If that has changed, update it in About you.</p></div>`)
+      }
+      <div class="card-foot"><button class="btn btn-secondary btn-sm" data-act="addSpouse">${icon('plus', 16)} Add ${d.spouses.length ? 'another ' : ''}spouse</button>
+        ${!d.spouses.length && needsSpouse ? `<span class="spacer"></span>${checkbox('decl.noSpouse', 'I have no spouse to declare')}` : ''}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${icon('baby', 17)}</span><div style="flex:1"><h3>Children</h3><div class="small muted">Children under 18 on ${fmtDate(STATEMENT_DATE)} are included</div></div></div>
+      ${childCards || `<div class="empty"><h4>No children added</h4><p>Add children who were under 18 on the statement date, including adopted and step-children who depend on you.</p></div>`}
+      ${excluded ? `<div style="padding:0 20px 16px"><div class="callout callout-info">${icon('info', 16)}<span>${excluded === 1 ? '1 child was' : excluded + ' children were'} 18 or older on the statement date, so no financial statement is needed for them.</span></div></div>` : ''}
+      <div class="card-foot"><button class="btn btn-secondary btn-sm" data-act="addChild">${icon('plus', 16)} Add ${d.children.length ? 'another ' : ''}child</button>
+        ${!d.children.length ? `<span class="spacer"></span>${checkbox('decl.noChildren', 'I have no children under 18')}` : ''}</div>
+    </div>
+  </div>`,
+          {
+            title: 'Spouse and children',
+            sub: "We've added the family members your Commission has on record. Check them and add anyone missing.",
+          },
+        );
+      }
+
+      const SEC_META = {
+        income: {
+          title: 'Income',
+          icon: 'wallet',
+          tint: ['#fdf0e9', '#b8430f'],
+          add: 'Add income',
+          none: 'No income to declare',
+          emptyT: 'No income added',
+          emptyP:
+            'Salary, rent, business or farming income, dividends and interest earned between ',
+        },
+        assets: {
+          title: 'Assets',
+          icon: 'landmark',
+          tint: ['#e9f6ee', '#167a3e'],
+          add: 'Add asset',
+          none: 'No assets to declare',
+          emptyT: 'No assets added',
+          emptyP:
+            'Land, buildings, vehicles, bank and M-Pesa balances, shares, SACCO savings and money owed to you, in Kenya or abroad.',
+        },
+        liabilities: {
+          title: 'Liabilities',
+          icon: 'card',
+          tint: ['#e8f0fb', '#2f5fae'],
+          add: 'Add liability',
+          none: 'No liabilities to declare',
+          emptyT: 'No liabilities added',
+          emptyP: 'Mortgages, bank and SACCO loans, HELB, credit cards and other money you owe.',
+        },
+      };
+      function itemRow(sec, it, pid) {
+        let ic = SEC_META[sec].icon,
+          title = it.type,
+          desc = it.desc;
+        if (sec === 'assets') {
+          const t = ASSET_TYPES.find((x) => x.k === it.type) || ASSET_TYPES[6];
+          ic = t.icon;
+          title = t.label;
+          desc = [
+            it.desc,
+            it.location === 'Abroad' ? it.country : it.county,
+            it.ownership === 'Joint' ? `${it.share}% share` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ');
+        }
+        if (sec === 'liabilities') desc = [it.lender, it.desc].filter(Boolean).join(' · ');
+        return `<div class="item">
+    <span class="ico">${icon(ic, 17)}</span>
+    <div class="item-body"><div class="t">${esc(title)}${it.fromHR ? ' <span class="badge" style="margin-left:4px;vertical-align:1px">From payroll</span>' : ''}${it.ai ? ' <span class="badge badge-ai" style="margin-left:4px;vertical-align:1px">' + icon('sparkles', 12) + ' From document</span>' : ''}</div><div class="d">${esc(desc)}</div></div>
+    <div class="amt">${sec === 'assets' && it.ownership === 'Joint' ? `${money((it.amount * (it.share || 100)) / 100, it.currency)}<div class="small muted" style="font-weight:400">${it.share}% of ${money(it.amount, it.currency)}</div>` : money(it.amount, it.currency)}</div>
+    <div class="acts"><button class="btn btn-ghost icon-btn" data-act="editItem" data-arg="${sec}|${pid}|${it.id}" aria-label="Edit">${icon('pencil', 16)}</button><button class="btn btn-ghost icon-btn" data-act="removeItem" data-arg="${sec}|${pid}|${it.id}" aria-label="Remove">${icon('trash', 16)}</button></div>
+  </div>`;
+      }
+      function sectionCard(sec, pid, p) {
+        const st = ensureStatement(pid);
+        const m = SEC_META[sec];
+        const items = st[sec];
+        const tot = totals(pid)[sec];
+        const who = p.kind === 'self' ? 'you' : p.first;
+        const sub =
+          sec === 'income'
+            ? `${fmtDate(PERIOD_FROM)} to ${fmtDate(STATEMENT_DATE)}`
+            : `As at ${fmtDate(STATEMENT_DATE)}`;
+        return `<div class="card" id="sec-${sec}">
+    <div class="card-head"><span class="ico" style="background:${m.tint[0]};color:${m.tint[1]}">${icon(m.icon, 17)}</span><div style="flex:1"><h3>${m.title}</h3><div class="small muted">${sub}</div></div>${secDone(st, sec) ? `<span class="badge badge-ok">${icon('check', 13, 2.6)} Done</span>` : ''}</div>
+    ${
+      items.length
+        ? items.map((it) => itemRow(sec, it, pid)).join('') +
+          `<div class="item" style="background:var(--sunken)"><div class="item-body small muted">Total${items.some((x) => x.currency !== 'KES') ? ' (approx. in KES)' : ''}</div><div class="amt">${money(tot)}</div><div class="acts" style="width:74px"></div></div>`
+        : st.none[sec]
+          ? `<div class="empty" style="padding:22px"><h4>${m.none} for ${who}</h4><p>Untick below if that's not right.</p></div>`
+          : `<div class="empty" style="padding:24px 20px"><h4>${m.emptyT}</h4><p>${sec === 'income' ? m.emptyP + fmtDate(PERIOD_FROM) + ' and ' + fmtDate(STATEMENT_DATE) + '.' : m.emptyP}</p></div>`
+    }
+    <div class="card-foot">
+      <button class="btn btn-secondary btn-sm" data-act="addItem" data-arg="${sec}|${pid}" ${st.none[sec] ? 'disabled style="opacity:.5"' : ''}>${icon('plus', 16)} ${m.add}</button>
+      ${items.length ? '' : `<span class="spacer"></span>${checkbox(`decl.statements.${pid}.none.${sec}`, `${m.none}`)}`}
+    </div>
+  </div>`;
+      }
+      function stepStatements() {
+        const ps = persons();
+        if (!ps.find((p) => p.id === S.decl.person)) S.decl.person = 'self';
+        const p = ps.find((x) => x.id === S.decl.person);
+        const idx = ps.indexOf(p);
+        const nextP = ps[idx + 1];
+        return wizard(
+          `
+    <div class="persons" role="tablist">${ps.map((x) => `<button class="person ${x.id === p.id ? 'on' : ''}" role="tab" aria-selected="${x.id === p.id}" data-act="person" data-arg="${x.id}"><span class="avatar sm ${x.kind === 'self' ? '' : x.kind}">${esc(x.initials)}</span>${esc(x.name)}<span class="st ${personDone(x.id) ? 'ok' : 'todo'}">${personDone(x.id) ? icon('check', 11, 3) : ''}</span></button>`).join('')}</div>
+    <div class="stack-lg">
+      <details class="help"><summary>${icon('help', 17)} What should I include?<span class="chev">${icon('down', 16)}</span></summary><div class="body">
+        Declare what ${p.kind === 'self' ? 'you' : p.first} owned, earned and owed. Approximate values are fine; you don't need a valuation.
+        <ul><li>Include things in Kenya and abroad, and anything owned jointly (enter the share).</li><li>Income covers ${fmtDate(PERIOD_FROM)} to ${fmtDate(STATEMENT_DATE)}. Assets and liabilities are as they stood on ${fmtDate(STATEMENT_DATE)}.</li><li>Not sure? Add it with a short description. Your Commission can ask for clarification later.</li></ul></div></details>
+      ${SECTIONS.map((s) => sectionCard(s, p.id, p)).join('')}
+    </div>`,
+          {
+            title:
+              p.kind === 'self'
+                ? 'Your financial statement'
+                : `${esc(p.first)}'s financial statement`,
+            sub: `${ps.length > 1 ? `Statement ${idx + 1} of ${ps.length}. ` : ''}You need a separate statement for yourself, each spouse and each child under 18.`,
+            nextLabel: nextP
+              ? `Continue to ${esc(nextP.kind === 'self' ? 'you' : nextP.first)}`
+              : 'Save and continue',
+            nextAct: nextP ? 'nextPerson' : 'next',
+          },
+        );
+      }
+      function stepOther() {
+        return wizard(
+          `<div class="card card-pad stack">
+      ${field('Anything else your Commission should know?', `<textarea id="f-decl-other" class="textarea" data-bind="decl.other" rows="6" placeholder="e.g. The Eldoret plot is registered to my late father's estate and is being transferred to me.">${esc(S.decl.other)}</textarea>`, { opt: true, id: 'f-decl-other', hint: 'Explaining unusual items now can save you a clarification request later.' })}
+    </div>`,
+          {
+            title: 'Other information',
+            sub: 'Optional. Add context that helps your Commission understand your declaration.',
+          },
+        );
+      }
+      function stepReview() {
+        const ps = persons();
+        const iss = issues();
+        const d = S.decl;
+        const grand = ps.reduce(
+          (a, p) => {
+            const t = totals(p.id);
+            a.i += t.income;
+            a.a += t.assets;
+            a.l += t.liabilities;
+            return a;
+          },
+          { i: 0, a: 0, l: 0 },
+        );
+        return wizard(
+          `<div class="stack-lg">
+    ${
+      iss.length
+        ? `<div class="callout callout-warn" style="flex-direction:column;gap:10px"><div class="row" style="gap:10px;font-weight:600">${icon('alert', 17)} ${iss.length} thing${iss.length > 1 ? 's' : ''} to finish before you can submit</div>
+      <div style="display:grid;gap:6px;padding-left:28px">${iss.map((x) => `<button class="link" style="text-align:left;font-weight:400;color:inherit" data-act="fixIssue" data-arg="${x.step}|${x.person || ''}">${esc(x.text)}</button>`).join('')}</div></div>`
+        : `<div class="callout callout-ok">${icon('check', 17, 2.4)}<span><b>Everything is complete.</b> Check the summary, then submit.</span></div>`
+    }
+    <div class="card">
+      <div class="card-head"><h3>Summary</h3><div class="spacer"></div><span class="small muted">KES, approximate</span></div>
+      <div style="padding:4px 20px 8px;overflow-x:auto">
+        <table class="sum-table">
+          <thead><tr><th>Person</th><th>Income</th><th>Assets</th><th>Liabilities</th><th class="hide-sm">Net worth</th></tr></thead>
+          <tbody>${ps
+            .map((p) => {
+              const t = totals(p.id);
+              return `<tr><td><span class="row" style="gap:10px"><span class="avatar sm ${p.kind === 'self' ? '' : p.kind}">${esc(p.initials)}</span><span style="font-weight:500">${esc(p.kind === 'self' ? 'You' : p.first)}</span></span></td><td>${t.income.toLocaleString('en-KE')}</td><td>${t.assets.toLocaleString('en-KE')}</td><td>${t.liabilities.toLocaleString('en-KE')}</td><td class="hide-sm" style="font-weight:600">${(t.assets - t.liabilities).toLocaleString('en-KE')}</td></tr>`;
+            })
+            .join('')}
+          <tr><td style="font-weight:600">Total</td><td style="font-weight:600">${grand.i.toLocaleString('en-KE')}</td><td style="font-weight:600">${grand.a.toLocaleString('en-KE')}</td><td style="font-weight:600">${grand.l.toLocaleString('en-KE')}</td><td class="hide-sm" style="font-weight:600">${(grand.a - grand.l).toLocaleString('en-KE')}</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      ${[
+        [
+          'About you',
+          `${ROSTER.first} ${ROSTER.surname} · ${d.about.marital} · ${esc(d.about.postal)}`,
+          0,
+        ],
+        [
+          'Spouse and children',
+          `${d.spouses.length} spouse${d.spouses.length === 1 ? '' : 's'} · ${ps.filter((p) => p.kind === 'child').length} child${ps.filter((p) => p.kind === 'child').length === 1 ? '' : 'ren'} under 18`,
+          1,
+        ],
+        [
+          'Financial statements',
+          `${ps.filter((p) => personDone(p.id)).length} of ${ps.length} complete`,
+          2,
+        ],
+        [
+          'Other information',
+          d.other ? esc(d.other.slice(0, 90)) + (d.other.length > 90 ? '…' : '') : 'None added',
+          3,
+        ],
+      ]
+        .map(
+          ([t, v, k]) =>
+            `<div class="review-sec"><div><div style="font-weight:600">${t}</div><div class="small muted" style="margin-top:2px">${v}</div></div><button class="btn btn-ghost btn-sm" data-act="step" data-arg="${k}">Edit</button></div>`,
+        )
+        .join('')}
+    </div>
+    <div class="card card-pad" style="background:var(--brand-softer);box-shadow:0 0 0 1px #f3dccd">
+      ${checkbox('decl.declared', 'I solemnly declare that the information in this declaration is, to the best of my knowledge, true and complete.', { sub: 'Giving false or misleading information is an offence under the Conflict of Interest Act, 2025.' })}
+    </div>
+  </div>`,
+          {
+            title: 'Review and submit',
+            sub: 'Check everything is right. After you submit, changes need a new declaration or a clarification.',
+            nextLabel: `${icon('send', 17)} Submit declaration`,
+            nextAct: 'submit',
+            nextDisabled: iss.length > 0 || !d.declared,
+          },
+        );
+      }
+      screens.decl = () =>
+        [stepAbout, stepFamily, stepStatements, stepOther, stepReview][S.decl.step]();
+
+      function qr(seed = 7) {
+        let s = seed;
+        const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+        const n = 25;
+        let cells = '';
+        const finder = (x, y) =>
+          `<rect x="${x}" y="${y}" width="7" height="7" fill="#1a1a1a"/><rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/><rect x="${x + 2}" y="${y + 2}" width="3" height="3" fill="#1a1a1a"/>`;
+        for (let y = 0; y < n; y++)
+          for (let x = 0; x < n; x++) {
+            const inF = (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
+            if (!inF && rnd() > 0.52) cells += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+          }
+        return `<svg viewBox="-1 -1 ${n + 2} ${n + 2}" width="112" height="112" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${n + 2}" height="${n + 2}" fill="#fff"/><g fill="#1a1a1a">${cells}</g>${finder(0, 0)}${finder(n - 7, 0)}${finder(0, n - 7)}</svg>`;
+      }
+      screens.submitted = () => {
+        const sub = S.submitted || { ref: 'DCB-TSC-2026-0012345-H', at: '26 Sep 2026, 10:42' };
+        return shell(
+          `<div class="page" style="max-width:720px">
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 0 28px">
+      <div class="success-mark">${icon('check', 32, 2.4)}</div>
+      <h1 class="page-title">Declaration submitted</h1>
+      <p class="muted" style="margin-top:6px;max-width:460px">Teachers Service Commission has received your initial declaration. We've emailed and texted you a copy of your acknowledgement slip.</p>
+    </div>
+    <div class="slip">
+      <div class="slip-head">${logo(20)}<div class="spacer"></div><span class="badge badge-ok">${icon('shield', 13)} Digitally signed</span></div>
+      <div class="slip-body">
+        <dl class="dl" style="min-width:0">
+          <div><dt>Reference</dt><dd class="ref">${sub.ref}</dd></div>
+          <div><dt>Declarant</dt><dd>${ROSTER.first} ${ROSTER.surname}</dd></div>
+          <div><dt>Type</dt><dd>Initial declaration</dd></div>
+          <div><dt>Statement date</dt><dd>${fmtDate(STATEMENT_DATE)}</dd></div>
+          <div><dt>Received</dt><dd>${sub.at}</dd></div>
+        </dl>
+        <div class="slip-qr">${qr()}<div class="hint" style="font-size:11.5px;margin-top:4px">Scan to verify</div></div>
+      </div>
+      <div class="card-foot" style="gap:10px">
+        <button class="btn btn-primary btn-sm">${icon('download', 16)} Download slip (PDF)</button>
+        <button class="btn btn-ghost btn-sm" data-act="copyRef">${icon('copy', 16)} Copy reference</button>
+      </div>
+    </div>
+    <div class="card card-pad" style="margin-top:20px">
+      <div class="section-title">What happens next</div>
+      <div style="display:grid;gap:14px;margin-top:14px">
+        ${[
+          ['check', 'Received', 'Your declaration is with TSC.', true],
+          [
+            'file',
+            'Review',
+            'TSC checks declarations for completeness. Most need no further action.',
+            false,
+          ],
+          [
+            'msg',
+            'If needed, a clarification',
+            "You'll get an SMS and have 30 days to respond here.",
+            false,
+          ],
+        ]
+          .map(
+            ([ic, t, dsc, on]) =>
+              `<div class="row" style="align-items:flex-start;gap:14px"><span class="avatar sm" style="background:${on ? 'var(--ok-soft)' : 'var(--sunken)'};color:${on ? 'var(--ok)' : 'var(--muted)'}">${icon(ic, 14, 2.2)}</span><div><div style="font-weight:500">${t}</div><div class="small muted">${dsc}</div></div></div>`,
+          )
+          .join('')}
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:24px"><button class="btn btn-secondary" data-act="go" data-arg="home">Back to dashboard</button></div>
+  </div>`,
+          'declarations',
+        );
+      };
+
+      /* ---------- modals ---------- */
+      function dialog({ title, sub = '', icon: ic = null, tint = null, body, foot }) {
+        return `<div class="overlay" data-act="closeModalBg"><div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="grabber"></div>
+    <div class="dialog-head">${ic ? `<span class="avatar" style="border-radius:10px;background:${tint[0]};color:${tint[1]}">${icon(ic, 18)}</span>` : ''}<div style="flex:1"><h3>${title}</h3>${sub ? `<p class="small muted" style="margin-top:3px">${sub}</p>` : ''}</div><button class="btn btn-ghost icon-btn" data-act="closeModal" aria-label="Close">${icon('x', 18)}</button></div>
+    <div class="dialog-body">${body}</div>
+    <div class="dialog-foot">${foot}</div>
+  </div></div>`;
+      }
+      const amountField = (
+        label,
+        hint = '',
+      ) => `<div class="field"><label class="label" for="f-modal-form-amount"><span>${label}</span></label>
+  <div class="input-group"><input id="f-modal-form-amount" class="input tabular ${S.modal.aiFields?.includes('amount') ? '' : ''}" data-bind="modal.form.amount" data-money inputmode="numeric" placeholder="0" value="${S.modal.form.amount ? Number(S.modal.form.amount).toLocaleString('en-KE') : ''}"/>
+  <select class="select" data-bind="modal.form.currency" aria-label="Currency">${['KES', 'USD', 'GBP', 'EUR'].map((c) => `<option ${S.modal.form.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+      const aiCls = (k) => ((S.modal.aiFields || []).includes(k) ? 'ai-filled' : '');
+
+      const modals = {};
+      modals.income = () => {
+        const m = S.modal;
+        const p = persons().find((x) => x.id === m.pid);
+        return dialog({
+          title: m.editing ? 'Edit income' : 'Add income',
+          sub: `${p.kind === 'self' ? 'Your' : p.first + "'s"} income, ${fmtDate(PERIOD_FROM)} to ${fmtDate(STATEMENT_DATE)}`,
+          icon: 'wallet',
+          tint: SEC_META.income.tint,
+          body: `<div class="field"><span class="label">Type of income</span>${choices('modal.form.type', INCOME_TYPES, 'c3', { rerender: false })}</div>
+      ${field('Description', input('modal.form.desc', { ph: 'e.g. Rent from 2 units in Kapsoya' }), { id: 'f-modal-form-desc' })}
+      ${amountField('Approximate amount for the period', 'Total before tax for the whole period.')}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="saveItem">${m.editing ? 'Save changes' : 'Add income'}</button>`,
+        });
+      };
+      modals.assets = () => {
+        const m = S.modal;
+        const f = m.form;
+        const p = persons().find((x) => x.id === m.pid);
+        const t = ASSET_TYPES.find((x) => x.k === f.type);
+        const ai =
+          m.ai === 'loading'
+            ? `<div class="dropzone" style="cursor:default"><span class="ico"><span class="spinner dark" style="border-top-color:var(--ai)"></span></span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Reading ${esc(m.fileName)}…</div><div class="shimmer" style="height:8px;border-radius:4px;margin-top:8px;width:70%"></div></div></div>`
+            : m.ai === 'done'
+              ? `<div class="callout callout-ai">${icon('sparkles', 16)}<span><b>We filled in ${m.aiFields.length} fields from ${esc(m.fileName)}.</b> Check the highlighted fields. We can't know the value, so enter it yourself.</span></div>`
+              : `<label class="dropzone"><input type="file" data-act-change="aiUpload" accept="image/*,.pdf"/><span class="ico">${icon('sparkles', 20)}</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Fill in from a document</div><div class="small muted">Upload a title deed, logbook or statement and we'll fill in the details for you to check.</div></div><span class="btn btn-secondary btn-sm" style="pointer-events:none">${icon('upload', 15)} Upload</span></label>`;
+        return dialog({
+          title: m.editing ? 'Edit asset' : 'Add an asset',
+          sub: `Owned by ${p.kind === 'self' ? 'you' : p.first} on ${fmtDate(STATEMENT_DATE)}`,
+          icon: 'landmark',
+          tint: SEC_META.assets.tint,
+          body: `${m.editing ? '' : ai}
+      <div class="field"><span class="label">What kind of asset?</span>${choices('modal.form.type', ASSET_TYPES, 'c4', { tiles: true })}</div>
+      ${
+        f.type
+          ? `
+      ${field('Description', input('modal.form.desc', { ph: t.ph, cls: aiCls('desc') }), { id: 'f-modal-form-desc', hint: f.type === 'land' || f.type === 'building' ? 'Include the title or LR number if you have it.' : '' })}
+      <div class="field"><span class="label">Where is it?</span>${choices('modal.form.location', ['Kenya', 'Abroad'], '', {})}</div>
+      ${f.location === 'Abroad' ? field('Country', input('modal.form.country', { ph: 'e.g. United Kingdom' }), { id: 'f-modal-form-country' }) : field('County', select('modal.form.county', COUNTIES, { ph: 'Select county', cls: aiCls('county') }), { id: 'f-modal-form-county' })}
+      <div class="field"><span class="label">Who owns it?</span>${choices('modal.form.ownership', ['Sole', 'Joint'], '', {})}</div>
+      ${f.ownership === 'Joint' ? field(`${p.kind === 'self' ? 'Your' : p.first + "'s"} share`, `<div class="input-group">${input('modal.form.share', { ph: '50', type: 'number', cls: aiCls('share'), extra: 'min="1" max="99"' })}<span class="addon" style="padding:0 14px 0 0">%</span></div>`, { id: 'f-modal-form-share', hint: 'Enter the full value below. We work out the share.' }) : ''}
+      ${amountField('Approximate value of the whole asset', 'What it would sell for today. A rough figure is fine.')}
+      ${field('Year acquired', input('modal.form.year', { ph: 'e.g. 2019', type: 'number', cls: aiCls('year') }), { opt: true, id: 'f-modal-form-year' })}`
+          : ''
+      }`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="saveItem" ${f.type ? '' : 'disabled'}>${m.editing ? 'Save changes' : 'Add asset'}</button>`,
+        });
+      };
+      modals.liabilities = () => {
+        const m = S.modal;
+        const p = persons().find((x) => x.id === m.pid);
+        return dialog({
+          title: m.editing ? 'Edit liability' : 'Add a liability',
+          sub: `Owed by ${p.kind === 'self' ? 'you' : p.first} on ${fmtDate(STATEMENT_DATE)}`,
+          icon: 'card',
+          tint: SEC_META.liabilities.tint,
+          body: `<div class="field"><span class="label">Type</span>${choices('modal.form.type', LIAB_TYPES, 'c3', { rerender: false })}</div>
+      ${field('Lender', input('modal.form.lender', { ph: 'e.g. Equity Bank, Mwalimu SACCO' }), { id: 'f-modal-form-lender' })}
+      ${field('Description', input('modal.form.desc', { ph: 'e.g. Mortgage on Elgon View house' }), { opt: true, id: 'f-modal-form-desc' })}
+      ${amountField('Amount outstanding', `What was still owed on ${fmtDate(STATEMENT_DATE)}, as on your loan statement.`)}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="saveItem">${m.editing ? 'Save changes' : 'Add liability'}</button>`,
+        });
+      };
+      modals.spouse = () => {
+        const m = S.modal;
+        return dialog({
+          title: m.editing ? 'Edit spouse' : 'Add a spouse',
+          icon: 'heart',
+          tint: ['#e8f0fb', '#2f5fae'],
+          body: `<div class="grid-2">${field('First name', input('modal.form.first'), { id: 'f-modal-form-first' })}${field('Surname', input('modal.form.surname'), { id: 'f-modal-form-surname' })}</div>
+      ${field('Other names', input('modal.form.other'), { opt: true, id: 'f-modal-form-other' })}
+      <div class="grid-2">${field('National ID or passport', input('modal.form.idNo', { extra: 'inputmode="numeric"' }), { id: 'f-modal-form-idNo' })}${field('KRA PIN', input('modal.form.kra', { ph: 'A000000000X' }), { opt: true, id: 'f-modal-form-kra' })}</div>
+      <div class="field"><span class="label">Occupation</span>${choices('modal.form.occupation', ['Public officer', 'Private sector', 'Self-employed', 'Not employed'], 'c4', { rerender: false })}</div>
+      ${checkbox('modal.form.separated', 'We are separated', { sub: "You still need to declare a separated spouse's income, assets and liabilities, as far as you know them." })}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="saveSpouse">${m.editing ? 'Save changes' : 'Add spouse'}</button>`,
+        });
+      };
+      modals.child = () => {
+        const m = S.modal;
+        const f = m.form;
+        const age = f.dob ? ageAt(f.dob) : null;
+        return dialog({
+          title: m.editing ? 'Edit child' : 'Add a child',
+          icon: 'baby',
+          tint: ['#e9f6ee', '#167a3e'],
+          body: `<div class="grid-2">${field('First name', input('modal.form.first'), { id: 'f-modal-form-first' })}${field('Surname', input('modal.form.surname'), { id: 'f-modal-form-surname' })}</div>
+      ${field('Other names', input('modal.form.other'), { opt: true, id: 'f-modal-form-other' })}
+      ${field('Date of birth', input('modal.form.dob', { type: 'date', extra: 'data-rerender max="2026-09-26"' }), { id: 'f-modal-form-dob', hint: age === null ? `We use this to check if they were under 18 on ${fmtDate(STATEMENT_DATE)}.` : age < 18 ? `<span style="color:var(--ok);font-weight:500">${age} on the statement date, so included.</span>` : `<span style="color:var(--warn);font-weight:500">${age} on the statement date, so no statement is needed.</span>` })}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="saveChild">${m.editing ? 'Save changes' : 'Add child'}</button>`,
+        });
+      };
+      modals.stepup = () =>
+        dialog({
+          title: 'Confirm it is you',
+          sub: 'For your security, confirm before submitting your declaration.',
+          icon: 'shield',
+          tint: ['#f4f3f1', '#1a1a1a'],
+          body: S.modal.busy
+            ? `<div class="empty"><span class="spinner dark" style="width:28px;height:28px;margin-bottom:14px"></span><h4>Submitting your declaration…</h4><p>Signing and sending it to Teachers Service Commission.</p></div>`
+            : `<button class="btn btn-primary btn-block" data-act="doSubmit">${icon('finger', 18)} Confirm with passkey</button>
+       <div class="row muted small" style="gap:12px"><span style="flex:1;height:1px;background:var(--line)"></span>or enter a code from your authenticator app<span style="flex:1;height:1px;background:var(--line)"></span></div>
+       ${otp('modal.code', '__submit')}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal" ${S.modal.busy ? 'disabled' : ''}>Cancel</button>`,
+        });
+
+      /* ============================== render ============================== */
+      const app = document.getElementById('app');
+      const view = document.getElementById('view');
+      const layer = document.getElementById('layer');
+      function render() {
+        const scroll = view.scrollTop;
+        const focusId = document.activeElement?.id;
+        const sel = document.activeElement?.selectionStart;
+        view.innerHTML = (screens[S.screen] || screens.login)();
+        layer.innerHTML =
+          (S.modal ? modals[S.modal.kind]() : '') +
+          (S.toast ? `<div class="toast">${icon('check', 16, 2.4)} ${esc(S.toast)}</div>` : '');
+        view.scrollTop = scroll;
+        if (focusId) {
+          const el = document.getElementById(focusId);
+          if (el) {
+            el.focus();
+            try {
+              if (
+                sel != null &&
+                el.setSelectionRange &&
+                el.type !== 'number' &&
+                el.type !== 'email' &&
+                el.type !== 'date'
+              )
+                el.setSelectionRange(sel, sel);
+            } catch (e) {}
+          }
+        }
+        renderProto();
+      }
+      function go(screen) {
+        S.screen = screen;
+        S.modal = null;
+        render();
+        view.scrollTop = 0;
+        const first = app.querySelector('.otp input');
+        if (first) first.focus();
+      }
+      function toast(msg) {
+        S.toast = msg;
+        render();
+        clearTimeout(toast.t);
+        toast.t = setTimeout(() => {
+          S.toast = null;
+          render();
+        }, 2200);
+      }
+      function touch() {
+        if (S.screen === 'decl') S.decl.savedAt = Date.now();
+      }
+
+      const actions = {
+        go: (a) => go(a),
+        goHome: () =>
+          go(
+            ['login', 'login-mfa'].includes(S.screen) || S.screen.startsWith('ob-')
+              ? S.screen
+              : 'home',
+          ),
+        lang: () => toast('Kiswahili would switch the whole portal'),
+        toast: (a) => toast(a),
+        togglePw: () => {
+          S.login.showPw = !S.login.showPw;
+          render();
+        },
+        loginPasskey: () => {
+          toast('Passkey accepted');
+          setTimeout(() => go('home'), 500);
+        },
+        logout: () => go('login'),
+        pickCommission: (a) => {
+          S.ob.commission = a;
+          render();
+        },
+        identify: () => {
+          if (!S.ob.fileNo || !S.ob.idNo) {
+            toast('Enter both numbers');
+            return;
+          }
+          S.ob.busy = true;
+          render();
+          setTimeout(() => {
+            S.ob.busy = false;
+            go(
+              S.ob.fileNo.trim() === '999'
+                ? 'ob-nomatch'
+                : S.ob.fileNo.trim() === '111'
+                  ? 'ob-already'
+                  : 'ob-email',
+            );
+          }, 700);
+        },
+        secure: () => {
+          if (S.ob.secure === 'passkey') {
+            toast('Passkey created');
+            setTimeout(() => go('ob-done'), 500);
+          } else go('ob-done');
+        },
+        startDecl: () => {
+          S.decl.started = true;
+          go('decl');
+        },
+        step: (a) => {
+          S.decl.step = +a;
+          go('decl');
+        },
+        next: () => {
+          S.decl.step = Math.min(4, S.decl.step + 1);
+          if (S.decl.step === 2) S.decl.person = 'self';
+          go('decl');
+        },
+        prev: () => {
+          if (S.decl.step === 2 && S.decl.person !== 'self') {
+            const ps = persons();
+            S.decl.person = ps[ps.findIndex((p) => p.id === S.decl.person) - 1].id;
+          } else S.decl.step = Math.max(0, S.decl.step - 1);
+          go('decl');
+        },
+        person: (a) => {
+          S.decl.person = a;
+          render();
+        },
+        nextPerson: () => {
+          const ps = persons();
+          S.decl.person = ps[ps.findIndex((p) => p.id === S.decl.person) + 1].id;
+          go('decl');
+        },
+        fixIssue: (a) => {
+          const [st, pid] = a.split('|');
+          S.decl.step = +st;
+          if (pid) S.decl.person = pid;
+          go('decl');
+        },
+        addItem: (a) => {
+          const [sec, pid] = a.split('|');
+          S.modal = {
+            kind: sec,
+            pid,
+            form: {
+              currency: 'KES',
+              type: sec === 'assets' ? '' : sec === 'income' ? INCOME_TYPES[0] : LIAB_TYPES[0],
+              location: 'Kenya',
+              ownership: 'Sole',
+              county: '',
+            },
+          };
+          render();
+        },
+        editItem: (a) => {
+          const [sec, pid, iid] = a.split('|');
+          const it = ensureStatement(pid)[sec].find((x) => x.id === iid);
+          S.modal = { kind: sec, pid, editing: iid, form: { ...it } };
+          render();
+        },
+        removeItem: (a) => {
+          const [sec, pid, iid] = a.split('|');
+          const st = ensureStatement(pid);
+          st[sec] = st[sec].filter((x) => x.id !== iid);
+          touch();
+          toast('Removed');
+        },
+        saveItem: () => {
+          const m = S.modal;
+          const st = ensureStatement(m.pid);
+          const f = {
+            ...m.form,
+            amount: Number(String(m.form.amount || '').replace(/[^\d.]/g, '')) || 0,
+          };
+          if (!f.amount) {
+            toast('Enter an approximate amount');
+            document.getElementById('f-modal-form-amount')?.focus();
+            return;
+          }
+          if (m.aiFields?.length) f.ai = true;
+          if (m.editing)
+            st[m.kind] = st[m.kind].map((x) => (x.id === m.editing ? { ...f, fromHR: false } : x));
+          else st[m.kind].push({ ...f, id: id() });
+          st.none[m.kind] = false;
+          S.modal = null;
+          touch();
+          toast(
+            m.editing
+              ? 'Saved'
+              : `${SEC_META[m.kind].title === 'Income' ? 'Income' : SEC_META[m.kind].title.slice(0, -1)} added`,
+          );
+        },
+        addSpouse: () => {
+          S.modal = {
+            kind: 'spouse',
+            form: {
+              first: '',
+              surname: '',
+              other: '',
+              idNo: '',
+              kra: '',
+              occupation: '',
+              separated: false,
+            },
+          };
+          render();
+        },
+        editSpouse: (a) => {
+          S.modal = {
+            kind: 'spouse',
+            editing: a,
+            form: { ...S.decl.spouses.find((s) => s.id === a) },
+          };
+          render();
+        },
+        removeSpouse: (a) => {
+          S.decl.spouses = S.decl.spouses.filter((s) => s.id !== a);
+          touch();
+          toast('Spouse removed');
+        },
+        saveSpouse: () => {
+          const m = S.modal;
+          if (!m.form.first || !m.form.surname) {
+            toast('Enter first name and surname');
+            return;
+          }
+          if (m.editing)
+            S.decl.spouses = S.decl.spouses.map((s) => (s.id === m.editing ? { ...m.form } : s));
+          else S.decl.spouses.push({ ...m.form, id: id() });
+          S.decl.noSpouse = false;
+          S.modal = null;
+          touch();
+          toast('Saved');
+        },
+        addChild: () => {
+          S.modal = {
+            kind: 'child',
+            form: { first: '', surname: ROSTER.surname, other: '', dob: '' },
+          };
+          render();
+        },
+        editChild: (a) => {
+          S.modal = {
+            kind: 'child',
+            editing: a,
+            form: { ...S.decl.children.find((c) => c.id === a) },
+          };
+          render();
+        },
+        removeChild: (a) => {
+          S.decl.children = S.decl.children.filter((c) => c.id !== a);
+          touch();
+          toast('Child removed');
+        },
+        saveChild: () => {
+          const m = S.modal;
+          if (!m.form.first || !m.form.dob) {
+            toast('Enter first name and date of birth');
+            return;
+          }
+          if (m.editing)
+            S.decl.children = S.decl.children.map((c) => (c.id === m.editing ? { ...m.form } : c));
+          else S.decl.children.push({ ...m.form, id: id() });
+          S.decl.noChildren = false;
+          S.modal = null;
+          touch();
+          toast('Saved');
+        },
+        closeModal: () => {
+          if (S.modal?.busy) return;
+          S.modal = null;
+          render();
+        },
+        closeModalBg: (a, el, e) => {
+          if (e.target === el) actions.closeModal();
+        },
+        submit: () => {
+          S.modal = { kind: 'stepup', code: ['', '', '', '', '', ''] };
+          render();
+          setTimeout(() => app.querySelector('.otp input')?.focus(), 50);
+        },
+        doSubmit: () => {
+          S.modal.busy = true;
+          render();
+          setTimeout(() => {
+            S.submitted = { ref: 'DCB-TSC-2026-0012345-H', at: '26 Sep 2026, 10:42' };
+            S.modal = null;
+            go('submitted');
+          }, 1400);
+        },
+        copyRef: () => toast('Reference copied'),
+      };
+
+      function aiUpload(el) {
+        const file = el.files?.[0];
+        if (!file) return;
+        S.modal.ai = 'loading';
+        S.modal.fileName = file.name;
+        render();
+        setTimeout(() => {
+          if (!S.modal) return;
+          Object.assign(S.modal.form, {
+            type: 'land',
+            desc: 'Plot LR Eldoret Municipality Block 7/1234, 0.25 acres',
+            location: 'Kenya',
+            county: 'Uasin Gishu',
+            ownership: 'Joint',
+            share: 50,
+            year: 2019,
+          });
+          S.modal.ai = 'done';
+          S.modal.aiFields = ['desc', 'county', 'share', 'year'];
+          render();
+        }, 1600);
+      }
+
+      /* ============================== events ============================== */
+      app.addEventListener('click', (e) => {
+        const el = e.target.closest('[data-act]');
+        if (!el || el.disabled) return;
+        if (el.tagName === 'A') e.preventDefault();
+        actions[el.dataset.act]?.(el.dataset.arg, el, e);
+      });
+      app.addEventListener('input', (e) => {
+        const el = e.target;
+        if (el.dataset.otpI !== undefined) return onOtp(e);
+        if (!el.dataset.bind || el.type === 'radio' || el.type === 'checkbox') return;
+        let v = el.value;
+        if (el.dataset.money !== undefined) {
+          const digits = v.replace(/[^\d]/g, '');
+          v = digits;
+          const pos = el.selectionStart;
+          const before = el.value.length;
+          el.value = digits ? Number(digits).toLocaleString('en-KE') : '';
+          const p = Math.max(0, pos + (el.value.length - before));
+          el.setSelectionRange(p, p);
+        }
+        setPath(S, el.dataset.bind, v);
+        touch();
+        if (el.dataset.live !== undefined) render();
+        if (el.hasAttribute('data-rerender-input')) {
+          const r = document.getElementById('pw-rules');
+          if (r) r.outerHTML = pwRules(v);
+        }
+        renderProto();
+      });
+      app.addEventListener('change', (e) => {
+        const el = e.target;
+        if (el.dataset.actChange === 'aiUpload') return aiUpload(el);
+        if (!el.dataset.bind) return;
+        const v = el.type === 'checkbox' ? el.checked : el.value;
+        setPath(S, el.dataset.bind, v);
+        touch();
+        if (el.hasAttribute('data-rerender') || el.type === 'radio') render();
+        else renderProto();
+      });
+      function onOtp(e) {
+        const el = e.target;
+        const wrap = el.closest('[data-otp]');
+        const bind = wrap.dataset.otp;
+        const arr = getPath(S, bind);
+        const i = +el.dataset.otpI;
+        const digits = el.value.replace(/\D/g, '');
+        if (digits.length > 1) {
+          digits
+            .slice(0, 6 - i)
+            .split('')
+            .forEach((d, k) => (arr[i + k] = d));
+        } else arr[i] = digits;
+        const inputs = wrap.querySelectorAll('input');
+        inputs.forEach((inp, k) => (inp.value = arr[k] || ''));
+        const nextEmpty = arr.findIndex((x) => !x);
+        if (nextEmpty === -1) {
+          inputs[5].blur();
+          const next = wrap.dataset.next;
+          setTimeout(() => {
+            arr.fill('');
+            if (next === '__submit') actions.doSubmit();
+            else go(next);
+          }, 250);
+        } else if (digits) inputs[Math.min(nextEmpty, 5)].focus();
+      }
+      app.addEventListener('keydown', (e) => {
+        const el = e.target;
+        if (el.dataset.otpI !== undefined && e.key === 'Backspace' && !el.value) {
+          const prev = el.parentElement.querySelectorAll('input')[+el.dataset.otpI - 1];
+          if (prev) {
+            prev.focus();
+            prev.value = '';
+          }
+        }
+        if (e.key === 'Escape' && S.modal) actions.closeModal();
+        if (
+          e.key === 'Enter' &&
+          el.tagName === 'INPUT' &&
+          S.modal &&
+          !['stepup'].includes(S.modal.kind)
+        ) {
+          const btn = app.querySelector('.dialog-foot .btn-primary');
+          btn?.click();
+        }
+      });
+
+      /* ============================== prototype bar ============================== */
+      const JUMPS = [
+        ['login', 'Log in'],
+        ['login-mfa', 'Log in: 2-step code'],
+        ['ob-commission', 'Onboard 1: Commission'],
+        ['ob-identify', 'Onboard 2: Find record'],
+        ['ob-nomatch', 'Onboard 2: No match'],
+        ['ob-already', 'Onboard 2: Already set up'],
+        ['ob-email', 'Onboard 3: Email code'],
+        ['ob-phone', 'Onboard 3: SMS code'],
+        ['ob-confirm', 'Onboard 4: Confirm'],
+        ['ob-secure', 'Onboard 5: Secure'],
+        ['ob-done', 'Onboard: Done'],
+        ['home', 'Home'],
+        ['decl:0', 'Declare 1: About you'],
+        ['decl:1', 'Declare 2: Family'],
+        ['decl:2', 'Declare 3: Statements'],
+        ['decl:2m', 'Declare 3: Add asset (AI)'],
+        ['decl:3', 'Declare 4: Other'],
+        ['decl:4', 'Declare 5: Review'],
+        ['submitted', 'Submitted + slip'],
+        ['declarations', 'Declarations list'],
+        ['clarifications', 'Clarifications (empty)'],
+      ];
+      function currentJump() {
+        return S.screen === 'decl' ? `decl:${S.decl.step}` : S.screen;
+      }
+      function renderProto() {
+        const el = document.getElementById('proto');
+        el.innerHTML = `<span class="tag">PROTOTYPE</span>
+    <select id="jump" aria-label="Jump to screen">${JUMPS.map(([k, l]) => `<option value="${k}" ${k === currentJump() ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <button data-p="desktop" class="${S.mobile ? '' : 'on'}">Desktop</button><button data-p="mobile" class="${S.mobile ? 'on' : ''}">Mobile</button>
+    <button data-p="state" class="${S.showState ? 'on' : ''}">State</button><button data-p="reset">Reset</button>
+    ${S.showState ? `<pre>${esc(JSON.stringify({ screen: S.screen, ob: S.ob, decl: S.decl, submitted: S.submitted }, null, 2))}</pre>` : ''}`;
+      }
+      document.getElementById('proto').addEventListener('change', (e) => {
+        if (e.target.id !== 'jump') return;
+        const v = e.target.value;
+        if (!S.ob.commission) S.ob.commission = 'TSC';
+        if (v.startsWith('decl:')) {
+          S.decl.started = true;
+          S.decl.step = parseInt(v.split(':')[1], 10);
+          if (S.decl.step === 2) S.decl.person = 'self';
+          go('decl');
+          if (v === 'decl:2m') actions.addItem('assets|self');
+        } else go(v);
+      });
+      document.getElementById('proto').addEventListener('click', (e) => {
+        const p = e.target.dataset.p;
+        if (!p) return;
+        if (p === 'desktop' || p === 'mobile') {
+          S.mobile = p === 'mobile';
+          document.body.classList.toggle('mobile', S.mobile);
+          render();
+        }
+        if (p === 'state') {
+          S.showState = !S.showState;
+          renderProto();
+        }
+        if (p === 'reset') {
+          const mob = S.mobile;
+          S = freshState();
+          S.mobile = mob;
+          ensureStatement('self').income.push({
+            id: id(),
+            type: 'Salary and allowances',
+            desc: 'TSC salary, house and commuter allowances',
+            amount: 1284000,
+            currency: 'KES',
+            fromHR: true,
+          });
+          go('login');
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>
