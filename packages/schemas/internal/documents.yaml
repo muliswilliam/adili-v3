@@ -395,6 +395,7 @@ components:
         - ncr
         - access-package
         - certified-copy
+        - open-data-manifest
     DisclosureLevel:
       type: string
       enum: [public, restricted, confidential]
