@@ -250,6 +250,19 @@
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     },
+    "ItemSource": {
+      "type": "object",
+      "description": "Where a pre-filled item came from (spec 05b); absent for manually entered items",
+      "required": ["kind", "suggestionId", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["kra", "ntsa", "brs", "ardhisasa", "document"] },
+        "suggestionId": { "type": "string", "format": "uuid" },
+        "verificationResultId": { "type": "string", "format": "uuid" },
+        "aiJobId": { "type": "string", "format": "uuid" },
+        "at": { "type": "string", "format": "date-time" }
+      }
+    },
     "Spouse": {
       "type": "object",
       "required": ["id", "name", "separated"],
@@ -306,6 +319,7 @@
         "amount": { "$ref": "#/$defs/Money" },
         "location": { "$ref": "#/$defs/Location" },
         "change": { "$ref": "#/$defs/ChangeFlag" },
+        "source": { "$ref": "#/$defs/ItemSource" },
         "attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" } }
       }
     },
@@ -361,6 +375,7 @@
           "then": { "required": ["isJoint", "sharePercent"] }
         },
         "change": { "$ref": "#/$defs/ChangeFlag" },
+        "source": { "$ref": "#/$defs/ItemSource" },
         "attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" } }
       }
     },
@@ -376,6 +391,7 @@
         "outstanding": { "$ref": "#/$defs/Money" },
         "location": { "$ref": "#/$defs/Location" },
         "change": { "$ref": "#/$defs/ChangeFlag" },
+        "source": { "$ref": "#/$defs/ItemSource" },
         "attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" } }
       }
     },
