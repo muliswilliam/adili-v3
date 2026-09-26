@@ -1,0 +1,1255 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: how does anyone (no account) check an Adili Online document from its QR code or printed verification code, see every result state, and check a PDF's hash in the browser without uploading it, while learning nothing private (ADR-010)? Covers tickets #145, #137. Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Dials - verify a document (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .vshell {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      .vtop {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 60px;
+        padding: 0 16px;
+        background: rgba(250, 250, 249, 0.88);
+        backdrop-filter: saturate(1.4) blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .vtop {
+          padding: 0 28px;
+        }
+      }
+      .vmain {
+        flex: 1;
+        width: 100%;
+        max-width: 620px;
+        margin: 0 auto;
+        padding: 28px 16px 48px;
+      }
+      @container app (min-width: 700px) {
+        .vmain {
+          padding: 56px 24px 72px;
+        }
+      }
+      .vfoot {
+        border-top: 1px solid var(--line);
+        padding: 20px 16px 28px;
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+        display: grid;
+        gap: 6px;
+      }
+      .hero-ico {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+        margin: 0 auto 18px;
+      }
+      .code-group .addon {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-weight: 600;
+        color: var(--ink-2);
+        padding-right: 2px;
+      }
+      .code-input {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 16px;
+        padding-left: 4px !important;
+      }
+      .code-input::placeholder {
+        text-transform: none;
+        letter-spacing: 0.04em;
+      }
+      .slipfoot {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        padding: 14px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: var(--shadow-card);
+      }
+      .slipfoot .qrw {
+        line-height: 0;
+        flex: none;
+      }
+      .slipfoot .c {
+        display: inline-block;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.03em;
+        word-break: break-all;
+        background: #fff5c2;
+        box-shadow: 0 0 0 3px #fff5c2;
+        border-radius: 3px;
+      }
+      .see {
+        display: grid;
+        gap: 10px;
+      }
+      .see div {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        font-size: 14.5px;
+      }
+      .see .ico {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .status {
+        border-radius: var(--r-lg);
+        overflow: visible;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+      }
+      .status-head {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 20px;
+        border-radius: var(--r-lg) var(--r-lg) 0 0;
+      }
+      @container app (min-width: 600px) {
+        .status-head {
+          padding: 22px 24px;
+        }
+      }
+      .status-head .mark {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .status-head h1 {
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+      }
+      @container app (min-width: 600px) {
+        .status-head h1 {
+          font-size: 22px;
+        }
+      }
+      .status-head p {
+        color: var(--ink-2);
+        margin-top: 6px;
+        font-size: 14.5px;
+      }
+      .st-ok .status-head {
+        background: linear-gradient(180deg, #eef8f1, #fff);
+      }
+      .st-ok .mark {
+        background: var(--ok);
+        color: #fff;
+      }
+      .st-warn .status-head {
+        background: linear-gradient(180deg, #fdf6e7, #fff);
+      }
+      .st-warn .mark {
+        background: #d98a00;
+        color: #fff;
+      }
+      .st-danger .status-head {
+        background: linear-gradient(180deg, #fdeeed, #fff);
+      }
+      .st-danger .mark {
+        background: var(--danger);
+        color: #fff;
+      }
+      .st-neutral .status-head {
+        background: linear-gradient(180deg, #f4f3f1, #fff);
+      }
+      .st-neutral .mark {
+        background: #6f6e6b;
+        color: #fff;
+      }
+      .status-body {
+        padding: 4px 20px 20px;
+      }
+      @container app (min-width: 600px) {
+        .status-body {
+          padding: 4px 24px 22px;
+        }
+      }
+      .dl > div {
+        align-items: center;
+      }
+      .dl dd {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .refchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 8px 0 10px;
+        border-radius: 8px;
+        border: 0;
+        background: var(--sunken);
+        cursor: pointer;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--ink);
+      }
+      @container app (max-width: 479px) {
+        .status .dl > div {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+        }
+        .status .dl dd {
+          justify-content: flex-start;
+          text-align: left;
+        }
+        .refpop {
+          left: 0;
+          right: auto;
+        }
+        .slipfoot .c {
+          font-size: 11.5px;
+        }
+        .code-input {
+          letter-spacing: 0.01em;
+          font-size: 14.5px;
+        }
+      }
+      .refchip {
+        white-space: nowrap;
+      }
+      .refchip:hover {
+        background: #ebe9e6;
+      }
+      .refchip svg {
+        color: var(--muted);
+      }
+      .refpop {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        z-index: 30;
+        width: 300px;
+        max-width: calc(100cqw - 32px);
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow-pop);
+        text-align: left;
+        font-family: Inter, sans-serif;
+      }
+      .refpop table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .refpop td {
+        padding: 6px 4px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+        font-weight: 400;
+      }
+      .refpop tr:last-child td {
+        border-bottom: 0;
+      }
+      .refpop td.p {
+        font-family: ui-monospace, Menlo, monospace;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .refpop td.k {
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .vbadge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 500;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .vbadge.cur {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .vbadge.old {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .hashdrop {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 26px 18px;
+        border-radius: var(--r-lg);
+        border: 1.5px dashed var(--line-2);
+        background: var(--surface);
+        text-align: center;
+        position: relative;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      .hashdrop:hover,
+      .hashdrop.over {
+        border-color: var(--ink);
+        background: var(--brand-softer);
+      }
+      .hashdrop:focus-within {
+        outline: 3px solid rgba(26, 26, 26, 0.15);
+        outline-offset: 2px;
+      }
+      .hashdrop input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .hashdrop .ico {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .never {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--ok);
+        font-weight: 500;
+      }
+      .hres {
+        border-radius: var(--r-lg);
+        padding: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .hres.ok {
+        background: var(--ok-soft);
+        color: #0f5a2d;
+      }
+      .hres.bad {
+        background: var(--danger-soft);
+        color: #8a1c14;
+      }
+      .hres.warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+      }
+      .hres h3 {
+        font-size: 15.5px;
+        font-weight: 600;
+      }
+      .hres p {
+        font-size: 14px;
+        margin-top: 3px;
+      }
+      .digest {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        word-break: break-all;
+        line-height: 1.6;
+        color: var(--ink-2);
+      }
+      .digest b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .fileline {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--r);
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+        font-size: 14px;
+      }
+      .proto-box {
+        margin-top: 28px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1.5px dashed #c9c7c3;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .proto-box b {
+        color: var(--ink-2);
+      }
+      .proto-box .codes {
+        display: grid;
+        gap: 4px;
+        margin-top: 8px;
+      }
+      .proto-box button {
+        border: 0;
+        background: none;
+        padding: 3px 0;
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+        color: var(--ink-2);
+      }
+      .proto-box button .mono {
+        color: var(--ink);
+      }
+      .proto-box button:hover .mono {
+        text-decoration: underline;
+      }
+      .lvl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .lvl th,
+      .lvl td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .lvl th {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .lvl tr:last-child td {
+        border-bottom: 0;
+      }
+      .prim {
+        display: grid;
+        gap: 16px;
+      }
+      .prim h3 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .prim .demo {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 10px;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, logo, qr, fmtDate } = Kit;
+
+      /* ---------- demo data: the verification-api projection (public-safe fields only) ---------- */
+      const V2 = 'ADL-7Q4K-M2XR-9HTC-W3NB-5FJD-8P'; // John Kennedy's current slip (version 2)
+      const V1 = 'ADL-3MZC-8K1V-QD4T-7HWA-2RNE-6J'; // his first slip, superseded by V2
+      const REV = 'ADL-9TXB-4KMC-1VRD-6QPE-3HZW-5A';
+      const EXP = 'ADL-6FHW-2NQD-8KXT-5BMR-1CVE-7G';
+      const CONF = 'ADL-4RDM-7XHQ-2WCP-9KTB-6NJF-3E';
+      const DOCS = {
+        [V2]: {
+          status: 'valid',
+          level: 'restricted',
+          type: 'Acknowledgement slip',
+          issuer: 'Teachers Service Commission',
+          issuerCode: 'TSC',
+          ref: 'DCI-TSC-2026-0012345-8',
+          version: 2,
+          issuedAt: '2026-09-26T10:43:00',
+          sha256: null,
+        },
+        [V1]: {
+          status: 'superseded',
+          level: 'restricted',
+          type: 'Acknowledgement slip',
+          issuer: 'Teachers Service Commission',
+          issuerCode: 'TSC',
+          ref: 'DCI-TSC-2026-0012345-8',
+          version: 1,
+          issuedAt: '2026-09-21T16:05:00',
+          supersededBy: V2,
+          sha256: '5d41402abc4b2a76b9719d911017c592aa6f1d4c7e0b43e8f0b7b3c9e2d1a6f4',
+        },
+        [REV]: {
+          status: 'revoked',
+          level: 'restricted',
+          type: 'Acknowledgement slip',
+          issuer: 'Public Service Commission',
+          issuerCode: 'PSC',
+          ref: 'DCI-PSC-2026-0000481-3',
+          version: 1,
+          issuedAt: '2026-09-14T09:12:00',
+          reason: 'Issued in error',
+          sha256: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+        },
+        [EXP]: {
+          status: 'expired',
+          level: 'restricted',
+          type: 'Compliance certificate',
+          issuer: 'Public Service Commission',
+          issuerCode: 'PSC',
+          ref: 'CRT-PSC-2025-0000217-Q',
+          version: 1,
+          issuedAt: '2025-03-03T11:20:00',
+          expiredOn: '2026-01-01',
+          sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        },
+        [CONF]: {
+          status: 'valid',
+          level: 'confidential',
+          sha256: '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae',
+        },
+      };
+      const TYPES = {
+        DCI: 'Initial declaration',
+        DCB: 'Biennial declaration',
+        DCF: 'Final declaration',
+        CRT: 'Compliance certificate',
+      };
+      const ISSUERS = { TSC: 'Teachers Service Commission', PSC: 'Public Service Commission' };
+
+      const S = Kit.state({
+        code: '',
+        codeErr: null,
+        checking: false,
+        id: V2,
+        source: 'typed',
+        sim: null, // sim: 'rate' | 'down' (prototype switches)
+        rlEnds: 0,
+        hash: { state: 'idle', name: '', size: 0, digest: '', showTech: false },
+        checks: 0,
+      });
+
+      /* ---------- id helpers (mirror apps/verify/src/lib/verification-id.ts) ---------- */
+      const PATTERN = /^ADL(?:-[0-9A-HJKMNP-TV-Z]{1,4}){2,8}$/;
+      const bodyOf = (v) => {
+        let r = String(v)
+          .toUpperCase()
+          .replace(/[^0-9A-Z]/g, '');
+        if (r.startsWith('ADL')) r = r.slice(3);
+        return r.replace(/[IL]/g, '1').replace(/O/g, '0').slice(0, 26);
+      };
+      const grouped = (r) => (r.match(/.{1,4}/g) || []).join('-');
+      const fullId = (typed) => 'ADL-' + grouped(bodyOf(typed));
+      const hex = (buf) =>
+        [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+      const fmtSize = (n) =>
+        n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+      const fmtDT = (d) => {
+        const x = new Date(d);
+        return `${fmtDate(x)}, ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
+      };
+      const digestHtml = (h) => (h || '').match(/.{1,8}/g)?.join(' ') || '';
+      const rlLeft = () => Math.max(0, Math.ceil((S.rlEnds - Date.now()) / 1000));
+
+      /* ---------- primitives (#137) ---------- */
+      const QrCode = (value, size = 112, seed = 7) =>
+        qr(seed, size).replace(
+          'aria-label="QR code"',
+          `aria-label="QR code. Verification code ${esc(value)}"`,
+        );
+      function ReferenceChip(ref, key = 'ref') {
+        const [type, issuer, year, seq, check] = ref.split('-');
+        const open = S.menu === key;
+        return `<span class="menu-wrap"><button class="refchip" data-act="menu" data-arg="${key}" aria-expanded="${open}" aria-label="Reference number ${ref}. Show what each part means">${ref}${icon('info', 14)}</button>${
+          open
+            ? `<div class="refpop" role="dialog" aria-label="Parts of the reference number">
+    <div style="font-weight:600;font-size:13.5px;margin-bottom:6px">What the reference number means</div>
+    <table><tr><td class="p">${type}</td><td class="k">Type</td><td>${TYPES[type] || type}</td></tr>
+    <tr><td class="p">${issuer}</td><td class="k">Issuer</td><td>${ISSUERS[issuer] || issuer}</td></tr>
+    <tr><td class="p">${year}</td><td class="k">Year</td><td>Year of the statement date</td></tr>
+    <tr><td class="p">${seq}</td><td class="k">Sequence</td><td>Number within that Commission and year</td></tr>
+    <tr><td class="p">${check}</td><td class="k">Check</td><td>Catches typing mistakes</td></tr></table></div>`
+            : ''
+        }</span>`;
+      }
+      const VersionBadge = (n, state) =>
+        `<span class="vbadge ${state === 'current' ? 'cur' : state === 'superseded' ? 'old' : ''}">Version ${n}${state === 'current' ? ' · current' : state === 'superseded' ? ' · superseded' : ''}</span>`;
+      function HashDropZone(doc) {
+        const H = S.hash;
+        const zone = `<label class="hashdrop ${H.over ? 'over' : ''}" data-hashdrop>
+      <input type="file" accept="application/pdf,.pdf" data-act-change="hashFile" aria-describedby="never-up"/>
+      <span class="ico">${icon('file', 20)}</span>
+      <span style="font-weight:600">Drop the PDF you were given</span>
+      <span class="small muted">or <span class="link">choose a file</span> from your device</span>
+    </label>`;
+        const never = `<div class="never" id="never-up">${icon('lock', 14)} The file is checked on your device and never uploaded.</div>`;
+        const tech = () =>
+          `<button class="link small" data-act="toggleTech" aria-expanded="${H.showTech}">${H.showTech ? 'Hide' : 'Show'} technical details</button>${H.showTech ? `<div class="digest" style="margin-top:10px;display:grid;gap:8px"><div><b>Your file (SHA-256)</b><br/>${digestHtml(H.digest)}</div><div><b>Issued document (SHA-256)</b><br/>${digestHtml(doc.sha256)}</div><div class="muted" style="font-family:Inter,sans-serif;font-size:12.5px;word-break:normal">Calculated in this browser. Nothing was sent.</div></div>` : ''}`;
+        const file = H.name
+          ? `<div class="fileline">${icon('file', 16)}<span class="truncate" style="flex:1;min-width:0">${esc(H.name)}</span><span class="muted small">${fmtSize(H.size)}</span></div>`
+          : '';
+        let body;
+        if (H.state === 'hashing')
+          body = `${file}<div class="row" role="status" aria-live="polite" style="padding:6px 2px"><span class="spinner dark"></span><span>Checking the file on your device</span></div>`;
+        else if (H.state === 'identical')
+          body = `${file}<div class="hres ok" role="status" aria-live="polite">${icon('check', 20, 2.4)}<div style="flex:1;min-width:0"><h3>Identical to the issued document</h3><p>Not a single byte has changed${doc.version ? ` (version ${doc.version})` : ''}.</p><div style="margin-top:10px">${tech()}</div></div></div>`;
+        else if (H.state === 'mismatch')
+          body = `${file}<div class="hres bad" role="alert">${icon('x', 20, 2.4)}<div style="flex:1;min-width:0"><h3>Does not match the issued document</h3><p>It may be edited or another version. Rely on the details above, not this copy.</p><div style="margin-top:10px">${tech()}</div></div></div>`;
+        else if (H.state === 'unreadable')
+          body = `${file}<div class="hres warn" role="alert">${icon('alert', 20)}<div><h3>Could not read this file</h3><p>Choose a PDF. It may be damaged or still downloading.</p></div></div>`;
+        const again = ['identical', 'mismatch', 'unreadable'].includes(H.state)
+          ? `<button class="btn btn-secondary btn-sm" data-act="hashReset">${icon('refresh', 15)} Check another file</button>`
+          : '';
+        return `<div class="stack" style="gap:12px">${H.state === 'idle' ? zone : body}${again ? `<div>${again}</div>` : ''}${never}</div>`;
+      }
+
+      /* ---------- shell ---------- */
+      function shell(body) {
+        return `<div class="vshell">
+    <header class="vtop">${logo(22)}<span class="badge" style="height:22px;font-size:11.5px">Verify</span><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili: strings are slots for now">${icon('globe', 16)} English</button></header>
+    <main class="vmain">${body}</main>
+    <footer class="vfoot"><div>Verification is recorded (time and coarse location) to protect against abuse.</div><div>Adili Online · <a class="link" style="font-weight:400" data-act="go" data-arg="privacy">What this page shows</a></div></footer>
+  </div>`;
+      }
+
+      /* ---------- screens ---------- */
+      const screens = {};
+
+      screens.home = () =>
+        shell(`
+  <div style="text-align:center">
+    <div class="hero-ico">${icon('qr', 26)}</div>
+    <h1 class="page-title" style="text-wrap:balance">Check an Adili Online document</h1>
+    <p class="muted" style="margin-top:10px;font-size:15.5px;text-wrap:pretty">Scan the QR code on the document or type the verification code printed under it. Nothing you enter is stored with your identity.</p>
+  </div>
+  <div class="card card-pad" style="margin-top:26px">
+    <form class="stack" data-form="check" novalidate>
+      <div class="field">
+        <label class="label" for="f-code"><span>Verification code</span></label>
+        <div class="input-group code-group" ${S.codeErr ? 'style="box-shadow:0 0 0 1.5px var(--danger)"' : ''}><span class="addon" aria-hidden="true">ADL-</span><input id="f-code" class="input code-input" data-bind="code" value="${esc(S.code)}" placeholder="7Q4K-M2XR-9HTC-W3NB-5FJD-8P" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-describedby="code-help" ${S.codeErr ? 'aria-invalid="true"' : ''}/></div>
+        ${S.codeErr ? `<div class="hint" id="code-help" role="alert" style="color:var(--danger);font-weight:500">${S.codeErr}</div>` : `<div class="hint" id="code-help">Starts with ADL. Not case sensitive.</div>`}
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" ${S.checking ? 'disabled' : ''}>${S.checking ? '<span class="spinner"></span> Checking' : 'Check'}</button>
+    </form>
+  </div>
+  <div class="stack-lg" style="margin-top:32px">
+    <section>
+      <h2 class="section-title">Where to find the code</h2>
+      <div class="slipfoot" style="margin-top:12px" aria-hidden="true"><span class="qrw">${QrCode(V2, 64, 11)}</span><div style="min-width:0"><div class="small muted">Verify at verify.adili.go.ke</div><div class="c" style="margin:4px 0">${V2}</div><div class="small muted">Teachers Service Commission · Issued 26 Sep 2026 · Page 1 of 2</div></div></div>
+    </section>
+    <section>
+      <h2 class="section-title">What the check shows</h2>
+      <div class="see" style="margin-top:12px">
+        <div><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${icon('shield', 16)}</span><span>Whether it is genuine and in force</span></div>
+        <div><span class="ico" style="background:var(--sunken);color:var(--ink-2)">${icon('file', 16)}</span><span>Reference, type, Commission and issue date</span></div>
+        <div><span class="ico" style="background:var(--danger-soft);color:var(--danger)">${icon('eyeOff', 16)}</span><span>Never names, amounts or contents</span></div>
+      </div>
+      <button class="link small" style="margin-top:12px" data-act="go" data-arg="privacy">What is shown and recorded</button>
+    </section>
+  </div>
+  <div class="proto-box"><b>Prototype codes</b> (click to fill):
+    <div class="codes">${[
+      [V2, 'valid, version 2'],
+      [V1, 'superseded by version 2'],
+      [REV, 'revoked'],
+      [EXP, 'expired'],
+      [CONF, 'valid, confidential level'],
+      ['ADL-2222-3333-4444-5555-6666-77', 'not found'],
+      ['ADL-7Q4U', 'malformed'],
+    ]
+      .map(
+        ([c, l]) =>
+          `<button data-act="fill" data-arg="${c}"><span class="mono">${c}</span> · ${l}</button>`,
+      )
+      .join('')}</div>
+    <div style="margin-top:8px">Simulate on next check: <button data-act="sim" data-arg="rate" style="display:inline;text-decoration:underline">rate limit</button> · <button data-act="sim" data-arg="down" style="display:inline;text-decoration:underline">service down</button>${S.sim ? ` <span class="badge badge-warn" style="height:20px">${S.sim === 'rate' ? 'rate limit' : 'service down'} armed</span>` : ''}</div>
+  </div>
+`);
+
+      screens.loading = () =>
+        shell(`
+  <div role="status" aria-live="polite"><span class="sr-only">Checking the document</span>
+  <div class="skeleton" style="width:120px;height:12px"></div><div class="skeleton" style="width:78%;height:18px;margin-top:10px"></div>
+  <div class="status" style="margin-top:22px"><div class="status-head"><div class="skeleton" style="width:48px;height:48px;border-radius:14px"></div><div style="flex:1"><div class="skeleton" style="width:70%;height:18px"></div><div class="skeleton" style="width:90%;margin-top:12px"></div></div></div>
+  <div class="status-body">${[60, 45, 70, 30, 50].map((w) => `<div style="display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line)"><span class="skeleton" style="width:28%"></span><span class="skeleton" style="width:${w}%"></span></div>`).join('')}</div></div></div>
+`);
+
+      function codeHeader() {
+        return `<button class="btn btn-ghost btn-sm" style="margin:-6px 0 14px -10px" data-act="again">${icon('left', 16)} Check another</button>
+  <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div style="min-width:0"><div class="small muted">Verification code</div><div class="mono" style="font-size:16px;font-weight:600;word-break:break-all;margin-top:2px">${S.id}</div></div>
+  ${S.source === 'qr' ? `<span class="badge">${icon('qr', 13)} From QR code</span>` : ''}</div>`;
+      }
+      function statusCard(kind, ic, title, text, body = '') {
+        return `<section class="status st-${kind}" style="margin-top:18px" aria-labelledby="st-h"><div class="status-head"><span class="mark">${icon(ic, 24, 2.2)}</span><div style="min-width:0"><h1 id="st-h">${title}</h1>${text ? `<p>${text}</p>` : ''}</div></div>${body ? `<div class="status-body">${body}</div>` : ''}</section>`;
+      }
+      function details(doc) {
+        return `<dl class="dl" style="margin:0">
+    <div><dt>Document type</dt><dd>${doc.type}</dd></div>
+    <div><dt>Issued by</dt><dd>${doc.issuer}</dd></div>
+    <div><dt>Reference number</dt><dd>${ReferenceChip(doc.ref)}</dd></div>
+    <div><dt>Version</dt><dd>${VersionBadge(doc.version, doc.status === 'superseded' ? 'superseded' : doc.status === 'valid' ? 'current' : '')}</dd></div>
+    <div><dt>Issued on</dt><dd>${fmtDT(doc.issuedAt)}</dd></div>
+    ${doc.status === 'expired' ? `<div><dt>Expired on</dt><dd>${fmtDate(doc.expiredOn)}</dd></div>` : ''}
+  </dl><p class="small muted" style="margin-top:12px">${icon('info', 13)} Compare these with the printed document.</p>`;
+      }
+      const hashSection = (
+        doc,
+      ) => `<section class="card card-pad" style="margin-top:18px" aria-labelledby="hash-h"><h2 id="hash-h" class="section-title" style="margin-bottom:12px">Check your file</h2>${HashDropZone(doc)}
+  <div class="proto-box" style="margin-top:14px"><b>Prototype:</b> drop any PDF (does not match), or use a generated slip: <button data-act="sample" data-arg="good" style="display:inline;text-decoration:underline">the issued file</button> · <button data-act="sample" data-arg="bad" style="display:inline;text-decoration:underline">an edited copy</button> · <button data-act="sample" data-arg="txt" style="display:inline;text-decoration:underline">a non-PDF</button>. ${doc === DOCS[V2] ? `Or download them: <a class="link" data-dl="good" download="acknowledgement-slip-v2.pdf">issued</a> · <a class="link" data-dl="bad" download="acknowledgement-slip-edited.pdf">edited</a> · <a class="link" href="../../../services/documents/prototype/documents.prototype.html#slip" target="_blank" rel="noopener">View the document</a> (design).` : ''}</div></section>`;
+      const privacyNote = () =>
+        `<p class="small muted" style="margin-top:18px;text-align:center">Names, amounts and contents are never shown. <button class="link small" style="font-weight:500" data-act="go" data-arg="privacy">Why</button></p>`;
+
+      screens.result = () => {
+        if (S.sim === 'rate-now') {
+          const s = rlLeft();
+          return shell(
+            codeHeader() +
+              statusCard(
+                'warn',
+                'timer',
+                'Too many checks from your connection',
+                `Try again in <span data-rl>${s}</span> seconds.`,
+                `<p class="small muted" style="padding-top:12px">This says nothing about the document.</p><button class="btn btn-primary btn-block" style="margin-top:14px" data-act="retry" ${s > 0 ? 'disabled' : ''}>Try again</button>`,
+              ),
+          );
+        }
+        if (S.sim === 'down-now') {
+          return shell(
+            codeHeader() +
+              statusCard(
+                'neutral',
+                'wifiOff',
+                'We cannot check documents right now',
+                'This does not mean the document is fake. Try again in a few minutes.',
+                `<button class="btn btn-primary btn-block" style="margin-top:14px" data-act="retry">${icon('refresh', 16)} Try again</button>`,
+              ),
+          );
+        }
+        if (!PATTERN.test(S.id)) {
+          return shell(
+            codeHeader() +
+              statusCard(
+                'danger',
+                'alert',
+                'This is not a valid verification code',
+                'Codes start with ADL and never use the letters I, L, O or U.',
+                `<button class="btn btn-primary btn-block" style="margin-top:14px" data-act="again">Try again</button>`,
+              ),
+          );
+        }
+        const doc = DOCS[S.id];
+        if (!doc) {
+          return shell(
+            codeHeader() +
+              statusCard(
+                'danger',
+                'x',
+                'Not found: no document with this code was issued through Adili Online.',
+                'Treat the document as not genuine.',
+                `<div style="padding-top:14px" class="stack">
+      <p class="small" style="color:var(--ink-2)">First check each character. 0 and O, or 1 and I, are common slips.</p>
+      <div class="btn-row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" style="flex:1" data-act="edit">Edit code</button><button class="btn btn-secondary" style="flex:1" data-act="toast" data-arg="EACC reporting page would open">Report to EACC</button></div></div>`,
+              ) +
+              privacyNote(),
+          );
+        }
+        if (doc.level === 'confidential') {
+          return shell(
+            codeHeader() +
+              statusCard(
+                'ok',
+                'shield',
+                'Valid document issued through Adili Online',
+                'Only validity is shown for this kind of document.',
+              ) +
+              hashSection(doc) +
+              privacyNote(),
+          );
+        }
+        const head = {
+          valid: [
+            'ok',
+            'check',
+            'Valid document issued through Adili Online',
+            'This document is genuine and in force.',
+          ],
+          superseded: [
+            'warn',
+            'refresh',
+            'Superseded: a newer version of this document exists',
+            'This copy was genuine when issued, but it has been replaced.',
+          ],
+          revoked: [
+            'danger',
+            'ban',
+            'Revoked',
+            `Reason: ${doc.reason}. Do not rely on this document.`,
+          ],
+          expired: [
+            'neutral',
+            'clock',
+            'Expired',
+            `It was genuine, but it stopped being valid on ${fmtDate(doc.expiredOn)}.`,
+          ],
+        }[doc.status];
+        const newer =
+          doc.status === 'superseded'
+            ? doc.supersededBy && !S.hideLink
+              ? `<div style="margin-top:14px"><button class="btn btn-secondary btn-sm" data-act="openCode" data-arg="${doc.supersededBy}">View the current version ${icon('arrowRight', 15)}</button></div>`
+              : `<div class="callout callout-warn" style="margin-top:14px">${icon('info', 18)}<div>Ask for the current version.</div></div>`
+            : '';
+        return shell(
+          codeHeader() +
+            statusCard(head[0], head[1], head[2], head[3], details(doc) + newer) +
+            hashSection(doc) +
+            privacyNote(),
+        );
+      };
+
+      screens.privacy = () =>
+        shell(`
+  <button class="btn btn-ghost btn-sm" style="margin:-6px 0 14px -10px" data-act="go" data-arg="home">${icon('left', 16)} Back</button>
+  <h1 class="page-title">What this page shows and records</h1>
+  <p class="muted" style="margin-top:8px">A check proves a document is genuine without revealing what it says.</p>
+  <section class="card" style="margin-top:22px;overflow:hidden"><div class="sec-h"><h3>What you see</h3></div><div class="table-wrap"><table class="lvl"><thead><tr><th>Kind</th><th>Examples</th><th>This page shows</th></tr></thead><tbody>
+    <tr><td><b>Restricted</b></td><td>Acknowledgement slips, clarification letters, notices, Form M reports</td><td>Status, document type, issuing Commission, reference number, version and issue date</td></tr>
+    <tr><td><b>Confidential</b></td><td>Law enforcement packages, access packages, referrals</td><td>Status only: "Valid document issued through Adili Online"</td></tr>
+    <tr><td><b>Public</b></td><td>Compliance certificates, public reports</td><td>Status and the document's public content</td></tr>
+  </tbody></table></div></section>
+  <section class="card card-pad" style="margin-top:16px"><h3 class="section-title">Never shown</h3><p class="small muted" style="margin-top:6px">Names, ID numbers, amounts, assets, findings, or anything written inside the document.</p></section>
+  <section class="card card-pad" style="margin-top:16px"><h3 class="section-title">What we record</h3>
+    <div class="see" style="margin-top:12px">
+      <div><span class="ico" style="background:var(--sunken)">${icon('clock', 16)}</span><span>Time, result and coarse location (country or county) of each check. Never your name or device.</span></div>
+      <div><span class="ico" style="background:var(--sunken)">${icon('users', 16)}</span><span>The document's owner sees how often it was checked, never by whom.</span></div>
+      <div><span class="ico" style="background:var(--ok-soft);color:var(--ok)">${icon('lock', 16)}</span><span>Files you check never leave your device.</span></div>
+    </div></section>
+`);
+
+      screens.primitives = () =>
+        shell(`
+  <h1 class="page-title">UI primitives (verify context)</h1>
+  <p class="muted" style="margin-top:6px">Ticket #137. Shared with the portal slip card.</p>
+  <div class="prim" style="margin-top:22px">
+    <section class="card card-pad"><h3>QrCode</h3><p class="small muted">Rendered from a string; alt text includes the verification code, and the code is always printed as text too.</p>
+      <div class="demo"><div class="qr-box" style="padding:8px;border-radius:12px;background:#fff;box-shadow:var(--shadow-card);line-height:0">${QrCode(V2, 104, 11)}</div><div class="small"><div class="muted">alt</div><div class="mono">QR code. Verification code ${V2}</div></div></div></section>
+    <section class="card card-pad"><h3>ReferenceChip</h3><p class="small muted">Click for the breakdown from the numbering scheme registry names.</p>
+      <div class="demo">${ReferenceChip('DCI-TSC-2026-0012345-8', 'ref-a')}${ReferenceChip('DCB-TSC-2027-0012345-K', 'ref-b')}</div></section>
+    <section class="card card-pad"><h3>VersionBadge</h3><div class="demo">${VersionBadge(2, 'current')}${VersionBadge(1, 'superseded')}${VersionBadge(3, '')}</div></section>
+    <section class="card card-pad"><h3>HashDropZone</h3><p class="small muted">Reads the file with Web Crypto (SHA-256). Makes no network request. Live demo against the issued slip:</p><div style="margin-top:12px">${HashDropZone(DOCS[V2])}</div></section>
+  </div>
+`);
+
+      /* ---------- actions ---------- */
+      let loadT, hashT;
+      function openResult(id, source) {
+        S.id = id;
+        S.source = source;
+        S.menu = null;
+        S.hideLink = false;
+        S.hash = { state: 'idle', name: '', size: 0, digest: '', showTech: false };
+        if (S.sim === 'rate') {
+          S.sim = 'rate-now';
+          S.rlEnds = Date.now() + 42000;
+        } else if (S.sim === 'down') S.sim = 'down-now';
+        else S.sim = null;
+        Kit.go('loading');
+        clearTimeout(loadT);
+        loadT = setTimeout(() => Kit.go('result'), 850);
+      }
+      async function runHash(bytes, name) {
+        const doc = PATTERN.test(S.id) && DOCS[S.id] ? DOCS[S.id] : DOCS[V2];
+        S.hash = { state: 'hashing', name, size: bytes.byteLength, digest: '', showTech: false };
+        Kit.render();
+        const head = new TextDecoder().decode(new Uint8Array(bytes.slice(0, 5)));
+        const started = Date.now();
+        let digest = '';
+        try {
+          digest = hex(await crypto.subtle.digest('SHA-256', bytes));
+        } catch (e) {
+          digest = '';
+        }
+        clearTimeout(hashT);
+        hashT = setTimeout(
+          () => {
+            if (!head.startsWith('%PDF') || !digest) S.hash.state = 'unreadable';
+            else S.hash.state = digest === doc.sha256 ? 'identical' : 'mismatch';
+            S.hash.digest = digest;
+            Kit.render();
+          },
+          Math.max(0, 700 - (Date.now() - started)),
+        );
+      }
+      const actions = {
+        check: (a, el, e) => {
+          e?.preventDefault();
+          const body = bodyOf(S.code);
+          if (!body) {
+            S.codeErr = 'Enter the verification code printed under the QR code.';
+            Kit.render();
+            document.getElementById('f-code')?.focus();
+            return;
+          }
+          const id = 'ADL-' + grouped(body);
+          if (!PATTERN.test(id) || body.length < 5) {
+            S.codeErr = 'Enter the code exactly as printed under the QR code, starting with ADL.';
+            Kit.render();
+            document.getElementById('f-code')?.focus();
+            return;
+          }
+          S.codeErr = null;
+          S.checking = true;
+          Kit.render();
+          setTimeout(() => {
+            S.checking = false;
+            openResult(id, 'typed');
+          }, 350);
+        },
+        fill: (c) => {
+          S.code = grouped(bodyOf(c));
+          S.codeErr = null;
+          Kit.render();
+          document.getElementById('f-code')?.focus();
+        },
+        sim: (k) => {
+          S.sim = S.sim === k ? null : k;
+          Kit.render();
+        },
+        again: () => {
+          S.sim = null;
+          S.code = '';
+          S.codeErr = null;
+          Kit.go('home');
+        },
+        edit: () => {
+          S.code = grouped(bodyOf(S.id));
+          S.codeErr = null;
+          Kit.go('home');
+        },
+        retry: () => {
+          S.sim = null;
+          openResult(S.id, S.source);
+        },
+        openCode: (c) => openResult(c, 'typed'),
+        toggleTech: () => {
+          S.hash.showTech = !S.hash.showTech;
+          Kit.render();
+        },
+        hashReset: () => {
+          S.hash = { state: 'idle', name: '', size: 0, digest: '', showTech: false };
+          Kit.render();
+        },
+        hashFile: async (el) => {
+          const f = el.files?.[0];
+          if (!f) return;
+          try {
+            runHash(await f.arrayBuffer(), f.name);
+          } catch (e) {
+            S.hash = { state: 'unreadable', name: f.name, size: f.size, digest: '' };
+            Kit.render();
+          }
+        },
+        sample: (k) => {
+          const doc = DOCS[S.screen === 'primitives' ? V2 : S.id] || DOCS[V2];
+          if (k === 'txt') {
+            runHash(new TextEncoder().encode('Payslip September 2026').buffer, 'payslip.docx');
+            return;
+          }
+          const good = doc === DOCS[V2] ? SAMPLE.good : SAMPLE.other;
+          runHash(
+            (k === 'good' ? good : SAMPLE.bad).slice(0),
+            k === 'good' ? 'acknowledgement-slip.pdf' : 'acknowledgement-slip (edited).pdf',
+          );
+        },
+      };
+
+      /* ---------- sample PDFs generated in memory (no network) ---------- */
+      const enc = (s) => new TextEncoder().encode(s).buffer;
+      const pdfText = (v, amount) =>
+        `%PDF-1.7\n% Adili Online acknowledgement slip (prototype sample)\n1 0 obj << /Type /Catalog >> endobj\n% Reference DCI-TSC-2026-0012345-8 version ${v}\n% Verification ${V2}\n% Items declared: ${amount}\n%%EOF\n`;
+      const SAMPLE = {
+        good: enc(pdfText(2, 14)),
+        bad: enc(pdfText(2, 13)),
+        other: enc(pdfText(1, 12)),
+      };
+      crypto.subtle?.digest('SHA-256', SAMPLE.good).then((d) => {
+        DOCS[V2].sha256 = hex(d);
+      });
+      // Let the other statuses match their own "issued file" in the demo.
+      crypto.subtle?.digest('SHA-256', SAMPLE.other).then((d) => {
+        [V1, REV, EXP, CONF].forEach((k) => (DOCS[k].sha256 = hex(d)));
+      });
+      const blobUrl = (buf) => URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
+      const DL = { good: blobUrl(SAMPLE.good), bad: blobUrl(SAMPLE.bad) };
+
+      /* ---------- jumps ---------- */
+      const R =
+        (id, extra, source = 'typed') =>
+        () => {
+          Object.assign(S, {
+            id,
+            source,
+            sim: null,
+            menu: null,
+            hideLink: false,
+            hash: { state: 'idle', name: '', size: 0, digest: '', showTech: false },
+          });
+          Kit.go('result');
+          if (extra) {
+            extra();
+            Kit.render();
+          }
+        };
+      const setHash = (state, name) => () => {
+        S.hash = {
+          state,
+          name: name || 'acknowledgement-slip.pdf',
+          size: 184320,
+          digest:
+            state === 'unreadable'
+              ? ''
+              : state === 'identical'
+                ? DOCS[V2].sha256
+                : 'a3f1c29e7b4d58e0c6a9f2b17d3e84c05b9a6f1e2d7c30b48e5f9a1c6d2b7e04',
+          showTech: false,
+        };
+      };
+      const jumps = [
+        ['home', '#145 Index: manual code entry'],
+        [
+          'j-home-err',
+          '#145 Index: malformed code error',
+          () => {
+            S.code = '7Q4U';
+            S.codeErr = 'Enter the code exactly as printed under the QR code, starting with ADL.';
+            Kit.go('home');
+          },
+        ],
+        [
+          'j-qr',
+          '#145 QR scan lands on /v/{code} (loading, then valid)',
+          () => {
+            S.sim = null;
+            openResult(V2, 'qr');
+          },
+        ],
+        ['loading', '#145 Result: loading skeleton'],
+        ['result', '#145 Result: valid (restricted)', R(V2)],
+        [
+          'j-ref',
+          '#137 Result: reference breakdown open',
+          R(V2, () => {
+            S.menu = 'ref';
+          }),
+        ],
+        ['j-super', '#145 Result: superseded, link to current', R(V1, null, 'qr')],
+        [
+          'j-super-nolink',
+          '#145 Result: superseded, no link allowed',
+          R(V1, () => {
+            S.hideLink = true;
+          }),
+        ],
+        ['j-revoked', '#145 Result: revoked (issued in error)', R(REV)],
+        ['j-expired', '#145 Result: expired', R(EXP)],
+        ['j-conf', '#145 Result: valid, confidential level (ADR-010)', R(CONF, null, 'qr')],
+        ['j-nf', '#145 Result: not found', R('ADL-2222-3333-4444-5555-6666-77')],
+        ['j-malformed', '#145 Result: malformed code in URL', R('ADL-7Q4U-XX')],
+        [
+          'j-rate',
+          '#145 Result: rate limited (429)',
+          R(V2, () => {
+            S.sim = 'rate-now';
+            S.rlEnds = Date.now() + 42000;
+          }),
+        ],
+        [
+          'j-down',
+          '#145 Result: service unavailable (5xx)',
+          R(V2, () => {
+            S.sim = 'down-now';
+          }),
+        ],
+        ['j-h-hashing', '#145 Hash check: checking on device', R(V2, setHash('hashing'))],
+        ['j-h-ok', '#145 Hash check: identical', R(V2, setHash('identical'))],
+        [
+          'j-h-bad',
+          '#145 Hash check: does not match',
+          R(V2, () => {
+            setHash('mismatch', 'acknowledgement-slip (edited).pdf')();
+            S.hash.showTech = true;
+          }),
+        ],
+        [
+          'j-h-unread',
+          '#145 Hash check: could not read file',
+          R(V2, setHash('unreadable', 'payslip.docx')),
+        ],
+        ['privacy', '#145 What is and is not disclosed'],
+        [
+          'primitives',
+          '#137 Primitives: QR, hash drop zone, reference chip, version badge',
+          () => {
+            S.hash = { state: 'idle', name: '', size: 0, digest: '', showTech: false };
+            Kit.go('primitives');
+          },
+        ],
+      ];
+
+      Kit.mount({
+        app: 'verify',
+        start: 'home',
+        home: 'home',
+        screens,
+        actions,
+        jumps,
+        coverage: [
+          {
+            ticket: 145,
+            title: 'Verify app: manual entry, result states, browser hash check',
+            screens: [
+              'home',
+              'j-home-err',
+              'j-qr',
+              'loading',
+              'result',
+              'j-super',
+              'j-super-nolink',
+              'j-revoked',
+              'j-expired',
+              'j-conf',
+              'j-nf',
+              'j-malformed',
+              'j-rate',
+              'j-down',
+              'j-h-hashing',
+              'j-h-ok',
+              'j-h-bad',
+              'j-h-unread',
+              'privacy',
+            ],
+            note: 'Hash check is real: Web Crypto SHA-256 in the browser, no network request. Service-unavailable and confidential-level states are not in the spec table (added from ADR-010 / robustness).',
+          },
+          {
+            ticket: 137,
+            title: 'UI primitives round 6: QR code, hash drop zone, reference chip, version badge',
+            screens: ['primitives', 'j-ref', 'j-h-ok'],
+            note: 'Tests and exports are code work; the visuals and states are here.',
+          },
+        ],
+        afterRender: () => {
+          const a = document.querySelector('[data-dl="good"]');
+          if (a) a.href = DL.good;
+          const b = document.querySelector('[data-dl="bad"]');
+          if (b) b.href = DL.bad;
+        },
+      });
+
+      /* Code input: auto-format groups of 4, uppercase, Crockford look-alikes; Enter submits. Runs before the kit's binding. */
+      document.addEventListener(
+        'input',
+        (e) => {
+          if (e.target.id !== 'f-code') return;
+          const el = e.target;
+          const atEnd = el.selectionStart === el.value.length;
+          el.value = grouped(bodyOf(el.value));
+          if (atEnd) el.setSelectionRange(el.value.length, el.value.length);
+          if (S.codeErr) {
+            S.codeErr = null;
+            setTimeout(() => Kit.render(), 0);
+          }
+        },
+        true,
+      );
+      document.addEventListener(
+        'submit',
+        (e) => {
+          if (e.target.dataset.form === 'check') {
+            e.preventDefault();
+            actions.check();
+          }
+        },
+        true,
+      );
+      /* Drag and drop onto the hash zone; stop the browser opening files dropped elsewhere. */
+      ['dragover', 'drop'].forEach((t) => window.addEventListener(t, (e) => e.preventDefault()));
+      document.addEventListener('dragover', (e) => {
+        const z = e.target.closest?.('[data-hashdrop]');
+        if (z && !S.hash.over) {
+          S.hash.over = true;
+          z.classList.add('over');
+        }
+      });
+      document.addEventListener('dragleave', (e) => {
+        const z = e.target.closest?.('[data-hashdrop]');
+        if (z && !z.contains(e.relatedTarget)) {
+          S.hash.over = false;
+          z.classList.remove('over');
+        }
+      });
+      document.addEventListener('drop', async (e) => {
+        const z = e.target.closest?.('[data-hashdrop]');
+        S.hash.over = false;
+        if (!z) return;
+        const f = e.dataTransfer.files?.[0];
+        if (f) runHash(await f.arrayBuffer(), f.name);
+      });
+      /* Rate-limit countdown in place. */
+      setInterval(() => {
+        if (S.screen !== 'result' || S.sim !== 'rate-now') return;
+        const s = rlLeft();
+        const el = document.querySelector('[data-rl]');
+        if (el) el.textContent = s;
+        if (s === 0 && document.querySelector('[data-act="retry"][disabled]')) Kit.render();
+      }, 1000);
+    </script>
+  </body>
+</html>

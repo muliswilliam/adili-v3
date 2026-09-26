@@ -1,0 +1,4126 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what do the PDFs Adili issues look like (A4 pages, letterhead, verification footer with QR and code, signature appearance, classification marking, revoked / superseded / preview states)? Covers tickets #135 #143 #156 #194 #218, spec 10 access documents (#258 #260 #265 #269 #304) and the spec 09b open-data manifest (#297). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Documents (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      /* ---------- viewer chrome ---------- */
+      .vwrap {
+        min-height: 100%;
+        background: #e6e4e0;
+      }
+      .vhead {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--surface);
+        box-shadow: 0 1px 0 var(--line);
+      }
+      .vbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        min-height: 56px;
+      }
+      .vtitle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+      }
+      .vtitle h1 {
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .vsep {
+        width: 1px;
+        height: 22px;
+        background: var(--line);
+        margin: 0 4px;
+      }
+      .vgroup {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .zlab,
+      .pgind {
+        font-size: 13px;
+        color: var(--ink-2);
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .zlab {
+        min-width: 56px;
+        height: 34px;
+        border: 0;
+        background: none;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+      }
+      .zlab:hover {
+        background: var(--sunken);
+      }
+      .pgind {
+        min-width: 86px;
+      }
+      .vstrip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-top: 1px solid var(--line);
+        background: var(--bg);
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .vstrip .lab {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .vstrip .seg {
+        flex: none;
+      }
+      .tog {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 36px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--sunken);
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--ink-2);
+        cursor: pointer;
+      }
+      .tog .box {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        background: var(--surface);
+        display: grid;
+        place-items: center;
+        color: #fff;
+      }
+      .tog.on .box {
+        background: var(--ink);
+        box-shadow: none;
+      }
+      .vbody {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+      }
+      .vcol {
+        min-width: 0;
+        overflow-x: auto;
+      }
+      .vnote {
+        max-width: 794px;
+        margin: 20px auto 0;
+        padding: 0 24px;
+      }
+      .vnote .callout {
+        align-items: center;
+      }
+      .vnote .callout .btn {
+        margin-left: auto;
+        flex: none;
+      }
+      .pages {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        padding: 20px 24px 120px;
+      }
+      .props {
+        width: 300px;
+        margin: 20px 16px 20px 0;
+        position: sticky;
+        top: 124px;
+      }
+      .props .card-head {
+        padding: 14px 16px;
+      }
+      .pkv {
+        display: grid;
+        gap: 12px;
+        padding: 14px 16px 16px;
+        font-size: 13.5px;
+      }
+      .drawer-body .pkv {
+        padding: 0;
+      }
+      .pkv .k {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .pkv .v {
+        margin-top: 2px;
+        overflow-wrap: anywhere;
+      }
+      .pkv .hash {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: var(--ink-2);
+      }
+      .pkv .code {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .copyline {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .copyline .icon-btn {
+        width: 28px;
+        height: 28px;
+      }
+      @container app (max-width: 1099px) {
+        .props {
+          display: none;
+        }
+      }
+      @container app (max-width: 699px) {
+        .vbar {
+          flex-wrap: wrap;
+          padding: 8px 10px;
+          gap: 4px;
+        }
+        .vtitle {
+          flex-basis: calc(100% - 50px);
+        }
+        .hide-m {
+          display: none !important;
+        }
+        .vbar .vtools {
+          width: 100%;
+          justify-content: space-between;
+        }
+        .pages {
+          padding: 12px 8px 120px;
+          gap: 12px;
+        }
+        .vnote {
+          padding: 0 10px;
+          margin-top: 12px;
+        }
+        .vnote .callout {
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+        .vnote .callout .vn-t {
+          flex: 1 1 calc(100% - 40px);
+          min-width: 0;
+        }
+        .vnote .callout .btn {
+          margin-left: 29px;
+        }
+      }
+      .vtools {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* ---------- index ---------- */
+      .idx {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 24px 120px;
+      }
+      .idx h1 {
+        font-size: 26px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .idx .sub {
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 4px;
+      }
+      .grp {
+        margin-top: 28px;
+      }
+      .grp h2 {
+        font-size: 12.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      .dgrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+      }
+      .dcard {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+        transition:
+          box-shadow 0.15s,
+          transform 0.15s;
+      }
+      .dcard:hover {
+        box-shadow: var(--shadow-pop);
+        transform: translateY(-1px);
+      }
+      .dcard:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .thumb {
+        height: 228px;
+        background: #e6e4e0;
+        display: flex;
+        justify-content: center;
+        padding-top: 18px;
+        overflow: hidden;
+        position: relative;
+      }
+      .thumb::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 40px;
+        background: linear-gradient(rgba(230, 228, 224, 0), #e6e4e0);
+      }
+      .thumb .tz {
+        zoom: 0.25;
+        pointer-events: none;
+      }
+      .thumb .page {
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.16);
+      }
+      .dc-b {
+        padding: 12px 14px 14px;
+        display: grid;
+        gap: 6px;
+      }
+      .dc-t {
+        font-weight: 600;
+        font-size: 14.5px;
+        line-height: 1.3;
+      }
+      .dc-m {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .lvl {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .lvl.confidential {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .dc-tk {
+        margin-left: auto;
+      }
+      @container app (max-width: 699px) {
+        .dc-tk {
+          display: none;
+        }
+        .idx {
+          padding: 22px 14px 120px;
+        }
+        .dgrid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .thumb {
+          height: 170px;
+          padding-top: 12px;
+        }
+        .thumb .tz {
+          zoom: 0.19;
+        }
+      }
+
+      /* ---------- A4 page ---------- */
+      .page {
+        width: 210mm;
+        height: 297mm;
+        flex: none;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: 14mm 18mm 0;
+        background: #fff;
+        color: #1a1a1a;
+        font-size: 9.6pt;
+        line-height: 1.45;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.06),
+          0 10px 30px -10px rgba(0, 0, 0, 0.22);
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-feature-settings: 'cv11', 'ss01';
+      }
+      .page p {
+        margin: 0 0 3mm;
+      }
+      .page .pb {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        z-index: 1;
+      }
+      .page .nw {
+        white-space: nowrap;
+      }
+      .page .mono,
+      .page .code {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        letter-spacing: 0.01em;
+      }
+      .mk-top {
+        position: absolute;
+        top: 5.5mm;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 7.5pt;
+        font-weight: 700;
+        letter-spacing: 0.32em;
+        color: #1a1a1a;
+      }
+      .confidential .mk-top,
+      .confidential .pf-mark {
+        color: #b3241a;
+      }
+      /* letterhead */
+      .lh {
+        display: flex;
+        align-items: center;
+        gap: 5mm;
+        padding-bottom: 4mm;
+        border-bottom: 0.45mm solid #1a1a1a;
+        position: relative;
+      }
+      .lh::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: -0.45mm;
+        width: 24mm;
+        height: 0.9mm;
+        background: #e95a24;
+      }
+      .seal {
+        width: 17mm;
+        height: 17mm;
+        flex: none;
+        border-radius: 50%;
+        border: 0.5mm solid #1a1a1a;
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .seal::before {
+        content: '';
+        position: absolute;
+        inset: 1.2mm;
+        border-radius: 50%;
+        border: 0.25mm dashed #9a9894;
+      }
+      .seal span {
+        font-weight: 800;
+        font-size: 8pt;
+        letter-spacing: 0.03em;
+      }
+      .lh .rok {
+        font-size: 6.8pt;
+        letter-spacing: 0.22em;
+        color: #6f6e6b;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .lh .org {
+        font-size: 14pt;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0.6mm 0 0.8mm;
+      }
+      .lh .addr {
+        font-size: 7.4pt;
+        color: #4a4a48;
+        line-height: 1.4;
+      }
+      .meta {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8mm;
+        margin: 6mm 0 6mm;
+      }
+      .meta address {
+        font-style: normal;
+        line-height: 1.5;
+      }
+      .refs {
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 0.8mm 4mm;
+        margin: 0;
+        align-content: start;
+        font-size: 9pt;
+      }
+      .refs dt {
+        color: #6f6e6b;
+      }
+      .refs dd {
+        margin: 0;
+        font-weight: 500;
+      }
+      .subj {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        text-decoration: underline;
+        text-underline-offset: 1.2mm;
+        text-decoration-thickness: 0.3mm;
+        margin: 0 0 4mm;
+        font-size: 9.8pt;
+        line-height: 1.45;
+      }
+      .page h2 {
+        font-size: 11pt;
+        font-weight: 700;
+        margin: 5mm 0 2.5mm;
+      }
+      .page h3 {
+        font-size: 9.8pt;
+        font-weight: 700;
+        margin: 4mm 0 2mm;
+      }
+      .doc-h {
+        margin: 7mm 0 5mm;
+      }
+      .doc-h .t1 {
+        font-size: 17pt;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: 1.2;
+      }
+      .doc-sub {
+        color: #4a4a48;
+        font-size: 10pt;
+        margin-top: 1mm;
+      }
+      .fine {
+        font-size: 8.2pt;
+        color: #4a4a48;
+      }
+      .muted2 {
+        color: #6f6e6b;
+      }
+      /* fact tables (letters) */
+      .facts {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1mm 0 5mm;
+      }
+      .facts th,
+      .facts td {
+        text-align: left;
+        vertical-align: top;
+        padding: 2.4mm 0;
+        border-top: 0.25mm solid #e2e0dc;
+      }
+      .facts tr:last-child th,
+      .facts tr:last-child td {
+        border-bottom: 0.25mm solid #e2e0dc;
+      }
+      .facts th {
+        width: 38mm;
+        padding-right: 4mm;
+        font-weight: 600;
+        color: #4a4a48;
+      }
+      .facts td p:last-child {
+        margin: 0;
+      }
+      .big-date {
+        font-size: 12pt;
+        font-weight: 700;
+      }
+      .banner {
+        display: flex;
+        gap: 3mm;
+        align-items: center;
+        padding: 3mm 4mm;
+        border-radius: 1.6mm;
+        margin: 0 0 5mm;
+        font-weight: 600;
+      }
+      .banner.warn {
+        background: #fdf4e2;
+        color: #6e4000;
+      }
+      .banner.danger {
+        background: #fdeceb;
+        color: #8a1c14;
+      }
+      .banner.ok {
+        background: #e9f6ee;
+        color: #0f5a2c;
+      }
+      .banner .s {
+        font-weight: 400;
+        display: block;
+        font-size: 8.6pt;
+      }
+      .outcome {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 1mm 5mm;
+        align-items: center;
+        padding: 4mm 5mm;
+        border-radius: 2mm;
+        margin: 1mm 0 5mm;
+        border: 0.3mm solid;
+      }
+      .outcome .ic {
+        grid-row: span 2;
+        width: 10mm;
+        height: 10mm;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+      }
+      .outcome .lbl {
+        font-size: 7.6pt;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .outcome .v {
+        font-size: 14pt;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .outcome.ok {
+        border-color: #b9dfc6;
+        background: #f3faf5;
+      }
+      .outcome.ok .ic {
+        background: #167a3e;
+      }
+      .outcome.danger {
+        border-color: #f1c2be;
+        background: #fdf5f4;
+      }
+      .outcome.danger .ic {
+        background: #c9291e;
+      }
+      .outcome.warn {
+        border-color: #ecd3a3;
+        background: #fefaf1;
+      }
+      .outcome.warn .ic {
+        background: #9a5a00;
+      }
+      /* clarification items */
+      .items {
+        list-style: none;
+        padding: 0;
+        margin: 2mm 0 0;
+        display: grid;
+        gap: 4mm;
+      }
+      .items li {
+        display: grid;
+        grid-template-columns: 7mm 1fr;
+        gap: 0 2mm;
+        padding: 3.5mm 4mm 3.5mm 3mm;
+        border: 0.25mm solid #e2e0dc;
+        border-radius: 1.6mm;
+        break-inside: avoid;
+      }
+      .items .n {
+        margin-top: 0.1mm;
+        width: 6mm;
+        height: 6mm;
+        border-radius: 50%;
+        background: #1a1a1a;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: 7.6pt;
+        font-weight: 700;
+      }
+      .items .it {
+        font-weight: 600;
+      }
+      .items .req {
+        display: inline-block;
+        margin: 1mm 0 1.5mm;
+        padding: 0.4mm 2mm;
+        border-radius: 1mm;
+        background: #fdf0e9;
+        color: #8a3a10;
+        font-size: 8pt;
+        font-weight: 600;
+      }
+      .items p {
+        margin: 0;
+      }
+      .steps {
+        margin: 0 0 4mm;
+        padding-left: 5mm;
+      }
+      .steps li {
+        margin-bottom: 1.2mm;
+      }
+      /* signature */
+      .sign {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        gap: 6mm;
+        margin-top: 7mm;
+        break-inside: avoid;
+      }
+      .sign .nm {
+        font-weight: 700;
+        margin-top: 9mm;
+      }
+      .sigbox {
+        display: flex;
+        gap: 2.5mm;
+        align-items: flex-start;
+        width: 72mm;
+        padding: 2.5mm 3mm;
+        border: 0.3mm solid #9ccfaf;
+        background: #f3faf5;
+        border-radius: 1.4mm;
+        font-size: 7.2pt;
+        line-height: 1.4;
+        color: #1f3d2a;
+      }
+      .sigbox svg {
+        flex: none;
+        color: #167a3e;
+        margin-top: 0.3mm;
+      }
+      .sigbox b {
+        font-size: 7.6pt;
+      }
+      .sigbox.pending {
+        border: 0.3mm dashed #b8b6b1;
+        background: #fafaf9;
+        color: #6f6e6b;
+      }
+      .sigbox.pending svg {
+        color: #9a9894;
+      }
+      /* continuation header, footer */
+      .ch {
+        display: flex;
+        justify-content: space-between;
+        gap: 6mm;
+        font-size: 7.6pt;
+        color: #6f6e6b;
+        padding-bottom: 2mm;
+        border-bottom: 0.25mm solid #e2e0dc;
+        margin-bottom: 5mm;
+      }
+      .pf.nov {
+        grid-template-columns: 1fr auto;
+      }
+      .pf {
+        margin: 0 -18mm;
+        padding: 3.5mm 18mm 6mm;
+        border-top: 0.25mm solid #e2e0dc;
+        display: grid;
+        grid-template-columns: 17mm 1fr auto;
+        gap: 4mm;
+        align-items: center;
+        font-size: 7pt;
+        line-height: 1.45;
+        color: #4a4a48;
+        position: relative;
+        z-index: 1;
+        background: #fff;
+      }
+      .pf-qr svg {
+        display: block;
+        width: 17mm;
+        height: 17mm;
+      }
+      .qr-ph {
+        width: 17mm;
+        height: 17mm;
+        border: 0.3mm dashed #b8b6b1;
+        border-radius: 1mm;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        font-size: 6pt;
+        color: #9a9894;
+        line-height: 1.2;
+      }
+      .pf b {
+        color: #1a1a1a;
+      }
+      .pf .code {
+        font-weight: 700;
+        color: #1a1a1a;
+        font-size: 7.4pt;
+      }
+      .pf-m {
+        color: #8a8985;
+      }
+      .pf-r {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .pf-mark {
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        color: #1a1a1a;
+        margin-bottom: 0.6mm;
+      }
+      /* status watermark overlay */
+      .wm {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        z-index: 5;
+      }
+      .wm span {
+        transform: rotate(-32deg);
+        font-size: 60pt;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 2mm 10mm 4mm;
+        border: 1.4mm solid;
+        border-radius: 5mm;
+        text-align: center;
+        line-height: 1.05;
+      }
+      .wm small {
+        display: block;
+        font-size: 13pt;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        margin-top: 1mm;
+      }
+      .wm.red span {
+        color: rgba(201, 41, 30, 0.2);
+        border-color: rgba(201, 41, 30, 0.2);
+      }
+      .wm.grey span {
+        color: rgba(60, 60, 60, 0.13);
+        border-color: rgba(60, 60, 60, 0.13);
+      }
+      /* Kiswahili slot */
+      .sw {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 2mm;
+        padding: 0 2mm;
+        height: 4.2mm;
+        line-height: 4mm;
+        border: 0.25mm dashed #b07cd6;
+        border-radius: 1mm;
+        color: #7d4bb0;
+        font-size: 6.4pt;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: none;
+        text-decoration: none;
+      }
+      /* slip */
+      .slip-ref {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4mm;
+        padding: 4.5mm 5mm;
+        border: 0.35mm solid #1a1a1a;
+        border-radius: 2mm;
+      }
+      .slip-ref .lbl,
+      .vpanel .lbl {
+        font-size: 7.4pt;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6f6e6b;
+      }
+      .slip-ref .big {
+        font-size: 17pt;
+        font-weight: 700;
+        margin-top: 0.5mm;
+      }
+      .slip-ref .brk {
+        font-size: 7.4pt;
+        color: #6f6e6b;
+        margin-top: 0.8mm;
+      }
+      .vpill {
+        flex: none;
+        padding: 1.2mm 3.2mm;
+        border-radius: 999px;
+        background: #1a1a1a;
+        color: #fff;
+        font-weight: 600;
+        font-size: 8.6pt;
+      }
+      .skv {
+        display: grid;
+        grid-template-columns: 44mm 1fr;
+        margin: 5mm 0;
+      }
+      .skv dt,
+      .skv dd {
+        margin: 0;
+        padding: 1.8mm 0;
+        border-bottom: 0.25mm solid #e2e0dc;
+      }
+      .skv dt {
+        color: #6f6e6b;
+      }
+      .skv dd {
+        font-weight: 500;
+      }
+      .late {
+        display: inline-block;
+        padding: 0 1.6mm;
+        margin-right: 1.4mm;
+        border-radius: 0.8mm;
+        background: #fdeceb;
+        color: #b3241a;
+        font-weight: 700;
+        font-size: 8pt;
+      }
+      .vpanel {
+        display: grid;
+        grid-template-columns: 36mm 1fr;
+        gap: 6mm;
+        align-items: center;
+        padding: 5mm;
+        border-radius: 2mm;
+        background: #f6f5f3;
+        margin: 5mm 0 4mm;
+      }
+      .vpanel svg {
+        display: block;
+        width: 36mm;
+        height: 36mm;
+      }
+      .vpanel .qr-ph {
+        width: 36mm;
+        height: 36mm;
+        font-size: 8pt;
+      }
+      .vpanel .t {
+        font-size: 11pt;
+        font-weight: 700;
+        margin-bottom: 1.5mm;
+      }
+      .vpanel .vcode {
+        font-size: 12pt;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        margin: 1.5mm 0 2mm;
+      }
+      /* Form M */
+      .fm-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-top: 2mm;
+      }
+      .fm-form {
+        font-size: 13pt;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      .fm-reg {
+        font-size: 9pt;
+      }
+      .fm-title {
+        text-align: center;
+        font-size: 11.5pt;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        margin: 3mm 0 2mm;
+      }
+      .fm-meta {
+        display: flex;
+        justify-content: center;
+        gap: 2mm 5mm;
+        flex-wrap: wrap;
+        font-size: 7.8pt;
+        color: #4a4a48;
+        padding: 2mm 0;
+        border-top: 0.25mm solid #e2e0dc;
+        border-bottom: 0.25mm solid #e2e0dc;
+      }
+      .fm-part {
+        font-size: 9.6pt !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.02em;
+        margin: 5mm 0 2mm !important;
+        padding: 1.4mm 2.5mm;
+        background: #f1f0ed;
+      }
+      .fm-sec {
+        font-weight: 700;
+        margin: 4mm 0 0.5mm;
+      }
+      .fm-note {
+        font-size: 8pt;
+        color: #4a4a48;
+        font-style: italic;
+        margin: 0 0 1.5mm !important;
+      }
+      .fl {
+        display: grid;
+        grid-template-columns: 1fr 26mm;
+        gap: 4mm;
+        align-items: end;
+        padding: 1.1mm 0;
+        border-bottom: 0.25mm dotted #9a9894;
+      }
+      .fl .val {
+        text-align: right;
+        font-weight: 700;
+      }
+      .fl.wide {
+        grid-template-columns: 74mm 1fr;
+      }
+      .fl.wide .val {
+        text-align: left;
+      }
+      .fl .nc {
+        color: #9a9894;
+        font-weight: 400;
+        font-style: italic;
+      }
+      .fm-d {
+        margin: 1.5mm 0 1mm !important;
+      }
+      .ft {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7.8pt;
+        line-height: 1.35;
+        margin: 1mm 0 2mm;
+      }
+      .ft caption {
+        text-align: left;
+        font-weight: 600;
+        font-size: 8.2pt;
+        padding: 1mm 0 1.4mm;
+      }
+      .ft th,
+      .ft td {
+        border: 0.25mm solid #a8a6a1;
+        padding: 1.3mm 1.6mm;
+        text-align: left;
+        vertical-align: top;
+      }
+      .ft th {
+        background: #f1f0ed;
+        font-weight: 600;
+      }
+      .ft .n {
+        width: 6mm;
+        text-align: center;
+      }
+      .ft .num {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .ft .sub {
+        color: #6f6e6b;
+        display: block;
+      }
+      .ft .none td {
+        text-align: center;
+        color: #6f6e6b;
+        font-style: italic;
+      }
+      .box {
+        display: inline-block;
+        width: 3.2mm;
+        height: 3.2mm;
+        border: 0.3mm solid #1a1a1a;
+        vertical-align: -0.5mm;
+        margin: 0 1mm 0 3mm;
+        text-align: center;
+        line-height: 2.6mm;
+        font-size: 7pt;
+        font-weight: 800;
+      }
+      .record {
+        margin-top: 5mm;
+        padding: 3mm 4mm;
+        border-radius: 1.6mm;
+        background: #f6f5f3;
+        font-size: 8pt;
+      }
+      .record .h {
+        font-weight: 700;
+        margin-bottom: 1.5mm;
+      }
+      .record dl {
+        display: grid;
+        grid-template-columns: 34mm 1fr;
+        gap: 0.8mm 3mm;
+        margin: 0;
+      }
+      .record dt {
+        color: #6f6e6b;
+      }
+      .record dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      /* manifest / hashes */
+      .hashc {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 6.4pt;
+        line-height: 1.35;
+        letter-spacing: 0.02em;
+        word-break: break-all;
+        color: #333;
+      }
+      .conf-note {
+        margin-top: 5mm;
+        padding: 3mm 4mm;
+        border: 0.3mm solid #f1c2be;
+        border-left: 1.2mm solid #c9291e;
+        border-radius: 1mm;
+        font-size: 8.4pt;
+        color: #5c1510;
+      }
+      /* report (NCR) */
+      .cover-h {
+        margin: 22mm 0 8mm;
+      }
+      .cover-h .ey {
+        font-size: 8pt;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #b8430f;
+      }
+      .cover-h .t1 {
+        font-size: 24pt;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.015em;
+        margin: 3mm 0 3mm;
+      }
+      .cover-h .doc-sub {
+        font-size: 11pt;
+      }
+      .rtiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4mm;
+        margin: 6mm 0;
+      }
+      .rtile {
+        padding: 4mm;
+        border-radius: 2mm;
+        background: #f6f5f3;
+      }
+      .rtile .k {
+        font-size: 7.6pt;
+        color: #4a4a48;
+        font-weight: 600;
+      }
+      .rtile .v {
+        font-size: 17pt;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        margin-top: 1mm;
+      }
+      .rtile .s {
+        font-size: 7.6pt;
+        color: #6f6e6b;
+      }
+      .toc {
+        margin: 6mm 0;
+        padding: 0;
+        list-style: none;
+        border-top: 0.25mm solid #e2e0dc;
+      }
+      .toc li {
+        display: flex;
+        justify-content: space-between;
+        padding: 2mm 0;
+        border-bottom: 0.25mm solid #e2e0dc;
+      }
+      .appr {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5mm;
+        margin-top: 6mm;
+      }
+      .appr .k {
+        font-size: 7.6pt;
+        color: #6f6e6b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .appr .v {
+        font-weight: 600;
+        margin-top: 0.6mm;
+      }
+      .rbar {
+        height: 2mm;
+        border-radius: 1mm;
+        background: #ecebe8;
+        overflow: hidden;
+        margin-top: 1mm;
+      }
+      .rbar i {
+        display: block;
+        height: 100%;
+        background: #1a1a1a;
+      }
+      .rbar.low i {
+        background: #c9291e;
+      }
+      .rt {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8.6pt;
+        margin: 2mm 0 4mm;
+      }
+      .rt th,
+      .rt td {
+        padding: 2mm 1.6mm;
+        border-bottom: 0.25mm solid #e2e0dc;
+        text-align: left;
+        vertical-align: top;
+      }
+      .rt th {
+        font-size: 7.4pt;
+        font-weight: 600;
+        color: #6f6e6b;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 0.35mm solid #1a1a1a;
+      }
+      .rt .num {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .rt tfoot td {
+        font-weight: 700;
+        border-top: 0.35mm solid #1a1a1a;
+        border-bottom: 0;
+      }
+      .rt.dense {
+        font-size: 7.4pt;
+        margin: 0;
+      }
+      .rt.dense td {
+        padding: 1.25mm 1.4mm;
+      }
+      .rt.dense .sub {
+        display: block;
+        color: #8a8985;
+        font-size: 6.4pt;
+      }
+      .st-l {
+        font-weight: 600;
+      }
+      .st-l.late {
+        background: none;
+        padding: 0;
+        margin: 0;
+        font-size: inherit;
+      }
+      .st-l.nr {
+        color: #8a8985;
+        font-weight: 500;
+      }
+      .rate-low {
+        color: #b3241a;
+        font-weight: 700;
+      }
+      .narr p {
+        margin-bottom: 2.6mm;
+      }
+      .narr ul {
+        margin: 0 0 3mm;
+        padding-left: 5mm;
+      }
+      .narr li {
+        margin-bottom: 1.6mm;
+      }
+
+      /* ---------- print: clean A4, one sheet per page ---------- */
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      @media print {
+        html,
+        body,
+        #app,
+        #view {
+          height: auto !important;
+          overflow: visible !important;
+          background: #fff !important;
+        }
+        body.mobile {
+          display: block;
+        }
+        body.mobile #app {
+          width: auto;
+          box-shadow: none;
+          border-radius: 0;
+        }
+        #app {
+          container-type: normal;
+        }
+        .proto,
+        #layer,
+        .vhead,
+        .vnote,
+        .props,
+        .idx {
+          display: none !important;
+        }
+        .vwrap,
+        .vbody {
+          display: block;
+          background: #fff;
+        }
+        .pages {
+          zoom: 1 !important;
+          display: block;
+          padding: 0;
+        }
+        .page {
+          box-shadow: none;
+          margin: 0;
+          break-after: page;
+        }
+        .page:last-child {
+          break-after: auto;
+        }
+      }
+      /* ---------- spec 10 access documents: per-recipient watermark (every page) ---------- */
+      .rwm {
+        position: absolute;
+        inset: -35% -40%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        transform: rotate(-30deg);
+        pointer-events: none;
+        z-index: 4;
+        color: rgba(179, 36, 26, 0.09);
+        font-size: 12pt;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        text-align: center;
+      }
+      .lvl.public {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, fmtDate, num, badge, qr, tip } = Kit;
+
+      /* ============================== helpers ============================== */
+      const pad = (n) => String(n).padStart(2, '0');
+      const hm = (d) => {
+        const x = new Date(d);
+        return `${pad(x.getHours())}:${pad(x.getMinutes())}`;
+      };
+      const hms = (d) => {
+        const x = new Date(d);
+        return `${hm(x)}:${pad(x.getSeconds())}`;
+      };
+      const dtm = (d) => `${fmtDate(d)}, ${hm(d)} EAT`;
+      const rate = (d, e) => (e ? ((d / e) * 100).toFixed(1) + '%' : '-');
+      // Same deterministic hash as 08-determinations, so manifest hashes match its package preview.
+      function sha(s) {
+        let h = '';
+        let x = 2166136261;
+        for (let r = 0; r < 8; r++) {
+          for (const c of s + r) {
+            x ^= c.charCodeAt(0);
+            x = Math.imul(x, 16777619) >>> 0;
+          }
+          h += x.toString(16).padStart(8, '0');
+        }
+        return h;
+      }
+      const seedOf = (s) => {
+        let h = 7;
+        for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 99991;
+        return h;
+      };
+      const maskRef = (r) =>
+        r.replace(/-\d{7}-[0-9A-Z](-R)?$/, (m, rr) => '-•••••••-•' + (rr || ''));
+      const VERIFY_HOST = 'verify.adili.go.ke';
+      const VERIFY_APP = '../../../apps/verify/prototype/verify.prototype.html#home';
+
+      /* ============================== demo world ============================== */
+      const ORG = {
+        TSC: {
+          code: 'TSC',
+          name: 'Teachers Service Commission',
+          addr: 'TSC House, Kilimanjaro Road, Upper Hill · Private Bag 00100, Nairobi',
+          contact: '0709 180 000 · dials@tsc.go.ke · www.tsc.go.ke',
+        },
+        PSC: {
+          code: 'PSC',
+          name: 'Public Service Commission',
+          addr: 'Commission House, Harambee Avenue · P.O. Box 30095-00100, Nairobi',
+          contact: '+254 20 222 3901 · compliance@publicservice.go.ke · www.publicservice.go.ke',
+        },
+        EACC: {
+          code: 'EACC',
+          name: 'Ethics and Anti-Corruption Commission',
+          addr: 'Integrity Centre, Jakaya Kikwete Road · P.O. Box 61130-00200, Nairobi',
+          contact: 'Toll free 1551 · eacc@integrity.go.ke · www.eacc.go.ke',
+        },
+      };
+      const JK = {
+        name: 'John Fitzgerald Kennedy',
+        salute: 'Mr Kennedy',
+        designation: 'Deputy Principal',
+        file: '2012445581',
+        station: 'Moi Girls High School, Eldoret',
+      };
+      const TSC_SIGN = {
+        name: 'Margaret Chepkoech',
+        title: 'Director, Human Resource Management',
+        for: 'For: Secretary / Chief Executive',
+      };
+      // John Kennedy's initial declaration reviewed in the after-submission prototype.
+      const DECL = {
+        ref: 'DCI-TSC-2026-0003418-P',
+        type: 'initial declaration',
+        receivedAt: '2026-04-28T14:12:00',
+      };
+      const LADDER_CLR = 'CLR-TSC-2026-0000519-4';
+      const REQ = {
+        'provide-omitted': ['Provide the omitted information', 's.35(4)(a)'],
+        'explain-discrepancy': ['Explain the discrepancy or inconsistency', 's.35(4)(b)'],
+        correct: ['Correct the entry', 's.35(4)(b)'],
+      };
+      const ITEMS_A = [
+        {
+          requirement: 'explain-discrepancy',
+          label: 'Assets · Land · Plot Kapsaret/Simat/1234 · John Kennedy',
+          text: 'You declared the plot at KES 1,200,000. The sale agreement you attached shows a purchase price of KES 3,500,000 in March 2026. Please explain the difference between the two values.',
+        },
+        {
+          requirement: 'provide-omitted',
+          label: 'Liabilities · John Kennedy',
+          text: 'Your March 2026 payslip shows a monthly deduction to Mwalimu National SACCO. No SACCO loan is declared. Please declare the loan balance on 1 Apr 2026 and attach a loan statement.',
+        },
+        {
+          requirement: 'correct',
+          label: 'Income · Rent · Mary Kennedy (spouse)',
+          text: "The lease agreement for the Eldoret shop is in your spouse's name, but the rent is declared in your own statement. Please confirm who receives the rent so the entry can be corrected.",
+        },
+      ];
+
+      // Form M: PSC, FY 2025/2026 (same content as 09-form-m pscDraft()).
+      const ACTION_L = {
+        none: 'None',
+        'notice-to-comply': 'Notice to comply',
+        warning: 'Warning',
+        'salary-stoppage': 'Salary stoppage',
+        'disciplinary-referral': 'Disciplinary referral',
+        'referred-to-eacc': 'Referred to EACC',
+      };
+      const STEP_DONE = {
+        'notice-to-comply': 'Notice to comply issued',
+        warning: 'Warning issued',
+        'salary-stoppage': 'Salary stopped',
+        'disciplinary-referral': 'Referred for disciplinary action',
+        'referred-to-eacc': 'Referred to EACC',
+      };
+      const COMPLIED_L = { yes: 'Yes', no: 'No', pending: 'Pending' };
+      const CLAR_L = {
+        responded: 'Responded',
+        resolved: 'Resolved',
+        pending: 'Pending',
+        overdue: 'Overdue',
+        withdrawn: 'Withdrawn',
+      };
+      const remarkOf = (r) =>
+        r.actionTaken === 'none'
+          ? 'No action taken yet.'
+          : r.complied === 'yes'
+            ? `${STEP_DONE[r.actionTaken]}. Declaration filed after it.`
+            : `${STEP_DONE[r.actionTaken]}. Awaiting compliance.`;
+      const nf = (name, designation, identifier, date, actionTaken, complied) => {
+        const r = { name, designation, identifier, date, actionTaken, complied };
+        r.remarks = remarkOf(r);
+        return r;
+      };
+      const FORM_M = {
+        partI: {
+          commissionName: 'Public Service Commission',
+          contactDetails: '+254 20 222 3901 / +254 720 101 010',
+          physicalAddress: 'Commission House, Harambee Avenue, Nairobi',
+          emailAddress: 'compliance@publicservice.go.ke',
+        },
+        initial: {
+          expected: 12,
+          declared: 10,
+          notDeclared: 2,
+          nonFilers: [
+            nf(
+              'Kevin Omondi Ochieng',
+              'Human Resource Officer II',
+              'PSC/2025/0418',
+              '2025-09-01',
+              'notice-to-comply',
+              'yes',
+            ),
+            nf(
+              'Mercy Chebet Rotich',
+              'Records Management Officer',
+              'PSC/2026/0032',
+              '2026-05-18',
+              'none',
+              'no',
+            ),
+          ],
+        },
+        biennial: {
+          expected: 100,
+          declared: 95,
+          notDeclared: 5,
+          nonFilers: [
+            nf(
+              'Peter Mwangi Githinji',
+              'Principal Accountant',
+              'PSC/2011/0217',
+              '2011-03-01',
+              'salary-stoppage',
+              'pending',
+            ),
+            nf(
+              'Halima Abdi Hassan',
+              'Senior Legal Officer',
+              'PSC/2016/0098',
+              '2016-08-15',
+              'warning',
+              'pending',
+            ),
+            nf(
+              'Joseph Kiprono Langat',
+              'Driver III',
+              'PSC/2008/0544',
+              '2008-01-07',
+              'notice-to-comply',
+              'yes',
+            ),
+            nf(
+              'Esther Nyambura Wairimu',
+              'Office Administrator',
+              'PSC/2019/0310',
+              '2019-06-03',
+              'referred-to-eacc',
+              'no',
+            ),
+            nf(
+              'Collins Barasa Wekesa',
+              'ICT Officer I',
+              'PSC/2021/0127',
+              '2021-10-11',
+              'disciplinary-referral',
+              'no',
+            ),
+          ],
+        },
+        final: {
+          expected: 4,
+          declared: 3,
+          notDeclared: 1,
+          nonFilers: [
+            nf(
+              'Lucy Atieno Odhiambo',
+              'Deputy Director, Finance',
+              'PSC/2004/0061',
+              '2026-03-31',
+              'notice-to-comply',
+              'pending',
+            ),
+          ],
+        },
+        clarifications: [
+          [
+            "Samuel Kariuki Ndung'u",
+            'Director, Establishment',
+            'PSC/2002/0015',
+            'Supporting documents for an asset',
+            'resolved',
+          ],
+          [
+            'Ann Wambui Mugo',
+            'Senior Economist',
+            'PSC/2013/0205',
+            'Explanation of the source of funds for an asset',
+            'responded',
+          ],
+          [
+            'Hassan Omar Mohamed',
+            'Principal Administrative Officer',
+            'PSC/2009/0133',
+            'Missing liability details',
+            'pending',
+          ],
+          [
+            'Beatrice Njeri Kimani',
+            'Accountant I',
+            'PSC/2018/0276',
+            "Incomplete spouse's financial statement",
+            'overdue',
+          ],
+          [
+            'Daniel Mutua Musyoka',
+            'Supply Chain Officer II',
+            'PSC/2020/0391',
+            'Undisclosed directorship or membership',
+            'resolved',
+          ],
+          [
+            'Rose Akinyi Otieno',
+            'Assistant Director, HRM',
+            'PSC/2012/0188',
+            'Basis of valuation not stated',
+            'withdrawn',
+          ],
+        ],
+      };
+
+      // NCR FY 2025/2026: the per-Commission figures EACC intake shows in 09-form-m (built 24 Sep 2026).
+      // [code, name, status 0 not reported | 1 on time | 2 late, received, [iniE, iniD, biE, biD, finE, finD]]
+      const NCR_ROWS = [
+        ['PSC', 'Public Service Commission', 0, 0, 0],
+        [
+          'TSC',
+          'Teachers Service Commission',
+          2,
+          '2026-08-12',
+          [9412, 8960, 331870, 318402, 7905, 6811],
+        ],
+        ['JSC', 'Judicial Service Commission', 0, 0, 0],
+        [
+          'PARLSC',
+          'Parliamentary Service Commission',
+          1,
+          '2026-07-28',
+          [214, 206, 2890, 2811, 96, 90],
+        ],
+        [
+          'NPSC',
+          'National Police Service Commission',
+          1,
+          '2026-07-22',
+          [6120, 5988, 104300, 101120, 2410, 2209],
+        ],
+        ['CPSB047', 'Nairobi City CPSB', 2, '2026-09-03', [1840, 1702, 16240, 10069, 410, 351]],
+        ['CPSB001', 'Mombasa CPSB', 1, '2026-07-30', [620, 598, 7410, 7102, 0, 3]],
+        ['CPSB042', 'Kisumu CPSB', 0, 0, 0],
+        ['CPSB032', 'Nakuru CPSB', 1, '2026-07-15', [512, 501, 6802, 6590, 133, 127]],
+        ['CPSB022', 'Kiambu CPSB', 1, '2026-07-29', [455, 440, 6120, 5890, 148, 101]],
+        ['CPSB016', 'Machakos CPSB', 2, '2026-08-19', [388, 371, 5210, 4988, 0, 0]],
+        ['CPSB037', 'Kakamega CPSB', 0, 0, 0],
+        ['CPSB027', 'Uasin Gishu CPSB', 1, '2026-07-31', [402, 390, 5980, 5801, 121, 116]],
+        ['CPSB002', 'Kwale CPSB', 1, '2026-07-16', [254, 244, 2822, 2764, 66, 60]],
+        ['CPSB003', 'Kilifi CPSB', 1, '2026-07-19', [291, 276, 3033, 2946, 79, 79]],
+        ['CPSB004', 'Tana River CPSB', 2, '2026-08-29', [328, 308, 3244, 3128, 92, 89]],
+        ['CPSB005', 'Lamu CPSB', 1, '2026-07-25', [365, 364, 3455, 3310, 105, 99]],
+        ['CPSB006', 'Taita-Taveta CPSB', 0, 0, 0],
+        ['CPSB007', 'Garissa CPSB', 1, '2026-07-10', [439, 428, 3877, 3674, 41, 38]],
+        ['CPSB008', 'Wajir CPSB', 1, '2026-07-13', [476, 460, 4088, 3856, 54, 48]],
+        ['CPSB009', 'Mandera CPSB', 2, '2026-08-19', [193, 172, 4299, 4298, 67, 67]],
+        ['CPSB010', 'Marsabit CPSB', 1, '2026-07-19', [230, 228, 4510, 4480, 80, 77]],
+        ['CPSB011', 'Isiolo CPSB', 1, '2026-07-22', [267, 260, 4721, 4662, 93, 87]],
+        ['CPSB012', 'Meru CPSB', 0, 0, 0],
+        ['CPSB013', 'Tharaka-Nithi CPSB', 1, '2026-07-28', [341, 324, 5143, 5026, 119, 116]],
+        ['CPSB014', 'Embu CPSB', 2, '2026-08-09', [378, 356, 5354, 5208, 42, 36]],
+        ['CPSB015', 'Kitui CPSB', 1, '2026-07-13', [415, 412, 5565, 5390, 55, 55]],
+        ['CPSB017', 'Makueni CPSB', 1, '2026-07-19', [489, 476, 5987, 5754, 81, 75]],
+        ['CPSB018', 'Nyandarua CPSB', 1, '2026-07-22', [206, 188, 6198, 6196, 94, 94]],
+        ['CPSB019', 'Nyeri CPSB', 0, 0, 0],
+        ['CPSB020', 'Kirinyaga CPSB', 2, '2026-08-06', [280, 276, 2420, 1840, 120, 114]],
+        ['CPSB021', "Murang'a CPSB", 1, '2026-07-10', [317, 308, 2631, 2542, 43, 43]],
+        ['CPSB023', 'Turkana CPSB', 1, '2026-07-16', [391, 372, 3053, 2906, 69, 63]],
+        ['CPSB024', 'West Pokot CPSB', 1, '2026-07-19', [428, 428, 3264, 3088, 82, 82]],
+        ['CPSB025', 'Samburu CPSB', 1, '2026-07-22', [465, 460, 3475, 3270, 95, 92]],
+        ['CPSB026', 'Trans Nzoia CPSB', 0, 0, 0],
+        ['CPSB028', 'Elgeyo-Marakwet CPSB', 1, '2026-07-10', [256, 236, 4108, 4076, 44, 41]],
+        ['CPSB029', 'Nandi CPSB', 1, '2026-07-13', [293, 292, 4319, 3478, 57, 51]],
+        ['CPSB030', 'Baringo CPSB', 1, '2026-07-16', [330, 324, 4530, 4440, 70, 70]],
+        ['CPSB031', 'Laikipia CPSB', 1, '2026-07-19', [367, 356, 4741, 4622, 83, 80]],
+        ['CPSB033', 'Narok CPSB', 2, '2026-08-07', [441, 420, 5163, 4986, 109, 109]],
+        ['CPSB034', 'Kajiado CPSB', 0, 0, 0],
+        ['CPSB035', 'Kericho CPSB', 1, '2026-07-10', [195, 188, 5585, 5350, 45, 39]],
+        ['CPSB036', 'Bomet CPSB', 1, '2026-07-13', [232, 220, 5796, 5792, 58, 58]],
+        ['CPSB038', 'Vihiga CPSB', 1, '2026-07-19', [306, 284, 6218, 5116, 84, 78]],
+        ['CPSB039', 'Bungoma CPSB', 2, '2026-08-04', [343, 340, 6429, 6338, 97, 97]],
+        ['CPSB040', 'Busia CPSB', 1, '2026-07-25', [380, 372, 2440, 2320, 110, 107]],
+        ['CPSB041', 'Siaya CPSB', 0, 0, 0],
+        ['CPSB043', 'Homa Bay CPSB', 1, '2026-07-13', [491, 468, 3073, 2866, 59, 56]],
+        ['CPSB044', 'Migori CPSB', 1, '2026-07-16', [208, 204, 3284, 3048, 72, 66]],
+        ['CPSB045', 'Kisii CPSB', 2, '2026-08-01', [245, 236, 3495, 3490, 85, 85]],
+        ['CPSB046', 'Nyamira CPSB', 1, '2026-07-22', [282, 268, 3706, 2372, 98, 95]],
+      ];
+      const NCR_TOT = (() => {
+        const t = [0, 0, 0, 0, 0, 0];
+        NCR_ROWS.forEach((r) => r[4] && r[4].forEach((v, i) => (t[i] += v)));
+        return t;
+      })();
+
+      /* ============================== page parts ============================== */
+      let CTX = { sw: false };
+      const sw = () => (CTX.sw ? '<span class="sw" title="Kiswahili slot (empty)">SW</span>' : '');
+      const lh = (org) =>
+        `<header class="lh"><div class="seal" aria-hidden="true"><span>${org.code}</span></div><div><div class="rok">Republic of Kenya</div><div class="org">${esc(org.name)}${sw()}</div><div class="addr">${esc(org.addr)}</div><div class="addr">${esc(org.contact)}</div></div></header>`;
+      const meta = (to, rows) =>
+        `<div class="meta"><address>${to}</address><dl class="refs">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`;
+      const toJK = `<b>${JK.name}</b><br />${JK.designation}<br />TSC No. ${JK.file}<br />${JK.station}`;
+      const facts = (rows) =>
+        `<table class="facts"><tbody>${rows.map(([k, v]) => `<tr><th scope="row">${k}${sw()}</th><td>${v}</td></tr>`).join('')}</tbody></table>`;
+      const sealBox = (m) =>
+        m.preview
+          ? `<div class="sigbox pending">${icon('shield', 15)}<div><b>Digital signature</b><br />Applied when the document is issued</div></div>`
+          : `<div class="sigbox">${icon('shield', 15, 2)}<div><b>Digitally signed by Adili Online (demo)</b><br />${fmtDate(m.signedAt)}, ${hms(m.signedAt)} EAT<br />PAdES · Reason: issued through Adili Online</div></div>`;
+      const sign = (m, who, close = 'Yours faithfully,') =>
+        `<div class="sign"><div><div>${close}</div><div class="nm">${esc(who.name)}</div><div>${esc(who.title)}</div>${who.for ? `<div>${esc(who.for)}</div>` : ''}</div>${sealBox(m)}</div>`;
+      const howRespond = (ref, where) =>
+        `Sign in at adili.go.ke, open ${where} and select <b>${ref}</b>. You may explain your circumstances and attach documents (PDF, JPEG, PNG or HEIC, up to 20 MB each).`;
+      // bodyVerify: the document shows the QR and code in its body (the slip), so the footer leaves them out.
+      const footer = (m, i, n, bodyVerify = false) => {
+        const code = m.preview ? 'ADL-••••-••••-••••-••••-••••-••' : m.code;
+        const q = m.preview
+          ? '<div class="qr-ph">QR added<br />on issue</div>'
+          : qr(seedOf(m.code), 64, `QR code for verification code ${m.code}`);
+        return `<footer class="pf ${bodyVerify ? 'nov' : ''}">${bodyVerify ? '' : `<div class="pf-qr">${q}</div>`}<div>${bodyVerify ? '' : `<div><b>Check this document</b> at ${VERIFY_HOST} with code <span class="code">${code}</span></div>`}<div>Issued by ${esc(m.org.name)} through Adili Online on ${m.preview ? '(date of issue)' : fmtDate(m.issuedAt)}</div><div>Ref <b style="white-space:nowrap;font-weight:600">${m.ref}</b> <span class="pf-m">· How to read it: adili.go.ke/glossary</span></div></div><div class="pf-r">${m.mark ? `<div class="pf-mark">${m.mark}</div>` : ''}${m.version ? `<div>Version ${m.version}</div>` : ''}<div>Page ${i + 1} of ${n}</div></div></footer>`;
+      };
+      const watermark = (s, m) => {
+        if (s.status === 'revoked')
+          return `<div class="wm red" aria-hidden="true"><span>Revoked<small>${m.revokedNote}</small></span></div>`;
+        if (s.status === 'superseded')
+          return `<div class="wm grey" aria-hidden="true"><span>Superseded<small>${m.supNote}</small></span></div>`;
+        if (s.status === 'preview')
+          return `<div class="wm grey" aria-hidden="true"><span>${m.previewWord || 'Preview'}<small>Not issued</small></span></div>`;
+        return '';
+      };
+      function renderPages(id, s) {
+        CTX = s;
+        const d = DOCS[id];
+        const m = d.meta(s);
+        m.preview = s.status === 'preview';
+        m.org = m.org || d.org;
+        m.mark = d.level === 'confidential' ? 'CONFIDENTIAL' : d.mark === false ? '' : 'RESTRICTED';
+        if (m.preview) m.ref = m.previewRef || maskRef(m.ref);
+        m.revokedNote = m.revokedNote || 'Issued in error · 26 Sep 2026';
+        m.supNote = m.supNote || 'A newer version was issued on 26 Sep 2026';
+        const bodies = d.pages(m, s);
+        const n = bodies.length;
+        const html = bodies
+          .map(
+            (b, i) =>
+              `<section class="page ${d.level}" aria-label="${esc(d.title)}, page ${i + 1} of ${n}">${m.mark ? `<div class="mk-top">${m.mark}</div>` : ''}<div class="pb">${i > 0 ? `<div class="ch"><span class="mono">${m.ref}</span><span>${esc(d.short || d.title)}</span></div>` : ''}${b}</div>${footer(m, i, n, !!d.bodyVerify)}${m.rwm && !m.preview ? rwm(m.rwm) : ''}${watermark(s, m)}</section>`,
+          )
+          .join('');
+        CTX = { sw: false };
+        // Keep reference numbers and verification codes on one line in running text.
+        const safe = html.replace(
+          />([^<]+)</g,
+          (all, txt) =>
+            '>' +
+            txt.replace(
+              /\b(?:[A-Z]{3}-[A-Z0-9]+-\d{4}-\d{7}-[0-9A-Z](?:-R)?|ADL-(?:[A-Z0-9]{4}-){5}[A-Z0-9]{2}|PAY-ACK-\d{4}-\d{7})\b/g,
+              '<span class="nw">$&</span>',
+            ) +
+            '<',
+        );
+        return { html: safe, n, m };
+      }
+
+      /* ============================== documents ============================== */
+      const letterDates = (issuedAt) => ({
+        issuedAt,
+        signedAt: new Date(new Date(issuedAt).getTime() + 12000).toISOString(),
+      });
+
+      const DOCS = {
+        /* ---------- #135 #143 acknowledgement slip ---------- */
+        slip: {
+          bodyVerify: true,
+          title: 'Acknowledgement slip',
+          group: 'Submission and review',
+          tickets: [135, 143],
+          template: 'acknowledgement-slip.v1',
+          level: 'restricted',
+          mark: false,
+          org: ORG.TSC,
+          variants: [
+            ['ontime', 'Initial, on time'],
+            ['late', 'Final, filed late'],
+          ],
+          access: 'The declarant (subject). Download is recorded.',
+          payload: 'Type, Commission, issue date, reference, version',
+          meta(s) {
+            if (s.v === 'late')
+              return {
+                org: ORG.PSC,
+                ref: 'DCF-PSC-2026-0000891-3',
+                code: 'ADL-2WHT-QX7M-KD4P-9RBN-F3LC-8V',
+                version: 1,
+                ...letterDates('2026-09-26T10:16:00'),
+                d: {
+                  type: 'Final declaration',
+                  statementDate: '2026-07-15',
+                  due: '2026-08-14',
+                  submittedAt: '2026-09-26T10:15:00',
+                  late: true,
+                  statements: 2,
+                  items: 11,
+                  brk: 'DCF final declaration · PSC issuer · 2026 declaration year · 0000891 sequence · 3 check',
+                },
+              };
+            const v1 = s.status === 'superseded';
+            return {
+              ref: 'DCI-TSC-2026-0012345-8',
+              code: v1 ? 'ADL-3MZC-8K1V-QD4T-7HWA-2RNE-6J' : 'ADL-7Q4K-M2XR-9HTC-W3NB-5FJD-8P',
+              version: v1 ? 1 : 2,
+              ...letterDates(v1 ? '2026-09-21T16:05:00' : '2026-09-26T10:43:00'),
+              supNote: 'Replaced by version 2 on 26 Sep 2026',
+              d: {
+                type: 'Initial declaration',
+                statementDate: '2026-09-02',
+                due: '2026-10-02',
+                submittedAt: v1 ? '2026-09-21T16:04:00' : '2026-09-26T10:42:00',
+                late: false,
+                statements: 3,
+                items: v1 ? 13 : 14,
+                prev: v1 ? null : 'Version 1 of 21 Sep 2026 (superseded)',
+                brk: 'DCI initial declaration · TSC issuer · 2026 declaration year · 0012345 sequence · 8 check',
+              },
+            };
+          },
+          pages(m) {
+            const d = m.d;
+            return [
+              `${lh(m.org)}
+              <div class="doc-h"><div class="t1" role="heading" aria-level="2">Acknowledgement slip${sw()}</div><div class="doc-sub">Declaration of income, assets and liabilities${sw()}</div></div>
+              <div class="slip-ref"><div><div class="lbl">Reference number${sw()}</div><div class="big mono">${m.ref}</div><div class="brk">${d.brk}</div></div><div class="vpill">Version ${m.version}</div></div>
+              <dl class="skv">
+                <dt>Declarant${sw()}</dt><dd>${JK.name}</dd>
+                <dt>Responsible Commission${sw()}</dt><dd>${m.org.name} (${m.org.code})</dd>
+                <dt>Declaration${sw()}</dt><dd>${d.type}</dd>
+                <dt>Statement date${sw()}</dt><dd>${fmtDate(d.statementDate)}</dd>
+                <dt>Submitted${sw()}</dt><dd>${dtm(d.submittedAt)}</dd>
+                <dt>Filing${sw()}</dt><dd>${d.late ? `<span class="late">LATE</span>Submitted after the due date of ${fmtDate(d.due)}` : `On time. Due ${fmtDate(d.due)}`}</dd>
+                <dt>Contents${sw()}</dt><dd>${d.statements} statements, ${d.items} items</dd>
+                ${d.prev ? `<dt>Replaces${sw()}</dt><dd>${d.prev}</dd>` : ''}
+              </dl>
+              <p class="fine">This slip confirms that the declaration was received through Adili Online. It is not a finding that the declaration is complete or correct.${sw()}</p>
+              <p class="fine">Filed electronically: valid without a signature, stamp or paper slip (First Schedule, note 12).${sw()}</p>
+              <div class="vpanel">${m.preview ? '<div class="qr-ph">QR added on issue</div>' : qr(seedOf(m.code), 136, `QR code for verification code ${m.code}`)}<div><div class="t">Check that this slip is genuine${sw()}</div><div>Scan the QR code, or go to ${VERIFY_HOST} and enter:</div><div class="vcode mono">${m.preview ? 'ADL-••••-••••-••••-••••-••••-••' : m.code}</div><div class="fine">The check shows only the reference, type, Commission and date.</div></div></div>
+              <div style="display:flex;justify-content:flex-end">${sealBox(m)}</div>`,
+            ];
+          },
+        },
+
+        /* ---------- #156 clarification letter ---------- */
+        'clarification-letter': {
+          title: 'Clarification letter',
+          short: 'Request for clarification',
+          group: 'Submission and review',
+          tickets: [156],
+          template: 'clarification-letter.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            return {
+              ref: 'CLR-TSC-2026-0000871-X',
+              code: 'ADL-7Q4K-M2XR-9HTC-4WPA-D6JN-3E',
+              ...letterDates('2026-09-14T09:20:00'),
+              due: '2026-10-14',
+              revokedNote: 'Issued in error · 15 Sep 2026',
+              previewRef: 'CLR-TSC-2026-•••••••-•',
+            };
+          },
+          pages(m) {
+            const date = m.preview ? 'Date of issue' : fmtDate(m.issuedAt);
+            const due = m.preview ? '30 days after the date of issue' : fmtDate(m.due);
+            return [
+              `${lh(m.org)}
+              ${meta(toJK, [
+                ['Ref', `<span class="mono">${m.ref}</span>`],
+                ['Date', date],
+                ['Declaration', `<span class="mono">${DECL.ref}</span>`],
+              ])}
+              <div class="subj">Request for clarification: initial declaration ${DECL.ref}${sw()}</div>
+              <p>Dear ${JK.salute},</p>
+              <p>Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has analysed your initial declaration received on ${fmtDate(DECL.receivedAt)}. Please clarify the ${ITEMS_A.length} items below.${sw()}</p>
+              <ol class="items">${ITEMS_A.map((it, i) => `<li><span class="n">${i + 1}</span><div><div class="it">${esc(it.label)}</div><span class="req">What we need: ${REQ[it.requirement][0]} (${REQ[it.requirement][1]})</span>${sw()}<p>${esc(it.text)}</p></div></li>`).join('')}</ol>
+              <div class="banner warn" style="margin-top:5mm">${icon('calendar', 18)}<div>Respond by ${due}${sw()}<span class="s">Section 35(3) gives you 30 days from receipt of this letter.</span></div></div>`,
+              `<h3 style="margin-top:0">How to respond${sw()}</h3>
+              <ol class="steps"><li>Sign in to Adili Online at adili.go.ke.</li><li>Open Clarifications and select <b>${m.ref}</b>.</li><li>Answer each item. Attach supporting documents if you have them (PDF, JPEG, PNG or HEIC, up to 20 MB each).</li><li>Submit your response. You can respond once, so answer every item.</li></ol>
+              <p>A response after ${m.preview ? 'the due date' : fmtDate(m.due)} is still accepted and is recorded as late.${sw()}</p>
+              <p>For help, call ${m.org.contact.split(' · ')[0]} or email ${m.org.contact.split(' · ')[1]}, quoting ${m.ref}.</p>
+              ${sign(m, TSC_SIGN)}`,
+            ];
+          },
+        },
+
+        /* ---------- #194 decision letters ---------- */
+        'decision-compliant': {
+          title: 'Decision letter: compliant',
+          short: 'Compliance determination',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'decision-letter.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          variants: [
+            ['compliant', 'Compliant'],
+            ['no-issues', 'No issues identified (bulk)'],
+          ],
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            return s.v === 'no-issues'
+              ? {
+                  ref: 'CMP-TSC-2026-0118204-5',
+                  code: 'ADL-H3TP-9WQX-2KMD-R7CE-6NBV-4F',
+                  ...letterDates('2026-09-26T10:30:00'),
+                  decidedAt: '2026-09-24T12:30:00',
+                }
+              : {
+                  ref: 'CMP-TSC-2026-0004102-7',
+                  code: 'ADL-W6DJ-3MHQ-T8ZC-K4NR-2PXA-5G',
+                  ...letterDates('2026-09-24T12:30:00'),
+                  decidedAt: '2026-09-24T12:30:00',
+                };
+          },
+          pages(m, s) {
+            const noIssues = s.v === 'no-issues';
+            return [
+              decisionLetter(m, {
+                tone: 'ok',
+                ic: 'check',
+                label: noIssues ? 'Compliant: no issues identified' : 'Compliant',
+                intro: noIssues
+                  ? `The Commission has completed its review of your ${DECL.type} ${DECL.ref}, received on ${fmtDate(DECL.receivedAt)}.`
+                  : `The Commission has completed its review of your ${DECL.type} ${DECL.ref}, received on ${fmtDate(DECL.receivedAt)}, including your response to clarification CLR-TSC-2026-0000871-X.`,
+                body: noIssues
+                  ? `<p>The Commission identified no issues with your declaration. You do not need to do anything.${sw()}</p>`
+                  : `<p>Your declaration meets the requirements of the Conflict of Interest Act, 2025. You do not need to do anything.${sw()}</p>`,
+                note: noIssues
+                  ? `<p class="fine">This letter was produced on request on ${fmtDate(m.issuedAt)}. The determination was recorded on ${fmtDate(m.decidedAt)}.</p>`
+                  : '',
+              }),
+            ];
+          },
+        },
+        'decision-non-compliant': {
+          title: 'Decision letter: non-compliant',
+          short: 'Compliance determination',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'decision-letter.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'CMP-TSC-2026-0004102-7',
+              code: 'ADL-W6DJ-3MHQ-T8ZC-K4NR-2PXA-5G',
+              ...letterDates('2026-09-24T12:30:00'),
+              decidedAt: '2026-09-24T12:30:00',
+            };
+          },
+          pages(m) {
+            return [
+              decisionLetter(m, {
+                tone: 'danger',
+                ic: 'x',
+                label: 'Non-compliant',
+                intro: `The Commission has completed its review of your ${DECL.type} ${DECL.ref}, received on ${fmtDate(DECL.receivedAt)}, including your responses to clarifications CLR-TSC-2026-0000871-X and CLR-TSC-2026-0000944-7.`,
+                body: `<h3>Reasons${sw()}</h3><p>The payment schedule you provided shows KES 1,500,000 paid for Plot Kapsaret/Simat/1234 by 1 Apr 2026. Your declaration states KES 1,200,000. Your responses did not explain the difference of KES 300,000 or show proof of the payments made before that date.</p>
+                  <h3>What happens next${sw()}</h3><p>Your Commission may take administrative action. Any notice will appear under Notices on Adili Online, and you will get it by email and SMS.</p>`,
+              }),
+            ];
+          },
+        },
+        'decision-further-action': {
+          title: 'Decision letter: further action',
+          short: 'Compliance determination',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'decision-letter.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'CMP-TSC-2026-0004102-7',
+              code: 'ADL-W6DJ-3MHQ-T8ZC-K4NR-2PXA-5G',
+              ...letterDates('2026-09-24T12:30:00'),
+              decidedAt: '2026-09-24T12:30:00',
+            };
+          },
+          pages(m) {
+            return [
+              decisionLetter(m, {
+                tone: 'warn',
+                ic: 'arrowRight',
+                label: 'Further action',
+                intro: `The Commission has completed its review of your ${DECL.type} ${DECL.ref}, received on ${fmtDate(DECL.receivedAt)}.`,
+                body: `<p>The Commission has decided that your declaration needs further action. Your case stays open until that action is complete.${sw()}</p><p>If you need to do anything, the Commission will tell you by email and SMS, and it will appear under Notices on Adili Online.${sw()}</p>`,
+              }),
+            ];
+          },
+        },
+
+        /* ---------- #194 enforcement ladder letters ---------- */
+        notice: {
+          title: 'Notice to comply',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'notice-to-comply.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          variants: [
+            ['clarification', 'Clarification not answered'],
+            ['declaration', 'Declaration not filed'],
+          ],
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            return s.v === 'declaration'
+              ? {
+                  ref: 'ADM-TSC-2026-0000187-Q',
+                  code: 'ADL-C8RX-4NHW-6TQM-2PJB-9KDV-5E',
+                  ...letterDates('2026-09-21T10:00:00'),
+                  actBy: '2026-10-05',
+                }
+              : {
+                  ref: 'ADM-TSC-2026-0000233-K',
+                  code: 'ADL-P4WN-6YCB-J8LS-Q3FD-7TKM-2R',
+                  ...letterDates('2026-09-14T10:00:00'),
+                  actBy: '2026-09-28',
+                };
+          },
+          pages(m, s) {
+            const decl = s.v === 'declaration';
+            return [
+              ladderLetter(m, {
+                regarding: decl ? 'Initial declaration' : `<span class="mono">${LADDER_CLR}</span>`,
+                subj: decl
+                  ? 'Notice to comply: initial declaration not filed'
+                  : `Notice to comply: clarification ${LADDER_CLR} not answered`,
+                rows: [
+                  [
+                    'What happened',
+                    decl
+                      ? 'You have not filed your initial declaration, which was due on 2 Sep 2026 under the Conflict of Interest Act, 2025.'
+                      : `You did not respond to the Commission's request for clarification ${LADDER_CLR} of 10 Aug 2026 within 30 days, as section 35(3) of the Conflict of Interest Act, 2025 requires.`,
+                  ],
+                  [
+                    'What you must do',
+                    decl
+                      ? 'File your initial declaration on Adili Online.'
+                      : `Respond to clarification ${LADDER_CLR} on Adili Online.`,
+                  ],
+                  [
+                    'By when',
+                    `<span class="big-date">${m.preview ? '14 days after the date of issue' : fmtDate(m.actBy)}</span>`,
+                  ],
+                  [
+                    'If you do not act',
+                    'The Commission may issue a warning. Failing to submit information the Act requires within the prescribed period is an offence under section 38.',
+                  ],
+                  [
+                    'How to respond',
+                    `${howRespond(m.ref, 'Notices')} Your response is recorded for the Commission but does not by itself stop this action.`,
+                  ],
+                ],
+              }),
+            ];
+          },
+        },
+        warning: {
+          title: 'Warning',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'warning.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'ADM-TSC-2026-0000301-3',
+              code: 'ADL-2HRM-X7GK-N5TZ-V9EA-4QWC-8J',
+              ...letterDates('2026-09-16T10:00:00'),
+              actBy: '2026-09-30',
+            };
+          },
+          pages(m) {
+            return [
+              ladderLetter(m, {
+                regarding: `<span class="mono">${LADDER_CLR}</span>`,
+                subj: `Warning: clarification ${LADDER_CLR} not answered`,
+                rows: [
+                  [
+                    'What happened',
+                    `You did not act on the notice to comply ADM-TSC-2026-0000233-K of 31 Aug 2026. The request for clarification ${LADDER_CLR} of 27 Jul 2026 is still not answered.`,
+                  ],
+                  ['What you must do', `Respond to clarification ${LADDER_CLR} on Adili Online.`],
+                  [
+                    'By when',
+                    `<span class="big-date">${m.preview ? '14 days after the date of issue' : fmtDate(m.actBy)}</span>`,
+                  ],
+                  ['If you do not act', 'The Commission may stop your salary until you comply.'],
+                  [
+                    'How to respond',
+                    `${howRespond(m.ref, 'Notices')} Your response is recorded for the Commission but does not by itself stop this action.`,
+                  ],
+                ],
+              }),
+            ];
+          },
+        },
+        stoppage: {
+          title: 'Salary stoppage letter',
+          short: 'Salary stoppage',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'salary-stoppage.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'ADM-TSC-2026-0000358-W',
+              code: 'ADL-8CQE-4NWT-R2JH-M6KY-3DXP-7B',
+              ...letterDates('2026-09-22T15:00:00'),
+              effective: '2026-09-30',
+            };
+          },
+          pages(m) {
+            return [
+              ladderLetter(m, {
+                regarding: `<span class="mono">${LADDER_CLR}</span>`,
+                subj: `Salary stoppage: clarification ${LADDER_CLR} not answered`,
+                banner: `<div class="banner danger">${icon('ban', 18)}<div>Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.${sw()}</div></div>`,
+                rows: [
+                  [
+                    'What happened',
+                    `You did not act on the notice to comply ADM-TSC-2026-0000233-K of 14 Aug 2026 or the warning ADM-TSC-2026-0000301-3 of 1 Sep 2026. The request for clarification ${LADDER_CLR} of 10 Jul 2026 is still not answered.`,
+                  ],
+                  ['Salary stopped from', `<span class="big-date">${fmtDate(m.effective)}</span>`],
+                  [
+                    'Payroll instruction',
+                    m.preview
+                      ? 'Sent to payroll when this action is approved.'
+                      : `${m.ref}, sent to the ${m.org.name} payroll for TSC No. ${JK.file}. Acknowledged on 22 Sep 2026 (payroll reference PAY-ACK-2026-0108112).`,
+                  ],
+                  [
+                    'What you must do',
+                    `Respond to clarification ${LADDER_CLR} on Adili Online. Your salary is reinstated automatically once you do.`,
+                  ],
+                  ['How to respond', howRespond(m.ref, 'Notices')],
+                ],
+              }),
+            ];
+          },
+        },
+        reinstatement: {
+          title: 'Salary reinstatement letter',
+          short: 'Salary reinstatement',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'salary-reinstatement.v1 (proposed)',
+          level: 'restricted',
+          org: ORG.TSC,
+          gap: 'Spec 08 defines a reinstatement notification (email, SMS) but no letter template or document type.',
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'ADM-TSC-2026-0000358-W-R',
+              code: 'ADL-R2VK-7MQT-4XHC-9PDW-3JNE-6A',
+              ...letterDates('2026-09-23T07:35:00'),
+              previewRef: 'ADM-TSC-2026-0000358-W-R',
+            };
+          },
+          pages(m) {
+            return [
+              ladderLetter(m, {
+                regarding: '<span class="mono">ADM-TSC-2026-0000358-W</span>',
+                subj: 'Salary reinstatement: ADM-TSC-2026-0000358-W',
+                banner: `<div class="banner ok">${icon('check', 18, 2.2)}<div>Your salary reinstatement was sent to payroll on 22 Sep 2026 (reference ADM-TSC-2026-0000358-W-R).${sw()}</div></div>`,
+                rows: [
+                  [
+                    'Why',
+                    `You responded to clarification ${LADDER_CLR} on 22 Sep 2026. The notice to comply, warning and salary stoppage are closed as complied.`,
+                  ],
+                  ['Salary stopped', 'From 31 Aug 2026 under ADM-TSC-2026-0000358-W.'],
+                  [
+                    'Payroll',
+                    m.preview
+                      ? 'Acknowledgement recorded when payroll confirms.'
+                      : 'Acknowledged on 23 Sep 2026 (payroll reference PAY-ACK-2026-0108433).',
+                  ],
+                  ['Effective', '<span class="big-date">30 Sep 2026</span>'],
+                  [
+                    'What you must do',
+                    'Nothing. The Commission is still reviewing your clarification response and will write to you if it needs more.',
+                  ],
+                ],
+              }),
+            ];
+          },
+        },
+        disciplinary: {
+          title: 'Disciplinary referral letter',
+          short: 'Disciplinary referral',
+          group: 'Determination and actions',
+          tickets: [194],
+          template: 'disciplinary-referral.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          access: 'The declarant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'ADM-TSC-2026-0000402-B',
+              code: 'ADL-5LTA-9PVR-C3XW-B7GU-6HNQ-2K',
+              ...letterDates('2026-09-15T11:00:00'),
+            };
+          },
+          pages(m) {
+            return [
+              ladderLetter(m, {
+                regarding: `<span class="mono">${LADDER_CLR}</span>`,
+                subj: `Disciplinary referral: clarification ${LADDER_CLR} not answered`,
+                rows: [
+                  [
+                    'What happened',
+                    `The request for clarification ${LADDER_CLR} of 22 May 2026 is still not answered. The Commission issued:<br />· notice to comply ADM-TSC-2026-0000233-K on 26 Jun 2026<br />· warning ADM-TSC-2026-0000301-3 on 14 Jul 2026<br />· salary stoppage ADM-TSC-2026-0000358-W on 12 Aug 2026, effective 31 Aug 2026`,
+                  ],
+                  [
+                    'Decision',
+                    'The Commission has referred you to your employer, the Teachers Service Commission, for disciplinary proceedings. Your employer runs that process and will contact you.',
+                  ],
+                  ['Your salary', 'Remains stopped until you comply.'],
+                  [
+                    'What you must do',
+                    `Respond to clarification ${LADDER_CLR} on Adili Online. Complying reinstates your salary automatically.`,
+                  ],
+                  [
+                    'How to respond',
+                    `${howRespond(m.ref, 'Notices')} Your response is recorded for the Commission.`,
+                  ],
+                ],
+              }),
+            ];
+          },
+        },
+
+        /* ---------- #194 referral package (Confidential) ---------- */
+        'referral-package': {
+          title: 'EACC referral package',
+          short: 'Referral to EACC · evidence package',
+          group: 'Determination and actions',
+          tickets: [194, 218],
+          template: 'referral-package.v1',
+          level: 'confidential',
+          org: ORG.PSC,
+          access:
+            'EACC analysts and EACC supervisors, and the referring Commission. Download is recorded.',
+          payload: 'None. The verify page shows validity only.',
+          meta() {
+            return {
+              ref: 'RFL-PSC-2026-0000031-B',
+              code: 'ADL-4RDM-7XHQ-2WCP-9KTB-6NJF-3E',
+              ...letterDates('2026-09-10T11:32:00'),
+              previewRef: 'RFL-PSC-2026-•••••••-•',
+            };
+          },
+          pages(m) {
+            const approved = m.preview
+              ? '<span class="muted2">Awaiting supervisor approval</span>'
+              : 'Lucy Wambui, Supervisor, on 10 Sep 2026 at 11:32';
+            const items = packageItems(m);
+            return [
+              `${lh(m.org)}
+              <div class="doc-h"><div class="t1" role="heading" aria-level="2">Referral to the Ethics and Anti-Corruption Commission${sw()}</div><div class="doc-sub">Evidence package · cover sheet</div></div>
+              ${meta(
+                `<b>The Secretary / Chief Executive Officer</b><br />Ethics and Anti-Corruption Commission<br />Integrity Centre, Nairobi<br />Through Adili Online, EACC referrals`,
+                [
+                  ['Ref', `<span class="mono">${m.ref}</span>`],
+                  ['Date', m.preview ? 'Date of approval' : fmtDate(m.issuedAt)],
+                  ['Grounds', 'Undeclared assets'],
+                ],
+              )}
+              ${facts([
+                [
+                  'Legal basis',
+                  'Regulation 20(1)(c): "refer to the Commission, any cases of undeclared or unexplained assets liable for forfeiture".',
+                ],
+                [
+                  'Public officer',
+                  '<b>Daniel Ochieng Otieno</b><br />National ID 22871604 · Personnel file 20000917<br />Deputy County Commissioner, Ministry of Interior and National Administration',
+                ],
+                ['Declaration', '<span class="mono">DCB-PSC-2026-0000917-I</span>'],
+                [
+                  'Summary',
+                  'Two parcels registered to the declarant are not declared; the response did not explain them.',
+                ],
+                [
+                  'Supporting flag',
+                  'Land parcel not declared (high). Ardhisasa lists 2 parcels registered to the declarant; not in the declaration.',
+                ],
+                [
+                  'Clarification',
+                  '<span class="mono">CLR-PSC-2026-0000150-H</span>, responded 11 May 2026.',
+                ],
+                ['Proposed by', 'Mercy Nyambura, Reviewer, on 3 Sep 2026'],
+                ['Approved by', approved],
+                [
+                  'Package',
+                  `${items.length} documents, listed with their SHA-256 hashes on page 2.`,
+                ],
+              ])}
+              <div class="conf-note"><b>Confidential.</b> The public officer has not been told about this referral. Use it only for investigation and do not disclose it. The public verify page shows only whether this document is valid.${sw()}</div>`,
+              `<h2 style="margin-top:0">Manifest${sw()}</h2>
+              <p>Each document is attached to this PDF. The hash is the SHA-256 of the file as issued; recompute it to confirm nothing changed.</p>
+              <table class="ft"><thead><tr><th class="n">No</th><th>Document</th><th>Reference</th><th>Date</th><th class="num">Pages</th><th style="width:52mm">SHA-256</th></tr></thead>
+              <tbody>${items.map((it, i) => `<tr><td class="n">${i + 1}</td><td>${it.kind}${it.sub ? `<span class="sub">${it.sub}</span>` : ''}</td><td class="mono" style="white-space:nowrap;font-size:7pt">${it.ref}</td><td style="white-space:nowrap">${it.date}</td><td class="num">${it.pages}</td><td>${it.self ? '<span class="sub">This cover sheet. Its hash is in the verification record, not printed here.</span>' : `<span class="hashc">${it.hash.slice(0, 32)}<br />${it.hash.slice(32)}</span>`}</td></tr>`).join('')}</tbody></table>
+              <div class="record"><div class="h">Package integrity</div><dl>
+                <dt>Documents</dt><dd>${items.length} (${items.reduce((a, b) => a + b.pages, 0)} pages)</dd>
+                <dt>Manifest hash</dt><dd>${m.preview ? 'Computed on approval' : `<span class="hashc">${sha('manifest' + m.ref)}</span>`}</dd>
+                <dt>Download</dt><dd>EACC analysts and EACC supervisors only. Every download is recorded.</dd>
+              </dl></div>
+              <div class="sign" style="margin-top:8mm"><div class="fine">Issued by the Public Service Commission through Adili Online when the referral ${m.preview ? 'is' : 'was'} approved.</div>${sealBox(m)}</div>`,
+            ];
+          },
+        },
+
+        /* ---------- #218 Form M ---------- */
+        'form-m': {
+          title: 'Form M compliance report',
+          short: 'Form M · FY 2025/2026',
+          group: 'Form M and EACC',
+          tickets: [218],
+          template: 'form-m.v1',
+          level: 'restricted',
+          org: ORG.PSC,
+          variants: [
+            ['late', 'Submitted late'],
+            ['ontime', 'Submitted on time'],
+          ],
+          access:
+            'The Commission (supervisor, commission admin, reporting officer) and EACC analysts and supervisors.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            const on = s.v === 'ontime';
+            return {
+              ref: 'RPT-PSC-2025-0000001-K',
+              code: 'ADL-K7PX-3QMW-9RTD-2HVC-5NBJ-8E',
+              ...letterDates(on ? '2026-07-28T11:20:00' : '2026-09-26T10:30:00'),
+              late: !on,
+              compiled: on ? '2026-07-27' : '2026-09-25',
+              previewRef: 'Allocated on submission',
+              previewWord: 'Draft',
+            };
+          },
+          pages(m) {
+            return formMPages(m);
+          },
+        },
+        'form-m-receipt': {
+          title: 'Form M receipt',
+          short: 'Acknowledgement of receipt',
+          group: 'Form M and EACC',
+          tickets: [218],
+          template: 'compliance-report-receipt.v1',
+          level: 'restricted',
+          org: ORG.EACC,
+          variants: [
+            ['late', 'Received late'],
+            ['ontime', 'Received on time'],
+          ],
+          access:
+            'The Commission (supervisor, commission admin, reporting officer) and EACC analysts and supervisors.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            const on = s.v === 'ontime';
+            return {
+              ref: 'RPT-PSC-2025-0000001-K',
+              code: 'ADL-T4HN-8WQC-2MXK-6RPD-9JBV-3Q',
+              ...letterDates(on ? '2026-07-28T11:20:14' : '2026-09-26T10:30:14'),
+              late: !on,
+              previewRef: 'Allocated on submission',
+            };
+          },
+          pages(m) {
+            const hash = sha('RPT-PSC-2025-0000001-K form-m.v1');
+            return [
+              `${lh(m.org)}
+              <div class="doc-h"><div class="t1" role="heading" aria-level="2">Acknowledgement of receipt${sw()}</div><div class="doc-sub">Compliance report (Form M) under regulation 25(2)</div></div>
+              ${meta(
+                '<b>The Accounting Officer</b><br />Public Service Commission<br />Commission House, Harambee Avenue<br />Nairobi',
+                [
+                  ['Ref', `<span class="mono">${m.ref}</span>`],
+                  ['Date', m.preview ? 'Date of receipt' : fmtDate(m.issuedAt)],
+                ],
+              )}
+              <dl class="skv">
+                <dt>Responsible Commission${sw()}</dt><dd>Public Service Commission (PSC)</dd>
+                <dt>Report${sw()}</dt><dd>Form M, financial year 2025/2026 (1 Jul 2025 to 30 Jun 2026)</dd>
+                <dt>Received${sw()}</dt><dd>${m.preview ? 'On submission' : `${fmtDate(m.issuedAt)}, ${hms(m.issuedAt)} EAT`}</dd>
+                <dt>Deadline${sw()}</dt><dd>31 Jul 2026</dd>
+                <dt>Filing${sw()}</dt><dd>${m.late ? '<span class="late">LATE</span>Received 57 days after the deadline' : 'On time'}</dd>
+                <dt>Submitted by${sw()}</dt><dd>Daniel Kiprop, Accounting Officer (delegated), through Adili Online</dd>
+                <dt>Content hash${sw()}</dt><dd><span class="hashc" style="font-size:7.6pt">${hash.slice(0, 32)}<br />${hash.slice(32)}</span><span class="fine" style="display:block;margin-top:1mm">SHA-256 of the form-m.v1 document as received</span></dd>
+                <dt>Form M PDF${sw()}</dt><dd>Verification code <span class="mono">ADL-K7PX-3QMW-9RTD-2HVC-5NBJ-8E</span></dd>
+              </dl>
+              <p>The Ethics and Anti-Corruption Commission acknowledges receipt of the compliance report above. The hash identifies the exact content received; any change to the report would change it.${sw()}</p>
+              <p class="fine">This receipt confirms the time of receipt and the content received. It does not confirm that the report is complete or correct.</p>
+              <div style="display:flex;justify-content:flex-end;margin-top:6mm">${sealBox(m)}</div>`,
+            ];
+          },
+        },
+
+        /* ---------- #218 NCR ---------- */
+        ncr: {
+          title: 'National consolidated report',
+          short: 'National consolidated report · FY 2025/2026',
+          group: 'Form M and EACC',
+          tickets: [218],
+          template: 'ncr.v1',
+          level: 'restricted',
+          org: ORG.EACC,
+          access: 'EACC analysts and EACC supervisors.',
+          payload: 'Reference, type, issuer, issue date',
+          meta() {
+            return {
+              ref: 'NCR-EACC-2025-0000001-Q',
+              code: 'ADL-9QWM-4KTX-7HCP-2RDN-6VBJ-5M',
+              ...letterDates('2026-09-25T16:40:00'),
+              previewRef: 'Allocated on approval',
+              previewWord: 'Draft',
+            };
+          },
+          pages(m) {
+            return ncrPages(m);
+          },
+        },
+
+        /* ---------- spec 10 (#258 #260 #265 #269 #304) access documents ---------- */
+        'access-decision': {
+          title: 'Access decision letter',
+          short: 'Decision on an access request',
+          group: 'Access requests',
+          tickets: [258, 260],
+          template: 'access-decision.v1',
+          level: 'restricted',
+          org: ORG.PSC,
+          variants: [
+            ['partial', 'Partially granted'],
+            ['grant', 'Granted'],
+            ['deny', 'Denied'],
+            ['cannot', 'Cannot identify'],
+          ],
+          gap: 'Spec 10 sends decisions as notifications (access-decision-applicant); documents.yaml has no access-decision type. Regulation 22(3) requires written notice with reasons, so a letter is proposed.',
+          access: 'The applicant (subject) and the Commission. Download is recorded.',
+          payload: 'Reference, type, issuer, issue date',
+          meta(s) {
+            const a = ARQ_L[s.v || 'partial'];
+            return {
+              ref: a.ref,
+              code: a.code,
+              ...letterDates(a.at),
+              a,
+              previewRef: a.ref,
+            };
+          },
+          pages(m, s) {
+            return accessDecisionPages(m, s.v || 'partial');
+          },
+        },
+        'access-package': {
+          title: 'Access package',
+          short: 'Disclosure package',
+          group: 'Access requests',
+          tickets: [258, 260, 265],
+          template: 'access-package.v1',
+          level: 'confidential',
+          window: true,
+          org: ORG.PSC,
+          variants: [
+            ['arq', 'Form K applicant'],
+            ['lea', 'Law enforcement'],
+          ],
+          access:
+            'Only the recipient named in the watermark, for 14 days. Every download is recorded in the access register.',
+          payload: 'None. The verify page shows validity only.',
+          meta(s) {
+            const p = PKG[s.v || 'arq'];
+            return {
+              ref: p.ref,
+              code: p.code,
+              ...letterDates(p.issuedAt),
+              p,
+              rwm: `${p.recipient} · ${p.ref} · ${fmtDate(p.issuedAt)}`,
+              previewRef: p.ref,
+              previewWord: 'Preview',
+            };
+          },
+          pages(m) {
+            return accessPackagePages(m);
+          },
+        },
+        'certified-copy': {
+          title: 'Certified copy',
+          short: 'Certified copy of a declaration',
+          group: 'Access requests',
+          tickets: [269, 304],
+          template: 'certified-copy.v1',
+          level: 'restricted',
+          org: ORG.TSC,
+          variants: [
+            ['portal', 'Requested on the portal'],
+            ['in-person', 'In person, by a representative'],
+          ],
+          access: 'The declarant (subject). Download is recorded as self-access.',
+          payload: 'Reference, type, issuer, issue date, version',
+          meta(s) {
+            const c = CERT[s.v || 'portal'];
+            return {
+              org: c.org,
+              ref: c.ref,
+              code: c.code,
+              version: c.version,
+              ...letterDates(c.issuedAt),
+              c,
+              previewRef: c.ref,
+            };
+          },
+          pages(m) {
+            return certifiedCopyPages(m);
+          },
+        },
+        'lea-response': {
+          title: 'Law enforcement response',
+          short: 'Law enforcement request',
+          group: 'Access requests',
+          tickets: [265],
+          template: 'lea-response.v1',
+          level: 'confidential',
+          org: ORG.PSC,
+          variants: [
+            ['grant', 'Granted'],
+            ['deny', 'Denied'],
+          ],
+          gap: 'Spec 10 tells the agency by notification (lea-grant-notice, LEA decision); documents.yaml has no lea-response type. A written response is proposed for the agency file.',
+          access: 'The requesting officer (subject) and the Commission. Download is recorded.',
+          payload: 'None. The verify page shows validity only.',
+          meta(s) {
+            const l = LEA_L[s.v || 'grant'];
+            return { ref: l.ref, code: l.code, ...letterDates(l.at), l, previewRef: l.ref };
+          },
+          pages(m, s) {
+            return leaResponsePages(m, s.v || 'grant');
+          },
+        },
+
+        /* ---------- spec 09b (#297) open-data manifest ---------- */
+        'open-data-manifest': {
+          title: 'Open-data release manifest',
+          short: 'Open-data release manifest',
+          group: 'Open data',
+          tickets: [297],
+          template: 'open-data-manifest.v1',
+          level: 'public',
+          mark: false,
+          org: ORG.EACC,
+          variants: [
+            ['annual', 'Annual release'],
+            ['snapshot', 'Mid-year snapshot'],
+          ],
+          access: 'Anyone. Linked from the open-data page and the public API.',
+          payload: 'The full manifest: release, files and hashes',
+          meta(s) {
+            const r = ODM[s.v || 'annual'];
+            return {
+              ref: r.id,
+              code: r.code,
+              version: r.version,
+              ...letterDates(r.publishedAt),
+              r,
+              previewRef: r.id,
+              previewWord: 'Preview',
+              revokedNote: 'Withdrawn · 26 Sep 2026',
+            };
+          },
+          pages(m) {
+            return manifestPages(m);
+          },
+        },
+      };
+
+      /* ============================== spec 10 access documents ============================== */
+      // Data matches apps/console/prototype/10-access.prototype.html and apps/portal/prototype/access-requests.prototype.html.
+      const PSC_ACCESS_SIGN = {
+        name: 'Lucy Wambui',
+        title: 'Access officer',
+        for: 'For: Secretary / Chief Executive Officer',
+      };
+      const SECL = {
+        bio: 'Personal details',
+        income: 'Income',
+        assets: 'Assets',
+        liabilities: 'Liabilities',
+        other: 'Other information',
+      };
+      const REG24 = {
+        'public-interest': [
+          'a',
+          'the disclosure of any information contained in the declaration or clarification would be against public interest',
+        ],
+        'prejudice-proceeding': [
+          'b',
+          'the access to the information contained in the declaration or clarification may prejudice an ongoing proceeding or investigation by the responsible Commission or a law enforcement agency',
+        ],
+        'frivolous-vexatious': ['c', 'the request is frivolous, vexatious or scandalous'],
+        'not-objectives': [
+          'd',
+          'the reason for the access of the information contained in the declaration or clarification does not promote the objectives of the Act',
+        ],
+      };
+      const ppl = (s) =>
+        s.spouses && s.children
+          ? 'Officer, spouses and children'
+          : s.spouses
+            ? 'Officer and spouses'
+            : s.children
+              ? 'Officer and children'
+              : 'Officer only';
+      const secs = (s) =>
+        ['bio', 'income', 'assets', 'liabilities', 'other']
+          .filter((k) => s.sections.includes(k))
+          .map((k, i) => (i ? SECL[k].toLowerCase() : SECL[k]))
+          .join(', ');
+      const scopeLine = (s) =>
+        `${s.years.join(', ')} · ${ppl(s)} · ${secs(s)}${s.clar ? ' · clarifications' : ''}`;
+      const ALL_SECS = ['bio', 'income', 'assets', 'liabilities', 'other'];
+      const MERCY_TO =
+        '<b>Mercy Wanjiku Kamau</b><br />Othaya Road, Kileleshwa<br />P.O. Box 49010-00100, Nairobi<br />mercy.kamau@gmail.com';
+      const ARQ_L = {
+        partial: {
+          ref: 'ARQ-PSC-2026-0000118-3',
+          code: 'ADL-7TCM-R2KD-44PW-HQ8N-3XFB-6C',
+          at: '2026-09-20T11:45:00',
+          received: '2026-08-24T13:30:00',
+          to: MERCY_TO,
+          salute: 'Ms Kamau',
+          officer: 'Anne Njeri Mutua',
+          officerTitle:
+            'Director, Land Administration, State Department for Lands and Physical Planning',
+          outcome: 'partial',
+          requested: {
+            years: [2025, 2026],
+            spouses: true,
+            children: true,
+            sections: ['income', 'assets', 'liabilities'],
+            clar: true,
+          },
+          granted: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['assets', 'liabilities'],
+            clar: true,
+          },
+          grounds: ['public-interest'],
+          reasons:
+            'The request for land holdings is in furtherance of the objectives of the Act. Income and the declarations of the officer’s children are not needed for that purpose and disclosing them would be against the public interest. The 2025 declaration predates the re-allocations and is not granted.',
+          expires: '2026-10-04T11:48:00',
+        },
+        grant: {
+          ref: 'ARQ-PSC-2026-0000097-M',
+          code: 'ADL-3KQ8-W7PD-HM2R-9XTA-5NCE-2J',
+          at: '2026-09-25T14:10:00',
+          received: '2026-08-26T08:50:00',
+          to: MERCY_TO,
+          salute: 'Ms Kamau',
+          officer: 'Daniel Otieno Were',
+          officerTitle: 'Director, Water Infrastructure, State Department for Water and Sanitation',
+          outcome: 'grant',
+          requested: {
+            years: [2026],
+            spouses: false,
+            children: false,
+            sections: ['assets', 'other'],
+            clar: false,
+          },
+          granted: {
+            years: [2026],
+            spouses: false,
+            children: false,
+            sections: ['assets', 'other'],
+            clar: false,
+          },
+          grounds: [],
+          reasons:
+            'The applicant shows a legitimate interest as a journalist reporting on the use of public funds, and good cause in furtherance of the objectives of the Act. The officer consented to the disclosure.',
+          expires: '2026-10-09T14:13:00',
+        },
+        deny: {
+          ref: 'ARQ-PSC-2026-0000088-4',
+          code: 'ADL-9DHV-2QMK-7WRT-4CXP-8NBF-1A',
+          at: '2026-09-18T16:20:00',
+          received: '2026-08-19T09:00:00',
+          to: MERCY_TO,
+          salute: 'Ms Kamau',
+          officer: 'Beatrice Chebet Rotich',
+          officerTitle: 'Director, Mining Licences, State Department for Mining',
+          outcome: 'deny',
+          requested: {
+            years: [2026],
+            spouses: true,
+            children: true,
+            sections: ALL_SECS,
+            clar: true,
+          },
+          grounds: ['prejudice-proceeding'],
+          reasons:
+            'The officer’s declaration is the subject of an ongoing investigation by the Commission. Disclosure now may prejudice that investigation.',
+        },
+        cannot: {
+          ref: 'ARQ-PSC-2026-0000109-3',
+          code: 'ADL-6PWX-3KTD-8MQC-2HRN-5VJA-7G',
+          at: '2026-09-19T10:40:00',
+          received: '2026-09-08T16:10:00',
+          to: '<b>Esther Nduta Gikonyo</b><br />Kiambu<br />P.O. Box 30100-00100, Nairobi<br />esther.gikonyo@mail.co.ke',
+          salute: 'Ms Gikonyo',
+          outcome: 'cannot',
+          sought: 'Dr Achieng, Kenyatta National Hospital, Casualty',
+          note: 'No roster record matches. Kenyatta National Hospital staff are not on the PSC roster.',
+        },
+      };
+      function groundsBlock(gs) {
+        return `<ol class="items">${gs.map((g, i) => `<li><span class="n">${REG24[g][0]}</span><div><div class="it">Regulation 24(${REG24[g][0]})${sw()}</div><p>&ldquo;${REG24[g][1]}&rdquo;</p></div></li>`).join('')}</ol>`;
+      }
+      function scopeTable(req, gr) {
+        const row = (k, a, b) =>
+          `<tr><th scope="row">${k}</th><td>${a}</td>${gr ? `<td>${b}</td>` : ''}</tr>`;
+        const yes = (v) => (v ? 'Included' : 'Not included');
+        return `<table class="ft"><thead><tr><th style="width:30mm"></th><th>You asked for${sw()}</th>${gr ? `<th>Granted${sw()}</th>` : ''}</tr></thead><tbody>
+          ${row('Years', req.years.join(', '), gr ? gr.years.join(', ') : '')}
+          ${row('People', ppl(req), gr ? ppl(gr) : '')}
+          ${row('Sections', secs(req), gr ? secs(gr) : '')}
+          ${row('Clarifications', yes(req.clar), gr ? yes(gr.clar) : '')}
+        </tbody></table>`;
+      }
+      function accessDecisionPages(m, v) {
+        const a = m.a;
+        const date = m.preview ? 'Date of issue' : fmtDate(m.issuedAt);
+        const head = `${lh(m.org)}
+          ${meta(a.to, [
+            ['Ref', `<span class="mono">${m.ref}</span>`],
+            ['Date', date],
+            ['Received', fmtDate(a.received)],
+          ])}
+          <div class="subj">Your request to access a declaration: ${m.ref}${sw()}</div>
+          <p>Dear ${a.salute},</p>`;
+        if (v === 'cannot')
+          return [
+            `${head}
+            <p>The Commission received your request in Form K on ${fmtDate(a.received)} for the declaration of <b>${esc(a.sought)}</b>.${sw()}</p>
+            <div class="outcome warn"><span class="ic">${icon('userX', 20, 2.4)}</span><div class="lbl">Outcome${sw()}</div><div class="v">Officer could not be identified</div></div>
+            <p>The Commission must identify the officer named in Part II of your Form K on its roster before it can consider the request. ${esc(a.note)}${sw()}</p>
+            <p>Your request is now closed. You may make a new request with more details, such as the entity, work station or personnel file number, or apply to the Responsible Commission for that officer.${sw()}</p>
+            <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+            ${sign(m, PSC_ACCESS_SIGN)}`,
+          ];
+        const out =
+          v === 'partial'
+            ? ['warn', 'check', 'Partially granted']
+            : v === 'grant'
+              ? ['ok', 'check', 'Granted']
+              : ['danger', 'x', 'Denied'];
+        const p1 = `${head}
+          <p>The Commission has decided your request under section 36(1) of the Conflict of Interest Act, 2025, to access the declaration of <b>${esc(a.officer)}</b>, ${esc(a.officerTitle)}.${sw()}</p>
+          <div class="outcome ${out[0]}"><span class="ic">${icon(out[1], 20, 2.6)}</span><div class="lbl">Decision${sw()}</div><div class="v">${out[2]}</div></div>
+          <h3>Scope${sw()}</h3>
+          ${scopeTable(a.requested, v === 'deny' ? null : a.granted)}
+          ${a.grounds.length ? `<h3>Grounds under Regulation 24${sw()}</h3><p>The Commission ${v === 'deny' ? 'declined' : 'declined part of'} your request on these grounds:</p>${groundsBlock(a.grounds)}` : ''}
+          <h3>Reasons${sw()}</h3><p>${esc(a.reasons)}</p>`;
+        const p2 =
+          v === 'deny'
+            ? `<h3 style="margin-top:0">What you can do${sw()}</h3>
+              <p>This decision is final. You may seek relief from the court.${sw()}</p>
+              <p>The public officer has been told of this decision.${sw()}</p>
+              <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+              ${sign(m, PSC_ACCESS_SIGN)}`
+            : `<h3 style="margin-top:0">How to get the package${sw()}</h3>
+              <ol class="steps"><li>Sign in to Adili Online at adili.go.ke with your applicant account.</li><li>Open My requests and select <b>${m.ref}</b>.</li><li>Download the package. It contains only the scope granted above.</li></ol>
+              <div class="banner warn">${icon('calendar', 18)}<div>Download by ${m.preview ? '14 days after the date of issue' : fmtDate(a.expires)}${sw()}<span class="s">After that date the package can no longer be downloaded.</span></div></div>
+              <div class="conf-note"><b>Your responsibility.</b> Every page of the package carries your name, this reference and the date of issue. Publishing or sharing the information disclosed is an offence under section 36(4) of the Act.${sw()}</div>
+              <p style="margin-top:5mm">This decision is final. The public officer has been told of it.${sw()}</p>
+              <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+              ${sign(m, PSC_ACCESS_SIGN)}`;
+        return [p1, p2];
+      }
+
+      const PKG = {
+        arq: {
+          ref: 'ARQ-PSC-2026-0000118-3',
+          code: 'ADL-7TCM-R2KD-44PW-HQ8N',
+          issuedAt: '2026-09-20T11:48:00',
+          expires: '2026-10-04T11:48:00',
+          recipient: 'Mercy Wanjiku Kamau',
+          recipientTo: MERCY_TO,
+          basis: 'Section 36(1) of the Act. Decision of 20 Sep 2026 (partially granted).',
+          officer:
+            '<b>Anne Njeri Mutua</b><br />Director, Land Administration, State Department for Lands and Physical Planning',
+          decl: 'DCB-PSC-2026-0087340-5',
+          declType: 'Biennial declaration 2026',
+          stmt: '2026-03-01',
+          granted: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['assets', 'liabilities'],
+            clar: true,
+          },
+          withheld: '2025 declaration; children; income; personal details; other information',
+          people: [
+            {
+              who: 'Anne Njeri Mutua (officer)',
+              assets: [
+                ['Land', 'Ruiru/Kiu Block 2/1184, 0.25 acres, Kiambu. Acquired 2019.', 4800000],
+                ['Building', 'Residential house, Kajiado/Kitengela/48812.', 9500000],
+                ['Vehicle', 'Toyota Land Cruiser Prado, KDH 441M.', 5200000],
+                ['Shares', 'Safaricom PLC, 12,000 shares.', 216000],
+                ['Bank deposits', 'KCB Bank, savings account.', 1340000],
+              ],
+              liabilities: [
+                ['Mortgage', 'HFC Limited, house in Kitengela.', 3850000],
+                ['Vehicle loan', 'Stanbic Bank Kenya.', 1120000],
+              ],
+            },
+            {
+              who: 'Joseph Mutua Kilonzo (spouse)',
+              assets: [
+                ['Land', 'Machakos/Mua Hills/2211, 1 acre.', 2100000],
+                ['Business interest', '40% of Kilonzo Hardware Ltd, Machakos.', 1800000],
+              ],
+              liabilities: [['Overdraft', 'Equity Bank Kenya.', 250000]],
+            },
+          ],
+          clar: {
+            ref: 'CLR-PSC-2026-0000233-8',
+            q: 'Explain the value of Ruiru/Kiu Block 2/1184. The declared value is higher than the purchase price in the transfer.',
+            a: 'I bought the parcel in 2019 for KES 1,200,000. The value declared is from a 2026 valuation report, which I attached.',
+          },
+        },
+        lea: {
+          ref: 'LEA-PSC-2026-0000006-2',
+          code: 'ADL-L6QW-4NXC-8RTM-2KJD-7HBP-5A',
+          issuedAt: '2026-09-10T10:04:00',
+          expires: '2026-09-24T10:04:00',
+          recipient: 'Insp. Peter Kariuki (DCI)',
+          recipientTo:
+            '<b>Insp. Peter Kariuki</b><br />Directorate of Criminal Investigations<br />DCI Headquarters, Kiambu Road, Nairobi<br />Case DCI/ECU/098/2026',
+          basis: 'Section 36(2) of the Act and regulation 23. Decision of 10 Sep 2026 (granted).',
+          officer:
+            '<b>Joseph Kiprono Langat</b><br />Director, Supply Chain Management, State Department for Public Works',
+          decl: 'DCB-PSC-2026-0041187-2',
+          declType: 'Biennial declaration 2026',
+          stmt: '2026-03-01',
+          granted: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['income', 'assets', 'liabilities'],
+            clar: false,
+          },
+          withheld: 'Children; personal details; other information',
+          people: [
+            {
+              who: 'Joseph Kiprono Langat (officer)',
+              income: [
+                ['Salary', 'State Department for Public Works, gross for the year.', 3744000],
+                ['Rent', 'Two flats, Kericho town.', 360000],
+              ],
+              assets: [
+                ['Land', 'Kericho/Kapsoit/771, 3 acres, tea farm.', 6000000],
+                ['Building', 'Residential house, Mavoko Block 3/5521, Syokimau.', 14500000],
+                ['Vehicle', 'Toyota Harrier, KDG 208T.', 3900000],
+              ],
+              liabilities: [['Loan', 'Harambee Sacco, development loan.', 2400000]],
+            },
+            {
+              who: 'Nancy Chepkemoi Langat (spouse)',
+              income: [['Business', 'Chepkemoi Hardware, Kericho, net profit.', 1450000]],
+              assets: [['Business interest', 'Chepkemoi Hardware (sole proprietor).', 2300000]],
+              liabilities: [],
+            },
+          ],
+        },
+      };
+      const kes = (n) => `KES ${num(n)}`;
+      function holdings(title, rows) {
+        if (!rows) return '';
+        const total = rows.reduce((a, r) => a + r[2], 0);
+        return `<table class="ft"><caption>${title}${sw()}</caption><thead><tr><th style="width:30mm">Type</th><th>Description</th><th class="num" style="width:30mm">Value (KES)</th></tr></thead><tbody>${rows.length ? rows.map((r) => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td><td class="num">${num(r[2])}</td></tr>`).join('') + `<tr><td colspan="2" style="font-weight:600">Total</td><td class="num" style="font-weight:600">${num(total)}</td></tr>` : '<tr class="none"><td colspan="3">None declared</td></tr>'}</tbody></table>`;
+      }
+      function accessPackagePages(m) {
+        const p = m.p;
+        const lea = p.ref.startsWith('LEA');
+        const secsIn = p.granted.sections;
+        const person = (x) =>
+          `<h3>${esc(x.who)}${sw()}</h3>${secsIn.includes('income') ? holdings('Income', x.income) : ''}${secsIn.includes('assets') ? holdings('Assets', x.assets) : ''}${secsIn.includes('liabilities') ? holdings('Liabilities', x.liabilities) : ''}`;
+        return [
+          `${lh(m.org)}
+          <div class="doc-h"><div class="t1" role="heading" aria-level="2">Disclosure package${sw()}</div><div class="doc-sub">${lea ? 'Law enforcement request under section 36(2) of the Act' : 'Access request under section 36(1) of the Act'}</div></div>
+          ${meta(p.recipientTo, [
+            ['Ref', `<span class="mono">${m.ref}</span>`],
+            ['Issued', m.preview ? 'On issue' : fmtDate(m.issuedAt)],
+            ['Download until', m.preview ? '14 days after issue' : fmtDate(p.expires)],
+          ])}
+          ${facts([
+            ['Issued to', `<b>${esc(p.recipient)}</b>`],
+            ['Public officer', p.officer],
+            [
+              'Declaration',
+              `<span class="mono">${p.decl}</span><br />${p.declType}, statement date ${fmtDate(p.stmt)}`,
+            ],
+            ['Scope released', scopeLine(p.granted)],
+            ['Not released', p.withheld],
+            ['Legal basis', p.basis],
+          ])}
+          <div class="conf-note"><b>Confidential. Issued only to ${esc(p.recipient)}.</b> Every page carries the recipient's name, this reference and the date of issue. Publishing or sharing the information in this package is an offence under section 36(4) of the Act. The public verify page shows only whether this document is valid.${sw()}</div>
+          <div class="sign" style="margin-top:8mm"><div class="fine">Issued by the Public Service Commission through Adili Online when the request ${m.preview ? 'is' : 'was'} decided. ${p.people.length + 1} pages.</div>${sealBox(m)}</div>`,
+          ...p.people.map(
+            (x, i) =>
+              `${i === 0 ? `<h2 style="margin-top:0">${p.declType} · statement date ${fmtDate(p.stmt)}${sw()}</h2><p class="fine">Only the scope released is shown, rendered from the declaration as submitted.</p>` : ''}
+              ${person(x)}
+              ${i === p.people.length - 1 && p.clar && p.granted.clar ? `<h3>Clarification <span class="mono">${p.clar.ref}</span>${sw()}</h3><table class="facts"><tbody><tr><th scope="row">Commission asked</th><td>${esc(p.clar.q)}</td></tr><tr><th scope="row">Officer answered</th><td>${esc(p.clar.a)}</td></tr></tbody></table>` : ''}
+              ${i === p.people.length - 1 ? '<p class="fine" style="margin-top:4mm">End of disclosure.</p>' : ''}`,
+          ),
+        ];
+      }
+
+      const CERT = {
+        portal: {
+          org: ORG.TSC,
+          ref: 'DCI-TSC-2026-0003418-P',
+          code: 'ADL-C3TK-8WQM-2HXD-7RPN-4VJB-9F',
+          version: 2,
+          issuedAt: '2026-09-26T10:22:00',
+          submittedAt: '2026-05-12T19:40:00',
+          type: 'Initial declaration',
+          stmt: '2026-04-01',
+          signer: TSC_SIGN,
+          declarant: `<b>${JK.name}</b><br />${JK.designation}, TSC No. ${JK.file}<br />${JK.station}`,
+          requestedBy: 'The declarant, on Adili Online',
+          personal: [
+            ['Name', JK.name],
+            ['Designation', `${JK.designation}, ${JK.station}`],
+            ['Personnel file number', `TSC No. ${JK.file}`],
+            ['Marital status', 'Married'],
+            ['Spouse', 'Mary Wanjiru Kennedy'],
+            ['Dependent children', '2 (under 18)'],
+          ],
+          people: [
+            {
+              who: `${JK.name} (declarant)`,
+              income: [['Salary', 'Teachers Service Commission, gross for the year.', 1488000]],
+              assets: [
+                [
+                  'Land',
+                  'Kapsaret/Simat/1234, 0.5 acres, Uasin Gishu. Bought March 2026.',
+                  3500000,
+                ],
+                ['Building', 'Residential house, Eldoret Municipality Block 7/215.', 6200000],
+                ['Vehicle', 'Toyota Fielder, KCX 219Q.', 1150000],
+                ['Deposits', 'Mwalimu National SACCO, member deposits.', 640000],
+              ],
+              liabilities: [['Loan', 'Mwalimu National SACCO, balance on 1 Apr 2026.', 820000]],
+            },
+            {
+              who: 'Mary Wanjiru Kennedy (spouse)',
+              income: [['Rent', 'Shop lease, Eldoret town.', 420000]],
+              assets: [['Bank deposits', 'Equity Bank Kenya, savings account.', 185000]],
+              liabilities: [],
+            },
+          ],
+        },
+        'in-person': {
+          org: ORG.PSC,
+          ref: 'DCB-PSC-2026-0150662-4',
+          code: 'ADL-P8MQ-3KWD-6TXR-2HCN-9VJA-4B',
+          version: 1,
+          issuedAt: '2026-09-22T10:31:00',
+          submittedAt: '2026-03-14T11:20:00',
+          type: 'Biennial declaration 2026',
+          stmt: '2026-03-01',
+          signer: PSC_ACCESS_SIGN,
+          declarant:
+            '<b>Margaret Achieng Oduor</b><br />Senior Clerical Officer, file 20150662<br />Huduma Centre, Kisumu',
+          requestedBy:
+            'Paul Oduor Otieno, ID 31288045, representative with written authority dated 21 Sep 2026. Application recorded in person at PSC.',
+          personal: [
+            ['Name', 'Margaret Achieng Oduor'],
+            ['Designation', 'Senior Clerical Officer, State Department for Public Service'],
+            ['Personnel file number', '20150662'],
+            ['Marital status', 'Widowed'],
+            ['Dependent children', 'None'],
+          ],
+          people: [
+            {
+              who: 'Margaret Achieng Oduor (declarant)',
+              income: [
+                ['Salary', 'State Department for Public Service, gross for the year.', 612000],
+              ],
+              assets: [
+                ['Land', 'Kisumu/Kogony/3312, 0.125 acres.', 900000],
+                ['Deposits', 'Kenya Police SACCO, member deposits.', 210000],
+              ],
+              liabilities: [],
+            },
+          ],
+        },
+      };
+      function certifiedCopyPages(m) {
+        const c = m.c;
+        const hash = sha(`${c.ref} v${c.version} declaration.v1`);
+        const person = (x) =>
+          `<h3>${esc(x.who)}${sw()}</h3>${holdings('Income', x.income)}${holdings('Assets', x.assets)}${holdings('Liabilities', x.liabilities)}`;
+        return [
+          `${lh(m.org)}
+          <div class="doc-h"><div class="t1" role="heading" aria-level="2">Certified copy${sw()}</div><div class="doc-sub">Declaration of income, assets and liabilities</div></div>
+          <div class="record" style="margin:0 0 5mm;font-size:9.4pt;background:#f3faf5;border:0.3mm solid #b9dfc6"><b>Certificate.</b> The pages that follow are a true copy of version ${c.version} of declaration <span class="mono">${c.ref}</span>, as submitted by the declarant on ${fmtDate(c.submittedAt)} at ${hm(c.submittedAt)} and held unchanged in Adili Online.${sw()}</div>
+          ${facts([
+            ['Declarant', c.declarant],
+            ['Declaration', `${c.type}, statement date ${fmtDate(c.stmt)}`],
+            ['Version', `${c.version}, submitted ${dtm(c.submittedAt)}`],
+            [
+              'Content hash',
+              `<span class="hashc" style="font-size:7.4pt">${hash.slice(0, 32)}<br />${hash.slice(32)}</span><span class="fine" style="display:block;margin-top:1mm">SHA-256 of the declaration.v1 document as submitted</span>`,
+            ],
+            ['Requested by', esc(c.requestedBy)],
+            ['Issued', m.preview ? 'On issue' : dtm(m.issuedAt)],
+          ])}
+          <p class="fine">Issued as self-access under the Commission's administrative mechanisms and recorded in the access register. Anyone given this copy can check it with the code at the foot of each page.${sw()}</p>
+          ${sign(m, c.signer, 'Certified by,')}`,
+          `<h2 style="margin-top:0">Personal details${sw()}</h2>
+          <table class="facts"><tbody>${c.personal.map(([k, v]) => `<tr><th scope="row">${k}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>
+          ${person(c.people[0])}`,
+          ...(c.people.length > 1
+            ? [
+                `${c.people.slice(1).map(person).join('')}<p class="fine" style="margin-top:4mm">End of certified copy.</p>`,
+              ]
+            : []),
+        ];
+      }
+
+      const LEA_L = {
+        grant: {
+          ref: 'LEA-PSC-2026-0000006-2',
+          code: 'ADL-R6DW-2KQX-9MTC-4HPN-7JBV-3E',
+          at: '2026-09-10T10:00:00',
+          received: '2026-09-03T11:05:00',
+          caseRef: 'DCI/ECU/098/2026',
+          officer:
+            '<b>Joseph Kiprono Langat</b>, Director, Supply Chain Management, State Department for Public Works',
+          scope: {
+            years: [2026],
+            spouses: true,
+            children: false,
+            sections: ['income', 'assets', 'liabilities'],
+            clar: false,
+          },
+          reasons:
+            'Written request from a provisioned DCI account with a stated reason and case reference, for an ongoing investigation.',
+          expires: '2026-09-24T10:04:00',
+        },
+        deny: {
+          ref: 'LEA-PSC-2026-0000004-5',
+          code: 'ADL-K2PV-7WMD-3QXT-8HCR-5NJA-6D',
+          at: '2026-09-02T12:15:00',
+          received: '2026-08-22T15:30:00',
+          caseRef: 'DCI/LND/031/2025',
+          officer:
+            '<b>David Mutua Musyoka</b>, Senior Legal Officer, State Department for Lands and Physical Planning',
+          scope: {
+            years: [2025, 2026],
+            spouses: true,
+            children: true,
+            sections: ['assets'],
+            clar: false,
+          },
+          grounds: ['not-objectives'],
+          reasons:
+            'The ODPP closed file DCI/LND/031/2025 on 14 Jul 2026. The request does not show an ongoing investigation, so access would not promote the objectives of the Act.',
+        },
+      };
+      function leaResponsePages(m, v) {
+        const l = m.l;
+        const g = v === 'grant';
+        return [
+          `${lh(m.org)}
+          ${meta(
+            '<b>Insp. Peter Kariuki</b><br />Directorate of Criminal Investigations<br />DCI Headquarters, Kiambu Road<br />Nairobi',
+            [
+              ['Ref', `<span class="mono">${m.ref}</span>`],
+              ['Date', m.preview ? 'Date of issue' : fmtDate(m.issuedAt)],
+              ['Your ref', `<span class="mono">${l.caseRef}</span>`],
+            ],
+          )}
+          <div class="subj">Request for access to a declaration: ${m.ref}${sw()}</div>
+          <p>Dear Inspector Kariuki,</p>
+          <p>The Commission received your written request on ${fmtDate(l.received)} under section 36(2) of the Conflict of Interest Act, 2025 and regulation 23, for access to the declaration of ${l.officer}.${sw()}</p>
+          <div class="outcome ${g ? 'ok' : 'danger'}"><span class="ic">${icon(g ? 'check' : 'x', 20, 2.6)}</span><div class="lbl">Decision${sw()}</div><div class="v">${g ? 'Granted' : 'Denied'}</div></div>
+          ${facts([
+            [g ? 'Scope granted' : 'Scope requested', scopeLine(l.scope)],
+            ...(g
+              ? [
+                  [
+                    'Package',
+                    `Confidential, watermarked with your name. Download it in the Dials console under Requests by ${m.preview ? '14 days after issue' : fmtDate(l.expires)}.`,
+                  ],
+                ]
+              : []),
+            ...(!g
+              ? [
+                  [
+                    'Grounds',
+                    l.grounds
+                      .map((x) => `Regulation 24(${REG24[x][0]}): &ldquo;${REG24[x][1]}&rdquo;`)
+                      .join('<br />'),
+                  ],
+                ]
+              : []),
+            ['Reasons', esc(l.reasons)],
+          ])}
+          ${g ? `<p>As regulation 23(2) requires, the Commission has notified the public officer in writing of your request, after this decision.${sw()}</p>` : `<p>This decision is final.${sw()}</p>`}
+          <div class="conf-note"><b>Confidential.</b> Use this letter${g ? ' and the package' : ''} only for the investigation named above. Publishing or sharing the information is an offence under section 36(4) of the Act. The public verify page shows only whether this document is valid.${sw()}</div>
+          ${sign(m, PSC_ACCESS_SIGN)}`,
+        ];
+      }
+
+      /* ============================== spec 09b open-data manifest ============================== */
+      // Same release, versions and file hashes as apps/console/prototype/12-open-data.prototype.html.
+      const ODM_TABLES = [
+        ['filing-by-commission', 'Declarations by Commission'],
+        ['compliance-by-commission', 'Compliance by Commission'],
+        ['by-entity-type', 'By reporting entity type'],
+        ['by-cycle', 'By cycle'],
+        ['access-requests', 'Access requests'],
+        ['national-totals', 'National totals'],
+      ];
+      const ODM = {
+        annual: {
+          id: 'rel-2025-annual-1',
+          code: 'ADL-8KQD-3TWM-6HXC-2RPA-9VNF-4E',
+          version: 1,
+          kind: 'Annual',
+          asAt: '2026-06-30',
+          builtAt: '2026-09-18T15:10:00',
+          publishedAt: '2026-09-18T15:12:00',
+          by: 'Published automatically when the national consolidated report NCR-EACC-2025-0000001-Q was approved',
+          files: [
+            [
+              208,
+              40,
+              '57f2598c65c30454f2bd1034ebcd88a8f55caec6a4daf269d1e8dd586d6b664a',
+              'a0e5fbbbb4e3a88c439ac27623494ef43206f63c3d259bfe81bfc8e753fd40d4',
+            ],
+            [
+              52,
+              117,
+              '6502fe6d2480f51f22f56f55ea5de0e0c5a0729b5a53cf45593d5460aaff4317',
+              'b275b1d408bea22edd8b019c6333b56d0f95d270df21ddf594d602a4eb1464df',
+            ],
+            [
+              9,
+              4,
+              '7102e64da72edc1039fca3916a4f32d690a9f9838a63f2b8bad8e934099d87e0',
+              '087b4122e119382c8f9b921009ae1e7c02448374a7c6a4a743073009d12b6e3c',
+            ],
+            [
+              3,
+              0,
+              '6f0abd6660379706f6c5063fa49961267082885a7d13095e99ea268ce96bd540',
+              'e0b2c9c6d4869103d0aa79f89520e72b7254d7544b2ef23f631fa1216a85e6c2',
+            ],
+            [
+              52,
+              164,
+              '34ef53edf491a9f62336e916e2d8225d117e3c40ebea48491a900acc1d8b4b4a',
+              'd555fe9005b76763278efaac12daeb01f541a2f08e113f510207d2a00d2673f8',
+            ],
+            [
+              15,
+              0,
+              'f3c6f3a91581a287a88ac607deb68ccaba574e6c38cc3e0efb6d52944c87ff6f',
+              '344c43983c5614b35368e1da9ecb2d08a1a80938ed0b44aaf0bbcb759a710eae',
+            ],
+          ],
+        },
+        snapshot: {
+          id: 'rel-2025-snapshot-1',
+          code: 'ADL-5MRX-7QCK-1WHT-8DNP-3JFA-6B',
+          version: 1,
+          kind: 'Mid-year snapshot',
+          asAt: '2026-01-31',
+          builtAt: '2026-02-12T09:40:00',
+          publishedAt: '2026-02-16T10:05:00',
+          by: 'Built by Brian Otieno, EACC analyst. Published by Esther Chebet, EACC supervisor',
+          files: [
+            [
+              208,
+              40,
+              'a4c97c64bc0162e920b95876a3aab4a0b578b326444c5f23bd211daae1be0778',
+              '74de4ecce460d777ca287e5c146730c6faf68165c8043f0737f9f0b8cff2582e',
+            ],
+            [
+              52,
+              167,
+              '8bab547d10e1ab1a9c618249d708c9ed6d59acdc7be14d355c44e14881e3247d',
+              'bdfee540f4934b54fb90c0b0703173a0bf7128a3a50e0d2505b476400ceb8b4e',
+            ],
+            [
+              9,
+              5,
+              '08a130832a041337bf0a5e0abed3b3c213467a37e57860d4dedb3474be73f899',
+              '4ab1c8507c09e87571feac01a3564ccc2d938c8ebd3fb787124e939ef12a216b',
+            ],
+            [
+              3,
+              0,
+              '74e2c7221b47bba2f41c3d7e12d8c1ff5fc1449d201dcb3c9ba17b5f9c0d174e',
+              '36a2086a69ce1c2b358fdc9d001f47480f51c1d5d6b95d18a257fa99ce90a803',
+            ],
+            [
+              52,
+              139,
+              '5a685e2bf67ea6ec4d7e035f98bedece01b282351559244f1d3fc45a036805dc',
+              '52fcd9f970be73aaa47bd94ce0c70dd92f8b7eca833474649cd67405d9238199',
+            ],
+            [
+              15,
+              0,
+              '8bafd4cf2b671fd616e21120040df39e4076a2d2961062e59d58f03e1ded7de1',
+              '179009e6580afb31c3500da488d83021e396faace0ab8b54d1ddad8598e663fb',
+            ],
+          ],
+        },
+      };
+      function manifestPages(m) {
+        const r = m.r;
+        const hl = (lab, h) =>
+          `<div style="white-space:nowrap"><span class="muted2" style="display:inline-block;width:8mm;font-size:6.6pt">${lab}</span><span class="hashc" style="font-size:6.2pt;word-break:normal">${h}</span></div>`;
+        return [
+          `${lh(m.org)}
+          <div class="doc-h"><div class="t1" role="heading" aria-level="2">Open-data release manifest${sw()}</div><div class="doc-sub">FY 2025/2026 · ${r.kind.toLowerCase()} · version ${r.version}</div></div>
+          <dl class="skv">
+            <dt>Release${sw()}</dt><dd class="mono">${r.id}</dd>
+            <dt>Financial year${sw()}</dt><dd>FY 2025/2026 (1 Jul 2025 to 30 Jun 2026)</dd>
+            <dt>Kind${sw()}</dt><dd>${r.kind}, version ${r.version}</dd>
+            <dt>Figures as at${sw()}</dt><dd>${fmtDate(r.asAt)}</dd>
+            <dt>Published${sw()}</dt><dd>${m.preview ? 'On publication' : dtm(r.publishedAt)}<span class="fine" style="display:block;margin-top:0.6mm;font-weight:400">${r.by}.</span></dd>
+          </dl>
+          <table class="ft"><caption>Files${sw()}</caption><thead><tr><th class="n">No</th><th>Table</th><th class="num">Rows</th><th class="num">Hidden</th><th>SHA-256</th></tr></thead>
+          <tbody>${ODM_TABLES.map(([k, l], i) => `<tr><td class="n">${i + 1}</td><td>${l}<span class="sub mono">${k}</span></td><td class="num">${num(r.files[i][0])}</td><td class="num">${num(r.files[i][1])}</td><td>${hl('JSON', r.files[i][2])}${hl('CSV', r.files[i][3])}</td></tr>`).join('')}</tbody></table>
+          <div class="record"><div class="h">How to use this manifest</div><dl>
+            <dt>Check a file</dt><dd>Compute the SHA-256 of the file you downloaded and compare it with the value above.</dd>
+            <dt>Suppression</dt><dd>Cells based on fewer than 10 officers are hidden, and further cells are hidden where a total would reveal them. Hidden counts those cells per table.</dd>
+            <dt>Personal data</dt><dd>None. Counts and rates by Commission, reporting entity type and cycle only.</dd>
+            <dt>Get the files</dt><dd>adili.go.ke/open-data (CSV and JSON per table, and release.json)</dd>
+          </dl></div>
+          <div class="sign" style="margin-top:5mm"><div class="fine">Issued by the Ethics and Anti-Corruption Commission through Adili Online when the release ${m.preview ? 'is' : 'was'} published.</div>${sealBox(m)}</div>`,
+        ];
+      }
+      const rwm = (t) =>
+        `<div class="rwm" aria-hidden="true">${Array.from({ length: 12 }, () => `<div>${(esc(t) + '&emsp;·&emsp;').repeat(4)}</div>`).join('')}</div>`;
+
+      function decisionLetter(m, o) {
+        return `${lh(m.org)}
+          ${meta(toJK, [
+            ['Ref', `<span class="mono">${m.ref}</span>`],
+            ['Date', m.preview ? 'Date of issue' : fmtDate(m.issuedAt)],
+            ['Declaration', `<span class="mono">${DECL.ref}</span>`],
+          ])}
+          <div class="subj">Compliance determination: ${DECL.type} ${DECL.ref}${sw()}</div>
+          <p>Dear ${JK.salute},</p>
+          <p>${o.intro}${sw()}</p>
+          <div class="outcome ${o.tone}"><span class="ic">${icon(o.ic, 20, 2.6)}</span><div class="lbl">Determination${sw()}</div><div class="v">${o.label}</div></div>
+          ${o.body}
+          <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of this page.${sw()}</p>
+          ${o.note || ''}
+          ${sign(m, TSC_SIGN)}`;
+      }
+      function ladderLetter(m, o) {
+        return `${lh(m.org)}
+          ${meta(toJK, [
+            ['Ref', `<span class="mono">${m.ref}</span>`],
+            ['Date', m.preview ? 'Date of issue' : fmtDate(m.issuedAt)],
+            ['Regarding', o.regarding],
+          ])}
+          <div class="subj">${o.subj}${sw()}</div>
+          <p>Dear ${JK.salute},</p>
+          ${o.banner || ''}
+          ${facts(o.rows)}
+          ${sign(m, TSC_SIGN)}`;
+      }
+      function packageItems(m) {
+        // Same kinds and references as the 08-determinations package preview for RFL-PSC-2026-0000031-B.
+        return [
+          {
+            kind: 'Declaration versions',
+            sub: 'Version 1 (all submitted versions)',
+            ref: 'DCB-PSC-2026-0000917-I',
+            date: '12 Mar 2026',
+            pages: 14,
+          },
+          {
+            kind: 'Flag',
+            sub: 'Land parcel not declared · Ardhisasa result',
+            ref: 'Registry check',
+            date: '2 Sep 2026',
+            pages: 2,
+            key: 'Land parcel not declared',
+          },
+          {
+            kind: 'Clarification letter',
+            ref: 'CLR-PSC-2026-0000150-H',
+            date: '9 Apr 2026',
+            pages: 2,
+          },
+          {
+            kind: 'Clarification response',
+            sub: 'With 1 attachment',
+            ref: 'CLR-PSC-2026-0000150-H',
+            date: '11 May 2026',
+            pages: 3,
+          },
+          {
+            kind: 'Referral cover sheet',
+            ref: m.ref,
+            date: m.preview ? 'On approval' : fmtDate(m.issuedAt),
+            pages: 2,
+            self: true,
+          },
+        ].map((it) => ({ ...it, hash: sha(it.kind + (it.key || it.ref)) }));
+      }
+
+      function formMPages(m) {
+        const F = FORM_M;
+        const draft = m.preview;
+        const v = (x) => (x == null || x === '' ? '<span class="nc">Not completed</span>' : esc(x));
+        const nfTable = (rows, caption, dateHead) =>
+          `<table class="ft"><caption>${caption}${sw()}</caption><thead><tr><th class="n">No.</th><th>Name</th><th>Designation</th><th>Staff/File/ID Passport No.</th><th>${dateHead}</th><th style="width:44mm">Action taken / Remarks</th></tr></thead><tbody>${
+            rows.length
+              ? rows
+                  .map(
+                    (r, i) =>
+                      `<tr><td class="n">${i + 1}.</td><td>${esc(r.name)}</td><td>${esc(r.designation)}</td><td class="mono">${r.identifier}</td><td style="white-space:nowrap">${fmtDate(r.date)}</td><td><b>${ACTION_L[r.actionTaken]}</b> · Complied: ${COMPLIED_L[r.complied]}<span class="sub">${esc(r.remarks)}</span></td></tr>`,
+                  )
+                  .join('')
+              : '<tr class="none"><td colspan="6">None</td></tr>'
+          }</tbody></table>`;
+        const counts = (rows) =>
+          rows
+            .map(
+              ([k, n]) =>
+                `<div class="fl"><span>${k}${sw()}</span><span class="val">${num(n)}</span></div>`,
+            )
+            .join('');
+        const head = `<div class="fm-top"><div class="fm-form">FORM M</div><div class="fm-reg">(r. 25(2)(a))</div></div>
+          <div class="fm-title">COMPLIANCE REPORT BY A RESPONSIBLE COMMISSION${sw()}</div>
+          <div class="fm-meta">${draft ? '<span>Draft compiled 22 Sep 2026, 06:00 EAT</span><span>Not submitted</span>' : `<span>Ref <b class="mono">${m.ref}</b></span><span>Submitted ${dtm(m.issuedAt)}</span><span>${m.late ? '<span class="late">LATE</span>Due 31 Jul 2026' : 'On time · due 31 Jul 2026'}</span><span>Filed through Adili Online</span>`}</div>
+`;
+        const p1 = `${head}
+          <h2 class="fm-part">PART I: DESCRIPTION OF THE RESPONSIBLE COMMISSION${sw()}</h2>
+          <div class="fl wide"><span>(i) Name of the Responsible Commission:</span><span class="val">${F.partI.commissionName}</span></div>
+          <div class="fl wide"><span>(ii) Contact details:</span><span class="val">${v(draft ? '' : F.partI.contactDetails)}</span></div>
+          <div class="fl wide"><span>(iii) Physical address:</span><span class="val">${F.partI.physicalAddress}</span></div>
+          <div class="fl wide"><span>(iv) Email address:</span><span class="val">${v(draft ? '' : F.partI.emailAddress)}</span></div>
+          <div class="fl wide"><span>(v) Period for which the compliance report is made:</span><span class="val">1st July 2025 to 30th June 2026</span></div>
+          <h2 class="fm-part">PART II: DECLARATION OF INCOME, ASSETS AND LIABILITIES${sw()}</h2>
+          <div class="fm-sec">1. Submission of initial declaration of income, assets and liabilities.${sw()}</div>
+          <p class="fm-note">(an initial declaration is required to be made by a public officer within thirty (30) days upon appointment or election to a public office)</p>
+          ${counts([
+            [
+              '(a) Number of public officers appointed within the reporting period (newly appointed officers)',
+              F.initial.expected,
+            ],
+            [
+              '(b) Number of newly appointed public officers who made an initial declaration',
+              F.initial.declared,
+            ],
+            [
+              '(c) Number of newly appointed public officers who did not make an initial declaration',
+              F.initial.notDeclared,
+            ],
+          ])}
+          <p class="fm-d">(d) Provide a list of newly appointed officers who did not make an initial declaration. Indicate whether any action was taken and whether the officer(s) complied.</p>
+          ${nfTable(F.initial.nonFilers, 'List of officers who did not submit initial declaration of income, assets and liabilities', 'Date of appointment')}`;
+        const p2 = `<div class="fm-sec" style="margin-top:0">2. Submission of biennial declaration of income, assets and liabilities.${sw()}</div>
+          <p class="fm-note">(a biennial declaration is required to be made by a public officer once every two years within the period of service as a public officer)</p>
+          ${counts([
+            [
+              '(a) Number of public officers in the reporting entity within the reporting period',
+              F.biennial.expected,
+            ],
+            [
+              '(b) Number of public officers in the reporting entity who made a biennial declaration',
+              F.biennial.declared,
+            ],
+            [
+              '(c) Number of public officers in the reporting entity who did not make a biennial declaration',
+              F.biennial.notDeclared,
+            ],
+          ])}
+          <p class="fm-d">(d) Provide a list of officers who did not make a biennial declaration. Indicate whether any action was taken and whether the officer(s) complied.</p>
+          ${nfTable(F.biennial.nonFilers, 'List of officers who did not submit biennial declaration of income, assets and liabilities', 'Date of appointment')}
+`;
+        const p3 = `<div class="fm-sec" style="margin-top:0">3. Submission of final declaration of income, assets and liabilities.${sw()}</div>
+          <p class="fm-note">(a final declaration is required to be made by a public officer within thirty (30) days upon ceasing to hold a public office)</p>
+          ${counts([
+            [
+              '(a) Number of public officers in the reporting entity who ceased to be public officers within the reporting period',
+              F.final.expected,
+            ],
+            ['(b) Number of officers who made a final declaration', F.final.declared],
+            ['(c) Number of officers who did not make a final declaration', F.final.notDeclared],
+          ])}
+          <p class="fm-d">(d) Provide a list of officers who exited your entity and did not make a final declaration within 30 days upon exiting. Indicate whether any action was taken and whether the officer(s) complied.</p>
+          ${nfTable(F.final.nonFilers, 'List of public officers who did not submit final declaration of income, assets and liabilities', 'Date of exit')}
+          <div class="fm-sec">4. Clarifications sought from public officers who made an initial, biennial or final declaration (s. 33)${sw()}</div>
+          <table class="ft"><caption>List of public officers from whom clarification was sought and status of compliance${sw()}</caption><thead><tr><th class="n">No.</th><th>Name</th><th>Designation</th><th>Staff/File/ID Passport No.</th><th>Nature of Clarification Sought (state in general terms)</th><th>Status of Compliance</th></tr></thead><tbody>${F.clarifications
+            .map(
+              (c, i) =>
+                `<tr><td class="n">${i + 1}.</td><td>${esc(c[0])}</td><td>${esc(c[1])}</td><td class="mono">${c[2]}</td><td>${esc(c[3])}</td><td>${draft ? 'Pending' : CLAR_L[c[4]]}</td></tr>`,
+            )
+            .join('')}</tbody></table>
+          <div class="fm-sec">5. Access to information in a declaration of income assets and liabilities or a clarification.${sw()}</div>
+          <p class="fm-note">(A person may, for purposes of section 36 of the Act, apply to the responsible commission to access information contained in a declaration or clarification made under the Act)</p>
+          ${counts([
+            ['(a) Number of requests for access to information received', 0],
+            ['(b) Number of requests for access to information granted', 0],
+            ['(c) Number of requests for access to information declined', 0],
+          ])}
+          <div class="fl wide"><span>(d) Reasons for declining requests for access to information:</span><span class="val" style="font-weight:500">None</span></div>
+          <p class="fine" style="margin-top:2mm">Note: Access request data is not yet captured on Adili.</p>`;
+        const yes = draft ? '' : '✓';
+        const p4 = `<h2 class="fm-part" style="margin-top:0 !important">B. COMPLAINTS AND INVESTIGATIONS${sw()}</h2>
+          <p style="margin-top:2mm">6. Does the responsible commission maintain a register of complaints on allegations of violation of the provisions of the Act?</p>
+          <p>Yes <span class="box">${yes}</span> No <span class="box"></span></p>
+          <p>7. Indicate the number of complaints received within the reporting period, and action taken-</p>
+          <table class="ft"><thead><tr><th class="n">No</th><th>Name</th><th>Designation</th><th>Staff/File/ID Passport No</th><th>Nature of complaint</th><th>Status</th></tr></thead><tbody><tr class="none"><td colspan="6">${draft ? 'Not completed' : 'No complaints received in the reporting period (0)'}</td></tr></tbody></table>
+          <h2 class="fm-part">PART III: AUTHENTICATION OF INFORMATION${sw()}</h2>
+          <div class="fl wide"><span>Compiled by:</span><span class="val">${draft ? v('') : 'Samuel Njoroge'}</span></div>
+          <div class="fl wide"><span>Designation:</span><span class="val">${draft ? v('') : 'Deputy Director, Human Resource Management'}</span></div>
+          <div class="fl wide"><span>Date:</span><span class="val">${draft ? v('') : fmtDate(m.compiled)}</span></div>
+          <div class="fl wide"><span>Confirmed by:</span><span class="val">${draft ? v('') : 'Daniel Kiprop'}</span></div>
+          <div class="fl wide"><span>Designation:</span><span class="val">${draft ? v('') : 'Accounting Officer (delegated)'}</span></div>
+          <div class="fl wide"><span>Date:</span><span class="val">${draft ? v('') : fmtDate(m.issuedAt)}</span></div>
+          <p style="margin-top:2mm;font-weight:600">Authorized Officer of the Responsible Commission</p>
+          <div class="record"><div class="h">Submission record (added by Adili Online, not part of the prescribed form)</div><dl>
+            <dt>Reference</dt><dd class="mono">${m.ref}</dd>
+            <dt>Submitted</dt><dd>${draft ? 'Not submitted' : `${dtm(m.issuedAt)} · ${m.late ? 'late' : 'on time'} · deadline 31 Jul 2026`}</dd>
+            <dt>Confirmed</dt><dd>${draft ? 'Needs step-up confirmation by the commission admin' : 'By Daniel Kiprop after an identity re-check'}</dd>
+            <dt>Content hash</dt><dd class="hashc">${draft ? 'Computed when the report is frozen' : sha('RPT-PSC-2025-0000001-K form-m.v1')}</dd>
+          </dl></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:6mm">${sealBox(m)}</div>`;
+        return [p1, p2, p3, p4];
+      }
+
+      function ncrPages(m) {
+        const draft = m.preview;
+        const t = NCR_TOT;
+        const rep = NCR_ROWS.filter((r) => r[2]);
+        const onTime = NCR_ROWS.filter((r) => r[2] === 1).length;
+        const late = NCR_ROWS.filter((r) => r[2] === 2).length;
+        const nr = NCR_ROWS.length - rep.length;
+        const allE = t[0] + t[2] + t[4];
+        const allD = t[1] + t[3] + t[5];
+        const bar = (d, e) =>
+          `<div class="rbar ${e && d / e < 0.8 ? 'low' : ''}"><i style="width:${e ? Math.min(100, (d / e) * 100) : 0}%"></i></div>`;
+        const p1 = `${lh(m.org)}
+          <div class="cover-h"><div class="ey">Financial year 2025/2026</div><div class="t1" role="heading" aria-level="2">National Consolidated Report${sw()}</div><div class="doc-sub">Compliance with the declaration of income, assets and liabilities by Responsible Commissions, 1 July 2025 to 30 June 2026${sw()}</div></div>
+          <div class="rtiles">
+            <div class="rtile"><div class="k">Commissions reporting${sw()}</div><div class="v">${rep.length} of ${NCR_ROWS.length}</div><div class="s">${onTime} on time · ${late} late · ${nr} not reported</div></div>
+            <div class="rtile"><div class="k">Declared rate, all sections${sw()}</div><div class="v">${rate(allD, allE)}</div><div class="s">${num(allD)} of ${num(allE)} officers</div></div>
+            <div class="rtile"><div class="k">Did not declare${sw()}</div><div class="v">${num(allE - allD)}</div><div class="s">Across reporting Commissions</div></div>
+          </div>
+          <ol class="toc"><li><span>1. Overview</span><span>2</span></li><li><span>2. National totals</span><span>2</span></li><li><span>3. Findings</span><span>3</span></li><li><span>4. Recommendations</span><span>3</span></li><li><span>Annex. Results by Commission</span><span>4</span></li></ol>
+          <div class="appr">
+            <div><div class="k">Prepared by</div><div class="v">Brian Otieno, EACC analyst</div><div class="fine">Built 24 Sep 2026 from ${rep.length} submitted reports</div></div>
+            <div><div class="k">Approved by</div><div class="v">${draft ? '<span class="muted2">Awaiting EACC supervisor</span>' : 'Mercy Wambui, EACC supervisor'}</div><div class="fine">${draft ? 'The author cannot approve' : 'On 25 Sep 2026'}</div></div>
+          </div>`;
+        const secs = [
+          ['1. Initial declarations', t[0], t[1]],
+          ['2. Biennial declarations', t[2], t[3]],
+          ['3. Final declarations', t[4], t[5]],
+        ];
+        const p2 = `<div class="narr"><h2 style="margin-top:0">1. Overview${sw()}</h2>
+          <p>This report consolidates the compliance reports (Form M) received from Responsible Commissions for the financial year 1 July 2025 to 30 June 2026 under Regulation 25(2) of the Conflict of Interest Regulations, 2026.</p>
+          <p>Figures are taken from the reports as filed. The Commission has not verified them against rosters or declarations, and it does not see individual declarations.</p></div>
+          <h2>2. National totals${sw()}</h2>
+          <table class="rt"><thead><tr><th>Form M section</th><th class="num">Expected</th><th class="num">Declared</th><th class="num">Did not declare</th><th class="num" style="width:34mm">Rate</th></tr></thead>
+          <tbody>${secs.map(([k, e, d]) => `<tr><td>${k}</td><td class="num">${num(e)}</td><td class="num">${num(d)}</td><td class="num">${num(e - d)}</td><td class="num">${rate(d, e)}${bar(d, e)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td>All sections</td><td class="num">${num(allE)}</td><td class="num">${num(allD)}</td><td class="num">${num(allE - allD)}</td><td class="num">${rate(allD, allE)}</td></tr></tfoot></table>
+          <table class="rt"><thead><tr><th>Reporting status</th><th class="num">Commissions</th><th class="num">Share</th></tr></thead><tbody>
+            <tr><td>Reported by 31 Jul 2026</td><td class="num">${onTime}</td><td class="num">${rate(onTime, NCR_ROWS.length)}</td></tr>
+            <tr><td>Reported late</td><td class="num">${late}</td><td class="num">${rate(late, NCR_ROWS.length)}</td></tr>
+            <tr><td>Not reported when this report was built</td><td class="num">${nr}</td><td class="num">${rate(nr, NCR_ROWS.length)}</td></tr>
+          </tbody></table>`;
+        const p3 = `<div class="narr"><h2 style="margin-top:0">3. Findings${sw()}</h2>
+          <p>${rep.length} of ${NCR_ROWS.length} Responsible Commissions filed Form M for the year: ${onTime} by the 31 July 2026 deadline and ${late} late. ${nr} had not reported when this report was built, including the Public Service Commission and the Judicial Service Commission.</p>
+          <p>Across reporting Commissions, ${rate(allD, allE)} of expected declarations were made. Final declarations had the lowest rate at ${rate(t[5], t[4])}, against ${rate(t[1], t[0])} for initial and ${rate(t[3], t[2])} for biennial declarations.</p>
+          <ul><li>Three county public service boards reported biennial rates below 80%: Nairobi City (62.0%), Nyamira (64.0%) and Kirinyaga (76.0%).</li><li>Kiambu reported a final declaration rate of 68.2%.</li><li>Mombasa reported 3 final declarations with no officers expected to make one, and Machakos reported no figures for final declarations.</li></ul>
+          <h2>4. Recommendations${sw()}</h2>
+          <ul><li>Commissions that have not reported should file Form M within 30 days of this report.</li><li>Boards with biennial rates below 80% should apply the administrative mechanisms to officers who have not declared and report the action taken.</li><li>Commissions should reconcile exits in their rosters with final declarations, so that officers who leave service are asked to declare within 30 days.</li><li>Mombasa and Machakos should explain the inconsistencies in section 3 of their reports.</li></ul></div>
+          ${draft ? '' : `<div class="sign" style="margin-top:10mm"><div><div class="fine">Approved for issue</div><div class="nm" style="margin-top:6mm">Mercy Wambui</div><div>EACC supervisor</div><div>Ethics and Anti-Corruption Commission</div></div>${sealBox(m)}</div>`}`;
+        const st = (s) =>
+          s === 1
+            ? '<span class="st-l">On time</span>'
+            : s === 2
+              ? '<span class="st-l late" style="color:#b3241a">Late</span>'
+              : '<span class="st-l nr">Not reported</span>';
+        const cell = (d, e) =>
+          e == null
+            ? '<td class="num">-</td>'
+            : `<td class="num"><span class="${e && d / e < 0.8 ? 'rate-low' : ''}">${rate(d, e)}</span><span class="sub">${num(d)} / ${num(e)}</span></td>`;
+        const annex = (rows, start, title) =>
+          `${title ? `<h2 style="margin-top:0">Annex. Results by Commission${sw()}</h2><p class="fine">Declared / expected officers per Form M section, as filed. Rates below 80% are in red.</p>` : ''}
+          <table class="rt dense"><thead><tr><th style="width:6mm">No</th><th>Commission</th><th>Status</th><th>Received</th><th class="num">Initial</th><th class="num">Biennial</th><th class="num">Final</th></tr></thead><tbody>${rows
+            .map(
+              (r, i) =>
+                `<tr><td>${start + i + 1}</td><td><b>${esc(r[1])}</b><span class="sub">${r[0]}</span></td><td>${st(r[2])}</td><td style="white-space:nowrap">${r[3] ? fmtDate(r[3]) : '-'}</td>${r[4] ? cell(r[4][1], r[4][0]) + cell(r[4][3], r[4][2]) + cell(r[4][5], r[4][4]) : '<td class="num">-</td><td class="num">-</td><td class="num">-</td>'}</tr>`,
+            )
+            .join('')}</tbody></table>`;
+        return [
+          p1,
+          p2,
+          p3,
+          annex(NCR_ROWS.slice(0, 18), 0, true),
+          annex(NCR_ROWS.slice(18, 35), 18, false),
+          annex(NCR_ROWS.slice(35), 35, false),
+        ];
+      }
+
+      /* ============================== state ============================== */
+      const S = Kit.state({ zoom: 'fit', props: true, docs: {} });
+      const stOf = (id) => {
+        if (!S.docs[id])
+          S.docs[id] = {
+            status: 'valid',
+            sw: false,
+            v: DOCS[id].variants ? DOCS[id].variants[0][0] : null,
+          };
+        return S.docs[id];
+      };
+      const setDoc = (id, patch) => {
+        S.docs[id] = Object.assign(
+          { status: 'valid', sw: false, v: DOCS[id].variants ? DOCS[id].variants[0][0] : null },
+          patch,
+        );
+      };
+      const cur = () => (DOCS[S.screen] ? S.screen : null);
+      const fileName = (id, m) =>
+        `${m.preview ? 'preview-' : ''}${DOCS[id].template.split('.')[0]}-${m.ref.replace(/[^A-Z0-9-]/gi, '')}${m.version ? '-v' + m.version : ''}.pdf`;
+      const STATUS = {
+        valid: ['Valid', 'ok'],
+        superseded: ['Superseded', 'warn'],
+        revoked: ['Revoked', 'danger'],
+        preview: ['Preview', ''],
+        expired: ['Download window closed', 'warn'],
+      };
+      const lvlChip = (d) =>
+        d.level === 'public'
+          ? `<span class="lvl public">${icon('globe', 12, 2.2)}Public</span>`
+          : `<span class="lvl ${d.level}">${icon(d.level === 'confidential' ? 'lock' : 'eyeOff', 12, 2.2)}${d.level === 'confidential' ? 'Confidential' : 'Restricted'}</span>`;
+
+      /* ============================== screens ============================== */
+      const GROUPS = [
+        'Submission and review',
+        'Determination and actions',
+        'Form M and EACC',
+        'Access requests',
+        'Open data',
+      ];
+      function screenIndex() {
+        const ids = Object.keys(DOCS);
+        return `<div class="idx">
+          <h1>Documents</h1>
+          <p class="sub">${ids.length} documents · A4 PDF, digitally signed, checkable by QR</p>
+          ${GROUPS.map((g) => {
+            const list = ids.filter((id) => DOCS[id].group === g);
+            return `<section class="grp" aria-label="${g}"><h2>${g}</h2><div class="dgrid">${list
+              .map((id) => {
+                const d = DOCS[id];
+                const r = renderPages(id, {
+                  status: 'valid',
+                  sw: false,
+                  v: d.variants ? d.variants[0][0] : null,
+                });
+                const first = r.html.split('</section>')[0] + '</section>';
+                return `<a class="dcard" href="#${id}" data-act="go" data-arg="${id}" aria-label="${esc(d.title)}"><div class="thumb" aria-hidden="true"><div class="tz">${first}</div></div><div class="dc-b"><div class="dc-t">${esc(d.title)}</div><div class="dc-m">${lvlChip(d)}<span>${r.n} ${r.n === 1 ? 'page' : 'pages'}</span><span class="dc-tk">#${d.tickets.join(' #')}</span></div></div></a>`;
+              })
+              .join('')}</div></section>`;
+          }).join('')}
+        </div>`;
+      }
+
+      function noteFor(id, s, m) {
+        const d = DOCS[id];
+        if (s.status === 'superseded')
+          return `<div class="callout callout-warn">${icon('refresh', 17)}<span class="vn-t">${id === 'slip' && s.v !== 'late' ? 'Superseded by version 2 on 26 Sep 2026.' : 'Superseded by a newer version on 26 Sep 2026.'} The signed PDF is unchanged; the viewer and verify page show the status.</span><button class="btn btn-secondary btn-sm" data-act="setStatus" data-arg="valid">${id === 'slip' && s.v !== 'late' ? 'View version 2' : 'View current'}</button></div>`;
+        if (s.status === 'revoked')
+          return `<div class="callout callout-danger">${icon('ban', 17)}<span class="vn-t">Revoked on ${m.revokedNote.split(' · ')[1]}: issued in error. The signed PDF is unchanged; the viewer and verify page show the status.</span></div>`;
+        if (s.status === 'expired')
+          return `<div class="callout callout-warn">${icon('timer', 17)}<span class="vn-t">Download window closed on ${fmtDate(m.p ? m.p.expires : m.issuedAt)}. Downloads now return 410; the signed PDF and the verify page are unchanged.</span></div>`;
+        if (s.status === 'preview')
+          return `<div class="callout callout-info">${icon('eye', 17)}<span class="vn-t">${id === 'form-m' || id === 'ncr' ? 'Draft.' : 'Preview.'} The ${id.startsWith('access') || id.startsWith('lea') || id === 'certified-copy' || id === 'open-data-manifest' ? '' : 'reference, '}verification code and signature are added when it is ${id === 'form-m' ? 'submitted' : id === 'ncr' || id === 'referral-package' ? 'approved' : id === 'open-data-manifest' ? 'published' : 'issued'}.</span></div>`;
+        if (s.sw)
+          return `<div class="callout callout-info">${icon('globe', 17)}<span class="vn-t">Kiswahili slots are empty in the template, so the document issues in English. Dashed boxes mark each slot.</span></div>`;
+        if (d.gap)
+          return `<div class="callout callout-warn">${icon('alert', 17)}<span class="vn-t">Not in the spec: ${d.gap.replace(/^Spec 08 defines/, 'spec 08 defines')}</span></div>`;
+        return '';
+      }
+
+      function propsBody(id, s, m) {
+        const d = DOCS[id];
+        const [sl, sk] = STATUS[s.status];
+        const rows = [
+          ['Status', badge(sl, sk)],
+          ['Template', `<span class="mono">${d.template}</span>`],
+          [
+            `Disclosure ${tip(d.level === 'confidential' ? 'Verify page shows validity only. Even the issuer or type could reveal an investigation.' : d.level === 'public' ? 'Verify page shows the full document. It holds no personal data.' : 'Verify page shows type, issuer, issue date and reference. No names, amounts or findings.')}`,
+            d.level === 'confidential'
+              ? 'Confidential'
+              : d.level === 'public'
+                ? 'Public'
+                : 'Restricted',
+          ],
+          ['Verify page shows', d.payload],
+          [
+            'Verification code',
+            m.preview
+              ? '<span class="muted">Added on issue</span>'
+              : `<span class="copyline"><span class="code">${m.code}</span><button class="btn btn-ghost icon-btn" data-act="copy" data-arg="${m.code}" aria-label="Copy verification code">${icon('copy', 14)}</button></span>`,
+          ],
+          [
+            `Signature ${tip('PAdES B-B with the demo CA from OpenBao. Production uses a licensed Kenyan certification service provider.')}`,
+            m.preview
+              ? '<span class="muted">Applied on issue</span>'
+              : `Adili Online (demo)<div class="muted small">${fmtDate(m.signedAt)}, ${hms(m.signedAt)} EAT · not modified</div>`,
+          ],
+          [
+            'SHA-256',
+            m.preview
+              ? '<span class="muted">Computed on issue</span>'
+              : `<span class="hash">${sha(m.ref + m.code)}</span>`,
+          ],
+          ['Who can download', d.access],
+          ['Tickets', d.tickets.map((t) => `#${t}`).join(' ')],
+        ];
+        if (d.gap) rows.push(['Spec', `<span style="color:var(--warn)">${esc(d.gap)}</span>`]);
+        return `<div class="pkv">${rows.map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('')}<a class="btn btn-secondary btn-sm" href="${VERIFY_APP}" target="_blank" rel="noopener">${icon('external', 15)} Verify page</a></div>`;
+      }
+
+      function screenDoc(id) {
+        const d = DOCS[id];
+        const s = stOf(id);
+        const r = renderPages(id, s);
+        const m = r.m;
+        const [sl, sk] = STATUS[s.status];
+        const seg = (list, curV, act) =>
+          `<div class="seg" role="group">${list.map(([k, l]) => `<button class="${curV === k ? 'on' : ''}" data-act="${act}" data-arg="${k}" aria-pressed="${curV === k}">${l}</button>`).join('')}</div>`;
+        const note = noteFor(id, s, m);
+        return `<div class="vwrap">
+          <div class="vhead">
+            <div class="vbar">
+              <button class="btn btn-ghost icon-btn" data-act="go" data-arg="index" aria-label="All documents" title="All documents">${icon('left', 19)}</button>
+              <div class="vtitle"><h1>${esc(d.title)}</h1>${lvlChip(d)}<span class="hide-m">${badge(sl, sk)}</span></div>
+              <div class="vtools">
+                <div class="vgroup"><button class="btn btn-ghost icon-btn" data-act="zoom" data-arg="-1" aria-label="Zoom out">${icon('minus', 17)}</button><button class="zlab hide-m" id="zlab" data-act="zoom" data-arg="fit" title="Fit to width">100%</button><button class="btn btn-ghost icon-btn" data-act="zoom" data-arg="1" aria-label="Zoom in">${icon('plus', 17)}</button></div>
+                <span class="vsep hide-m"></span>
+                <div class="vgroup"><button class="btn btn-ghost icon-btn" data-act="page" data-arg="-1" aria-label="Previous page">${icon('arrowUp', 16)}</button><span class="pgind" id="pgind" aria-live="polite">Page 1 of ${r.n}</span><button class="btn btn-ghost icon-btn" data-act="page" data-arg="1" aria-label="Next page">${icon('arrowDown', 16)}</button></div>
+                <span class="vsep hide-m"></span>
+                <button class="btn btn-ghost icon-btn" data-act="props" aria-label="Document details" title="Document details" aria-pressed="${!!S.props}">${icon('info', 18)}</button>
+                <button class="btn btn-ghost icon-btn" data-act="print" aria-label="Print" title="Print">${icon('printer', 18)}</button>
+                <button class="btn btn-primary btn-sm" aria-label="Download PDF" data-act="download" data-arg="${fileName(id, m)}">${icon('download', 16)}<span class="hide-m">Download</span></button>
+              </div>
+            </div>
+            <div class="vstrip" aria-label="Prototype states">
+              <span class="lab">State</span>
+              ${seg(
+                [
+                  ['valid', 'Valid'],
+                  ['superseded', 'Superseded'],
+                  ['revoked', 'Revoked'],
+                  ['preview', id === 'form-m' || id === 'ncr' ? 'Draft' : 'Preview'],
+                  ...(d.window ? [['expired', 'Window closed']] : []),
+                ],
+                s.status,
+                'setStatus',
+              )}
+              ${d.variants ? seg(d.variants, s.v, 'setVariant') : ''}
+              <button class="tog ${s.sw ? 'on' : ''}" data-act="toggleSw" aria-pressed="${s.sw}"><span class="box">${icon('check', 12, 3)}</span>Kiswahili slots</button>
+            </div>
+          </div>
+          <div class="vbody">
+            <div class="vcol">
+              ${note ? `<div class="vnote">${note}</div>` : ''}
+              <div class="pages" id="pages">${r.html}</div>
+            </div>
+            ${S.props ? `<aside class="props" aria-label="Document details"><div class="card"><div class="card-head"><h3>Details</h3></div>${propsBody(id, s, m)}</div></aside>` : ''}
+          </div>
+        </div>`;
+      }
+
+      /* ============================== viewer behaviour ============================== */
+      const PAGE_W = 793.7;
+      const ZOOMS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2];
+      function fitZoom() {
+        const col = document.querySelector('.vcol');
+        if (!col) return 1;
+        const pad = col.clientWidth < 700 ? 16 : 48;
+        return Math.max(0.3, Math.min(1, (col.clientWidth - pad) / PAGE_W));
+      }
+      const zoomNow = () => (S.zoom === 'fit' ? fitZoom() : S.zoom);
+      function pageEls() {
+        return [...document.querySelectorAll('#pages .page')];
+      }
+      function currentPage() {
+        const view = document.getElementById('view');
+        const head = document.querySelector('.vhead');
+        const top = view.getBoundingClientRect().top + (head ? head.offsetHeight : 0) + 40;
+        const els = pageEls();
+        let idx = 0;
+        els.forEach((el, i) => {
+          if (el.getBoundingClientRect().top <= top) idx = i;
+        });
+        return idx;
+      }
+      function updatePg() {
+        const ind = document.getElementById('pgind');
+        const els = pageEls();
+        if (!ind || !els.length) return;
+        ind.textContent = `Page ${currentPage() + 1} of ${els.length}`;
+      }
+      function scrollToPage(i) {
+        const els = pageEls();
+        const el = els[Math.max(0, Math.min(els.length - 1, i))];
+        if (!el) return;
+        const view = document.getElementById('view');
+        const head = document.querySelector('.vhead');
+        const y =
+          el.getBoundingClientRect().top -
+          view.getBoundingClientRect().top +
+          view.scrollTop -
+          (head ? head.offsetHeight : 0) -
+          16;
+        view.scrollTo({ top: y, behavior: 'smooth' });
+      }
+      let bound = false;
+      function afterRender() {
+        const pages = document.getElementById('pages');
+        if (pages) {
+          const z = zoomNow();
+          pages.style.zoom = z;
+          const lab = document.getElementById('zlab');
+          if (lab) lab.textContent = `${Math.round(z * 100)}%`;
+          const vn = document.querySelector('.vnote');
+          if (vn)
+            vn.style.maxWidth = `${Math.round(PAGE_W * z) + (vn.parentElement.clientWidth < 700 ? 20 : 48)}px`;
+          updatePg();
+        }
+        if (!bound) {
+          bound = true;
+          document.getElementById('view').addEventListener('scroll', updatePg, { passive: true });
+          window.addEventListener('resize', () => {
+            if (S.zoom === 'fit' && document.getElementById('pages')) Kit.render();
+          });
+        }
+      }
+      const wide = () => document.getElementById('app').clientWidth >= 1100;
+
+      const actions = {
+        setStatus: (k) => {
+          stOf(cur()).status = k;
+          Kit.render();
+        },
+        setVariant: (k) => {
+          stOf(cur()).v = k;
+          Kit.render();
+        },
+        toggleSw: () => {
+          const s = stOf(cur());
+          s.sw = !s.sw;
+          Kit.render();
+        },
+        zoom: (a) => {
+          if (a === 'fit') S.zoom = 'fit';
+          else {
+            const z = zoomNow();
+            const next =
+              +a > 0
+                ? ZOOMS.find((x) => x > z + 0.01)
+                : [...ZOOMS].reverse().find((x) => x < z - 0.01);
+            S.zoom = next || z;
+          }
+          Kit.render();
+        },
+        page: (a) => scrollToPage(currentPage() + +a),
+        props: () => {
+          if (wide()) {
+            S.props = !S.props;
+            Kit.render();
+          } else {
+            S.modal = { kind: 'props' };
+            Kit.render();
+          }
+        },
+        print: () => window.print(),
+        download: (f) => Kit.toast(`${f} would download (signed PDF, download recorded)`),
+      };
+      const modals = {
+        props: () => {
+          const id = cur();
+          if (!id) return '';
+          const s = stOf(id);
+          const m = renderPages(id, s).m;
+          return Kit.drawer({ title: 'Details', body: propsBody(id, s, m) });
+        },
+      };
+
+      /* ============================== mount ============================== */
+      const screens = { index: screenIndex };
+      Object.keys(DOCS).forEach((id) => (screens[id] = () => screenDoc(id)));
+      // Deep links to a variant (other prototypes link here), e.g. #access-decision-deny.
+      const ALIASES = {
+        'access-decision-grant': ['access-decision', { v: 'grant' }],
+        'access-decision-deny': ['access-decision', { v: 'deny' }],
+        'access-decision-cannot-identify': ['access-decision', { v: 'cannot' }],
+        'access-package-lea': ['access-package', { v: 'lea' }],
+        'certified-copy-in-person': ['certified-copy', { v: 'in-person' }],
+        'lea-response-deny': ['lea-response', { v: 'deny' }],
+        'open-data-manifest-snapshot': ['open-data-manifest', { v: 'snapshot' }],
+      };
+      Object.entries(ALIASES).forEach(([alias, [id, patch]]) => {
+        screens[alias] = () => {
+          setDoc(id, patch);
+          S.screen = id;
+          history.replaceState(null, '', '#' + id);
+          return screenDoc(id);
+        };
+      });
+      const J = (key, label, id, patch) => [
+        key,
+        label,
+        () => {
+          setDoc(id, patch || {});
+          Kit.go(id);
+        },
+      ];
+      Kit.mount({
+        app: 'documents',
+        start: 'index',
+        home: 'index',
+        screens,
+        modals,
+        actions,
+        afterRender,
+        jumps: [
+          ['index', 'All documents (index)'],
+          J('slip', '#135 Acknowledgement slip (v2, valid)', 'slip'),
+          J('j-slip-v1', '#135 #143 Slip: v1 superseded by v2', 'slip', { status: 'superseded' }),
+          J('j-slip-late', '#135 Slip: final declaration filed late', 'slip', { v: 'late' }),
+          J('j-slip-revoked', '#135 Slip: revoked, issued in error', 'slip', { status: 'revoked' }),
+          J('j-slip-sw', '#135 Slip: Kiswahili slots', 'slip', { sw: true }),
+          J('clarification-letter', '#156 Clarification letter (2 pages)', 'clarification-letter'),
+          J(
+            'j-clr-preview',
+            '#156 Clarification letter: composer preview',
+            'clarification-letter',
+            { status: 'preview' },
+          ),
+          J(
+            'j-clr-revoked',
+            '#156 Clarification letter: withdrawn, revoked',
+            'clarification-letter',
+            { status: 'revoked' },
+          ),
+          J('decision-compliant', '#194 Decision letter: compliant', 'decision-compliant'),
+          J(
+            'j-dec-noissues',
+            '#194 Decision letter: no issues identified, on demand',
+            'decision-compliant',
+            { v: 'no-issues' },
+          ),
+          J(
+            'decision-non-compliant',
+            '#194 Decision letter: non-compliant',
+            'decision-non-compliant',
+          ),
+          J(
+            'decision-further-action',
+            '#194 Decision letter: further action',
+            'decision-further-action',
+          ),
+          J('notice', '#194 Notice to comply: clarification not answered', 'notice'),
+          J('j-notice-decl', '#194 Notice to comply: declaration not filed', 'notice', {
+            v: 'declaration',
+          }),
+          J('warning', '#194 Warning', 'warning'),
+          J('stoppage', '#194 Salary stoppage', 'stoppage'),
+          J('reinstatement', '#194 Salary reinstatement (not in spec)', 'reinstatement'),
+          J('disciplinary', '#194 Disciplinary referral', 'disciplinary'),
+          J(
+            'referral-package',
+            '#194 Referral package (Confidential, 2 pages)',
+            'referral-package',
+          ),
+          J('j-rfl-preview', '#194 Referral package: supervisor preview', 'referral-package', {
+            status: 'preview',
+          }),
+          J('form-m', '#218 Form M: submitted late (4 pages)', 'form-m'),
+          J('j-fm-ontime', '#218 Form M: submitted on time', 'form-m', { v: 'ontime' }),
+          J('j-fm-draft', '#218 Form M: draft', 'form-m', { status: 'preview' }),
+          J('form-m-receipt', '#218 Form M receipt', 'form-m-receipt'),
+          J('ncr', '#218 National consolidated report (6 pages)', 'ncr'),
+          J('j-ncr-draft', '#218 NCR: draft, awaiting approval', 'ncr', { status: 'preview' }),
+          J(
+            'access-decision',
+            '#260 Access decision: partially granted (2 pages)',
+            'access-decision',
+          ),
+          J('j-acd-grant', '#260 Access decision: granted', 'access-decision', { v: 'grant' }),
+          J(
+            'j-acd-deny',
+            '#260 Access decision: denied, Regulation 24 grounds',
+            'access-decision',
+            { v: 'deny' },
+          ),
+          J(
+            'j-acd-cannot',
+            '#254 Access decision: officer could not be identified',
+            'access-decision',
+            { v: 'cannot' },
+          ),
+          J(
+            'access-package',
+            '#260 Access package: watermarked for the applicant (Confidential)',
+            'access-package',
+          ),
+          J('j-acp-lea', '#265 Access package: law enforcement officer', 'access-package', {
+            v: 'lea',
+          }),
+          J(
+            'j-acp-expired',
+            '#260 Access package: download window closed (410)',
+            'access-package',
+            { status: 'expired' },
+          ),
+          J('j-acp-preview', '#260 Access package: preview before issue', 'access-package', {
+            status: 'preview',
+          }),
+          J('certified-copy', '#269 Certified copy: requested on the portal', 'certified-copy'),
+          J('j-cc-rep', '#304 Certified copy: in person, by a representative', 'certified-copy', {
+            v: 'in-person',
+          }),
+          J('j-cc-sw', '#269 Certified copy: Kiswahili slots', 'certified-copy', { sw: true }),
+          J('lea-response', '#265 Law enforcement response: granted', 'lea-response'),
+          J('j-lea-deny', '#265 Law enforcement response: denied', 'lea-response', { v: 'deny' }),
+          J(
+            'open-data-manifest',
+            '#297 Open-data manifest: annual release (Public)',
+            'open-data-manifest',
+          ),
+          J('j-odm-snap', '#297 Open-data manifest: mid-year snapshot', 'open-data-manifest', {
+            v: 'snapshot',
+          }),
+          J('j-odm-withdrawn', '#297 Open-data manifest: withdrawn release', 'open-data-manifest', {
+            status: 'revoked',
+          }),
+        ],
+        coverage: [
+          {
+            ticket: 135,
+            title: 'Documents issuance module with demo CA (acknowledgement slip)',
+            screens: ['slip', 'j-slip-v1', 'j-slip-revoked', 'j-slip-late'],
+            note: 'Footer on every page: reference, version, verification code, QR to the verify URL, issuer, date. PAdES appearance shown as a seal. Gotenberg, OpenBao and events are not visual.',
+          },
+          {
+            ticket: 143,
+            title: 'Reissue and supersede',
+            screens: ['j-slip-v1', 'slip'],
+            note: 'Version 1 superseded by version 2 with the same reference. Download is presigned and audited (toast).',
+          },
+          {
+            ticket: 156,
+            title: 'Clarification letter template',
+            screens: ['clarification-letter', 'j-clr-preview', 'j-clr-revoked'],
+          },
+          {
+            ticket: 194,
+            title: 'Decision, notice, warning, stoppage, disciplinary letters and referral package',
+            screens: [
+              'decision-compliant',
+              'j-dec-noissues',
+              'decision-non-compliant',
+              'decision-further-action',
+              'notice',
+              'j-notice-decl',
+              'warning',
+              'stoppage',
+              'reinstatement',
+              'disciplinary',
+              'referral-package',
+              'j-rfl-preview',
+            ],
+            note: 'Reinstatement letter is a proposal: the spec defines only notifications. Email and SMS templates are out of scope here.',
+          },
+          {
+            ticket: 218,
+            title: 'Form M, receipt and NCR templates',
+            screens: [
+              'form-m',
+              'j-fm-ontime',
+              'j-fm-draft',
+              'form-m-receipt',
+              'ncr',
+              'j-ncr-draft',
+            ],
+            note: 'EACC download of referral packages is shown in the details panel. Notification templates are out of scope here.',
+          },
+          {
+            ticket: 260,
+            title: 'Spec 10: access decision letter and watermarked access package',
+            screens: [
+              'access-decision',
+              'j-acd-grant',
+              'j-acd-deny',
+              'j-acd-cannot',
+              'access-package',
+              'j-acp-expired',
+              'j-acp-preview',
+            ],
+            note: 'access-package (Confidential) carries the recipient, reference and date as a watermark on every page and has a 14-day download window (410 after). The decision letter is a proposal (see the gap note). Variant links: #access-decision-grant, #access-decision-deny, #access-decision-cannot-identify.',
+          },
+          {
+            ticket: 265,
+            title: 'Spec 10: law enforcement package and response letter',
+            screens: ['j-acp-lea', 'lea-response', 'j-lea-deny'],
+            note: 'Variant links: #access-package-lea, #lea-response-deny. The response letter is a proposal (see the gap note).',
+          },
+          {
+            ticket: 304,
+            title: 'Spec 10: certified copy (Restricted), portal and in person',
+            screens: ['certified-copy', 'j-cc-rep', 'j-cc-sw'],
+            note: 'Also covers #269 (portal). The in-person copy names the representative and their written authority. Variant link: #certified-copy-in-person.',
+          },
+          {
+            ticket: 297,
+            title: 'Spec 09b: open-data release manifest (Public)',
+            screens: ['open-data-manifest', 'j-odm-snap', 'j-odm-withdrawn'],
+            note: 'Same release ids, versions and file hashes as 12-open-data. Public: no protective marking; the verify page shows the full manifest. Variant link: #open-data-manifest-snapshot.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

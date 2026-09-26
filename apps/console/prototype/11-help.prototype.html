@@ -1,0 +1,2304 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: how do commission administrators write and publish help articles (English and Kiswahili, tags, effective dates), how do platform administrators see the imported legal corpus and platform articles, and how do reporting officers see question themes? Covers ticket #344 (spec 11 #296, slice #342). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Help articles and question themes (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .btn:focus-visible,
+      a:focus-visible,
+      button:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .input[aria-invalid='true'],
+      .textarea[aria-invalid='true'] {
+        box-shadow:
+          0 0 0 1px var(--danger),
+          0 0 0 4px rgba(201, 41, 30, 0.08);
+      }
+      .head-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .page-head h1 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tabs {
+        margin-bottom: 18px;
+      }
+      .state-page {
+        max-width: 520px;
+        margin: 60px auto;
+        text-align: center;
+      }
+      .state-page .ico {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 16px;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .state-page h1 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .state-page p {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      /* lists */
+      .table td .t {
+        font-weight: 500;
+        color: var(--ink);
+      }
+      .table td .sub {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .rowlink {
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .rowlink:hover {
+        text-decoration: underline;
+      }
+      .mlist {
+        display: none;
+      }
+      @container app (max-width: 699px) {
+        .dtable {
+          display: none;
+        }
+        .mlist {
+          display: block;
+        }
+      }
+      .mitem {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .mitem:last-child {
+        border-bottom: 0;
+      }
+      .mitem .top {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+      .mitem .meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .cite {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 7px;
+        background: var(--sunken);
+        color: var(--ink-2);
+        font-size: 12.5px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .cite.help {
+        background: var(--brand-softer);
+        color: var(--brand-ink);
+        box-shadow: inset 0 0 0 1px #f6d9c9;
+      }
+      .lang {
+        display: inline-flex;
+        gap: 4px;
+      }
+      .lang span {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .lang span.off {
+        background: none;
+        color: var(--muted);
+        box-shadow: inset 0 0 0 1px var(--line);
+        text-decoration: line-through;
+      }
+      /* editor */
+      .ed-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      @container app (min-width: 1000px) {
+        .ed-grid {
+          grid-template-columns: minmax(0, 1fr) 340px;
+        }
+      }
+      .body-h {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .body-h .label {
+        margin: 0;
+      }
+      .body-h .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .seg.sm button {
+        height: 30px;
+        font-size: 13px;
+      }
+      .ed-body .textarea {
+        min-height: 300px;
+        font-size: 14.5px;
+        line-height: 1.6;
+      }
+      .prose {
+        min-height: 300px;
+        padding: 16px 18px;
+        border-radius: 10px;
+        background: #fdfdfc;
+        box-shadow: 0 0 0 1px var(--line);
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .prose h4 {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+      .prose p + p,
+      .prose p + ul,
+      .prose ul + p {
+        margin-top: 10px;
+      }
+      .prose ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .cc {
+        font-size: 12px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .switch {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        cursor: pointer;
+      }
+      .switch input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+      }
+      .switch .track {
+        flex: none;
+        width: 40px;
+        height: 24px;
+        border-radius: 999px;
+        background: var(--line-2);
+        position: relative;
+        transition: background 0.15s;
+        margin-top: 1px;
+      }
+      .switch .track::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        transition: transform 0.15s;
+      }
+      .switch input:checked + .track {
+        background: var(--ok);
+      }
+      .switch input:checked + .track::after {
+        transform: translateX(16px);
+      }
+      .switch input:focus-visible + .track {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .switch .t {
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      .tagset {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tagset .chip {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 13px;
+      }
+      .tagset .chip.on svg {
+        margin-left: -2px;
+      }
+      .tag-g {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 14px 0 8px;
+      }
+      .tag-g:first-child {
+        margin-top: 0;
+      }
+      .errsum {
+        margin-bottom: 16px;
+      }
+      .errsum:focus {
+        outline: none;
+      }
+      .errsum ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
+      }
+      .errsum a {
+        color: inherit;
+        cursor: pointer;
+      }
+      .dates {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 12px;
+      }
+      /* themes */
+      .bar {
+        height: 8px;
+        border-radius: 99px;
+        background: var(--sunken);
+        overflow: hidden;
+        min-width: 80px;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--ink-2);
+        border-radius: 99px;
+      }
+      .bar.warn i {
+        background: #d98a1c;
+      }
+      .table tfoot td {
+        font-weight: 600;
+        border-top: 1px solid var(--line);
+        background: #fcfcfb;
+      }
+      .table tfoot tr.un td {
+        background: var(--warn-soft);
+        color: #6b4000;
+        border-top: 0;
+      }
+      /* passage drawer */
+      .passage {
+        font-size: 14.5px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: #fdfdfc;
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .results {
+        display: flex;
+        flex-direction: column;
+      }
+      .result {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .result:last-child {
+        border-bottom: 0;
+      }
+      .result .t {
+        font-weight: 600;
+        font-size: 14.5px;
+      }
+      .result .s {
+        font-size: 13.5px;
+        color: var(--ink-2);
+        line-height: 1.55;
+      }
+      .result mark {
+        background: #fff1c2;
+        color: inherit;
+        border-radius: 3px;
+        padding: 0 1px;
+      }
+      .result.new {
+        background: linear-gradient(90deg, var(--ok-soft), transparent 80%);
+        margin: 0 -20px;
+        padding: 14px 20px;
+      }
+      .ro-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const {
+        icon,
+        esc,
+        field,
+        input,
+        textarea,
+        dialog,
+        drawer,
+        consoleShell,
+        fmtDate,
+        fmtDateTime,
+        num,
+        badge,
+      } = Kit;
+
+      /* ============================== demo world ============================== */
+      const TODAY_ISO = '2026-09-26';
+      const P = () => Kit.persona();
+      const isCA = () => P() === 'commission-admin';
+      const isRO = () => P() === 'reporting-officer';
+      const isPA = () => P() === 'platform-admin';
+      const isCommissionHelpRole = () => isCA() || isRO();
+      const canEdit = () => isCA() || isPA();
+      const scope = () => (isPA() ? 'platform' : 'psc');
+
+      const SECTION_TAGS = [
+        ['bio', 'Bio data'],
+        ['household', 'Household'],
+        ['statement', 'Financial statement'],
+        ['other', 'Other information'],
+        ['summary', 'Summary'],
+      ];
+      const ITEM_TAGS = [
+        ['salary', 'Salary'],
+        ['allowances', 'Allowances'],
+        ['business-income', 'Business income'],
+        ['rent', 'Rent'],
+        ['pension', 'Pension'],
+        ['land', 'Land'],
+        ['building', 'Building'],
+        ['vehicle', 'Vehicle'],
+        ['securities', 'Securities'],
+        ['shareholding', 'Shareholding'],
+        ['bank-account', 'Bank account'],
+        ['cash', 'Cash'],
+        ['receivable', 'Money owed'],
+        ['mortgage', 'Mortgage'],
+        ['loan', 'Loan'],
+        ['guarantee', 'Guarantee'],
+        ['directorship', 'Directorship'],
+        ['membership', 'Membership'],
+      ];
+      const TAG_L = Object.fromEntries([...SECTION_TAGS, ...ITEM_TAGS]);
+
+      const A = (
+        id,
+        tenant,
+        title,
+        bodyEn,
+        bodySw,
+        tags,
+        from,
+        to,
+        published,
+        version,
+        updatedAt,
+        by,
+      ) => ({
+        id,
+        tenant,
+        title,
+        bodyEn,
+        bodySw,
+        tags,
+        effectiveFrom: from,
+        effectiveTo: to,
+        published,
+        version,
+        updatedAt,
+        updatedBy: by,
+      });
+      const FILE_NO_EN = `Your personnel file number is on your payslip, under "PF No." at the top left. It is the number PSC uses for you in the roster.
+
+- It has 8 to 10 digits, for example 2011054292.
+- Do not use your national ID number or KRA PIN.
+- If your payslip shows an old number, use the one on your latest payslip.
+
+If the number is not accepted, ask your reporting officer to check the roster.`;
+      const FILE_NO_SW = `Nambari yako ya faili ya kibinafsi iko kwenye hati yako ya mshahara, chini ya "PF No." juu kushoto. Ni nambari ambayo PSC hutumia kwako kwenye orodha.
+
+- Ina tarakimu 8 hadi 10, kwa mfano 2011054292.
+- Usitumie nambari ya kitambulisho wala PIN ya KRA.
+
+Ikikataliwa, muulize afisa wako wa kuripoti aangalie orodha.`;
+      const HOUSING_EN = `Loans from the Civil Servants Housing Scheme Fund are liabilities. Declare them under Liabilities as a mortgage, with the Fund as the creditor and the amount still owed on the statement date.
+
+The house or land bought with the loan is an asset. Declare it under Assets with its approximate value on the statement date.`;
+      const PSC_ARTS = [
+        A(
+          'a01',
+          'psc',
+          'File numbers: where to find yours',
+          FILE_NO_EN,
+          FILE_NO_SW,
+          ['bio'],
+          '2026-07-01',
+          null,
+          true,
+          3,
+          '2026-09-12T11:20:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a02',
+          'psc',
+          'Housing Scheme Fund loans',
+          HOUSING_EN,
+          null,
+          ['statement', 'mortgage', 'building', 'land'],
+          '2026-07-01',
+          null,
+          true,
+          2,
+          '2026-09-08T15:02:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a03',
+          'psc',
+          'Allowances paid by PSC',
+          'List each allowance PSC pays you as a separate income item: house, commuter, hardship and responsibility allowances. Use the total you received during the income period.',
+          'Orodhesha kila marupurupu unayolipwa na PSC kama kipengele tofauti cha mapato.',
+          ['statement', 'allowances'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-30T10:05:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a04',
+          'psc',
+          'Who your reporting officer is',
+          'Your reporting officer is Grace Muthoni, Human Resource Management, PSC. Email: declarations@publicservice.go.ke. Phone: 020 222 3901.',
+          'Afisa wako wa kuripoti ni Grace Muthoni.',
+          ['bio', 'summary'],
+          '2026-07-01',
+          null,
+          true,
+          4,
+          '2026-09-20T09:30:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a05',
+          'psc',
+          'Officers on secondment',
+          'If you are seconded to another public body, you still declare to PSC. Your reporting entity is the body that holds your substantive post.',
+          null,
+          ['bio'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-21T14:44:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a06',
+          'psc',
+          'SACCO shares and loans',
+          'Shares in a SACCO such as Harambee SACCO are an asset (Shareholding). A SACCO loan is a liability (Loan). Declare both.',
+          null,
+          ['statement', 'shareholding', 'loan'],
+          '2026-07-01',
+          null,
+          true,
+          2,
+          '2026-09-02T16:18:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a07',
+          'psc',
+          'Car Loan Scheme',
+          'A car bought under the Public Service Car Loan Scheme is an asset (Vehicle) and the balance owed is a liability (Loan).',
+          null,
+          ['statement', 'vehicle', 'loan'],
+          '2026-10-01',
+          null,
+          true,
+          1,
+          '2026-09-24T12:10:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a08',
+          'psc',
+          'Acting appointments',
+          'An acting appointment does not create a new filing obligation. If you are confirmed in the post, PSC will create the obligation.',
+          null,
+          ['bio'],
+          '2026-07-01',
+          null,
+          false,
+          1,
+          '2026-09-25T17:40:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a09',
+          'psc',
+          'Leaving PSC: your final declaration',
+          'You make a final declaration within 30 days of leaving the public service. Your statement date is your last day in office.',
+          null,
+          ['summary'],
+          '2026-07-01',
+          null,
+          true,
+          2,
+          '2026-09-01T08:55:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a10',
+          'psc',
+          'Group life cover and pension contributions',
+          'Pension contributions deducted from your salary are not income items. A pension you receive is income (Pension).',
+          null,
+          ['statement', 'pension', 'salary'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-19T11:11:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a11',
+          'psc',
+          'Reminder emails and SMS from PSC',
+          'PSC sends reminders from declarations@publicservice.go.ke and the sender name ADILI. We never ask for your password.',
+          null,
+          ['summary'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-11T10:00:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a12',
+          'psc',
+          'Spouse employed by another Commission',
+          'Declare your spouse in your own declaration even if they also declare to another Commission, for example TSC.',
+          null,
+          ['household'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-14T13:25:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a13',
+          'psc',
+          'Farm land held in a family name',
+          "Declare land you own or co-own even if the title is still in a parent's name. Explain the position in the description.",
+          null,
+          ['statement', 'land'],
+          '2026-07-01',
+          null,
+          false,
+          1,
+          '2026-09-18T09:02:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a14',
+          'psc',
+          'Interim guidance for the 2025 roster',
+          'Old guidance from before Adili went live.',
+          null,
+          ['bio'],
+          '2025-11-01',
+          '2026-06-30',
+          true,
+          3,
+          '2026-06-28T16:00:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a15',
+          'psc',
+          'Staff on unpaid leave',
+          'Officers on unpaid leave still declare. Your income for the period may be nil.',
+          null,
+          ['statement', 'salary'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-05T10:40:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a16',
+          'psc',
+          'Directorships in family companies',
+          'List every directorship, paid or not, under Other information.',
+          null,
+          ['other', 'directorship'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-07T15:10:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a17',
+          'psc',
+          'Chama and investment group savings',
+          'Savings in a chama or investment group are an asset. Use Other if no type fits.',
+          null,
+          ['statement', 'membership', 'cash'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-26T12:00:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a18',
+          'psc',
+          'Rental income from a family house',
+          'Rent you receive is income (Rent). Declare your share if the house is jointly owned.',
+          null,
+          ['statement', 'rent', 'building'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-27T09:15:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a19',
+          'psc',
+          'Bank accounts held abroad',
+          'Declare the account with the country and the balance in the original currency. Give an approximate KES value.',
+          null,
+          ['statement', 'bank-account'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-29T10:45:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a20',
+          'psc',
+          "Guarantees for colleagues' loans",
+          "A guarantee you gave for someone else's loan is a liability (Guarantee).",
+          null,
+          ['statement', 'guarantee'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-09-04T11:35:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a21',
+          'psc',
+          'Money owed to you by relatives',
+          'Money you lent and expect back is an asset (Money owed to me).',
+          null,
+          ['statement', 'receivable'],
+          '2026-07-01',
+          null,
+          false,
+          1,
+          '2026-09-22T14:20:00',
+          'Daniel Kiprop',
+        ),
+        A(
+          'a22',
+          'psc',
+          'Printing your acknowledgement slip',
+          'After you submit, download the slip from your declarations page.',
+          null,
+          ['summary'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-09-10T16:50:00',
+          'Daniel Kiprop',
+        ),
+      ];
+      const PLATFORM_ARTS = [
+        A(
+          'b01',
+          null,
+          'What is a material change?',
+          'A material change is a change of 25% or more in value, an acquisition or disposal, a change in marital status, or a change in directorships or memberships.',
+          'Mabadiliko makubwa ni badiliko la asilimia 25 au zaidi kwa thamani, ununuzi au uuzaji, mabadiliko ya hali ya ndoa, au mabadiliko ya ukurugenzi au uanachama.',
+          ['statement', 'other'],
+          '2026-07-01',
+          null,
+          true,
+          2,
+          '2026-09-03T10:00:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b02',
+          null,
+          'Jointly owned property',
+          'Declare jointly owned property once in your statement with your share. Use "Also declare for" to add it to your spouse\'s statement.',
+          'Tangaza mali mnayomiliki pamoja mara moja pamoja na sehemu yako.',
+          ['statement', 'land', 'building'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T10:00:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b03',
+          null,
+          'Statement date and income period',
+          'Your statement date is the date your assets and liabilities are declared as at. Income is for the period ending on that date.',
+          'Tarehe ya taarifa ni tarehe ambayo mali na madeni yako yanatangazwa.',
+          ['summary', 'statement'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T10:10:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b04',
+          null,
+          'Assets and income outside Kenya',
+          'Give the country, the original currency and amount, and your approximate value in KES. You do not need to convert exactly.',
+          'Taja nchi, sarafu asili na kiasi, na thamani ya takriban kwa KES.',
+          ['statement'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T10:20:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b05',
+          null,
+          'Nothing to declare',
+          'If a person has no income, assets or liabilities in a category, tick "Nothing to declare" for that category.',
+          'Ikiwa hakuna cha kutangaza, weka alama kwenye "Hakuna cha kutangaza".',
+          ['statement'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T10:30:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b06',
+          null,
+          'Separated spouses',
+          "Declare what you know of a separated spouse's finances and say so in the statement if you do not know.",
+          null,
+          ['household'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T10:40:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b07',
+          null,
+          'Children aged 18 and over',
+          'Children who are 18 or older on the statement date are not included and need no statement.',
+          'Watoto wenye umri wa miaka 18 au zaidi hawajumuishwi.',
+          ['household'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T10:50:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b08',
+          null,
+          'Which documents to attach',
+          'A title deed, logbook, bank statement or payslip helps your Commission check an item. Attachments are optional.',
+          null,
+          ['statement'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T11:00:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b09',
+          null,
+          'Saving and coming back later',
+          'Your declaration saves as you type. Come back any time before the due date.',
+          'Tamko lako huhifadhiwa unapoandika.',
+          ['summary'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T11:10:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b10',
+          null,
+          'Signing in with eCitizen',
+          'Use the same eCitizen account you use for other government services.',
+          null,
+          ['bio'],
+          '2026-07-01',
+          null,
+          false,
+          1,
+          '2026-09-21T11:20:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b11',
+          null,
+          'Approximate values',
+          'Give your best estimate in KES. You are not expected to get a valuation.',
+          'Toa makadirio yako bora kwa KES.',
+          ['statement'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T11:30:00',
+          'Amina Wanjiru',
+        ),
+        A(
+          'b12',
+          null,
+          'Registrable interests',
+          'Directorships, memberships of companies and societies, dual citizenship and pending cases go under Other information.',
+          null,
+          ['other', 'directorship', 'membership'],
+          '2026-07-01',
+          null,
+          true,
+          1,
+          '2026-08-20T11:40:00',
+          'Amina Wanjiru',
+        ),
+      ];
+
+      /* Legal corpus passages (imported read-only from the repository). [citation, source, title, text] */
+      const CORPUS_SEED = [
+        [
+          'Act s.2',
+          'act',
+          'Interpretation: "spouse", "dependent child"',
+          '"dependent child" means a child of a public officer who is under the age of eighteen years.',
+        ],
+        [
+          'Act s.31(1)',
+          'act',
+          'Declaration of income, assets and liabilities',
+          'Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities and the income, assets and liabilities of his or her spouse and dependent children under the age of eighteen years.',
+        ],
+        [
+          'Act s.31(2)',
+          'act',
+          'Form of the declaration',
+          'The declaration referred to under subsection (1), shall be in the Form set out in the First Schedule.',
+        ],
+        [
+          'Act s.31(3)',
+          'act',
+          'Material change in periodical and final declarations',
+          'A public officer shall in a periodical or final declaration provide information on any material change in, or changes affecting any of the categories of income, assets or liabilities in the schedule of mandatory declarations that have occurred within the two-year period prior to the declaration.',
+        ],
+        [
+          'Act s.31(4)',
+          'act',
+          'Meaning of material change',
+          '"material change" means (a) at least twenty-five percent increase or decrease in the value of an income, asset or liability; (b) the disposal or acquisition of an asset or liability; (c) changes in marital status; (d) appointment to or changes in directorships; (e) changes in membership in companies or partnerships and other legal entities; or (f) changes in membership in social associations, societies, clubs, foundations or trusts.',
+        ],
+        [
+          'Act s.32(1)',
+          'act',
+          'Determination of responsible Commission',
+          'This section determines what body is the responsible Commission for a public officer for the purposes of this Act.',
+        ],
+        [
+          'Act s.34(1)',
+          'act',
+          'Initial declaration',
+          'A public officer shall, within thirty days of appointment as a public officer, submit an initial declaration relating to his or her financial affairs for the period of one year prior to appointment.',
+        ],
+        [
+          'Act s.34(2)',
+          'act',
+          'Biennial declaration',
+          'Every public officer shall, once every two years within the period of service, submit a declaration relating to the financial affairs of the public officer as at first day of November of the declaration year, and such declaration shall be made within the month of December next following.',
+        ],
+        [
+          'Act s.34(3)',
+          'act',
+          'Final declaration',
+          'A public officer shall, within thirty days after ceasing to be a public officer, submit a final declaration relating to his financial affairs as at the date he ceases to be a public officer.',
+        ],
+        [
+          'Act s.35',
+          'act',
+          'Clarification',
+          'A responsible Commission may request a public officer to clarify or provide further information on a declaration.',
+        ],
+        [
+          'Act s.36(1)',
+          'act',
+          'Access to declarations',
+          'A person may apply to the responsible Commission for access to a declaration in the prescribed form.',
+        ],
+        [
+          'Act s.38',
+          'act',
+          'Failure to submit information',
+          'A public officer who fails to submit a declaration commits an offence.',
+        ],
+        [
+          'Act s.39',
+          'act',
+          'False information',
+          'A public officer who knowingly submits false or misleading information commits an offence.',
+        ],
+        [
+          'Act s.46',
+          'act',
+          'Confidentiality',
+          'A person shall not disclose information in a declaration except as provided under this Act.',
+        ],
+        [
+          'Regs r.20',
+          'regs',
+          'Declaration of income, assets and liabilities',
+          'A declaration under section 31 of the Act shall be made in the Form set out in the First Schedule to the Act.',
+        ],
+        [
+          'Regs r.21',
+          'regs',
+          'Declaration of material change',
+          'A public officer shall record any material change in paragraph 9 of the declaration form.',
+        ],
+        [
+          'Regs r.22',
+          'regs',
+          'Access to declarations',
+          'An application for access to a declaration shall be made in Form K.',
+        ],
+        [
+          'Regs r.24',
+          'regs',
+          'Grounds for denial of access',
+          'The responsible Commission may deny access to a declaration on the grounds set out in this regulation.',
+        ],
+        [
+          'Regs r.25',
+          'regs',
+          'Compliance reports',
+          'A responsible Commission shall submit a compliance report to the Commission in Form M.',
+        ],
+        [
+          'Regs r.33',
+          'regs',
+          'Electronic submission of information',
+          'A declaration may be submitted electronically through a system approved by the Commission.',
+        ],
+        [
+          'Regs Sch.1 note 2',
+          'regs',
+          'First Schedule, note 2: approximate values',
+          'Values may be given as approximate amounts in Kenya shillings.',
+        ],
+        [
+          'Regs Sch.1 note 4',
+          'regs',
+          'First Schedule, note 4: spouse and children',
+          'A separate statement is required for the spouse and each dependent child.',
+        ],
+        [
+          'Regs Sch.1 note 10',
+          'regs',
+          'First Schedule, note 10: nil returns',
+          'Where there is nothing to declare in a category, state "nil".',
+        ],
+        [
+          'Regs Sch.1 note 13',
+          'regs',
+          'First Schedule, note 13: assets outside Kenya',
+          'Assets and income outside Kenya shall be declared, with the country and currency.',
+        ],
+        [
+          'Regs Sch.2',
+          'regs',
+          'Second Schedule: categories of income, assets and liabilities',
+          'Income includes salary, allowances, business income, rent, dividends, interest and pension. Assets include land, buildings, vehicles, securities, shareholdings, bank accounts, cash and money owed. Liabilities include mortgages, loans and guarantees.',
+        ],
+        [
+          'AM 12',
+          'am',
+          'Administrative Mechanisms: separated spouses',
+          'Where a public officer is separated from a spouse, the officer declares what is within their knowledge and states the extent of that knowledge.',
+        ],
+        [
+          'AM 18',
+          'am',
+          'Administrative Mechanisms: jointly held assets',
+          "Jointly held assets are declared with the declarant's share.",
+        ],
+        [
+          'AM 24',
+          'am',
+          'Administrative Mechanisms: reminders',
+          'Responsible Commissions shall remind public officers of their filing obligations before the due date.',
+        ],
+        [
+          'AM 31',
+          'am',
+          'Administrative Mechanisms: acknowledgement',
+          'The responsible Commission issues an acknowledgement for every declaration received.',
+        ],
+      ];
+      const SW_CORPUS = {
+        'Act s.31(1)':
+          'Kila afisa wa umma atawasilisha kwa Tume inayohusika tamko la mapato, mali na madeni yake na ya mwenzi wake na watoto wanaomtegemea walio chini ya umri wa miaka kumi na minane.',
+        'Act s.31(4)':
+          '"mabadiliko makubwa" maana yake ni (a) ongezeko au upungufu wa angalau asilimia ishirini na tano katika thamani ya mapato, mali au deni; (b) uuzaji au ununuzi wa mali au deni; (c) mabadiliko ya hali ya ndoa...',
+        'Act s.34(2)':
+          'Kila afisa wa umma atawasilisha, mara moja kila miaka miwili, tamko kuhusu hali yake ya kifedha kufikia tarehe moja Novemba ya mwaka wa tamko.',
+        'Regs r.21':
+          'Afisa wa umma ataandika mabadiliko yoyote makubwa katika aya ya 9 ya fomu ya tamko.',
+      };
+      const TAGS_FOR = (c) =>
+        /s\.31|r\.20|Sch\.2/.test(c)
+          ? ['statement']
+          : /s\.2$|note 4|AM 12/.test(c)
+            ? ['household']
+            : /s\.34|r\.33/.test(c)
+              ? ['summary']
+              : /r\.21|note 10/.test(c)
+                ? ['other', 'statement']
+                : [];
+      // Older passages superseded by the 2026.2 import (kept with an end date so answers cite the law in force).
+      function mkCorpus() {
+        const rows = CORPUS_SEED.map(([citation, source, title, text], i) => ({
+          id: `c${i}`,
+          citation,
+          source,
+          title,
+          textEn: text,
+          textSw: SW_CORPUS[citation] || null,
+          tags: TAGS_FOR(citation),
+          effectiveFrom: source === 'act' ? '2025-10-15' : '2026-03-02',
+          effectiveTo: null,
+          version: i % 7 === 3 ? 2 : 1,
+        }));
+        // Superseded versions of two passages.
+        rows.push({
+          ...rows[4],
+          id: 'c4-v1',
+          textEn: 'Superseded draft wording of the material change definition.',
+          textSw: null,
+          effectiveTo: '2026-03-01',
+          version: 1,
+          superseded: true,
+        });
+        rows[4].version = 2;
+        rows.push({
+          ...rows[20],
+          id: 'c20-v1',
+          textEn: 'Superseded note on approximate values.',
+          effectiveTo: '2026-03-01',
+          version: 1,
+          superseded: true,
+        });
+        rows[20].version = 2;
+        return rows;
+      }
+
+      const THEMES = [
+        ['Household and spouses', 'household'],
+        ['Children and dependants', 'household'],
+        ['Land and buildings', 'land'],
+        ['Vehicles', 'vehicle'],
+        ['Bank accounts and cash', 'bank-account'],
+        ['Shares and businesses', 'shareholding'],
+        ['Income and allowances', 'allowances'],
+        ['Loans and liabilities', 'loan'],
+        ['Material changes', 'other'],
+        ['Dates and filing obligations', 'summary'],
+        ['Assets outside Kenya', 'statement'],
+        ['Joint ownership', 'statement'],
+        ['Registrable interests', 'directorship'],
+        ['Signing in and using Adili', 'bio'],
+      ];
+      const MONTHS = [
+        ['2026-09', 'September 2026', 'to date'],
+        ['2026-08', 'August 2026'],
+        ['2026-07', 'July 2026'],
+        ['2026-06', 'June 2026'],
+      ];
+      function themeCounts(month) {
+        if (month === '2026-06') return [];
+        const f = { '2026-09': 1, '2026-08': 0.78, '2026-07': 0.41 }[month];
+        const base = [412, 188, 355, 214, 173, 149, 301, 266, 238, 197, 88, 121, 64, 143];
+        const un = [31, 9, 44, 12, 8, 17, 21, 19, 36, 6, 22, 14, 11, 4];
+        return THEMES.map(([theme, tag], i) => ({
+          theme,
+          tag,
+          count: Math.round(base[i] * f),
+          unanswered: Math.round(un[i] * f),
+        })).sort((a, b) => b.count - a.count);
+      }
+
+      function initialState() {
+        return {
+          arts: JSON.parse(JSON.stringify([...PSC_ARTS, ...PLATFORM_ARTS])),
+          corpus: mkCorpus(),
+          corpusVersion: { v: '2026.2', at: '2026-09-14T06:10:00', by: 'Release pipeline' },
+          list: { q: '', status: '', page: 1, load: 'ok' },
+          ed: null,
+          cor: { q: '', source: '', old: false, page: 1, load: 'ok' },
+          th: { month: '2026-09', load: 'ok' },
+          search: { q: '', lang: 'en', last: null },
+          justPublished: null,
+          notFound: false,
+        };
+      }
+      const S = Kit.state(initialState());
+      const PAGE = 10;
+
+      /* ============================== helpers ============================== */
+      const statusOf = (a) =>
+        !a.published
+          ? 'draft'
+          : a.effectiveTo && a.effectiveTo < TODAY_ISO
+            ? 'expired'
+            : a.effectiveFrom > TODAY_ISO
+              ? 'scheduled'
+              : 'published';
+      const STATUS = {
+        published: ['Published', 'ok', 'check'],
+        scheduled: ['Scheduled', 'info', 'clock'],
+        draft: ['Draft', '', 'pencil'],
+        expired: ['Expired', '', 'archive'],
+      };
+      const statusBadge = (a) => {
+        const [l, k, ic] = STATUS[statusOf(a)];
+        return badge(`${icon(ic, 12, 2.2)} ${l}`, k);
+      };
+      const langs = (a) =>
+        `<span class="lang" aria-label="${a.bodySw ? 'English and Kiswahili' : 'English only'}"><span>EN</span><span class="${a.bodySw ? '' : 'off'}" title="${a.bodySw ? 'Kiswahili' : 'No Kiswahili text'}">SW</span></span>`;
+      const effLine = (a) =>
+        a.effectiveTo
+          ? `${fmtDate(a.effectiveFrom)} - ${fmtDate(a.effectiveTo)}`
+          : `From ${fmtDate(a.effectiveFrom)}`;
+      const scopeArts = () =>
+        S.arts.filter((a) => (scope() === 'platform' ? a.tenant === null : a.tenant === 'psc'));
+      const inForce = (a) => statusOf(a) === 'published';
+      const citeHelp = (a) =>
+        `<span class="cite help">${icon('file', 12, 2)} Help: ${esc(a.title)}</span>`;
+      const cite = (c) => `<span class="cite">${icon('scale', 12, 2)} ${esc(c)}</span>`;
+      const SOURCE_L = { act: 'Act', regs: 'Regulations', am: 'Administrative Mechanisms' };
+
+      function stateScreen(kind, crumbs) {
+        const k = {
+          403: [
+            'ban',
+            'You do not have access to this page',
+            'This page is for platform administrators.',
+          ],
+          404: [
+            'search',
+            'Page not found',
+            'This page does not exist or you do not have access to it.',
+          ],
+        }[kind];
+        const home = ['reporting-officer', 'commission-admin', 'reviewer', 'supervisor'].includes(
+          P(),
+        )
+          ? '01-commissions.prototype.html#my-commission'
+          : '01-commissions.prototype.html#commissions';
+        return consoleShell(
+          `<main class="cpage"><div class="state-page"><div class="ico">${icon(k[0], 24)}</div><h1>${k[1]}</h1><p>${k[2]}</p><div style="margin-top:20px"><a class="btn btn-secondary" href="${home}">Go to overview</a></div></div></main>`,
+          { crumbs, active: 'Help articles' },
+        );
+      }
+      // Commission help: commission-admin edit, reporting-officer read, others 404. Platform: platform-admin only, others 403.
+      function gate(screen) {
+        if (screen === 'corpus') return isPA() ? null : 403;
+        if (screen === 'themes') return isCommissionHelpRole() ? null : 404;
+        if (isPA() || isCommissionHelpRole()) return null;
+        return ['eacc-analyst', 'eacc-supervisor', 'law-enforcement'].includes(P()) ? 403 : 404;
+      }
+      function tabs(on) {
+        const items = isPA()
+          ? [
+              ['articles', 'Platform articles', 'file'],
+              ['corpus', 'Legal corpus', 'scale'],
+            ]
+          : [
+              ['articles', 'Articles', 'file'],
+              ['themes', 'Question themes', 'chart'],
+            ];
+        return `<div class="tabs" role="tablist">${items
+          .map(
+            ([k, l, ic]) =>
+              `<button role="tab" class="${on === k ? 'on' : ''}" aria-selected="${on === k}" data-act="go" data-arg="${k}">${icon(ic, 16)} ${l}</button>`,
+          )
+          .join('')}</div>`;
+      }
+      const loadErr = (what, act) =>
+        `<div class="callout callout-danger" role="alert" style="margin:16px">${icon('alert', 18)}<div style="flex:1">${what} could not be loaded.</div><button class="btn btn-secondary btn-sm" data-act="${act}">${icon('refresh', 15)} Retry</button></div>`;
+
+      /* ============================== screen: articles list ============================== */
+      function filteredArts() {
+        const q = S.list.q.trim().toLowerCase();
+        return scopeArts()
+          .filter((a) => !S.list.status || statusOf(a) === S.list.status)
+          .filter(
+            (a) =>
+              !q ||
+              a.title.toLowerCase().includes(q) ||
+              a.tags.some((t) => (TAG_L[t] || t).toLowerCase().includes(q)),
+          )
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      }
+      function screenArticles() {
+        const crumbs = [['Help articles', 'articles']];
+        const g = gate('articles');
+        if (g) return stateScreen(g, crumbs);
+        const all = scopeArts();
+        const counts = Object.fromEntries(
+          Object.keys(STATUS).map((k) => [k, all.filter((a) => statusOf(a) === k).length]),
+        );
+        const head = `<div class="page-head"><div style="min-width:0"><h1>Help articles</h1>${isRO() ? `<div class="head-meta">${badge(`${icon('eye', 12)} Read only`)}</div>` : ''}</div><div class="actions-r"><button class="btn btn-secondary" data-act="openSearch">${icon('search', 16)} Test help search</button>${canEdit() ? `<button class="btn btn-primary" data-act="newArticle">${icon('plus', 17)} New article</button>` : ''}</div></div>`;
+        const chips = `<div class="row wrap" style="gap:6px">${[
+          ['', 'All', all.length],
+          ...Object.entries(STATUS).map(([k, v]) => [k, v[0], counts[k]]),
+        ]
+          .map(
+            ([k, l, n]) =>
+              `<button class="chip ${S.list.status === k ? 'on' : ''}" data-act="listStatus" data-arg="${k}" aria-pressed="${S.list.status === k}">${l} <span class="n">${n}</span></button>`,
+          )
+          .join('')}</div>`;
+        const toolbar = `<div class="toolbar" role="search"><div class="input-group"><span class="addon">${icon('search', 16)}</span><label class="sr-only" for="f-list-q">Search articles</label><input id="f-list-q" class="input" type="search" data-bind="list.q" data-live value="${esc(S.list.q)}" placeholder="Title or tag"/></div>${chips}</div>`;
+        let content;
+        if (S.list.load === 'loading')
+          content = `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="sr-only">Help articles (loading)</caption><thead><tr><th>Title</th><th>Status</th><th>Languages</th><th>In effect</th><th>Updated</th></tr></thead><tbody>${Kit.skeletonRows(6, 5)}</tbody></table></div>`;
+        else if (S.list.load === 'error') content = loadErr('Help articles', 'retryList');
+        else {
+          const rows = filteredArts();
+          if (!all.length)
+            content = Kit.empty(
+              'No help articles yet',
+              isPA()
+                ? 'Platform articles answer questions every declarant asks.'
+                : 'Explain how PSC does things, like where declarants find their file number.',
+              {
+                icon: 'file',
+                action: canEdit()
+                  ? `<button class="btn btn-primary btn-sm" data-act="newArticle">${icon('plus', 15)} New article</button>`
+                  : '',
+              },
+            );
+          else if (!rows.length)
+            content = Kit.empty('No matches', 'Try another search or clear the filters.', {
+              icon: 'search',
+              action: `<button class="btn btn-secondary btn-sm" data-act="clearList">Clear filters</button>`,
+            });
+          else {
+            const pages = Math.ceil(rows.length / PAGE);
+            const page = Math.min(S.list.page, pages);
+            const items = rows.slice((page - 1) * PAGE, page * PAGE);
+            const tr = items
+              .map(
+                (a) =>
+                  `<tr class="click" data-act="openArticle" data-arg="${a.id}"><td style="min-width:260px;white-space:normal"><a class="rowlink" href="#article" data-act="openArticle" data-arg="${a.id}">${esc(a.title)}</a><div class="sub">${a.tags.length ? a.tags.map((t) => esc(TAG_L[t] || t)).join(', ') : 'No tags'}</div></td><td>${statusBadge(a)}</td><td>${langs(a)}</td><td class="nowrap">${effLine(a)}</td><td class="nowrap">${fmtDate(a.updatedAt)}<div class="sub">Version ${a.version}</div></td></tr>`,
+              )
+              .join('');
+            const m = items
+              .map(
+                (a) =>
+                  `<div class="mitem" data-act="openArticle" data-arg="${a.id}"><div class="top"><a class="rowlink" href="#article" data-act="openArticle" data-arg="${a.id}">${esc(a.title)}</a>${statusBadge(a)}</div><div class="meta">${langs(a)} · ${effLine(a)} · v${a.version}</div></div>`,
+              )
+              .join('');
+            content = `<div class="table-wrap dtable"><table class="table"><caption class="sr-only">Help articles, most recently updated first</caption><thead><tr><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Languages</th><th scope="col">In effect</th><th scope="col">Updated</th></tr></thead><tbody>${tr}</tbody></table></div><div class="mlist">${m}</div>${Kit.pager({ page, pageSize: PAGE, total: rows.length, act: 'listPage' })}`;
+          }
+        }
+        return consoleShell(
+          `<main class="cpage">${head}${tabs('articles')}<div class="card">${toolbar}${content}</div></main>`,
+          {
+            crumbs,
+            active: 'Help articles',
+          },
+        );
+      }
+
+      /* ============================== screen: article editor ============================== */
+      const blank = () => ({
+        id: null,
+        tenant: scope() === 'platform' ? null : 'psc',
+        title: '',
+        bodyEn: '',
+        bodySw: '',
+        tags: [],
+        effectiveFrom: TODAY_ISO,
+        effectiveTo: '',
+        published: false,
+        version: 0,
+      });
+      function md(src) {
+        if (!src.trim()) return '<p class="muted">Nothing to preview yet.</p>';
+        return src
+          .trim()
+          .split(/\n\s*\n/)
+          .map((b) => {
+            const lines = b.split('\n');
+            const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+            if (lines.every((l) => /^\s*-\s+/.test(l)))
+              return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^\s*-\s+/, ''))}</li>`).join('')}</ul>`;
+            return `<p>${lines.map(inline).join('<br/>')}</p>`;
+          })
+          .join('');
+      }
+      function validate(d) {
+        const e = {};
+        if (!d.title.trim()) e.title = 'Enter a title.';
+        else if (d.title.length > 200) e.title = 'Title must be 200 characters or fewer.';
+        if (!d.bodyEn.trim()) e.bodyEn = 'Write the English text.';
+        if (!d.effectiveFrom) e.effectiveFrom = 'Enter the date the article takes effect.';
+        if (d.effectiveTo && d.effectiveFrom && d.effectiveTo <= d.effectiveFrom)
+          e.effectiveTo = 'The end date must be after the start date.';
+        return e;
+      }
+      const ERR_ORDER = [
+        ['title', 'f-ed-d-title'],
+        ['bodyEn', 'f-ed-d-bodyEn'],
+        ['effectiveFrom', 'f-ed-d-effectiveFrom'],
+        ['effectiveTo', 'f-ed-d-effectiveTo'],
+      ];
+      function screenArticle() {
+        const ed = S.ed;
+        const crumbs = [
+          ['Help articles', 'articles'],
+          [ed?.d.id ? esc(ed.d.title || 'Article') : 'New article', 'article'],
+        ];
+        const g = gate('article');
+        if (g) return stateScreen(g, crumbs);
+        if (!ed || S.notFound)
+          return consoleShell(
+            `<main class="cpage narrow"><div class="card">${Kit.empty('Article not found', 'It may have been removed, or it belongs to another Commission.', { icon: 'search', action: `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="articles">Back to articles</button>` })}</div></main>`,
+            { crumbs, active: 'Help articles' },
+          );
+        const d = ed.d;
+        const orig = S.arts.find((a) => a.id === d.id);
+        const ro = !canEdit();
+        const e = ed.errors || {};
+        const errList = ERR_ORDER.filter(([k]) => e[k]);
+        const errSum =
+          errList.length || ed.apiErr
+            ? `<div class="callout callout-danger errsum" role="alert" tabindex="-1" id="errsum">${icon('alert', 18)}<div><b>${ed.apiErr ? esc(ed.apiErr.title) : `Fix ${errList.length === 1 ? 'this' : `these ${errList.length}`} before saving`}</b>${ed.apiErr?.detail ? `<div>${esc(ed.apiErr.detail)}</div>` : ''}${errList.length ? `<ul>${errList.map(([k, id]) => `<li><a data-act="focusField" data-arg="${id}">${esc(e[k])}</a></li>`).join('')}</ul>` : ''}</div></div>`
+            : '';
+        const meta = orig
+          ? `<div class="head-meta">${statusBadge(orig)}<span>Version ${orig.version} · updated ${fmtDateTime(orig.updatedAt)} by ${esc(orig.updatedBy)}</span></div>`
+          : `<div class="head-meta">${badge(`${icon('pencil', 12, 2.2)} Not saved`)}</div>`;
+        const actions = ro
+          ? badge(`${icon('eye', 12)} Read only`)
+          : `<button class="btn btn-secondary" data-act="go" data-arg="articles" ${ed.saving ? 'disabled' : ''}>Cancel</button><button class="btn btn-primary" data-act="saveArticle" ${ed.saving ? 'disabled aria-busy="true"' : ''}>${ed.saving ? '<span class="spinner" style="width:14px;height:14px"></span> Saving…' : `${icon('save', 16)} Save`}</button>`;
+        const head = `<div class="page-head"><div style="min-width:0"><h1>${d.id ? esc(orig?.title || d.title) : 'New article'}</h1>${meta}</div><div class="actions-r">${actions}</div></div>`;
+        const lang = ed.lang;
+        const bodyKey = lang === 'en' ? 'bodyEn' : 'bodySw';
+        const bodyVal = d[bodyKey] || '';
+        const bodyErr = lang === 'en' ? e.bodyEn : '';
+        const seg = (bind, cur, opts, act) =>
+          `<div class="seg sm" role="radiogroup" aria-label="${bind}">${opts.map(([k, l]) => `<button role="radio" aria-checked="${cur === k}" class="${cur === k ? 'on' : ''}" data-act="${act}" data-arg="${k}">${l}</button>`).join('')}</div>`;
+        const titleF = ro
+          ? ''
+          : field(
+              'Title',
+              input('ed.d.title', {
+                extra: `maxlength="220" ${e.title ? 'aria-invalid="true"' : ''}`,
+              }),
+              {
+                id: 'f-ed-d-title',
+                error: e.title,
+              },
+            );
+        const bodyControl =
+          ro || ed.mode === 'preview'
+            ? `<div class="prose" ${ro ? '' : 'aria-live="polite"'}>${ro && lang === 'sw' && !d.bodySw ? '<p class="muted">No Kiswahili text. Kiswahili users see the English.</p>' : md(bodyVal)}</div>`
+            : textarea(`ed.d.${bodyKey}`, {
+                rows: 12,
+                ph:
+                  lang === 'en'
+                    ? 'Write in plain English. Short paragraphs; start lines with "- " for a list.'
+                    : 'Andika kwa Kiswahili rahisi.',
+                extra: `${bodyErr ? 'aria-invalid="true" aria-describedby="f-body-hint"' : ''} aria-label="${lang === 'en' ? 'Body in English' : 'Body in Kiswahili'}"`,
+              });
+        const body = `<div class="ed-body"><div class="body-h"><span class="label"><span>${ro ? 'Text' : 'Body'}</span></span>${seg(
+          'Language',
+          lang,
+          [
+            ['en', 'English'],
+            ['sw', 'Kiswahili'],
+          ],
+          'edLang',
+        )}<div class="right">${
+          ro
+            ? ''
+            : seg(
+                'View',
+                ed.mode,
+                [
+                  ['write', 'Write'],
+                  ['preview', 'Preview'],
+                ],
+                'edMode',
+              )
+        }</div></div>${bodyControl}<div class="row" style="margin-top:6px;gap:10px">${bodyErr ? `<div class="hint" id="f-body-hint" role="alert" style="color:var(--danger);font-weight:500">${bodyErr}</div>` : lang === 'sw' && !ro ? '<div class="hint">Optional. Without it, Kiswahili users see the English.</div>' : ''}<span class="spacer"></span>${ro ? '' : `<span class="cc">${num(bodyVal.length)} / 20,000</span>`}</div></div>`;
+        const main = `<div class="card card-pad stack">${titleF}${body}</div>`;
+        const tagsSel = d.tags;
+        const tagChips = (list) =>
+          `<div class="tagset" role="group">${list
+            .map(([k, l]) => {
+              const on = tagsSel.includes(k);
+              return ro
+                ? on
+                  ? `<span class="chip on" style="cursor:default">${esc(l)}</span>`
+                  : ''
+                : `<button class="chip ${on ? 'on' : ''}" data-act="toggleTag" data-arg="${k}" aria-pressed="${on}">${on ? icon('check', 13, 2.6) : ''}${esc(l)}</button>`;
+            })
+            .join('')}</div>`;
+        const pub = ro
+          ? `<div class="kv"><div><div class="k">Status</div><div class="v">${statusBadge(orig)}</div></div><div><div class="k">In effect</div><div class="v">${effLine(orig)}</div></div></div>`
+          : `<label class="switch"><input type="checkbox" data-bind="ed.d.published" data-rerender ${d.published ? 'checked' : ''}/><span class="track" aria-hidden="true"></span><span><span class="t">${d.published ? 'Published' : 'Not published'}</span><div class="hint" style="margin-top:2px">${d.published ? (scope() === 'platform' ? 'Every declarant can find it.' : 'PSC declarants can find it.') : 'Only staff can see it.'}</div></span></label>
+            <div class="dates">${field('In effect from', input('ed.d.effectiveFrom', { type: 'date', extra: e.effectiveFrom ? 'aria-invalid="true"' : '' }), { id: 'f-ed-d-effectiveFrom', error: e.effectiveFrom })}${field('Until', input('ed.d.effectiveTo', { type: 'date', extra: e.effectiveTo ? 'aria-invalid="true"' : '' }), { id: 'f-ed-d-effectiveTo', error: e.effectiveTo, opt: true })}</div>`;
+        const side = `<div class="stack"><section class="card"><div class="sec-h"><h3>Publishing</h3></div><div class="sec-b stack">${pub}</div></section><section class="card"><div class="sec-h"><h3>Tags</h3>${ro ? '' : `<span class="badge">${tagsSel.length}</span>`}${Kit.tip('Search ranks this article higher for declarants on these sections and items.')}</div><div class="sec-b">${
+          ro && !tagsSel.length
+            ? '<span class="muted small">No tags</span>'
+            : [
+                ['Sections', SECTION_TAGS],
+                ['Item types', ITEM_TAGS],
+              ]
+                .filter(([, l]) => !ro || l.some(([k]) => tagsSel.includes(k)))
+                .map(([g, l]) => `<div class="tag-g">${g}</div>${tagChips(l)}`)
+                .join('')
+        }</div></section></div>`;
+        return consoleShell(
+          `<main class="cpage">${head}${errSum}<div class="ed-grid">${main}${side}</div></main>`,
+          {
+            crumbs,
+            active: 'Help articles',
+          },
+        );
+      }
+
+      /* ============================== screen: legal corpus (platform-admin) ============================== */
+      function filteredCorpus() {
+        const q = S.cor.q.trim().toLowerCase();
+        return S.corpus
+          .filter((c) => S.cor.old || !c.superseded)
+          .filter((c) => !S.cor.source || c.source === S.cor.source)
+          .filter((c) => !q || `${c.citation} ${c.title} ${c.textEn}`.toLowerCase().includes(q));
+      }
+      function screenCorpus() {
+        const crumbs = [
+          ['Help articles', 'articles'],
+          ['Legal corpus', 'corpus'],
+        ];
+        const g = gate('corpus');
+        if (g) return stateScreen(g, crumbs);
+        const cv = S.corpusVersion;
+        const live = S.corpus.filter((c) => !c.superseded).length;
+        const head = `<div class="page-head"><div style="min-width:0"><h1>Help articles</h1></div><div class="actions-r"><button class="btn btn-secondary" data-act="openSearch">${icon('search', 16)} Test help search</button><button class="btn btn-secondary" data-act="modal" data-arg="reimport" ${S.cor.importing ? 'disabled' : ''}>${S.cor.importing ? '<span class="spinner dark" style="width:14px;height:14px"></span> Importing…' : `${icon('refresh', 16)} Re-import`}</button></div></div>`;
+        const metaRow = `<div class="toolbar" style="justify-content:space-between"><div class="ro-note">${icon('lock', 14)} Version <b style="color:var(--ink)">${esc(cv.v)}</b> · ${num(live)} passages in force · imported ${fmtDateTime(cv.at)}${Kit.tip('Statutory text is imported from the repository at deploy time. It cannot be edited here.')}</div></div>`;
+        const opt = (v, l) =>
+          `<option value="${v}" ${S.cor.source === v ? 'selected' : ''}>${l}</option>`;
+        const toolbar = `<div class="toolbar" role="search"><div class="input-group"><span class="addon">${icon('search', 16)}</span><label class="sr-only" for="f-cor-q">Search passages</label><input id="f-cor-q" class="input" type="search" data-bind="cor.q" data-live value="${esc(S.cor.q)}" placeholder="Citation, title or text"/></div><label class="sr-only" for="f-cor-source">Source</label><select id="f-cor-source" class="select" data-bind="cor.source" data-rerender>${opt('', 'All sources')}${opt('act', 'Act')}${opt('regs', 'Regulations')}${opt('am', 'Administrative Mechanisms')}</select><label class="check" style="font-size:14px"><input type="checkbox" data-bind="cor.old" data-rerender ${S.cor.old ? 'checked' : ''}/><span class="box">${icon('check', 14, 3)}</span><span>Show superseded</span></label></div>`;
+        let content;
+        if (S.cor.load === 'loading')
+          content = `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="sr-only">Legal corpus (loading)</caption><thead><tr><th>Citation</th><th>Title</th><th>Languages</th><th>In effect</th><th>Version</th></tr></thead><tbody>${Kit.skeletonRows(6, 5)}</tbody></table></div>`;
+        else if (S.cor.load === 'error') content = loadErr('The legal corpus', 'retryCorpus');
+        else {
+          const rows = filteredCorpus();
+          if (!rows.length)
+            content = Kit.empty(
+              'No passages match',
+              'Try a citation like "s.31" or clear the filters.',
+              {
+                icon: 'search',
+                action: `<button class="btn btn-secondary btn-sm" data-act="clearCorpus">Clear filters</button>`,
+              },
+            );
+          else {
+            const pages = Math.ceil(rows.length / PAGE);
+            const page = Math.min(S.cor.page, pages);
+            const items = rows.slice((page - 1) * PAGE, page * PAGE);
+            const eff = (c) =>
+              c.effectiveTo
+                ? `${fmtDate(c.effectiveFrom)} - ${fmtDate(c.effectiveTo)}`
+                : `From ${fmtDate(c.effectiveFrom)}`;
+            const lg = (c) =>
+              `<span class="lang"><span>EN</span><span class="${c.textSw ? '' : 'off'}">SW</span></span>`;
+            const tr = items
+              .map(
+                (c) =>
+                  `<tr class="click" data-act="openPassage" data-arg="${c.id}"><td class="nowrap">${cite(c.citation)}</td><td style="min-width:240px;white-space:normal"><a class="rowlink" href="#corpus" data-act="openPassage" data-arg="${c.id}">${esc(c.title)}</a><div class="sub">${SOURCE_L[c.source]}</div></td><td>${lg(c)}</td><td class="nowrap">${eff(c)}${c.superseded ? `<div class="sub">${badge('Superseded')}</div>` : ''}</td><td class="num">${c.version}</td></tr>`,
+              )
+              .join('');
+            const m = items
+              .map(
+                (c) =>
+                  `<div class="mitem" data-act="openPassage" data-arg="${c.id}"><div class="top"><a class="rowlink" href="#corpus" data-act="openPassage" data-arg="${c.id}">${esc(c.title)}</a>${c.superseded ? badge('Superseded') : ''}</div><div class="meta">${cite(c.citation)} ${lg(c)} · v${c.version}</div></div>`,
+              )
+              .join('');
+            content = `<div class="table-wrap dtable"><table class="table"><caption class="sr-only">Legal corpus passages</caption><thead><tr><th scope="col">Citation</th><th scope="col">Title</th><th scope="col">Languages</th><th scope="col">In effect</th><th scope="col" class="num">Version</th></tr></thead><tbody>${tr}</tbody></table></div><div class="mlist">${m}</div>${Kit.pager({ page, pageSize: PAGE, total: rows.length, act: 'corPage' })}`;
+          }
+        }
+        return consoleShell(
+          `<main class="cpage">${head}${tabs('corpus')}<div class="card">${metaRow}${toolbar}${content}</div></main>`,
+          {
+            crumbs,
+            active: 'Help articles',
+          },
+        );
+      }
+
+      /* ============================== screen: question themes ============================== */
+      function screenThemes() {
+        const crumbs = [
+          ['Help articles', 'articles'],
+          ['Question themes', 'themes'],
+        ];
+        const g = gate('themes');
+        if (g) return stateScreen(g, crumbs);
+        const mo = MONTHS.find((m) => m[0] === S.th.month);
+        const monthSel = `<label class="sr-only" for="f-th-month">Month</label><select id="f-th-month" class="select" data-bind="th.month" data-rerender style="width:auto">${MONTHS.map(([k, l, s]) => `<option value="${k}" ${S.th.month === k ? 'selected' : ''}>${l}${s ? ` (${s})` : ''}</option>`).join('')}</select>`;
+        const head = `<div class="page-head"><div style="min-width:0"><h1>Help articles</h1></div><div class="actions-r">${monthSel}</div></div>`;
+        let content;
+        if (S.th.load === 'loading')
+          content = `<div class="tiles t3">${[1, 2, 3].map(() => `<div class="tile"><span class="skeleton" style="width:45%"></span><span class="skeleton" style="width:30%;height:26px;margin-top:6px"></span></div>`).join('')}</div><div class="card"><div class="table-wrap"><table class="table" aria-busy="true"><caption class="sr-only">Question themes (loading)</caption><thead><tr><th>Theme</th><th class="num">Questions</th><th class="num">Unanswered</th><th>Share</th></tr></thead><tbody>${Kit.skeletonRows(6, 4)}</tbody></table></div></div>`;
+        else if (S.th.load === 'error')
+          content = `<div class="card">${loadErr('Question themes', 'retryThemes')}</div>`;
+        else {
+          const rows = themeCounts(S.th.month);
+          if (!rows.length)
+            content = `<div class="card">${Kit.empty(`No questions in ${mo[1]}`, 'Ask Adili opened to PSC declarants on 1 Jul 2026.', { icon: 'chart' })}</div>`;
+          else {
+            const total = rows.reduce((a, r) => a + r.count, 0);
+            const un = rows.reduce((a, r) => a + r.unanswered, 0);
+            const max = rows[0].count;
+            const top = [...rows].sort((a, b) => b.unanswered - a.unanswered)[0];
+            const tiles = `<div class="tiles t3"><div class="tile"><span class="k">${icon('msg', 15)} Questions</span><span class="v">${num(total)}</span></div><div class="tile"><span class="k">${icon('help', 15)} Unanswered</span><span class="v">${num(un)} <small style="font-size:14px;color:var(--muted);font-weight:500">${Kit.pct(un, total)}%</small></span></div><div class="tile"><span class="k">${icon('alert', 15)} Most unanswered</span><span class="v" style="font-size:18px;line-height:1.3;margin-top:4px">${esc(top.theme)}</span><span class="s">${num(top.unanswered)} of ${num(top.count)}</span></div></div>`;
+            const tr = rows
+              .map(
+                (r) =>
+                  `<tr><td style="font-weight:500;min-width:200px">${esc(r.theme)}</td><td class="num">${num(r.count)}</td><td class="num">${num(r.unanswered)}</td><td style="min-width:140px"><div class="bar" role="img" aria-label="${Kit.pct(r.count, total)}% of questions"><i style="width:${Math.round((r.count / max) * 100)}%"></i></div></td>${isCA() ? `<td class="nowrap" style="text-align:right"><button class="btn btn-ghost btn-sm" data-act="articleForTheme" data-arg="${esc(r.tag)}|${esc(r.theme)}">${icon('plus', 15)} Article</button></td>` : ''}</tr>`,
+              )
+              .join('');
+            content = `${tiles}<div class="card" style="margin-top:16px"><div class="table-wrap"><table class="table"><caption class="sr-only">Question themes for ${mo[1]}, most asked first. Counts only.</caption><thead><tr><th scope="col">Theme</th><th scope="col" class="num">Questions</th><th scope="col" class="num">Unanswered</th><th scope="col">Share</th>${isCA() ? '<th scope="col"><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody>${tr}</tbody><tfoot><tr><td>All themes</td><td class="num">${num(total)}</td><td class="num">${num(un)}</td><td></td>${isCA() ? '<td></td>' : ''}</tr><tr class="un"><td>${icon('help', 14)} Unanswered</td><td class="num">${num(un)}</td><td class="num">${Kit.pct(un, total)}%</td><td style="min-width:140px"><div class="bar warn" role="img" aria-label="${Kit.pct(un, total)}% unanswered"><i style="width:${Math.round((un / max) * 100)}%"></i></div></td>${isCA() ? '<td></td>' : ''}</tr></tfoot></table></div></div>`;
+          }
+        }
+        const note = `<div class="ro-note" style="margin-bottom:14px">${icon('lock', 14)} Counts only, per month. Question text never leaves the declarations service.</div>`;
+        return consoleShell(
+          `<main class="cpage">${head}${tabs('themes')}${note}${content}</main>`,
+          {
+            crumbs,
+            active: 'Help articles',
+          },
+        );
+      }
+
+      /* ============================== modals ============================== */
+      function searchResults(q, lang) {
+        const words = q
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 2);
+        if (!words.length) return [];
+        const score = (txt, title, tags) =>
+          words.reduce(
+            (s, w) =>
+              s +
+              (title.toLowerCase().includes(w) ? 3 : 0) +
+              (tags.join(' ').includes(w) ? 2 : 0) +
+              (txt.toLowerCase().includes(w) ? 1 : 0),
+            0,
+          );
+        const tenant = scope() === 'platform' ? null : 'psc';
+        const arts = S.arts
+          .filter((a) => inForce(a) && (a.tenant === null || a.tenant === tenant))
+          .map((a) => {
+            const txt = lang === 'sw' && a.bodySw ? a.bodySw : a.bodyEn;
+            return { kind: 'help', a, title: a.title, txt, s: score(txt, a.title, a.tags) };
+          });
+        const cor = S.corpus
+          .filter((c) => !c.superseded)
+          .map((c) => {
+            const txt = lang === 'sw' && c.textSw ? c.textSw : c.textEn;
+            return { kind: 'law', c, title: c.title, txt, s: score(txt, c.title, c.tags) };
+          });
+        return [...arts, ...cor]
+          .filter((x) => x.s > 0)
+          .sort((a, b) => b.s - a.s)
+          .slice(0, 8);
+      }
+      const mark = (t, q) => {
+        let h = esc(t.length > 180 ? t.slice(0, 180) + '…' : t);
+        q.toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 2)
+          .forEach((w) => {
+            h = h.replace(
+              new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'),
+              '<mark>$1</mark>',
+            );
+          });
+        return h;
+      };
+      const modals = {
+        search: () => {
+          const s = S.search;
+          const res = s.last ? searchResults(s.last, s.lang) : [];
+          const who = scope() === 'platform' ? 'any declarant' : 'a PSC declarant';
+          const list = !s.last
+            ? `<p class="muted small">Search the way ${who} would in Ask Adili's help. Results include the law and published articles in force.</p>`
+            : !res.length
+              ? Kit.empty('No results', 'Declarants would see "Ask your reporting officer".', {
+                  icon: 'search',
+                })
+              : `<div class="results" aria-live="polite">${res
+                  .map(
+                    (r) =>
+                      `<div class="result ${r.kind === 'help' && r.a.id === S.justPublished ? 'new' : ''}"><div class="row wrap" style="gap:6px">${r.kind === 'help' ? citeHelp(r.a) : cite(r.c.citation)}${r.kind === 'help' && r.a.id === S.justPublished ? badge(`${icon('check', 12, 2.4)} Just published`, 'ok') : ''}</div><div class="t">${esc(r.title)}</div><div class="s">${mark(r.txt, s.last)}</div></div>`,
+                  )
+                  .join('')}</div>`;
+          return drawer({
+            title: 'Test help search',
+            body: `<form class="row" style="gap:8px;align-items:flex-end;margin-bottom:6px" onsubmit="event.preventDefault();Kit.cfg.actions.runSearch()"><div style="flex:1;min-width:0">${field('Search', input('search.q', { type: 'search', ph: 'e.g. file number' }), { id: 'f-search-q' })}</div><div>${field('Language', `<select id="f-search-lang" class="select" data-bind="search.lang" style="width:auto"><option value="en" ${s.lang === 'en' ? 'selected' : ''}>English</option><option value="sw" ${s.lang === 'sw' ? 'selected' : ''}>Kiswahili</option></select>`, { id: 'f-search-lang' })}</div><button class="btn btn-primary" type="submit" style="height:44px">${icon('search', 16)}<span class="sr-only">Search</span></button></form>${list}`,
+          });
+        },
+        passage: () => {
+          const c = S.corpus.find((x) => x.id === S.modal.id);
+          return drawer({
+            title: esc(c.title),
+            head: `<div class="row wrap" style="gap:6px;margin-top:8px">${cite(c.citation)}${badge(SOURCE_L[c.source])}${c.superseded ? badge('Superseded') : ''}</div>`,
+            body: `<div class="stack"><div class="kv"><div><div class="k">In effect</div><div class="v">${c.effectiveTo ? `${fmtDate(c.effectiveFrom)} - ${fmtDate(c.effectiveTo)}` : `From ${fmtDate(c.effectiveFrom)}`}</div></div><div><div class="k">Version</div><div class="v">${c.version}</div></div></div><div><div class="label" style="margin-bottom:6px"><span>English</span></div><div class="passage">${esc(c.textEn)}</div></div><div><div class="label" style="margin-bottom:6px"><span>Kiswahili</span></div>${c.textSw ? `<div class="passage">${esc(c.textSw)}</div>` : '<div class="muted small">No Kiswahili text. Answers in Kiswahili cite the English.</div>'}</div><div><div class="label" style="margin-bottom:6px"><span>Tags</span></div>${c.tags.length ? `<div class="tagset">${c.tags.map((t) => `<span class="chip on" style="cursor:default">${esc(TAG_L[t] || t)}</span>`).join('')}</div>` : '<span class="muted small">No tags</span>'}</div><div class="ro-note">${icon('lock', 14)} Read only. Imported from the repository.</div></div>`,
+          });
+        },
+        reimport: () =>
+          dialog({
+            title: 'Re-import the legal corpus?',
+            icon: 'refresh',
+            body: `<p>Adili loads the corpus checked into the repository. Changed passages get a new version; replaced ones keep an end date. Answers cite the new version from now on.</p><div class="kv" style="margin-top:14px"><div><div class="k">Current version</div><div class="v">${esc(S.corpusVersion.v)}</div></div><div><div class="k">In the repository</div><div class="v">2026.3</div></div></div>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="doReimport">${icon('refresh', 16)} Re-import</button>`,
+          }),
+        leave: () =>
+          dialog({
+            title: 'Discard changes?',
+            icon: 'alert',
+            body: '<p>Your changes to this article are not saved.</p>',
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Keep editing</button><button class="btn btn-danger" data-act="confirmLeave">Discard</button>`,
+          }),
+      };
+
+      /* ============================== actions ============================== */
+      function openEditor(a, extra = {}) {
+        S.ed = {
+          d: a
+            ? JSON.parse(
+                JSON.stringify({ ...a, bodySw: a.bodySw || '', effectiveTo: a.effectiveTo || '' }),
+              )
+            : { ...blank(), ...extra },
+          lang: 'en',
+          mode: 'write',
+          errors: {},
+          apiErr: null,
+          saving: false,
+          dirty: false,
+          failNext: null,
+        };
+        S.notFound = false;
+        Kit.go('article');
+      }
+      function applyFail(kind) {
+        const ed = S.ed;
+        ed.saving = false;
+        if (kind === 'validation') {
+          ed.errors = { title: 'Another PSC article already uses this title.' };
+          ed.apiErr = { title: 'The article was not saved', detail: '' };
+        } else {
+          ed.apiErr = {
+            title: 'Could not save',
+            detail: 'Check your connection and try again. Your changes are still here.',
+          };
+        }
+        Kit.render();
+        document.getElementById('errsum')?.focus();
+      }
+      const actions = {
+        go: (a) => {
+          if (S.screen === 'article' && S.ed?.dirty && a !== 'article') {
+            S.modal = { kind: 'leave', to: a };
+            Kit.render();
+            return;
+          }
+          const [scr, p] = String(a).split('|');
+          Kit.go(scr, p ? { id: p } : {});
+        },
+        confirmLeave: () => {
+          const to = S.modal.to;
+          S.ed.dirty = false;
+          S.modal = null;
+          Kit.go(to);
+        },
+        listStatus: (k) => {
+          S.list.status = S.list.status === k ? '' : k;
+          S.list.page = 1;
+          Kit.render();
+        },
+        listPage: (p) => {
+          S.list.page = +p;
+          Kit.render();
+        },
+        clearList: () => {
+          S.list = { ...S.list, q: '', status: '', page: 1 };
+          Kit.render();
+        },
+        retryList: () => {
+          S.list.load = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.list.load = 'ok';
+            Kit.render();
+          }, 800);
+        },
+        newArticle: () => openEditor(null),
+        openArticle: (id) => openEditor(S.arts.find((a) => a.id === id)),
+        articleForTheme: (a) => {
+          const [tag, theme] = a.split('|');
+          openEditor(null, { title: theme, tags: [tag] });
+        },
+        edLang: (k) => {
+          S.ed.lang = k;
+          Kit.render();
+        },
+        edMode: (k) => {
+          S.ed.mode = k;
+          Kit.render();
+        },
+        toggleTag: (k) => {
+          const t = S.ed.d.tags;
+          S.ed.d.tags = t.includes(k) ? t.filter((x) => x !== k) : [...t, k];
+          S.ed.dirty = true;
+          Kit.render();
+        },
+        focusField: (id) => {
+          if (id === 'f-ed-d-bodyEn') {
+            S.ed.lang = 'en';
+            S.ed.mode = 'write';
+            Kit.render();
+          }
+          document.getElementById(id)?.focus();
+        },
+        saveArticle: () => {
+          const ed = S.ed;
+          ed.errors = validate(ed.d);
+          ed.apiErr = null;
+          if (Object.keys(ed.errors).length) {
+            if (ed.errors.bodyEn) ed.lang = 'en';
+            ed.mode = 'write';
+            Kit.render();
+            document.getElementById('errsum')?.focus();
+            return;
+          }
+          ed.saving = true;
+          Kit.render();
+          setTimeout(() => {
+            ed.saving = false;
+            const fail = ed.failNext;
+            ed.failNext = null;
+            if (fail) {
+              applyFail(fail);
+              return;
+            }
+            const d = ed.d;
+            const now = '2026-09-26T10:30:00';
+            const by = Kit.PERSONAS[P()].name;
+            const clean = {
+              ...d,
+              bodySw: d.bodySw.trim() ? d.bodySw : null,
+              effectiveTo: d.effectiveTo || null,
+            };
+            let a = S.arts.find((x) => x.id === d.id);
+            const wasPublished = a?.published;
+            if (a)
+              Object.assign(a, clean, { version: a.version + 1, updatedAt: now, updatedBy: by });
+            else {
+              a = {
+                ...clean,
+                id: `n${Date.now() % 100000}`,
+                version: 1,
+                updatedAt: now,
+                updatedBy: by,
+              };
+              S.arts.unshift(a);
+            }
+            ed.d = JSON.parse(
+              JSON.stringify({ ...a, bodySw: a.bodySw || '', effectiveTo: a.effectiveTo || '' }),
+            );
+            ed.dirty = false;
+            ed.errors = {};
+            if (a.published && inForce(a) && !wasPublished) {
+              S.justPublished = a.id;
+              Kit.render();
+              Kit.toast(
+                `Published. ${scope() === 'platform' ? 'Every declarant' : 'PSC declarants'} can find it now.`,
+              );
+            } else {
+              Kit.render();
+              Kit.toast(`Saved. Version ${a.version}.`);
+            }
+          }, 900);
+        },
+        openSearch: () => {
+          S.modal = { kind: 'search' };
+          Kit.render();
+          document.getElementById('f-search-q')?.focus();
+        },
+        runSearch: () => {
+          S.search.last = S.search.q.trim();
+          Kit.render();
+        },
+        openPassage: (id) => {
+          S.modal = { kind: 'passage', id };
+          Kit.render();
+        },
+        corPage: (p) => {
+          S.cor.page = +p;
+          Kit.render();
+        },
+        clearCorpus: () => {
+          S.cor = { ...S.cor, q: '', source: '', old: false, page: 1 };
+          Kit.render();
+        },
+        retryCorpus: () => {
+          S.cor.load = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.cor.load = 'ok';
+            Kit.render();
+          }, 800);
+        },
+        doReimport: () => {
+          S.modal = null;
+          S.cor.importing = true;
+          Kit.render();
+          setTimeout(() => {
+            S.cor.importing = false;
+            S.corpusVersion = { v: '2026.3', at: '2026-09-26T10:30:00', by: 'Amina Wanjiru' };
+            Kit.render();
+            Kit.toast('Imported version 2026.3: 3 passages changed, 1 superseded.');
+          }, 1500);
+        },
+        retryThemes: () => {
+          S.th.load = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.th.load = 'ok';
+            Kit.render();
+          }, 800);
+        },
+      };
+
+      /* ============================== jumps ============================== */
+      const setP = (p) => localStorage.setItem('dials-proto-persona', p);
+      const reset = () => {
+        Object.assign(S, initialState(), { modal: null, menu: null });
+      };
+      const J = (id, label, persona, fn) => [
+        id,
+        label,
+        () => {
+          reset();
+          setP(persona);
+          fn();
+        },
+      ];
+      const jumps = [
+        J('articles', '#344 Help articles (commission admin)', 'commission-admin', () =>
+          Kit.go('articles'),
+        ),
+        J('a-page2', '#344 Articles: page 2', 'commission-admin', () => {
+          S.list.page = 2;
+          Kit.go('articles');
+        }),
+        J('a-drafts', '#344 Articles: drafts filter', 'commission-admin', () => {
+          S.list.status = 'draft';
+          Kit.go('articles');
+        }),
+        J('a-nomatch', '#344 Articles: no matches', 'commission-admin', () => {
+          S.list.q = 'pension scheme abroad';
+          Kit.go('articles');
+        }),
+        J('a-empty', '#344 Articles: none yet', 'commission-admin', () => {
+          S.arts = S.arts.filter((a) => a.tenant !== 'psc');
+          Kit.go('articles');
+        }),
+        J('a-loading', '#344 Articles: loading', 'commission-admin', () => {
+          S.list.load = 'loading';
+          Kit.go('articles');
+        }),
+        J('a-error', '#344 Articles: error', 'commission-admin', () => {
+          S.list.load = 'error';
+          Kit.go('articles');
+        }),
+        J('a-ro', '#344 Articles: reporting officer (read only)', 'reporting-officer', () =>
+          Kit.go('articles'),
+        ),
+        J('article', '#344 Edit article (published, EN and SW)', 'commission-admin', () =>
+          openEditor(S.arts.find((a) => a.id === 'a01')),
+        ),
+        J('ed-sw', '#344 Edit article: Kiswahili body', 'commission-admin', () => {
+          openEditor(S.arts.find((a) => a.id === 'a01'));
+          S.ed.lang = 'sw';
+          Kit.render();
+        }),
+        J('ed-preview', '#344 Edit article: preview', 'commission-admin', () => {
+          openEditor(S.arts.find((a) => a.id === 'a01'));
+          S.ed.mode = 'preview';
+          Kit.render();
+        }),
+        J('ed-new', '#344 New article', 'commission-admin', () => openEditor(null)),
+        J('ed-invalid', '#344 New article: validation errors', 'commission-admin', () => {
+          openEditor(null);
+          S.ed.d.effectiveTo = '2026-01-01';
+          Kit.cfg.actions.saveArticle();
+        }),
+        J('ed-api', '#344 Save refused by the API (duplicate title)', 'commission-admin', () => {
+          openEditor(null, {
+            title: 'File numbers: where to find yours',
+            bodyEn: 'Draft text.',
+            tags: ['bio'],
+          });
+          applyFail('validation');
+        }),
+        J('ed-network', '#344 Save failed (network)', 'commission-admin', () => {
+          openEditor(S.arts.find((a) => a.id === 'a02'));
+          S.ed.d.bodySw =
+            'Mikopo kutoka Hazina ya Mpango wa Nyumba za Watumishi wa Umma ni madeni.';
+          S.ed.dirty = true;
+          applyFail('network');
+        }),
+        J('ed-saving', '#344 Saving', 'commission-admin', () => {
+          openEditor(S.arts.find((a) => a.id === 'a08'));
+          S.ed.d.published = true;
+          S.ed.saving = true;
+          Kit.render();
+        }),
+        J('ed-draft', '#344 Draft article, ready to publish', 'commission-admin', () =>
+          openEditor(S.arts.find((a) => a.id === 'a08')),
+        ),
+        J('ed-leave', '#344 Leave with unsaved changes', 'commission-admin', () => {
+          openEditor(S.arts.find((a) => a.id === 'a08'));
+          S.ed.d.title = 'Acting appointments and confirmation';
+          S.ed.dirty = true;
+          S.modal = { kind: 'leave', to: 'articles' };
+          Kit.render();
+        }),
+        J(
+          'published-search',
+          '#344 Published, then found in help search',
+          'commission-admin',
+          () => {
+            const a = S.arts.find((x) => x.id === 'a08');
+            a.published = true;
+            a.version = 2;
+            a.updatedAt = '2026-09-26T10:30:00';
+            S.justPublished = 'a08';
+            S.search = { q: 'acting appointment', lang: 'en', last: 'acting appointment' };
+            Kit.go('articles');
+            S.modal = { kind: 'search' };
+            Kit.render();
+          },
+        ),
+        J('search-sw', '#344 Help search in Kiswahili', 'commission-admin', () => {
+          S.search = { q: 'nambari faili', lang: 'sw', last: 'nambari faili' };
+          Kit.go('articles');
+          S.modal = { kind: 'search' };
+          Kit.render();
+        }),
+        J('search-none', '#344 Help search: no results', 'commission-admin', () => {
+          S.search = { q: 'helicopter', lang: 'en', last: 'helicopter' };
+          Kit.go('articles');
+          S.modal = { kind: 'search' };
+          Kit.render();
+        }),
+        J('article-ro', '#344 Article read view (reporting officer)', 'reporting-officer', () =>
+          openEditor(S.arts.find((a) => a.id === 'a01')),
+        ),
+        J('pa-articles', '#344 Platform articles (platform admin)', 'platform-admin', () =>
+          Kit.go('articles'),
+        ),
+        J('pa-article', '#344 Edit a platform article', 'platform-admin', () =>
+          openEditor(S.arts.find((a) => a.id === 'b01')),
+        ),
+        J('corpus', '#344 Legal corpus (read only)', 'platform-admin', () => Kit.go('corpus')),
+        J('c-page2', '#344 Corpus: page 2', 'platform-admin', () => {
+          S.cor.page = 2;
+          Kit.go('corpus');
+        }),
+        J('c-old', '#344 Corpus: superseded passages shown', 'platform-admin', () => {
+          S.cor.old = true;
+          S.cor.q = 'material change';
+          Kit.go('corpus');
+        }),
+        J('c-passage', '#344 Corpus passage (EN and SW)', 'platform-admin', () => {
+          Kit.go('corpus');
+          S.modal = { kind: 'passage', id: 'c4' };
+          Kit.render();
+        }),
+        J('c-nomatch', '#344 Corpus: no matches', 'platform-admin', () => {
+          S.cor.q = 'helicopter';
+          Kit.go('corpus');
+        }),
+        J('c-loading', '#344 Corpus: loading', 'platform-admin', () => {
+          S.cor.load = 'loading';
+          Kit.go('corpus');
+        }),
+        J('c-error', '#344 Corpus: error', 'platform-admin', () => {
+          S.cor.load = 'error';
+          Kit.go('corpus');
+        }),
+        J('c-reimport', '#344 Re-import confirmation', 'platform-admin', () => {
+          Kit.go('corpus');
+          S.modal = { kind: 'reimport' };
+          Kit.render();
+        }),
+        J('c-importing', '#344 Re-importing', 'platform-admin', () => {
+          S.cor.importing = true;
+          Kit.go('corpus');
+        }),
+        J('themes', '#344 Question themes (commission admin)', 'commission-admin', () =>
+          Kit.go('themes'),
+        ),
+        J('t-ro', '#344 Question themes (reporting officer)', 'reporting-officer', () =>
+          Kit.go('themes'),
+        ),
+        J('t-aug', '#344 Question themes: August 2026', 'reporting-officer', () => {
+          S.th.month = '2026-08';
+          Kit.go('themes');
+        }),
+        J('t-empty', '#344 Question themes: month with none', 'reporting-officer', () => {
+          S.th.month = '2026-06';
+          Kit.go('themes');
+        }),
+        J('t-loading', '#344 Question themes: loading', 'reporting-officer', () => {
+          S.th.load = 'loading';
+          Kit.go('themes');
+        }),
+        J('t-error', '#344 Question themes: error', 'reporting-officer', () => {
+          S.th.load = 'error';
+          Kit.go('themes');
+        }),
+        J('x-404', '#344 Help articles as reviewer (404)', 'reviewer', () => Kit.go('articles')),
+        J('x-403', '#344 Legal corpus as commission admin (403)', 'commission-admin', () =>
+          Kit.go('corpus'),
+        ),
+        J('x-t404', '#344 Question themes as platform admin (404)', 'platform-admin', () =>
+          Kit.go('themes'),
+        ),
+      ];
+
+      Kit.mount({
+        app: 'console',
+        start: 'articles',
+        home: 'articles',
+        defaultPersona: 'commission-admin',
+        screens: {
+          articles: screenArticles,
+          article: screenArticle,
+          corpus: screenCorpus,
+          themes: screenThemes,
+        },
+        modals,
+        actions,
+        jumps,
+        onBind: (path) => {
+          if (path === 'list.q') S.list.page = 1;
+          if (path.startsWith('cor.')) S.cor.page = 1;
+          if (path.startsWith('ed.d.')) {
+            S.ed.dirty = true;
+            if (S.ed.errors?.[path.slice(5)]) {
+              delete S.ed.errors[path.slice(5)];
+            }
+            if (path === 'ed.d.bodyEn' || path === 'ed.d.bodySw') {
+              const cc = document.querySelector('.ed-body .cc');
+              if (cc) cc.textContent = `${num((Kit.getPath(S, path) || '').length)} / 20,000`;
+            }
+          }
+        },
+        onPersona: () => {
+          S.modal = null;
+          if (S.screen === 'article' && !S.ed) Kit.go('articles');
+        },
+        reset: () => {
+          reset();
+          Kit.go(S.screen === 'article' ? 'articles' : S.screen || 'articles');
+        },
+        afterRender: () => {
+          document.querySelectorAll('tr.click, .mitem').forEach((el) => {
+            el.onkeydown = (e) => {
+              if (e.key === 'Enter') el.click();
+            };
+          });
+        },
+        coverage: [
+          {
+            ticket: 344,
+            title: 'Console: help articles authoring, corpus view and question themes',
+            screens: [
+              'articles',
+              'a-page2',
+              'a-drafts',
+              'a-nomatch',
+              'a-empty',
+              'a-loading',
+              'a-error',
+              'a-ro',
+              'article',
+              'ed-sw',
+              'ed-preview',
+              'ed-new',
+              'ed-invalid',
+              'ed-api',
+              'ed-network',
+              'ed-saving',
+              'ed-draft',
+              'ed-leave',
+              'published-search',
+              'search-sw',
+              'search-none',
+              'article-ro',
+              'pa-articles',
+              'pa-article',
+              'corpus',
+              'c-page2',
+              'c-old',
+              'c-passage',
+              'c-nomatch',
+              'c-loading',
+              'c-error',
+              'c-reimport',
+              'c-importing',
+              'themes',
+              't-ro',
+              't-aug',
+              't-empty',
+              't-loading',
+              't-error',
+              'x-404',
+              'x-403',
+              'x-t404',
+            ],
+            note: 'Commission-admin edits PSC articles; reporting-officer reads them and sees themes; platform-admin edits platform articles and sees the corpus read only. "Test help search" runs the declarant help search (published articles in force + law) so a just-published article is findable in the same session. Kit nav only lists Help articles for platform-admin; Commission roles reach it from this file.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

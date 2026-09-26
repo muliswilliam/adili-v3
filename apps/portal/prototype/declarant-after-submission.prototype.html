@@ -1,0 +1,4059 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what does a declarant see and do after submitting (clarifications and responses, compliance determinations, notices, warnings, salary stoppage and reinstatement, access requests about their declaration)? Covers tickets #170, #173, #199, #205, #208, #255 and the compact RegisterTimeline of #268 (portal parts). Open by double-clicking. State is in memory. -->
+<!-- Demo assumption: John Kennedy's initial declaration DCI-TSC-2026-0003418-P (statement date 1 Apr 2026) was received on 28 Apr 2026, so TSC's six-month clarification window closes on 28 Oct 2026. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - after submission: clarifications, decisions, notices (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      /* ---------- file-specific ---------- */
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        text-decoration: none;
+        cursor: pointer;
+        margin-bottom: 14px;
+        background: none;
+        border: 0;
+        padding: 0;
+      }
+      .back:hover {
+        color: var(--ink);
+      }
+      .head-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .head-row .page-title {
+        flex: 1 1 260px;
+        min-width: 0;
+      }
+      .meta-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 8px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .meta-line span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .side-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 24px;
+      }
+      @container app (min-width: 960px) {
+        .side-grid {
+          grid-template-columns: minmax(0, 1fr) 340px;
+          align-items: start;
+        }
+        .side-grid > .side {
+          position: sticky;
+          top: 84px;
+        }
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-width: 0;
+      }
+
+      /* reference chip (ADR-011) */
+      .refchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        padding: 0 9px;
+        border-radius: 7px;
+        background: var(--sunken);
+        border: 0;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--ink);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .refchip:hover {
+        background: #ebe9e5;
+      }
+      .refchip:focus-visible,
+      .qa-link:focus-visible,
+      .btn:focus-visible,
+      .link:focus-visible,
+      .back:focus-visible,
+      .cardlink:focus-visible {
+        outline: 3px solid rgba(26, 26, 26, 0.2);
+        outline-offset: 2px;
+      }
+      .refmenu {
+        left: 0;
+        right: auto;
+        min-width: 260px;
+        max-width: 320px;
+        padding: 12px;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .refmenu .row {
+        gap: 8px;
+        align-items: baseline;
+      }
+      .refmenu .seg-k {
+        font-family: ui-monospace, Menlo, monospace;
+        font-weight: 600;
+        min-width: 64px;
+      }
+
+      /* status banner */
+      .banner {
+        display: flex;
+        gap: 12px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        font-size: 14.5px;
+        line-height: 1.5;
+      }
+      .banner svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .banner b {
+        font-weight: 600;
+      }
+      .banner .btn {
+        margin-top: 10px;
+      }
+      .banner-warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+        box-shadow: 0 0 0 1px #f3dfb5;
+      }
+      .banner-danger {
+        background: var(--danger-soft);
+        color: #8a1c14;
+        box-shadow: 0 0 0 1px #f5cdc9;
+      }
+      .banner-ok {
+        background: var(--ok-soft);
+        color: #0f5a2d;
+        box-shadow: 0 0 0 1px #cbe8d5;
+      }
+      .banner-info {
+        background: #eaf1fb;
+        color: #1f4f96;
+        box-shadow: 0 0 0 1px #d3e2f6;
+      }
+      .banner-neutral {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+
+      /* 30-day / window timer */
+      .timer .big {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+      }
+      .timer .bar {
+        position: relative;
+        height: 8px;
+        border-radius: 8px;
+        background: var(--sunken);
+        margin: 14px 0 6px;
+        overflow: visible;
+      }
+      .timer .bar > i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        border-radius: 8px;
+        background: var(--ink);
+      }
+      .timer .bar.warn > i {
+        background: #d98a00;
+      }
+      .timer .bar.danger > i {
+        background: var(--danger);
+      }
+      .timer .bar.ok > i {
+        background: var(--ok);
+      }
+      .timer .mark {
+        position: absolute;
+        top: -4px;
+        width: 2px;
+        height: 16px;
+        background: var(--line-2);
+        border-radius: 2px;
+      }
+      .timer .scale {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .timer .scale span:nth-child(2) {
+        position: absolute;
+        transform: translateX(-50%);
+      }
+
+      /* clarification / notice card list */
+      .cardlink {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        border: 0;
+        background: none;
+        width: 100%;
+        text-align: left;
+        padding: 0;
+        font: inherit;
+      }
+      .lc {
+        display: flex;
+        gap: 14px;
+        padding: 18px 20px;
+        align-items: flex-start;
+      }
+      .cardlink + .cardlink .lc {
+        border-top: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .lc {
+          padding: 18px 24px;
+        }
+      }
+      .cardlink:hover .lc,
+      .lc.cardlink:hover {
+        background: #fcfbfa;
+      }
+      .card > .cardlink:last-child .lc {
+        border-bottom-left-radius: var(--r-lg);
+        border-bottom-right-radius: var(--r-lg);
+      }
+      .lc .ico {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        flex: none;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .lc .body {
+        flex: 1;
+        min-width: 0;
+      }
+      .lc .t {
+        font-weight: 600;
+        font-size: 15.5px;
+        line-height: 1.35;
+      }
+      .lc .d {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin-top: 3px;
+        line-height: 1.45;
+      }
+      .lc .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .lc .chev {
+        color: var(--muted);
+        align-self: center;
+        flex: none;
+      }
+      .countdown {
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .countdown.warn {
+        color: var(--warn);
+      }
+      .countdown.danger {
+        color: var(--danger);
+      }
+
+      /* clarification items */
+      .qa {
+        padding: 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .qa:last-child {
+        border-bottom: 0;
+      }
+      @container app (min-width: 700px) {
+        .qa {
+          padding: 22px 24px;
+        }
+      }
+      .qa-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .qa-n {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: var(--ink);
+        color: #fff;
+        flex: none;
+      }
+      .qa-n.done {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .qa-n.muted {
+        background: var(--sunken);
+        color: var(--muted);
+      }
+      .banner .mono,
+      .lc .mono {
+        white-space: nowrap;
+      }
+      @container app (min-width: 700px) {
+        .sec-b {
+          padding: 20px 24px;
+        }
+      }
+      .qa-ask {
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .qa-target {
+        font-weight: 600;
+        font-size: 15.5px;
+        margin-top: 2px;
+        line-height: 1.4;
+      }
+      .qa-text {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: var(--sunken);
+        font-size: 14.5px;
+        line-height: 1.55;
+        color: var(--ink);
+        position: relative;
+      }
+      .qa-text .who {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 4px;
+        letter-spacing: 0.01em;
+      }
+      .qa-answer {
+        margin-top: 16px;
+      }
+      .qa-answer .ans {
+        padding: 12px 14px;
+        border-radius: 10px;
+        box-shadow: inset 0 0 0 1px var(--line);
+        font-size: 14.5px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .qa-link {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--ink-2);
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        margin-top: 10px;
+        cursor: pointer;
+        background: none;
+        border: 0;
+        padding: 0;
+        text-decoration: underline;
+        text-decoration-color: var(--line-2);
+        text-underline-offset: 3px;
+      }
+      .counter {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .counter.over {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .textarea.err {
+        box-shadow:
+          0 0 0 1.5px var(--danger),
+          0 0 0 4px rgba(201, 41, 30, 0.08);
+      }
+      .ferr {
+        font-size: 13px;
+        color: var(--danger);
+        font-weight: 500;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .doc.bad {
+        box-shadow: 0 0 0 1px #f0c2bd;
+        background: #fffafa;
+      }
+      .doc.bad .doc-ico {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .submitbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 16px 20px;
+        border-top: 1px solid var(--line);
+        background: #fcfcfb;
+        border-radius: 0 0 var(--r-lg) var(--r-lg);
+      }
+      @container app (min-width: 700px) {
+        .submitbar {
+          padding: 16px 24px;
+        }
+      }
+      @container app (max-width: 699px) {
+        .submitbar {
+          position: sticky;
+          bottom: 62px;
+          z-index: 5;
+          border-radius: 0;
+          margin: 0 -16px;
+          padding: 12px 16px;
+          background: rgba(250, 250, 249, 0.96);
+          backdrop-filter: blur(10px);
+        }
+        .submitbar .btn-primary {
+          flex: 1;
+        }
+      }
+      .answered {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .answered b {
+        color: var(--ink);
+      }
+
+      /* letter preview */
+      .letter-wrap {
+        background: #eceae6;
+        border-radius: 14px;
+        padding: 16px;
+      }
+      @container app (min-width: 700px) {
+        .letter-wrap {
+          padding: 24px;
+        }
+      }
+      .letter {
+        position: relative;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow:
+          0 1px 3px rgba(0, 0, 0, 0.08),
+          0 8px 24px -12px rgba(0, 0, 0, 0.2);
+        padding: 26px 22px 20px;
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: #222;
+        overflow: hidden;
+      }
+      @container app (min-width: 700px) {
+        .letter {
+          padding: 40px 44px 28px;
+        }
+      }
+      .letter .lh {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 14px;
+        border-bottom: 2px solid #1a1a1a;
+      }
+      .letter .seal {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #1a1a1a;
+        color: #fff;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        flex: none;
+      }
+      .letter .org {
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+        line-height: 1.25;
+      }
+      .letter .addr {
+        font-size: 11.5px;
+        color: #666;
+      }
+      @container app (max-width: 699px) {
+        .letter {
+          padding-top: 44px;
+        }
+      }
+      .letter .restricted {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: var(--danger);
+        border: 1.5px solid var(--danger);
+        border-radius: 4px;
+        padding: 1px 6px;
+      }
+      .letter .lmeta {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2px 14px;
+        margin: 16px 0;
+        font-size: 12.5px;
+      }
+      .letter .lmeta dt {
+        color: #666;
+      }
+      .letter .lmeta dd {
+        margin: 0;
+        font-weight: 600;
+      }
+      .letter h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 6px 0 10px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .letter p {
+        margin: 0 0 10px;
+      }
+      .letter ol {
+        margin: 0 0 12px;
+        padding-left: 20px;
+      }
+      .letter ol li {
+        margin-bottom: 8px;
+      }
+      .letter .req {
+        font-weight: 600;
+      }
+      .letter .sig {
+        margin-top: 18px;
+      }
+      .letter .lfoot {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        margin-top: 22px;
+        padding-top: 14px;
+        border-top: 1px solid #ddd;
+        font-size: 11.5px;
+        color: #555;
+      }
+      .letter .lfoot .code {
+        font-family: ui-monospace, Menlo, monospace;
+        font-weight: 600;
+        color: #222;
+        font-size: 12px;
+        word-break: break-all;
+      }
+      .letter .stamp {
+        position: absolute;
+        top: 42%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-14deg);
+        border: 3px solid var(--danger);
+        color: var(--danger);
+        font-weight: 800;
+        font-size: 22px;
+        letter-spacing: 0.08em;
+        padding: 6px 16px;
+        border-radius: 8px;
+        opacity: 0.8;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.6);
+        white-space: nowrap;
+      }
+      .qr-thumb {
+        flex: none;
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
+        box-shadow: var(--shadow-input);
+        display: grid;
+        place-items: center;
+        background: #fff;
+      }
+
+      /* declarant ladder */
+      .ladder {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .ladder .lstep {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+        line-height: 1.3;
+      }
+      .ladder .lstep i {
+        display: block;
+        height: 5px;
+        border-radius: 5px;
+        background: var(--line);
+      }
+      .ladder .lstep.done i {
+        background: var(--ink-2);
+      }
+      .ladder .lstep.cur i {
+        background: var(--danger);
+      }
+      .ladder .lstep.cur {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .ladder .lstep.ok i {
+        background: var(--ok);
+      }
+      .ladder .lstep .st {
+        font-weight: 400;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* tracker on declaration detail */
+      .track {
+        display: grid;
+        gap: 0;
+      }
+      .track .ts {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 12px;
+        position: relative;
+        padding-bottom: 18px;
+      }
+      .track .ts:last-child {
+        padding-bottom: 0;
+      }
+      .track .ts::before {
+        content: '';
+        position: absolute;
+        left: 13px;
+        top: 28px;
+        bottom: 0;
+        width: 2px;
+        background: var(--line);
+      }
+      .track .ts:last-child::before {
+        display: none;
+      }
+      .track .ts.done::before {
+        background: var(--ok);
+        opacity: 0.35;
+      }
+      .track .dotc {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--muted);
+      }
+      .track .done .dotc {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .track .cur .dotc {
+        background: var(--ink);
+        color: #fff;
+      }
+      .track .warnc .dotc {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .track .tt {
+        font-weight: 500;
+        font-size: 14.5px;
+        padding-top: 3px;
+      }
+      .track .td {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .outcome {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+      }
+      .outcome .big-ico {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .proto-note {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1.5px dashed #e3c9b8;
+        background: #fffaf6;
+        color: #7a4a2c;
+        font-size: 13px;
+        margin-bottom: 18px;
+      }
+      .dash-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 20px;
+      }
+      @container app (min-width: 900px) {
+        .dash-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-items: start;
+        }
+      }
+      .kvs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 20px;
+      }
+      .kvs .k {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .kvs .v {
+        font-size: 14.5px;
+        font-weight: 500;
+        margin-top: 1px;
+      }
+      .skel-card {
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        gap: 14px;
+      }
+      .skel-card:last-child {
+        border-bottom: 0;
+      }
+      .skeleton.circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        flex: none;
+      }
+      /* access requests (#255) */
+      .k-label {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      .scope {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+      }
+      .scope > div {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+      }
+      @container app (min-width: 600px) {
+        .scope > div {
+          grid-template-columns: 130px minmax(0, 1fr);
+          align-items: baseline;
+        }
+      }
+      .scope dt {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .scope dd {
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .sc-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 26px;
+        padding: 0 10px 0 8px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        background: var(--ink);
+        color: #fff;
+        white-space: nowrap;
+      }
+      .sc-chip.off {
+        background: var(--sunken);
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .sc-chip.out {
+        background: #fff;
+        color: var(--muted);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+        text-decoration: line-through;
+        text-decoration-color: var(--muted);
+      }
+      .grounds {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 14.5px;
+        display: grid;
+        gap: 4px;
+      }
+      fieldset.acc-form {
+        border: 0;
+        margin: 0;
+        min-width: 0;
+      }
+      fieldset.acc-form[disabled] {
+        opacity: 0.6;
+      }
+      @container app (max-width: 599px) {
+        .acc-form .choices.c3 {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .acc-form .choice.tile {
+          flex-direction: row;
+          align-items: center;
+          min-height: 0;
+          gap: 12px;
+        }
+      }
+      .timeline .tl-ico.brand {
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+      }
+      .timeline .tl-ico.info {
+        background: #eaf1fb;
+        color: #1f4f96;
+      }
+      .timeline .tl-ico.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .timeline .tl-ico.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .timeline .tl-ico.danger {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      /* local fix: kit styles .nav .count but not .tabbar .count (see report) */
+      .tabbar a {
+        position: relative;
+      }
+      .tabbar .count {
+        position: absolute;
+        top: 1px;
+        left: calc(50% + 7px);
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: var(--brand);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: grid;
+        place-items: center;
+      }
+      .toast {
+        white-space: normal;
+        max-width: min(92%, 460px);
+      }
+      @container app (max-width: 799px) {
+        .toast {
+          bottom: 150px;
+        }
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, field, dialog, portalShell, fmtDate, fmtDateTime, num, qr, TODAY } = Kit;
+      const JOURNEY = 'declarant-journey.prototype.html';
+      const DOCS = '../../../services/documents/prototype/documents.prototype.html';
+      const docLink = (id, label, cls = 'btn btn-ghost btn-sm', ic = 'download') =>
+        `<a class="${cls}" href="${DOCS}#${id}" target="_blank" rel="noopener">${icon(ic, 16)} ${label}</a>`;
+      const PAGE = 5; // client-side paging: /v1/me/clarifications and /v1/me/notices return full arrays
+      const DAY = 86400000;
+      const dOnly = (x) => {
+        const d = new Date(x);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      };
+      const dd = (a, b) => Math.round((dOnly(b) - dOnly(a)) / DAY);
+      const addDays = (x, n) => new Date(new Date(x).getTime() + n * DAY);
+      const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+      const shortDate = (x) => fmtDate(x).replace(/ \d{4}$/, '');
+      const byDate = (list) =>
+        [...list].sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt));
+
+      /* ---------- demo world ---------- */
+      const ME = {
+        name: 'John Kennedy',
+        full: 'John Fitzgerald Kennedy',
+        fileNo: '2012445581',
+        designation: 'Deputy Principal',
+        entity: 'Moi Girls High School, Eldoret',
+        phone: '07•• ••• 123',
+        email: 'jo•••••••@gmail.com',
+      };
+      const COMM = {
+        slug: 'tsc',
+        code: 'TSC',
+        name: 'Teachers Service Commission',
+        addr: 'TSC House, Kilimanjaro Road, Upper Hill · Private Bag 00100, Nairobi',
+        phone: '0709 180 000',
+        email: 'dials@tsc.go.ke',
+      };
+      const DECL = {
+        ref: 'DCI-TSC-2026-0003418-P',
+        type: 'Initial declaration',
+        statementDate: '2026-04-01',
+        receivedAt: '2026-04-28T14:12:00',
+      };
+      const REQ = {
+        'provide-omitted': {
+          label: 'Provide omitted information',
+          ask: 'Your Commission asks you to provide the omitted information for:',
+          icon: 'plus',
+          ph: 'Give the missing details. Attach a statement if you have one.',
+        },
+        'explain-discrepancy': {
+          label: 'Explain a discrepancy',
+          ask: 'Your Commission asks you to explain the discrepancy in:',
+          icon: 'help',
+          ph: 'Explain in your own words. Short, clear answers are best.',
+        },
+        correct: {
+          label: 'Correct the entry',
+          ask: 'Your Commission asks you to correct:',
+          icon: 'pencil',
+          ph: 'Say what the correct entry is and why.',
+        },
+      };
+      const STEP = {
+        'notice-to-comply': { title: 'Notice to comply', short: 'Notice', icon: 'bell' },
+        warning: { title: 'Warning', short: 'Warning', icon: 'alert' },
+        'salary-stoppage': { title: 'Salary stoppage', short: 'Salary stoppage', icon: 'banknote' },
+        'disciplinary-referral': {
+          title: 'Disciplinary referral',
+          short: 'Disciplinary',
+          icon: 'gavel',
+        },
+      };
+      const STEPS = ['notice-to-comply', 'warning', 'salary-stoppage', 'disciplinary-referral'];
+      const STEP_DOC = {
+        'notice-to-comply': 'notice',
+        warning: 'warning',
+        'salary-stoppage': 'stoppage',
+        'disciplinary-referral': 'disciplinary',
+      };
+      const DEC_DOC = (o) =>
+        o === 'non-compliant'
+          ? 'decision-non-compliant'
+          : o === 'further-action'
+            ? 'decision-further-action'
+            : 'decision-compliant';
+      const REF_TYPES = {
+        CLR: 'Clarification request',
+        CMP: 'Compliance determination',
+        ADM: 'Administrative action',
+        DCI: 'Initial declaration',
+        DCB: 'Biennial declaration',
+        ARQ: 'Access request',
+        LEA: 'Law-enforcement request',
+      };
+
+      const ITEMS_A = [
+        {
+          requirement: 'explain-discrepancy',
+          label: 'Assets · Land · Plot Kapsaret/Simat/1234 · John Kennedy',
+          text: 'You declared the plot at KES 1,200,000. The sale agreement you attached shows a purchase price of KES 3,500,000 in March 2026. Please explain the difference between the two values.',
+        },
+        {
+          requirement: 'provide-omitted',
+          label: 'Liabilities · John Kennedy',
+          text: 'Your March 2026 payslip shows a monthly deduction to Mwalimu National SACCO. No SACCO loan is declared. Please declare the loan balance on 1 Apr 2026 and attach a loan statement.',
+        },
+        {
+          requirement: 'correct',
+          label: 'Income · Rent · Mary Kennedy (spouse)',
+          text: "The lease agreement for the Eldoret shop is in your spouse's name, but the rent is declared in your own statement. Please confirm who receives the rent so the entry can be corrected.",
+        },
+      ];
+      const ANSWERS_A = [
+        'The KES 1,200,000 was the amount I had paid by 1 Apr 2026. The balance of KES 2,300,000 is being paid in instalments to the seller until December 2026. I attach the payment schedule signed by both parties.',
+        'I took a development loan of KES 450,000 from Mwalimu National SACCO in 2024. The balance on 1 Apr 2026 was KES 286,400. I attach the loan statement.',
+        "The shop is my wife's. She receives the rent into her own account. I entered it under my name by mistake. I have amended my declaration to move it to her statement.",
+      ];
+      const FILES_A = [
+        [{ name: 'Sale agreement payment schedule.pdf', size: 412000 }],
+        [{ name: 'Mwalimu SACCO loan statement Apr 2026.pdf', size: 238000 }],
+        [],
+      ];
+      const ITEMS_B = [
+        {
+          requirement: 'provide-omitted',
+          label: 'Liabilities · John Kennedy',
+          text: 'Your payslip shows a monthly deduction to Mwalimu National SACCO. No SACCO loan is declared. Please declare the loan balance on 1 Apr 2026 and attach a loan statement.',
+        },
+        {
+          requirement: 'explain-discrepancy',
+          label: 'Assets · Motor vehicle · KDA 512X · John Kennedy',
+          text: 'The vehicle is declared at KES 350,000. Please explain how you arrived at this value and attach the logbook or a valuation.',
+        },
+      ];
+      const ITEMS_FU = [
+        {
+          requirement: 'explain-discrepancy',
+          label: 'Assets · Land · Plot Kapsaret/Simat/1234 · John Kennedy',
+          text: 'Thank you for the payment schedule. It shows KES 1,500,000 paid by 1 Apr 2026, not KES 1,200,000. Please explain the difference of KES 300,000 and attach proof of the payments made before that date.',
+        },
+      ];
+      const VER = [
+        'ADL-7Q4K-M2XR-9HTC-4WPA',
+        'ADL-3JZP-8KDM-W6RQ-T2NB',
+        'ADL-K9VD-5TQA-2MXE-HR7C',
+        'ADL-P4WN-6YCB-J8LS-Q3FD',
+        'ADL-2HRM-X7GK-N5TZ-V9EA',
+        'ADL-8CQE-4NWT-R2JH-M6KY',
+        'ADL-5LTA-9PVR-C3XW-B7GU',
+        'ADL-W6DJ-3MHQ-T8ZC-K4NR',
+      ];
+
+      function clar(o) {
+        const issuedAt = o.issuedAt;
+        const dueAt = o.dueAt || addDays(issuedAt, 30).toISOString();
+        const reminderAt = addDays(issuedAt, 20);
+        return Object.assign(
+          {
+            id: 'c1',
+            ref: 'CLR-TSC-2026-0000871-X',
+            status: 'issued',
+            issuedAt,
+            dueAt,
+            reminderSentAt:
+              dOnly(reminderAt) <= dOnly(TODAY) && !o.respondedAt ? reminderAt.toISOString() : null,
+            respondedAt: null,
+            late: false,
+            resolvedAt: null,
+            withdrawnAt: null,
+            followUpOf: null,
+            followUpRef: null,
+            noticeRef: null,
+            verification: VER[0],
+            items: ITEMS_A,
+            response: null,
+          },
+          o,
+        );
+      }
+      function notice(o) {
+        return Object.assign(
+          {
+            id: 'n1',
+            ref: 'ADM-TSC-2026-0000233-K',
+            step: 'notice-to-comply',
+            status: 'issued',
+            issuedAt: null,
+            actBy: null,
+            whatToDo: 'respond-to-clarification',
+            subjectRef: 'CLR-TSC-2026-0000519-4',
+            subjectId: 'c1',
+            response: null,
+            salaryEffective: null,
+            salaryStoppedAt: null,
+            reinstatement: null,
+            compliedAt: null,
+            verification: VER[3],
+          },
+          o,
+        );
+      }
+      function mkResponse(items, submittedAt) {
+        return {
+          submittedAt,
+          items: items.map((_, i) => ({
+            text:
+              ANSWERS_A[i] ||
+              'I attach the logbook. The value is based on a valuation by Regent Auctioneers in March 2026.',
+            files: (FILES_A[i] || []).map((f) => ({ ...f, status: 'clean' })),
+          })),
+        };
+      }
+
+      /* Scenario builder: each jump builds a complete, date-consistent world relative to Kit.TODAY (26 Sep 2026). */
+      function world(name) {
+        const w = {
+          clars: [],
+          decisions: [],
+          notices: [],
+          loadFor: null,
+          errorFor: null,
+          fail: null,
+          scen: name,
+          form: {},
+          nform: {},
+          notFound: false,
+          access: [],
+          aform: {},
+          aEdit: null,
+          accPage: 1,
+          accConflict: null,
+          accBusy: null,
+        };
+        const ladderClar = (issued, extra = {}) =>
+          clar({
+            id: 'c1',
+            ref: 'CLR-TSC-2026-0000519-4',
+            issuedAt: issued,
+            items: ITEMS_B,
+            verification: VER[1],
+            status: 'overdue',
+            ...extra,
+          });
+        switch (name) {
+          case 'none':
+            break;
+          case 'open':
+            w.clars = [clar({ issuedAt: '2026-09-14T09:20:00' })];
+            break;
+          case 'due-today':
+            w.clars = [clar({ issuedAt: '2026-08-27T11:05:00' })];
+            break;
+          case 'reminder':
+            w.clars = [clar({ issuedAt: '2026-09-04T10:15:00' })];
+            break;
+          case 'overdue':
+            w.clars = [clar({ issuedAt: '2026-08-22T09:00:00', status: 'overdue' })];
+            break;
+          case 'responded':
+            w.clars = [
+              clar({
+                issuedAt: '2026-09-02T09:40:00',
+                status: 'responded',
+                respondedAt: '2026-09-20T16:05:00',
+                response: mkResponse(ITEMS_A, '2026-09-20T16:05:00'),
+              }),
+            ];
+            break;
+          case 'responded-late':
+            w.clars = [
+              clar({
+                issuedAt: '2026-08-19T09:40:00',
+                status: 'responded',
+                respondedAt: '2026-09-21T08:30:00',
+                late: true,
+                response: mkResponse(ITEMS_A, '2026-09-21T08:30:00'),
+              }),
+            ];
+            break;
+          case 'followup':
+            w.clars = [
+              clar({
+                id: 'c2',
+                ref: 'CLR-TSC-2026-0000944-7',
+                issuedAt: '2026-09-18T12:00:00',
+                items: ITEMS_FU,
+                followUpOf: 'CLR-TSC-2026-0000871-X',
+                verification: VER[2],
+              }),
+              clar({
+                id: 'c1',
+                issuedAt: '2026-08-10T09:40:00',
+                status: 'responded',
+                respondedAt: '2026-08-28T19:12:00',
+                response: mkResponse(ITEMS_A, '2026-08-28T19:12:00'),
+                followUpRef: 'CLR-TSC-2026-0000944-7',
+              }),
+            ];
+            break;
+          case 'resolved':
+            w.clars = [
+              clar({
+                issuedAt: '2026-08-10T09:40:00',
+                status: 'resolved',
+                respondedAt: '2026-08-28T19:12:00',
+                resolvedAt: '2026-09-15T11:20:00',
+                response: mkResponse(ITEMS_A, '2026-08-28T19:12:00'),
+              }),
+            ];
+            break;
+          case 'withdrawn':
+            w.clars = [
+              clar({
+                issuedAt: '2026-09-14T09:20:00',
+                status: 'withdrawn',
+                withdrawnAt: '2026-09-15T08:45:00',
+                items: ITEMS_A.slice(0, 2),
+              }),
+            ];
+            break;
+          case 'escalated':
+          case 'notice-issued':
+            w.clars = [ladderClar('2026-08-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000233-K' })];
+            w.notices = [notice({ issuedAt: '2026-09-14T10:00:00', actBy: '2026-09-28T23:59:00' })];
+            break;
+          case 'notice-responded':
+            w.clars = [ladderClar('2026-08-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000233-K' })];
+            w.notices = [
+              notice({
+                issuedAt: '2026-09-14T10:00:00',
+                actBy: '2026-09-28T23:59:00',
+                status: 'responded',
+                response: {
+                  at: '2026-09-18T20:14:00',
+                  text: 'I was admitted at Moi Teaching and Referral Hospital from 12 Aug to 9 Sep 2026 and did not see the SMS. I attach my discharge summary. I will respond to the clarification this week.',
+                  files: [{ name: 'MTRH discharge summary.pdf', size: 196000, status: 'clean' }],
+                },
+              }),
+            ];
+            break;
+          case 'notice-file':
+            w.notices = [
+              notice({
+                ref: 'ADM-TSC-2026-0000187-Q',
+                issuedAt: '2026-09-21T10:00:00',
+                actBy: '2026-10-05T23:59:00',
+                whatToDo: 'file-declaration',
+                subjectRef: 'Initial declaration, due 2 Sep 2026',
+                subjectId: null,
+              }),
+            ];
+            break;
+          case 'warning':
+            w.clars = [ladderClar('2026-07-27T09:00:00', { noticeRef: 'ADM-TSC-2026-0000301-3' })];
+            w.notices = [
+              notice({
+                id: 'n2',
+                ref: 'ADM-TSC-2026-0000301-3',
+                step: 'warning',
+                issuedAt: '2026-09-16T10:00:00',
+                actBy: '2026-09-30T23:59:00',
+                verification: VER[4],
+              }),
+              notice({
+                issuedAt: '2026-08-31T10:00:00',
+                actBy: '2026-09-14T23:59:00',
+                status: 'issued',
+              }),
+            ];
+            break;
+          case 'complied':
+            w.clars = [
+              ladderClar('2026-08-10T09:00:00', {
+                status: 'responded',
+                respondedAt: '2026-09-20T18:40:00',
+                late: true,
+                response: mkResponse(ITEMS_B, '2026-09-20T18:40:00'),
+                noticeRef: 'ADM-TSC-2026-0000233-K',
+                reminderSentAt: '2026-08-30T09:00:00',
+              }),
+            ];
+            w.notices = [
+              notice({
+                issuedAt: '2026-09-14T10:00:00',
+                actBy: '2026-09-28T23:59:00',
+                status: 'complied',
+                compliedAt: '2026-09-20T18:40:00',
+              }),
+            ];
+            break;
+          case 'stop-scheduled':
+            w.clars = [ladderClar('2026-07-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000358-W' })];
+            w.notices = [
+              notice({
+                id: 'n3',
+                ref: 'ADM-TSC-2026-0000358-W',
+                step: 'salary-stoppage',
+                issuedAt: '2026-09-22T15:00:00',
+                actBy: null,
+                salaryEffective: '2026-09-30T00:00:00',
+                verification: VER[5],
+              }),
+              notice({
+                id: 'n2',
+                ref: 'ADM-TSC-2026-0000301-3',
+                step: 'warning',
+                issuedAt: '2026-09-01T10:00:00',
+                actBy: '2026-09-15T23:59:00',
+                verification: VER[4],
+              }),
+              notice({ issuedAt: '2026-08-14T10:00:00', actBy: '2026-08-28T23:59:00' }),
+            ];
+            break;
+          case 'stop-effective':
+          case 'reinstated':
+          case 'reinstating':
+          case 'disciplinary': {
+            const disc = name === 'disciplinary';
+            const base = disc ? '2026-05-22T09:00:00' : '2026-06-04T09:00:00';
+            const back = name === 'reinstated' || name === 'reinstating';
+            w.clars = [
+              ladderClar(
+                base,
+                back
+                  ? {
+                      status: 'responded',
+                      late: true,
+                      respondedAt: '2026-09-22T09:10:00',
+                      response: mkResponse(ITEMS_B, '2026-09-22T09:10:00'),
+                      noticeRef: 'ADM-TSC-2026-0000358-W',
+                    }
+                  : { noticeRef: disc ? 'ADM-TSC-2026-0000402-B' : 'ADM-TSC-2026-0000358-W' },
+              ),
+            ];
+            const stop = notice({
+              id: 'n3',
+              ref: 'ADM-TSC-2026-0000358-W',
+              step: 'salary-stoppage',
+              issuedAt: disc ? '2026-08-12T15:00:00' : '2026-08-20T15:00:00',
+              salaryEffective: '2026-08-31T00:00:00',
+              salaryStoppedAt: '2026-08-31T00:00:00',
+              verification: VER[5],
+            });
+            if (back) {
+              stop.status = name === 'reinstated' ? 'reinstated' : 'complied';
+              stop.compliedAt = '2026-09-22T09:10:00';
+              stop.reinstatement = {
+                sentAt: '2026-09-22T09:12:00',
+                ref: 'ADM-TSC-2026-0000358-W-R',
+                ackAt: name === 'reinstated' ? '2026-09-23T07:30:00' : null,
+                effective: '2026-09-30T00:00:00',
+              };
+            }
+            w.notices = [
+              ...(disc
+                ? [
+                    notice({
+                      id: 'n4',
+                      ref: 'ADM-TSC-2026-0000402-B',
+                      step: 'disciplinary-referral',
+                      issuedAt: '2026-09-15T11:00:00',
+                      actBy: null,
+                      verification: VER[6],
+                    }),
+                  ]
+                : []),
+              stop,
+              notice({
+                id: 'n2',
+                ref: 'ADM-TSC-2026-0000301-3',
+                step: 'warning',
+                issuedAt: disc ? '2026-07-14T10:00:00' : '2026-07-24T10:00:00',
+                actBy: disc ? '2026-07-28T23:59:00' : '2026-08-07T23:59:00',
+                verification: VER[4],
+                ...(back ? { status: 'complied', compliedAt: '2026-09-22T09:10:00' } : {}),
+              }),
+              notice({
+                issuedAt: disc ? '2026-06-26T10:00:00' : '2026-07-08T10:00:00',
+                actBy: disc ? '2026-07-10T23:59:00' : '2026-07-22T23:59:00',
+                ...(back
+                  ? { status: 'complied', compliedAt: '2026-09-22T09:10:00' }
+                  : {
+                      status: 'responded',
+                      response: {
+                        at: '2026-07-15T21:02:00',
+                        text: 'I have been very busy with national examinations. I will respond after the term ends.',
+                        files: [],
+                      },
+                    }),
+              }),
+            ];
+            break;
+          }
+          case 'history': {
+            // Long history so paging is visible: the open notice chain plus earlier, closed clarifications and notices.
+            const cur = world('notice-issued');
+            w.clars = cur.clars;
+            w.notices = cur.notices;
+            const H = [
+              ['0000388-2', '2026-05-04T10:00:00', 'resolved', true],
+              ['0000409-K', '2026-05-12T09:30:00', 'resolved', true],
+              ['0000431-7', '2026-05-21T11:15:00', 'withdrawn', false],
+              ['0000455-C', '2026-06-02T08:45:00', 'resolved', true],
+              ['0000470-3', '2026-06-16T14:00:00', 'resolved', true],
+              ['0000492-M', '2026-07-01T10:20:00', 'resolved', true],
+              ['0000503-9', '2026-07-14T09:05:00', 'resolved', false],
+            ];
+            H.forEach(([seq, issuedAt, status, late], i) => {
+              const items = ITEMS_A.slice(0, 1 + (i % 3));
+              const dueAt = addDays(issuedAt, 30).toISOString();
+              const respondedAt =
+                status === 'withdrawn' ? null : addDays(issuedAt, late ? 36 : 12).toISOString();
+              const c = clar({
+                id: 'h' + i,
+                ref: `CLR-TSC-2026-${seq}`,
+                issuedAt,
+                dueAt,
+                status,
+                items,
+                late,
+                verification: VER[i % VER.length],
+                respondedAt,
+                resolvedAt: respondedAt ? addDays(respondedAt, 9).toISOString() : null,
+                withdrawnAt: status === 'withdrawn' ? addDays(issuedAt, 2).toISOString() : null,
+                reminderSentAt: addDays(issuedAt, 20).toISOString(),
+                response: respondedAt ? mkResponse(items, respondedAt) : null,
+              });
+              w.clars.push(c);
+              if (late) {
+                const n = notice({
+                  id: 'hn' + i,
+                  ref: `ADM-TSC-2026-0000${150 + i * 7}-${'RTX'[i % 3]}`,
+                  issuedAt: addDays(dueAt, 1).toISOString(),
+                  actBy: addDays(dueAt, 15).toISOString(),
+                  status: 'complied',
+                  compliedAt: respondedAt,
+                  subjectRef: c.ref,
+                  subjectId: c.id,
+                  verification: VER[(i + 3) % VER.length],
+                });
+                c.noticeRef = n.ref;
+                w.notices.push(n);
+                if (i === 3)
+                  w.notices.push(
+                    notice({
+                      id: 'hw' + i,
+                      ref: `ADM-TSC-2026-0000${160 + i * 7}-P`,
+                      step: 'warning',
+                      issuedAt: addDays(dueAt, 3).toISOString(),
+                      actBy: addDays(dueAt, 17).toISOString(),
+                      status: 'complied',
+                      compliedAt: respondedAt,
+                      subjectRef: c.ref,
+                      subjectId: c.id,
+                      verification: VER[(i + 4) % VER.length],
+                    }),
+                  );
+              }
+            });
+            break;
+          }
+          default:
+            w.clars = [clar({ issuedAt: '2026-09-14T09:20:00' })];
+        }
+        return w;
+      }
+
+      function decisionWorld(outcome, letter = 'ready') {
+        const w = world('resolved');
+        w.scen = 'decision-' + outcome;
+        if (outcome === 'compliant-no-issues') w.clars = [];
+        w.decisions = [
+          {
+            id: 'd1',
+            ref:
+              outcome === 'compliant-no-issues'
+                ? 'CMP-TSC-2026-0118204-5'
+                : 'CMP-TSC-2026-0004102-7',
+            outcome,
+            decidedAt: '2026-09-24T12:30:00',
+            declarationRef: DECL.ref,
+            letter,
+            verification: VER[7],
+          },
+        ];
+        if (outcome === 'non-compliant') {
+          w.clars = [
+            clar({
+              issuedAt: '2026-08-10T09:40:00',
+              status: 'resolved',
+              respondedAt: '2026-08-28T19:12:00',
+              resolvedAt: '2026-09-15T11:20:00',
+              response: mkResponse(ITEMS_A, '2026-08-28T19:12:00'),
+            }),
+          ];
+        }
+        return w;
+      }
+
+      /* ---------- Spec 10: access requests the declarant was notified about (#255) ---------- */
+      // Same requests as declarant-profile.prototype.html (Who accessed). GET /v1/me/access-notices.
+      const PROFILE = 'declarant-profile.prototype.html';
+      const PSC_C = { slug: 'psc', code: 'PSC', name: 'Public Service Commission' };
+      const SECTIONS = {
+        bio: 'Personal details',
+        income: 'Income',
+        assets: 'Assets',
+        liabilities: 'Liabilities',
+        other: 'Other information',
+      };
+      const SEC_KEYS = Object.keys(SECTIONS);
+      const GROUNDS = {
+        'public-interest': 'Disclosure would be against the public interest.',
+        'prejudice-proceeding': 'Access may prejudice an ongoing proceeding or investigation.',
+        'frivolous-vexatious': 'The request is frivolous, vexatious or scandalous.',
+        'not-objectives': 'The reason for access does not promote the objectives of the Act.',
+      };
+      const ACC_OUT = {
+        grant: { label: 'Granted', kind: 'ok', icon: 'check', verb: 'granted access' },
+        'partial-grant': {
+          label: 'Partially granted',
+          kind: 'warn',
+          icon: 'check',
+          verb: 'partially granted access',
+        },
+        deny: { label: 'Denied', kind: 'danger', icon: 'ban', verb: 'denied access' },
+      };
+      const STANCE = {
+        object: {
+          label: 'Object',
+          done: 'You objected',
+          icon: 'ban',
+          sub: 'Ask not to release it',
+        },
+        consent: {
+          label: 'Consent',
+          done: 'You consented',
+          icon: 'check',
+          sub: 'Agree to release',
+        },
+        context: {
+          label: 'Add context',
+          done: 'You added context',
+          icon: 'msg',
+          sub: 'Tell the Commission first',
+        },
+      };
+      const REP_MAX = 8000;
+      const REP_FILES = 10;
+      const scope = (years, spouses, children, sections) => ({
+        years,
+        spouses,
+        children,
+        sections,
+      });
+      const people = (sc) =>
+        sc.spouses && sc.children
+          ? 'You, spouse and children'
+          : sc.spouses
+            ? 'You and spouse'
+            : sc.children
+              ? 'You and children'
+              : 'You only';
+      const secText = (arr) =>
+        arr.map((k, i) => (i ? SECTIONS[k].toLowerCase() : SECTIONS[k])).join(', ');
+      const scopeText = (sc) => `${sc.years.join(', ')} · ${people(sc)} · ${secText(sc.sections)}`;
+      const REP_TEXT =
+        'The plot is the subject of a pending case at the Environment and Land Court in Eldoret. Releasing my land and loan details now could affect that case. My income is already public through the TSC salary scales.';
+      function accReq(o) {
+        return Object.assign(
+          {
+            id: 'a1',
+            ref: 'ARQ-TSC-2026-0000052-3',
+            kind: 'form-k',
+            comm: COMM,
+            applicant: 'Wanjiru Kamau',
+            purpose: 'Journalistic research on school procurement in Uasin Gishu County',
+            scope: scope([2026], true, false, ['income', 'assets', 'liabilities']),
+            notifiedAt: '2026-09-22T11:20:00',
+            windowEndsAt: '2026-09-29T11:20:00',
+            reps: null,
+            decision: null,
+            withdrawnAt: null,
+            pkg: null,
+          },
+          o,
+        );
+      }
+      const ACC = {
+        lea1: () =>
+          accReq({
+            id: 'a2',
+            ref: 'LEA-TSC-2026-0000007-M',
+            kind: 'lea',
+            applicant: null,
+            agency: 'Asset Recovery Agency',
+            caseRef: 'ARA/INV/118/2026',
+            purpose: null,
+            scope: scope([2026], true, true, SEC_KEYS),
+            notifiedAt: '2026-09-02T15:36:00',
+            windowEndsAt: null,
+            decision: {
+              outcome: 'grant',
+              at: '2026-09-02T15:30:00',
+              granted: scope([2026], true, true, SEC_KEYS),
+              grounds: [],
+              reasons: '',
+            },
+            pkg: {
+              issuedAt: '2026-09-02T15:34:00',
+              expiresAt: '2026-09-16T15:34:00',
+              downloads: ['2026-09-03T10:12:00'],
+            },
+          }),
+        arq1: () =>
+          accReq({
+            id: 'a3',
+            ref: 'ARQ-TSC-2026-0000045-X',
+            applicant: 'Kevin Mutua Njoroge',
+            purpose: 'Civil claim over a land sale in Kapsaret',
+            scope: scope([2026], true, true, ['income', 'assets', 'liabilities', 'other']),
+            notifiedAt: '2026-07-20T10:40:00',
+            windowEndsAt: '2026-07-27T10:40:00',
+            reps: {
+              stance: 'object',
+              text: REP_TEXT,
+              files: [
+                { name: 'ELC case 118 of 2026 hearing notice.pdf', size: 264000, status: 'clean' },
+              ],
+              submittedAt: '2026-07-24T18:05:00',
+              updatedAt: '2026-07-24T18:05:00',
+            },
+            decision: {
+              outcome: 'partial-grant',
+              at: '2026-08-05T12:00:00',
+              granted: scope([2026], false, false, ['income', 'assets']),
+              grounds: ['not-objectives'],
+              reasons:
+                "The claim concerns land the officer holds, so his income and assets are relevant. His liabilities and his family's details are not needed for it.",
+            },
+            pkg: {
+              issuedAt: '2026-08-05T12:04:00',
+              expiresAt: '2026-08-19T12:04:00',
+              downloads: ['2026-08-09T16:48:00'],
+            },
+          }),
+        arq39: () =>
+          accReq({
+            id: 'a4',
+            ref: 'ARQ-TSC-2026-0000039-K',
+            applicant: 'Samuel Otieno Ouma',
+            purpose: 'A private dispute with the officer',
+            scope: scope([2026], true, true, SEC_KEYS),
+            notifiedAt: '2026-07-01T09:10:00',
+            windowEndsAt: '2026-07-08T09:10:00',
+            decision: {
+              outcome: 'deny',
+              at: '2026-07-24T15:45:00',
+              granted: null,
+              grounds: ['frivolous-vexatious'],
+              reasons:
+                "The application concerns a private dispute and gives no reason connected to the officer's public duties.",
+            },
+          }),
+        arq31: () =>
+          accReq({
+            id: 'a5',
+            ref: 'ARQ-TSC-2026-0000031-6',
+            applicant: 'Brian Kiptoo Rotich',
+            purpose: 'Checking a tender award at the school',
+            scope: scope([2026], false, false, ['income', 'assets']),
+            notifiedAt: '2026-06-12T09:30:00',
+            windowEndsAt: '2026-06-19T09:30:00',
+            reps: {
+              stance: 'context',
+              text: 'I was not on the tender committee for the 2026 laboratory works. The committee minutes are with the Board of Management.',
+              files: [],
+              submittedAt: '2026-06-14T20:12:00',
+              updatedAt: '2026-06-14T20:12:00',
+            },
+            withdrawnAt: '2026-06-15T14:10:00',
+          }),
+        psc27: () =>
+          accReq({
+            id: 'a6',
+            ref: 'ARQ-PSC-2026-0000027-2',
+            comm: PSC_C,
+            applicant: 'Achieng Odhiambo',
+            purpose: 'Academic research on declarations by education officers',
+            scope: scope([2025], false, false, ['income', 'assets']),
+            notifiedAt: '2026-06-08T10:00:00',
+            windowEndsAt: '2026-06-15T10:00:00',
+            reps: {
+              stance: 'consent',
+              text: '',
+              files: [],
+              submittedAt: '2026-06-09T08:30:00',
+              updatedAt: '2026-06-09T08:30:00',
+            },
+            decision: {
+              outcome: 'grant',
+              at: '2026-06-22T11:15:00',
+              granted: scope([2025], false, false, ['income', 'assets']),
+              grounds: [],
+              reasons: 'The research purpose is legitimate and the officer consented.',
+            },
+            pkg: {
+              issuedAt: '2026-06-22T11:18:00',
+              expiresAt: '2026-07-06T11:18:00',
+              downloads: ['2026-06-23T09:02:00', '2026-06-30T14:40:00'],
+            },
+          }),
+        psc19: () =>
+          accReq({
+            id: 'a7',
+            ref: 'ARQ-PSC-2026-0000019-7',
+            comm: PSC_C,
+            applicant: 'Joseph Maina Kariuki',
+            purpose: 'Suspected conflict of interest in a supplies contract',
+            scope: scope([2025, 2026], true, false, SEC_KEYS),
+            notifiedAt: '2026-05-05T09:40:00',
+            windowEndsAt: '2026-05-12T09:40:00',
+            reps: {
+              stance: 'object',
+              text: 'I had no role in the supplies contract. It was awarded by the county education office.',
+              files: [],
+              submittedAt: '2026-05-08T19:25:00',
+              updatedAt: '2026-05-08T19:25:00',
+            },
+            decision: {
+              outcome: 'deny',
+              at: '2026-05-29T10:05:00',
+              granted: null,
+              grounds: ['prejudice-proceeding'],
+              reasons: 'A related investigation is under way. Access now could prejudice it.',
+            },
+          }),
+      };
+      const OLDER = () => [ACC.lea1(), ACC.arq1(), ACC.arq39(), ACC.arq31()];
+      const savedReps = (stance = 'object') => ({
+        stance,
+        text: stance === 'consent' ? '' : REP_TEXT,
+        files:
+          stance === 'object'
+            ? [{ name: 'ELC case 118 of 2026 hearing notice.pdf', size: 264000, status: 'clean' }]
+            : [],
+        submittedAt: '2026-09-24T18:20:00',
+        updatedAt: '2026-09-24T18:20:00',
+      });
+      function accessWorld(name) {
+        switch (name) {
+          case 'none':
+            return [];
+          case 'saved':
+            return [accReq({ reps: savedReps() }), ...OLDER()];
+          case 'consented':
+            return [
+              accReq({
+                reps: {
+                  ...savedReps('consent'),
+                  submittedAt: '2026-09-23T07:45:00',
+                  updatedAt: '2026-09-23T07:45:00',
+                },
+              }),
+              ...OLDER(),
+            ];
+          case 'closed-none':
+            return [
+              accReq({ notifiedAt: '2026-09-17T09:05:00', windowEndsAt: '2026-09-24T09:05:00' }),
+              ...OLDER(),
+            ];
+          case 'closed-reps':
+            return [
+              accReq({
+                notifiedAt: '2026-09-17T09:05:00',
+                windowEndsAt: '2026-09-24T09:05:00',
+                reps: {
+                  ...savedReps(),
+                  submittedAt: '2026-09-20T21:10:00',
+                  updatedAt: '2026-09-22T07:30:00',
+                },
+              }),
+              ...OLDER(),
+            ];
+          case 'closing':
+            return [
+              accReq({ notifiedAt: '2026-09-19T10:25:00', windowEndsAt: '2026-09-26T10:25:00' }),
+              ...OLDER(),
+            ];
+          case 'history':
+            return [accReq(), ...OLDER(), ACC.psc27(), ACC.psc19()];
+          default:
+            return [accReq(), ...OLDER()];
+        }
+      }
+
+      const S = Kit.state({ ...world('open'), modal: null });
+      function load(w) {
+        const keep = { screen: S.screen, params: S.params, _panel: S._panel };
+        Object.keys(S).forEach((k) => {
+          if (!['screen', 'params', '_panel', 'toast', 'toastErr', 'menu', 'navOpen'].includes(k))
+            delete S[k];
+        });
+        Object.assign(S, w, keep, { modal: null, menu: null });
+      }
+
+      /* ---------- derived ---------- */
+      const findClar = (id) => S.clars.find((c) => c.id === id);
+      const findNotice = (id) => S.notices.find((n) => n.id === id);
+      const clarStatus = (c) => {
+        if (c.status === 'withdrawn') return { label: 'Withdrawn', kind: '', icon: 'ban' };
+        if (c.status === 'resolved') return { label: 'Resolved', kind: 'ok', icon: 'check' };
+        if (c.status === 'responded') return { label: 'Responded', kind: 'info', icon: 'send' };
+        if (c.status === 'overdue') return { label: 'Overdue', kind: 'danger', icon: 'alert' };
+        return { label: 'Open', kind: 'brand', icon: 'msg' };
+      };
+      const isOpen = (c) => c.status === 'issued' || c.status === 'overdue';
+      const lateDays = (c) => Math.max(1, dd(c.dueAt, c.respondedAt));
+      function countdown(c) {
+        const n = dd(TODAY, c.dueAt);
+        if (c.status === 'overdue' || n < 0)
+          return { text: `Overdue by ${plural(-n || 1, 'day')}`, cls: 'danger' };
+        if (n === 0) return { text: 'Respond by today', cls: 'danger' };
+        return { text: `Respond within ${plural(n, 'day')}`, cls: n <= 10 ? 'warn' : '' };
+      }
+      // A notice or warning stays open for a response until a later step is issued (contract: 409 "step not open" after that).
+      // The ladder is per subject (a clarification or an unfiled declaration).
+      const chain = (n) => S.notices.filter((x) => x.subjectRef === n.subjectRef);
+      const laterStep = (n) => chain(n).some((x) => STEPS.indexOf(x.step) > STEPS.indexOf(n.step));
+      const noticeOpen = (n) =>
+        n.status === 'issued' && ['notice-to-comply', 'warning'].includes(n.step) && !laterStep(n);
+      const noticeLive = (n) =>
+        ['issued', 'responded'].includes(n.status) &&
+        ['notice-to-comply', 'warning'].includes(n.step) &&
+        !laterStep(n);
+      function noticeBadge(n) {
+        if (n.step === 'salary-stoppage') {
+          if (n.status === 'reinstated')
+            return { label: 'Salary reinstated', kind: 'ok', icon: 'check' };
+          if (n.status === 'complied') return { label: 'Complied', kind: 'ok', icon: 'check' };
+          if (n.salaryStoppedAt && dOnly(n.salaryStoppedAt) <= dOnly(TODAY))
+            return { label: 'Salary stopped', kind: 'danger', icon: 'ban' };
+          return {
+            label: `Salary stoppage from ${shortDate(n.salaryEffective)}`,
+            kind: 'danger',
+            icon: 'calendar',
+          };
+        }
+        if (n.status === 'complied') return { label: 'Complied', kind: 'ok', icon: 'check' };
+        if (n.status === 'responded') return { label: 'Responded', kind: 'info', icon: 'send' };
+        return {
+          label: 'Issued',
+          kind: n.step === 'notice-to-comply' ? 'warn' : 'danger',
+          icon: STEP[n.step].icon,
+        };
+      }
+      const ladderComplied = (list) =>
+        list.length && list.every((n) => ['complied', 'reinstated'].includes(n.status));
+      const openClarCount = () => S.clars.filter(isOpen).length;
+      const noticeActionCount = () =>
+        S.notices.filter(
+          (n) =>
+            noticeLive(n) ||
+            (n.step === 'salary-stoppage' && !['complied', 'reinstated'].includes(n.status)) ||
+            (n.step === 'disciplinary-referral' && !['complied'].includes(n.status)),
+        ).length;
+      const counts = () => ({
+        Clarifications: openClarCount() || 0,
+        Notices: noticeActionCount() || 0,
+      });
+      function whatToDo(n) {
+        if (n.whatToDo === 'file-declaration')
+          return {
+            text: `File your declaration: ${esc(n.subjectRef)}.`,
+            cta: 'File declaration',
+            href: `${JOURNEY}#declarations`,
+          };
+        return {
+          text: `Respond to clarification <span class="nowrap">${n.subjectRef}</span>.`,
+          cta: 'Respond now',
+          act: 'go',
+          arg: `clarification|${n.subjectId}`,
+        };
+      }
+
+      /* ---------- small components ---------- */
+      function refChip(ref, key) {
+        const k = key || ref;
+        const parts = ref.split('-');
+        const [type, issuer, period, seq, check] = parts;
+        const extra = parts.slice(5).join('-');
+        const menu =
+          S.menu === 'ref:' + k
+            ? `<div class="menu refmenu" role="dialog" aria-label="What this reference means">
+          <div class="small" style="font-weight:600;margin-bottom:2px">What this reference means</div>
+          <div class="row"><span class="seg-k">${type}</span><span>${REF_TYPES[type] || type}</span></div>
+          <div class="row"><span class="seg-k">${issuer}</span><span>${issuer === 'TSC' ? COMM.name : issuer}</span></div>
+          <div class="row"><span class="seg-k">${period}</span><span>${type.startsWith('DC') ? 'Declaration year' : 'Year issued'}</span></div>
+          <div class="row"><span class="seg-k">${seq}</span><span>Sequence number</span></div>
+          <div class="row"><span class="seg-k">${check}</span><span>Check character</span></div>
+          ${extra ? `<div class="row"><span class="seg-k">${extra}</span><span>Reinstatement instruction</span></div>` : ''}
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px" data-act="copy" data-arg="${ref}">${icon('copy', 15)} Copy reference</button>
+        </div>`
+            : '';
+        return `<span class="menu-wrap"><button class="refchip" data-act="menu" data-arg="ref:${esc(k)}" aria-expanded="${!!menu}" aria-label="Reference ${ref}. Show what it means">${ref}</button>${menu}</span>`;
+      }
+      const badge = (b) =>
+        `<span class="badge badge-${b.kind}">${icon(b.icon, 13, 2.2)} ${b.label}</span>`;
+      function timer(c, { compact = false } = {}) {
+        const total = Math.max(1, dd(c.issuedAt, c.dueAt));
+        const done = !isOpen(c);
+        const endAt = c.respondedAt || c.withdrawnAt || TODAY;
+        const elapsed = Math.min(total, Math.max(0, dd(c.issuedAt, endAt)));
+        const cd = countdown(c);
+        const pctW = Math.min(100, Math.round((elapsed / total) * 100));
+        const cls = done
+          ? c.late
+            ? 'warn'
+            : 'ok'
+          : cd.cls === 'danger'
+            ? 'danger'
+            : cd.cls === 'warn'
+              ? 'warn'
+              : '';
+        const remPct = Math.round((20 / total) * 100);
+        let big, sub;
+        if (c.status === 'withdrawn') {
+          big = 'No response needed';
+          sub = `Withdrawn on ${fmtDate(c.withdrawnAt)}`;
+        } else if (c.status === 'responded' || c.status === 'resolved') {
+          big = c.late ? `Responded ${plural(lateDays(c), 'day')} late` : 'Responded on time';
+          sub = `Response submitted ${fmtDate(c.respondedAt)} · due ${fmtDate(c.dueAt)}`;
+        } else if (cd.cls === 'danger' && dd(TODAY, c.dueAt) < 0) {
+          big = cd.text;
+          sub = `Was due ${fmtDate(c.dueAt)}. You can still respond.`;
+        } else {
+          big = cd.text;
+          sub = `Due ${fmtDate(c.dueAt)} · day ${elapsed} of ${total}`;
+        }
+        return `<div class="timer" role="group" aria-label="Response period">
+          <div class="big ${cls === 'danger' ? 'countdown danger' : ''}">${big}</div>
+          <div class="small muted" style="margin-top:2px">${sub}</div>
+          ${
+            compact
+              ? ''
+              : `<div class="bar ${cls}" role="img" aria-label="${elapsed} of ${total} days used"><i style="width:${pctW}%"></i><span class="mark" style="left:${remPct}%" title="Reminder on day 20"></span></div>
+          <div class="scale" style="position:relative"><span>${shortDate(c.issuedAt)}</span><span style="left:${remPct}%">Reminder</span><span>${shortDate(c.dueAt)}</span></div>`
+          }
+        </div>`;
+      }
+      function docRow(f, { removable = false, bind = '', i = 0 } = {}) {
+        const size =
+          f.size >= 1e6
+            ? (f.size / 1e6).toFixed(1) + ' MB'
+            : Math.max(1, Math.round(f.size / 1000)) + ' KB';
+        const bad = f.status === 'rejected' || f.status === 'infected';
+        const state =
+          f.status === 'scanning'
+            ? `<span class="spinner dark" style="margin-right:8px" aria-label="Checking"></span>`
+            : bad
+              ? `<span class="badge badge-danger">${icon('alert', 12, 2.4)} Not accepted</span>`
+              : removable
+                ? `<span class="badge badge-ok">${icon('check', 12, 2.6)} Attached</span>`
+                : '';
+        const hint =
+          f.status === 'scanning'
+            ? `${size} · Checking the file…`
+            : f.status === 'infected'
+              ? 'This file failed the security check. Attach a different copy.'
+              : f.status === 'rejected'
+                ? f.reason
+                : size;
+        return `<div class="doc ${bad ? 'bad' : ''}"><span class="doc-ico">${icon(bad ? 'alert' : 'file', 16)}</span><div class="doc-body"><div class="doc-name">${esc(f.name)}</div><div class="hint" ${bad ? 'style="color:var(--danger)"' : ''}>${esc(hint)}</div></div>${state}${removable ? `<button class="btn btn-ghost icon-btn" data-act="removeFile" data-arg="${bind}|${i}" aria-label="Remove ${esc(f.name)}">${icon('x', 16)}</button>` : `<button class="btn btn-ghost icon-btn" data-act="toast" data-arg="${esc(f.name)} would download" aria-label="Download ${esc(f.name)}">${icon('download', 16)}</button>`}</div>`;
+      }
+      function skeletonList(n = 3) {
+        return `<div class="card" aria-busy="true" aria-label="Loading">${Array.from({ length: n }, () => `<div class="skel-card"><span class="skeleton circle"></span><div style="flex:1;display:grid;gap:10px;padding-top:4px"><span class="skeleton" style="width:45%;height:14px"></span><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:30%"></span></div></div>`).join('')}</div>`;
+      }
+      function errorCard(what, act) {
+        return `<div class="card"><div class="empty" style="padding:48px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--danger-soft);color:var(--danger)">${icon('wifiOff', 16)}</span></div><h4>We could not load your ${what}</h4><p>Check your connection and try again.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="${act}">${icon('refresh', 16)} Try again</button></div></div></div>`;
+      }
+      const shell = (body, active) => portalShell(body, { active, counts: counts() });
+      const helpCard = () =>
+        `<div class="card card-pad"><div class="section-title">Need help?</div><div style="display:grid;gap:8px;margin-top:12px;font-size:14px"><div class="row" style="gap:10px">${icon('phone', 16)} ${COMM.phone}</div><div class="row" style="gap:10px">${icon('mail', 16)} ${COMM.email}</div></div></div>`;
+
+      /* ---------- screens: clarifications ---------- */
+      const screens = {};
+      screens.clarifications = () => {
+        const intro = `<h1 class="page-title">Clarifications</h1>`;
+        let body;
+        if (S.loadFor === 'clarifications') body = skeletonList(2);
+        else if (S.errorFor === 'clarifications') body = errorCard('clarifications', 'retry');
+        else if (!S.clars.length)
+          body = `<div class="card"><div class="empty" style="padding:56px 20px">
+            <div class="art" style="grid-template-columns:30px"><span style="background:var(--ok-soft);color:var(--ok)">${icon('msg', 16)}</span></div>
+            <h4>No clarification requests</h4><p>If one arrives, we will SMS and email you. You will have 30 days to respond.</p></div></div>`;
+        else {
+          const open = S.clars.filter(isOpen),
+            rest = S.clars
+              .filter((c) => !isOpen(c))
+              .sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt));
+          const page = Math.min(S.clarPage || 1, Math.max(1, Math.ceil(rest.length / PAGE)));
+          const shown = rest.slice((page - 1) * PAGE, page * PAGE);
+          const group = (title, list, foot = '') =>
+            list.length
+              ? `<div class="section-title" style="margin:24px 0 10px">${title}</div><div class="card">${list.map(clarCard).join('')}${foot}</div>`
+              : '';
+          body =
+            group('Needs your response', open) +
+            group(
+              open.length ? 'Earlier' : 'All clarifications',
+              shown,
+              rest.length > PAGE
+                ? Kit.pager({ page, pageSize: PAGE, total: rest.length, act: 'clarPage' })
+                : '',
+            );
+        }
+        return shell(
+          `<div class="page" style="max-width:880px">${intro}${S.loadFor || S.errorFor || !S.clars.length ? `<div style="margin-top:24px">${body}</div>` : body}</div>`,
+          'Clarifications',
+        );
+      };
+      function clarCard(c) {
+        const st = clarStatus(c),
+          cd = countdown(c);
+        const tone = {
+          brand: ['var(--brand-soft)', 'var(--brand-ink)'],
+          danger: ['var(--danger-soft)', 'var(--danger)'],
+          ok: ['var(--ok-soft)', 'var(--ok)'],
+          info: ['#eaf1fb', '#1f4f96'],
+          '': ['var(--sunken)', 'var(--muted)'],
+        }[st.kind];
+        const overdueNow = isOpen(c) && dd(TODAY, c.dueAt) < 0;
+        const tags = [overdueNow ? badge({ ...st, label: countdown(c).text }) : badge(st)];
+        if (isOpen(c) && !overdueNow)
+          tags.push(
+            `<span class="countdown ${cd.cls} small">${icon('clock', 14)} ${cd.text}</span>`,
+          );
+        if (isOpen(c) && !overdueNow && c.reminderSentAt)
+          tags.push(
+            `<span class="badge">${icon('bell', 13)} Reminder sent ${shortDate(c.reminderSentAt)}</span>`,
+          );
+        if (c.late && c.respondedAt)
+          tags.push(
+            `<span class="badge badge-warn">${icon('clock', 13)} Responded ${plural(lateDays(c), 'day')} late</span>`,
+          );
+        if (c.followUpOf)
+          tags.push(`<span class="badge">${icon('link', 13)} Further clarification</span>`);
+        if (c.followUpRef)
+          tags.push(
+            `<span class="badge badge-brand">${icon('msg', 13)} Further clarification sent</span>`,
+          );
+        if (c.noticeRef && isOpen(c))
+          tags.push(`<span class="badge badge-danger">${icon('bell', 13)} Notice issued</span>`);
+        return `<a class="cardlink" href="#clarification" data-act="go" data-arg="clarification|${c.id}"><div class="lc"><span class="ico" style="background:${tone[0]};color:${tone[1]}">${icon(st.icon, 18)}</span><div class="body">
+          <div class="t">${c.items.length === 1 ? '1 point' : c.items.length + ' points'} on your ${DECL.type.toLowerCase()}</div>
+          <div class="d"><span class="mono">${c.ref}</span> · ${COMM.name}</div>
+          <div class="d">Issued ${fmtDate(c.issuedAt)} · ${c.status === 'withdrawn' ? `withdrawn ${fmtDate(c.withdrawnAt)}` : c.status === 'resolved' ? `resolved ${fmtDate(c.resolvedAt)}` : c.respondedAt ? `responded ${fmtDate(c.respondedAt)}` : `due ${fmtDate(c.dueAt)}`}</div>
+          <div class="tags">${tags.join('')}</div></div><span class="chev">${icon('right', 20)}</span></div></a>`;
+      }
+
+      screens.clarification = () => {
+        const c = findClar(S.params.id) || S.clars[0];
+        if (S.notFound || !c)
+          return shell(
+            `<div class="page" style="max-width:720px"><button class="back" data-act="go" data-arg="clarifications">${icon('left', 16)} Clarifications</button><div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--sunken);color:var(--muted)">${icon('search', 16)}</span></div><h4>Clarification not found</h4><p>The link may be wrong, or it belongs to someone else.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="go" data-arg="clarifications">All clarifications</button></div></div></div></div>`,
+            'Clarifications',
+          );
+        const st = clarStatus(c);
+        const f = formFor(c);
+        const canRespond = isOpen(c);
+        const banners = [];
+        if (c.status === 'overdue' && !c.noticeRef)
+          banners.push(
+            `<div class="banner banner-danger">${icon('alert', 18)}<div><b>The deadline has passed.</b> You can still respond; your response will be recorded as late.</div></div>`,
+          );
+        if (c.noticeRef && isOpen(c)) {
+          const n = S.notices.find((x) => x.ref === c.noticeRef);
+          banners.push(
+            `<div class="banner banner-danger">${icon('bell', 18)}<div><b>The deadline has passed. ${COMM.code} has issued a ${n ? STEP[n.step].title.toLowerCase() : 'notice'}.</b> Responding now ends it${n && n.salaryStoppedAt ? ' and reinstates your salary' : ''}; your response will be recorded as late.<div><button class="btn btn-secondary btn-sm" data-act="go" data-arg="notice|${n ? n.id : ''}">View ${n ? STEP[n.step].short.toLowerCase() : 'notice'} ${icon('right', 15)}</button></div></div></div>`,
+          );
+        }
+        if (c.status === 'issued' && c.reminderSentAt)
+          banners.push(
+            `<div class="banner banner-warn">${icon('bell', 18)}<div><b>Reminder: ${countdown(c).text.toLowerCase()}.</b> Due ${fmtDate(c.dueAt)}.</div></div>`,
+          );
+        if (c.status === 'responded' && !c.followUpRef)
+          banners.push(
+            `<div class="banner banner-info">${icon('send', 18)}<div><b>Response submitted ${fmtDateTime(c.respondedAt)}.</b> ${c.late ? `Responded ${plural(lateDays(c), 'day')} late. ` : ''}We will SMS and email you when ${COMM.code} has reviewed it.</div></div>`,
+          );
+        if (c.followUpRef) {
+          const fu = S.clars.find((x) => x.ref === c.followUpRef);
+          banners.push(
+            `<div class="banner banner-warn">${icon('msg', 18)}<div><b>${COMM.code} sent a further clarification.</b> It has its own 30 days.<div><button class="btn btn-secondary btn-sm" data-act="go" data-arg="clarification|${fu ? fu.id : ''}">Open ${c.followUpRef} ${icon('right', 15)}</button></div></div></div>`,
+          );
+        }
+        if (c.followUpOf)
+          banners.push(
+            `<div class="banner banner-neutral">${icon('link', 18)}<div>Follows up on your response to <b class="mono">${c.followUpOf}</b>. ${S.clars.some((x) => x.ref === c.followUpOf) ? `<button class="link" data-act="go" data-arg="clarification|${S.clars.find((x) => x.ref === c.followUpOf).id}">See what you said before</button>` : ''}</div></div>`,
+          );
+        if (c.status === 'resolved')
+          banners.push(
+            `<div class="banner banner-ok">${icon('check', 18)}<div><b>Resolved on ${fmtDate(c.resolvedAt)}.</b> ${COMM.code} accepted your response.</div></div>`,
+          );
+        if (c.status === 'withdrawn')
+          banners.push(
+            `<div class="banner banner-neutral">${icon('ban', 18)}<div><b>Withdrawn on ${fmtDate(c.withdrawnAt)}: issued in error.</b> You do not need to respond.</div></div>`,
+          );
+        if (S.conflict === c.id)
+          banners.push(
+            `<div class="banner banner-warn">${icon('info', 18)}<div><b>A response was already submitted</b>, possibly from another device. You can respond only once. <button class="link" data-act="reloadResponded">Show it</button></div></div>`,
+          );
+
+        const items = c.items
+          .map((it, i) => {
+            const r = REQ[it.requirement];
+            const ans = c.response?.items[i];
+            const fi = f?.items[i];
+            const err = f?.tried && fi && !fi.text.trim();
+            const over = fi && fi.text.length > 2000;
+            const bind = `form.${c.id}.items.${i}`;
+            return `<div class="qa" id="point-${i + 1}">
+            <div class="qa-top"><span class="qa-n ${ans || (fi && fi.text.trim()) ? 'done' : !canRespond ? 'muted' : ''}">${ans ? icon('check', 13, 2.6) : i + 1}</span><span class="small muted" style="font-weight:500">Point ${i + 1} of ${c.items.length}</span></div>
+            <div class="qa-ask">${r.ask}</div>
+            <div class="qa-target">${esc(it.label)}</div>
+            <div class="qa-text"><span class="who">${COMM.code}</span>${esc(it.text)}</div>
+            ${it.requirement === 'correct' && canRespond ? `<button class="qa-link" data-act="toast" data-arg="Opens the amendment flow in declarant-journey (spec 06)">${icon('pencil', 14)} Amend declaration</button>` : ''}
+            ${ans ? `<div class="qa-answer"><div class="label" style="margin-bottom:6px"><span>Your response</span></div><div class="ans">${esc(ans.text)}</div>${ans.files.length ? `<div class="docs" style="margin-top:10px">${ans.files.map((x) => docRow(x)).join('')}</div>` : ''}</div>` : ''}
+            ${
+              canRespond && fi
+                ? `<div class="qa-answer stack" style="gap:10px">
+              <div class="field"><div class="label"><label for="f-${bind.replace(/\./g, '-')}-text">Your response<span class="sr-only"> to point ${i + 1}</span></label><span class="counter ${over ? 'over' : ''}" data-count="${bind}.text">${num(fi.text.length)} / 2,000</span></div>
+              <textarea id="f-${bind.replace(/\./g, '-')}-text" class="textarea ${err || over ? 'err' : ''}" rows="4" data-bind="${bind}.text" placeholder="${esc(r.ph)}" ${err ? 'aria-invalid="true"' : ''} aria-describedby="h-${c.id}-${i}">${esc(fi.text)}</textarea>
+              ${err ? `<div class="ferr" id="h-${c.id}-${i}">${icon('alert', 14)} Write your response to this point.</div>` : over ? `<div class="ferr" id="h-${c.id}-${i}">${icon('alert', 14)} Keep your response to 2,000 characters or fewer.</div>` : `<span id="h-${c.id}-${i}" hidden></span>`}</div>
+              ${fi.files.length ? `<div class="docs">${fi.files.map((x, k) => docRow(x, { removable: true, bind, i: k })).join('')}</div>` : ''}
+              <label class="attach"><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,application/pdf,image/*" data-act-change="attach" data-arg="${bind}" aria-label="Attach documents for point ${i + 1}"/>${icon('clip', 16)} ${fi.files.length ? 'Attach another document' : 'Attach a document'} <span class="muted" style="font-weight:400">(optional)</span></label>
+            </div>`
+                : ''
+            }
+          </div>`;
+          })
+          .join('');
+
+        const answered = f ? f.items.filter((x) => x.text.trim()).length : 0;
+        const scanning = f
+          ? f.items.some((x) => x.files.some((y) => y.status === 'scanning'))
+          : false;
+        const submit =
+          canRespond && f
+            ? `<div class="submitbar"><div class="answered" aria-live="polite" data-answered="${c.id}"><b>${answered} of ${c.items.length}</b> ${c.items.length === 1 ? 'point' : 'points'} answered</div><span class="spacer"></span>${S.submitErr === c.id ? `<div class="ferr" style="flex-basis:100%;order:3">${icon('wifiOff', 14)} We could not send your response. Check your connection and try again. Your answers are still here.</div>` : ''}<button class="btn btn-primary" data-act="submitClar" data-arg="${c.id}" ${scanning ? 'disabled' : ''}>${scanning ? '<span class="spinner"></span> Checking files…' : `${icon('send', 16)} Submit response`}</button></div>`
+            : '';
+
+        return shell(
+          `<div class="page">
+          <button class="back" data-act="go" data-arg="clarifications">${icon('left', 16)} Clarifications</button>
+          <div class="head-row"><h1 class="page-title">${c.followUpOf ? 'Further clarification' : 'Clarification'} on your ${DECL.type.toLowerCase()}</h1></div>
+          <div class="meta-line"><span>${refChip(c.ref)}</span><span>${badge(st)}</span><span>${icon('file', 15)} <a class="link mono" style="font-weight:400;color:inherit" data-act="go" data-arg="declaration">${DECL.ref}</a></span></div>
+          <div class="side-grid">
+            <div class="stack" style="min-width:0">
+              ${banners.join('')}
+              ${canRespond && !c.noticeRef && c.status !== 'overdue' && !c.reminderSentAt ? `<div class="callout callout-info">${icon('info', 16)}<span>Answer every point. You can respond <b>once</b>.</span></div>` : ''}
+              <div class="card">
+                <div class="card-head"><h3>${canRespond ? `What ${COMM.code} asks` : c.response ? 'Questions and your response' : 'What was asked'}</h3></div>
+                ${items}
+                ${submit}
+              </div>
+            </div>
+            <div class="side">
+              <div class="card card-pad">${timer(c, { compact: c.status === 'withdrawn' })}</div>
+              ${letterCard('Letter', c.ref, c.verification, `letter|clr:${c.id}`, c.status === 'withdrawn', 'clarification-letter')}
+              <div class="card card-pad"><div class="section-title">History</div><ul class="timeline" style="margin-top:14px">${clarHistory(c)}</ul></div>
+              ${helpCard()}
+            </div>
+          </div>
+        </div>`,
+          'Clarifications',
+        );
+      };
+      function letterCard(title, ref, ver, arg, revoked, docId, extra = '') {
+        return `<div class="card"><div class="card-head"><h3>${title}</h3></div>
+          <div class="sec-b" style="display:flex;gap:14px;align-items:center"><span class="qr-thumb">${qr(ref.length * 7, 54)}</span><div style="min-width:0"><div class="small muted">Verification code</div><div class="mono small" style="font-weight:600;word-break:break-all">${ver}</div>${revoked ? `<span class="badge badge-danger" style="margin-top:6px">${icon('ban', 12)} Revoked</span>` : `<span class="badge badge-ok" style="margin-top:6px">${icon('shield', 12)} Digitally signed</span>`}</div></div>
+          <div class="card-foot"><button class="btn btn-secondary btn-sm" data-act="modal" data-arg="${arg}">${icon('eye', 16)} View letter</button>${docLink(docId, 'Download PDF')}${extra}</div></div>`;
+      }
+      function clarHistory(c) {
+        const e = [];
+        e.push(['send', `Issued by ${COMM.code}`, fmtDateTime(c.issuedAt)]);
+        if (c.reminderSentAt) e.push(['bell', 'Reminder sent', fmtDate(c.reminderSentAt)]);
+        if (c.status === 'overdue' || (c.late && c.respondedAt))
+          e.push(['alert', 'Due date passed', fmtDate(c.dueAt)]);
+        if (c.noticeRef) {
+          const n = S.notices.find((x) => x.ref === c.noticeRef);
+          if (n)
+            e.push([
+              STEP[n.step].icon,
+              `${STEP[n.step].title} issued`,
+              `${fmtDate(n.issuedAt)} · <span class="nowrap">${n.ref}</span>`,
+            ]);
+        }
+        if (c.respondedAt)
+          e.push([
+            'check',
+            c.late ? `You responded (${plural(lateDays(c), 'day')} late)` : 'You responded',
+            fmtDateTime(c.respondedAt),
+          ]);
+        if (c.followUpRef)
+          e.push([
+            'msg',
+            'Further clarification sent',
+            `<span class="nowrap">${c.followUpRef}</span>`,
+          ]);
+        if (c.resolvedAt) e.push(['shield', 'Resolved', fmtDate(c.resolvedAt)]);
+        if (c.withdrawnAt) e.push(['ban', 'Withdrawn: issued in error', fmtDate(c.withdrawnAt)]);
+        if (isOpen(c)) e.push(['clock', `Response due`, fmtDate(c.dueAt)]);
+        return e
+          .map(
+            ([ic, t, s]) =>
+              `<li><span class="tl-ico">${icon(ic, 14)}</span><div><div class="tl-t">${t}</div><div class="tl-s">${s}</div></div></li>`,
+          )
+          .join('');
+      }
+      function formFor(c) {
+        if (!isOpen(c)) return null;
+        if (!S.form[c.id])
+          S.form[c.id] = { tried: false, items: c.items.map(() => ({ text: '', files: [] })) };
+        return S.form[c.id];
+      }
+
+      /* ---------- screen: declaration detail (Decisions live here and on Home) ---------- */
+      screens.declaration = () => {
+        const dec = S.decisions[0];
+        const clars = S.clars;
+        const anyOpen = clars.some(isOpen);
+        const steps = [
+          ['check', 'Received', fmtDateTime(DECL.receivedAt), 'done'],
+          [
+            'search',
+            'Review by ' + COMM.code,
+            dec ? 'Done' : clars.length ? 'Started' : 'In progress',
+            dec || clars.length ? 'done' : 'cur',
+          ],
+        ];
+        if (clars.length)
+          steps.push([
+            'msg',
+            'Clarification',
+            anyOpen
+              ? 'Waiting for your response'
+              : clars.every((c) => c.status === 'withdrawn')
+                ? 'Withdrawn'
+                : 'Answered',
+            anyOpen ? 'warnc' : 'done',
+          ]);
+        steps.push([
+          'stamp',
+          'Decision',
+          dec ? fmtDate(dec.decidedAt) : 'Pending',
+          dec ? 'done' : '',
+        ]);
+        return shell(
+          `<div class="page">
+          <a class="back" href="${JOURNEY}#declarations">${icon('left', 16)} Declarations</a>
+          <div class="head-row"><h1 class="page-title">${DECL.type}</h1></div>
+          <div class="meta-line"><span>${refChip(DECL.ref)}</span><span>${dec ? outcomeBadge(dec.outcome) : anyOpen ? `<span class="badge badge-brand">${icon('msg', 13)} Clarification open</span>` : `<span class="badge badge-info">${icon('search', 13)} Under review</span>`}</span><span>${icon('calendar', 15)} Statement date ${fmtDate(DECL.statementDate)}</span></div>
+          <div class="side-grid">
+            <div class="stack-lg" style="min-width:0">
+              ${S.loadFor === 'declaration' ? skeletonList(2) : dec ? decisionCard(dec, { full: true }) : `<div class="card card-pad"><div class="outcome"><span class="big-ico" style="background:#eaf1fb;color:#1f4f96">${icon('search', 22)}</span><div><div class="section-title">No decision yet</div><p class="small muted" style="margin-top:4px;max-width:520px">${anyOpen ? 'Respond to the open clarification first. ' : ''}We will SMS and email you when ${COMM.code} decides.</p></div></div></div>`}
+              <div class="card"><div class="card-head"><h3>Clarifications</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="clarifications">All ${icon('right', 15)}</button></div>${clars.length ? clars.slice(0, 3).map(clarCard).join('') : `<div class="sec-b small muted">No clarification requests.</div>`}</div>
+              ${S.notices.length ? `<div class="card"><div class="card-head"><h3>Notices</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="notices">All ${icon('right', 15)}</button></div>${byDate(S.notices).slice(0, 3).map(noticeCard).join('')}</div>` : ''}
+            </div>
+            <div class="side">
+              <div class="card card-pad"><div class="section-title">Progress</div><div class="track" style="margin-top:14px">${steps.map(([ic, t, d, cls]) => `<div class="ts ${cls}"><span class="dotc">${icon(cls === 'done' ? 'check' : ic, 14, 2.2)}</span><div><div class="tt">${t}</div><div class="td">${d}</div></div></div>`).join('')}</div></div>
+              <div class="card"><div class="card-head"><h3>Documents</h3></div>
+                <div class="item"><span class="ico">${icon('file', 16)}</span><div class="item-body"><div class="t">Acknowledgement slip</div><div class="d">${fmtDate(DECL.receivedAt)}</div></div><a class="btn btn-ghost icon-btn" href="${DOCS}#slip" target="_blank" rel="noopener" aria-label="Download slip">${icon('download', 17)}</a></div>
+                ${clars.map((c) => `<div class="item"><span class="ico">${icon('msg', 16)}</span><div class="item-body"><div class="t">Clarification letter</div><div class="d mono">${c.ref}</div></div><button class="btn btn-ghost icon-btn" data-act="modal" data-arg="letter|clr:${c.id}" aria-label="View letter ${c.ref}">${icon('eye', 17)}</button><a class="btn btn-ghost icon-btn" href="${DOCS}#clarification-letter" target="_blank" rel="noopener" aria-label="Download letter ${c.ref}">${icon('download', 17)}</a></div>`).join('')}
+                <div class="item"><span class="ico">${icon('shield', 16)}</span><div class="item-body"><div class="t">Certified copy</div></div><a class="btn btn-ghost icon-btn" href="${PROFILE}#certified-copies" aria-label="Certified copies">${icon('right', 17)}</a></div>
+                ${dec && dec.letter === 'ready' ? `<div class="item"><span class="ico">${icon('stamp', 16)}</span><div class="item-body"><div class="t">Decision letter</div><div class="d mono">${dec.ref}</div></div><button class="btn btn-ghost icon-btn" data-act="modal" data-arg="letter|cmp:${dec.id}" aria-label="View decision letter">${icon('eye', 17)}</button><a class="btn btn-ghost icon-btn" href="${DOCS}#${DEC_DOC(dec.outcome)}" target="_blank" rel="noopener" aria-label="Download decision letter">${icon('download', 17)}</a></div>` : ''}
+              </div>
+              ${helpCard()}
+            </div>
+          </div>
+        </div>`,
+          'Declarations',
+        );
+      };
+      const OUTCOME = {
+        compliant: {
+          label: 'Compliant',
+          kind: 'ok',
+          icon: 'shield',
+          title: 'Your declaration is compliant',
+          text: 'Your declaration meets the requirements. You do not need to do anything.',
+        },
+        'compliant-no-issues': {
+          label: 'Compliant: no issues identified',
+          kind: 'ok',
+          icon: 'shield',
+          title: 'Your declaration is compliant',
+          text: 'No issues were found. You do not need to do anything.',
+        },
+        'non-compliant': {
+          label: 'Non-compliant',
+          kind: 'danger',
+          icon: 'alert',
+          title: 'Your declaration is non-compliant',
+          text: 'Your Commission may take administrative action. Check Notices.',
+        },
+        'further-action': {
+          label: 'Further action',
+          kind: 'warn',
+          icon: 'info',
+          title: 'Your Commission is taking further action',
+          text: 'If you need to act, we will SMS and email you and it will appear under Notices.',
+        },
+      };
+      const outcomeBadge = (o) => badge(OUTCOME[o]);
+      function decisionCard(dec, { full = false } = {}) {
+        const o = OUTCOME[dec.outcome];
+        const tint = {
+          ok: ['var(--ok-soft)', 'var(--ok)'],
+          danger: ['var(--danger-soft)', 'var(--danger)'],
+          warn: ['var(--warn-soft)', 'var(--warn)'],
+        }[o.kind];
+        const btn =
+          dec.letter === 'preparing'
+            ? `<button class="btn btn-secondary btn-sm" disabled aria-live="polite"><span class="spinner dark"></span> Preparing…</button>`
+            : dec.letter === 'ready'
+              ? docLink(
+                  DEC_DOC(dec.outcome),
+                  'Download decision letter',
+                  `btn ${full ? 'btn-primary' : 'btn-secondary'} btn-sm`,
+                ) +
+                `<button class="btn btn-ghost btn-sm" data-act="decLetter" data-arg="${dec.id}">${icon('eye', 16)} Preview</button>`
+              : `<button class="btn ${full ? 'btn-primary' : 'btn-secondary'} btn-sm" data-act="decLetter" data-arg="${dec.id}">${icon('download', 16)} Download decision letter</button>`;
+        return `<div class="card"><div class="${full ? 'card-pad' : 'sec-b'}"><div class="outcome"><span class="big-ico" style="background:${tint[0]};color:${tint[1]}">${icon(o.icon, 22)}</span><div style="min-width:0;flex:1">
+            <div class="row wrap" style="gap:8px">${full ? '' : outcomeBadge(dec.outcome)}${refChip(dec.ref, 'dec-' + dec.id + (full ? '' : '-s'))}</div>
+            <p class="small ${dec.outcome === 'non-compliant' ? '' : 'muted'}" style="margin-top:10px;max-width:560px;${dec.outcome === 'non-compliant' ? 'color:#8a1c14;font-weight:500' : ''}">${o.text}</p>
+            <div class="small muted" style="margin-top:6px">Decided ${fmtDate(dec.decidedAt)}${full ? '' : ` · ${DECL.type}`}</div>
+            ${dec.letter === 'error' ? `<div class="ferr" style="margin-top:10px">${icon('alert', 14)} We could not prepare your letter. Try again in a few minutes.</div>` : ''}
+          </div></div></div>
+          <div class="card-foot">${btn}${dec.outcome === 'non-compliant' ? `<button class="btn btn-ghost btn-sm" data-act="go" data-arg="notices">${icon('bell', 16)} Notices</button>` : ''}</div></div>`;
+      }
+
+      /* ---------- screens: notices ---------- */
+      function noticeCard(n) {
+        const b = noticeBadge(n),
+          s = STEP[n.step];
+        const tone = {
+          warn: ['var(--warn-soft)', 'var(--warn)'],
+          danger: ['var(--danger-soft)', 'var(--danger)'],
+          ok: ['var(--ok-soft)', 'var(--ok)'],
+          info: ['#eaf1fb', '#1f4f96'],
+        }[b.kind];
+        const left = n.actBy ? dd(TODAY, n.actBy) : null;
+        const actLine =
+          noticeOpen(n) && n.actBy
+            ? `<span class="countdown ${left <= 3 ? 'danger' : 'warn'} small">${icon('clock', 14)} Act by ${fmtDate(n.actBy)} · ${left < 0 ? 'passed' : left === 0 ? 'today' : plural(left, 'day') + ' left'}</span>`
+            : n.status === 'issued' && laterStep(n)
+              ? `<span class="small muted">Followed by a ${STEP[STEPS[STEPS.indexOf(n.step) + 1]].title.toLowerCase()}</span>`
+              : '';
+        return `<a class="cardlink" href="#notice" data-act="go" data-arg="notice|${n.id}"><div class="lc"><span class="ico" style="background:${tone[0]};color:${tone[1]}">${icon(s.icon, 18)}</span><div class="body">
+          <div class="t">${s.title}</div>
+          <div class="d"><span class="mono">${n.ref}</span> · Issued ${fmtDate(n.issuedAt)}</div>
+          <div class="tags">${badge(b)}${actLine}${n.response && n.status === 'responded' ? '' : n.response ? `<span class="badge">${icon('send', 13)} You responded</span>` : ''}${n.reinstatement && !n.reinstatement.ackAt ? `<span class="badge badge-info">${icon('refresh', 13)} Reinstatement sent</span>` : ''}</div></div><span class="chev">${icon('right', 20)}</span></div></a>`;
+      }
+      function ladderBar(cur, compact) {
+        const list = chain(cur),
+          active = cur.step;
+        const has = (st) => list.find((n) => n.step === st);
+        const allOk = ladderComplied(list);
+        return `<div class="ladder" role="list" aria-label="Administrative action steps">${STEPS.map(
+          (st) => {
+            const n = has(st);
+            const cls = allOk && n ? 'ok' : n ? (n.step === active ? 'cur' : 'done') : '';
+            const stt = n
+              ? allOk
+                ? 'Complied'
+                : n.step === active
+                  ? 'Current'
+                  : (compact ? '' : 'Issued ') + shortDate(n.issuedAt)
+              : compact
+                ? '-'
+                : 'Not issued';
+            const lab =
+              { 'salary-stoppage': 'Stoppage', 'disciplinary-referral': 'Disciplinary' }[st] ||
+              STEP[st].short;
+            return `<div class="lstep ${cls}" role="listitem" aria-label="${STEP[st].title}: ${stt === '-' ? 'not issued' : stt}"><i></i><span>${lab}</span><span class="st">${stt}</span></div>`;
+          },
+        ).join('')}</div>`;
+      }
+      screens.notices = () => {
+        const intro = `<h1 class="page-title">Notices</h1>`;
+        let body;
+        if (S.loadFor === 'notices') body = `<div style="margin-top:24px">${skeletonList(3)}</div>`;
+        else if (S.errorFor === 'notices')
+          body = `<div style="margin-top:24px">${errorCard('notices', 'retry')}</div>`;
+        else if (!S.notices.length)
+          body = `<div class="card" style="margin-top:24px"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--ok-soft);color:var(--ok)">${icon('shield', 16)}</span></div><h4>No notices</h4><p>Notices are sent only when a declaration or a clarification response is overdue.</p></div></div>`;
+        else {
+          const all = byDate(S.notices);
+          const cur = all[0];
+          const list = chain(cur);
+          const stopped = list.find((n) => n.step === 'salary-stoppage');
+          const wtd = whatToDo(cur);
+          const cta = wtd.href
+            ? `<a class="btn btn-primary btn-sm" href="${wtd.href}">${wtd.cta} ${icon('right', 15)}</a>`
+            : `<button class="btn btn-primary btn-sm" data-act="${wtd.act}" data-arg="${wtd.arg}">${wtd.cta} ${icon('right', 15)}</button>`;
+          let top;
+          if (ladderComplied(list)) {
+            const r = stopped?.reinstatement;
+            top = `<div class="banner banner-ok" style="margin-top:20px">${icon('check', 18)}<div><b>You have complied. No further action will be taken.</b>${r ? (r.ackAt ? ` Your salary reinstatement was sent to payroll on ${fmtDate(r.sentAt)} (reference <span class="mono">${r.ref}</span>).` : ` Your salary reinstatement is being sent to payroll (reference <span class="mono">${r.ref}</span>).`) : ''}</div></div>`;
+          } else if (stopped && ['disciplinary-referral', 'salary-stoppage'].includes(cur.step)) {
+            const eff = stopped.salaryStoppedAt && dOnly(stopped.salaryStoppedAt) <= dOnly(TODAY);
+            top = `<div class="banner banner-danger" style="margin-top:20px">${icon('banknote', 18)}<div><b>${eff ? 'Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.' : `Your salary will be stopped from ${fmtDate(stopped.salaryEffective)} unless you comply before then.`}</b> To comply: ${wtd.text.charAt(0).toLowerCase() + wtd.text.slice(1)}<div>${cta}</div></div></div>`;
+          } else {
+            top = `<div class="banner ${cur.step === 'warning' ? 'banner-danger' : 'banner-warn'}" style="margin-top:20px">${icon(STEP[cur.step].icon, 18)}<div><b>Act by ${fmtDate(cur.actBy)}.</b> ${wtd.text}<div>${cta}</div></div></div>`;
+          }
+          const page = Math.min(S.noticePage || 1, Math.max(1, Math.ceil(all.length / PAGE)));
+          body = `${top}<div class="card" style="margin-top:16px"><div class="sec-b">${ladderBar(cur)}</div></div>
+            <div class="card" style="margin-top:16px">${all
+              .slice((page - 1) * PAGE, page * PAGE)
+              .map(noticeCard)
+              .join(
+                '',
+              )}${all.length > PAGE ? Kit.pager({ page, pageSize: PAGE, total: all.length, act: 'noticePage' }) : ''}</div>`;
+        }
+        return shell(`<div class="page" style="max-width:880px">${intro}${body}</div>`, 'Notices');
+      };
+
+      screens.notice = () => {
+        const n = findNotice(S.params.id) || S.notices[0];
+        if (!n) return screens.notices();
+        const s = STEP[n.step],
+          b = noticeBadge(n),
+          wtd = whatToDo(n);
+        const f = S.nform[n.id] || (S.nform[n.id] = { text: '', files: [], tried: false });
+        const canRespond = noticeOpen(n) && !n.response;
+        const left = n.actBy ? dd(TODAY, n.actBy) : null;
+        const cta = wtd.href
+          ? `<a class="btn btn-primary btn-sm" href="${wtd.href}">${wtd.cta} ${icon('right', 15)}</a>`
+          : `<button class="btn btn-primary btn-sm" data-act="${wtd.act}" data-arg="${wtd.arg}">${wtd.cta} ${icon('right', 15)}</button>`;
+        let main = '';
+        // status banner per step and status
+        if (n.status === 'complied' || n.status === 'reinstated') {
+          const r = n.reinstatement;
+          main += `<div class="banner banner-ok">${icon('check', 18)}<div><b>Complied on ${fmtDate(n.compliedAt)}. This ${s.short.toLowerCase()} is closed.</b>${r ? (r.ackAt ? ` Your salary reinstatement was sent to payroll on ${fmtDate(r.sentAt)} (reference <span class="mono">${r.ref}</span>). Salary resumes from the ${fmtDate(r.effective)} payroll.` : ` Your salary reinstatement is being sent to payroll (reference <span class="mono">${r.ref}</span>). We will SMS you when payroll confirms it.`) : ''}</div></div>`;
+        } else if (n.step === 'salary-stoppage') {
+          const eff = n.salaryStoppedAt && dOnly(n.salaryStoppedAt) <= dOnly(TODAY);
+          main += `<div class="banner banner-danger">${icon('banknote', 18)}<div><b>${eff ? 'Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.' : `Your salary will be stopped from ${fmtDate(n.salaryEffective)} unless you comply before then.`}</b> To comply: ${wtd.text.charAt(0).toLowerCase() + wtd.text.slice(1)}<div>${cta}</div></div></div>`;
+        } else if (n.step === 'disciplinary-referral') {
+          main += `<div class="banner banner-danger">${icon('gavel', 18)}<div><b>${COMM.code} has asked for disciplinary proceedings to start.</b> Your salary remains stopped. You can still comply: ${wtd.text.charAt(0).toLowerCase() + wtd.text.slice(1)}<div>${cta}</div></div></div>`;
+        } else if (n.status === 'responded') {
+          main += `<div class="banner banner-info">${icon('send', 18)}<div><b>Your response is on record.</b> It does not stop this notice. To comply: ${wtd.text.charAt(0).toLowerCase() + wtd.text.slice(1)}<div>${cta}</div></div></div>`;
+        } else {
+          main += `<div class="banner ${n.step === 'warning' ? 'banner-danger' : 'banner-warn'}">${icon(s.icon, 18)}<div><b>Act by ${fmtDate(n.actBy)}${left != null && left >= 0 ? ` (${left === 0 ? 'today' : plural(left, 'day') + ' left'})` : left < 0 ? ' (passed)' : ''}.</b> ${wtd.text} ${n.step === 'warning' ? `If you do not, ${COMM.code} may stop your salary.` : `If you do not, ${COMM.code} may issue a warning.`}<div>${cta}</div></div></div>`;
+        }
+        // what happened
+        const why =
+          n.whatToDo === 'file-declaration'
+            ? `You did not file your ${esc(n.subjectRef.charAt(0).toLowerCase() + n.subjectRef.slice(1))}.`
+            : `You did not respond to clarification <span class="mono nowrap">${n.subjectRef}</span> within 30 days.`;
+        main += `<div class="card"><div class="card-head"><h3>What happened</h3></div><div class="sec-b stack" style="gap:14px">
+          <p>${why}</p>
+          ${n.step === 'salary-stoppage' ? `<div class="kvs"><div><div class="k">Stoppage effective</div><div class="v">${fmtDate(n.salaryEffective)}</div></div><div><div class="k">Payroll instruction</div><div class="v mono">${n.ref}</div></div>${n.reinstatement ? `<div><div class="k">Reinstatement instruction</div><div class="v mono">${n.reinstatement.ref}</div></div><div><div class="k">Payroll confirmed</div><div class="v">${n.reinstatement.ackAt ? fmtDate(n.reinstatement.ackAt) : 'Waiting for payroll'}</div></div>` : ''}</div>` : ''}
+        </div></div>`;
+        // response
+        if (n.response) {
+          main += `<div class="card"><div class="card-head"><h3>Your response</h3><span class="spacer"></span><span class="small muted">${fmtDateTime(n.response.at)}</span></div><div class="sec-b stack" style="gap:10px"><div class="qa-answer" style="margin:0"><div class="ans">${esc(n.response.text)}</div></div>${n.response.files.length ? `<div class="docs">${n.response.files.map((x) => docRow(x)).join('')}</div>` : ''}</div></div>`;
+        } else if (canRespond) {
+          const err = f.tried && !f.text.trim();
+          const over = f.text.length > 4000;
+          const scanning = f.files.some((y) => y.status === 'scanning');
+          main += `<div class="card"><div class="card-head"><h3>Respond <span class="muted" style="font-weight:400">(optional)</span></h3></div>
+            <div class="sec-b stack" style="gap:12px">
+              <div class="callout callout-info">${icon('info', 16)}<span>Tell ${COMM.code} why you could not act in time. <b>This does not stop the ${s.short.toLowerCase()}</b>; only ${n.whatToDo === 'file-declaration' ? 'filing your declaration' : 'responding to the clarification'} does. You can respond once.</span></div>
+              <div class="field"><div class="label"><label for="f-nresp">Your response</label><span class="counter ${over ? 'over' : ''}" data-count="nform.${n.id}.text">${num(f.text.length)} / 4,000</span></div>
+                <textarea id="f-nresp" class="textarea ${err || over ? 'err' : ''}" rows="5" data-bind="nform.${n.id}.text" placeholder="For example, why you could not act in time">${esc(f.text)}</textarea>
+                ${err ? `<div class="ferr">${icon('alert', 14)} Write your response before you submit.</div>` : over ? `<div class="ferr">${icon('alert', 14)} Keep your response to 4,000 characters or fewer.</div>` : ''}</div>
+              ${f.files.length ? `<div class="docs">${f.files.map((x, k) => docRow(x, { removable: true, bind: `nform.${n.id}`, i: k })).join('')}</div>` : ''}
+              <label class="attach"><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,application/pdf,image/*" data-act-change="attach" data-arg="nform.${n.id}" aria-label="Attach documents to your response"/>${icon('clip', 16)} ${f.files.length ? 'Attach another document' : 'Attach a document'} <span class="muted" style="font-weight:400">(optional)</span></label>
+            </div>
+            <div class="submitbar">${S.submitErr === n.id ? `<div class="ferr" style="flex-basis:100%">${icon('wifiOff', 14)} We could not send your response. Check your connection and try again.</div>` : ''}<span class="spacer"></span><button class="btn btn-primary" data-act="submitNotice" data-arg="${n.id}" ${scanning ? 'disabled' : ''}>${scanning ? '<span class="spinner"></span> Checking files…' : `${icon('send', 16)} Submit response`}</button></div></div>`;
+        } else if (n.step === 'notice-to-comply' || n.step === 'warning') {
+          main += `<div class="card card-pad small muted">${n.status === 'issued' && laterStep(n) ? `A ${STEP[STEPS[STEPS.indexOf(n.step) + 1]].title.toLowerCase()} has since been issued. This ${s.short.toLowerCase()} is closed for responses.` : `This ${s.short.toLowerCase()} is closed for responses.`}</div>`;
+        }
+        return shell(
+          `<div class="page">
+          <button class="back" data-act="go" data-arg="notices">${icon('left', 16)} Notices</button>
+          <div class="head-row"><h1 class="page-title">${s.title}</h1></div>
+          <div class="meta-line"><span>${refChip(n.ref)}</span><span>${badge(b)}</span><span>${icon('calendar', 15)} Issued ${fmtDate(n.issuedAt)}</span></div>
+          <div class="side-grid">
+            <div class="stack" style="min-width:0">${main}</div>
+            <div class="side">
+              ${n.actBy && noticeLive(n) ? `<div class="card card-pad">${noticeTimer(n)}</div>` : ''}
+              ${letterCard('Letter', n.ref, n.verification, `letter|adm:${n.id}`, false, STEP_DOC[n.step], n.reinstatement ? docLink('reinstatement', 'Reinstatement') : '')}
+              <div class="card card-pad"><div class="section-title">History</div><div style="margin-top:14px">${ladderBar(n, true)}</div><ul class="timeline" style="margin-top:18px">${noticeHistory(n)}</ul></div>
+              ${helpCard()}
+            </div>
+          </div>
+        </div>`,
+          'Notices',
+        );
+      };
+      function noticeTimer(n) {
+        const total = Math.max(1, dd(n.issuedAt, n.actBy)),
+          el = Math.min(total, Math.max(0, dd(n.issuedAt, TODAY))),
+          left = dd(TODAY, n.actBy);
+        return `<div class="timer"><div class="big countdown ${left <= 3 ? 'danger' : 'warn'}">${left < 0 ? 'Period ended' : left === 0 ? 'Act by today' : `${plural(left, 'day')} left`}</div><div class="small muted" style="margin-top:2px">Act by ${fmtDate(n.actBy)} · day ${el} of ${total}</div><div class="bar ${left <= 3 ? 'danger' : 'warn'}" role="img" aria-label="${el} of ${total} days used"><i style="width:${Math.round((el / total) * 100)}%"></i></div><div class="scale"><span>${shortDate(n.issuedAt)}</span><span></span><span>${shortDate(n.actBy)}</span></div></div>`;
+      }
+      function noticeHistory(cur) {
+        const e = [];
+        const list = chain(cur);
+        const c = S.clars.find((x) => x.ref === cur.subjectRef);
+        if (c) {
+          e.push([
+            'msg',
+            'Clarification issued',
+            `${fmtDate(c.issuedAt)} · <span class="nowrap">${c.ref}</span>`,
+          ]);
+          e.push(['alert', 'Clarification response overdue', fmtDate(c.dueAt)]);
+        }
+        [...list]
+          .sort((a, b) => new Date(a.issuedAt) - new Date(b.issuedAt))
+          .forEach((n) => {
+            e.push([
+              STEP[n.step].icon,
+              `${STEP[n.step].title} issued`,
+              `${fmtDate(n.issuedAt)} · <span class="nowrap">${n.ref}</span>`,
+            ]);
+            if (n.response)
+              e.push([
+                'send',
+                `You responded to the ${STEP[n.step].short.toLowerCase()}`,
+                fmtDate(n.response.at),
+              ]);
+            if (n.salaryStoppedAt && dOnly(n.salaryStoppedAt) <= dOnly(TODAY))
+              e.push(['ban', 'Salary stopped', fmtDate(n.salaryStoppedAt)]);
+          });
+        const comp = list.find((n) => n.compliedAt);
+        if (comp) e.push(['check', 'You complied', fmtDate(comp.compliedAt)]);
+        const r = list.find((n) => n.reinstatement)?.reinstatement;
+        if (r)
+          e.push([
+            'refresh',
+            r.ackAt ? 'Salary reinstated' : 'Reinstatement sent to payroll',
+            r.ackAt
+              ? `Confirmed ${fmtDate(r.ackAt)} · <span class="nowrap">${r.ref}</span>`
+              : `${fmtDate(r.sentAt)} · <span class="nowrap">${r.ref}</span>`,
+          ]);
+        return e
+          .map(
+            ([ic, t, s]) =>
+              `<li><span class="tl-ico">${icon(ic, 14)}</span><div><div class="tl-t">${t}</div><div class="tl-s">${s}</div></div></li>`,
+          )
+          .join('');
+      }
+
+      /* ---------- screen: Home dashboard cards (reference for declarant-journey #home) ---------- */
+      screens.dashboard = () => {
+        const open = S.clars.filter(isOpen);
+        const clarCardHome = S.clars.length
+          ? `<div class="card"><div class="card-head"><h3>Clarifications</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="clarifications">View all</button></div>${S.clars.slice(0, 2).map(clarCard).join('')}</div>`
+          : '';
+        const decCardHome = S.decisions.length
+          ? `<div><div class="section-title" style="margin-bottom:10px">Decisions</div>${decisionCard(S.decisions[0])}</div>`
+          : '';
+        const noticeCardHome = S.notices.length
+          ? `<div class="card"><div class="card-head"><h3>Notices</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="notices">View all</button></div>${byDate(
+              S.notices,
+            )
+              .slice(0, 2)
+              .map(noticeCard)
+              .join('')}</div>`
+          : '';
+        const accList = accSorted();
+        const accCardHome = accList.length
+          ? `<div class="card"><div class="card-head"><h3>Access requests</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="access-requests">View all</button></div>${accList.slice(0, 2).map(accCard).join('')}</div>`
+          : '';
+        const accFirst = accList.some(accNeedsYou);
+        const any = clarCardHome || decCardHome || noticeCardHome || accCardHome;
+        return shell(
+          `<div class="page">
+          <div class="proto-note">${icon('info', 16)}<span>Prototype: Home cards after submission (<a href="${JOURNEY}#home">declarant-journey</a>). Each card shows only when it has content.</span></div>
+          <h1 class="page-title">${S.notices.some((n) => n.step !== 'notice-to-comply' && n.step !== 'warning' && n.salaryStoppedAt && !['complied', 'reinstated'].includes(n.status)) ? 'Your salary has been stopped' : noticeActionCount() ? 'Your Commission needs you to act' : open.length ? `You have ${plural(open.length, 'clarification')} to respond to` : accFirst ? 'Respond to an access request' : 'You are up to date'}</h1>
+          ${any ? `<div class="dash-grid" ${decCardHome ? '' : 'style="grid-template-columns:minmax(0,760px)"'}><div class="stack-lg">${accFirst ? accCardHome : ''}${noticeCardHome}${clarCardHome}${accFirst ? '' : accCardHome}</div>${decCardHome ? `<div class="stack-lg">${decCardHome}</div>` : ''}</div>` : `<div class="card" style="margin-top:20px"><div class="empty" style="padding:40px 20px"><h4>No cards to show</h4><p>Nothing after submission in this state.</p></div></div>`}
+        </div>`,
+          'Home',
+        );
+      };
+
+      /* ---------- Access requests (#255): card, list, detail with representations form ---------- */
+      const findAcc = (id) => S.access.find((r) => r.id === id);
+      const windowOpen = (r) =>
+        r.kind === 'form-k' &&
+        !r.decision &&
+        !r.withdrawnAt &&
+        r.reps?.stance !== 'consent' &&
+        new Date(r.windowEndsAt) > TODAY;
+      const accNeedsYou = (r) => windowOpen(r) && !r.reps;
+      function accStatus(r) {
+        if (r.kind === 'lea') return { label: 'Law enforcement', kind: 'info', icon: 'shield' };
+        if (r.withdrawnAt) return { label: 'Withdrawn', kind: '', icon: 'undo' };
+        if (r.decision) return ACC_OUT[r.decision.outcome];
+        if (windowOpen(r))
+          return r.reps
+            ? { label: 'Response saved', kind: 'ok', icon: 'check' }
+            : { label: 'Waiting for your response', kind: 'warn', icon: 'clock' };
+        return { label: 'Under decision', kind: 'info', icon: 'search' };
+      }
+      const leaCopy = (r) =>
+        `A law-enforcement agency was granted access on ${fmtDate(r.decision.at)} (${esc(r.agency)}, case ${esc(r.caseRef)})`;
+      function accLeft(r) {
+        const d = dd(TODAY, r.windowEndsAt);
+        return d <= 0 ? 'closes today' : d === 1 ? '1 day left' : `${d} days left`;
+      }
+      function accCard(r) {
+        const b = accStatus(r);
+        const tone = {
+          warn: ['var(--warn-soft)', 'var(--warn)'],
+          danger: ['var(--danger-soft)', 'var(--danger)'],
+          ok: ['var(--ok-soft)', 'var(--ok)'],
+          info: ['#eaf1fb', '#1f4f96'],
+          '': ['var(--sunken)', 'var(--ink-2)'],
+        }[b.kind];
+        const lea = r.kind === 'lea';
+        const open = windowOpen(r);
+        const title = lea
+          ? leaCopy(r)
+          : open
+            ? 'Someone has requested access to your declaration'
+            : `Access request from ${esc(r.applicant)}`;
+        const d = lea
+          ? `<span class="mono">${r.ref}</span>`
+          : open
+            ? `<span class="mono">${r.ref}</span> · ${esc(r.applicant)}<br/>${esc(r.purpose)}<br/>${esc(scopeText(r.scope))}`
+            : `<span class="mono">${r.ref}</span> · ${r.decision ? `Decided ${fmtDate(r.decision.at)}` : r.withdrawnAt ? `Withdrawn ${fmtDate(r.withdrawnAt)}` : `Notified ${fmtDate(r.notifiedAt)}`}`;
+        const left = open ? accLeft(r) : '';
+        const tags = open
+          ? `${r.reps ? badge(b) : ''}<span class="countdown ${/today|^1 /.test(left) ? 'danger' : 'warn'} small">${icon('clock', 14)} ${r.reps ? 'Edit until' : 'Respond by'} ${shortDate(r.windowEndsAt)} · ${left}</span>`
+          : badge(b);
+        return `<a class="cardlink" href="#access-request" data-act="go" data-arg="access-request|${r.id}"><div class="lc"><span class="ico" style="background:${tone[0]};color:${tone[1]}">${icon(lea ? 'shield' : 'users', 18)}</span><div class="body">
+          <div class="t">${title}</div>
+          <div class="d">${d}</div>
+          <div class="tags">${tags}</div></div><span class="chev">${icon('right', 20)}</span></div></a>`;
+      }
+      const accSorted = () =>
+        [...S.access].sort(
+          (a, b) =>
+            accNeedsYou(b) - accNeedsYou(a) ||
+            windowOpen(b) - windowOpen(a) ||
+            new Date(b.notifiedAt) - new Date(a.notifiedAt),
+        );
+
+      screens['access-requests'] = () => {
+        let body;
+        if (S.loadFor === 'access-requests') body = skeletonList(3);
+        else if (S.errorFor === 'access-requests') body = errorCard('access requests', 'retry');
+        else if (!S.access.length)
+          body = `<div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--ok-soft);color:var(--ok)">${icon('lock', 16)}</span></div><h4>No access requests</h4><p>If someone asks to see your declaration, we will SMS and email you.</p></div></div>`;
+        else {
+          const all = accSorted();
+          const open = all.filter(windowOpen);
+          const rest = all.filter((r) => !windowOpen(r));
+          const page = Math.min(S.accPage || 1, Math.max(1, Math.ceil(rest.length / PAGE)));
+          const grp = (title, list, foot = '') =>
+            list.length
+              ? `<div class="section-title" style="margin:24px 0 10px">${title}</div><div class="card">${list.map(accCard).join('')}${foot}</div>`
+              : '';
+          body =
+            grp('Open', open) +
+            grp(
+              open.length ? 'Earlier' : 'All access requests',
+              rest.slice((page - 1) * PAGE, page * PAGE),
+              Kit.pager({ page, pageSize: PAGE, total: rest.length, act: 'accPage' }),
+            );
+        }
+        const plain = S.loadFor || S.errorFor || !S.access.length;
+        return shell(
+          `<div class="page" style="max-width:880px"><button class="back" data-act="go" data-arg="dashboard">${icon('left', 16)} Home</button><h1 class="page-title">Access requests</h1>${plain ? `<div style="margin-top:24px">${body}</div>` : body}</div>`,
+          'Home',
+        );
+      };
+
+      /* RegisterTimeline, compact density (#268). Entries the declarant may see (S12). */
+      function accEntries(r) {
+        const e = [];
+        const add = (kind, at) => e.push({ kind, at, r });
+        if (r.kind === 'form-k') {
+          add('notified', r.notifiedAt);
+          if (r.reps) add('representations', r.reps.updatedAt || r.reps.submittedAt);
+          if (r.withdrawnAt) add('withdrawn', r.withdrawnAt);
+        }
+        if (r.decision) add('decided', r.decision.at);
+        if (r.pkg) {
+          add('package-issued', r.pkg.issuedAt);
+          r.pkg.downloads.forEach((d) => add('downloaded', d));
+          if (new Date(r.pkg.expiresAt) < TODAY) add('expired', r.pkg.expiresAt);
+        }
+        return e.sort((a, b) => new Date(a.at) - new Date(b.at));
+      }
+      function regText(e) {
+        const r = e.r;
+        const lea = r.kind === 'lea';
+        const who = lea ? r.agency : r.applicant;
+        const code = r.comm.code;
+        switch (e.kind) {
+          case 'notified':
+            return ['bell', 'brand', `${who} asked to see your declaration`, `Notified by ${code}`];
+          case 'representations':
+            return [
+              'send',
+              '',
+              STANCE[r.reps.stance].done,
+              r.reps.updatedAt && r.reps.updatedAt !== r.reps.submittedAt ? 'You · edited' : 'You',
+            ];
+          case 'decided':
+            if (lea) return ['shield', 'info', `${who} was granted access`, `Case ${r.caseRef}`];
+            return [
+              r.decision.outcome === 'deny' ? 'ban' : 'stamp',
+              { grant: 'ok', 'partial-grant': 'warn', deny: 'danger' }[r.decision.outcome],
+              `${code} ${ACC_OUT[r.decision.outcome].verb}`,
+              `Access officer, ${code}`,
+            ];
+          case 'package-issued':
+            return ['box', '', `Package issued to ${who}`, 'Watermarked with their name'];
+          case 'downloaded':
+            return ['download', '', `${who} downloaded the package`, lea ? 'Agency' : 'Applicant'];
+          case 'expired':
+            return ['clock', '', 'Download period ended', ''];
+          case 'withdrawn':
+            return ['undo', '', `${who} withdrew the request`, 'Applicant'];
+        }
+      }
+      const regCompact = (list) =>
+        `<ol class="timeline" aria-label="Register entries">${list
+          .map((e) => {
+            const [ic, tone, t, actor] = regText(e);
+            return `<li><span class="tl-ico ${tone}">${icon(ic, 14)}</span><div><div class="tl-t">${esc(t)}</div><div class="tl-s">${actor ? esc(actor) + ' · ' : ''}<time datetime="${e.at}">${fmtDateTime(e.at)}</time></div></div></li>`;
+          })
+          .join('')}</ol>`;
+
+      // Read-only ScopePicker view. With `granted`, parts outside it show as withheld.
+      function scopeView(sc, granted) {
+        const chip = (label, on, out) =>
+          `<span class="sc-chip ${out ? 'out' : on ? '' : 'off'}">${icon(out || !on ? 'x' : 'check', 12, 2.6)}${label}${out ? '<span class="sr-only"> (withheld)</span>' : !on ? '<span class="sr-only"> (not asked)</span>' : ''}</span>`;
+        const g = granted;
+        const peopleRow = [
+          chip('You', true, false),
+          chip('Spouse', sc.spouses, g && sc.spouses && !g.spouses),
+          chip('Children', sc.children, g && sc.children && !g.children),
+        ].join('');
+        const secRow = sc.sections
+          .map((k) => chip(SECTIONS[k], true, g && !g.sections.includes(k)))
+          .join('');
+        const yearsRow = sc.years
+          .map((y) => chip(String(y), true, g && !g.years.includes(y)))
+          .join('');
+        return `<dl class="scope">
+          <div><dt>Declaration year</dt><dd>${yearsRow}</dd></div>
+          <div><dt>People</dt><dd>${peopleRow}</dd></div>
+          <div><dt>Sections</dt><dd>${secRow}</dd></div>
+        </dl>${g && g !== sc ? `<div class="small muted row" style="gap:6px;margin-top:10px"><span class="sc-chip out" aria-hidden="true">${icon('x', 12, 2.6)}Withheld</span> not released</div>` : ''}`;
+      }
+      function accWindowCard(r) {
+        if (r.kind !== 'form-k' || r.decision || r.withdrawnAt) return '';
+        const total = 7;
+        const elapsed = Math.min(total, Math.max(0, dd(r.notifiedAt, TODAY)));
+        const open = windowOpen(r);
+        const consent = r.reps?.stance === 'consent';
+        const endT =
+          String(new Date(r.windowEndsAt).getHours()).padStart(2, '0') +
+          ':' +
+          String(new Date(r.windowEndsAt).getMinutes()).padStart(2, '0');
+        const left = accLeft(r);
+        const cls = !open ? '' : /today|^1 /.test(left) ? 'danger' : 'warn';
+        const big = open
+          ? left.charAt(0).toUpperCase() + left.slice(1)
+          : consent
+            ? 'Closed early'
+            : 'Window closed';
+        const sub = open
+          ? `${r.reps ? 'Edit until' : 'Respond by'} ${fmtDate(r.windowEndsAt)}, ${endT} · day ${elapsed} of ${total}`
+          : consent
+            ? `You consented on ${fmtDate(r.reps.submittedAt)}`
+            : `Closed ${fmtDate(r.windowEndsAt)}, ${endT}`;
+        const pctW = open ? Math.round((elapsed / total) * 100) : 100;
+        return `<div class="card card-pad"><div class="timer" role="group" aria-label="Window for your response"><div class="big ${cls === 'danger' ? 'countdown danger' : ''}">${big}</div><div class="small muted" style="margin-top:2px">${sub}</div><div class="bar ${open ? cls : ''}" role="img" aria-label="${elapsed} of ${total} days used"><i style="width:${pctW}%"></i></div><div class="scale"><span>${shortDate(r.notifiedAt)}</span><span></span><span>${shortDate(r.windowEndsAt)}</span></div></div></div>`;
+      }
+      function accForm(r) {
+        const f = S.aform[r.id];
+        const st = f.stance;
+        const conflict = S.accConflict === r.id;
+        const dis = conflict ? 'disabled' : '';
+        const errStance = f.tried && !st;
+        const needText = st && st !== 'consent';
+        const errText = f.tried && needText && !f.text.trim();
+        const over = f.text.length > REP_MAX;
+        const scanning = f.files.some((y) => y.status === 'scanning');
+        const busy = S.accBusy === r.id;
+        const lab =
+          st === 'object'
+            ? 'Your reasons'
+            : st === 'context'
+              ? 'Context for ' + r.comm.code
+              : 'Comments';
+        const ph =
+          st === 'object'
+            ? 'Why the declaration should not be released'
+            : st === 'context'
+              ? 'What the Commission should know before deciding'
+              : 'Anything you want to add';
+        const choice = Kit.choices(
+          `aform.${r.id}.stance`,
+          Object.entries(STANCE).map(([k, v]) => ({ k, label: v.label, icon: v.icon, sub: v.sub })),
+          'c3',
+          { tiles: true },
+        );
+        return `<div class="card"><div class="card-head"><h3>Your response</h3></div>
+          <fieldset class="sec-b stack acc-form" style="gap:16px" ${dis}>
+            <div class="field"><div class="label" id="lg-${r.id}"><span>Your position</span></div><div aria-labelledby="lg-${r.id}">${choice}</div>${errStance ? `<div class="ferr" role="alert">${icon('alert', 14)} Choose object, consent or add context.</div>` : ''}</div>
+            ${
+              st
+                ? `<div class="field"><div class="label"><label for="f-arep">${lab}${st === 'consent' ? ' <span class="opt">Optional</span>' : ''}</label><span class="counter ${over ? 'over' : ''}" data-count="aform.${r.id}.text">${num(f.text.length)} / ${num(REP_MAX)}</span></div>
+              <textarea id="f-arep" class="textarea ${errText || over ? 'err' : ''}" rows="5" data-bind="aform.${r.id}.text" placeholder="${ph}" ${errText ? 'aria-invalid="true"' : ''}>${esc(f.text)}</textarea>
+              ${errText ? `<div class="ferr">${icon('alert', 14)} ${st === 'object' ? 'Write your reasons.' : 'Write the context you want the Commission to consider.'}</div>` : over ? `<div class="ferr">${icon('alert', 14)} Keep your response to ${num(REP_MAX)} characters or fewer.</div>` : ''}</div>
+              ${f.files.length ? `<div class="docs">${f.files.map((x, k) => docRow(x, { removable: !conflict, bind: `aform.${r.id}`, i: k })).join('')}</div>` : ''}
+              ${conflict ? '' : f.files.length >= REP_FILES ? `<div class="hint">Up to ${REP_FILES} documents.</div>` : `<label class="attach"><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,application/pdf,image/*" data-act-change="attach" data-arg="aform.${r.id}" aria-label="Attach documents to your response"/>${icon('clip', 16)} ${f.files.length ? 'Attach another document' : 'Attach a document'} <span class="muted" style="font-weight:400">(optional)</span></label>`}`
+                : ''
+            }
+          </fieldset>
+          ${
+            conflict
+              ? ''
+              : `<div class="submitbar">${S.submitErr === r.id ? `<div class="ferr" style="flex-basis:100%">${icon('wifiOff', 14)} We could not save your response. Check your connection and try again.</div>` : ''}<span class="small muted">Editable until ${fmtDate(r.windowEndsAt)}</span><span class="spacer"></span>${S.aEdit === r.id ? `<button class="btn btn-ghost" data-act="accCancel" data-arg="${r.id}" ${busy ? 'disabled' : ''}>Cancel</button>` : ''}<button class="btn btn-primary" data-act="accSave" data-arg="${r.id}" ${scanning || busy ? 'disabled' : ''}>${busy ? '<span class="spinner"></span> Saving…' : scanning ? '<span class="spinner"></span> Checking files…' : S.aEdit === r.id ? 'Save changes' : `${icon('send', 16)} Send response`}</button></div>`
+          }</div>`;
+      }
+      function accRepsCard(r) {
+        const x = r.reps;
+        const edited = x.updatedAt && x.updatedAt !== x.submittedAt;
+        return `<div class="card"><div class="card-head"><h3>Your response</h3><span class="spacer"></span>${windowOpen(r) ? `<button class="btn btn-secondary btn-sm" data-act="accEdit" data-arg="${r.id}">${icon('pencil', 15)} Edit</button>` : ''}</div>
+          <div class="sec-b stack" style="gap:10px"><div class="row wrap" style="gap:8px"><span class="badge">${icon(STANCE[x.stance].icon, 13, 2.2)} ${STANCE[x.stance].done}</span><span class="small muted">${edited ? `Edited ${fmtDateTime(x.updatedAt)}` : `Sent ${fmtDateTime(x.submittedAt)}`}</span></div>
+          ${x.text ? `<div class="qa-answer" style="margin:0"><div class="ans">${esc(x.text)}</div></div>` : ''}
+          ${x.files.length ? `<div class="docs">${x.files.map((y) => docRow(y)).join('')}</div>` : ''}</div></div>`;
+      }
+      screens['access-request'] = () => {
+        const r = findAcc(S.params.id) || accSorted()[0];
+        if (S.notFound || !r)
+          return shell(
+            `<div class="page" style="max-width:720px"><button class="back" data-act="go" data-arg="access-requests">${icon('left', 16)} Access requests</button><div class="card"><div class="empty" style="padding:56px 20px"><div class="art" style="grid-template-columns:30px"><span style="background:var(--sunken);color:var(--muted)">${icon('search', 16)}</span></div><h4>Access request not found</h4><p>The link may be wrong, or it is not about your declaration.</p><div style="margin-top:14px"><button class="btn btn-secondary" data-act="go" data-arg="access-requests">All access requests</button></div></div></div></div>`,
+            'Home',
+          );
+        const lea = r.kind === 'lea';
+        const b = accStatus(r);
+        const d = r.decision;
+        const open = windowOpen(r);
+        const code = r.comm.code;
+        const conflict = S.accConflict === r.id;
+        if (open && !r.reps && !S.aform[r.id])
+          S.aform[r.id] = { stance: '', text: '', files: [], tried: false };
+        const endAt = `${fmtDate(r.windowEndsAt)}, ${String(new Date(r.windowEndsAt).getHours()).padStart(2, '0')}:${String(new Date(r.windowEndsAt).getMinutes()).padStart(2, '0')}`;
+        let banner;
+        if (lea)
+          banner = `<div class="banner banner-info">${icon('shield', 18)}<div><b>${leaCopy(r)}.</b> ${Kit.tip('Law-enforcement requests are shown after access is granted, so investigations are not prejudiced.', { label: 'Why now' })}</div></div>`;
+        else if (conflict)
+          banner = `<div class="banner banner-warn">${icon('clock', 18)}<div><b>The window closed at ${endAt.split(', ')[1]} today.</b> Your response was not saved. ${code} is deciding.</div></div>`;
+        else if (r.withdrawnAt)
+          banner = `<div class="banner banner-neutral">${icon('undo', 18)}<div><b>The applicant withdrew the request on ${fmtDate(r.withdrawnAt)}.</b> Nothing was released.</div></div>`;
+        else if (d)
+          banner = `<div class="banner ${d.outcome === 'grant' ? 'banner-info' : d.outcome === 'deny' ? 'banner-ok' : 'banner-warn'}">${icon(d.outcome === 'deny' ? 'ban' : 'stamp', 18)}<div><b>${code} ${ACC_OUT[d.outcome].verb} on ${fmtDate(d.at)}.</b> ${d.outcome === 'deny' ? 'Nothing was released.' : d.outcome === 'partial-grant' ? 'Only part of what was asked was released.' : 'What was asked was released.'}</div></div>`;
+        else if (open && !r.reps)
+          banner = `<div class="banner banner-warn">${icon('bell', 18)}<div><b>Someone has requested access to your declaration.</b> Respond by ${endAt}. ${code} decides after that.</div></div>`;
+        else if (open)
+          banner = `<div class="banner banner-info">${icon('check', 18)}<div><b>Your response is saved.</b> You can edit it until ${endAt}.</div></div>`;
+        else if (r.reps?.stance === 'consent')
+          banner = `<div class="banner banner-info">${icon('check', 18)}<div><b>You consented.</b> ${code} can now decide. We will SMS and email you the outcome.</div></div>`;
+        else
+          banner = `<div class="banner banner-neutral">${icon('clock', 18)}<div><b>The window closed on ${fmtDate(r.windowEndsAt)}.</b> ${r.reps ? `${code} has your response and is deciding.` : `You did not respond. ${code} is deciding.`}</div></div>`;
+        const kv = (k, v, full) =>
+          `<div ${full ? 'style="grid-column:1/-1"' : ''}><div class="k">${k}</div><div class="v">${v}</div></div>`;
+        const reqCard = lea
+          ? `<div class="card"><div class="card-head"><h3>Scope granted</h3></div><div class="sec-b">${scopeView(r.scope)}</div></div>`
+          : `<div class="card"><div class="card-head"><h3>Request</h3></div><div class="sec-b stack" style="gap:18px">
+          <div class="kvs">${lea ? `${kv('Agency', esc(r.agency))}${kv('Case reference', `<span class="mono">${esc(r.caseRef)}</span>`)}` : `${kv('Applicant', esc(r.applicant))}${kv('Commission', esc(r.comm.name))}${kv('Purpose', esc(r.purpose), true)}`}</div>
+          <div><div class="k-label">${lea ? 'Scope granted' : d && d.outcome === 'partial-grant' ? 'Scope asked and granted' : 'Scope asked'}</div>${scopeView(r.scope, d && d.outcome === 'partial-grant' ? d.granted : null)}</div>
+        </div></div>`;
+        const decCard =
+          d && !lea
+            ? `<div class="card"><div class="card-head"><h3>Decision</h3><span class="spacer"></span><span class="small muted">${fmtDate(d.at)}</span></div><div class="sec-b stack" style="gap:14px">
+            <div>${badge(ACC_OUT[d.outcome])}</div>
+            ${d.grounds.length ? `<div><div class="k-label">Grounds</div><ul class="grounds">${d.grounds.map((g) => `<li>${esc(GROUNDS[g])}</li>`).join('')}</ul></div>` : ''}
+            <div><div class="k-label">Reasons</div><p style="font-size:14.5px">${esc(d.reasons)}</p></div>
+            ${r.pkg ? `<div class="small muted row" style="gap:6px">${icon('box', 15)} Package issued to ${esc(r.applicant)}, watermarked with their name. ${r.pkg.downloads.length ? `Downloaded ${plural(r.pkg.downloads.length, 'time')}.` : 'Not downloaded yet.'}</div>` : ''}
+          </div></div>`
+            : '';
+        let resp = '';
+        if (!lea) {
+          if ((open && (!r.reps || S.aEdit === r.id)) || conflict) resp = accForm(r);
+          else if (r.reps) resp = accRepsCard(r);
+        }
+        return shell(
+          `<div class="page">
+          <button class="back" data-act="go" data-arg="access-requests">${icon('left', 16)} Access requests</button>
+          <div class="head-row"><h1 class="page-title">${lea ? 'Law-enforcement access' : 'Access request'}</h1></div>
+          <div class="meta-line"><span>${refChip(r.ref)}</span><span>${badge(b)}</span><span>${icon('calendar', 15)} ${lea ? 'Granted' : 'Notified'} ${fmtDate(lea ? d.at : r.notifiedAt)}</span></div>
+          <div class="side-grid">
+            <div class="stack" style="min-width:0">${banner}${d && !lea ? decCard + reqCard : reqCard}${resp}</div>
+            <div class="side">
+              ${accWindowCard(r)}
+              <div class="card card-pad"><div class="row" style="justify-content:space-between"><div class="section-title">History</div><a class="link small" href="${PROFILE}#who-accessed">Who accessed</a></div><div style="margin-top:14px">${regCompact(accEntries(r))}</div></div>
+              ${helpCard()}
+            </div>
+          </div>
+        </div>`,
+          'Home',
+        );
+      };
+
+      /* ---------- letter modal ---------- */
+      function letterBody(kind, obj) {
+        const date = fmtDate(obj.issuedAt || obj.decidedAt);
+        const to = `<dl class="lmeta"><dt>Our ref</dt><dd class="mono">${obj.ref}</dd><dt>Date</dt><dd>${date}</dd><dt>To</dt><dd>${ME.full}, ${ME.designation}</dd><dt>TSC number</dt><dd>${ME.fileNo}</dd><dt>Station</dt><dd>${ME.entity}</dd></dl>`;
+        let subj, body;
+        if (kind === 'clr') {
+          subj = `Request for clarification: ${DECL.type.toLowerCase()} ${DECL.ref}`;
+          body = `<p>Dear ${ME.name.split(' ')[0]},</p><p>Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has analysed your declaration received on ${fmtDate(DECL.receivedAt)} and requests clarification on the following:</p>
+            <ol>${obj.items.map((it) => `<li><span class="req">${REQ[it.requirement].label}</span>: ${esc(it.label)}.<br/>${esc(it.text)}</li>`).join('')}</ol>
+            <p>Under section 35(3), please respond by <b>${fmtDate(obj.dueAt)}</b>. Respond online at Adili Online: sign in, open Clarifications and select ${obj.ref}. You may attach supporting documents.</p>`;
+        } else if (kind === 'cmp') {
+          const o = OUTCOME[obj.outcome];
+          subj = `Compliance determination: ${DECL.type.toLowerCase()} ${DECL.ref}`;
+          body = `<p>Dear ${ME.name.split(' ')[0]},</p><p>The Commission has completed its review of your declaration received on ${fmtDate(DECL.receivedAt)}.</p><p>Determination: <b>${o.label}</b>.</p><p>${o.text}</p><p>Keep this letter for your records. Anyone you share it with can check that it is genuine using the code below.</p>`;
+        } else {
+          const s = STEP[obj.step],
+            w = whatToDo(obj);
+          subj = `${s.title}: ${obj.whatToDo === 'file-declaration' ? 'declaration not filed' : `clarification ${obj.subjectRef} not answered`}`;
+          const extra =
+            obj.step === 'salary-stoppage'
+              ? `<p>Following the notice to comply and warning issued to you, the Commission has instructed payroll to stop your salary from <b>${fmtDate(obj.salaryEffective)}</b> (instruction ${obj.ref}). Your salary will be reinstated automatically when you comply.</p>`
+              : obj.step === 'disciplinary-referral'
+                ? `<p>Following the notice to comply, warning and salary stoppage issued to you, the Commission has asked for disciplinary proceedings to start against you. Your salary remains stopped until you comply.</p>`
+                : `<p>You are required to act by <b>${fmtDate(obj.actBy)}</b>. ${obj.step === 'warning' ? 'If you do not, the Commission may stop your salary.' : 'If you do not, the Commission may issue a warning.'}</p>`;
+          body = `<p>Dear ${ME.name.split(' ')[0]},</p><p>${obj.whatToDo === 'file-declaration' ? 'You have not filed your declaration as required by the Conflict of Interest Act, 2025.' : `You have not responded to the Commission's request for clarification ${obj.subjectRef} within the 30 days required by section 35(3) of the Conflict of Interest Act, 2025.`}</p><p>What to do: ${w.text}</p>${extra}<p>You may respond to this letter on Adili Online under Notices. A response is recorded for the Commission but does not by itself stop this action.</p>`;
+        }
+        return `${to}<h4>${subj}</h4>${body}<div class="sig"><div>Yours faithfully,</div><div style="margin-top:14px;font-weight:600">For: Secretary / Chief Executive</div><div>${COMM.name}</div></div>`;
+      }
+      const modals = {};
+      modals.letter = () => {
+        const [kind, id] = S.modal.id.split(':');
+        const obj =
+          kind === 'clr'
+            ? findClar(id)
+            : kind === 'cmp'
+              ? S.decisions.find((d) => d.id === id)
+              : findNotice(id);
+        if (!obj) return '';
+        const revoked = kind === 'clr' && obj.status === 'withdrawn';
+        const title =
+          kind === 'clr'
+            ? 'Clarification letter'
+            : kind === 'cmp'
+              ? 'Decision letter'
+              : `${STEP[obj.step].title} letter`;
+        return dialog({
+          title,
+          sub: `${obj.ref} · Restricted · ${revoked ? 'revoked' : 'digitally signed'}`,
+          wide: true,
+          body: `${revoked ? `<div class="callout callout-danger">${icon('ban', 16)}<span>Revoked on ${fmtDate(obj.withdrawnAt)}: issued in error. It is no longer valid.</span></div>` : ''}
+            <div class="letter-wrap"><article class="letter" aria-label="${title}">
+              <span class="restricted">RESTRICTED</span>
+              <div class="lh"><span class="seal">${COMM.code}</span><div><div class="org">${COMM.name}</div><div class="addr">${COMM.addr}</div></div></div>
+              ${letterBody(kind, obj)}
+              ${revoked ? '<div class="stamp">Revoked: issued in error</div>' : ''}
+              <div class="lfoot">${qr(obj.ref.length * 7, 72)}<div style="min-width:0"><div>Verification code</div><div class="code">${obj.verification}</div><div style="margin-top:4px">Scan the code or visit verify.adili.go.ke to check this letter. Issued through Adili Online by ${COMM.code} on ${fmtDate(obj.issuedAt || obj.decidedAt)}.</div></div></div>
+            </article></div>`,
+          foot: `<button class="btn btn-ghost" data-act="copy" data-arg="${obj.verification}">${icon('copy', 16)} Copy code</button>${docLink(kind === 'clr' ? 'clarification-letter' : kind === 'cmp' ? DEC_DOC(obj.outcome) : STEP_DOC[obj.step], 'Download PDF', 'btn btn-primary')}`,
+        });
+      };
+      modals.confirmClar = () => {
+        const c = findClar(S.modal.id);
+        const late = dd(TODAY, c.dueAt) < 0;
+        const files = S.form[c.id].items.reduce(
+          (a, x) => a + x.files.filter((y) => y.status === 'clean').length,
+          0,
+        );
+        return dialog({
+          title: 'Submit your response?',
+          icon: 'send',
+          tint: ['var(--sunken)', 'var(--ink)'],
+          body: `<p>You can respond once. Make sure every point is answered.</p>
+            <dl class="dl"><div><dt>Clarification</dt><dd class="mono">${c.ref}</dd></div><div><dt>Points answered</dt><dd>${c.items.length} of ${c.items.length}</dd></div><div><dt>Documents attached</dt><dd>${files}</dd></div></dl>
+            ${late ? `<div class="callout callout-warn">${icon('clock', 16)}<span>The due date was ${fmtDate(c.dueAt)}. Your response will be recorded as ${plural(-dd(TODAY, c.dueAt), 'day')} late.</span></div>` : ''}`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal" ${S.modal.busy ? 'disabled' : ''}>Check again</button><button class="btn btn-primary" data-act="confirmClar" data-arg="${c.id}" ${S.modal.busy ? 'disabled' : ''}>${S.modal.busy ? '<span class="spinner"></span> Sending…' : 'Submit response'}</button>`,
+        });
+      };
+      modals.confirmNotice = () => {
+        const n = findNotice(S.modal.id);
+        return dialog({
+          title: 'Submit your response?',
+          icon: 'send',
+          body: `<p>You can respond once.</p><div class="callout callout-warn">${icon('info', 16)}<span>This does not stop the ${STEP[n.step].title.toLowerCase()}. To comply, ${whatToDo(n).text.charAt(0).toLowerCase() + whatToDo(n).text.slice(1)}</span></div>`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal" ${S.modal.busy ? 'disabled' : ''}>Cancel</button><button class="btn btn-primary" data-act="confirmNotice" data-arg="${n.id}" ${S.modal.busy ? 'disabled' : ''}>${S.modal.busy ? '<span class="spinner"></span> Sending…' : 'Submit response'}</button>`,
+        });
+      };
+
+      /* ---------- actions ---------- */
+      function fileAdd(bind, fileList) {
+        const target = Kit.getPath(S, bind);
+        const OK = /\.(pdf|jpe?g|png|heic)$/i;
+        [...fileList].forEach((file) => {
+          const f = {
+            id: Kit.id('f'),
+            name: file.name,
+            size: file.size || 180000,
+            status: 'scanning',
+          };
+          if (!OK.test(file.name)) {
+            f.status = 'rejected';
+            f.reason = 'Use a PDF, JPEG, PNG or HEIC file.';
+          } else if (f.size > 20e6) {
+            f.status = 'rejected';
+            f.reason = `This file is ${(f.size / 1e6).toFixed(1)} MB. The limit is 20 MB.`;
+          }
+          target.files.push(f);
+          if (f.status === 'scanning')
+            setTimeout(() => {
+              f.status = /virus|eicar/i.test(f.name) ? 'infected' : 'clean';
+              Kit.render();
+            }, 1400);
+        });
+        Kit.render();
+      }
+      function complyFromClar(c) {
+        // clarification.responded.v1 ends the ladder keyed by this clarification (spec 08 S7, S11)
+        const affected = S.notices.filter(
+          (n) => n.subjectRef === c.ref && !['complied', 'reinstated'].includes(n.status),
+        );
+        if (!affected.length) return;
+        affected.forEach((n) => {
+          n.status = 'complied';
+          n.compliedAt = c.respondedAt;
+        });
+        const stop = affected.find(
+          (n) =>
+            n.step === 'salary-stoppage' &&
+            n.salaryStoppedAt &&
+            dOnly(n.salaryStoppedAt) <= dOnly(TODAY),
+        );
+        const disc = affected.find((n) => n.step === 'disciplinary-referral');
+        if (disc) disc.status = 'complied';
+        if (stop) {
+          stop.reinstatement = {
+            sentAt: TODAY.toISOString(),
+            ref: stop.ref + '-R',
+            ackAt: null,
+            effective: '2026-09-30T00:00:00',
+          };
+          setTimeout(() => {
+            stop.reinstatement.ackAt = addDays(TODAY, 0).toISOString();
+            stop.status = 'reinstated';
+            Kit.render();
+          }, 4000);
+        }
+      }
+      const actions = {
+        clarPage: (p) => {
+          S.clarPage = +p;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+        },
+        noticePage: (p) => {
+          S.noticePage = +p;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+        },
+        retry: () => {
+          S.errorFor = null;
+          S.loadFor = S.screen;
+          Kit.render();
+          setTimeout(() => {
+            S.loadFor = null;
+            Kit.render();
+          }, 900);
+        },
+        attach: (el) => {
+          fileAdd(el.dataset.arg, el.files);
+          el.value = '';
+        },
+        removeFile: (a) => {
+          const [bind, i] = a.split('|');
+          Kit.getPath(S, bind).files.splice(+i, 1);
+          Kit.render();
+        },
+        submitClar: (id) => {
+          const c = findClar(id),
+            f = S.form[id];
+          f.tried = true;
+          S.submitErr = null;
+          const missing = f.items.findIndex((x) => !x.text.trim() || x.text.length > 2000);
+          if (missing >= 0) {
+            Kit.render();
+            const el = document.getElementById(`point-${missing + 1}`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            Kit.toast(
+              `Answer every point before you submit. Point ${missing + 1} needs an answer.`,
+              true,
+            );
+            return;
+          }
+          if (f.items.some((x) => x.files.some((y) => y.status !== 'clean'))) {
+            Kit.toast('Remove the documents that were not accepted before you submit.', true);
+            return;
+          }
+          S.modal = { kind: 'confirmClar', id };
+          Kit.render();
+        },
+        confirmClar: (id) => {
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            const c = findClar(id),
+              f = S.form[id];
+            S.modal = null;
+            if (S.fail === 'network') {
+              S.fail = null;
+              S.submitErr = id;
+              Kit.render();
+              return;
+            }
+            if (S.fail === 'conflict') {
+              S.fail = null;
+              S.conflict = id;
+              Kit.render();
+              return;
+            }
+            c.respondedAt = TODAY.toISOString();
+            c.late = dd(TODAY, c.dueAt) < 0;
+            c.status = 'responded';
+            c.response = {
+              submittedAt: c.respondedAt,
+              items: f.items.map((x) => ({
+                text: x.text.trim(),
+                files: x.files.filter((y) => y.status === 'clean'),
+              })),
+            };
+            delete S.form[id];
+            complyFromClar(c);
+            Kit.render();
+            document.getElementById('view').scrollTop = 0;
+            Kit.toast(`Response sent to ${COMM.code}. We have emailed you a copy.`, false);
+          }, 1100);
+        },
+        reloadResponded: () => {
+          const c = findClar(S.conflict);
+          c.status = 'responded';
+          c.respondedAt = '2026-09-26T08:02:00';
+          c.late = dd(c.respondedAt, c.dueAt) < 0;
+          c.response = {
+            submittedAt: c.respondedAt,
+            items: c.items.map((_, i) => ({ text: ANSWERS_A[i] || 'See attached.', files: [] })),
+          };
+          delete S.form[c.id];
+          S.conflict = null;
+          Kit.render();
+        },
+        submitNotice: (id) => {
+          const f = S.nform[id];
+          f.tried = true;
+          S.submitErr = null;
+          if (!f.text.trim() || f.text.length > 4000) {
+            Kit.render();
+            Kit.toast('Write your response before you submit.', true);
+            return;
+          }
+          if (f.files.some((y) => y.status !== 'clean')) {
+            Kit.toast('Remove the documents that were not accepted before you submit.', true);
+            return;
+          }
+          S.modal = { kind: 'confirmNotice', id };
+          Kit.render();
+        },
+        confirmNotice: (id) => {
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            const n = findNotice(id),
+              f = S.nform[id];
+            S.modal = null;
+            if (S.fail === 'network') {
+              S.fail = null;
+              S.submitErr = id;
+              Kit.render();
+              return;
+            }
+            n.response = {
+              at: TODAY.toISOString(),
+              text: f.text.trim(),
+              files: f.files.filter((y) => y.status === 'clean'),
+            };
+            n.status = 'responded';
+            Kit.render();
+            document.getElementById('view').scrollTop = 0;
+            Kit.toast('Response recorded. It does not stop the notice.', false);
+          }, 1000);
+        },
+        decLetter: (id) => {
+          const d = S.decisions.find((x) => x.id === id);
+          if (d.letter === 'ready') {
+            S.modal = { kind: 'letter', id: 'cmp:' + id };
+            Kit.render();
+            return;
+          }
+          d.letter = 'preparing';
+          Kit.render();
+          setTimeout(() => {
+            if (S.fail === 'letter') {
+              S.fail = null;
+              d.letter = 'error';
+              Kit.render();
+              return;
+            }
+            d.letter = 'ready';
+            S.modal = { kind: 'letter', id: 'cmp:' + id };
+            Kit.render();
+          }, 1800);
+        },
+      };
+
+      /* ---------- actions: access requests (#255) ---------- */
+      function accPut(id) {
+        // PUT /v1/me/access-notices/{id}/representations (200, or 409 when the window has closed)
+        const r = findAcc(id);
+        const f = S.aform[id];
+        S.accBusy = id;
+        S.submitErr = null;
+        Kit.render();
+        setTimeout(() => {
+          S.accBusy = null;
+          S.modal = null;
+          if (S.fail === 'network') {
+            S.fail = null;
+            S.submitErr = id;
+            Kit.render();
+            return;
+          }
+          if (S.fail === 'closed') {
+            S.fail = null;
+            S.accConflict = id;
+            r.windowEndsAt = '2026-09-26T10:25:00';
+            Kit.render();
+            return;
+          }
+          const now = TODAY.toISOString();
+          const first = !r.reps;
+          r.reps = {
+            stance: f.stance,
+            text: f.text.trim(),
+            files: f.files.filter((y) => y.status === 'clean'),
+            submittedAt: first ? now : r.reps.submittedAt,
+            updatedAt: now,
+          };
+          delete S.aform[id];
+          S.aEdit = null;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+          Kit.toast(
+            f.stance === 'consent'
+              ? `Consent sent to ${r.comm.code}.`
+              : first
+                ? `Response sent to ${r.comm.code}. You can edit it until ${fmtDate(r.windowEndsAt)}.`
+                : 'Changes saved.',
+            false,
+          );
+        }, 900);
+      }
+      Object.assign(actions, {
+        accPage: (p) => {
+          S.accPage = +p;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+        },
+        accSave: (id) => {
+          const f = S.aform[id];
+          f.tried = true;
+          const needText = f.stance && f.stance !== 'consent';
+          if (!f.stance || (needText && !f.text.trim()) || f.text.length > REP_MAX) {
+            Kit.render();
+            Kit.toast(
+              !f.stance
+                ? 'Choose object, consent or add context.'
+                : 'Check your response before you send it.',
+              true,
+            );
+            return;
+          }
+          if (f.files.some((y) => y.status !== 'clean')) {
+            Kit.toast('Remove the documents that were not accepted before you send.', true);
+            return;
+          }
+          if (f.stance === 'consent') {
+            S.modal = { kind: 'confirmConsent', id };
+            Kit.render();
+            return;
+          }
+          accPut(id);
+        },
+        accConsent: (id) => {
+          S.modal.busy = true;
+          accPut(id);
+        },
+        accEdit: (id) => {
+          const x = findAcc(id).reps;
+          S.aform[id] = {
+            stance: x.stance,
+            text: x.text,
+            files: x.files.map((y) => ({ ...y, id: Kit.id('f') })),
+            tried: false,
+          };
+          S.aEdit = id;
+          Kit.render();
+        },
+        accCancel: (id) => {
+          delete S.aform[id];
+          S.aEdit = null;
+          S.submitErr = null;
+          Kit.render();
+        },
+      });
+      modals.confirmConsent = () => {
+        const r = findAcc(S.modal.id);
+        const busy = S.modal.busy;
+        return dialog({
+          title: 'Consent to release?',
+          icon: 'check',
+          body: `<p>${r.comm.code} can decide straight away. You cannot change your response after this.</p>
+            <dl class="dl"><div><dt>Applicant</dt><dd>${esc(r.applicant)}</dd></div><div><dt>Scope asked</dt><dd style="text-align:right">${esc(scopeText(r.scope))}</dd></div></dl>`,
+          foot: `<button class="btn btn-secondary" data-act="closeModal" ${busy ? 'disabled' : ''}>Cancel</button><button class="btn btn-primary" data-act="accConsent" data-arg="${r.id}" ${busy ? 'disabled' : ''}>${busy ? '<span class="spinner"></span> Sending…' : 'Consent and send'}</button>`,
+        });
+      };
+
+      /* ---------- jumps ---------- */
+      const J = (scen, screen, params, extra) => () => {
+        load(typeof scen === 'function' ? scen() : world(scen));
+        if (extra) extra();
+        const m = S.modal;
+        Kit.go(screen, params || {});
+        if (m) {
+          S.modal = m;
+          Kit.render();
+        }
+      };
+      const fillForm = (id, n) => {
+        const c = findClar(id);
+        const f = formFor(c);
+        f.items.forEach((x, i) => {
+          if (i < n) {
+            x.text = ANSWERS_A[i];
+            x.files = (FILES_A[i] || []).map((y) => ({ ...y, id: Kit.id('f'), status: 'clean' }));
+          }
+        });
+      };
+      const JA = (acc, screen, params, extra, clar = 'none') =>
+        J(
+          () => {
+            const w = world(clar);
+            w.access = accessWorld(acc);
+            w.scen = 'access-' + acc;
+            return w;
+          },
+          screen,
+          params,
+          extra,
+        );
+      const fillRep = (stance, o = {}) => {
+        S.aform.a1 = Object.assign(
+          {
+            stance,
+            text: stance === 'consent' ? '' : REP_TEXT,
+            files:
+              stance === 'object'
+                ? [
+                    {
+                      id: Kit.id('f'),
+                      name: 'ELC case 118 of 2026 hearing notice.pdf',
+                      size: 264000,
+                      status: 'clean',
+                    },
+                  ]
+                : [],
+            tried: false,
+          },
+          o,
+        );
+      };
+      const jumps = [
+        [
+          'clarifications',
+          '#170 Clarifications: open, respond within 18 days',
+          J('open', 'clarifications'),
+        ],
+        ['clar-none', '#170 Clarifications: none (empty)', J('none', 'clarifications')],
+        [
+          'clar-page2',
+          '#170 Clarifications: long history, page 2',
+          J('history', 'clarifications', null, () => (S.clarPage = 2)),
+        ],
+        [
+          'clar-loading',
+          '#170 Clarifications: loading',
+          J('open', 'clarifications', null, () => (S.loadFor = 'clarifications')),
+        ],
+        [
+          'clar-error',
+          '#170 Clarifications: could not load',
+          J('open', 'clarifications', null, () => (S.errorFor = 'clarifications')),
+        ],
+        [
+          'clarification',
+          '#170/#173 Clarification: open read view + response form',
+          J('open', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-letter',
+          '#170 Clarification letter with QR and code',
+          J(
+            'open',
+            'clarification',
+            { id: 'c1' },
+            () => (S.modal = { kind: 'letter', id: 'clr:c1' }),
+          ),
+        ],
+        [
+          'clar-reminder',
+          '#173 Clarification: day-20 reminder sent (8 days left)',
+          J('reminder', 'clarification', { id: 'c1' }),
+        ],
+        ['clar-today', '#173 Clarification: due today', J('due-today', 'clarifications')],
+        [
+          'clar-overdue',
+          '#173 Clarification: overdue, not answered',
+          J('overdue', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-validation',
+          '#173 Response form: validation errors',
+          J('open', 'clarification', { id: 'c1' }, () => {
+            fillForm('c1', 1);
+            S.form.c1.tried = true;
+          }),
+        ],
+        [
+          'clar-files',
+          '#173 Response form: files checking and rejected',
+          J('open', 'clarification', { id: 'c1' }, () => {
+            fillForm('c1', 3);
+            S.form.c1.items[0].files.push({
+              id: 'fx1',
+              name: 'Plot title search.pdf',
+              size: 820000,
+              status: 'scanning',
+            });
+            S.form.c1.items[1].files.push({
+              id: 'fx2',
+              name: 'Bank statement scan.tiff',
+              size: 1400000,
+              status: 'rejected',
+              reason: 'Use a PDF, JPEG, PNG or HEIC file.',
+            });
+            S.form.c1.items[2].files.push({
+              id: 'fx3',
+              name: 'Lease photo.heic',
+              size: 24500000,
+              status: 'rejected',
+              reason: 'This file is 24.5 MB. The limit is 20 MB.',
+            });
+            setTimeout(() => {
+              const f = S.form.c1?.items[0].files.find((x) => x.id === 'fx1');
+              if (f) {
+                f.status = 'clean';
+                Kit.render();
+              }
+            }, 4000);
+          }),
+        ],
+        [
+          'clar-confirm',
+          '#173 Response form: submit once confirm',
+          J('open', 'clarification', { id: 'c1' }, () => {
+            fillForm('c1', 3);
+            S.modal = { kind: 'confirmClar', id: 'c1' };
+          }),
+        ],
+        [
+          'clar-late-confirm',
+          '#173 Response form: late response confirm',
+          J('overdue', 'clarification', { id: 'c1' }, () => {
+            fillForm('c1', 3);
+            S.modal = { kind: 'confirmClar', id: 'c1' };
+          }),
+        ],
+        [
+          'clar-neterr',
+          '#173 Response form: network error on submit',
+          J('open', 'clarification', { id: 'c1' }, () => {
+            fillForm('c1', 3);
+            S.submitErr = 'c1';
+          }),
+        ],
+        [
+          'clar-conflict',
+          '#173 Response form: already responded (409)',
+          J('open', 'clarification', { id: 'c1' }, () => {
+            fillForm('c1', 3);
+            S.conflict = 'c1';
+          }),
+        ],
+        [
+          'clar-responded',
+          '#173 Clarification: responded on time (read-only)',
+          J('responded', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-late',
+          '#173 Clarification: responded 3 days late',
+          J('responded-late', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-followup',
+          '#173 Clarification: further clarification issued',
+          J('followup', 'clarifications'),
+        ],
+        [
+          'clar-followup-new',
+          '#173 Further clarification: open',
+          J('followup', 'clarification', { id: 'c2' }),
+        ],
+        [
+          'clar-resolved',
+          '#173 Clarification: resolved',
+          J('resolved', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-withdrawn',
+          '#173 Clarification: withdrawn (letter revoked)',
+          J('withdrawn', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-escalated',
+          '#173/#205 Clarification: overdue, notice to comply issued',
+          J('escalated', 'clarification', { id: 'c1' }),
+        ],
+        [
+          'clar-404',
+          '#170 Clarification: not found (404)',
+          J('open', 'clarification', { id: 'zz' }, () => (S.notFound = true)),
+        ],
+        [
+          'declaration',
+          '#199 Declaration detail: under review, no decision',
+          J('open', 'declaration'),
+        ],
+        [
+          'dec-compliant',
+          '#199 Decision: compliant, letter ready',
+          J(() => decisionWorld('compliant'), 'declaration'),
+        ],
+        [
+          'dec-no-issues',
+          '#199 Decision: compliant, no issues (letter on demand)',
+          J(() => decisionWorld('compliant-no-issues', 'on-demand'), 'declaration'),
+        ],
+        [
+          'dec-preparing',
+          '#199 Decision letter: preparing…',
+          J(
+            () => decisionWorld('compliant-no-issues', 'preparing'),
+            'declaration',
+            null,
+            () =>
+              setTimeout(() => {
+                const d = S.decisions[0];
+                if (d && d.letter === 'preparing') {
+                  d.letter = 'ready';
+                  S.modal = { kind: 'letter', id: 'cmp:' + d.id };
+                  Kit.render();
+                }
+              }, 2500),
+          ),
+        ],
+        [
+          'dec-letter-error',
+          '#199 Decision letter: could not prepare',
+          J(() => decisionWorld('compliant-no-issues', 'error'), 'declaration'),
+        ],
+        [
+          'dec-noncompliant',
+          '#199 Decision: non-compliant',
+          J(() => decisionWorld('non-compliant'), 'declaration'),
+        ],
+        [
+          'dec-further',
+          '#199 Decision: further action',
+          J(() => decisionWorld('further-action'), 'declaration'),
+        ],
+        [
+          'dec-letter',
+          '#199 Decision letter with QR and code',
+          J(
+            () => decisionWorld('compliant'),
+            'declaration',
+            null,
+            () => (S.modal = { kind: 'letter', id: 'cmp:d1' }),
+          ),
+        ],
+        ['notices', '#205 Notices: none (empty)', J('none', 'notices')],
+        [
+          'notices-loading',
+          '#205 Notices: loading',
+          J('notice-issued', 'notices', null, () => (S.loadFor = 'notices')),
+        ],
+        [
+          'notices-error',
+          '#205 Notices: could not load',
+          J('notice-issued', 'notices', null, () => (S.errorFor = 'notices')),
+        ],
+        ['notice-list', '#205 Notices: notice to comply issued', J('notice-issued', 'notices')],
+        [
+          'notice-page2',
+          '#205 Notices: long history, page 2',
+          J('history', 'notices', null, () => (S.noticePage = 2)),
+        ],
+        [
+          'notice',
+          '#205 Notice to comply: detail + respond form',
+          J('notice-issued', 'notice', { id: 'n1' }),
+        ],
+        [
+          'notice-confirm',
+          '#205 Notice respond: confirm',
+          J('notice-issued', 'notice', { id: 'n1' }, () => {
+            S.nform.n1 = {
+              text: 'I was in hospital and did not see the SMS. I will respond this week.',
+              files: [],
+              tried: false,
+            };
+            S.modal = { kind: 'confirmNotice', id: 'n1' };
+          }),
+        ],
+        [
+          'notice-responded',
+          '#205 Notice: response submitted',
+          J('notice-responded', 'notice', { id: 'n1' }),
+        ],
+        [
+          'notice-file',
+          '#205 Notice: unfiled declaration variant',
+          J('notice-file', 'notice', { id: 'n1' }),
+        ],
+        ['notice-warning', '#205 Warning issued', J('warning', 'notice', { id: 'n2' })],
+        ['notice-warning-list', '#205 Notices: warning (ladder)', J('warning', 'notices')],
+        ['notice-complied', '#205 Compliance achieved (notice closed)', J('complied', 'notices')],
+        [
+          'stop-scheduled',
+          '#208 Salary stoppage scheduled',
+          J('stop-scheduled', 'notice', { id: 'n3' }),
+        ],
+        [
+          'stop-effective',
+          '#208 Salary stopped (effective)',
+          J('stop-effective', 'notice', { id: 'n3' }),
+        ],
+        ['stop-list', '#208 Notices: salary stopped (ladder)', J('stop-effective', 'notices')],
+        [
+          'disciplinary',
+          '#208 Disciplinary referral notice',
+          J('disciplinary', 'notice', { id: 'n4' }),
+        ],
+        [
+          'reinstating',
+          '#208 Complied: reinstatement sent to payroll',
+          J('reinstating', 'notice', { id: 'n3' }),
+        ],
+        ['reinstated', '#208 Salary reinstated', J('reinstated', 'notices')],
+        [
+          'stop-letter',
+          '#208 Salary stoppage letter',
+          J(
+            'stop-effective',
+            'notice',
+            { id: 'n3' },
+            () => (S.modal = { kind: 'letter', id: 'adm:n3' }),
+          ),
+        ],
+        ['dashboard', 'Home cards: clarification open', J('open', 'dashboard')],
+        [
+          'dash-mixed',
+          'Home cards: stopped salary + overdue clarification',
+          J('stop-effective', 'dashboard'),
+        ],
+        [
+          'dash-decided',
+          'Home cards: decision non-compliant',
+          J(() => decisionWorld('non-compliant'), 'dashboard'),
+        ],
+        [
+          'dash-access',
+          '#255 Home cards: access request, respond by 29 Sep',
+          JA('awaiting', 'dashboard'),
+        ],
+        [
+          'dash-access-saved',
+          '#255 Home cards: response saved + clarification open',
+          JA('saved', 'dashboard', null, null, 'open'),
+        ],
+        ['acc-list', '#255 Access requests: list', JA('awaiting', 'access-requests')],
+        [
+          'acc-list-p2',
+          '#255 Access requests: long history, page 2',
+          JA('history', 'access-requests', null, () => (S.accPage = 2)),
+        ],
+        ['acc-empty', '#255 Access requests: none (empty)', JA('none', 'access-requests')],
+        [
+          'acc-loading',
+          '#255 Access requests: loading',
+          JA('awaiting', 'access-requests', null, () => (S.loadFor = 'access-requests')),
+        ],
+        [
+          'acc-error',
+          '#255 Access requests: could not load',
+          JA('awaiting', 'access-requests', null, () => (S.errorFor = 'access-requests')),
+        ],
+        [
+          'access-request',
+          '#255 Access request: notice received, respond by 29 Sep',
+          JA('awaiting', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-object',
+          '#255 Respond: objection with attachment',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => fillRep('object')),
+        ],
+        [
+          'acc-validation',
+          '#255 Respond: validation errors',
+          JA('awaiting', 'access-request', { id: 'a1' }, () =>
+            fillRep('object', { text: '', files: [], tried: true }),
+          ),
+        ],
+        [
+          'acc-files',
+          '#255 Respond: files checking and rejected',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => {
+            fillRep('object');
+            S.aform.a1.files.push(
+              { id: 'fa1', name: 'Title deed Kapsaret.pdf', size: 910000, status: 'scanning' },
+              {
+                id: 'fa2',
+                name: 'Court order scan.tiff',
+                size: 1600000,
+                status: 'rejected',
+                reason: 'Use a PDF, JPEG, PNG or HEIC file.',
+              },
+            );
+            setTimeout(() => {
+              const f = S.aform.a1?.files.find((x) => x.id === 'fa1');
+              if (f) {
+                f.status = 'clean';
+                Kit.render();
+              }
+            }, 4000);
+          }),
+        ],
+        [
+          'acc-consent',
+          '#255 Respond: consent confirm',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => {
+            fillRep('consent');
+            S.modal = { kind: 'confirmConsent', id: 'a1' };
+          }),
+        ],
+        [
+          'acc-neterr',
+          '#255 Respond: network error on save',
+          JA('awaiting', 'access-request', { id: 'a1' }, () => {
+            fillRep('object');
+            S.submitErr = 'a1';
+          }),
+        ],
+        [
+          'acc-saved',
+          '#255 Response saved, editable until 29 Sep',
+          JA('saved', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-editing',
+          '#255 Editing a saved response',
+          JA('saved', 'access-request', { id: 'a1' }, () => {
+            const x = S.access[0].reps;
+            S.aform.a1 = { ...x, files: x.files.map((y) => ({ ...y })), tried: false };
+            S.aEdit = 'a1';
+          }),
+        ],
+        [
+          'acc-409',
+          '#255 Window closed while saving (409): form disabled',
+          JA('closing', 'access-request', { id: 'a1' }, () => {
+            fillRep('object');
+            S.accConflict = 'a1';
+          }),
+        ],
+        [
+          'acc-closed-none',
+          '#255 Window closed, no response: under decision',
+          JA('closed-none', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-closed-reps',
+          '#255 Window closed with response: under decision',
+          JA('closed-reps', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-consented',
+          '#255 Consented: under decision',
+          JA('consented', 'access-request', { id: 'a1' }),
+        ],
+        [
+          'acc-partial',
+          '#255 Outcome: partially granted',
+          JA('awaiting', 'access-request', { id: 'a3' }),
+        ],
+        ['acc-granted', '#255 Outcome: granted', JA('history', 'access-request', { id: 'a6' })],
+        ['acc-denied', '#255 Outcome: denied', JA('awaiting', 'access-request', { id: 'a4' })],
+        [
+          'acc-withdrawn',
+          '#255 Withdrawn by the applicant',
+          JA('awaiting', 'access-request', { id: 'a5' }),
+        ],
+        [
+          'acc-lea',
+          '#255 Law-enforcement agency granted access',
+          JA('awaiting', 'access-request', { id: 'a2' }),
+        ],
+        [
+          'acc-404',
+          '#255 Access request: not found (404)',
+          JA('awaiting', 'access-request', { id: 'zz' }, () => (S.notFound = true)),
+        ],
+      ];
+
+      Kit.mount({
+        app: 'portal',
+        start: 'clarifications',
+        home: 'clarifications',
+        screens,
+        modals,
+        actions,
+        jumps,
+        onBind: (bind, v) => {
+          const el = document.querySelector(`[data-count="${bind}"]`);
+          if (el) {
+            const max = bind.startsWith('aform') ? REP_MAX : bind.startsWith('nform') ? 4000 : 2000;
+            el.textContent = `${num(v.length)} / ${num(max)}`;
+            el.classList.toggle('over', v.length > max);
+            const ta = el.closest('.field')?.querySelector('textarea');
+            const fe = el.closest('.field')?.querySelector('.ferr');
+            if (ta && v.trim() && v.length <= max) {
+              ta.classList.remove('err');
+              ta.removeAttribute('aria-invalid');
+              if (fe) fe.remove();
+            }
+          }
+          const m = bind.match(/^form\.(\w+)\.items/);
+          if (m) {
+            const f = S.form[m[1]];
+            const a = document.querySelector(`[data-answered="${m[1]}"]`);
+            if (a)
+              a.innerHTML = `<b>${f.items.filter((x) => x.text.trim()).length} of ${f.items.length}</b> ${f.items.length === 1 ? 'point' : 'points'} answered`;
+          }
+        },
+        coverage: [
+          {
+            ticket: 170,
+            title:
+              'Portal clarification read view (card, page, letter, reference, deadline countdown, attachments)',
+            screens: [
+              'clarifications',
+              'clar-none',
+              'clar-page2',
+              'clar-loading',
+              'clar-error',
+              'clarification',
+              'clar-letter',
+              'clar-today',
+              'clar-404',
+              'dashboard',
+            ],
+            note: 'Console composer and list are in apps/console/prototype/07a-review.prototype.html.',
+          },
+          {
+            ticket: 173,
+            title:
+              'Portal response form (per-item text and attachments, submit once, late notice, overdue copy, reminder, further clarification, resolved, withdrawn)',
+            screens: [
+              'clarification',
+              'clar-validation',
+              'clar-files',
+              'clar-confirm',
+              'clar-late-confirm',
+              'clar-neterr',
+              'clar-conflict',
+              'clar-reminder',
+              'clar-overdue',
+              'clar-responded',
+              'clar-late',
+              'clar-followup',
+              'clar-followup-new',
+              'clar-resolved',
+              'clar-withdrawn',
+              'clar-escalated',
+            ],
+            note: 'Name a file with "virus" to see the failed security check. Console detail actions are in 07a.',
+          },
+          {
+            ticket: 199,
+            title: 'Portal Decisions (on Home card and declaration detail; on-demand letter)',
+            screens: [
+              'declaration',
+              'dec-compliant',
+              'dec-no-issues',
+              'dec-preparing',
+              'dec-letter-error',
+              'dec-noncompliant',
+              'dec-further',
+              'dec-letter',
+              'dash-decided',
+            ],
+            note: 'No separate nav item: decisions live on the declaration detail and the Home card, per spec 08 FE-7.',
+          },
+          {
+            ticket: 205,
+            title: 'Portal Notices and respond (notice to comply, warning, response, compliance)',
+            screens: [
+              'notices',
+              'notices-loading',
+              'notices-error',
+              'notice-list',
+              'notice-page2',
+              'notice',
+              'notice-confirm',
+              'notice-responded',
+              'notice-file',
+              'notice-warning',
+              'notice-warning-list',
+              'notice-complied',
+              'clar-escalated',
+            ],
+            note: 'Referrals to EACC are never shown to the declarant (Regs r.20(2)).',
+          },
+          {
+            ticket: 208,
+            title:
+              'Portal stoppage notices (salary stoppage scheduled and effective, disciplinary referral, reinstatement)',
+            screens: [
+              'stop-scheduled',
+              'stop-effective',
+              'stop-list',
+              'disciplinary',
+              'reinstating',
+              'reinstated',
+              'stop-letter',
+              'dash-mixed',
+            ],
+            note: 'Try it: on "Salary stopped", respond to the clarification. The ladder completes and reinstatement is sent, then confirmed by payroll after a few seconds.',
+          },
+          {
+            ticket: 255,
+            title: 'Portal: Access requests card and representations form',
+            screens: [
+              'dash-access',
+              'dash-access-saved',
+              'acc-list',
+              'acc-list-p2',
+              'acc-empty',
+              'acc-loading',
+              'acc-error',
+              'access-request',
+              'acc-object',
+              'acc-validation',
+              'acc-files',
+              'acc-consent',
+              'acc-neterr',
+              'acc-saved',
+              'acc-editing',
+              'acc-409',
+              'acc-closed-none',
+              'acc-closed-reps',
+              'acc-consented',
+              'acc-partial',
+              'acc-granted',
+              'acc-denied',
+              'acc-withdrawn',
+              'acc-lea',
+              'acc-404',
+            ],
+            note: 'Card copy per the spec 10 frontend comment ("Someone has requested access to your declaration", "Respond by {window end}", LEA grant sentence). One representation per request, editable until the 7-day window closes; consent closes it early (confirm). Who accessed and certified copies: declarant-profile.prototype.html.',
+          },
+          {
+            ticket: 268,
+            title: 'UI primitives round 12: RegisterTimeline (compact, declarant view)',
+            screens: ['acc-partial', 'acc-lea', 'acc-saved'],
+            note: 'History card on each request. Every kind in list and compact density: declarant-profile.prototype.html#register-kinds.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

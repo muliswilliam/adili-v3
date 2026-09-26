@@ -1,0 +1,1783 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what does a declarant's own account area look like (identity from the roster, Commission memberships, contact details, sign-in and devices, notifications and language, "Who accessed my declaration" and certified copies)? Covers ticket #74 (profile data from GET /v1/me/declarant, S18) with #76 as its backend, #269 (who accessed and certified copies, spec 10) and the declarant view of #268 (RegisterTimeline). Security, contact change and notifications are designed ahead of spec (ADR-004). Open by double-clicking. State is in memory. -->
+<!-- Demo assumption: this file follows the after-submission world (declarant-after-submission.prototype.html): John Kennedy onboarded at TSC on 14 Apr 2026, initial declaration DCI-TSC-2026-0003418-P version 1 received 28 Apr 2026 and amended (version 2) on 12 May 2026. Access requests ARQ-TSC-2026-0000052-3 (awaiting his response), ARQ-TSC-2026-0000045-X (partially granted) and LEA-TSC-2026-0000007-M (granted) match that file. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Declarant profile (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .pp {
+        max-width: 780px;
+      }
+      .pp .tabs {
+        margin: 14px 0 22px;
+      }
+      .proto-note {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: #6d5a2a;
+        background: #fffaf0;
+        border: 1px dashed #e2c98f;
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      .mono-code {
+        display: inline-grid;
+        place-items: center;
+        min-width: 40px;
+        height: 26px;
+        padding: 0 7px;
+        border-radius: 7px;
+        background: var(--sunken);
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .dl.pad {
+        margin: 0;
+        padding: 2px 20px 4px;
+      }
+      @container app (min-width: 700px) {
+        .dl.pad {
+          padding: 2px 24px 4px;
+        }
+      }
+      .dl > div {
+        align-items: center;
+      }
+      .dl dd {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .v-ok {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--ok-soft);
+        color: var(--ok);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .lock-note {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .lock-note svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .item .when {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+        text-align: right;
+      }
+      .item.click {
+        cursor: pointer;
+      }
+      .item.click:hover {
+        background: #fbfaf8;
+      }
+      .item.gone .t,
+      .item.gone .d {
+        color: var(--muted);
+      }
+      .ico.warn {
+        background: var(--warn-soft) !important;
+        color: var(--warn) !important;
+      }
+      .ico.info {
+        background: #eaf2fd !important;
+        color: #1f5fbf !important;
+      }
+      .ico.brand {
+        background: var(--brand-soft) !important;
+        color: var(--brand-ink) !important;
+      }
+      .ico.ok {
+        background: var(--ok-soft) !important;
+        color: var(--ok) !important;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 2px;
+        margin: 0 -2px 14px;
+      }
+      .sk-line {
+        display: block;
+        height: 12px;
+        margin: 10px 0;
+      }
+      .cool {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .done-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 8px 0 4px;
+      }
+      .done-box .success-mark {
+        margin-bottom: 14px;
+        width: 56px;
+        height: 56px;
+      }
+      .ch-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 520px) {
+        .ch-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .card > .pager {
+        border-top: 0;
+        padding: 10px 20px;
+      }
+      @container app (min-width: 700px) {
+        .card > .pager {
+          padding: 10px 24px;
+        }
+      }
+      .otp input {
+        min-width: 0;
+      }
+      @container app (max-width: 599px) {
+        .item .when {
+          grid-column: 2;
+          grid-row: 3;
+          text-align: left;
+        }
+      }
+      /* RegisterTimeline (#268): list density */
+      .rt {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .rt-month {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--muted);
+        padding: 12px 20px 6px;
+        border-bottom: 1px solid var(--line);
+        background: #fcfbfa;
+      }
+      .card > .rt-month:first-child {
+        border-radius: var(--r-lg) var(--r-lg) 0 0;
+      }
+      .rt + .rt-month {
+        border-top: 1px solid var(--line);
+      }
+      .rt-e + .rt-e {
+        border-top: 1px solid var(--line);
+      }
+      .rt-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        width: 100%;
+        padding: 14px 20px;
+        border: 0;
+        background: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+      }
+      button.rt-row {
+        cursor: pointer;
+      }
+      button.rt-row:hover {
+        background: #fbfaf8;
+      }
+      button.rt-row:focus-visible {
+        outline: 3px solid rgba(26, 26, 26, 0.2);
+        outline-offset: -3px;
+      }
+      @container app (min-width: 700px) {
+        .rt-row {
+          padding: 14px 24px;
+        }
+        .rt-month {
+          padding: 12px 24px 6px;
+        }
+      }
+      .rt-ico {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        flex: none;
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .rt-ico.brand,
+      .tl-ico.brand {
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+      }
+      .rt-ico.info,
+      .tl-ico.info {
+        background: #eaf2fd;
+        color: #1f5fbf;
+      }
+      .rt-ico.ok,
+      .tl-ico.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .rt-ico.warn,
+      .tl-ico.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .rt-ico.danger,
+      .tl-ico.danger {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .rt-b {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding-top: 1px;
+      }
+      .rt-t {
+        font-weight: 500;
+        font-size: 15px;
+        line-height: 1.35;
+      }
+      .rt-s {
+        font-size: 13.5px;
+        color: var(--muted);
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      .rt-s .mono {
+        font-size: 12.5px;
+        white-space: nowrap;
+      }
+      .rt-tag {
+        margin-top: 4px;
+      }
+      .rt-e time {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+        padding-top: 2px;
+      }
+      .rt-chev {
+        color: var(--muted);
+        align-self: center;
+        display: flex;
+        margin-right: -6px;
+      }
+      @container app (max-width: 599px) {
+        .rt-row {
+          flex-wrap: wrap;
+          column-gap: 12px;
+          row-gap: 2px;
+        }
+        .rt-b {
+          flex-basis: calc(100% - 44px - 28px);
+        }
+        .rt-e time {
+          order: 5;
+          flex-basis: 100%;
+          padding-left: 44px;
+          padding-top: 0;
+        }
+        .rt-chev {
+          order: 3;
+        }
+      }
+      @container app (max-width: 599px) {
+        .ms-sep {
+          display: none;
+        }
+        .ms-br {
+          display: block;
+        }
+        .item.cc .acts {
+          grid-column: 2;
+          grid-row: auto;
+          margin: 8px 0 0;
+        }
+      }
+      .foot-note {
+        margin-top: 12px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .foot-note svg {
+        flex: none;
+      }
+      .wa-callout {
+        margin-bottom: 16px;
+        align-items: center;
+      }
+      .cc-ok {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--ok) !important;
+      }
+      .row-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex: none;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, field, input, dialog, drawer, portalShell, fmtDate, fmtDateTime, num } =
+        Kit;
+      Kit.I.laptop =
+        '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>';
+
+      /* ---------- demo data ---------- */
+      const ME = {
+        full: 'John Fitzgerald Kennedy',
+        nidMasked: '•••• 3219',
+        ofr: 'OFR-0012345-B',
+        email: 'john.kennedy@gmail.com',
+        phone: '+254 712 480 123',
+        emailMasked: 'j***@gmail.com',
+        phoneMasked: '07** *** 123',
+        pwdChanged: '2026-04-14T10:31:00',
+      };
+      const COMMS = {
+        tsc: {
+          code: 'TSC',
+          name: 'Teachers Service Commission',
+          fileNo: '2012445581',
+          designation: 'Deputy Principal',
+          entity: 'Moi Girls High School, Eldoret',
+          state: 'onboarded',
+          onboardedAt: '2026-04-14T10:22:00',
+          ro: { name: 'Nancy Macharia', email: 'n.macharia@tsc.go.ke' },
+        },
+        psc: {
+          code: 'PSC',
+          name: 'Public Service Commission',
+          fileNo: 'PSC/2009/118204',
+          designation: 'Senior Education Officer',
+          entity: 'Ministry of Education',
+          state: 'exited',
+          onboardedAt: '2026-03-12T09:05:00',
+          ro: { name: 'Grace Muthoni', email: 'grace.muthoni@publicservice.go.ke' },
+        },
+      };
+      const DECL = 'DCI-TSC-2026-0003418-P';
+      const ARQ1 = 'ARQ-TSC-2026-0000045-X';
+      const ARQ2 = 'ARQ-TSC-2026-0000052-3';
+      const LEA1 = 'LEA-TSC-2026-0000007-M';
+
+      function seedSessions() {
+        return [
+          {
+            id: 's1',
+            dev: 'Chrome on Windows',
+            ico: 'laptop',
+            where: 'Eldoret',
+            last: 'Active now',
+            current: true,
+          },
+          {
+            id: 's2',
+            dev: 'Safari on iPhone',
+            ico: 'phone',
+            where: 'Eldoret',
+            last: '2 hours ago',
+          },
+          {
+            id: 's3',
+            dev: 'Chrome on Android',
+            ico: 'phone',
+            where: 'Nairobi',
+            last: '3 days ago',
+          },
+        ];
+      }
+
+      /* Sign-in activity (Keycloak events, ADR-004 point 8). Newest first. */
+      function seedActivity() {
+        const base = [
+          ['2026-09-26T08:14', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-09-26T06:02', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-09-23T19:40', 'signin', 'Chrome on Android', 'Nairobi'],
+          ['2026-09-23T19:38', 'code-wrong', 'Chrome on Android', 'Nairobi'],
+          ['2026-09-18T07:55', 'signin-email', 'Chrome on Windows', 'Eldoret'],
+          ['2026-09-11T21:10', 'signout', 'Safari on iPhone', 'Eldoret'],
+          ['2026-09-11T20:47', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-09-02T09:12', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-08-21T18:30', 'pwd-wrong', 'Firefox on Windows', 'Kisumu'],
+          ['2026-08-21T18:29', 'pwd-wrong', 'Firefox on Windows', 'Kisumu'],
+          ['2026-08-14T08:03', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-07-30T12:44', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-07-20T16:15', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-07-02T10:05', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-06-18T19:22', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-06-02T08:40', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-05-20T13:11', 'signin-email', 'Chrome on Windows', 'Eldoret'],
+          ['2026-05-07T09:30', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-28T14:05', 'stepup', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-28T13:20', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-14T10:32', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-14T10:31', 'pwd-set', 'Chrome on Windows', 'Eldoret'],
+        ];
+        return base.map(([at, kind, dev, where], i) => ({ id: 'a' + i, at, kind, dev, where }));
+      }
+      const ACT = {
+        signin: ['Signed in', 'check', 'ok', 'Password and SMS code'],
+        'signin-email': ['Signed in', 'check', 'ok', 'Password and email code'],
+        'code-wrong': ['Wrong sign-in code', 'alert', 'warn', ''],
+        'pwd-wrong': ['Wrong password', 'alert', 'warn', ''],
+        signout: ['Signed out', 'logout', '', ''],
+        'signout-remote': ['Signed out from another device', 'logout', '', ''],
+        stepup: ['Confirmed with a code to submit', 'shield', 'info', ''],
+        'pwd-set': ['Password set', 'key', '', ''],
+        'email-changed': ['Email changed', 'mail', 'info', ''],
+        'phone-changed': ['Phone changed', 'phone', 'info', ''],
+        'channel-changed': ['Sign-in code channel changed', 'settings', '', ''],
+      };
+
+      /* ---------- Spec 10: access register and certified copies (#269, #268) ---------- */
+      const AFTER = 'declarant-after-submission.prototype.html';
+      const DOCS = '../../../services/documents/prototype/documents.prototype.html';
+      const TSC = { code: 'TSC', name: 'Teachers Service Commission' };
+      const PSC = { code: 'PSC', name: 'Public Service Commission' };
+      const TODAY = Kit.TODAY;
+      const SECTIONS = {
+        bio: 'Personal details',
+        income: 'Income',
+        assets: 'Assets',
+        liabilities: 'Liabilities',
+        other: 'Other information',
+      };
+      // Regulation 24 grounds, quoted in plain words (i18n: grounds labels quote Regulation 24).
+      const GROUNDS = {
+        'public-interest': 'Disclosure would be against the public interest.',
+        'prejudice-proceeding': 'Access may prejudice an ongoing proceeding or investigation.',
+        'frivolous-vexatious': 'The request is frivolous, vexatious or scandalous.',
+        'not-objectives': 'The reason for access does not promote the objectives of the Act.',
+      };
+      const OUTCOME = {
+        grant: { label: 'Granted', kind: 'ok', icon: 'check' },
+        'partial-grant': { label: 'Partially granted', kind: 'warn', icon: 'check' },
+        deny: { label: 'Denied', kind: 'danger', icon: 'ban' },
+      };
+      const STANCE = {
+        object: 'You objected',
+        consent: 'You consented',
+        context: 'You added context',
+      };
+      const people = (s) =>
+        s.spouses && s.children
+          ? 'You, spouse and children'
+          : s.spouses
+            ? 'You and spouse'
+            : s.children
+              ? 'You and children'
+              : 'You only';
+      const secText = (arr) =>
+        arr.map((k, i) => (i ? SECTIONS[k].toLowerCase() : SECTIONS[k])).join(', ');
+      const scopeText = (s) => `${s.years.join(', ')} · ${people(s)} · ${secText(s.sections)}`;
+      const scope = (years, spouses, children, sections) => ({
+        years,
+        spouses,
+        children,
+        sections,
+      });
+      const ALL_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'];
+
+      /* Requests that touched John's declarations. Form K from notification, LEA from grant (S12). */
+      function seedReqs() {
+        return [
+          {
+            ref: ARQ2,
+            kind: 'form-k',
+            comm: TSC,
+            applicant: 'Wanjiru Kamau',
+            purpose: 'Journalistic research on school procurement in Uasin Gishu County',
+            scope: scope([2026], true, false, ['income', 'assets', 'liabilities']),
+            notifiedAt: '2026-09-22T11:20',
+            windowEndsAt: '2026-09-29T11:20',
+          },
+          {
+            ref: LEA1,
+            kind: 'lea',
+            comm: TSC,
+            agency: 'Asset Recovery Agency',
+            caseRef: 'ARA/INV/118/2026',
+            scope: scope([2026], true, true, ALL_SECTIONS),
+            decision: { outcome: 'grant', at: '2026-09-02T15:30' },
+            pkg: {
+              issuedAt: '2026-09-02T15:34',
+              expiresAt: '2026-09-16T15:34',
+              downloads: ['2026-09-03T10:12'],
+            },
+          },
+          {
+            ref: ARQ1,
+            kind: 'form-k',
+            comm: TSC,
+            applicant: 'Kevin Mutua Njoroge',
+            purpose: 'Civil claim over a land sale in Kapsaret',
+            scope: scope([2026], true, true, ['income', 'assets', 'liabilities', 'other']),
+            notifiedAt: '2026-07-20T10:40',
+            windowEndsAt: '2026-07-27T10:40',
+            reps: { stance: 'object', at: '2026-07-24T18:05' },
+            decision: {
+              outcome: 'partial-grant',
+              at: '2026-08-05T12:00',
+              granted: scope([2026], false, false, ['income', 'assets']),
+              grounds: ['not-objectives'],
+              reasons:
+                "The claim concerns land the officer holds, so his income and assets are relevant. His liabilities and his family's details are not needed for it.",
+            },
+            pkg: {
+              issuedAt: '2026-08-05T12:04',
+              expiresAt: '2026-08-19T12:04',
+              downloads: ['2026-08-09T16:48'],
+            },
+          },
+          {
+            ref: 'ARQ-TSC-2026-0000039-K',
+            kind: 'form-k',
+            comm: TSC,
+            applicant: 'Samuel Otieno Ouma',
+            purpose: 'A private dispute with the officer',
+            scope: scope([2026], true, true, ALL_SECTIONS),
+            notifiedAt: '2026-07-01T09:10',
+            windowEndsAt: '2026-07-08T09:10',
+            decision: {
+              outcome: 'deny',
+              at: '2026-07-24T15:45',
+              grounds: ['frivolous-vexatious'],
+              reasons:
+                "The application concerns a private dispute and gives no reason connected to the officer's public duties.",
+            },
+          },
+          {
+            ref: 'ARQ-TSC-2026-0000031-6',
+            kind: 'form-k',
+            comm: TSC,
+            applicant: 'Brian Kiptoo Rotich',
+            purpose: 'Checking a tender award at the school',
+            scope: scope([2026], false, false, ['income', 'assets']),
+            notifiedAt: '2026-06-12T09:30',
+            windowEndsAt: '2026-06-19T09:30',
+            reps: { stance: 'context', at: '2026-06-14T20:12' },
+            withdrawnAt: '2026-06-15T14:10',
+          },
+        ];
+      }
+      const PSC_REQS = [
+        {
+          ref: 'ARQ-PSC-2026-0000027-2',
+          kind: 'form-k',
+          comm: PSC,
+          applicant: 'Achieng Odhiambo',
+          purpose: 'Academic research on declarations by education officers',
+          scope: scope([2025], false, false, ['income', 'assets']),
+          notifiedAt: '2026-06-08T10:00',
+          windowEndsAt: '2026-06-15T10:00',
+          reps: { stance: 'consent', at: '2026-06-09T08:30' },
+          decision: {
+            outcome: 'grant',
+            at: '2026-06-22T11:15',
+            granted: scope([2025], false, false, ['income', 'assets']),
+            grounds: [],
+            reasons: 'The research purpose is legitimate and the officer consented.',
+          },
+          pkg: {
+            issuedAt: '2026-06-22T11:18',
+            expiresAt: '2026-07-06T11:18',
+            downloads: ['2026-06-23T09:02', '2026-06-30T14:40'],
+          },
+        },
+        {
+          ref: 'ARQ-PSC-2026-0000019-7',
+          kind: 'form-k',
+          comm: PSC,
+          applicant: 'Joseph Maina Kariuki',
+          purpose: 'Suspected conflict of interest in a supplies contract',
+          scope: scope([2025, 2026], true, false, ALL_SECTIONS),
+          notifiedAt: '2026-05-05T09:40',
+          windowEndsAt: '2026-05-12T09:40',
+          reps: { stance: 'object', at: '2026-05-08T19:25' },
+          decision: {
+            outcome: 'deny',
+            at: '2026-05-29T10:05',
+            grounds: ['prejudice-proceeding'],
+            reasons: 'A related investigation is under way. Access now could prejudice it.',
+          },
+        },
+      ];
+
+      /* Submitted versions (#148) that can be certified. PSC history matches declarant-journey. */
+      function versionsList() {
+        const v = [
+          {
+            id: 'v-tsc-2',
+            comm: TSC,
+            type: 'Initial declaration',
+            ref: DECL,
+            version: 2,
+            submittedAt: '2026-05-12T19:40',
+            inForce: true,
+          },
+          {
+            id: 'v-tsc-1',
+            comm: TSC,
+            type: 'Initial declaration',
+            ref: DECL,
+            version: 1,
+            submittedAt: '2026-04-28T14:12',
+            inForce: false,
+          },
+        ];
+        if (!S.multi) return v;
+        v.push({
+          id: 'v-psc-final',
+          comm: PSC,
+          type: 'Final declaration',
+          ref: 'DCF-PSC-2026-0000891-3',
+          version: 1,
+          submittedAt: '2026-04-14T16:20',
+          inForce: true,
+        });
+        [2025, 2023, 2021, 2019, 2017, 2015, 2013, 2011].forEach((y) => {
+          const i = (y - 2011) / 2;
+          v.push({
+            id: 'v-psc-' + y,
+            comm: PSC,
+            type: 'Biennial declaration',
+            ref: `DCB-PSC-${y}-000${1180 + i * 407}-${'7K3M9P2R'[i]}`,
+            version: 1,
+            submittedAt: `${y}-12-${String(9 + i * 2).padStart(2, '0')}T1${i % 6}:2${i}:00`,
+            inForce: true,
+          });
+        });
+        v.push({
+          id: 'v-psc-2009',
+          comm: PSC,
+          type: 'Initial declaration',
+          ref: 'DCI-PSC-2009-0000214-4',
+          version: 1,
+          submittedAt: '2009-03-28T09:14:00',
+          inForce: true,
+        });
+        return v;
+      }
+      function seedSelf() {
+        return [
+          { id: 'sa1', versionId: 'v-tsc-2', at: '2026-06-03T10:15' },
+          {
+            id: 'sa2',
+            versionId: 'v-tsc-2',
+            at: '2026-08-14T11:30',
+            rep: 'Mary Kennedy',
+            delivery: 'Collected at TSC House',
+          },
+        ];
+      }
+
+      const blankCode = () => ['', '', '', '', '', ''];
+      const S = Kit.state({
+        st: 'ok', // ok | loading | error
+        multi: false,
+        email: ME.email,
+        phone: ME.phone,
+        emailAt: '2026-04-14T10:12:00',
+        phoneAt: '2026-04-14T10:15:00',
+        chg: null,
+        codeChannel: 'sms',
+        passkey: false,
+        sessions: seedSessions(),
+        activity: seedActivity(),
+        actPage: 1,
+        lang: 'en',
+        ...accessSeed(),
+      });
+      function accessSeed() {
+        return {
+          wa: { filter: 'all', page: 1, pageSize: 10, empty: false },
+          self: seedSelf(),
+          cc: {
+            page: 1,
+            fail: false,
+            by: { 'v-tsc-2': { status: 'issued', at: '2026-06-03T10:15' } },
+          },
+        };
+      }
+
+      /* ---------- helpers ---------- */
+      const vOk = () => `<span class="v-ok">${icon('check', 12, 2.6)}Verified</span>`;
+      const plural = (n, w) => `${num(n)} ${w}${n === 1 ? '' : 's'}`;
+      const note = (html) => `<div class="proto-note">${html}</div>`;
+      const skel = (ws = [60, 80, 45, 70]) =>
+        `<div class="card card-pad" aria-busy="true">${ws.map((w) => `<span class="skeleton sk-line" style="width:${w}%"></span>`).join('')}</div>`;
+      const memberships = () => (S.multi ? [COMMS.tsc, COMMS.psc] : [COMMS.tsc]);
+      const reqs = () => (S.wa.empty ? [] : [...seedReqs(), ...(S.multi ? PSC_REQS : [])]);
+      const versionById = (id) => versionsList().find((v) => v.id === id);
+      /* Register entries the declarant may see (GET /v1/me/access-history), newest first. */
+      function entriesFor(r) {
+        const e = [];
+        const add = (kind, at) => e.push({ kind, at, ref: r.ref, req: r });
+        if (r.kind === 'form-k') {
+          add('notified', r.notifiedAt);
+          if (r.reps) add('representations', r.reps.at);
+          if (r.withdrawnAt) add('withdrawn', r.withdrawnAt);
+        }
+        if (r.decision) add('decided', r.decision.at);
+        if (r.pkg) {
+          add('package-issued', r.pkg.issuedAt);
+          r.pkg.downloads.forEach((d) => add('downloaded', d));
+          if (new Date(r.pkg.expiresAt) < TODAY) add('expired', r.pkg.expiresAt);
+        }
+        return e;
+      }
+      function register() {
+        if (S.wa.empty) return [];
+        const e = reqs().flatMap(entriesFor);
+        S.self.forEach((c) => {
+          const v = versionById(c.versionId);
+          if (v) e.push({ kind: 'self-access', at: c.at, ref: v.ref, copy: { ...c, v } });
+        });
+        return e.sort((a, b) => new Date(b.at) - new Date(a.at));
+      }
+      const group = (e) => (e.kind === 'self-access' ? 'copy' : e.req.kind);
+      const FILTERS = [
+        ['all', 'All'],
+        ['form-k', 'Access requests'],
+        ['lea', 'Law enforcement'],
+        ['copy', 'Certified copies'],
+      ];
+      const TABS = [
+        ['profile', 'Profile'],
+        ['security', 'Security'],
+        ['notifications', 'Notifications'],
+        ['who-accessed', 'Who accessed'],
+        ['certified-copies', 'Certified copies'],
+      ];
+
+      function page(active, body) {
+        const tabs = `<nav class="tabs" aria-label="Account sections">${TABS.map(([id, l]) => `<a href="#${id}" data-act="go" data-arg="${id}" class="${active === id ? 'on' : ''}" ${active === id ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`;
+        let content = body;
+        if (S.st === 'loading')
+          content = `<div class="stack-lg">${skel()}${skel([50, 75, 40])}</div>`;
+        if (S.st === 'error')
+          content = `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div style="flex:1">We could not load your account. Check your connection and try again.<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" data-act="retry">${icon('refresh', 15)} Try again</button></div></div></div>`;
+        return portalShell(
+          `<div class="page pp"><h1 class="page-title">Your account</h1>${tabs}${content}</div>`,
+          { active: '' },
+        );
+      }
+
+      /* ---------- Profile ---------- */
+      function identityCard() {
+        return `<section class="card" aria-labelledby="h-id">
+    <div class="card-head"><h3 id="h-id" style="flex:1">Identity</h3><span class="badge">${icon('lock', 12)} From your roster</span></div>
+    <dl class="dl pad">
+      <div><dt>Full name</dt><dd>${ME.full}</dd></div>
+      <div><dt>National ID</dt><dd class="tabular">${ME.nidMasked}</dd></div>
+      <div><dt>Officer reference</dt><dd><span class="mono" style="font-weight:600">${ME.ofr}</span><button class="btn btn-ghost btn-xs icon-btn" data-act="copy" data-arg="${ME.ofr}" aria-label="Copy officer reference" title="Copy">${icon('copy', 15)}</button></dd></div>
+    </dl>
+    <div class="card-foot"><div class="lock-note">${icon('info', 15)}<span>Something wrong? Ask your reporting officer to correct it.</span></div></div>
+  </section>`;
+      }
+      function commissionCard(c) {
+        const exited = c.state === 'exited';
+        return `<section class="card" aria-label="${esc(c.name)}">
+    <div class="card-head"><span class="mono-code">${c.code}</span><h3 style="flex:1;min-width:0">${esc(c.name)}</h3>${exited ? '<span class="badge">Exited</span>' : `<span class="badge badge-ok">${icon('check', 12, 2.4)}Active</span>`}</div>
+    <dl class="dl pad">
+      <div><dt>Personnel file number</dt><dd class="mono">${esc(c.fileNo)}</dd></div>
+      <div><dt>Designation</dt><dd>${esc(c.designation)}</dd></div>
+      <div><dt>Reporting entity</dt><dd style="text-align:right">${esc(c.entity)}</dd></div>
+      <div><dt>Onboarded</dt><dd>${fmtDate(c.onboardedAt)}</dd></div>
+      <div><dt>Reporting officer</dt><dd><a class="link" href="mailto:${c.ro.email}">${esc(c.ro.name)}</a></dd></div>
+    </dl>
+  </section>`;
+      }
+      function contactCard() {
+        const row = (kind, ic, label, val, at) => `<div class="item">
+      <span class="ico">${icon(ic, 17)}</span>
+      <div class="item-body"><div class="small muted" style="font-weight:500">${label}</div><div class="t truncate">${esc(val)}</div></div>
+      <span class="item-tag">${vOk()}</span>
+      <div class="acts"><button class="btn btn-secondary btn-sm" data-act="openChange" data-arg="${kind}" aria-label="Change ${label.toLowerCase()}">Change</button></div>
+    </div>`;
+        return `<section class="card" aria-labelledby="h-ct">
+    <div class="card-head"><h3 id="h-ct" style="flex:1">Contact details</h3></div>
+    ${row('email', 'mail', 'Email', S.email, S.emailAt)}
+    ${row('phone', 'phone', 'Phone', S.phone, S.phoneAt)}
+    <div class="card-foot small muted">Reminders, notices and sign-in codes go here.</div>
+  </section>`;
+      }
+      const screens = {
+        profile: () =>
+          page(
+            'profile',
+            `<div class="stack-lg">${identityCard()}${contactCard()}<div class="stack" style="gap:12px"><h2 class="section-title" style="margin-top:6px">${S.multi ? 'Commissions' : 'Commission'}</h2>${memberships().map(commissionCard).join('')}</div></div>`,
+          ),
+        security: () => page('security', securityBody()),
+        notifications: () => page('notifications', notificationsBody()),
+        'who-accessed': () => page('who-accessed', whoAccessedBody()),
+        'access-log': () => page('who-accessed', whoAccessedBody()),
+        'certified-copies': () => page('certified-copies', copiesBody()),
+        'register-kinds': () => page('who-accessed', kindsBody()),
+      };
+
+      /* ---------- Contact change (designed ahead of spec) ---------- */
+      const chgLabel = (k) => (k === 'email' ? 'email' : 'phone number');
+      function contactModal() {
+        const c = S.chg;
+        if (!c) return '';
+        const isEmail = c.kind === 'email';
+        const title = isEmail ? 'Change email' : 'Change phone';
+        let body = '',
+          foot = '';
+        if (c.step === 'enter') {
+          const ctl = isEmail
+            ? input('chg.value', {
+                type: 'email',
+                ph: 'name@example.com',
+                cls: c.err ? 'is-invalid' : '',
+                extra: 'autocomplete="email" inputmode="email"',
+              })
+            : `<div class="input-group"><span class="addon">+254</span>${input('chg.value', { type: 'tel', ph: '712 345 678', cls: c.err ? 'is-invalid' : '', extra: 'autocomplete="tel-national" inputmode="tel" style="box-shadow:none"' })}</div>`;
+          body = `${field(isEmail ? 'New email' : 'New phone number', ctl, { id: 'f-chg-value', error: c.err, hint: `We will send a code to it to check it is yours.` })}
+      <div style="margin-top:14px">${note(`<b>Prototype.</b> ${isEmail ? 'taken@example.com' : '700 000 000'} is in use. Real app asks for a sign-in code first.`)}</div>`;
+          foot = `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="sendCode" ${c.busy ? 'disabled aria-busy="true"' : ''}>${c.busy ? '<span class="spinner"></span> Sending…' : 'Send code'}</button>`;
+        } else if (c.step === 'code') {
+          const dest = isEmail ? c.value : `+254 ${c.value}`;
+          let alert = '';
+          if (c.codeErr === 'wrong')
+            alert = `<div class="callout callout-danger" role="alert" style="margin-bottom:14px">${icon('alert', 17)}<div>That code is not right. ${plural(c.left, 'attempt')} left.</div></div>`;
+          if (c.codeErr === 'expired')
+            alert = `<div class="callout callout-warn" role="alert" style="margin-bottom:14px">${icon('clock', 17)}<div>This code has expired. Send a new one.</div></div>`;
+          body = `${alert}<p style="margin-bottom:16px">Enter the 6-digit code we sent to <b>${esc(dest)}</b>.</p>
+      ${Kit.otp('chg.code', 'verifyCode')}
+      <div class="row" style="margin-top:16px;gap:10px">${c.cool > 0 ? `<span class="cool" aria-live="polite">Resend in ${Math.floor(c.cool / 60)}:${String(c.cool % 60).padStart(2, '0')}</span>` : `<button class="btn btn-ghost btn-sm" data-act="resend">${icon('refresh', 15)} Resend code</button>`}<span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="chgBack">Change ${isEmail ? 'email' : 'number'}</button></div>
+      <div style="margin-top:14px">${note('<b>Prototype.</b> 123456 verifies; anything else is wrong.')}</div>`;
+          foot = '';
+        } else if (c.step === 'failed') {
+          body = `<div class="done-box"><div class="success-mark" style="background:var(--danger-soft);color:var(--danger)">${icon('x', 26, 2.4)}</div><h4 style="font-size:17px;font-weight:600">Too many wrong codes</h4><p class="muted" style="margin-top:6px;max-width:340px">Your ${chgLabel(c.kind)} was not changed. Start again to get a new code.</p></div>`;
+          foot = `<button class="btn btn-ghost" data-act="closeModal">Close</button><button class="btn btn-primary" data-act="openChange" data-arg="${c.kind}">Start again</button>`;
+        } else if (c.step === 'done') {
+          const v = isEmail ? S.email : S.phone;
+          body = `<div class="done-box"><div class="success-mark">${icon('check', 26, 2.6)}</div><h4 style="font-size:17px;font-weight:600">${isEmail ? 'Email' : 'Phone'} changed</h4><p class="muted" style="margin-top:6px;max-width:360px">We will use <b style="color:var(--ink)">${esc(v)}</b> from now on. We told your old ${chgLabel(c.kind)} about this change.</p></div>`;
+          foot = `<button class="btn btn-primary btn-block" data-act="closeModal">Done</button>`;
+        }
+        return dialog({ title, body, foot });
+      }
+      let coolTimer = null;
+      function startCool() {
+        S.chg.cool = 60;
+        clearInterval(coolTimer);
+        coolTimer = setInterval(() => {
+          if (!S.chg || S.chg.step !== 'code' || S.chg.cool <= 0) return clearInterval(coolTimer);
+          S.chg.cool--;
+          Kit.render();
+        }, 1000);
+      }
+      function openChange(kind) {
+        S.chg = { kind, step: 'enter', value: '', err: '', code: blankCode(), left: 5, cool: 0 };
+        S.modal = { kind: 'contact' };
+      }
+
+      /* ---------- Security ---------- */
+      function securityBody() {
+        const channels = [
+          ['sms', 'phone', 'SMS', ME.phoneMasked],
+          ['email', 'mail', 'Email', ME.emailMasked],
+        ];
+        const signin = `<section class="card" aria-labelledby="h-si">
+    <div class="card-head"><h3 id="h-si">Sign-in</h3></div>
+    <div class="item"><span class="ico">${icon('key', 17)}</span><div class="item-body"><div class="t">Password</div><div class="d">Changed ${fmtDate(ME.pwdChanged)}</div></div><div class="acts"><a class="btn btn-secondary btn-sm" href="../../keycloak-theme/prototype/login.prototype.html#update-password">Change</a></div></div>
+    <div class="item" style="display:block">
+      <div class="row" style="gap:14px;margin-bottom:12px"><span class="ico">${icon('msg', 17)}</span><div class="item-body"><div class="t" id="ch-l">Sign-in code</div><div class="d">If one channel fails, we use the other.</div></div></div>
+      <div class="ch-grid" role="radiogroup" aria-labelledby="ch-l">${channels
+        .map(
+          ([k, ic, l, m]) =>
+            `<label class="choice"><input type="radio" name="codeChannel" value="${k}" data-bind="codeChannel" ${S.codeChannel === k ? 'checked' : ''}/><span class="dot"></span><span>${l} <span class="muted" style="font-weight:400">${m}</span></span></label>`,
+        )
+        .join('')}</div>
+    </div>
+    <div class="item"><span class="ico">${icon('finger', 17)}</span><div class="item-body"><div class="t">Passkey</div><div class="d">${S.passkey ? 'Set up on this device' : 'Sign in with your fingerprint or face'}</div></div><div class="acts">${S.passkey ? `<span class="badge badge-ok">${icon('check', 12, 2.4)}On</span>` : '<button class="btn btn-secondary btn-sm" data-act="passkey">Set up</button>'}</div></div>
+  </section>`;
+        const live = S.sessions.filter((s) => !s.revoked && !s.current).length;
+        const devices = `<section class="card" aria-labelledby="h-dev">
+    <div class="card-head"><h3 id="h-dev" style="flex:1">Devices</h3>${live ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger)" data-act="modal" data-arg="signoutAll">Sign out everywhere else</button>` : ''}</div>
+    ${S.sessions
+      .map(
+        (s) =>
+          `<div class="item ${s.revoked ? 'gone' : ''}"><span class="ico">${icon(s.ico, 17)}</span><div class="item-body"><div class="t">${s.dev}</div><div class="d">${s.where} · ${s.revoked ? 'Signed out just now' : s.last}</div></div>${s.current ? '<span class="item-tag"><span class="badge badge-ok">This device</span></span>' : ''}<div class="acts">${s.current ? '' : s.revoked ? `<span class="badge">${icon('logout', 12)}Signed out</span>` : `<button class="btn btn-secondary btn-sm" data-act="revoke" data-arg="${s.id}" aria-label="Sign out of ${s.dev}">Sign out</button>`}</div></div>`,
+      )
+      .join('')}
+    <div class="card-foot small muted">Don't recognise a device? Sign it out and change your password.</div>
+  </section>`;
+        const ps = 8;
+        const rows = S.activity.slice((S.actPage - 1) * ps, S.actPage * ps);
+        const activity = `<section class="card" aria-labelledby="h-act">
+    <div class="card-head"><h3 id="h-act">Recent activity</h3></div>
+    ${rows
+      .map((a) => {
+        const [t, ic, tone, how] = ACT[a.kind];
+        return `<div class="item"><span class="ico ${tone}">${icon(ic, 16)}</span><div class="item-body"><div class="t">${t}</div><div class="d">${[how, a.dev, a.where].filter(Boolean).join(' · ')}</div></div><span class="when">${fmtDateTime(a.at)}</span></div>`;
+      })
+      .join('')}
+    ${Kit.pager({ page: S.actPage, pageSize: ps, total: S.activity.length, act: 'actPage' })}
+  </section>`;
+        return `<div class="stack-lg">${signin}${devices}${activity}</div>`;
+      }
+
+      /* ---------- Notifications ---------- */
+      function notificationsBody() {
+        const rows = [
+          ['calendar', 'Filing reminders', '30, 14 and 7 days before a declaration is due'],
+          ['msg', 'Clarifications and decisions', 'When your Commission writes to you'],
+          ['users', 'Access requests', 'When someone asks to see your declaration'],
+          ['file', 'Acknowledgement slips', 'After you submit'],
+        ];
+        return `<div class="stack-lg">
+    <section class="card" aria-labelledby="h-nt">
+      <div class="card-head"><h3 id="h-nt">Messages</h3></div>
+      ${rows.map(([ic, t, d]) => `<div class="item"><span class="ico">${icon(ic, 17)}</span><div class="item-body"><div class="t">${t}</div><div class="d">${d}</div></div><span class="item-tag"><span class="badge">${icon('lock', 12)}SMS and email</span></span></div>`).join('')}
+      <div class="card-foot small muted" style="justify-content:space-between"><span>These are legal notices, so they are always on.</span><a class="link" data-act="go" data-arg="profile">Contact details</a></div>
+    </section>
+    <section class="card" aria-labelledby="h-lang">
+      <div class="card-head"><h3 id="h-lang">Language</h3></div>
+      <div class="card-pad">${Kit.choices(
+        'lang',
+        [
+          { k: 'en', label: 'English' },
+          { k: 'sw', label: 'Kiswahili' },
+        ],
+        'c2',
+      )}<p class="small muted" style="margin-top:10px">For the portal, messages and letters.</p>
+      ${S.lang === 'sw' ? `<div style="margin-top:12px">${note('<b>Prototype.</b> Kiswahili copy is not written yet (spec 03/04 non-goal). The real app would switch all text.')}</div>` : ''}</div>
+    </section>
+  </div>`;
+      }
+
+      /* ---------- Who accessed my declaration (#269) and RegisterTimeline (#268) ---------- */
+      const MONTHS_LONG = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      const monthOf = (d) => {
+        const x = new Date(d);
+        return `${MONTHS_LONG[x.getMonth()]} ${x.getFullYear()}`;
+      };
+      const obadge = (o) =>
+        `<span class="badge badge-${OUTCOME[o].kind}">${icon(OUTCOME[o].icon, 12, 2.4)} ${OUTCOME[o].label}</span>`;
+      /* One register entry -> icon, tone, title and actor text. Covers every kind in access.yaml RegisterEntry. */
+      function regText(e) {
+        const r = e.req;
+        const c = e.copy;
+        const code = (r ? r.comm : c.v.comm).code;
+        const lea = r && r.kind === 'lea';
+        const who = r ? (lea ? r.agency : r.applicant) : '';
+        const officer = `Access officer, ${code}`;
+        const T = (icon, tone, title, actor) => ({ icon, tone, title, actor });
+        switch (e.kind) {
+          case 'received':
+            return T(
+              'inbox',
+              '',
+              lea ? 'Law-enforcement request received' : 'Access request received',
+              lea ? who : `Applicant ${who}`,
+            );
+          case 'verified':
+            return T(
+              'userCheck',
+              '',
+              lea ? 'Agency request verified' : 'Applicant identity verified',
+              officer,
+            );
+          case 'notified':
+            return T(
+              'bell',
+              'brand',
+              `${who} asked to see your declaration`,
+              `Notified by ${code}`,
+            );
+          case 'representations':
+            return T('send', '', STANCE[r.reps.stance], 'You');
+          case 'decided': {
+            if (lea) return T('shield', 'info', `${who} was granted access`, `Case ${r.caseRef}`);
+            const o = r.decision.outcome;
+            return T(
+              o === 'deny' ? 'ban' : 'stamp',
+              o === 'deny' ? 'danger' : o === 'grant' ? 'ok' : 'warn',
+              o === 'grant'
+                ? `${code} granted access`
+                : o === 'partial-grant'
+                  ? `${code} partially granted access`
+                  : `${code} denied access`,
+              officer,
+            );
+          }
+          case 'package-issued':
+            return T(
+              'box',
+              '',
+              `Package issued to ${who}`,
+              `Watermarked · download until ${fmtDate(r.pkg.expiresAt)}`,
+            );
+          case 'downloaded':
+            return T(
+              'download',
+              '',
+              `${who} downloaded the package`,
+              lea ? 'Law-enforcement agency' : 'Applicant',
+            );
+          case 'expired':
+            return T('clock', '', 'Download period ended', '');
+          case 'withdrawn':
+            return T('undo', '', `${who} withdrew the request`, 'Applicant');
+          case 'cannot-identify':
+            return T('userX', '', 'Officer could not be identified', officer);
+          case 'self-access':
+            return c.rep
+              ? T(
+                  'stamp',
+                  '',
+                  `${c.rep} obtained a certified copy for you`,
+                  `Your representative · ${c.delivery}`,
+                )
+              : T('stamp', '', 'You obtained a certified copy', `You · version ${c.v.version}`);
+        }
+      }
+      // List density: full-width rows, grouped by month. Accessible list with time text.
+      function regRow(e, { arg = null, tag = '' } = {}) {
+        const t = regText(e);
+        const inner = `<span class="rt-ico ${t.tone}">${icon(t.icon, 16)}</span><span class="rt-b"><span class="rt-t">${esc(t.title)}</span><span class="rt-s">${t.actor ? `${esc(t.actor)}<span class="ms-sep"> · </span>` : ''}<span class="mono ms-br">${e.ref}</span></span>${tag ? `<span class="rt-tag">${tag}</span>` : ''}</span><time datetime="${e.at}"><span class="sr-only">${fmtDateTime(e.at)}</span><span aria-hidden="true">${fmtDate(e.at)}</span></time>`;
+        return `<li class="rt-e">${arg != null ? `<button class="rt-row" data-act="regOpen" data-arg="${arg}">${inner}<span class="rt-chev">${icon('right', 16)}</span></button>` : `<div class="rt-row">${inner}</div>`}</li>`;
+      }
+      function regList(rows, argOf, tagOf) {
+        let out = '';
+        let month = '';
+        let buf = [];
+        const flush = () => {
+          if (buf.length)
+            out += `<h3 class="rt-month">${month}</h3><ol class="rt">${buf.join('')}</ol>`;
+          buf = [];
+        };
+        rows.forEach((e) => {
+          const m = monthOf(e.at);
+          if (m !== month) {
+            flush();
+            month = m;
+          }
+          buf.push(regRow(e, { arg: argOf ? argOf(e) : null, tag: tagOf ? tagOf(e) : '' }));
+        });
+        flush();
+        return out;
+      }
+      // Compact density: vertical timeline for one request (drawers, side cards).
+      function regCompact(list) {
+        return `<ol class="timeline" aria-label="Register entries">${list
+          .map((e) => {
+            const t = regText(e);
+            return `<li><span class="tl-ico ${t.tone}">${icon(t.icon, 14)}</span><div><div class="tl-t">${esc(t.title)}</div><div class="tl-s">${t.actor ? esc(t.actor) + ' · ' : ''}<time datetime="${e.at}">${fmtDateTime(e.at)}</time></div></div></li>`;
+          })
+          .join('')}</ol>`;
+      }
+      const activeReq = () =>
+        reqs().find(
+          (r) =>
+            r.kind === 'form-k' &&
+            !r.decision &&
+            !r.withdrawnAt &&
+            !r.reps &&
+            new Date(r.windowEndsAt) > TODAY,
+        );
+      const footNote = (text, tip, label) =>
+        `<p class="small muted foot-note">${icon('lock', 14)}<span>${text}</span>${Kit.tip(tip, { label })}</p>`;
+
+      function whoAccessedBody() {
+        const all = register();
+        if (!all.length)
+          return `<div class="card">${Kit.empty('No one has accessed your declaration', 'Requests, decisions, downloads and certified copies will show here.', { icon: 'eye' })}</div>`;
+        const counts = { all: all.length };
+        all.forEach((e) => (counts[group(e)] = (counts[group(e)] || 0) + 1));
+        const f = S.wa.filter;
+        const list = f === 'all' ? all : all.filter((e) => group(e) === f);
+        const act = activeReq();
+        const callout = act
+          ? `<div class="callout callout-warn wa-callout">${icon('bell', 17)}<div style="flex:1">${esc(act.applicant)} asked to see your declaration. Respond by ${fmtDate(act.windowEndsAt)}.</div><a class="btn btn-secondary btn-sm" href="${AFTER}#access-request">Respond</a></div>`
+          : '';
+        const chips = `<div class="chips" role="group" aria-label="Filter">${FILTERS.map(([k, l]) => `<button class="chip ${f === k ? 'on' : ''}" data-act="waFilter" data-arg="${k}" aria-pressed="${f === k}">${l}<span class="n">${counts[k] || 0}</span></button>`).join('')}</div>`;
+        const { pageSize: ps } = S.wa;
+        const p = Math.min(S.wa.page, Math.max(1, Math.ceil(list.length / ps)));
+        const rows = list.slice((p - 1) * ps, p * ps);
+        return `${callout}${chips}
+    <div class="card">${
+      rows.length
+        ? regList(rows, (e) => all.indexOf(e))
+        : Kit.empty('Nothing here', 'No entries of this kind.', {
+            icon: 'filter',
+            action:
+              '<button class="btn btn-secondary btn-sm" data-act="waFilter" data-arg="all">Show all</button>',
+          })
+    }${list.length ? Kit.pager({ page: p, pageSize: ps, total: list.length, act: 'waPage' }) : ''}</div>
+    ${footNote('Entries cannot be changed.', 'Access requests show from when you were notified. Law-enforcement requests show once access is granted. Staff names are not shown.', 'What shows here')}`;
+      }
+
+      function reqState(r) {
+        if (r.withdrawnAt) return '<span class="badge">Withdrawn</span>';
+        if (r.decision) return obadge(r.decision.outcome);
+        if (r.reps?.stance !== 'consent' && new Date(r.windowEndsAt) > TODAY)
+          return '<span class="badge badge-warn">Waiting for your response</span>';
+        return '<span class="badge badge-info">Under decision</span>';
+      }
+      function regDrawer() {
+        const e = register()[S.modal.id];
+        if (!e) return '';
+        const kv = (k, v) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+        if (e.kind === 'self-access') {
+          const c = e.copy;
+          return drawer({
+            title: 'Certified copy',
+            body: `<div class="kv" style="grid-template-columns:1fr">
+        ${kv('Declaration', `${c.v.type}, version ${c.v.version}<div class="small muted mono" style="font-weight:400">${c.v.ref}</div>`)}
+        ${kv('Issued', fmtDateTime(c.at))}
+        ${kv('Obtained by', c.rep ? `${esc(c.rep)}, your representative<div class="small muted" style="font-weight:400">${esc(c.delivery)}</div>` : 'You, on Adili Online')}
+        ${kv('Classification', `<span class="badge">${icon('lock', 12)} Restricted</span>`)}
+      </div>`,
+            foot: `<a class="btn btn-primary" href="${DOCS}#certified-copy" target="_blank" rel="noopener">${icon('download', 16)} Download</a>`,
+          });
+        }
+        const r = e.req;
+        const lea = r.kind === 'lea';
+        const d = r.decision;
+        const rows = lea
+          ? [
+              kv('Agency', esc(r.agency)),
+              kv('Case reference', `<span class="mono">${esc(r.caseRef)}</span>`),
+              kv('Scope granted', esc(scopeText(r.scope))),
+              kv(
+                'Decision',
+                `${obadge('grant')} <span class="small muted">${fmtDate(d.at)}</span>`,
+              ),
+            ]
+          : [
+              kv('Applicant', esc(r.applicant)),
+              kv('Purpose', esc(r.purpose)),
+              kv('Scope asked', esc(scopeText(r.scope))),
+              kv(
+                'Your response',
+                r.reps
+                  ? `${STANCE[r.reps.stance]} <span class="small muted">${fmtDate(r.reps.at)}</span>`
+                  : new Date(r.windowEndsAt) > TODAY
+                    ? `Due by ${fmtDate(r.windowEndsAt)}`
+                    : 'None',
+              ),
+              kv(
+                'Decision',
+                activeReq()?.ref === r.ref
+                  ? 'Not yet'
+                  : `${reqState(r)}${d ? ` <span class="small muted">${fmtDate(d.at)}</span>` : ''}`,
+              ),
+              d && d.outcome === 'partial-grant'
+                ? kv('Scope granted', esc(scopeText(d.granted)))
+                : '',
+              d && d.grounds.length
+                ? kv('Grounds', d.grounds.map((g) => esc(GROUNDS[g])).join('<br/>'))
+                : '',
+              d ? kv('Reasons', `<span style="font-weight:400">${esc(d.reasons)}</span>`) : '',
+            ];
+        const asc = entriesFor(r).sort((a, b) => new Date(a.at) - new Date(b.at));
+        const act = activeReq()?.ref === r.ref;
+        return drawer({
+          title: lea ? 'Law-enforcement request' : 'Access request',
+          sub: `<span class="mono">${r.ref}</span> · ${r.comm.code}`,
+          body: `<div class="kv" style="grid-template-columns:1fr">${rows.join('')}</div>
+      <h4 class="section-title" style="font-size:14.5px;margin:22px 0 10px">Timeline</h4>${regCompact(asc)}`,
+          foot: act
+            ? `<a class="btn btn-primary" href="${AFTER}#access-request">Respond by ${fmtDate(r.windowEndsAt)}</a>`
+            : '',
+        });
+      }
+
+      /* ---------- Certified copies (#269) ---------- */
+      const CC_PAGE = 5;
+      function copiesBody() {
+        const vs = versionsList();
+        const p = Math.min(S.cc.page, Math.max(1, Math.ceil(vs.length / CC_PAGE)));
+        const rows = vs
+          .slice((p - 1) * CC_PAGE, p * CC_PAGE)
+          .map((v) => {
+            const st = S.cc.by[v.id];
+            const label = `${v.type}, version ${v.version}`;
+            const act = !st
+              ? `<button class="btn btn-secondary btn-sm" data-act="ccRequest" data-arg="${v.id}" aria-label="Request certified copy of ${label}">Request certified copy</button>`
+              : st.status === 'pending'
+                ? `<button class="btn btn-secondary btn-sm" disabled aria-live="polite"><span class="spinner dark"></span> Preparing…</button>`
+                : st.status === 'failed'
+                  ? `<button class="btn btn-secondary btn-sm" data-act="ccRequest" data-arg="${v.id}">${icon('refresh', 15)} Try again</button>`
+                  : `<a class="btn btn-secondary btn-sm" href="${DOCS}#certified-copy" target="_blank" rel="noopener" aria-label="Download certified copy of ${label}">${icon('download', 15)} Download</a>`;
+            const extra =
+              st?.status === 'issued'
+                ? `<div class="d cc-ok">${icon('check', 13, 2.4)} Certified ${fmtDate(st.at)}</div>`
+                : st?.status === 'failed'
+                  ? `<div class="d" style="color:var(--danger);font-weight:500">We could not prepare the copy. Try again.</div>`
+                  : '';
+            return `<div class="item cc"><span class="ico">${icon('file', 17)}</span><div class="item-body"><div class="t">${v.type} <span class="muted" style="font-weight:400">· version ${v.version}</span>${v.inForce ? '' : ' <span class="badge" style="margin-left:4px">Superseded</span>'}</div><div class="d"><span class="mono ms-br">${v.ref}</span><span class="ms-sep"> · </span><span class="nowrap ms-br">Submitted ${fmtDate(v.submittedAt)}</span></div>${extra}</div><div class="acts">${act}</div></div>`;
+          })
+          .join('');
+        return `<div class="card">${rows}${Kit.pager({ page: p, pageSize: CC_PAGE, total: vs.length, act: 'ccPage' })}</div>
+    ${footNote('Restricted, signed PDF. Each copy shows in Who accessed.', 'A certified copy is the version exactly as you submitted it, signed by your Commission. Anyone you give it to can check it with its QR code.', 'About certified copies')}`;
+      }
+
+      /* ---------- RegisterTimeline reference: every kind (#268, declarant copy) ---------- */
+      function kindsBody() {
+        const [arq2, lea, arq1, denied, withdrawn] = seedReqs();
+        const v = versionsList()[0];
+        const hid = '<span class="badge">Not shown to declarants</span>';
+        const unknown = {
+          ref: 'ARQ-TSC-2026-0000044-9',
+          kind: 'form-k',
+          comm: TSC,
+          applicant: 'Otieno Wekesa',
+        };
+        const sample = [
+          { kind: 'received', at: '2026-07-18T16:02', req: arq1, hidden: true },
+          { kind: 'verified', at: '2026-07-19T09:15', req: arq1, hidden: true },
+          { kind: 'notified', at: arq1.notifiedAt, req: arq1 },
+          { kind: 'representations', at: arq1.reps.at, req: arq1 },
+          { kind: 'decided', at: arq1.decision.at, req: arq1 },
+          { kind: 'decided', at: denied.decision.at, req: denied },
+          { kind: 'package-issued', at: arq1.pkg.issuedAt, req: arq1 },
+          { kind: 'downloaded', at: arq1.pkg.downloads[0], req: arq1 },
+          { kind: 'expired', at: arq1.pkg.expiresAt, req: arq1 },
+          { kind: 'withdrawn', at: withdrawn.withdrawnAt, req: withdrawn },
+          { kind: 'cannot-identify', at: '2026-08-11T10:00', req: unknown, hidden: true },
+          { kind: 'decided', at: lea.decision.at, req: lea },
+          { kind: 'self-access', at: '2026-06-03T10:15', copy: { v } },
+          {
+            kind: 'self-access',
+            at: '2026-08-14T11:30',
+            copy: { v, rep: 'Mary Kennedy', delivery: 'Collected at TSC House' },
+          },
+        ].map((e) => ({ ...e, ref: e.req ? e.req.ref : v.ref }));
+        return `<div class="proto-note" style="margin-bottom:16px">Prototype: RegisterTimeline, every kind in declarant copy. List density above, compact density below.</div>
+    <div class="card"><ol class="rt">${sample.map((e) => regRow(e, { tag: e.hidden ? hid : '' })).join('')}</ol></div>
+    <div class="card card-pad" style="margin-top:20px">${regCompact(entriesFor(arq1).sort((a, b) => new Date(a.at) - new Date(b.at)))}</div>`;
+      }
+
+      /* ---------- actions ---------- */
+      const actions = {
+        retry: () => {
+          S.st = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.st = 'ok';
+            Kit.render();
+          }, 900);
+        },
+        openChange: (k) => {
+          openChange(k);
+          Kit.render();
+          setTimeout(() => document.getElementById('f-chg-value')?.focus(), 30);
+        },
+        chgBack: () => {
+          S.chg.step = 'enter';
+          S.chg.codeErr = null;
+          Kit.render();
+        },
+        sendCode: () => {
+          const c = S.chg;
+          const v = String(c.value || '').trim();
+          const isEmail = c.kind === 'email';
+          c.err = '';
+          if (isEmail) {
+            if (!v) c.err = 'Enter your new email.';
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
+              c.err = 'Enter an email like name@example.com.';
+            else if (v.toLowerCase() === S.email) c.err = 'This is already your email.';
+            else if (v.toLowerCase() === 'taken@example.com')
+              c.err = 'Another Adili account uses this email. Use a different one.';
+          } else {
+            const d = v.replace(/\D/g, '').replace(/^0/, '');
+            if (!d) c.err = 'Enter your new phone number.';
+            else if (!/^[17]\d{8}$/.test(d))
+              c.err = 'Enter a Kenyan mobile number, like 712 345 678.';
+            else if ('+254 ' + d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') === S.phone)
+              c.err = 'This is already your phone number.';
+            else if (d === '700000000')
+              c.err = 'Another Adili account uses this number. Use a different one.';
+            else c.value = d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+          }
+          if (c.err) return Kit.render();
+          c.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            c.busy = false;
+            c.step = 'code';
+            c.codeErr = null;
+            c.left = 5;
+            c.code = blankCode();
+            startCool();
+            Kit.render();
+            document.querySelector('#layer .otp input')?.focus();
+          }, 700);
+        },
+        resend: () => {
+          S.chg.codeErr = null;
+          S.chg.left = 5;
+          startCool();
+          Kit.toast('New code sent');
+        },
+        verifyCode: (code) => {
+          const c = S.chg;
+          if (!c) return;
+          if (c.codeErr === 'expired') return Kit.render();
+          if (code === '123456') {
+            const isEmail = c.kind === 'email';
+            if (isEmail) {
+              S.email = c.value.toLowerCase();
+              S.emailAt = Kit.TODAY.toISOString();
+            } else {
+              S.phone = '+254 ' + c.value;
+              S.phoneAt = Kit.TODAY.toISOString();
+            }
+            S.activity.unshift({
+              id: 'a' + Date.now(),
+              at: '2026-09-26T10:30',
+              kind: isEmail ? 'email-changed' : 'phone-changed',
+              dev: 'Chrome on Windows',
+              where: 'Eldoret',
+            });
+            c.step = 'done';
+          } else {
+            c.left--;
+            if (c.left <= 0) c.step = 'failed';
+            else c.codeErr = 'wrong';
+          }
+          Kit.render();
+          document.querySelector('#layer .otp input')?.focus();
+        },
+        passkey: () => Kit.toast('Would open passkey setup on this device'),
+        revoke: (id) => {
+          const s = S.sessions.find((x) => x.id === id);
+          s.revoked = true;
+          S.activity.unshift({
+            id: 'a' + Date.now(),
+            at: '2026-09-26T10:30',
+            kind: 'signout-remote',
+            dev: s.dev,
+            where: s.where,
+          });
+          Kit.toast(`Signed out of ${s.dev}`);
+        },
+        signoutAll: () => {
+          const n = S.sessions.filter((s) => !s.current && !s.revoked).length;
+          S.sessions.forEach((s) => {
+            if (!s.current) s.revoked = true;
+          });
+          S.modal = null;
+          Kit.toast(`Signed out of ${plural(n, 'other device')}`);
+        },
+        actPage: (p) => {
+          S.actPage = +p;
+          Kit.render();
+        },
+        waFilter: (k) => {
+          S.wa.filter = k;
+          S.wa.page = 1;
+          Kit.render();
+        },
+        waPage: (p) => {
+          S.wa.page = +p;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+        },
+        regOpen: (i) => {
+          S.modal = { kind: 'reg', id: +i };
+          Kit.render();
+        },
+        ccPage: (p) => {
+          S.cc.page = +p;
+          Kit.render();
+        },
+        // POST /v1/me/certified-copies -> 202 pending; poll until issued or failed (S13).
+        ccRequest: (id) => {
+          S.cc.by[id] = { status: 'pending' };
+          Kit.render();
+          setTimeout(() => {
+            if (S.cc.by[id]?.status !== 'pending') return;
+            if (S.cc.fail) {
+              S.cc.fail = false;
+              S.cc.by[id] = { status: 'failed' };
+              Kit.render();
+              return;
+            }
+            const at = TODAY.toISOString();
+            S.cc.by[id] = { status: 'issued', at };
+            S.self.push({ id: 'sa' + Date.now(), versionId: id, at });
+            Kit.toast('Certified copy ready');
+          }, 2200);
+        },
+      };
+
+      const modals = {
+        contact: contactModal,
+        reg: regDrawer,
+        signoutAll: () => {
+          const n = S.sessions.filter((s) => !s.current && !s.revoked).length;
+          return dialog({
+            title: `Sign out of ${plural(n, 'other device')}?`,
+            icon: 'logout',
+            tint: ['var(--danger-soft)', 'var(--danger)'],
+            body: `<p>Anyone using them will need your password and a code to sign in again. This device stays signed in.</p>`,
+            foot: `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-danger" data-act="signoutAll">Sign out ${plural(n, 'device')}</button>`,
+          });
+        },
+      };
+
+      /* ---------- jumps ---------- */
+      function reset() {
+        Object.assign(S, {
+          st: 'ok',
+          multi: false,
+          email: ME.email,
+          phone: ME.phone,
+          chg: null,
+          modal: null,
+          codeChannel: 'sms',
+          passkey: false,
+          sessions: seedSessions(),
+          activity: seedActivity(),
+          actPage: 1,
+          lang: 'en',
+          ...accessSeed(),
+        });
+      }
+      const at = (screen, fn) => () => {
+        reset();
+        fn && fn();
+        const m = S.modal;
+        Kit.go(screen);
+        if (m) {
+          S.modal = m;
+          Kit.render();
+        }
+      };
+      const regAt = (pick) =>
+        at('who-accessed', () => (S.modal = { kind: 'reg', id: register().findIndex(pick) }));
+      const chgAt = (kind, step, extra = {}) =>
+        at('profile', () => {
+          openChange(kind);
+          Object.assign(
+            S.chg,
+            step === 'enter'
+              ? {}
+              : { value: kind === 'email' ? 'jkennedy@tsc.go.ke' : '722 904 551' },
+            { step },
+            extra,
+          );
+          if (step === 'code') {
+            S.chg.cool = extra.cool ?? 42;
+          }
+        });
+
+      const jumps = [
+        ['profile', '#74 Profile'],
+        ['j-multi', '#74 Profile: two Commissions', at('profile', () => (S.multi = true))],
+        ['j-loading', '#74 Profile: loading', at('profile', () => (S.st = 'loading'))],
+        ['j-error', '#74 Profile: error', at('profile', () => (S.st = 'error'))],
+        ['j-chg-enter', 'Change email: enter', chgAt('email', 'enter')],
+        [
+          'j-chg-taken',
+          'Change email: in use',
+          chgAt('email', 'enter', {
+            value: 'taken@example.com',
+            err: 'Another Adili account uses this email. Use a different one.',
+          }),
+        ],
+        ['j-chg-sent', 'Change phone: code sent', chgAt('phone', 'code')],
+        [
+          'j-chg-wrong',
+          'Change phone: wrong code',
+          chgAt('phone', 'code', { codeErr: 'wrong', left: 4, cool: 0 }),
+        ],
+        [
+          'j-chg-expired',
+          'Change email: code expired',
+          chgAt('email', 'code', { codeErr: 'expired', cool: 0 }),
+        ],
+        ['j-chg-failed', 'Change email: failed', chgAt('email', 'failed')],
+        [
+          'j-chg-done',
+          'Change email: verified',
+          at('profile', () => {
+            openChange('email');
+            S.email = 'jkennedy@tsc.go.ke';
+            S.chg.step = 'done';
+          }),
+        ],
+        ['security', 'Security'],
+        [
+          'j-revoked',
+          'Security: device signed out',
+          at('security', () => (S.sessions[1].revoked = true)),
+        ],
+        [
+          'j-signout-all',
+          'Security: sign out everywhere',
+          at('security', () => (S.modal = { kind: 'signoutAll' })),
+        ],
+        [
+          'j-signout-done',
+          'Security: signed out everywhere',
+          at('security', () => S.sessions.forEach((s) => !s.current && (s.revoked = true))),
+        ],
+        ['j-act-p2', 'Security: activity page 2', at('security', () => (S.actPage = 2))],
+        ['notifications', 'Notifications'],
+        ['j-sw', 'Notifications: Kiswahili', at('notifications', () => (S.lang = 'sw'))],
+        ['who-accessed', '#269 Who accessed: register timeline'],
+        ['j-wa-p2', '#269 Who accessed: page 2', at('who-accessed', () => (S.wa.page = 2))],
+        [
+          'j-wa-lea',
+          '#269 Who accessed: law enforcement (from grant)',
+          at('who-accessed', () => (S.wa.filter = 'lea')),
+        ],
+        [
+          'j-wa-copies',
+          '#269 Who accessed: certified copies (self-access)',
+          at('who-accessed', () => (S.wa.filter = 'copy')),
+        ],
+        [
+          'j-wa-active',
+          '#269 Request detail: waiting for your response',
+          regAt((e) => e.ref === ARQ2),
+        ],
+        [
+          'j-wa-partial',
+          '#269 Request detail: partially granted, downloaded',
+          regAt((e) => e.ref === ARQ1 && e.kind === 'decided'),
+        ],
+        [
+          'j-wa-denied',
+          '#269 Request detail: denied',
+          regAt((e) => e.ref === 'ARQ-TSC-2026-0000039-K' && e.kind === 'decided'),
+        ],
+        ['j-wa-lea-d', '#269 Request detail: law-enforcement grant', regAt((e) => e.ref === LEA1)],
+        [
+          'j-wa-rep',
+          '#269/#302 Certified copy via representative',
+          regAt((e) => e.kind === 'self-access' && e.copy.rep),
+        ],
+        [
+          'j-wa-multi',
+          '#269 Who accessed: two Commissions',
+          at('who-accessed', () => (S.multi = true)),
+        ],
+        ['j-wa-empty', '#269 Who accessed: empty', at('who-accessed', () => (S.wa.empty = true))],
+        [
+          'j-wa-loading',
+          '#269 Who accessed: loading',
+          at('who-accessed', () => (S.st = 'loading')),
+        ],
+        ['j-wa-error', '#269 Who accessed: error', at('who-accessed', () => (S.st = 'error'))],
+        ['certified-copies', '#269 Certified copies'],
+        [
+          'j-cc-preparing',
+          '#269 Certified copy: preparing',
+          at('certified-copies', () => {
+            S.cc.by['v-tsc-1'] = { status: 'pending' };
+            setTimeout(() => {
+              if (S.cc.by['v-tsc-1']?.status !== 'pending') return;
+              S.cc.by['v-tsc-1'] = { status: 'issued', at: TODAY.toISOString() };
+              S.self.push({ id: 'sa-j', versionId: 'v-tsc-1', at: TODAY.toISOString() });
+              Kit.toast('Certified copy ready');
+            }, 2500);
+          }),
+        ],
+        [
+          'j-cc-ready',
+          '#269 Certified copy: ready to download',
+          at('certified-copies', () => {
+            S.cc.by['v-tsc-1'] = { status: 'issued', at: TODAY.toISOString() };
+            S.self.push({ id: 'sa-j', versionId: 'v-tsc-1', at: TODAY.toISOString() });
+          }),
+        ],
+        [
+          'j-cc-failed',
+          '#269 Certified copy: could not prepare',
+          at('certified-copies', () => (S.cc.by['v-tsc-1'] = { status: 'failed' })),
+        ],
+        [
+          'j-cc-multi',
+          '#269 Certified copies: two Commissions, page 2',
+          at('certified-copies', () => {
+            S.multi = true;
+            S.cc.page = 2;
+          }),
+        ],
+        ['register-kinds', '#268 RegisterTimeline: every kind'],
+      ];
+
+      document.addEventListener('keydown', (e) => {
+        const el = e.target.closest?.('[role=button][data-act]');
+        if (el && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          el.click();
+        }
+      });
+      Kit.mount({
+        app: 'portal',
+        start: 'profile',
+        home: 'profile',
+        screens,
+        modals,
+        actions,
+        jumps,
+        reset: () => {
+          reset();
+          Kit.go('profile');
+        },
+        onBind: (path, v) => {
+          if (path === 'codeChannel') {
+            S.activity.unshift({
+              id: 'a' + Date.now(),
+              at: '2026-09-26T10:30',
+              kind: 'channel-changed',
+              dev: 'Chrome on Windows',
+              where: 'Eldoret',
+            });
+            setTimeout(() =>
+              Kit.toast(`Sign-in codes will go to your ${v === 'sms' ? 'phone' : 'email'}`),
+            );
+          }
+          if (path === 'lang')
+            setTimeout(() =>
+              Kit.toast(v === 'sw' ? 'Language set to Kiswahili' : 'Language set to English'),
+            );
+          if (path === 'chg.value' && S.chg?.err) {
+            S.chg.err = '';
+          }
+        },
+        coverage: [
+          {
+            ticket: 74,
+            title: 'Signed-in declarant views: profile from GET /v1/me/declarant (S18)',
+            screens: ['profile', 'j-multi', 'j-loading', 'j-error'],
+            note: 'Commission(s), OFR with copy, roster record summary, verified contacts, onboarded date. Designation and reporting entity are not in DeclarantProfile yet (spec gap).',
+          },
+          {
+            ticket: 76,
+            title: 'Directory: /v1/me/declarant (backend)',
+            screens: ['profile'],
+            note: 'Non-visual. 404 for non-declarants is not reachable from the portal.',
+          },
+          {
+            ticket: 0,
+            title: 'Contact change with OTP to the new contact',
+            screens: [
+              'j-chg-enter',
+              'j-chg-taken',
+              'j-chg-sent',
+              'j-chg-wrong',
+              'j-chg-expired',
+              'j-chg-failed',
+              'j-chg-done',
+            ],
+            note: 'Designed ahead of spec. Assumes Keycloak step-up first and write-back to the roster record (source declarant).',
+          },
+          {
+            ticket: 0,
+            title: 'Sign-in and security: code channel, password, passkey, devices, activity',
+            screens: ['security', 'j-revoked', 'j-signout-all', 'j-signout-done', 'j-act-p2'],
+            note: 'Designed ahead of spec (ADR-004 point 9: our app owns security settings).',
+          },
+          {
+            ticket: 0,
+            title: 'Notifications and language',
+            screens: ['notifications', 'j-sw'],
+            note: 'Designed ahead of spec. Reminders go on both channels (spec 04); preferences are a spec 04 non-goal, so all are shown as always on.',
+          },
+          {
+            ticket: 269,
+            title: 'Portal: Who accessed my declaration and certified copies',
+            screens: [
+              'who-accessed',
+              'j-wa-p2',
+              'j-wa-lea',
+              'j-wa-copies',
+              'j-wa-active',
+              'j-wa-partial',
+              'j-wa-denied',
+              'j-wa-lea-d',
+              'j-wa-rep',
+              'j-wa-multi',
+              'j-wa-empty',
+              'j-wa-loading',
+              'j-wa-error',
+              'certified-copies',
+              'j-cc-preparing',
+              'j-cc-ready',
+              'j-cc-failed',
+              'j-cc-multi',
+            ],
+            note: 'Visibility per S12: Form K from notification, LEA from grant; received, verified and cannot-identify are never shown. Commission review reads (ADR-008 audit) are not part of the spec 10 register and were removed. Request certified copy -> Preparing -> Download (S13). Empty-state copy is not given by the spec (written here). Access request detail and respond form: declarant-after-submission.prototype.html.',
+          },
+          {
+            ticket: 268,
+            title: 'UI primitives round 12: RegisterTimeline (declarant view)',
+            screens: ['register-kinds', 'who-accessed', 'j-wa-partial'],
+            note: 'Every RegisterEntry kind with icon and copy, in list density (grouped by month, ol with time text) and compact density (vertical timeline). Console copy is in apps/console/prototype/10-access.prototype.html.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

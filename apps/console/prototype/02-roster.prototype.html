@@ -1,0 +1,4349 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what should the reporting officer's Roster workspace (overview, import wizard, import history and reports, records, flagged officers and exits, API access) look like, in every state? Covers tickets #32 #34 #37 #40 #43 #46 #49 #52 #55 #75 (console part). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Roster (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      code.c {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 0.9em;
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: var(--sunken);
+        color: var(--ink);
+        white-space: nowrap;
+      }
+      .callout code.c {
+        background: rgba(255, 255, 255, 0.6);
+      }
+      .callout b {
+        font-weight: 600;
+      }
+      .callout .btn {
+        margin-top: 10px;
+      }
+
+      /* tooltip */
+      .tip {
+        position: relative;
+        display: inline-flex;
+        outline: none;
+        border-radius: var(--r);
+      }
+      .tip:focus-visible {
+        box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.18);
+      }
+      .tip .tip-t {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        right: 0;
+        z-index: 25;
+        background: #1c1c1c;
+        color: #fff;
+        font-size: 12.5px;
+        font-weight: 500;
+        line-height: 1.35;
+        padding: 7px 10px;
+        border-radius: 8px;
+        width: max-content;
+        max-width: 260px;
+        opacity: 0;
+        transform: translateY(3px);
+        pointer-events: none;
+        transition:
+          opacity 0.12s,
+          transform 0.12s;
+      }
+      .tip.left .tip-t {
+        right: auto;
+        left: 0;
+      }
+      .tip:hover .tip-t,
+      .tip:focus .tip-t,
+      .tip:focus-within .tip-t {
+        opacity: 1;
+        transform: none;
+      }
+      .tip .btn[disabled] {
+        pointer-events: none;
+      }
+
+      /* progress bar */
+      .pbar {
+        height: 10px;
+        border-radius: 10px;
+        background: var(--sunken);
+        box-shadow: inset 0 0 0 1px var(--line);
+        overflow: hidden;
+      }
+      .pbar > i {
+        display: block;
+        height: 100%;
+        background: var(--ink);
+        border-radius: 10px;
+        transition: width 0.6s ease;
+      }
+      .pbar.sm {
+        height: 6px;
+      }
+      .pbar.ok > i {
+        background: var(--ok);
+      }
+      .pbar.danger > i {
+        background: var(--danger);
+      }
+      .pbar.ind > i {
+        width: 32%;
+        animation: ind 1.3s infinite ease-in-out;
+      }
+      @keyframes ind {
+        from {
+          transform: translateX(-110%);
+        }
+        to {
+          transform: translateX(330%);
+        }
+      }
+      .prog-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 14px;
+        margin-top: 8px;
+      }
+      .prog-meta b {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* stepper as list */
+      ol.hstep {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      ol.hstep li.st button {
+        all: unset;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        border-radius: 8px;
+        padding: 2px 4px 2px 2px;
+      }
+      ol.hstep li.st button:hover .lab {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      ol.hstep li.st button:focus-visible {
+        box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.18);
+      }
+      ol.hstep li.st.future {
+        color: #a3a19d;
+      }
+      ol.hstep li.st.locked {
+        color: var(--muted);
+      }
+      ol.hstep li.st.cur.failed .n {
+        background: var(--danger);
+      }
+      .wiz-card {
+        margin-top: 20px;
+      }
+      .wiz-foot {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 16px 20px;
+        border-top: 1px solid var(--line);
+      }
+      @container app (min-width: 700px) {
+        .wiz-foot {
+          padding: 16px 24px;
+        }
+      }
+
+      /* drop zone */
+      .drop.big {
+        padding: 40px 20px;
+        gap: 10px;
+      }
+      .drop.over {
+        border-color: var(--ink);
+        background: var(--brand-softer);
+      }
+      .drop.err {
+        border-color: #e7a39d;
+      }
+      .drop.disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .drop .t {
+        font-weight: 600;
+        font-size: 15.5px;
+      }
+      .drop .h {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .field-err {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        color: var(--danger);
+        font-size: 14px;
+        font-weight: 500;
+        margin-top: 10px;
+      }
+      .field-err svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .filebox {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-input);
+      }
+      .filebox .fi {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--ok-soft);
+        color: var(--ok);
+        flex: none;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .filebox .fi.csv {
+        background: #eaf1fb;
+        color: #1f4f96;
+      }
+      .filebox .nm {
+        font-weight: 500;
+        font-size: 14.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* prototype-only simulation panel */
+      .simbar {
+        margin-top: 18px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #151515;
+        color: #ddd;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: 12.5px;
+      }
+      .simbar .lbl {
+        color: #ffb48f;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        margin-right: 4px;
+      }
+      .simbar button {
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 7px;
+        border: 0;
+        background: #2a2a2a;
+        color: #fff;
+        font-size: 12.5px;
+        cursor: pointer;
+      }
+      .simbar button:hover {
+        background: #3a3a3a;
+      }
+
+      /* banner */
+      .banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: var(--r);
+        background: #eaf1fb;
+        color: #1f4f96;
+        font-size: 14px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+      }
+      .banner .spinner {
+        border-color: rgba(31, 79, 150, 0.2);
+        border-top-color: #1f4f96;
+        flex: none;
+      }
+      .banner .link {
+        color: #1f4f96;
+        text-decoration-color: rgba(31, 79, 150, 0.4);
+      }
+      .banner.audit {
+        background: var(--ai-soft);
+        color: #43299f;
+      }
+
+      /* overview */
+      .ov-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 20px;
+        align-items: start;
+      }
+      @container app (min-width: 1000px) {
+        .ov-grid {
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+        }
+      }
+      .tile .v small {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        letter-spacing: 0;
+      }
+      .tile .tl {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .tile-link {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--ink);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        border: 0;
+        background: none;
+        padding: 0;
+      }
+      .tile-link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      /* ---------- coverage (#301) ---------- */
+      .cov-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .cov-meta .select {
+        width: auto;
+        height: 38px;
+        font-size: 14px;
+      }
+      .sbar {
+        display: flex;
+        height: 8px;
+        border-radius: 99px;
+        overflow: hidden;
+        background: var(--sunken);
+        min-width: 100px;
+      }
+      .sbar i {
+        display: block;
+        height: 100%;
+      }
+      .sbar i.s {
+        background: var(--ok);
+      }
+      .sbar i.p {
+        background: #7aa7e0;
+      }
+      .legend {
+        display: inline-flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-left: auto;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: var(--sunken);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+      }
+      .legend i.s {
+        background: var(--ok);
+        box-shadow: none;
+      }
+      .legend i.p {
+        background: #7aa7e0;
+        box-shadow: none;
+      }
+      .late {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .table tfoot td {
+        font-weight: 600;
+        border-top: 1px solid var(--line);
+        background: #fcfcfb;
+      }
+      .cov-m {
+        display: none;
+      }
+      .citem {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .citem.tot {
+        background: #fcfcfb;
+        border-bottom: 0;
+      }
+      @container app (max-width: 699px) {
+        .cov-d {
+          display: none;
+        }
+        .cov-m {
+          display: block;
+        }
+        .legend {
+          margin-left: 0;
+        }
+      }
+      .tile.warn {
+        box-shadow: 0 0 0 1px #f0d9a8;
+        background: linear-gradient(180deg, #fffdf8, #fff);
+      }
+      .counts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .counts span b {
+        font-weight: 600;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .linkrow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+      .nextlist .item {
+        cursor: pointer;
+      }
+      .nextlist .item:hover {
+        background: #fcfbfa;
+      }
+
+      /* tables */
+      .table td .mono {
+        font-size: 13.5px;
+      }
+      .table .muted-cell {
+        color: var(--muted);
+      }
+      .table td.err-list div + div {
+        margin-top: 4px;
+      }
+      .table tbody tr.click:focus-visible td {
+        background: #f6f4f1;
+        outline: none;
+      }
+      .table.map td {
+        vertical-align: top;
+      }
+      .card > .table-wrap:first-child {
+        border-top-left-radius: var(--r-lg);
+        border-top-right-radius: var(--r-lg);
+      }
+      .card > .table-wrap:last-child {
+        border-bottom-left-radius: var(--r-lg);
+        border-bottom-right-radius: var(--r-lg);
+      }
+      .arrow {
+        color: var(--muted);
+        display: inline-flex;
+        vertical-align: -3px;
+        margin: 0 6px;
+      }
+      @container app (max-width: 640px) {
+        .table.cards thead {
+          display: none;
+        }
+        .table.cards,
+        .table.cards tbody,
+        .table.cards tr {
+          display: block;
+          width: 100%;
+        }
+        .table.cards tr {
+          position: relative;
+          padding: 12px 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .table.cards tr:last-child {
+          border-bottom: 0;
+        }
+        .table.cards td {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+          border: 0;
+          padding: 3px 16px !important;
+          text-align: right;
+        }
+        .table.cards td[data-l]::before {
+          content: attr(data-l);
+          color: var(--muted);
+          font-size: 12.5px;
+          font-weight: 500;
+          text-align: left;
+          flex: none;
+        }
+        .table.cards td.primary {
+          display: block;
+          text-align: left;
+          font-weight: 600;
+          padding-bottom: 6px !important;
+        }
+        .table.cards td.num {
+          text-align: right;
+        }
+        .table.cards tr:has(td.cb) {
+          padding-left: 34px;
+        }
+        .table.cards td.cb {
+          position: absolute;
+          left: 0;
+          top: 12px;
+          width: auto;
+          padding: 2px 0 0 16px !important;
+        }
+        .table.cards td.hide-card {
+          display: none;
+        }
+        .table.cards td.primary::before {
+          display: none;
+        }
+        .table.cards tr.sel {
+          background: var(--brand-softer);
+        }
+        .table.cards tr.sel td {
+          background: transparent;
+        }
+        .tiles.t3 {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      /* key/value */
+      @container app (min-width: 1000px) {
+        .kv.k5 {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+      }
+      .kv .v .mono {
+        font-size: 14px;
+      }
+      .kv .v .none {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .lockchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        vertical-align: 1px;
+      }
+
+      /* secret / code */
+      .secret {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 4px 4px 12px;
+        border-radius: 10px;
+        background: var(--sunken);
+        box-shadow: inset 0 0 0 1px var(--line);
+        min-height: 44px;
+      }
+      .secret code {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 13.5px;
+        letter-spacing: 0.02em;
+      }
+      .secret .btn {
+        flex: none;
+      }
+      .code {
+        margin: 0;
+        background: #171717;
+        color: #ecebe8;
+        border-radius: 12px;
+        padding: 14px 16px;
+        font:
+          12.5px/1.65 ui-monospace,
+          'SF Mono',
+          Menlo,
+          monospace;
+        overflow-x: auto;
+        white-space: pre;
+      }
+      .code .k {
+        color: #ffb48f;
+      }
+      .code .s {
+        color: #b6e3a8;
+      }
+      .code .c {
+        color: #8d8b87;
+      }
+      .docs-sec h2 {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .docs-sec p {
+        font-size: 14.5px;
+        color: var(--ink-2);
+        margin-top: 6px;
+      }
+      .docs-sec .code {
+        margin-top: 12px;
+      }
+      .toc a {
+        display: block;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--ink-2);
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .toc a:hover {
+        background: var(--sunken);
+        color: var(--ink);
+      }
+
+      .bulkbar {
+        position: sticky;
+        top: 64px;
+        z-index: 12;
+        margin: 12px 16px 0;
+        flex-wrap: wrap;
+      }
+      .bulkbar .btn {
+        height: 34px;
+      }
+      .bulkbar .btn-light {
+        background: #fff;
+        color: var(--ink);
+      }
+      .bulkbar .btn-ghost {
+        color: #ddd;
+      }
+      .bulkbar .btn-ghost:hover {
+        background: #2e2e2e;
+        color: #fff;
+      }
+      details.per {
+        border-radius: var(--r);
+        box-shadow: var(--shadow-input);
+      }
+      details.per summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      details.per summary::-webkit-details-marker {
+        display: none;
+      }
+      details.per[open] summary .chev {
+        transform: rotate(180deg);
+      }
+      details.per .chev {
+        margin-left: auto;
+        color: var(--muted);
+        transition: transform 0.15s;
+        display: flex;
+      }
+      .per-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 170px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 14px;
+        border-top: 1px solid var(--line);
+      }
+      .per-row .input {
+        height: 38px;
+        font-size: 14px;
+      }
+      @container app (max-width: 520px) {
+        .per-row {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .preview-note {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .ws-card {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 18px;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+      }
+      .ws-card:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 4px 14px -6px rgba(0, 0, 0, 0.12);
+      }
+      .ws-card .ico {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+        flex: none;
+      }
+      .prim-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 1000px) {
+        .prim-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .prim-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .sec-h .spacer + .btn,
+      .sec-h .btn {
+        flex: none;
+      }
+      .h-kpis {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .roster-cell .l2 {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-top: 1px;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const {
+        icon,
+        esc,
+        field,
+        input,
+        select,
+        checkbox,
+        dialog,
+        consoleShell,
+        fmtDate,
+        fmtDateTime,
+        num,
+        badge,
+      } = Kit;
+      const TODAY = Kit.TODAY;
+      const TODAY_ISO = '2026-09-26';
+      const pad = (n) => String(n).padStart(2, '0');
+      const P = () => Kit.persona();
+      const isRO = () => P() === 'reporting-officer';
+      const isCA = () => P() === 'commission-admin';
+      const isPA = () => P() === 'platform-admin';
+      const isEACC = () => P() === 'eacc-analyst';
+      const isCommissionRole = () => isRO() || isCA();
+      const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
+      const pctOf = (a, b) => (b ? Math.floor((a / b) * 100) : 0);
+      function rel(iso) {
+        const m = Math.round((TODAY - new Date(iso)) / 60000);
+        if (m < 1) return 'just now';
+        if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+        const d = Math.floor(h / 24);
+        return d === 1 ? 'yesterday' : `${d} days ago`;
+      }
+      const fileSize = (b) =>
+        b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
+      const maskId = (id) => '•'.repeat(Math.max(0, id.length - 3)) + id.slice(-3);
+      const fmtPhone = (p) => (p ? p.replace(/^\+254(\d{3})(\d{3})(\d{3})$/, '+254 $1 $2 $3') : p);
+
+      /* ---------------- demo data ---------------- */
+      const NAMES = [
+        'Mary Wanjiku Kamau',
+        'Brian Otieno Ouma',
+        'Faith Achieng Odhiambo',
+        'Dennis Kiprono Kirui',
+        'Grace Mwende Mutua',
+        'Ali Hassan Abdi',
+        'Lucy Njeri Waweru',
+        'Peter Kamau Njoroge',
+        'Mercy Chebet Rotich',
+        'Kevin Omondi Okoth',
+        'Esther Nduta Wairimu',
+        'James Mutiso Musyoka',
+        'Sharon Atieno Adhiambo',
+        'Collins Barasa Wafula',
+        'Nancy Jeptoo Kiplagat',
+        'Fatuma Mohamed Said',
+        'Joseph Kariuki Mwangi',
+        'Anne Wambui Gathoni',
+        'Victor Ochieng Onyango',
+        'Ruth Nyambura Kimani',
+        'Emmanuel Kiptoo Langat',
+        'Beatrice Akinyi Auma',
+        'Samuel Mugo Githinji',
+        'Moses Wanjala Simiyu',
+        'Amina Halima Noor',
+        'Gideon Koech Cheruiyot',
+        'Jane Muthoni Ndungu',
+        'Paul Onyango Oduor',
+        'Irene Kerubo Moraa',
+        'Stephen Nyaga Mbogo',
+        'Daniel Wekesa Masinde',
+        'Lilian Adhiambo Awino',
+        'Wilson Kibet Yego',
+        'Catherine Mueni Kioko',
+        'Yusuf Abdullahi Hussein',
+        'Martin Gachanja Kinyua',
+        'Rose Njoki Wangari',
+        'Tom Owino Otieno',
+        'Ivy Cherono Jelagat',
+        'Patrick Makau Nzioka',
+        'Agnes Wairimu Kinuthia',
+        'Hillary Kipchumba Too',
+        'Diana Nekesa Wanyama',
+        'Abdi Mohamed Farah',
+        'Josephine Nthenya Mwikali',
+        'George Odhiambo Ogola',
+        'Caroline Jebet Bett',
+        'Francis Mwangi Kuria',
+        'Margaret Akoth Opiyo',
+        'Eric Kimutai Sang',
+        'Purity Kawira Murithi',
+        'Hussein Omar Bakari',
+        'Winnie Chepkoech Maritim',
+        'Robert Nyakundi Ombati',
+        'Salome Wanjiru Macharia',
+        'Isaac Kipkemboi Rono',
+        'Janet Mumbua Musau',
+        'Kennedy Otieno Owuor',
+        'Esther Chepngetich Ruto',
+        'Alex Mutua Kilonzo',
+      ];
+      const ENTITIES = [
+        ['State Department for Public Service', 'publicservice.go.ke'],
+        ['Ministry of Health', 'health.go.ke'],
+        ['Kenya School of Government', 'ksg.ac.ke'],
+        ['Ministry of Interior and National Administration', 'interior.go.ke'],
+        ['State Department for Water and Sanitation', 'water.go.ke'],
+        ['Ministry of Agriculture and Livestock Development', 'kilimo.go.ke'],
+        ['Huduma Kenya Secretariat', 'hudumakenya.go.ke'],
+      ];
+      const DESIG = [
+        'Senior Human Resource Officer',
+        'Principal Administrative Officer',
+        'Assistant Director, Finance',
+        'Accountant I',
+        'ICT Officer II',
+        'Records Management Officer',
+        'Deputy Director, Planning',
+        'Clerical Officer',
+        'Senior Procurement Officer',
+        'Chief Economist',
+      ];
+      const JG = ['M', 'N', 'P', 'L', 'K', 'J', 'Q', 'R', 'S', 'M'];
+      const FLAGGED_IDX = [3, 8, 12, 17, 21, 26, 29, 33, 38, 41, 45, 50, 54, 58];
+      const EXITED_IDX = { 6: '2026-08-31', 31: '2026-07-15', 47: '2026-09-12' };
+      const MISMATCH_IDX = {
+        10: '2026-09-21T09:14:00',
+        23: '2026-09-24T16:02:00',
+        36: '2026-09-25T11:47:00',
+      };
+      function mkRecords() {
+        return NAMES.map((name, i) => {
+          const [first, , last] = name.toLowerCase().split(' ');
+          const ent = ENTITIES[i % ENTITIES.length];
+          const exited = EXITED_IDX[i];
+          const mismatch = MISMATCH_IDX[i];
+          const flagged = FLAGGED_IDX.includes(i);
+          const onboarded = !exited && !mismatch && i % 4 === 1;
+          const nid =
+            i % 9 === 0
+              ? String(1000000 + (((i + 3) * 731977) % 8999999))
+              : String(20000000 + (((i + 1) * 7310431) % 19999999));
+          const hist = flagged
+            ? [
+                { imp: 'impD', outcome: 'updated' },
+                { imp: 'impB', outcome: 'unchanged' },
+                { imp: 'impA', outcome: 'created' },
+              ]
+            : i % 5 === 0
+              ? [
+                  { imp: 'impF', outcome: 'updated' },
+                  { imp: 'impD', outcome: 'updated' },
+                  { imp: 'impB', outcome: 'created' },
+                ]
+              : [
+                  { imp: 'impF', outcome: 'unchanged' },
+                  { imp: 'impB', outcome: 'unchanged' },
+                  { imp: 'impA', outcome: 'created' },
+                ];
+          return {
+            id: 'r' + i,
+            name,
+            i,
+            fileNo: `${2003 + ((i * 7) % 21)}${String((i * 48271 + 1021) % 1000000).padStart(6, '0')}`,
+            nid,
+            desig: DESIG[i % DESIG.length],
+            jg: JG[i % JG.length],
+            entity: ent[0],
+            appt: `${2004 + ((i * 3) % 20)}-${pad((i % 12) + 1)}-${pad(((i * 7) % 27) + 1)}`,
+            email: i % 7 === 2 && !onboarded ? null : `${first}.${last}@${ent[1]}`,
+            emailSrc: i % 7 === 2 && onboarded ? 'declarant' : 'roster',
+            phone:
+              i % 5 === 3 && !onboarded
+                ? null
+                : `+2547${String(10000000 + ((i * 1234577) % 89999999)).padStart(8, '0')}`,
+            phoneSrc: i % 5 === 3 && onboarded ? 'declarant' : 'roster',
+            state: exited ? 'exited' : onboarded ? 'onboarded' : 'not_onboarded',
+            exitDate: exited || null,
+            flagged,
+            flaggedBy: flagged ? 'impF' : null,
+            mismatchAt: mismatch || null,
+            ofr: onboarded
+              ? `OFR-${String(480000 + i * 1373).padStart(7, '0')}-${'HKMQ7ZAX3P'[i % 10]}`
+              : null,
+            onboardedAt: onboarded
+              ? `2026-09-${pad(5 + (i % 20))}T${pad(8 + (i % 9))}:${pad((i * 13) % 60)}:00`
+              : null,
+            source: i % 6 === 0 ? 'api' : 'file',
+            firstSeen: 'impA',
+            lastSeen: flagged ? 'impD' : i % 6 === 0 ? 'impG' : 'impF',
+            updatedAt: flagged
+              ? '2026-09-19T11:52:00'
+              : i % 5 === 0
+                ? '2026-09-25T14:30:00'
+                : '2026-09-02T15:20:00',
+            history:
+              i % 6 === 0 && !flagged ? [{ imp: 'impG', outcome: 'updated' }, ...hist] : hist,
+            kept: null,
+            exitBy: exited ? 'Grace Muthoni' : null,
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+      }
+      const IMPORTS0 = [
+        {
+          id: 'impG',
+          channel: 'api',
+          complete: false,
+          state: 'completed',
+          fileName: null,
+          format: 'json',
+          size: null,
+          total: 240,
+          processed: 240,
+          counts: {
+            accepted: 238,
+            created: 6,
+            updated: 231,
+            unchanged: 1,
+            rejected: 2,
+            flaggedAbsent: 0,
+          },
+          by: { kind: 'client', id: 'roster-psc' },
+          startedAt: '2026-09-26T06:00:04',
+          completedAt: '2026-09-26T06:00:19',
+          failure: null,
+        },
+        {
+          id: 'impF',
+          channel: 'file',
+          complete: true,
+          state: 'completed',
+          fileName: 'psc-roster-2026-09-25.xlsx',
+          format: 'xlsx',
+          size: 4508877,
+          total: 48317,
+          processed: 48317,
+          counts: {
+            accepted: 48286,
+            created: 58,
+            updated: 312,
+            unchanged: 47916,
+            rejected: 31,
+            flaggedAbsent: 14,
+          },
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-25T14:12:40',
+          completedAt: '2026-09-25T14:31:02',
+          failure: null,
+        },
+        {
+          id: 'impE',
+          channel: 'api',
+          complete: false,
+          state: 'completed',
+          fileName: null,
+          format: 'json',
+          size: null,
+          total: 100,
+          processed: 100,
+          counts: {
+            accepted: 98,
+            created: 12,
+            updated: 86,
+            unchanged: 0,
+            rejected: 2,
+            flaggedAbsent: 0,
+          },
+          by: { kind: 'client', id: 'roster-psc' },
+          startedAt: '2026-09-24T06:00:03',
+          completedAt: '2026-09-24T06:00:11',
+          failure: null,
+        },
+        {
+          id: 'impD',
+          channel: 'file',
+          complete: false,
+          state: 'completed',
+          fileName: 'psc-roster-update-sep.csv',
+          format: 'csv',
+          size: 214321,
+          total: 1359,
+          processed: 1359,
+          counts: {
+            accepted: 1350,
+            created: 146,
+            updated: 1204,
+            unchanged: 0,
+            rejected: 9,
+            flaggedAbsent: 0,
+          },
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-19T11:40:12',
+          completedAt: '2026-09-19T11:41:05',
+          failure: null,
+        },
+        {
+          id: 'impC',
+          channel: 'file',
+          complete: false,
+          state: 'failed',
+          fileName: 'psc-roster-update.csv',
+          format: 'csv',
+          size: 198110,
+          total: null,
+          processed: 0,
+          counts: null,
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-18T16:05:40',
+          completedAt: '2026-09-18T16:05:43',
+          failure: { code: 'missing-columns', detail: 'national_id' },
+        },
+        {
+          id: 'impB',
+          channel: 'file',
+          complete: true,
+          state: 'completed',
+          fileName: 'psc-roster-2026-09.xlsx',
+          format: 'xlsx',
+          size: 4491230,
+          total: 48332,
+          processed: 48332,
+          counts: {
+            accepted: 48120,
+            created: 24120,
+            updated: 0,
+            unchanged: 24000,
+            rejected: 212,
+            flaggedAbsent: 0,
+          },
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-02T15:02:10',
+          completedAt: '2026-09-02T15:21:44',
+          failure: null,
+        },
+        {
+          id: 'impA',
+          channel: 'file',
+          complete: true,
+          state: 'failed',
+          fileName: 'psc-roster-2026-09.xlsx',
+          format: 'xlsx',
+          size: 4491230,
+          total: 48332,
+          processed: 24000,
+          counts: {
+            accepted: 48120,
+            created: 24000,
+            updated: 0,
+            unchanged: 0,
+            rejected: 212,
+            flaggedAbsent: 0,
+          },
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-02T10:14:02',
+          completedAt: '2026-09-02T10:26:37',
+          failure: { code: 'internal', detail: '' },
+        },
+      ];
+      // older partial updates between the first import (2 Sep) and the failed one (18 Sep)
+      IMPORTS0.splice(
+        IMPORTS0.findIndex((i) => i.id === 'impB'),
+        0,
+        ...[17, 16, 15, 14, 11, 10, 9, 8, 7, 4, 3].map((d, k) => {
+          const total = 40 + ((d * 37) % 160);
+          const rejected = d % 4 === 0 ? 0 : 1 + (d % 3);
+          const created = 5 + ((d * 7) % 30);
+          return {
+            id: 'impP' + d,
+            channel: 'file',
+            complete: false,
+            state: 'completed',
+            fileName: `psc-roster-update-${pad(d)}-sep.csv`,
+            format: 'csv',
+            size: 6000 + total * 160,
+            total,
+            processed: total,
+            counts: {
+              accepted: total - rejected,
+              created,
+              updated: total - rejected - created,
+              unchanged: 0,
+              rejected,
+              flaggedAbsent: 0,
+            },
+            by: { kind: 'user', id: k % 3 === 2 ? 'Peter Mwangi' : 'Grace Muthoni' },
+            startedAt: `2026-09-${pad(d)}T${pad(9 + (d % 7))}:${pad((d * 11) % 60)}:00`,
+            completedAt: `2026-09-${pad(d)}T${pad(9 + (d % 7))}:${pad(((d * 11) % 60) + 1 > 59 ? 59 : ((d * 11) % 60) + 1)}:00`,
+            failure: null,
+          };
+        }),
+      );
+      const FAIL_REASON = {
+        'missing-columns': (d) =>
+          `the file has no ${d
+            .split(',')
+            .map((c) => c.trim())
+            .join(', ')} column`,
+        internal: () => 'a system error interrupted it',
+        'parse-error': (d) => `row ${d || '8,214'} could not be read`,
+        'storage-error': () => 'the file could not be read from storage',
+        'upload-not-clean': () => 'the file had not passed the security scan',
+      };
+      const REJ = [
+        [['national_id', 'National ID must be 5 to 10 digits.']],
+        [['appointment_date', 'Appointment date 12/01/2027 is in the future.']],
+        [
+          ['email', 'Email address is not valid.'],
+          ['phone', 'Phone number is not a valid Kenyan or international number.'],
+        ],
+        [['personnel_file_number', 'Personnel file number is longer than 30 characters.']],
+        [['personnel_file_number', 'Same personnel file number as row {p}.']],
+        [['national_id', 'Same national ID as row {p}.']],
+        [
+          [
+            'full_name',
+            'This officer has onboarded. Name and national ID cannot change through an import. Contact the helpdesk.',
+          ],
+        ],
+        [['full_name', 'Full name is required.']],
+        [['phone', 'Phone number is not a valid Kenyan or international number.']],
+      ];
+      function rejectedRows(imp, page, size = 50) {
+        const total = imp.counts?.rejected || 0;
+        const out = [];
+        for (let k = page * size; k < Math.min(total, (page + 1) * size); k++) {
+          const row =
+            imp.channel === 'api'
+              ? 3 + k * 41
+              : 14 + k * (imp.id === 'impB' ? 223 : 1511) + (k % 7);
+          const t = REJ[k % REJ.length];
+          const fileNo =
+            k % REJ.length === 3
+              ? '2019/PSC/HRM/0045521/RE-ENGAGED'
+              : k % REJ.length === 7
+                ? `${2008 + (k % 15)}${String(77000 + k * 37).padStart(6, '0')}`
+                : `${2004 + (k % 19)}${String(10233 + k * 911).padStart(6, '0')}`;
+          out.push({
+            row,
+            fileNo,
+            errors: t.map(([f, m]) => [f, m.replace('{p}', num(Math.max(2, row - 311 - k)))]),
+          });
+        }
+        return out;
+      }
+
+      const S = Kit.state({
+        roster: { status: 'imported', expected: 48312, onboarded: 6904, flagged: 14 },
+        imports: JSON.parse(JSON.stringify(IMPORTS0)),
+        records: mkRecords(),
+        wiz: null,
+        rec: { q: '', state: '', flagged: false, mismatch: false, page: 1, load: 'ok' },
+        flag: { sel: [], page: 1, date: TODAY_ISO, per: {}, err: '', fail: false, busy: false },
+        exitOne: { date: TODAY_ISO, err: '' },
+        rep: { page: 1 },
+        hist: { load: 'ok', page: 1 },
+        cov: {
+          cycle: 'initial',
+          q: '',
+          page: 1,
+          load: 'ok',
+          updatedAt: '10:30',
+          refreshing: false,
+          biennialOpen: false,
+        },
+        api: {
+          state: 'active',
+          clientId: 'roster-psc',
+          createdAt: '2026-09-22T09:41:00',
+          createdBy: 'Grace Muthoni',
+          rotatedAt: null,
+          revokedAt: null,
+          lastUsedAt: '2026-09-26T06:00:19',
+          secret: null,
+          reveal: false,
+          busy: false,
+          fromRotate: false,
+        },
+        sim: {
+          freeze: false,
+          failAt: null,
+          startConflict: false,
+          startLimited: false,
+          exitFail: false,
+          mapping: 'ok',
+        },
+        prim: { sel: [], tab: 'all', sel2: '', dz: 'idle' },
+        viewing: false,
+      });
+      function newWiz(step = 'template') {
+        return {
+          step,
+          up: { phase: 'idle', pct: 0, file: null, err: '' },
+          mapping: 'ok',
+          rows: 0,
+          complete: S.roster.status === 'none',
+          importId: null,
+          startErr: null,
+        };
+      }
+      S.wiz = newWiz();
+
+      const imp = (id) => S.imports.find((x) => x.id === id);
+      const running = () =>
+        S.imports.find((x) => x.state === 'processing' || x.state === 'pending');
+      const byLabel = (i) => (i.by.kind === 'client' ? `HR system (${i.by.id})` : i.by.id);
+      const impTitle = (i) =>
+        i.channel === 'api' ? `API batch of ${num(i.total)} rows` : i.fileName;
+      const mismatchCount = () => S.records.filter((r) => r.mismatchAt).length;
+      const flaggedRecs = () => S.records.filter((r) => r.flagged && r.state !== 'exited');
+      const lastComplete = () => S.imports.find((i) => i.complete && i.state === 'completed');
+
+      /* ---------------- shared bits ---------------- */
+      function shell(body, { crumbs = [], active = 'Roster', narrow = false } = {}) {
+        Kit.cfg.navCounts =
+          isCommissionRole() && S.roster.flagged ? { Roster: S.roster.flagged } : {};
+        return consoleShell(
+          `<main class="cpage ${narrow ? 'narrow' : ''}" id="main">${body}</main>`,
+          { crumbs, active },
+        );
+      }
+      const head = (title, sub = '', actions = '') =>
+        `<div class="page-head"><div style="min-width:0"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${actions ? `<div class="actions-r">${actions}</div>` : ''}</div>`;
+      const denied = (what) =>
+        `<div class="callout callout-danger" role="alert">${icon('ban', 18)}<div><b>You do not have access to ${what}.</b></div></div>`;
+      const roCrumbs = (...rest) =>
+        isPA() || isEACC()
+          ? [
+              ['Commissions', 'commission-card'],
+              ['Public Service Commission', 'commission-card'],
+              ...rest,
+            ]
+          : [['Roster', 'overview'], ...rest];
+      const tip = (inner, text, cls = '') =>
+        `<span class="tip ${cls}" tabindex="0">${inner}<span class="tip-t" role="tooltip">${esc(text)}</span></span>`;
+      function pbar(pct, { label = 'Progress', cls = '', ind = false } = {}) {
+        return `<div class="pbar ${cls} ${ind ? 'ind' : ''}" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" ${ind ? '' : `aria-valuenow="${pct}"`}><i style="${ind ? '' : `width:${pct}%`}"></i></div>`;
+      }
+      // Kit.pager in cursor mode (contract lists are cursor-paged) always shows page * pageSize as the
+      // range end; clamp it to the rows actually on the last page.
+      function cursorPager(opts, shownCount) {
+        const html = Kit.pager(opts);
+        const from = (opts.page - 1) * opts.pageSize + 1;
+        return html.replace(
+          /Showing ([\d,]+)-([\d,]+) /,
+          `Showing ${num(from)}-${num(from + shownCount - 1)} `,
+        );
+      }
+      const live = (text) => `<div class="sr-only" aria-live="polite">${esc(text)}</div>`;
+      const stateBadge = (s) =>
+        ({
+          not_onboarded: badge('Not onboarded'),
+          onboarded: badge(`${icon('check', 13, 2.4)} Onboarded`, 'ok'),
+          exited: badge('Exited', 'info'),
+        })[s];
+      const flagBadge = () => badge(`${icon('flag', 12, 2)} Not in latest import`, 'warn');
+      const mismatchBadge = () =>
+        badge(`${icon('alert', 12, 2.2)} Identity check failed`, 'danger');
+      const impStateBadge = (i) =>
+        i.state === 'completed'
+          ? badge(`${icon('check', 13, 2.4)} Completed`, 'ok')
+          : i.state === 'failed'
+            ? badge(`${icon('alert', 13, 2.2)} Failed`, 'danger')
+            : badge(
+                `<span class="spinner dark" style="width:11px;height:11px;border-width:1.5px"></span> Processing`,
+                'info',
+              );
+      const channelBadge = (i) =>
+        i.channel === 'api'
+          ? badge(`${icon('plug', 12, 2)} API`, 'ai')
+          : badge(`${icon('file', 12, 2)} File`);
+      function tplMenu(key, cls = 'btn-secondary') {
+        const open = S.menu === key;
+        return `<div class="menu-wrap"><button class="btn ${cls}" data-act="menu" data-arg="${key}" aria-haspopup="menu" aria-expanded="${open}">${icon('download', 17)} Download template ${icon('down', 15)}</button>${open ? `<div class="menu" role="menu"><button role="menuitem" data-act="dlTemplate" data-arg="csv">${icon('file', 16)} CSV template (.csv)</button><button role="menuitem" data-act="dlTemplate" data-arg="xlsx">${icon('table', 16)} Excel template (.xlsx)</button></div>` : ''}</div>`;
+      }
+      function importBtn(label = 'Import roster') {
+        const r = running();
+        const b = `<button class="btn btn-primary" data-act="startWizard" ${r ? 'disabled aria-disabled="true"' : ''}>${icon('upload', 17)} ${label}</button>`;
+        return r ? tip(b, 'Wait for the current import to finish') : b;
+      }
+      function runningBanner() {
+        const r = running();
+        if (!r) return '';
+        const txt = r.total
+          ? `An import is running: ${num(r.processed)} of ${num(r.total)} rows`
+          : 'An import is running: reading the file';
+        return `<div class="banner" role="status"><span class="spinner"></span><span style="flex:1;min-width:200px">${txt}</span><a class="link" data-act="openRunning">View progress</a></div>`;
+      }
+      function nationalContext() {
+        return `<div class="banner audit" role="note">${icon(isPA() ? 'eye' : 'building', 17)}<span style="flex:1">${isPA() ? 'Records you open are recorded in the audit trail.' : 'Read-only view.'}</span><a class="link" style="color:#43299f" data-act="go" data-arg="commission-card">Back to Commission</a></div>`;
+      }
+
+      /* ---------------- screen: overview (#34, #46) ---------------- */
+      function overview() {
+        if (!isCommissionRole()) {
+          if (isPA() || isEACC()) {
+            return shell(
+              head('Roster') +
+                `<div class="card card-pad" style="max-width:720px"><div class="row" style="align-items:flex-start;gap:14px"><span class="avatar" style="border-radius:10px;background:var(--sunken);color:var(--ink-2)">${icon('building', 18)}</span><div><h3 class="section-title">Rosters belong to each Commission</h3><p class="muted" style="margin-top:4px;font-size:14.5px">See coverage and import history on each Commission's page.</p><div class="linkrow"><a class="btn btn-primary" href="01-commissions.prototype.html#commissions">${icon('building', 17)} Commissions</a><button class="btn btn-secondary" data-act="go" data-arg="commission-card">Roster card</button></div></div></div></div>`,
+              { crumbs: [['Roster', 'overview']] },
+            );
+          }
+          return shell(head('Roster') + denied('the roster'), { crumbs: [['Roster', 'overview']] });
+        }
+        const r = S.roster;
+        const sub = isCA() ? badge(`${icon('lock', 12, 2)} Read-only`) : '';
+        if (r.status === 'error') {
+          return shell(
+            head('Roster', sub) +
+              `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div style="flex:1"><b>Roster could not be loaded</b><div>Check your connection and try again.</div><button class="btn btn-secondary btn-sm" data-act="retryOverview">${icon('refresh', 15)} Retry</button></div></div>`,
+            { crumbs: [['Roster', 'overview']] },
+          );
+        }
+        if (r.status === 'loading') {
+          return shell(
+            head('Roster', sub) +
+              `<div class="tiles t3">${[1, 2, 3].map(() => `<div class="tile"><span class="skeleton" style="width:45%"></span><span class="skeleton" style="width:30%;height:26px;margin-top:6px"></span><span class="skeleton" style="width:60%"></span></div>`).join('')}</div><div class="ov-grid"><div class="card card-pad"><span class="skeleton" style="width:30%"></span><span class="skeleton" style="width:80%;margin-top:14px"></span><span class="skeleton" style="width:60%;margin-top:10px"></span></div><div class="card card-pad"><span class="skeleton" style="width:40%"></span><span class="skeleton" style="width:70%;margin-top:14px"></span></div></div>`,
+            { crumbs: [['Roster', 'overview']] },
+          );
+        }
+        if (r.status === 'none') {
+          const bodyTxt = isRO()
+            ? "Import your Commission's declarant roster to start onboarding. Download the template, fill it from your HR extract, upload it here."
+            : 'Your reporting officer has not imported it yet.';
+          return shell(
+            head('Roster', sub) +
+              runningBanner() +
+              `<div class="card"><div class="empty" style="padding:48px 20px 40px"><div class="art" style="grid-template-columns:44px"><span style="width:44px;height:44px;border-radius:12px;background:var(--brand-soft);color:var(--brand-ink)">${icon('users', 20)}</span></div><h4 style="font-size:18px">No roster yet</h4><p style="max-width:520px;font-size:14.5px">${bodyTxt}</p>
+      <div class="row wrap" style="justify-content:center;margin-top:14px">${tplMenu('tpl-empty')}${isRO() ? importBtn() : ''}</div></div></div>`,
+            { crumbs: [['Roster', 'overview']] },
+          );
+        }
+        const last = S.imports[0];
+        const lc = last.counts;
+        const onbPct = pctOf(r.onboarded, r.expected);
+        const tiles = `<div class="tiles t3">
+    <div class="tile"><span class="k">${icon('users', 15)} Expected declarants</span><span class="v">${num(r.expected)}</span></div>
+    <div class="tile"><span class="k">${icon('userCheck', 15)} Onboarded</span><span class="v">${num(r.onboarded)} <small>${onbPct}%</small></span>${pbar(onbPct, { label: 'Onboarded share of expected declarants', cls: 'sm ok' })}<span class="s">${num(r.expected - r.onboarded)} to go</span></div>
+    <div class="tile ${r.flagged ? 'warn' : ''}"><span class="k">${icon('flag', 15)} Flagged as absent</span><div class="tl"><span class="v">${num(r.flagged)}</span>${r.flagged ? `<button class="tile-link" data-act="go" data-arg="flagged">Review ${icon('right', 14)}</button>` : ''}</div></div>
+  </div>`;
+        const next = [];
+        if (r.flagged)
+          next.push([
+            'flag',
+            `Review ${plural(r.flagged, 'flagged officer', 'flagged officers')}`,
+            'go',
+            'flagged',
+          ]);
+        const lastFileWithRej = S.imports.find(
+          (i) => i.channel === 'file' && i.state === 'completed' && i.counts?.rejected,
+        );
+        if (lastFileWithRej)
+          next.push([
+            'alert',
+            `Fix ${plural(lastFileWithRej.counts.rejected, 'rejected row', 'rejected rows')} from ${fmtDate(lastFileWithRej.startedAt)}`,
+            'go',
+            `import-report|${lastFileWithRej.id}`,
+          ]);
+        if (mismatchCount())
+          next.push([
+            'userX',
+            `${plural(mismatchCount(), 'officer', 'officers')} failed the identity check`,
+            'mismatchFilter',
+            '',
+          ]);
+        if (S.api.state !== 'active' && S.api.state !== 'created')
+          next.push(['key', 'Connect your HR system', 'go', 'api-access']);
+        if (!next.length) next.push(['search', 'Find someone on the roster', 'go', 'records']);
+        const lastCard = `<div class="card"><div class="sec-h"><h3>Last import</h3></div><div class="sec-b stack" style="gap:12px">
+    <div class="row wrap" style="gap:8px">${channelBadge(last)}${last.complete ? badge('Complete roster') : badge('Partial update')}${impStateBadge(last)}</div>
+    <div><div style="font-weight:600;font-size:15.5px">${esc(impTitle(last))}</div><div class="muted small" style="margin-top:2px">${fmtDateTime(last.startedAt)} (${rel(last.startedAt)}) · by ${esc(byLabel(last))}</div></div>
+    ${lc ? `<div class="counts"><span><b>${num(lc.created)}</b> created</span><span><b>${num(lc.updated)}</b> updated</span><span><b>${num(lc.unchanged)}</b> unchanged</span><span><b>${num(lc.rejected)}</b> rejected</span><span><b>${num(lc.flaggedAbsent)}</b> flagged</span></div>` : ''}
+    <div><button class="btn btn-secondary btn-sm" data-act="go" data-arg="import-report|${last.id}">View report ${icon('right', 15)}</button></div>
+  </div></div>`;
+        const nextCard = `<div class="card nextlist"><div class="sec-h"><h3>Next steps</h3></div>${next.map(([ic, t, a, arg]) => `<div class="item" role="link" tabindex="0" data-act="${a}" data-arg="${arg}"><span class="ico">${icon(ic, 17)}</span><div class="item-body"><div class="t">${t}</div></div><span class="muted">${icon('right', 17)}</span></div>`).join('')}</div>`;
+        const links = `<div class="linkrow"><button class="btn btn-secondary btn-sm" data-act="go" data-arg="coverage">${icon('chart', 15)} Coverage</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="records">${icon('list', 15)} Records</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="flagged">${icon('flag', 15)} Flagged officers</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="imports">${icon('clock', 15)} Import history</button><button class="btn btn-secondary btn-sm" data-act="go" data-arg="api-access">${icon('key', 15)} API access</button></div>`;
+        return shell(
+          head('Roster', sub, `${tplMenu('tpl')}${isRO() ? importBtn() : ''}`) +
+            runningBanner() +
+            tiles +
+            links +
+            `<div class="ov-grid">${lastCard}${nextCard}</div>`,
+          { crumbs: [['Roster', 'overview']] },
+        );
+      }
+
+      /* ---------------- screen: coverage per reporting entity (#301, spec 05 slice #299) ---------------- */
+      const COV_ENTITIES = [
+        'State Department for Public Service',
+        'Ministry of Health',
+        'Kenya School of Government',
+        'Ministry of Interior and National Administration',
+        'State Department for Water and Sanitation',
+        'Ministry of Agriculture and Livestock Development',
+        'Huduma Kenya Secretariat',
+        'The National Treasury',
+        'State Department for Basic Education',
+        'State Department for Higher Education and Research',
+        'State Department for Roads',
+        'State Department for Housing and Urban Development',
+        'Ministry of Lands, Public Works, Housing and Urban Development',
+        'Ministry of Foreign and Diaspora Affairs',
+        'State Department for Immigration and Citizen Services',
+        'Ministry of Environment, Climate Change and Forestry',
+        'Ministry of Energy and Petroleum',
+        'Ministry of Investments, Trade and Industry',
+        'State Department for Labour and Skills Development',
+        'State Department for Youth Affairs and Creative Economy',
+        'State Department for Correctional Services',
+        'State Department for Internal Security and National Administration',
+        'Office of the Attorney-General and Department of Justice',
+        'Ministry of Information, Communications and the Digital Economy',
+        'State Department for Cooperatives',
+        'State Department for Tourism',
+        'Ministry of Mining, Blue Economy and Maritime Affairs',
+        'State Department for Gender and Affirmative Action',
+      ];
+      const COV_CYCLES = [
+        ['initial', 'Initial declarations'],
+        ['final', 'Final declarations'],
+        ['biennial:2027', 'Biennial 2027'],
+      ];
+      // Counts per reporting entity and cycle, as the declarations counts endpoint returns them (#300).
+      // Late = past the due date and not submitted; it overlaps not started and in progress.
+      function covRows(cycle) {
+        if (cycle === 'biennial:2027' && !S.cov.biennialOpen) return [];
+        return COV_ENTITIES.map((name, i) => {
+          const k = i + 1;
+          let expected, submitted, inProgress, late;
+          if (cycle === 'initial') {
+            expected = 6 + ((k * 37) % 58);
+            submitted = Math.round(expected * (0.42 + ((k * 7) % 40) / 100));
+            inProgress = Math.round((expected - submitted) * (0.3 + ((k * 3) % 30) / 100));
+            late = Math.round((expected - submitted) * (0.2 + ((k * 11) % 35) / 100));
+          } else if (cycle === 'final') {
+            expected = (k * 13) % 9;
+            submitted = Math.round(expected * 0.6);
+            inProgress = expected - submitted > 1 ? 1 : 0;
+            late = expected - submitted > 0 && k % 3 === 0 ? 1 : 0;
+          } else {
+            const w = (j) => 300 + ((j * 1733) % 2900);
+            const ws = COV_ENTITIES.reduce((a, _, j) => a + w(j + 1), 0);
+            expected = Math.round((w(k) * S.roster.expected) / ws);
+            submitted = Math.round(expected * (0.08 + ((k * 7) % 18) / 100));
+            inProgress = Math.round(expected * (0.22 + ((k * 5) % 20) / 100));
+            late = 0;
+          }
+          return {
+            name,
+            expected,
+            submitted,
+            inProgress,
+            notStarted: expected - submitted - inProgress,
+            late,
+          };
+        })
+          .filter((r) => r.expected > 0)
+          .map((r, i, arr) => {
+            // Biennial covers the whole roster: make the entity counts add up to the expected declarants.
+            if (cycle !== 'biennial:2027' || i !== 0) return r;
+            const diff = S.roster.expected - arr.reduce((a, x) => a + x.expected, 0);
+            return { ...r, expected: r.expected + diff, notStarted: r.notStarted + diff };
+          });
+      }
+      const covSum = (rows) =>
+        rows.reduce(
+          (a, r) => ({
+            expected: a.expected + r.expected,
+            notStarted: a.notStarted + r.notStarted,
+            inProgress: a.inProgress + r.inProgress,
+            submitted: a.submitted + r.submitted,
+            late: a.late + r.late,
+          }),
+          { expected: 0, notStarted: 0, inProgress: 0, submitted: 0, late: 0 },
+        );
+      function sbar(r) {
+        const p = (n) => (r.expected ? (n / r.expected) * 100 : 0);
+        return `<div class="sbar" role="img" aria-label="${pctOf(r.submitted, r.expected)}% submitted, ${pctOf(r.inProgress, r.expected)}% in progress"><i class="s" style="width:${p(r.submitted)}%"></i><i class="p" style="width:${p(r.inProgress)}%"></i></div>`;
+      }
+      function coverageScreen() {
+        const crumbs = [
+          ['Roster', 'overview'],
+          ['Coverage', 'coverage'],
+        ];
+        if (!isCommissionRole())
+          return shell(
+            head('Coverage') +
+              `<div class="card">${Kit.empty('Page not found', 'This page does not exist or you do not have access to it.', { icon: 'search' })}</div>`,
+            { crumbs },
+          );
+        const c = S.cov;
+        const cyc = COV_CYCLES.find((x) => x[0] === c.cycle);
+        const opt = ([v, l]) =>
+          `<option value="${v}" ${c.cycle === v ? 'selected' : ''}>${l}${v === 'biennial:2027' && !c.biennialOpen ? ' (opens 4 Jul 2027)' : ''}</option>`;
+        const updated = c.refreshing
+          ? `<span class="spinner dark" style="width:12px;height:12px"></span> Updating…`
+          : `Updated ${c.updatedAt}`;
+        const meta = `<div class="cov-meta"><label class="sr-only" for="f-cov-cycle">Cycle</label><select id="f-cov-cycle" class="select" data-bind="cov.cycle" data-rerender>${COV_CYCLES.map(opt).join('')}</select><span class="small muted row" style="gap:6px" aria-live="polite">${updated}<button class="btn btn-ghost icon-btn" style="width:28px;height:28px" data-act="covRefresh" aria-label="Refresh counts" title="Refresh">${icon('refresh', 14)}</button></span></div>`;
+        const title = head('Coverage', '', meta);
+        if (S.roster.status === 'none')
+          return shell(
+            title +
+              `<div class="card">${Kit.empty('No roster yet', 'Coverage appears once the roster is imported.', { icon: 'users', action: isRO() ? importBtn() : '' })}</div>`,
+            { crumbs },
+          );
+        if (c.load === 'error')
+          return shell(
+            title +
+              `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div style="flex:1"><b>Counts could not be loaded</b><div>Check your connection and try again.</div></div><button class="btn btn-secondary btn-sm" data-act="retryCov">${icon('refresh', 15)} Retry</button></div>`,
+            { crumbs },
+          );
+        const loading = c.load === 'loading';
+        const all = loading ? [] : covRows(c.cycle);
+        if (!loading && !all.length)
+          return shell(
+            title +
+              `<div class="card">${Kit.empty(`Nothing due in ${cyc[1]} yet`, c.cycle === 'biennial:2027' ? 'Obligations open on 4 Jul 2027.' : 'No declarants have this obligation right now.', { icon: 'calendar' })}</div>`,
+            { crumbs },
+          );
+        const t = covSum(all);
+        const tile = (k, ic, label, n, cls = '') =>
+          `<div class="tile ${cls}"><span class="k">${icon(ic, 15)} ${label}${k ? Kit.tip(k) : ''}</span>${loading ? '<span class="skeleton" style="width:40%;height:26px;margin-top:4px"></span>' : `<span class="v">${num(n)} <small>${pctOf(n, t.expected)}%</small></span>`}</div>`;
+        const tiles = `<div class="tiles">${tile('', 'minus', 'Not started', t.notStarted)}${tile('A draft exists. Nobody at the Commission can see its content.', 'pencil', 'In progress', t.inProgress)}${tile('', 'check', 'Submitted', t.submitted)}${tile('Past the due date and not submitted. Also counted in Not started or In progress.', 'clock', 'Late', t.late, t.late ? 'warn' : '')}</div>`;
+        const q = c.q.trim().toLowerCase();
+        const rows = all.filter((r) => !q || r.name.toLowerCase().includes(q));
+        const PG = 10;
+        const pages = Math.max(1, Math.ceil(rows.length / PG));
+        const page = Math.min(c.page, pages);
+        const items = rows.slice((page - 1) * PG, page * PG);
+        const toolbar = `<div class="toolbar" role="search"><div class="input-group"><span class="addon">${icon('search', 16)}</span><label class="sr-only" for="f-cov-q">Search reporting entities</label><input id="f-cov-q" class="input" type="search" data-bind="cov.q" data-live value="${esc(c.q)}" placeholder="Reporting entity"/></div><span class="legend"><span><i class="s"></i>Submitted</span><span><i class="p"></i>In progress</span><span><i></i>Not started</span></span></div>`;
+        const head_ = `<thead><tr><th scope="col">Reporting entity</th><th scope="col" class="num">Declarants</th><th scope="col" class="num">Not started</th><th scope="col" class="num">In progress</th><th scope="col" class="num">Submitted</th><th scope="col" class="num">Late</th><th scope="col" style="min-width:150px"><span class="sr-only">Progress</span></th></tr></thead>`;
+        let body;
+        if (loading)
+          body = `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="sr-only">Coverage per reporting entity (loading)</caption>${head_}<tbody>${Kit.skeletonRows(6, 7)}</tbody></table></div>`;
+        else if (!rows.length)
+          body = Kit.empty('No matches', 'Try another name.', {
+            icon: 'search',
+            action: `<button class="btn btn-secondary btn-sm" data-act="covClear">Clear search</button>`,
+          });
+        else {
+          const ft = covSum(rows);
+          const tr = items
+            .map(
+              (r) =>
+                `<tr><td class="primary" style="font-weight:500;white-space:normal;min-width:240px">${esc(r.name)}</td><td class="num">${num(r.expected)}</td><td class="num">${num(r.notStarted)}</td><td class="num">${num(r.inProgress)}</td><td class="num">${num(r.submitted)}</td><td class="num">${r.late ? `<span class="late">${num(r.late)}</span>` : '0'}</td><td>${sbar(r)}</td></tr>`,
+            )
+            .join('');
+          const m = items
+            .map(
+              (r) =>
+                `<div class="citem"><div class="row" style="justify-content:space-between;gap:10px;align-items:flex-start"><span style="font-weight:500">${esc(r.name)}</span><span class="small muted nowrap">${num(r.expected)}</span></div>${sbar(r)}<div class="small muted">${num(r.notStarted)} not started · ${num(r.inProgress)} in progress · ${num(r.submitted)} submitted${r.late ? ` · <span class="late nowrap">${num(r.late)} late</span>` : ''}</div></div>`,
+            )
+            .join('');
+          body = `<div class="table-wrap cov-d"><table class="table"><caption class="sr-only">Declarants per reporting entity for ${esc(cyc[1])}, with totals</caption>${head_}<tbody>${tr}</tbody><tfoot><tr><td>${q ? `Total, ${rows.length} matching` : 'Total'}</td><td class="num">${num(ft.expected)}</td><td class="num">${num(ft.notStarted)}</td><td class="num">${num(ft.inProgress)}</td><td class="num">${num(ft.submitted)}</td><td class="num">${num(ft.late)}</td><td>${sbar(ft)}</td></tr></tfoot></table></div><div class="cov-m">${m}<div class="citem tot"><div class="row" style="justify-content:space-between"><span style="font-weight:600">${q ? `Total, ${rows.length} matching` : 'Total'}</span><span class="small nowrap" style="font-weight:600">${num(ft.expected)}</span></div><div class="small muted">${num(ft.notStarted)} not started · ${num(ft.inProgress)} in progress · ${num(ft.submitted)} submitted · ${num(ft.late)} late</div></div></div>${Kit.pager({ page, pageSize: PG, total: rows.length, act: 'covPage' })}`;
+        }
+        return shell(
+          `${title}${tiles}<div class="card" style="margin-top:16px">${toolbar}${body}</div>`,
+          { crumbs },
+        );
+      }
+
+      /* ---------------- screen: import wizard (#37, #40, #43) ---------------- */
+      const STEPS = [
+        ['template', 'Template'],
+        ['upload', 'Upload'],
+        ['check', 'Check'],
+        ['importing', 'Import'],
+        ['report', 'Report'],
+      ];
+      function stepper(cur, { failed = false } = {}) {
+        const ci = STEPS.findIndex((s) => s[0] === cur);
+        const locked = ci >= 3;
+        const items = STEPS.map(([k, l], i) => {
+          const done = i < ci;
+          const isCur = i === ci;
+          const cls = `st ${done ? 'done' : ''} ${isCur ? 'cur' : ''} ${i > ci ? 'future' : ''} ${done && locked ? 'locked' : ''} ${isCur && failed ? 'failed' : ''}`;
+          const n = `<span class="n">${done ? icon('check', 13, 2.6) : isCur && failed ? icon('x', 13, 2.6) : i + 1}</span><span class="lab">${l}</span>`;
+          const inner =
+            done && !locked
+              ? `<button data-act="wizBackTo" data-arg="${k}" aria-label="Back to step ${i + 1}: ${l}">${n}</button>`
+              : n;
+          return `${i ? '<li class="line" aria-hidden="true"></li>' : ''}<li class="${cls}" ${isCur ? 'aria-current="step"' : ''} ${i > ci ? 'aria-disabled="true"' : ''}>${inner}</li>`;
+        }).join('');
+        return `<nav aria-label="Import steps"><ol class="hstep">${items}</ol></nav>`;
+      }
+      function importScreen() {
+        const w = S.wiz;
+        if (!isRO()) {
+          return shell(
+            head('Import roster') +
+              (isCA()
+                ? `<div class="callout callout-info">${icon('lock', 18)}<div><b>Only the reporting officer can import the roster.</b><button class="btn btn-secondary btn-sm" data-act="go" data-arg="imports">Import history</button></div></div>`
+                : denied('roster imports')),
+            { crumbs: roCrumbs(['Import roster']) },
+          );
+        }
+        const r = running();
+        if (r && w.importId !== r.id && w.step !== 'importing') {
+          w.step = 'importing';
+          w.importId = r.id;
+        }
+        const cur = w.importId ? imp(w.importId) : null;
+        const failed = cur && cur.state === 'failed' && w.step === 'importing';
+        const canCancel = ['template', 'upload', 'check'].includes(w.step);
+        const actions = canCancel
+          ? `<button class="btn btn-ghost" data-act="cancelWizard">Cancel</button>`
+          : '';
+        const body = {
+          template: stepTemplate,
+          upload: stepUpload,
+          check: stepCheck,
+          importing: stepImporting,
+          report: stepReport,
+        }[w.step]();
+        return shell(head('Import roster', '', actions) + stepper(w.step, { failed }) + body, {
+          crumbs: roCrumbs(['Import roster']),
+          narrow: true,
+        });
+      }
+      const COLS = [
+        ['personnel_file_number', true, 'Max 30: letters, digits, / - .', '2011054292'],
+        ['full_name', true, 'As on the payroll', 'Mary Wanjiku Kamau'],
+        ['national_id', true, '5 to 10 digits', '23456781'],
+        ['designation', false, 'Max 100 characters', 'Senior Human Resource Officer'],
+        ['job_group', false, 'Max 10 characters', 'M'],
+        ['reporting_entity', false, 'Max 200 characters', 'Ministry of Health'],
+        ['appointment_date', false, 'YYYY-MM-DD or DD/MM/YYYY, not future', '2014-03-01'],
+        ['email', false, '', 'm.kamau@health.go.ke'],
+        ['phone', false, 'Kenyan or international', '0712 345 678'],
+      ];
+      function stepTemplate() {
+        return `<div class="card wiz-card"><div class="card-pad stack">
+      <div><h2 class="section-title" style="font-size:18px">Get the template</h2><p class="muted" style="margin-top:6px;font-size:14.5px">Fill the template from your HR extract. Nine columns; <code class="c">personnel_file_number</code>, <code class="c">full_name</code> and <code class="c">national_id</code> are required.</p></div>
+      <div class="row wrap" style="gap:8px"><button class="btn btn-secondary" data-act="dlTemplate" data-arg="csv">${icon('download', 17)} Download CSV template</button><button class="btn btn-secondary" data-act="dlTemplate" data-arg="xlsx">${icon('download', 17)} Download XLSX template</button></div>
+      <p class="small muted">${icon('info', 14)} Prefer Excel: it keeps leading zeros.</p>
+    </div>
+    <div class="table-wrap" style="border-top:1px solid var(--line)"><table class="table cards"><caption class="sr-only">Template columns</caption><thead><tr><th scope="col">Column</th><th scope="col">Required</th><th scope="col">Format</th><th scope="col">Example</th></tr></thead><tbody>
+      ${COLS.map(([c, req, f, ex]) => `<tr><td class="primary"><code class="c">${c}</code></td><td data-l="Required">${req ? badge('Required', 'brand') : '<span class="muted">Optional</span>'}</td><td data-l="Format" style="max-width:320px">${f || '<span class="muted">-</span>'}</td><td data-l="Example" class="${/^[\d ]+$/.test(ex) ? 'mono' : ''}" style="white-space:nowrap">${esc(ex)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="wiz-foot"><span class="spacer"></span><button class="btn btn-primary" data-act="wizTo" data-arg="upload">I have a file ${icon('arrowRight', 17)}</button></div></div>`;
+      }
+      function fileBox(f, right = '', sub = '') {
+        const ext = /\.xlsx$/i.test(f.name) ? 'xlsx' : 'csv';
+        return `<div class="filebox"><span class="fi ${ext}">${ext.toUpperCase()}</span><div style="flex:1;min-width:0"><div class="nm">${esc(f.name)}</div><div class="muted small">${fileSize(f.size)}${sub ? ' · ' + sub : ''}</div></div>${right}</div>`;
+      }
+      function stepUpload() {
+        const u = S.wiz.up;
+        let inner = '';
+        const again = `<button class="btn btn-secondary btn-sm" data-act="chooseAnother">${icon('upload', 15)} Choose another file</button>`;
+        if (u.phase === 'idle') {
+          inner = `<div class="drop big ${u.err ? 'err' : ''}" id="dz" data-act="browse">
+        <span class="ico">${icon('upload', 20)}</span>
+        <div class="t">Drop your roster file here or <button class="link" data-act="browse" style="font-size:inherit">browse</button>.</div>
+        <div class="h">CSV (UTF-8) or Excel. Up to 50 MB and 1,000,000 rows.</div>
+        <input type="file" id="file-in" class="sr-only" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-act-change="pickFile" aria-label="Roster file" tabindex="-1" />
+      </div>
+      <div class="row" style="justify-content:center;margin-top:12px"><button class="btn btn-secondary" data-act="browse">${icon('file', 17)} Choose file</button></div>
+      ${u.err ? `<div class="field-err" role="alert">${icon('alert', 16, 2.2)}<span>${esc(u.err)}</span></div>` : ''}`;
+        } else if (u.phase === 'requesting') {
+          inner =
+            fileBox(
+              u.file,
+              `<span class="row small muted" style="gap:8px"><span class="spinner dark"></span>Preparing upload…</span>`,
+            ) + live('Preparing upload');
+        } else if (u.phase === 'uploading') {
+          inner =
+            fileBox(
+              u.file,
+              `<button class="btn btn-ghost btn-sm" data-act="cancelUpload">Cancel</button>`,
+            ) +
+            `<div style="margin-top:14px">${pbar(u.pct, { label: 'Upload progress' })}<div class="prog-meta"><span>Uploading…</span><b>${u.pct}%</b></div></div>` +
+            live(`Upload ${Math.floor(u.pct / 25) * 25}% complete`);
+        } else if (u.phase === 'scanning') {
+          inner =
+            fileBox(
+              u.file,
+              `<span class="row small" style="gap:8px;font-weight:500"><span class="spinner dark"></span>Checking the file…</span>`,
+            ) + live('Checking the file');
+        } else if (u.phase === 'infected') {
+          inner =
+            fileBox(u.file, badge(`${icon('shield', 13)} Failed scan`, 'danger')) +
+            `<div class="callout callout-danger" role="alert" style="margin-top:14px">${icon('alert', 18)}<div><b>This file failed the security scan and was not imported.</b><div>Scan the source computer and export the file again.</div>${again}</div></div>`;
+        } else if (
+          u.phase === 'rejected-type' ||
+          u.phase === 'rejected-size' ||
+          u.phase === 'failed'
+        ) {
+          const msg = {
+            'rejected-type': 'This is not a CSV or Excel file.',
+            'rejected-size': 'The file is over 50 MB.',
+            failed: 'The upload did not complete. Try again.',
+          }[u.phase];
+          inner =
+            fileBox(u.file, badge('Not uploaded', 'danger')) +
+            `<div class="callout callout-danger" role="alert" style="margin-top:14px">${icon('alert', 18)}<div><b>${msg}</b><div class="row wrap" style="gap:8px">${u.phase === 'failed' ? `<button class="btn btn-primary btn-sm" data-act="retryUpload" style="margin-top:10px">${icon('refresh', 15)} Try again</button>` : ''}${again}</div></div></div>`;
+        }
+        const sim =
+          u.phase === 'idle'
+            ? `<div class="simbar" aria-label="Prototype controls"><span class="lbl">Prototype</span>
+      <button data-act="simFile" data-arg="xlsx">Clean XLSX</button><button data-act="simFile" data-arg="csv">CSV, no phone</button><button data-act="simFile" data-arg="noid">No national_id</button>
+      <button data-act="simFile" data-arg="big">63.4 MB</button><button data-act="simFile" data-arg="png">photo.png</button>
+      <button data-act="simFile" data-arg="infected">Infected</button><button data-act="simFile" data-arg="srvtype">Server: wrong type</button><button data-act="simFile" data-arg="srvsize">Server: too big</button><button data-act="simFile" data-arg="expired">Expired</button></div>`
+            : '';
+        return `<div class="card wiz-card"><div class="card-pad"><h2 class="section-title" style="font-size:18px;margin-bottom:16px">Upload your file</h2>${inner}${sim}</div>
+    <div class="wiz-foot"><button class="btn btn-secondary" data-act="wizBackTo" data-arg="template">${icon('left', 17)} Back</button></div></div>`;
+      }
+      const MAPS = {
+        ok: {
+          matched: [
+            ['Personnel File Number', 'personnel_file_number'],
+            ['Full Name', 'full_name'],
+            ['National ID', 'national_id'],
+            ['Designation', 'designation'],
+            ['Job Group', 'job_group'],
+            ['Reporting Entity', 'reporting_entity'],
+            ['Appointment Date', 'appointment_date'],
+            ['Email', 'email'],
+            ['Phone', 'phone'],
+          ],
+          ignored: ['Staff Category', 'Remarks'],
+          optMissing: [],
+          reqMissing: [],
+        },
+        csv: {
+          matched: [
+            ['personnel_file_number', 'personnel_file_number'],
+            ['full_name', 'full_name'],
+            ['national_id', 'national_id'],
+            ['designation', 'designation'],
+            ['job_group', 'job_group'],
+            ['reporting_entity', 'reporting_entity'],
+            ['appointment_date', 'appointment_date'],
+            ['email', 'email'],
+          ],
+          ignored: ['Station'],
+          optMissing: ['phone'],
+          reqMissing: [],
+        },
+        noid: {
+          matched: [
+            ['File No', 'personnel_file_number'],
+            ['Full Name', 'full_name'],
+            ['Designation', 'designation'],
+            ['Job Group', 'job_group'],
+            ['Email', 'email'],
+            ['Phone', 'phone'],
+          ],
+          ignored: ['ID Number (old)'],
+          optMissing: ['reporting_entity', 'appointment_date'],
+          reqMissing: ['national_id'],
+        },
+      };
+      function stepCheck() {
+        const w = S.wiz;
+        const m = MAPS[w.mapping];
+        const blocked = m.reqMissing.length > 0;
+        const rows = [
+          ...m.reqMissing.map(
+            (f) =>
+              `<tr><td class="primary muted-cell" data-l="Your column">Not found</td><td data-l="Roster field"><code class="c">${f}</code> <span class="small muted">required</span></td><td data-l="Status">${badge(`${icon('x', 13, 2.4)} Missing`, 'danger')}</td></tr>`,
+          ),
+          ...m.matched.map(
+            ([s, f]) =>
+              `<tr><td class="primary" data-l="Your column">${esc(s)}</td><td data-l="Roster field"><code class="c">${f}</code></td><td data-l="Status">${badge(`${icon('check', 13, 2.4)} Matched`, 'ok')}</td></tr>`,
+          ),
+          ...m.optMissing.map(
+            (f) =>
+              `<tr><td class="primary muted-cell" data-l="Your column">Not in file</td><td data-l="Roster field"><code class="c">${f}</code> <span class="small muted">optional</span></td><td data-l="Status">${badge('Not in file')}</td></tr>`,
+          ),
+          ...m.ignored.map(
+            (s) =>
+              `<tr><td class="primary" data-l="Your column">${esc(s)}</td><td data-l="Roster field" class="muted-cell">Not imported</td><td data-l="Status">${badge(`${icon('minus', 13, 2.4)} Ignored`)}</td></tr>`,
+          ),
+        ].join('');
+        const startErr =
+          w.startErr === 'conflict'
+            ? `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div><b>Another import is running.</b><div>Start this one when it finishes.</div><button class="btn btn-secondary btn-sm" data-act="openRunning">View progress</button></div></div>`
+            : w.startErr === 'limited'
+              ? `<div class="callout callout-danger" role="alert">${icon('clock', 18)}<div><b>Too many requests.</b><div>Try again in a minute.</div></div></div>`
+              : '';
+        const emptyRoster = S.roster.status === 'none';
+        return `<div class="card wiz-card"><div class="card-pad stack">
+      <h2 class="section-title" style="font-size:18px">Check the columns</h2>
+      ${fileBox(w.up.file, badge(`${icon('shield', 13)} Passed scan`, 'ok'), `<b style="color:var(--ink);font-weight:600">${num(w.rows)} rows</b> detected`)}
+    </div>
+    <div class="table-wrap" style="border-top:1px solid var(--line)"><table class="table map cards"><caption class="sr-only">Column mapping</caption><thead><tr><th scope="col">Your column</th><th scope="col">Roster field</th><th scope="col">Status</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="card-pad stack" style="border-top:1px solid var(--line)">
+      ${blocked ? m.reqMissing.map((f) => `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div><b>A required column is missing.</b><div>Add a <code class="c">${f}</code> column and upload again.</div><button class="btn btn-secondary btn-sm" data-act="wizBackTo" data-arg="upload">${icon('upload', 15)} Upload again</button></div></div>`).join('') : ''}
+      ${m.ignored.length && !blocked ? `<p class="small muted">${icon('info', 14)} To import an ignored column, rename it to match the template.</p>` : ''}
+      <div style="padding:14px;border-radius:12px;background:var(--sunken)">${checkbox('wiz.complete', '<b style="font-weight:600">This file is the complete roster</b>', { disabled: blocked, sub: 'When checked, officers on the current roster who are not in this file are flagged as absent so you can confirm exits. Leave unchecked for partial updates.' })}
+      ${emptyRoster ? `<p class="small muted" style="margin:8px 0 0 32px">Checked because your roster is empty.</p>` : ''}</div>
+      ${startErr}
+    </div>
+    <div class="wiz-foot"><button class="btn btn-secondary" data-act="wizBackTo" data-arg="upload">${icon('left', 17)} Back</button><span class="spacer"></span>${blocked ? tip(`<button class="btn btn-primary" disabled>Start import</button>`, 'Add the missing column first') : `<button class="btn btn-primary" data-act="startImport">${icon('play', 15)} Start import</button>`}</div></div>`;
+      }
+      function progressBlock(i) {
+        if (i.state === 'pending' || i.total == null) {
+          return `${pbar(0, { label: 'Import progress', ind: true })}<div class="prog-meta"><span>Reading the file…</span></div>${live('Reading the file')}`;
+        }
+        const pct = pctOf(i.processed, i.total);
+        return `${pbar(pct, { label: 'Import progress' })}<div class="prog-meta"><span><b>${num(i.processed)}</b> of <b>${num(i.total)}</b> rows</span><b>${pct}%</b></div>${live(`Import ${Math.floor(pct / 25) * 25}% complete`)}`;
+      }
+      const failAlert = (i, withBtn = true) =>
+        `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div>${i.processed ? `<b>The import stopped after ${num(i.processed)} rows: ${esc(FAIL_REASON[i.failure.code](i.failure.detail))}.</b><div>Rows already applied are kept. Fix the file and import again.</div>` : `<b>The import stopped before any rows were applied: ${esc(FAIL_REASON[i.failure.code](i.failure.detail))}.</b><div>Nothing on the roster changed. Fix the file and import again.</div>`}${withBtn ? `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="import-report|${i.id}">View report</button>` : ''}</div></div>`;
+      function stepImporting() {
+        const i = imp(S.wiz.importId);
+        if (!i) return '';
+        if (i.state === 'failed') {
+          return `<div class="card wiz-card"><div class="card-pad stack"><h2 class="section-title" style="font-size:18px">Import stopped</h2>${fileBoxFor(i)}${pbar(pctOf(i.processed, i.total || 1), { label: 'Import progress', cls: 'danger' })}${failAlert(i)}</div><div class="wiz-foot"><button class="btn btn-primary" data-act="importAnother">${icon('upload', 17)} Import a corrected file</button><button class="btn btn-ghost" data-act="go" data-arg="overview">Go to roster</button></div></div>`;
+        }
+        return `<div class="card wiz-card"><div class="card-pad stack"><div class="row wrap" style="gap:10px"><h2 class="section-title" style="font-size:18px">Importing</h2>${i.complete ? tip(badge('Complete roster'), 'Officers not in this file are flagged at the end', 'left') : tip(badge('Partial update'), 'Nobody will be flagged', 'left')}</div>
+    ${fileBoxFor(i)}<div>${progressBlock(i)}</div>
+    <div class="callout callout-info">${icon('info', 17)}<div>You can leave this page; the import continues.</div></div></div>
+    <div class="wiz-foot"><button class="btn btn-secondary" data-act="go" data-arg="overview">Go to roster</button></div></div>`;
+      }
+      function fileBoxFor(i) {
+        if (i.channel === 'api')
+          return `<div class="filebox"><span class="fi" style="background:var(--ai-soft);color:var(--ai)">API</span><div><div class="nm">${esc(impTitle(i))}</div><div class="muted small">From ${esc(byLabel(i))}</div></div></div>`;
+        return fileBox({ name: i.fileName, size: i.size || 0 });
+      }
+      function stepReport() {
+        const i = imp(S.wiz.importId);
+        return `<div class="card wiz-card"><div class="card-pad row" style="align-items:flex-start;gap:14px"><span class="avatar" style="background:var(--ok-soft);color:var(--ok)">${icon('check', 18, 2.4)}</span><div><h2 class="section-title" style="font-size:18px">Import complete</h2><p class="muted small" style="margin-top:4px">${esc(i.fileName)} · ${num(i.total)} rows · finished ${fmtDateTime(i.completedAt)}</p></div></div></div>
+    <div style="margin-top:20px">${reportBody(i, { wizard: true })}</div>
+    <div class="row wrap" style="gap:10px;margin-top:24px"><button class="btn btn-primary" data-act="importAnother">${icon('upload', 17)} Import another file</button><button class="btn btn-secondary" data-act="go" data-arg="overview">Go to roster</button></div>`;
+      }
+      function reportBody(i, { wizard = false } = {}) {
+        const c = i.counts;
+        if (!c) return '';
+        const tile = (k, v, ic = '') =>
+          `<div class="tile"><span class="k">${ic ? icon(ic, 15) : ''} ${k}</span><span class="v">${num(v)}</span></div>`;
+        let out = `<div class="tiles t5">${tile('Created', c.created, 'userPlus')}${tile('Updated', c.updated, 'pencil')}${tile('Unchanged', c.unchanged, 'minus')}${tile('Rejected', c.rejected, 'alert')}${tile('Flagged absent', c.flaggedAbsent, 'flag')}</div>`;
+        if (c.flaggedAbsent > 0)
+          out += `<div class="callout callout-warn" role="status" style="margin-top:16px">${icon('flag', 18)}<div style="flex:1"><b>${plural(c.flaggedAbsent, 'officer was', 'officers were')} not in this file.</b> Review them to confirm exits.${isEACC() ? '' : `<div><button class="btn btn-secondary btn-sm" data-act="go" data-arg="flagged">Review flagged</button></div>`}</div></div>`;
+        if (isEACC()) {
+          out += `<div class="callout callout-info" style="margin-top:16px">${icon('lock', 17)}<div>Rejected row details are only shown to the Commission.</div></div>`;
+          return out;
+        }
+        if (!c.rejected)
+          return (
+            out +
+            `<div class="callout callout-ok" style="margin-top:16px">${icon('check', 18)}<div><b>No rows were rejected.</b></div></div>`
+          );
+        const pages = Math.ceil(c.rejected / 50);
+        const page = Math.min(Math.max(1, S.rep.page), pages);
+        const rows = rejectedRows(i, page - 1);
+        out += `<div class="card" style="margin-top:20px"><div class="sec-h" style="flex-wrap:wrap"><div style="flex:1;min-width:260px"><h3>Rejected rows <span class="muted" style="font-weight:500">${num(c.rejected)}</span></h3>${i.channel === 'api' ? '<p class="small muted" style="margin-top:2px">Fix them in your HR system and send again.</p>' : ''}</div><button class="btn btn-secondary btn-sm" data-act="dlRejected" data-arg="${i.id}">${icon('download', 15)} Download rejected rows (CSV)</button></div>
+    <div class="table-wrap"><table class="table cards"><caption class="sr-only">Rejected rows</caption><thead><tr><th scope="col" class="num" style="width:90px">Row</th><th scope="col">File number</th><th scope="col">Field</th><th scope="col" style="width:48%">Reason</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td class="num tabular" data-l="Row">${num(r.row)}</td><td data-l="File number"><span class="mono" style="word-break:break-all">${esc(r.fileNo)}</span></td><td data-l="Field" class="err-list"><div>${r.errors.map(([f]) => `<div><code class="c">${f}</code></div>`).join('')}</div></td><td data-l="Reason" class="err-list"><div>${r.errors.map(([, m]) => `<div>${esc(m)}</div>`).join('')}</div></td></tr>`).join('')}
+    </tbody></table></div>
+    ${pages > 1 ? cursorPager({ page, pageSize: 50, act: 'repPage', label: 'rows', hasNext: page < pages }, rows.length) : ''}
+  </div>`;
+        return out;
+      }
+
+      /* ---------------- screen: import history (#43, #55) ---------------- */
+      function historyScreen() {
+        if (!(isCommissionRole() || isPA() || isEACC()))
+          return shell(head('Import history') + denied('roster imports'), {
+            crumbs: roCrumbs(['Import history']),
+          });
+        const ctx = isPA() || isEACC() ? nationalContext() : '';
+        const actions = isRO() && S.hist.load === 'ok' ? importBtn() : '';
+        let body;
+        if (S.hist.load === 'loading')
+          body = `<div class="card"><div class="table-wrap"><table class="table"><tbody>${Kit.skeletonRows(6, 6)}</tbody></table></div></div>`;
+        else if (S.hist.load === 'empty')
+          body = `<div class="card">${Kit.empty('No imports yet.', isRO() ? 'File and HR system imports appear here.' : 'Imports appear here once the roster is imported.', { icon: 'clock', action: isRO() ? importBtn() : '' })}</div>`;
+        else {
+          const HPAGE = 10;
+          const hp = S.hist.page;
+          const pageRows = S.imports.slice((hp - 1) * HPAGE, hp * HPAGE);
+          body = `<div class="card"><div class="table-wrap"><table class="table cards"><caption class="sr-only">Imports, newest first</caption><thead><tr><th scope="col">Started</th><th scope="col">Channel</th><th scope="col">Complete?</th><th scope="col">State</th><th scope="col" class="num">Created</th><th scope="col" class="num">Updated</th><th scope="col" class="num">Rejected</th><th scope="col" class="num">Flagged</th><th scope="col">Started by</th></tr></thead><tbody>
+      ${pageRows
+        .map((i) => {
+          const c = i.counts;
+          const dash = '<span class="muted">-</span>';
+          return `<tr class="click" tabindex="0" data-act="go" data-arg="import-report|${i.id}" aria-label="Open report for import of ${fmtDateTime(i.startedAt)}"><td class="primary"><div style="font-weight:500">${fmtDateTime(i.startedAt)}</div><div class="sub truncate" style="max-width:240px">${esc(i.channel === 'api' ? `Batch of ${num(i.total)} rows` : i.fileName)}</div></td><td data-l="Channel">${channelBadge(i)}</td><td data-l="Complete?">${i.complete ? 'Yes' : 'Partial'}</td><td data-l="State">${impStateBadge(i)}${i.state === 'processing' && i.total ? `<div class="sub tabular">${pctOf(i.processed, i.total)}%</div>` : ''}</td><td class="num" data-l="Created">${c && i.state !== 'processing' ? num(c.created) : dash}</td><td class="num" data-l="Updated">${c && i.state !== 'processing' ? num(c.updated) : dash}</td><td class="num" data-l="Rejected">${c && i.state !== 'processing' ? (c.rejected ? `<span style="color:var(--danger);font-weight:600">${num(c.rejected)}</span>` : '0') : dash}</td><td class="num" data-l="Flagged">${c && i.state !== 'processing' ? (c.flaggedAbsent ? `<span style="color:var(--warn);font-weight:600">${num(c.flaggedAbsent)}</span>` : '0') : dash}</td><td data-l="Started by">${i.by.kind === 'client' ? `<div><div class="row" style="gap:6px;display:inline-flex"><span class="muted">${icon('server', 15)}</span><span>HR system</span></div><div class="sub mono">${esc(i.by.id)}</div></div>` : esc(i.by.id)}</td></tr>`;
+        })
+        .join('')}
+    </tbody></table></div>${cursorPager({ page: hp, pageSize: HPAGE, act: 'histPage', label: 'imports', hasNext: hp * HPAGE < S.imports.length }, pageRows.length)}</div>`;
+        }
+        return shell(ctx + head('Import history', '', actions) + body, {
+          crumbs: roCrumbs(['Import history']),
+        });
+      }
+
+      /* ---------------- screen: import report (#43, #55) ---------------- */
+      function reportScreen() {
+        if (!(isCommissionRole() || isPA() || isEACC()))
+          return shell(head('Import report') + denied('roster imports'), {
+            crumbs: roCrumbs(['Imports', 'imports'], ['Report']),
+          });
+        const i = imp(S.params.id) || S.imports[0];
+        const ctx = isPA() || isEACC() ? nationalContext() : '';
+        const meta = `<div class="card card-pad"><div class="kv k3 k5">
+    <div><div class="k">Started</div><div class="v">${fmtDateTime(i.startedAt)}</div></div>
+    <div><div class="k">Completed</div><div class="v">${i.completedAt ? fmtDateTime(i.completedAt) : '<span class="none">Still running</span>'}</div></div>
+    <div><div class="k">Started by</div><div class="v">${i.by.kind === 'client' ? `HR system <span class="mono muted">${esc(i.by.id)}</span>` : esc(i.by.id)}</div></div>
+    <div><div class="k">Source</div><div class="v">${i.channel === 'api' ? 'API batch' : `${(i.format || '').toUpperCase()}, ${fileSize(i.size || 0)}`}</div></div>
+    <div><div class="k">Rows</div><div class="v">${i.total != null ? num(i.total) : '<span class="none">Not read</span>'}</div></div>
+  </div></div>`;
+        let body = '';
+        if (i.state === 'processing' || i.state === 'pending')
+          body = `<div class="card card-pad" style="margin-top:20px">${progressBlock(i)}<div class="callout callout-info" style="margin-top:14px">${icon('info', 17)}<div>You can leave this page; the import continues.</div></div></div>`;
+        if (i.state === 'failed')
+          body =
+            `<div style="margin-top:20px">${failAlert(i, false)}</div>` +
+            (i.counts
+              ? `<p class="small muted" style="margin:18px 0 10px">Counts up to the stop.</p>`
+              : '');
+        if (i.state !== 'processing' && i.state !== 'pending')
+          body += `<div style="margin-top:${i.state === 'failed' ? 0 : 20}px">${reportBody(i)}</div>`;
+        return shell(
+          ctx +
+            `<div class="page-head"><div style="min-width:0"><h1 class="truncate">${esc(impTitle(i))}</h1><div class="row wrap" style="gap:8px;margin-top:8px">${channelBadge(i)}${i.complete ? badge('Complete roster') : badge('Partial update')}${impStateBadge(i)}</div></div>${isRO() && i.state === 'failed' ? `<div class="actions-r">${importBtn('Import a corrected file')}</div>` : ''}</div>` +
+            meta +
+            body,
+          { crumbs: roCrumbs(['Imports', 'imports'], [fmtDate(i.startedAt)]) },
+        );
+      }
+
+      /* ---------------- screen: records (#46, #75) ---------------- */
+      function filterRecords() {
+        const f = S.rec;
+        const q = f.q.trim().toLowerCase();
+        return S.records.filter((r) => {
+          if (f.state && r.state !== f.state) return false;
+          if (f.flagged && !r.flagged) return false;
+          if (f.mismatch && !r.mismatchAt) return false;
+          if (!q) return true;
+          const digits = q.replace(/\s/g, '');
+          if (/^\d{5,10}$/.test(digits) && r.nid === digits) return true;
+          return r.fileNo.toLowerCase().startsWith(q) || r.name.toLowerCase().includes(q);
+        });
+      }
+      const recordsGate = (title, crumbs) => {
+        if (isEACC())
+          return shell(nationalContext() + head(title) + denied('roster records'), { crumbs });
+        if (!(isCommissionRole() || isPA()))
+          return shell(head(title) + denied('roster records'), { crumbs });
+        return null;
+      };
+      function recordsScreen() {
+        const g = recordsGate('Roster records', roCrumbs(['Records']));
+        if (g) return g;
+        const f = S.rec;
+        const ctx = isPA() ? nationalContext() : '';
+        const anyFilter = f.q || f.state || f.flagged || f.mismatch;
+        const toolbar = `<div class="toolbar" role="search">
+    <div class="input-group"><span class="addon">${icon('search', 16)}</span><input id="rec-q" class="input" type="search" data-bind="rec.q" data-live value="${esc(f.q)}" placeholder="File number, name, or a full national ID" aria-label="Search the roster" /></div>
+    <label class="sr-only" for="f-rec-state">State</label>${select(
+      'rec.state',
+      [
+        { v: '', l: 'All states' },
+        { v: 'not_onboarded', l: 'Not onboarded' },
+        { v: 'onboarded', l: 'Onboarded' },
+        { v: 'exited', l: 'Exited' },
+      ],
+      { ph: '', rerender: true },
+    )}
+    <button class="chip ${f.flagged ? 'on' : ''}" data-act="toggleRec" data-arg="flagged" aria-pressed="${f.flagged}">${icon('flag', 14)} Flagged only <span class="n">${flaggedRecs().length}</span></button>
+    <button class="chip ${f.mismatch ? 'on' : ''}" data-act="toggleRec" data-arg="mismatch" aria-pressed="${f.mismatch}">${icon('userX', 14)} Identity check failed <span class="n">${mismatchCount()}</span></button>
+    ${anyFilter ? `<button class="btn btn-ghost btn-sm" data-act="clearRec">Clear</button>` : ''}
+  </div>`;
+        let content;
+        if (f.load === 'loading')
+          content = `<div class="table-wrap"><table class="table"><tbody>${Kit.skeletonRows(8, 7)}</tbody></table></div>`;
+        else if (f.load === 'error')
+          content = `<div class="card-pad"><div class="callout callout-danger" role="alert">${icon('alert', 18)}<div><b>Roster records could not be loaded.</b><div>Check your connection and try again.</div><button class="btn btn-secondary btn-sm" data-act="recRetry">${icon('refresh', 15)} Retry</button></div></div></div>`;
+        else if (f.load === 'empty' || !S.records.length)
+          content = Kit.empty(
+            'No roster records',
+            'Import your roster to see the officers on it here.',
+            { icon: 'users', action: isRO() ? importBtn() : '' },
+          );
+        else {
+          const list = filterRecords();
+          if (!list.length)
+            content = Kit.empty(
+              'No matches',
+              /^\d{1,4}$/.test(f.q.trim()) ||
+                (/^\d+$/.test(f.q.trim()) && !S.records.some((r) => r.nid === f.q.trim()))
+                ? 'National IDs only match in full.'
+                : 'Try another search or clear the filters.',
+              {
+                icon: 'search',
+                action: `<button class="btn btn-secondary btn-sm" data-act="clearRec">Clear filters</button>`,
+              },
+            );
+          else {
+            const RPAGE = 25;
+            const shown = list.slice((f.page - 1) * RPAGE, f.page * RPAGE);
+            content = `<div class="table-wrap"><table class="table cards"><caption class="sr-only">Roster records ordered by name</caption><thead><tr><th scope="col">File number</th><th scope="col">Full name</th><th scope="col">National ID</th><th scope="col">Designation</th><th scope="col">Job group</th><th scope="col">Reporting entity</th><th scope="col">State</th></tr></thead><tbody>
+        ${shown.map((r) => `<tr class="click" tabindex="0" data-act="go" data-arg="record|${r.id}" aria-label="Open ${esc(r.name)}"><td data-l="File number"><span class="mono">${esc(r.fileNo)}</span></td><td class="primary" style="font-weight:500">${esc(r.name)}</td><td data-l="National ID"><span class="mono" aria-hidden="true">${maskId(r.nid)}</span><span class="sr-only">masked, ends in ${r.nid.slice(-3).split('').join(' ')}</span></td><td data-l="Designation" class="hide-card">${esc(r.desig)}</td><td data-l="Job group">${esc(r.jg)}</td><td data-l="Reporting entity" class="hide-card"><span class="truncate" style="display:inline-block;max-width:220px;vertical-align:bottom">${esc(r.entity)}</span></td><td data-l="State"><div class="row wrap" style="gap:6px;justify-content:inherit">${stateBadge(r.state)}${r.flagged ? flagBadge() : ''}${r.mismatchAt ? mismatchBadge() : ''}</div></td></tr>`).join('')}
+      </tbody></table></div>
+      ${cursorPager({ page: f.page, pageSize: RPAGE, act: 'recPage', label: 'records', hasNext: f.page * RPAGE < list.length }, shown.length)}`;
+          }
+        }
+        return shell(
+          ctx +
+            head(
+              'Roster records',
+              `${num(S.roster.expected)} expected declarants${isCA() ? ' · read-only' : ''}`,
+              isRO() ? importBtn() : '',
+            ) +
+            `<div class="card">${toolbar}${content}</div>`,
+          { crumbs: roCrumbs(['Records']) },
+        );
+      }
+
+      /* ---------------- screen: record detail (#46, #49, #75) ---------------- */
+      function recordScreen() {
+        const r = S.records.find((x) => x.id === S.params.id);
+        const g = recordsGate(
+          r ? r.name : 'Roster record',
+          roCrumbs(['Records', 'records'], ['Record']),
+        );
+        if (g) return g;
+        if (!r)
+          return shell(
+            head('Roster record') +
+              `<div class="card">${Kit.empty('Record not found', 'It may belong to another Commission, or the link is wrong.', { icon: 'search', action: '<button class="btn btn-secondary btn-sm" data-act="go" data-arg="records">Back to records</button>' })}</div>`,
+            { crumbs: roCrumbs(['Records', 'records'], ['Not found']) },
+          );
+        const ctx = isPA() ? nationalContext() : '';
+        const locked = r.state === 'onboarded';
+        const lock = locked
+          ? `<span class="lockchip" title="Locked because the officer has onboarded">${icon('lock', 12, 2)} Locked</span>`
+          : '';
+        const none = (t = 'Not provided') => `<span class="none">${t}</span>`;
+        const impLink = (id) => {
+          const i = imp(id);
+          return i
+            ? `<a class="link" data-act="go" data-arg="import-report|${i.id}">${fmtDate(i.startedAt)}</a> <span class="muted small">${i.channel === 'api' ? 'API' : 'file'}</span>`
+            : none('-');
+        };
+        const verified = (src) =>
+          src === 'declarant'
+            ? ` ${badge(`${icon('check', 12, 2.4)} Added by officer`, 'ok')}`
+            : '';
+        const actions =
+          isRO() && r.state !== 'exited'
+            ? `${r.flagged ? `<button class="btn btn-secondary" data-act="keepOne" data-arg="${r.id}">${icon('userCheck', 17)} Mark as still employed</button>` : ''}<button class="btn btn-secondary" data-act="openExitOne" data-arg="${r.id}">${icon('logout', 17)} Confirm exit</button>`
+            : '';
+        const callouts = [
+          r.mismatchAt
+            ? `<div class="callout callout-danger" role="status">${icon('userX', 18)}<div><b>Identity check failed on ${fmtDateTime(r.mismatchAt)}.</b><div>Name or national ID does not match the national register. Correct it in your next import.</div></div></div>`
+            : '',
+          r.flagged
+            ? `<div class="callout callout-warn" role="status">${icon('flag', 18)}<div><b>Not in the complete import of ${fmtDate(imp(r.flaggedBy).startedAt)}.</b>${isRO() ? '' : '<div>The reporting officer decides whether they have left.</div>'}</div></div>`
+            : '',
+          r.state === 'exited'
+            ? `<div class="callout callout-info" role="status">${icon('logout', 18)}<div><b>Exited on ${fmtDate(r.exitDate)}.</b>${r.exitBy ? ` Confirmed by ${esc(r.exitBy)}.` : ''}</div></div>`
+            : '',
+          r.kept
+            ? `<div class="callout callout-ok" role="status">${icon('userCheck', 18)}<div>Marked as still employed by ${esc(r.kept.by)} on ${fmtDate(r.kept.at)}.</div></div>`
+            : '',
+        ].join('');
+        const details = `<div class="card"><div class="sec-b"><div class="kv">
+    <div><div class="k">Personnel file number</div><div class="v mono">${esc(r.fileNo)}</div></div>
+    <div><div class="k">Full name</div><div class="v">${esc(r.name)}${lock}</div></div>
+    <div><div class="k">National ID</div><div class="v"><span class="mono">${esc(r.nid)}</span>${lock}</div></div>
+    <div><div class="k">Designation</div><div class="v">${esc(r.desig)}</div></div>
+    <div><div class="k">Job group</div><div class="v">${esc(r.jg)}</div></div>
+    <div><div class="k">Reporting entity</div><div class="v">${esc(r.entity)}</div></div>
+    <div><div class="k">Appointment date</div><div class="v">${fmtDate(r.appt)}</div></div>
+    <div><div class="k">Email</div><div class="v">${r.email ? esc(r.email) + verified(r.emailSrc) : none()}</div></div>
+    <div><div class="k">Phone</div><div class="v">${r.phone ? `<span class="mono">${esc(fmtPhone(r.phone))}</span>` + verified(r.phoneSrc) : none()}</div></div>
+  </div></div><div class="card-foot"><span class="small muted">${icon('info', 14)} To change these details, correct them in the next import. Identity fields are locked once the officer has onboarded.</span></div></div>`;
+        const status = `<div class="card"><div class="sec-h"><h3>Status</h3></div><div class="sec-b"><dl class="dl" style="margin:0">
+    <div><dt>State</dt><dd>${stateBadge(r.state)}</dd></div>
+    <div><dt>Absent from latest import</dt><dd>${r.flagged ? flagBadge() : 'No'}</dd></div>
+    ${r.state === 'onboarded' ? `<div><dt>Officer reference</dt><dd><span class="row" style="gap:4px;justify-content:flex-end"><span class="ref" style="font-size:14px">${r.ofr}</span><button class="btn btn-ghost icon-btn" style="width:30px;height:30px" data-act="copyOfr" data-arg="${r.ofr}" aria-label="Copy officer reference">${icon('copy', 15)}</button></span></dd></div><div><dt>Onboarded on</dt><dd>${fmtDateTime(r.onboardedAt)}</dd></div>` : ''}
+    ${r.mismatchAt ? `<div><dt>Identity check</dt><dd>${mismatchBadge()}</dd></div>` : ''}
+    <div><dt>Exit date</dt><dd>${r.exitDate ? fmtDate(r.exitDate) : '<span class="muted" style="font-weight:400">-</span>'}</dd></div>
+    <div><dt>Source of last change</dt><dd>${r.source === 'api' ? 'HR system (API)' : 'File import'}</dd></div>
+    <div><dt>First seen</dt><dd>${impLink(r.firstSeen)}</dd></div>
+    <div><dt>Last seen</dt><dd>${impLink(r.lastSeen)}</dd></div>
+    <div><dt>Last updated</dt><dd>${fmtDateTime(r.updatedAt)}</dd></div>
+  </dl></div></div>`;
+        const outcomeBadge = (o) =>
+          ({
+            created: badge('Created', 'ok'),
+            updated: badge('Updated', 'info'),
+            unchanged: badge('Unchanged'),
+          })[o];
+        const history = `<div class="card"><div class="sec-h"><h3>Import history</h3></div><div class="sec-b"><ol class="timeline">${r.history
+          .map((h) => {
+            const i = imp(h.imp);
+            return `<li><span class="tl-ico">${icon(i.channel === 'api' ? 'plug' : 'file', 14)}</span><div><div class="tl-t row wrap" style="gap:8px"><a class="link" data-act="go" data-arg="import-report|${i.id}">${esc(i.channel === 'api' ? 'HR system batch' : i.fileName)}</a>${outcomeBadge(h.outcome)}</div><div class="tl-s">${fmtDateTime(i.startedAt)} · ${esc(byLabel(i))}</div></div></li>`;
+          })
+          .join('')}</ol></div></div>`;
+        const hsub = `<div class="row wrap" style="gap:8px;margin-top:8px"><span class="mono muted">${esc(r.fileNo)}</span>${stateBadge(r.state)}${r.flagged ? flagBadge() : ''}${r.mismatchAt ? mismatchBadge() : ''}</div>`;
+        return shell(
+          ctx +
+            `<div class="page-head"><div style="min-width:0"><h1>${esc(r.name)}</h1>${hsub}</div>${actions ? `<div class="actions-r">${actions}</div>` : ''}</div>` +
+            (callouts ? `<div class="stack" style="margin-bottom:20px">${callouts}</div>` : '') +
+            `<div class="split"><div class="stack-lg">${details}${history}</div><div class="sticky-side">${status}</div></div>`,
+          { crumbs: roCrumbs(['Records', 'records'], [r.name]) },
+        );
+      }
+
+      /* ---------------- screen: flagged (#49) ---------------- */
+      const FPAGE = 10;
+      function flaggedScreen() {
+        const g = recordsGate('Flagged officers', roCrumbs(['Flagged officers']));
+        if (g) return g;
+        const ctx = isPA() ? nationalContext() : '';
+        const list = flaggedRecs();
+        if (!list.length)
+          return shell(
+            ctx +
+              head('Flagged officers') +
+              `<div class="card">${Kit.empty('Nobody is flagged.', 'Officers missing from a complete import appear here.', { icon: 'userCheck', action: `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="overview">Roster overview</button>` })}</div>`,
+            { crumbs: roCrumbs(['Flagged officers']) },
+          );
+        const lc = lastComplete();
+        const sub = `These officers were on the roster but not in the latest complete import (${fmtDate(lc.startedAt)}). Confirm who has left, or mark who is still employed.`;
+        const pages = Math.ceil(list.length / FPAGE);
+        const page = Math.min(Math.max(1, S.flag.page), pages);
+        const rows = list.slice((page - 1) * FPAGE, page * FPAGE);
+        const sel = S.flag.sel;
+        const canAct = isRO();
+        const allOn = rows.every((r) => sel.includes(r.id));
+        const someOn = rows.some((r) => sel.includes(r.id));
+        const bulk =
+          canAct && sel.length
+            ? `<div class="bulkbar" role="region" aria-label="Bulk actions"><b style="font-weight:600">${plural(sel.length, 'officer', 'officers')} selected</b><span class="spacer"></span><button class="btn btn-light btn-sm" data-act="openExits">${icon('logout', 15)} Confirm exits</button><button class="btn btn-secondary btn-sm" data-act="keepSel">${icon('userCheck', 15)} Still employed</button><button class="btn btn-ghost btn-sm" data-act="clearSel">Clear</button></div>`
+            : '';
+        const table = `<div class="table-wrap"><table class="table cards"><caption class="sr-only">Flagged officers, page ${page} of ${pages}</caption><thead><tr>${canAct ? `<th class="cb" scope="col"><input type="checkbox" class="cbx" data-act="selPage" aria-label="Select all on page" ${allOn ? 'checked' : ''} ${!allOn && someOn ? 'data-indet="1"' : ''}/></th>` : ''}<th scope="col">File number</th><th scope="col">Full name</th><th scope="col">National ID</th><th scope="col">Designation</th><th scope="col">Reporting entity</th><th scope="col">State</th><th scope="col">Flagged in</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr class="${sel.includes(r.id) ? 'sel' : ''}">${canAct ? `<td class="cb"><input type="checkbox" class="cbx" data-act="selOne" data-arg="${r.id}" aria-label="Select ${esc(r.name)}" ${sel.includes(r.id) ? 'checked' : ''}/></td>` : ''}<td data-l="File number"><span class="mono">${esc(r.fileNo)}</span></td><td class="primary"><a class="link" data-act="go" data-arg="record|${r.id}">${esc(r.name)}</a></td><td data-l="National ID"><span class="mono" aria-hidden="true">${maskId(r.nid)}</span><span class="sr-only">masked</span></td><td data-l="Designation" class="hide-card">${esc(r.desig)}</td><td data-l="Reporting entity" class="hide-card"><span class="truncate" style="display:inline-block;max-width:200px;vertical-align:bottom">${esc(r.entity)}</span></td><td data-l="State">${stateBadge(r.state)}</td><td data-l="Flagged in" class="nowrap"><a class="link" data-act="go" data-arg="import-report|${r.flaggedBy}">${fmtDate(imp(r.flaggedBy).startedAt)}</a></td></tr>`).join('')}
+  </tbody></table></div>
+  ${cursorPager({ page, pageSize: FPAGE, act: 'flagPage', label: 'officers', hasNext: page < pages }, rows.length)}`;
+        const ro = !canAct
+          ? `<div class="callout callout-info" style="margin-bottom:16px">${icon('lock', 17)}<div>Only the reporting officer can confirm exits.</div></div>`
+          : '';
+        return shell(
+          ctx +
+            head('Flagged officers', sub) +
+            ro +
+            `<div class="card">${bulk}${table}</div>${live(canAct ? `${sel.length} selected` : '')}`,
+          { crumbs: roCrumbs(['Flagged officers']) },
+        );
+      }
+
+      /* ---------------- screen: API access (#52, #55) ---------------- */
+      const TOKEN_EP = 'https://id.adili.go.ke/realms/adili/protocol/openid-connect/token';
+      function copyRow(label, value, { secret = false, act = 'copyVal' } = {}) {
+        const shown = secret && !S.api.reveal ? '•'.repeat(24) : value;
+        return `<div class="field"><span class="label">${label}</span><div class="secret"><code ${secret && !S.api.reveal ? 'aria-label="Client secret, hidden"' : ''}>${esc(shown)}</code>${secret ? `<button class="btn btn-ghost btn-sm" data-act="toggleReveal" aria-pressed="${S.api.reveal}" aria-label="${S.api.reveal ? 'Hide' : 'Show'} client secret">${icon(S.api.reveal ? 'eyeOff' : 'eye', 16)} ${S.api.reveal ? 'Hide' : 'Show'}</button>` : ''}<button class="btn btn-secondary btn-sm" data-act="${act}" data-arg="${esc(label)}|${esc(value)}" aria-label="Copy ${label.toLowerCase()}">${icon('copy', 15)} Copy</button></div></div>`;
+      }
+      function apiScreen() {
+        const crumbs = [['API access']];
+        if (!isCommissionRole())
+          return shell(head('API access') + denied('API credentials'), {
+            crumbs,
+            active: 'API access',
+          });
+        const a = S.api;
+        const docsLink = `<a class="link" data-act="go" data-arg="api-docs">API documentation</a>`;
+        let body = '';
+        if (a.state === 'none') {
+          body = `<div class="card">${Kit.empty('No API credentials', isRO() ? 'Let your HR system update the roster directly. Create credentials and share them with your IT team.' : 'Your reporting officer has not created any yet.', { icon: 'key', action: isRO() ? `<button class="btn btn-primary" data-act="createCred" ${a.busy ? 'disabled' : ''}>${a.busy ? '<span class="spinner"></span> Creating…' : `${icon('plus', 17)} Create credentials`}</button>` : '' })}</div>`;
+        } else if (a.state === 'created') {
+          body = `<div class="card"><div class="card-pad stack">
+      <div class="callout callout-warn" role="alert">${icon('alert', 18)}<div><b>Copy the secret now. It will not be shown again.</b><div>Share it with your IT team securely.</div></div></div>
+      ${copyRow('Client ID', a.clientId)}
+      ${copyRow('Client secret', a.secret, { secret: true })}
+      ${copyRow('Token endpoint', TOKEN_EP)}
+      <div class="field"><span class="label">Scope</span><div><code class="c" style="font-size:14px">roster:write</code></div></div>
+      <p class="small muted">${icon('info', 14)} Send these with the ${docsLink}.</p>
+    </div><div class="wiz-foot"><span class="spacer"></span><button class="btn btn-primary" data-act="doneSecret">Done</button></div></div>`;
+        } else if (a.state === 'active') {
+          body = `<div class="split"><div class="card"><div class="sec-h"><h3>HR system credentials</h3><span class="spacer"></span>${badge(`${icon('dot', 10)} Active`, 'ok')}</div><div class="sec-b"><dl class="dl" style="margin:0">
+        <div><dt>Client ID</dt><dd><span class="row" style="gap:4px;justify-content:flex-end"><span class="mono">${esc(a.clientId)}</span><button class="btn btn-ghost icon-btn" style="width:30px;height:30px" data-act="copyVal" data-arg="Client ID|${a.clientId}" aria-label="Copy client ID">${icon('copy', 15)}</button></span></dd></div>
+        <div><dt>Created</dt><dd>${fmtDate(a.createdAt)}, by ${esc(a.createdBy)}</dd></div>
+        <div><dt>Last rotated</dt><dd>${a.rotatedAt ? `${fmtDateTime(a.rotatedAt)}` : '<span class="muted" style="font-weight:400">Never</span>'}</dd></div>
+        <div><dt>Last used</dt><dd>${a.lastUsedAt ? `<span title="${fmtDateTime(a.lastUsedAt)}">${rel(a.lastUsedAt)}</span><div class="small muted" style="font-weight:400">${fmtDateTime(a.lastUsedAt)}</div>` : '<span class="muted" style="font-weight:400">Never</span>'}</dd></div>
+        <div><dt>Scope</dt><dd><code class="c">roster:write</code></dd></div>
+      </dl></div>
+      ${isRO() ? `<div class="card-foot"><button class="btn btn-secondary" data-act="modal" data-arg="rotate">${icon('refresh', 16)} Rotate secret</button><button class="btn btn-danger-ghost" data-act="modal" data-arg="revoke">${icon('ban', 16)} Revoke access</button></div>` : `<div class="card-foot"><span class="small muted">${icon('lock', 14)} Only the reporting officer can change credentials.</span></div>`}
+      </div>
+      <div class="sticky-side stack"><div class="card card-pad stack" style="gap:10px"><p class="small" style="color:var(--ink-2)">Your HR system sends batches of up to 1,000 rows. Each batch appears in the import history.</p><div><button class="btn btn-secondary btn-sm" data-act="go" data-arg="imports">${icon('clock', 15)} Import history</button></div></div>
+      ${a.lastUsedAt ? '' : `<div class="callout callout-info">${icon('info', 17)}<div>Not used yet.</div></div>`}</div></div>`;
+        } else if (a.state === 'revoked') {
+          body = `<div class="card"><div class="sec-h"><h3>HR system credentials</h3><span class="spacer"></span>${badge(`${icon('ban', 12, 2)} Revoked ${fmtDate(a.revokedAt)}`, 'danger')}</div><div class="sec-b stack" style="gap:12px"><dl class="dl" style="margin:0"><div><dt>Client ID</dt><dd class="mono muted">${esc(a.clientId)}</dd></div><div><dt>Revoked</dt><dd>${fmtDateTime(a.revokedAt)}</dd></div><div><dt>Last used</dt><dd>${a.lastUsedAt ? `${rel(a.lastUsedAt)}` : 'Never'}</dd></div></dl><p class="small muted">Your HR system can no longer update the roster.</p></div>${isRO() ? `<div class="card-foot"><button class="btn btn-primary" data-act="createCred" ${a.busy ? 'disabled' : ''}>${a.busy ? '<span class="spinner"></span> Creating…' : `${icon('plus', 17)} Create credentials`}</button></div>` : ''}</div>`;
+        }
+        const title =
+          a.state === 'created'
+            ? a.fromRotate
+              ? 'New secret created'
+              : 'Credentials created'
+            : 'API access';
+        return shell(
+          head(
+            title,
+            '',
+            a.state !== 'created'
+              ? `<button class="btn btn-ghost" data-act="go" data-arg="api-docs">${icon('file', 16)} API documentation</button>`
+              : '',
+          ) + body,
+          { crumbs, active: 'API access' },
+        );
+      }
+
+      /* ---------------- screen: API documentation (#55) ---------------- */
+      function apiDocsScreen() {
+        const crumbs = [['API access', 'api-access'], ['API documentation']];
+        if (!isCommissionRole())
+          return shell(head('API documentation') + denied('API credentials'), {
+            crumbs,
+            active: 'API access',
+          });
+        const k = (s) => `<span class="k">${s}</span>`;
+        const s = (x) => `<span class="s">${esc(x)}</span>`;
+        const c = (x) => `<span class="c">${esc(x)}</span>`;
+        const secs = [
+          [
+            'auth',
+            'Get a token',
+            `Exchange your client ID and secret for a short-lived token.`,
+            `${k('curl')} -X POST ${s(TOKEN_EP)} \\\n  -d ${s('grant_type=client_credentials')} \\\n  -d ${s('client_id=roster-psc')} \\\n  -d ${s('client_secret=$ADILI_CLIENT_SECRET')}`,
+          ],
+          [
+            'batch',
+            'Send a batch of roster rows',
+            `Send 1 to 1,000 rows. Rows match on personnel file number, so resending updates them. Use a new Idempotency-Key per batch; retry a timeout with the same key and body.`,
+            `${k('curl')} -X POST ${s('https://api.adili.go.ke/v1/commissions/psc/roster/imports')} \\\n  -H ${s('Authorization: Bearer $TOKEN')} \\\n  -H ${s('Idempotency-Key: 7f1c9a2e-5b8d-4e61-9c0a-2d3f4e5a6b7c')} \\\n  -H ${s('Content-Type: application/json')} \\\n  -d ${s("'")}{\n    "channel": "api",\n    "rows": [\n      { "personnelFileNumber": "2011054292", "fullName": "Mary Wanjiku Kamau",\n        "nationalId": "23456781", "designation": "Senior Human Resource Officer",\n        "jobGroup": "M", "reportingEntity": "Ministry of Health",\n        "appointmentDate": "2014-03-01", "email": "m.kamau@health.go.ke",\n        "phone": "0712345678" }\n    ]\n  }${s("'")}\n\n${c('# 202 Accepted')}\n{ "id": "0192f1c4-7d2a-7b31-9e0f-5c6d7e8f9a01", "state": "pending", "channel": "api", ... }`,
+          ],
+          [
+            'report',
+            'Fetch the import report',
+            `Poll until the state is completed or failed. List rejected rows with status=rejected.`,
+            `${k('curl')} ${s('https://api.adili.go.ke/v1/commissions/psc/roster/imports/{importId}')} -H ${s('Authorization: Bearer $TOKEN')}\n${k('curl')} ${s('https://api.adili.go.ke/v1/commissions/psc/roster/imports/{importId}/rows?status=rejected')} -H ${s('Authorization: Bearer $TOKEN')}`,
+          ],
+          [
+            'exit',
+            'Record an exit',
+            `Record an exit by file number. Unknown file number: 404. Already exited: 409.`,
+            `${k('curl')} -X POST ${s('https://api.adili.go.ke/v1/commissions/psc/roster/records/2011054292/exit')} \\\n  -H ${s('Authorization: Bearer $TOKEN')} \\\n  -H ${s('Idempotency-Key: 3b9e2f10-8c4a-4d7e-a1b2-c3d4e5f60718')} \\\n  -H ${s('Content-Type: application/json')} \\\n  -d ${s('\'{ "exitDate": "2026-09-30" }\'')}`,
+          ],
+          [
+            'errors',
+            'Errors',
+            `RFC 9457 problem details. Over 1,000 rows: 400. Missing roster:write scope: 403. Another Commission: 404. Reused Idempotency-Key with a different body: 422.`,
+            `${c('# 400 Bad Request')}\n{\n  "type": "https://api.adili.go.ke/problems/validation",\n  "title": "Some rows are not valid",\n  "status": 400,\n  "errors": [\n    { "path": "rows[3].nationalId", "message": "National ID must be 5 to 10 digits." },\n    { "path": "rows[7].appointmentDate", "message": "Appointment date is in the future." }\n  ]\n}`,
+          ],
+          [
+            'limits',
+            'Rate limits',
+            `Every response has limit headers. On 429, wait RateLimit-Reset seconds.`,
+            `RateLimit-Limit: 60\nRateLimit-Remaining: 0\nRateLimit-Reset: 23\n\n${c('# 429 Too Many Requests')}\n{ "type": "https://api.adili.go.ke/problems/rate-limited", "title": "Too many requests", "status": 429,\n  "detail": "Wait 23 seconds before the next request." }`,
+          ],
+        ];
+        return shell(
+          head(
+            'Roster API',
+            'For your IT team.',
+            `<button class="btn btn-secondary" data-act="go" data-arg="api-access">${icon('key', 16)} Your credentials</button>`,
+          ) +
+            `<div class="split" style="grid-template-columns:minmax(0,1fr)"><div class="stack-lg">
+    <div class="card card-pad"><div class="kv k3"><div><div class="k">Base URL</div><div class="v mono">https://api.adili.go.ke</div></div><div><div class="k">Scope</div><div class="v"><code class="c">roster:write</code></div></div><div><div class="k">Batch size</div><div class="v">1 to 1,000 rows</div></div><div><div class="k">Idempotency-Key</div><div class="v">Required on batches and exits</div></div><div><div class="k">Rate limit</div><div class="v">60 requests per minute per client</div></div><div><div class="k">Formats</div><div class="v">JSON, dates as YYYY-MM-DD</div></div></div></div>
+    ${secs.map(([id, t, p, code]) => `<section class="card card-pad docs-sec" id="doc-${id}" aria-labelledby="h-${id}"><h2 id="h-${id}">${t}</h2><p>${p}</p><pre class="code" tabindex="0" aria-label="${esc(t)} example">${code}</pre></section>`).join('')}
+  </div></div>`,
+          { crumbs, active: 'API access' },
+        );
+      }
+
+      /* ---------------- screen: Commission roster column and card (#46, preview for 01-commissions) ---------------- */
+      function commissionCardScreen() {
+        const r = S.roster;
+        const hist = S.imports.slice(0, 5);
+        const listRows = [
+          [
+            'Public Service Commission',
+            'PSC',
+            'Hosted',
+            r.status === 'imported'
+              ? {
+                  onb: r.onboarded,
+                  exp: r.expected,
+                  last: S.imports[0].startedAt,
+                  flagged: r.flagged,
+                }
+              : null,
+          ],
+          [
+            'Teachers Service Commission',
+            'TSC',
+            'Hosted',
+            { onb: 81220, exp: 436118, last: '2026-09-23T08:10:00', flagged: 0 },
+          ],
+          ['Judicial Service Commission', 'JSC', 'Hosted', null],
+          ['Nairobi City County Public Service Board', 'CPSB047', 'Hosted', null],
+          [
+            'Parliamentary Service Commission',
+            'PARLSC',
+            'Federated',
+            { onb: 1402, exp: 3310, last: '2026-08-14T11:00:00', flagged: 37 },
+          ],
+        ];
+        const rosterCell = (x) =>
+          !x
+            ? '<span class="muted">No roster yet</span>'
+            : `<div class="roster-cell"><div class="row wrap" style="gap:6px"><span style="font-weight:500">${num(x.onb)} of ${num(x.exp)} onboarded</span>${x.flagged ? badge(`${num(x.flagged)} flagged`, 'warn') : ''}</div><div class="l2">Last import ${rel(x.last)}</div></div>`;
+        const list = `<div class="card"><div class="sec-h"><h3>Commissions list: Roster column</h3></div><div class="table-wrap"><table class="table cards"><thead><tr><th scope="col">Commission</th><th scope="col">Type</th><th scope="col">Roster</th></tr></thead><tbody>${listRows.map(([n, code, t, x]) => `<tr><td class="primary"><div style="font-weight:500">${n}</div><div class="sub mono">${code}</div></td><td data-l="Type">${t}</td><td data-l="Roster">${rosterCell(x)}</td></tr>`).join('')}</tbody></table></div></div>`;
+        const card =
+          r.status === 'imported'
+            ? `<div class="card"><div class="sec-h"><h3>Roster</h3><span class="spacer"></span>${isPA() ? `<button class="btn btn-secondary btn-sm" data-act="adminRecords">${icon('eye', 15)} Open roster records</button>` : ''}</div><div class="sec-b stack">
+      <div class="tiles"><div class="tile"><span class="k">Expected declarants</span><span class="v">${num(r.expected)}</span></div><div class="tile"><span class="k">Onboarded</span><span class="v">${num(r.onboarded)} <small>${pctOf(r.onboarded, r.expected)}%</small></span></div><div class="tile"><span class="k">Flagged as absent</span><span class="v">${num(r.flagged)}</span></div><div class="tile"><span class="k">Last import</span><span class="v" style="font-size:17px;margin-top:6px">${fmtDate(S.imports[0].startedAt)}</span><span class="s">${rel(S.imports[0].startedAt)}</span></div></div>
+      ${isPA() ? `<p class="small muted">${icon('eye', 14)} Opening records is audited.</p>` : `<p class="small muted">${icon('lock', 14)} Counts only. No personal data.</p>`}
+    </div><div class="table-wrap" style="border-top:1px solid var(--line)"><table class="table cards"><caption class="sr-only">Recent imports</caption><thead><tr><th scope="col">Started</th><th scope="col">Channel</th><th scope="col">Complete?</th><th scope="col">State</th><th scope="col" class="num">Created</th><th scope="col" class="num">Updated</th><th scope="col" class="num">Rejected</th><th scope="col" class="num">Flagged</th></tr></thead><tbody>
+      ${hist.map((i) => `<tr class="click" tabindex="0" data-act="go" data-arg="import-report|${i.id}"><td class="primary">${fmtDateTime(i.startedAt)}</td><td data-l="Channel">${channelBadge(i)}</td><td data-l="Complete?">${i.complete ? 'Yes' : 'Partial'}</td><td data-l="State">${impStateBadge(i)}</td><td class="num" data-l="Created">${i.counts ? num(i.counts.created) : '-'}</td><td class="num" data-l="Updated">${i.counts ? num(i.counts.updated) : '-'}</td><td class="num" data-l="Rejected">${i.counts ? num(i.counts.rejected) : '-'}</td><td class="num" data-l="Flagged">${i.counts ? num(i.counts.flaggedAbsent) : '-'}</td></tr>`).join('')}
+    </tbody></table></div><div class="pager"><span>Latest 5 imports</span><span class="spacer"></span><a class="link small" data-act="go" data-arg="imports">All imports</a></div></div>`
+            : '';
+        const noneCard = `<div class="card"><div class="sec-h"><h3>Roster</h3></div>${Kit.empty('No roster yet', 'The reporting officer has not imported it.', { icon: 'users' })}</div>`;
+        const ws = `<div class="grid-2"><div><div class="prim-label">Reporting officer</div><a class="ws-card" data-act="go" data-arg="overview"><span class="ico">${icon('users', 18)}</span><div><div style="font-weight:600">Declarant roster</div><div class="small muted" style="margin-top:2px">Import and maintain your Commission's roster and help officers who cannot onboard.</div></div><span class="muted" style="margin-left:auto">${icon('right', 17)}</span></a></div><div><div class="prim-label">Commission administrator</div><a class="ws-card" data-act="go" data-arg="overview"><span class="ico">${icon('users', 18)}</span><div><div style="font-weight:600">Declarant roster</div><div class="small muted" style="margin-top:2px">Your Commission's roster and import history.</div></div><span class="muted" style="margin-left:auto">${icon('right', 17)}</span></a></div></div>`;
+        return shell(
+          `<div class="preview-note">${icon('info', 14)}<span>Preview: pieces shown on 01-commissions and console home.</span></div>` +
+            head('Commission roster column and card') +
+            `<div class="stack-lg">${list}<div><div class="prim-label">Commission detail: roster card (imported)</div>${card}</div><div><div class="prim-label">Commission detail: roster card (no roster)</div>${noneCard}</div><div><div class="prim-label">Console home: workspace card (link, no badge)</div>${ws}</div></div>`,
+          {
+            crumbs: [['Commissions', 'commission-card'], ['Public Service Commission']],
+            active: 'Commissions',
+          },
+        );
+      }
+
+      /* ---------------- screen: primitives (#32) ---------------- */
+      function primitivesScreen() {
+        const p = S.prim;
+        const rows = S.records.slice(0, 5);
+        const allOn = rows.every((r) => p.sel.includes(r.id));
+        const dz = (st) =>
+          `<div class="drop ${st === 'over' ? 'over' : ''} ${st === 'err' ? 'err' : ''} ${st === 'disabled' ? 'disabled' : ''}" style="padding:20px"><span class="ico">${icon('upload', 18)}</span><div class="t" style="font-size:14.5px">Drop your roster file here or <span class="link">browse</span>.</div><div class="h">CSV (UTF-8) or Excel. Up to 50 MB.</div></div>${st === 'err' ? `<div class="field-err">${icon('alert', 16, 2.2)}<span>This file is 63.4 MB. The limit is 50 MB.</span></div>` : ''}`;
+        const card = (t, body, note = '') =>
+          `<div class="card"><div class="sec-h"><h3>${t}</h3></div><div class="sec-b stack">${body}${note ? `<p class="small muted">${note}</p>` : ''}</div></div>`;
+        return shell(
+          head('UI primitives, round 2') +
+            `<div class="prim-grid">
+    ${card('FileDropZone', `<div class="grid-2"><div><div class="prim-label">Idle</div>${dz('idle')}</div><div><div class="prim-label">Drag over</div>${dz('over')}</div><div><div class="prim-label">Client error (message passed in)</div>${dz('err')}</div><div><div class="prim-label">Disabled</div>${dz('disabled')}</div></div>`, 'Labelled button opens the file picker. Client errors are passed in.')}
+    ${card('ProgressBar', `<div><div class="prim-label">Determinate 25%</div>${pbar(25, { label: 'Example' })}<div class="prog-meta"><span>12,108 of 48,431 rows</span><b>25%</b></div></div><div><div class="prim-label">Determinate 72%</div>${pbar(72, { label: 'Example' })}</div><div><div class="prim-label">Indeterminate (total not known yet)</div>${pbar(0, { label: 'Example', ind: true })}</div><div><div class="prim-label">Complete / failed</div><div class="stack" style="gap:8px">${pbar(100, { label: 'Example', cls: 'ok' })}${pbar(48, { label: 'Example', cls: 'danger' })}</div></div>`, 'Live region announces 25% steps only.')}
+    ${card('Stepper', `<div class="prim-label">Step 3 current, back allowed</div>${stepper('check')}<div class="prim-label" style="margin-top:6px">Step 4 current, earlier steps locked</div>${stepper('importing')}<div class="prim-label" style="margin-top:6px">Failed at step 4</div>${stepper('importing', { failed: true })}`, 'Done steps are buttons only while going back is allowed.')}
+    ${card(
+      'Tabs, Tooltip and Select',
+      `<div class="tabs" role="tablist">${[
+        ['all', 'All', 60],
+        ['not', 'Not onboarded', 38],
+        ['onb', 'Onboarded', 19],
+        ['exit', 'Exited', 3],
+      ]
+        .map(
+          ([k, l, n]) =>
+            `<button role="tab" aria-selected="${p.tab === k}" class="${p.tab === k ? 'on' : ''}" data-act="primTab" data-arg="${k}">${l} <span class="count">${n}</span></button>`,
+        )
+        .join('')}</div>
+      <div class="row wrap" style="gap:16px;margin-top:6px">${tip('<button class="btn btn-primary" disabled>Import roster</button>', 'Wait for the current import to finish', 'left')}<span class="small muted">Hover or focus the disabled button</span></div>
+      <div class="field" style="max-width:280px"><label class="label" for="f-prim-sel2">Select</label>${select(
+        'prim.sel2',
+        [
+          { v: 'not_onboarded', l: 'Not onboarded' },
+          { v: 'onboarded', l: 'Onboarded' },
+          { v: 'exited', l: 'Exited' },
+        ],
+        { ph: 'All states' },
+      )}</div>`,
+      'Tooltips wrap disabled controls so keyboard users can read why.',
+    )}
+  </div>
+  <div class="card" style="margin-top:20px"><div class="sec-h"><h3>DataTable with row selection</h3><span class="spacer"></span><span class="small muted" aria-live="polite">${plural(p.sel.length, 'row', 'rows')} selected</span></div>
+    ${p.sel.length ? `<div class="bulkbar" style="position:static"><b style="font-weight:600">${p.sel.length} selected</b><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="primClear">Clear</button></div>` : ''}
+    <div class="table-wrap"><table class="table cards"><thead><tr><th class="cb"><input type="checkbox" class="cbx" data-act="primAll" aria-label="Select all on page" ${allOn ? 'checked' : ''}/></th><th>File number</th><th>Full name</th><th>National ID</th><th>State</th></tr></thead><tbody>${rows.map((r) => `<tr class="${p.sel.includes(r.id) ? 'sel' : ''}"><td class="cb"><input type="checkbox" class="cbx" data-act="primOne" data-arg="${r.id}" aria-label="Select ${esc(r.name)}" ${p.sel.includes(r.id) ? 'checked' : ''}/></td><td data-l="File number" class="mono">${r.fileNo}</td><td class="primary">${esc(r.name)}</td><td data-l="National ID" class="mono">${maskId(r.nid)}</td><td data-l="State">${stateBadge(r.state)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="pager"><span>Select all is page-scoped.</span></div></div>`,
+          { crumbs: [['UI primitives']], active: '' },
+        );
+      }
+
+      /* ---------------- modals ---------------- */
+      const modals = {
+        discard: () =>
+          dialog({
+            title: 'Discard this upload?',
+            icon: 'trash',
+            tint: ['var(--danger-soft)', 'var(--danger)'],
+            body: `<p style="color:var(--ink-2)">The file you uploaded will not be imported. Nothing on the roster has changed. You can upload it again later.</p>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Keep working</button><button class="btn btn-danger" data-act="confirmDiscard">Discard upload</button>`,
+          }),
+        rotate: () =>
+          dialog({
+            title: 'Rotate secret?',
+            icon: 'refresh',
+            body: `<p style="color:var(--ink-2)">The current secret stops working immediately. Your HR system must be updated with the new secret.</p>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="rotateCred" ${S.modal.busy ? 'disabled' : ''}>${S.modal.busy ? '<span class="spinner"></span> Rotating…' : 'Rotate secret'}</button>`,
+          }),
+        revoke: () =>
+          dialog({
+            title: 'Revoke API access?',
+            icon: 'ban',
+            tint: ['var(--danger-soft)', 'var(--danger)'],
+            body: `<p style="color:var(--ink-2)">Your HR system will no longer be able to update the roster.</p><p class="small muted">Past imports stay in the history.</p>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-danger" data-act="revokeCred" ${S.modal.busy ? 'disabled' : ''}>${S.modal.busy ? '<span class="spinner"></span> Revoking…' : 'Revoke access'}</button>`,
+          }),
+        saved: () =>
+          dialog({
+            title: 'Have you saved the secret?',
+            icon: 'key',
+            tint: ['var(--warn-soft)', 'var(--warn)'],
+            body: `<p style="color:var(--ink-2)">You will not be able to see it again. If it is lost, rotate the secret to get a new one.</p>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Go back</button><button class="btn btn-primary" data-act="secretSaved">Yes, I saved it</button>`,
+          }),
+        exits: () => {
+          const sel = S.flag.sel.map((id) => S.records.find((r) => r.id === id));
+          const n = sel.length;
+          const f = S.flag;
+          return dialog({
+            title: `Confirm ${plural(n, 'exit', 'exits')}`,
+            icon: 'logout',
+            wide: true,
+            body: `${f.fail ? `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div><b>Exits were not recorded. Try again.</b></div></div>` : ''}
+        ${field('Exit date', input('flag.date', { type: 'date', extra: `max="${TODAY_ISO}" style="max-width:220px" aria-describedby="exit-hint"` }), { id: 'f-flag-date', hint: '<span id="exit-hint">Applies to all selected. Not in the future.</span>', error: f.err })}
+        <details class="per" ${Object.keys(f.per).some((k) => f.per[k]) ? 'open' : ''}><summary>${icon('calendar', 16)} Set per officer <span class="chev">${icon('down', 16)}</span></summary>${sel.map((r) => `<div class="per-row"><div style="min-width:0"><div style="font-weight:500" class="truncate">${esc(r.name)}</div><div class="small muted mono">${esc(r.fileNo)}</div></div><div><label class="sr-only" for="f-flag-per-${r.id}">Exit date for ${esc(r.name)}</label>${input('flag.per.' + r.id, { type: 'date', val: f.per[r.id] || '', extra: `max="${TODAY_ISO}"` })}</div></div>`).join('')}</details>
+        <div class="callout callout-info">${icon('info', 17)}<div>Exited officers stay on the roster for their final declaration and are no longer counted as expected declarants.</div></div>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="confirmExits" ${f.busy ? 'disabled' : ''}>${f.busy ? '<span class="spinner"></span> Recording…' : `Confirm ${plural(n, 'exit', 'exits')}`}</button>`,
+          });
+        },
+        exitOne: () => {
+          const r = S.records.find((x) => x.id === S.modal.id);
+          const e = S.exitOne;
+          return dialog({
+            title: 'Confirm exit',
+            sub: `${esc(r.name)} · ${esc(r.fileNo)}`,
+            icon: 'logout',
+            body: `${e.fail ? `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div><b>The exit was not recorded. Try again.</b></div></div>` : ''}${field('Exit date', input('exitOne.date', { type: 'date', extra: `max="${TODAY_ISO}" style="max-width:220px"` }), { id: 'f-exitOne-date', hint: 'Last day worked. Not in the future.', error: e.err })}<div class="callout callout-info">${icon('info', 17)}<div>Exited officers stay on the roster for their final declaration and are no longer counted as expected declarants.</div></div>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="confirmExitOne">Confirm exit</button>`,
+          });
+        },
+      };
+
+      /* ---------------- simulation ---------------- */
+      let upTimers = [];
+      const clearUp = () => {
+        upTimers.forEach(clearTimeout);
+        upTimers.forEach(clearInterval);
+        upTimers = [];
+      };
+      const later = (ms, fn) => upTimers.push(setTimeout(fn, ms));
+      function beginUpload(file, outcome) {
+        const u = S.wiz.up;
+        clearUp();
+        Object.assign(u, { phase: 'requesting', pct: 0, file, err: '', outcome });
+        Kit.render();
+        later(700, () => {
+          u.phase = 'uploading';
+          Kit.render();
+          const iv = setInterval(() => {
+            u.pct = Math.min(100, u.pct + 9 + Math.round(Math.random() * 7));
+            if (u.pct >= 100) {
+              clearInterval(iv);
+              if (outcome === 'expired') {
+                u.phase = 'failed';
+                Kit.render();
+                return;
+              }
+              u.phase = 'scanning';
+              Kit.render();
+              later(1700, () => {
+                if (outcome === 'infected') u.phase = 'infected';
+                else if (outcome === 'srvtype') u.phase = 'rejected-type';
+                else if (outcome === 'srvsize') u.phase = 'rejected-size';
+                else {
+                  const w = S.wiz;
+                  w.mapping = outcome === 'csv' ? 'csv' : outcome === 'noid' ? 'noid' : 'ok';
+                  w.rows = outcome === 'csv' ? 1212 : outcome === 'noid' ? 1188 : 48431;
+                  w.complete = S.roster.status === 'none';
+                  w.step = 'check';
+                  w.startErr = null;
+                }
+                if (S.screen === 'import') Kit.render();
+              });
+            }
+            if (S.screen === 'import') Kit.render();
+          }, 260);
+          upTimers.push(iv);
+        });
+      }
+      function clientCheck(name, size) {
+        if (!/\.(csv|xlsx)$/i.test(name)) return 'Use a .csv or .xlsx file.';
+        if (size > 50 * 1048576) return `This file is ${fileSize(size)}. The limit is 50 MB.`;
+        return '';
+      }
+      let tickT = null;
+      function ensureTicker() {
+        if (!tickT) tickT = setInterval(tick, 2000);
+      }
+      function tick() {
+        const i = running();
+        if (!i) {
+          clearInterval(tickT);
+          tickT = null;
+          return;
+        }
+        if (S.sim.freeze) return;
+        if (i.state === 'pending') {
+          i.state = 'processing';
+          i.total = i.plannedTotal;
+        } else {
+          i.processed = Math.min(i.total, i.processed + Math.ceil(i.total / 5.3));
+          if (S.sim.failAt && i.processed >= S.sim.failAt) {
+            i.processed = S.sim.failAt;
+            i.state = 'failed';
+            i.failure = { code: 'internal', detail: '' };
+            i.completedAt = TODAY.toISOString();
+            i.counts = {
+              accepted: i.total - 31,
+              created: 58,
+              updated: 0,
+              unchanged: S.sim.failAt - 58,
+              rejected: 31,
+              flaggedAbsent: 0,
+            };
+            S.sim.failAt = null;
+          } else if (i.processed >= i.total) finishImport(i);
+        }
+        if (['overview', 'import', 'import-report', 'imports', 'records'].includes(S.screen))
+          Kit.render();
+      }
+      function finishImport(i) {
+        const csv = i.format === 'csv';
+        i.state = 'completed';
+        i.completedAt = '2026-09-26T10:42:00';
+        const flagged = i.complete ? S.roster.flagged + 3 : 0;
+        i.counts = csv
+          ? {
+              accepted: 1203,
+              created: 41,
+              updated: 1160,
+              unchanged: 2,
+              rejected: 9,
+              flaggedAbsent: 0,
+            }
+          : {
+              accepted: i.total - 31,
+              created: 119,
+              updated: 402,
+              unchanged: i.total - 31 - 521,
+              rejected: 31,
+              flaggedAbsent: flagged,
+            };
+        const wasEmpty = S.roster.status === 'none';
+        S.roster.status = 'imported';
+        if (wasEmpty) {
+          i.counts = {
+            accepted: i.total - 31,
+            created: i.total - 31,
+            updated: 0,
+            unchanged: 0,
+            rejected: 31,
+            flaggedAbsent: 0,
+          };
+          S.roster.expected = i.counts.created;
+          S.roster.onboarded = 0;
+          S.roster.flagged = 0;
+          S.rec.load = 'ok';
+          S.hist.load = 'ok';
+          S.records = mkRecords().map((r) =>
+            Object.assign(r, {
+              state: 'not_onboarded',
+              ofr: null,
+              onboardedAt: null,
+              flagged: false,
+              flaggedBy: null,
+              mismatchAt: null,
+              exitDate: null,
+              exitBy: null,
+              firstSeen: i.id,
+              lastSeen: i.id,
+              history: [{ imp: i.id, outcome: 'created' }],
+              updatedAt: '2026-09-26T10:42:00',
+            }),
+          );
+        } else S.roster.expected += i.counts.created;
+        if (i.complete && !wasEmpty) {
+          // three more officers not in this file; everyone flagged is now flagged by this import
+          S.records
+            .filter((r) => r.state !== 'exited' && !r.flagged && [2, 14, 27].includes(r.i))
+            .forEach((r) => {
+              r.flagged = true;
+              r.kept = null;
+            });
+          S.records
+            .filter((r) => r.flagged)
+            .forEach((r) => {
+              r.flaggedBy = i.id;
+            });
+          S.roster.flagged = flaggedRecs().length;
+          i.counts.flaggedAbsent = S.roster.flagged;
+        }
+        if (S.wiz.importId === i.id && S.wiz.step === 'importing') {
+          S.wiz.step = 'report';
+          S.rep.page = 1;
+        }
+      }
+      function startImportNow() {
+        const w = S.wiz;
+        const f = w.up.file;
+        const id = 'imp' + Date.now();
+        const i = {
+          id,
+          channel: 'file',
+          complete: !!w.complete,
+          state: 'pending',
+          fileName: f.name,
+          format: /\.csv$/i.test(f.name) ? 'csv' : 'xlsx',
+          size: f.size,
+          total: null,
+          plannedTotal: w.rows,
+          processed: 0,
+          counts: null,
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-26T10:31:00',
+          completedAt: null,
+          failure: null,
+        };
+        S.imports.unshift(i);
+        w.importId = id;
+        w.step = 'importing';
+        ensureTicker();
+      }
+
+      /* ---------------- actions ---------------- */
+      function needsGuard() {
+        if (S.screen !== 'import' || !isRO()) return false;
+        const w = S.wiz;
+        return (
+          (w.step === 'upload' && ['requesting', 'uploading', 'scanning'].includes(w.up.phase)) ||
+          w.step === 'check'
+        );
+      }
+      const asPersona = (p) => localStorage.setItem('dials-proto-persona', p);
+      function covRefresh(quiet) {
+        if (S.screen !== 'coverage' || S.cov.refreshing) return;
+        S.cov.refreshing = true;
+        Kit.render();
+        setTimeout(() => {
+          S.cov.refreshing = false;
+          S.cov.updatedAt = 'just now';
+          Kit.render();
+          if (!quiet) Kit.toast('Counts updated');
+        }, 700);
+      }
+      // Refresh on focus: counts come from declaration events, so re-fetch when the officer comes back to the tab.
+      window.addEventListener('focus', () => covRefresh(true));
+      const actions = {
+        covPage: (p) => {
+          S.cov.page = +p;
+          Kit.render();
+        },
+        covClear: () => {
+          S.cov.q = '';
+          S.cov.page = 1;
+          Kit.render();
+        },
+        covRefresh: () => covRefresh(false),
+        retryCov: () => {
+          S.cov.load = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.cov.load = 'ok';
+            Kit.render();
+          }, 800);
+        },
+        go: (a) => {
+          const [scr, p] = String(a).split('|');
+          if (needsGuard() && scr !== 'import') {
+            S.modal = { kind: 'discard', next: [scr, p] };
+            Kit.render();
+            return;
+          }
+          if (scr === 'import-report') S.rep.page = 1;
+          Kit.go(scr, p ? { id: p } : {});
+        },
+        confirmDiscard: () => {
+          clearUp();
+          const nx = S.modal.next;
+          S.wiz = newWiz();
+          S.modal = null;
+          Kit.toast('Upload discarded');
+          if (nx) Kit.go(nx[0], nx[1] ? { id: nx[1] } : {});
+          else Kit.go('overview');
+        },
+        cancelWizard: () => {
+          if (needsGuard()) {
+            S.modal = { kind: 'discard', next: ['overview'] };
+            Kit.render();
+          } else {
+            S.wiz = newWiz();
+            Kit.go('overview');
+          }
+        },
+        startWizard: () => {
+          if (running()) return;
+          S.wiz = newWiz();
+          Kit.go('import');
+        },
+        importAnother: () => {
+          S.wiz = newWiz('upload');
+          S.sim.mapping = 'ok';
+          Kit.go('import');
+        },
+        openRunning: () => {
+          const r = running();
+          if (!r) return;
+          if (isRO() && r.channel === 'file') {
+            S.wiz.importId = r.id;
+            S.wiz.step = 'importing';
+            Kit.go('import');
+          } else Kit.go('import-report', { id: r.id });
+        },
+        dlTemplate: (fmt) => Kit.toast(`Downloaded roster-template.${fmt}`),
+        wizTo: (step) => {
+          S.wiz.step = step;
+          Kit.render();
+          document.getElementById('view').scrollTop = 0;
+        },
+        wizBackTo: (step) => {
+          const w = S.wiz;
+          if (['importing', 'report'].includes(w.step)) return;
+          if (step === 'upload' || step === 'template') {
+            clearUp();
+            w.up = { phase: 'idle', pct: 0, file: null, err: '' };
+            w.startErr = null;
+          }
+          w.step = step;
+          Kit.render();
+        },
+        browse: (a, el, e) => {
+          if (e?.target?.id === 'file-in') return;
+          document.getElementById('file-in')?.click();
+        },
+        pickFile: (el) => {
+          const f = el.files && el.files[0];
+          if (!f) return;
+          handleFile(
+            { name: f.name, size: f.size },
+            /eicar/i.test(f.name) ? 'infected' : /\.csv$/i.test(f.name) ? 'csv' : 'xlsx',
+          );
+        },
+        simFile: (k) => {
+          const F = {
+            xlsx: [{ name: 'psc-roster-2026-09-26.xlsx', size: 4521984 }, 'xlsx'],
+            csv: [{ name: 'psc-new-appointments-sep.csv', size: 188416 }, 'csv'],
+            noid: [{ name: 'psc-roster-hr-extract.csv', size: 176128 }, 'noid'],
+            big: [{ name: 'psc-roster-full-history.xlsx', size: 66480947 }, 'xlsx'],
+            png: [{ name: 'photo.png', size: 812000 }, 'xlsx'],
+            infected: [{ name: 'psc-roster-2026-09-26.xlsx', size: 4521984 }, 'infected'],
+            srvtype: [{ name: 'psc-roster.xlsx', size: 1203000 }, 'srvtype'],
+            srvsize: [{ name: 'psc-roster-2026.xlsx', size: 49800000 }, 'srvsize'],
+            expired: [{ name: 'psc-roster-2026-09-26.xlsx', size: 4521984 }, 'expired'],
+          }[k];
+          handleFile(F[0], F[1]);
+        },
+        cancelUpload: () => {
+          clearUp();
+          S.wiz.up = { phase: 'idle', pct: 0, file: null, err: '' };
+          Kit.toast('Upload cancelled');
+        },
+        retryUpload: () => beginUpload(S.wiz.up.file, 'xlsx'),
+        chooseAnother: () => {
+          clearUp();
+          S.wiz.up = { phase: 'idle', pct: 0, file: null, err: '' };
+          Kit.render();
+        },
+        startImport: () => {
+          const w = S.wiz;
+          w.startErr = null;
+          if (S.sim.startConflict || running()) {
+            w.startErr = 'conflict';
+            return Kit.render();
+          }
+          if (S.sim.startLimited) {
+            w.startErr = 'limited';
+            S.sim.startLimited = false;
+            return Kit.render();
+          }
+          startImportNow();
+          Kit.render();
+        },
+        repPage: (p) => {
+          S.rep.page = Number(p);
+          Kit.render();
+        },
+        dlRejected: (id) => {
+          const i = imp(id);
+          Kit.toast(`Downloaded roster-import-${i.startedAt.slice(0, 10)}-rejected-rows.csv`);
+        },
+        retryOverview: () => {
+          S.roster.status = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.roster.status = 'imported';
+            Kit.render();
+          }, 900);
+        },
+        mismatchFilter: () => {
+          Object.assign(S.rec, {
+            q: '',
+            state: '',
+            flagged: false,
+            mismatch: true,
+            page: 1,
+            load: 'ok',
+          });
+          Kit.go('records');
+        },
+        toggleRec: (k) => {
+          S.rec[k] = !S.rec[k];
+          S.rec.page = 1;
+          Kit.render();
+        },
+        clearRec: () => {
+          Object.assign(S.rec, { q: '', state: '', flagged: false, mismatch: false, page: 1 });
+          Kit.render();
+        },
+        recPage: (p) => {
+          S.rec.page = Number(p);
+          Kit.render();
+        },
+        histPage: (p) => {
+          S.hist.page = Number(p);
+          Kit.render();
+        },
+        recRetry: () => {
+          S.rec.load = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.rec.load = 'ok';
+            Kit.render();
+          }, 900);
+        },
+        copyOfr: (v) => {
+          navigator.clipboard?.writeText(v).catch(() => {});
+          Kit.toast('Officer reference copied');
+        },
+        copyVal: (a) => {
+          const [l, v] = a.split('|');
+          navigator.clipboard?.writeText(v).catch(() => {});
+          Kit.toast(`${l} copied`);
+        },
+        toggleReveal: () => {
+          S.api.reveal = !S.api.reveal;
+          Kit.render();
+        },
+        createCred: () => {
+          S.api.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            Object.assign(S.api, {
+              busy: false,
+              state: 'created',
+              fromRotate: false,
+              clientId: 'roster-psc',
+              createdAt: TODAY.toISOString(),
+              createdBy: 'Grace Muthoni',
+              rotatedAt: null,
+              revokedAt: null,
+              lastUsedAt: null,
+              secret: 'q7Hn2vXkP9sLr4TzW8cBf3YmJd6GaE1u',
+              reveal: false,
+            });
+            Kit.render();
+          }, 800);
+        },
+        doneSecret: () => Kit.builtins.modal('saved'),
+        secretSaved: () => {
+          S.api.state = 'active';
+          S.api.secret = null;
+          S.api.reveal = false;
+          S.modal = null;
+          Kit.toast('Credentials are active');
+        },
+        rotateCred: () => {
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            S.modal = null;
+            Object.assign(S.api, {
+              state: 'created',
+              fromRotate: true,
+              rotatedAt: TODAY.toISOString(),
+              secret: 'Zr5pM1wQx8Kd3NbV7tLh2CyF9sJg4AeU',
+              reveal: false,
+            });
+            Kit.toast('Secret rotated. The old secret no longer works');
+          }, 800);
+        },
+        revokeCred: () => {
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            S.modal = null;
+            Object.assign(S.api, { state: 'revoked', revokedAt: TODAY.toISOString() });
+            Kit.toast('API access revoked');
+          }, 700);
+        },
+        selOne: (id, el) => {
+          const s = S.flag.sel;
+          const k = s.indexOf(id);
+          if (k >= 0) s.splice(k, 1);
+          else s.push(id);
+          Kit.render();
+        },
+        selPage: () => {
+          const list = flaggedRecs();
+          const page = S.flag.page;
+          const rows = list.slice((page - 1) * FPAGE, page * FPAGE).map((r) => r.id);
+          const all = rows.every((id) => S.flag.sel.includes(id));
+          S.flag.sel = all
+            ? S.flag.sel.filter((id) => !rows.includes(id))
+            : [...new Set([...S.flag.sel, ...rows])];
+          Kit.render();
+        },
+        clearSel: () => {
+          S.flag.sel = [];
+          Kit.render();
+        },
+        flagPage: (p) => {
+          S.flag.page = Number(p);
+          Kit.render();
+        },
+        openExits: () => {
+          Object.assign(S.flag, {
+            date: TODAY_ISO,
+            per: {},
+            err: '',
+            fail: !!S.sim.exitFail,
+            busy: false,
+          });
+          S.flag.fail = false;
+          S.modal = { kind: 'exits' };
+          Kit.render();
+        },
+        confirmExits: () => {
+          const f = S.flag;
+          const dates = [f.date, ...Object.values(f.per).filter(Boolean)];
+          if (!f.date && f.sel.some((id) => !f.per[id])) {
+            f.err = 'Enter an exit date.';
+            return Kit.render();
+          }
+          if (dates.some((d) => d > TODAY_ISO)) {
+            f.err = 'The exit date cannot be in the future.';
+            return Kit.render();
+          }
+          f.err = '';
+          f.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            f.busy = false;
+            if (S.sim.exitFail) {
+              f.fail = true;
+              S.sim.exitFail = false;
+              return Kit.render();
+            }
+            const n = f.sel.length;
+            f.sel.forEach((id) => {
+              const r = S.records.find((x) => x.id === id);
+              Object.assign(r, {
+                state: 'exited',
+                exitDate: f.per[id] || f.date,
+                flagged: false,
+                exitBy: 'Grace Muthoni',
+                updatedAt: TODAY.toISOString(),
+              });
+            });
+            S.roster.expected -= n;
+            S.roster.flagged = flaggedRecs().length;
+            f.sel = [];
+            f.per = {};
+            S.modal = null;
+            const pages = Math.max(1, Math.ceil(flaggedRecs().length / FPAGE));
+            f.page = Math.min(f.page, pages);
+            Kit.toast(`${plural(n, 'exit', 'exits')} recorded`);
+          }, 800);
+        },
+        keepSel: () => {
+          const n = S.flag.sel.length;
+          S.flag.sel.forEach((id) => {
+            const r = S.records.find((x) => x.id === id);
+            r.flagged = false;
+            r.kept = { by: 'Grace Muthoni', at: TODAY.toISOString() };
+          });
+          S.flag.sel = [];
+          S.roster.flagged = flaggedRecs().length;
+          const pages = Math.max(1, Math.ceil(flaggedRecs().length / FPAGE));
+          S.flag.page = Math.min(S.flag.page, pages);
+          Kit.toast(`${plural(n, 'officer', 'officers')} marked as still employed`);
+        },
+        keepOne: (id) => {
+          const r = S.records.find((x) => x.id === id);
+          r.flagged = false;
+          r.kept = { by: 'Grace Muthoni', at: TODAY.toISOString() };
+          S.flag.sel = S.flag.sel.filter((x) => x !== id);
+          S.roster.flagged = flaggedRecs().length;
+          Kit.toast('1 officer marked as still employed');
+        },
+        openExitOne: (id) => {
+          S.exitOne = { date: TODAY_ISO, err: '', fail: false };
+          S.modal = { kind: 'exitOne', id };
+          Kit.render();
+        },
+        confirmExitOne: () => {
+          const e = S.exitOne;
+          if (!e.date) {
+            e.err = 'Enter an exit date.';
+            return Kit.render();
+          }
+          if (e.date > TODAY_ISO) {
+            e.err = 'The exit date cannot be in the future.';
+            return Kit.render();
+          }
+          const r = S.records.find((x) => x.id === S.modal.id);
+          const wasFlagged = r.flagged;
+          Object.assign(r, {
+            state: 'exited',
+            exitDate: e.date,
+            flagged: false,
+            exitBy: 'Grace Muthoni',
+            updatedAt: TODAY.toISOString(),
+          });
+          S.roster.expected -= 1;
+          if (wasFlagged) S.roster.flagged = flaggedRecs().length;
+          S.modal = null;
+          Kit.toast('1 exit recorded');
+        },
+        adminRecords: () => {
+          Object.assign(S.rec, {
+            q: '',
+            state: '',
+            flagged: false,
+            mismatch: false,
+            page: 1,
+            load: 'ok',
+          });
+          Kit.go('records');
+        },
+        primTab: (k) => {
+          S.prim.tab = k;
+          Kit.render();
+        },
+        primOne: (id) => {
+          const s = S.prim.sel;
+          const k = s.indexOf(id);
+          if (k >= 0) s.splice(k, 1);
+          else s.push(id);
+          Kit.render();
+        },
+        primAll: () => {
+          const ids = S.records.slice(0, 5).map((r) => r.id);
+          S.prim.sel = ids.every((id) => S.prim.sel.includes(id)) ? [] : ids;
+          Kit.render();
+        },
+        primClear: () => {
+          S.prim.sel = [];
+          Kit.render();
+        },
+      };
+      function handleFile(file, outcome) {
+        const err = clientCheck(file.name, file.size);
+        if (err) {
+          S.wiz.up = { phase: 'idle', pct: 0, file: null, err };
+          Kit.render();
+          return;
+        }
+        beginUpload(file, outcome);
+      }
+
+      /* ---------------- jumps (state set-ups) ---------------- */
+      const RO = () => asPersona('reporting-officer');
+      function resetWorld() {
+        clearUp();
+        S.imports = JSON.parse(JSON.stringify(IMPORTS0));
+        S.records = mkRecords();
+        S.roster = { status: 'imported', expected: 48312, onboarded: 6904, flagged: 14 };
+        S.sim = {
+          freeze: false,
+          failAt: null,
+          startConflict: false,
+          startLimited: false,
+          exitFail: false,
+          mapping: 'ok',
+        };
+        S.wiz = newWiz();
+        S.flag = { sel: [], page: 1, date: TODAY_ISO, per: {}, err: '', fail: false, busy: false };
+        S.rec = { q: '', state: '', flagged: false, mismatch: false, page: 1, load: 'ok' };
+        S.hist = { load: 'ok', page: 1 };
+        S.cov = {
+          cycle: 'initial',
+          q: '',
+          page: 1,
+          load: 'ok',
+          updatedAt: '10:30',
+          refreshing: false,
+          biennialOpen: false,
+        };
+        S.rep.page = 1;
+        S.api = {
+          state: 'active',
+          clientId: 'roster-psc',
+          createdAt: '2026-09-22T09:41:00',
+          createdBy: 'Grace Muthoni',
+          rotatedAt: null,
+          revokedAt: null,
+          lastUsedAt: '2026-09-26T06:00:19',
+          secret: null,
+          reveal: false,
+          busy: false,
+          fromRotate: false,
+        };
+      }
+      function emptyWorld() {
+        resetWorld();
+        S.roster = { status: 'none', expected: 0, onboarded: 0, flagged: 0 };
+        S.imports = [];
+        S.records = [];
+        S.api.state = 'none';
+        S.wiz = newWiz();
+      }
+      function runningImport(total = 48431, processed = 21400, freeze = true) {
+        const i = {
+          id: 'impH',
+          channel: 'file',
+          complete: true,
+          state: 'processing',
+          fileName: 'psc-roster-2026-09-26.xlsx',
+          format: 'xlsx',
+          size: 4521984,
+          total,
+          plannedTotal: total,
+          processed,
+          counts: null,
+          by: { kind: 'user', id: 'Grace Muthoni' },
+          startedAt: '2026-09-26T10:22:00',
+          completedAt: null,
+          failure: null,
+        };
+        S.imports.unshift(i);
+        S.sim.freeze = freeze;
+        ensureTicker();
+        return i;
+      }
+      function wizAt(step, extra = {}) {
+        RO();
+        resetWorld();
+        S.wiz = newWiz(step);
+        Object.assign(S.wiz, extra);
+        Kit.go('import');
+      }
+      const upAt = (
+        phase,
+        file = { name: 'psc-roster-2026-09-26.xlsx', size: 4521984 },
+        pct = 0,
+        err = '',
+      ) => wizAt('upload', { up: { phase, pct, file, err } });
+      const checkAt = (mapping, extra = {}) =>
+        wizAt('check', {
+          mapping,
+          rows: mapping === 'ok' ? 48431 : mapping === 'csv' ? 1212 : 1188,
+          up: {
+            phase: 'clean',
+            pct: 100,
+            file:
+              mapping === 'ok'
+                ? { name: 'psc-roster-2026-09-26.xlsx', size: 4521984 }
+                : {
+                    name:
+                      mapping === 'csv'
+                        ? 'psc-new-appointments-sep.csv'
+                        : 'psc-roster-hr-extract.csv',
+                    size: 188416,
+                  },
+            err: '',
+          },
+          ...extra,
+        });
+      const jumps = [
+        [
+          'overview',
+          '#34 #46 Overview: roster present',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-none',
+          '#34 Overview: no roster yet',
+          () => {
+            RO();
+            emptyWorld();
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-running',
+          '#34 Overview: import in progress',
+          () => {
+            RO();
+            resetWorld();
+            runningImport();
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-error',
+          '#34 Overview: could not be loaded',
+          () => {
+            RO();
+            resetWorld();
+            S.roster.status = 'error';
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-ca',
+          '#34 Overview: commission admin (read-only)',
+          () => {
+            asPersona('commission-admin');
+            resetWorld();
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-ca-none',
+          '#34 Overview: commission admin, no roster',
+          () => {
+            asPersona('commission-admin');
+            emptyWorld();
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-national',
+          '#34 Overview: platform admin / EACC (via Commissions)',
+          () => {
+            asPersona('eacc-analyst');
+            resetWorld();
+            Kit.go('overview');
+          },
+        ],
+        [
+          'ov-denied',
+          '#34 Overview: reviewer (no access)',
+          () => {
+            asPersona('reviewer');
+            resetWorld();
+            Kit.go('overview');
+          },
+        ],
+        ['import', '#37 Wizard step 1: template', () => wizAt('template')],
+        ['w-upload', '#37 Step 2: upload (idle drop zone)', () => upAt('idle', null)],
+        [
+          'w-client-size',
+          '#37 Step 2: too large (client check)',
+          () => upAt('idle', null, 0, 'This file is 63.4 MB. The limit is 50 MB.'),
+        ],
+        [
+          'w-client-type',
+          '#37 Step 2: wrong type (client check)',
+          () => upAt('idle', null, 0, 'Use a .csv or .xlsx file.'),
+        ],
+        ['w-requesting', '#37 Step 2: preparing upload', () => upAt('requesting')],
+        [
+          'w-uploading',
+          '#37 Step 2: uploading with cancel',
+          () => upAt('uploading', undefined, 62),
+        ],
+        ['w-scanning', '#37 Step 2: checking the file (scan)', () => upAt('scanning')],
+        ['w-infected', '#37 Step 2: infected', () => upAt('infected')],
+        [
+          'w-rej-type',
+          '#37 Step 2: rejected, not a spreadsheet',
+          () => upAt('rejected-type', { name: 'psc-roster.xlsx', size: 1203000 }),
+        ],
+        [
+          'w-rej-size',
+          '#37 Step 2: rejected, over 50 MB',
+          () => upAt('rejected-size', { name: 'psc-roster-2026.xlsx', size: 49800000 }),
+        ],
+        ['w-expired', '#37 Step 2: upload expired / network', () => upAt('failed')],
+        [
+          'w-discard',
+          '#37 Leave during upload: discard dialog',
+          () => {
+            checkAt('ok');
+            S.modal = { kind: 'discard', next: ['overview'] };
+            Kit.render();
+          },
+        ],
+        ['w-check', '#40 Step 3: mapping matched + ignored', () => checkAt('ok')],
+        ['w-check-csv', '#40 Step 3: optional column not in file', () => checkAt('csv')],
+        ['w-check-missing', '#40 Step 3: required column missing (blocks)', () => checkAt('noid')],
+        [
+          'w-check-first',
+          '#40 Step 3: first import (complete checked by default)',
+          () => {
+            RO();
+            emptyWorld();
+            S.wiz = Object.assign(newWiz('check'), {
+              mapping: 'ok',
+              rows: 48431,
+              up: {
+                phase: 'clean',
+                pct: 100,
+                file: { name: 'psc-roster-2026-09-26.xlsx', size: 4521984 },
+                err: '',
+              },
+            });
+            Kit.go('import');
+          },
+        ],
+        [
+          'w-check-conflict',
+          '#40 Step 3: start refused, import running (409)',
+          () => {
+            checkAt('ok', { startErr: 'conflict' });
+          },
+        ],
+        [
+          'w-check-limited',
+          '#40 Step 3: start refused, rate limited (429)',
+          () => {
+            checkAt('ok', { startErr: 'limited' });
+          },
+        ],
+        [
+          'w-staging',
+          '#40 Step 4: reading the file (total unknown)',
+          () => {
+            RO();
+            resetWorld();
+            const i = runningImport(null, 0, true);
+            i.state = 'pending';
+            i.total = null;
+            i.plannedTotal = 48431;
+            S.wiz = Object.assign(newWiz('importing'), { importId: 'impH' });
+            Kit.go('import');
+          },
+        ],
+        [
+          'w-importing',
+          '#40 Step 4: progress polling (paused at 44%)',
+          () => {
+            RO();
+            resetWorld();
+            runningImport();
+            S.wiz = Object.assign(newWiz('importing'), { importId: 'impH' });
+            Kit.go('import');
+          },
+        ],
+        [
+          'w-importing-live',
+          '#40 Step 4: live import to completion',
+          () => {
+            RO();
+            resetWorld();
+            runningImport(48431, 0, false);
+            S.wiz = Object.assign(newWiz('importing'), { importId: 'impH' });
+            Kit.go('import');
+          },
+        ],
+        [
+          'w-failed',
+          '#40 Step 4: import failed part-way',
+          () => {
+            RO();
+            resetWorld();
+            const i = runningImport(48431, 30000, true);
+            Object.assign(i, {
+              state: 'failed',
+              processed: 30000,
+              completedAt: '2026-09-26T10:29:00',
+              failure: { code: 'internal', detail: '' },
+              counts: {
+                accepted: 48400,
+                created: 58,
+                updated: 211,
+                unchanged: 29731,
+                rejected: 31,
+                flaggedAbsent: 0,
+              },
+            });
+            S.sim.freeze = false;
+            S.wiz = Object.assign(newWiz('importing'), { importId: 'impH' });
+            Kit.go('import');
+          },
+        ],
+        [
+          'w-report',
+          '#43 #49 Step 5: report with rejected rows + flagged warning',
+          () => {
+            RO();
+            resetWorld();
+            const i = runningImport(48431, 48431, false);
+            S.sim.freeze = false;
+            finishImport(i);
+            S.wiz = Object.assign(newWiz('report'), { importId: 'impH' });
+            Kit.go('import');
+          },
+        ],
+        [
+          'w-report-clean',
+          '#40 Step 5: partial update, nothing rejected',
+          () => {
+            RO();
+            resetWorld();
+            const i = runningImport(1212, 1212, false);
+            Object.assign(i, {
+              complete: false,
+              fileName: 'psc-new-appointments-sep.csv',
+              format: 'csv',
+              size: 188416,
+            });
+            finishImport(i);
+            i.counts = {
+              accepted: 1212,
+              created: 41,
+              updated: 1169,
+              unchanged: 2,
+              rejected: 0,
+              flaggedAbsent: 0,
+            };
+            S.wiz = Object.assign(newWiz('report'), { importId: 'impH' });
+            Kit.go('import');
+          },
+        ],
+        [
+          'imports',
+          '#43 #55 Import history (file and API)',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('imports');
+          },
+        ],
+        [
+          'h-page2',
+          '#43 Import history: page 2',
+          () => {
+            RO();
+            resetWorld();
+            S.hist.page = 2;
+            Kit.go('imports');
+          },
+        ],
+        [
+          'h-running',
+          '#43 Import history: one processing',
+          () => {
+            RO();
+            resetWorld();
+            runningImport();
+            Kit.go('imports');
+          },
+        ],
+        [
+          'h-empty',
+          '#43 Import history: empty',
+          () => {
+            RO();
+            emptyWorld();
+            S.hist.load = 'empty';
+            Kit.go('imports');
+          },
+        ],
+        [
+          'import-report',
+          '#43 Import report: completed, rejected rows paged',
+          () => {
+            RO();
+            resetWorld();
+            S.rep.page = 1;
+            Kit.go('import-report', { id: 'impB' });
+          },
+        ],
+        [
+          'rep-page3',
+          '#43 Import report: rejected rows page 3',
+          () => {
+            RO();
+            resetWorld();
+            S.rep.page = 3;
+            Kit.go('import-report', { id: 'impB' });
+            S.rep.page = 3;
+            Kit.render();
+          },
+        ],
+        [
+          'rep-processing',
+          '#43 Import report: processing (live progress)',
+          () => {
+            RO();
+            resetWorld();
+            runningImport();
+            Kit.go('import-report', { id: 'impH' });
+          },
+        ],
+        [
+          'rep-failed',
+          '#43 Import report: failed part-way',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('import-report', { id: 'impA' });
+          },
+        ],
+        [
+          'rep-missing',
+          '#43 Import report: failed, missing columns (S5)',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('import-report', { id: 'impC' });
+          },
+        ],
+        [
+          'rep-partial',
+          '#43 Import report: partial update',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('import-report', { id: 'impD' });
+          },
+        ],
+        [
+          'rep-api',
+          '#55 Import report: API batch',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('import-report', { id: 'impG' });
+          },
+        ],
+        [
+          'rep-eacc',
+          '#43 Import report as EACC (no row details)',
+          () => {
+            asPersona('eacc-analyst');
+            resetWorld();
+            Kit.go('import-report', { id: 'impF' });
+          },
+        ],
+        [
+          'records',
+          '#46 Records list',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-page2',
+          '#46 Records: page 2',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.page = 2;
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-mismatch',
+          '#75 Records: identity check failed filter',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.mismatch = true;
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-flagged',
+          '#46 Records: flagged only + state filter',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.flagged = true;
+            S.rec.state = 'not_onboarded';
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-search',
+          '#46 Records: search by full national ID',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.q = S.records.find((r) => r.i === 12).nid;
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-nomatch',
+          '#46 Records: no matches',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.q = '3456';
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-empty',
+          '#46 Records: no roster records',
+          () => {
+            RO();
+            emptyWorld();
+            S.rec.load = 'empty';
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-loading',
+          '#46 Records: loading',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.load = 'loading';
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-error',
+          '#46 Records: error',
+          () => {
+            RO();
+            resetWorld();
+            S.rec.load = 'error';
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-pa',
+          '#46 Records: platform admin (audited)',
+          () => {
+            asPersona('platform-admin');
+            resetWorld();
+            Kit.go('records');
+          },
+        ],
+        [
+          'rec-forbidden',
+          '#46 Records: EACC analyst (403)',
+          () => {
+            asPersona('eacc-analyst');
+            resetWorld();
+            Kit.go('records');
+          },
+        ],
+        [
+          'record',
+          '#46 Record detail: not onboarded',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('record', { id: 'r0' });
+          },
+        ],
+        [
+          'record-onb',
+          '#75 Record detail: onboarded, OFR, locked identity',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('record', { id: 'r5' });
+          },
+        ],
+        [
+          'record-mismatch',
+          '#75 Record detail: identity check failed',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('record', { id: 'r10' });
+          },
+        ],
+        [
+          'record-flagged',
+          '#49 Record detail: flagged, with actions',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('record', { id: 'r3' });
+          },
+        ],
+        [
+          'record-exit',
+          '#49 Record detail: confirm exit dialog',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('record', { id: 'r3' });
+            actions.openExitOne('r3');
+          },
+        ],
+        [
+          'record-exited',
+          '#46 Record detail: exited',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('record', { id: 'r6' });
+          },
+        ],
+        [
+          'record-ca',
+          '#46 Record detail: commission admin (read-only)',
+          () => {
+            asPersona('commission-admin');
+            resetWorld();
+            Kit.go('record', { id: 'r17' });
+          },
+        ],
+        [
+          'flagged',
+          '#49 Flagged officers',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('flagged');
+          },
+        ],
+        [
+          'fl-selected',
+          '#49 Flagged: selection + bulk bar',
+          () => {
+            RO();
+            resetWorld();
+            S.flag.sel = flaggedRecs()
+              .slice(0, 3)
+              .map((r) => r.id);
+            Kit.go('flagged');
+          },
+        ],
+        [
+          'fl-page2',
+          '#49 Flagged: page 2, select all on page',
+          () => {
+            RO();
+            resetWorld();
+            S.flag.page = 2;
+            S.flag.sel = flaggedRecs()
+              .slice(10, 20)
+              .map((r) => r.id);
+            Kit.go('flagged');
+          },
+        ],
+        [
+          'fl-dialog',
+          '#49 Flagged: confirm exits dialog',
+          () => {
+            RO();
+            resetWorld();
+            S.flag.sel = flaggedRecs()
+              .slice(0, 3)
+              .map((r) => r.id);
+            Kit.go('flagged');
+            actions.openExits();
+          },
+        ],
+        [
+          'fl-per',
+          '#49 Flagged: per-officer dates + future date error',
+          () => {
+            RO();
+            resetWorld();
+            const s = flaggedRecs().slice(0, 3);
+            S.flag.sel = s.map((r) => r.id);
+            Kit.go('flagged');
+            actions.openExits();
+            S.flag.per[s[1].id] = '2026-08-31';
+            S.flag.date = '2026-10-02';
+            S.flag.err = 'The exit date cannot be in the future.';
+            Kit.render();
+          },
+        ],
+        [
+          'fl-error',
+          '#49 Flagged: exits not recorded (error)',
+          () => {
+            RO();
+            resetWorld();
+            S.flag.sel = flaggedRecs()
+              .slice(0, 2)
+              .map((r) => r.id);
+            Kit.go('flagged');
+            actions.openExits();
+            S.flag.fail = true;
+            Kit.render();
+          },
+        ],
+        [
+          'fl-empty',
+          '#49 Flagged: nobody flagged',
+          () => {
+            RO();
+            resetWorld();
+            S.records.forEach((r) => {
+              r.flagged = false;
+            });
+            S.roster.flagged = 0;
+            Kit.go('flagged');
+          },
+        ],
+        [
+          'fl-ca',
+          '#49 Flagged: commission admin (read-only)',
+          () => {
+            asPersona('commission-admin');
+            resetWorld();
+            Kit.go('flagged');
+          },
+        ],
+        [
+          'api-access',
+          '#52 #55 API access: active, last used',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-none',
+          '#52 API access: no credentials',
+          () => {
+            RO();
+            resetWorld();
+            S.api.state = 'none';
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-created',
+          '#52 API access: created, secret shown once',
+          () => {
+            RO();
+            resetWorld();
+            Object.assign(S.api, {
+              state: 'created',
+              fromRotate: false,
+              createdAt: TODAY.toISOString(),
+              lastUsedAt: null,
+              secret: 'q7Hn2vXkP9sLr4TzW8cBf3YmJd6GaE1u',
+            });
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-saved',
+          '#52 API access: "Have you saved the secret?"',
+          () => {
+            RO();
+            resetWorld();
+            Object.assign(S.api, {
+              state: 'created',
+              fromRotate: false,
+              secret: 'q7Hn2vXkP9sLr4TzW8cBf3YmJd6GaE1u',
+            });
+            Kit.go('api-access');
+            Kit.builtins.modal('saved');
+          },
+        ],
+        [
+          'api-never',
+          '#52 API access: active, never used',
+          () => {
+            RO();
+            resetWorld();
+            Object.assign(S.api, { createdAt: '2026-09-26T09:12:00', lastUsedAt: null });
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-rotate',
+          '#52 API access: rotate confirm',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('api-access');
+            Kit.builtins.modal('rotate');
+          },
+        ],
+        [
+          'api-rotated',
+          '#52 API access: new secret after rotate',
+          () => {
+            RO();
+            resetWorld();
+            Object.assign(S.api, {
+              state: 'created',
+              fromRotate: true,
+              rotatedAt: TODAY.toISOString(),
+              secret: 'Zr5pM1wQx8Kd3NbV7tLh2CyF9sJg4AeU',
+              reveal: true,
+            });
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-revoke',
+          '#52 API access: revoke confirm',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('api-access');
+            Kit.builtins.modal('revoke');
+          },
+        ],
+        [
+          'api-revoked',
+          '#52 API access: revoked',
+          () => {
+            RO();
+            resetWorld();
+            Object.assign(S.api, { state: 'revoked', revokedAt: '2026-09-26T09:58:00' });
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-ca',
+          '#52 API access: commission admin (read-only)',
+          () => {
+            asPersona('commission-admin');
+            resetWorld();
+            Kit.go('api-access');
+          },
+        ],
+        [
+          'api-docs',
+          '#55 API documentation (batch, exit, rate limits)',
+          () => {
+            RO();
+            resetWorld();
+            Kit.go('api-docs');
+          },
+        ],
+        [
+          'commission-card',
+          '#46 Commission roster column and card (platform admin)',
+          () => {
+            asPersona('platform-admin');
+            resetWorld();
+            Kit.go('commission-card');
+          },
+        ],
+        [
+          'cc-eacc',
+          '#46 Commission roster card (EACC)',
+          () => {
+            asPersona('eacc-analyst');
+            resetWorld();
+            Kit.go('commission-card');
+          },
+        ],
+        ...[
+          ['coverage', '#301 Coverage: initial declarations', {}],
+          ['cov-page2', '#301 Coverage: page 2', { page: 2 }],
+          ['cov-final', '#301 Coverage: final declarations', { cycle: 'final' }],
+          [
+            'cov-bi-closed',
+            '#301 Coverage: Biennial 2027 not open (empty)',
+            { cycle: 'biennial:2027' },
+          ],
+          [
+            'cov-bi-open',
+            '#301 Coverage: Biennial 2027 in progress (after 4 Jul 2027)',
+            { cycle: 'biennial:2027', biennialOpen: true },
+          ],
+          ['cov-search', '#301 Coverage: search', { q: 'state department for' }],
+          ['cov-nomatch', '#301 Coverage: no matches', { q: 'county' }],
+          ['cov-loading', '#301 Coverage: loading', { load: 'loading' }],
+          ['cov-refresh', '#301 Coverage: refreshing on focus', { refreshing: true }],
+          ['cov-error', '#301 Coverage: error', { load: 'error' }],
+          ['cov-ca', '#301 Coverage: commission administrator', {}, 'commission-admin'],
+          ['cov-none', '#301 Coverage: no roster yet', {}, 'none'],
+          ['cov-404', '#301 Coverage: platform admin (404)', {}, 'platform-admin'],
+        ].map(([id, label, extra, who]) => [
+          id,
+          label,
+          () => {
+            asPersona(who && who !== 'none' ? who : 'reporting-officer');
+            if (who === 'none') emptyWorld();
+            else resetWorld();
+            Object.assign(S.cov, extra);
+            Kit.go('coverage');
+          },
+        ]),
+        ['primitives', '#32 UI primitives round 2', () => Kit.go('primitives')],
+      ];
+
+      Kit.mount({
+        app: 'console',
+        start: 'overview',
+        home: 'overview',
+        defaultPersona: 'reporting-officer',
+        screens: {
+          overview,
+          import: importScreen,
+          imports: historyScreen,
+          'import-report': reportScreen,
+          records: recordsScreen,
+          record: recordScreen,
+          flagged: flaggedScreen,
+          'api-access': apiScreen,
+          'api-docs': apiDocsScreen,
+          'commission-card': commissionCardScreen,
+          coverage: coverageScreen,
+          primitives: primitivesScreen,
+        },
+        modals,
+        actions,
+        jumps,
+        onBind: (path) => {
+          if (path === 'rec.q' || path === 'rec.state') S.rec.page = 1;
+          if (path === 'cov.q' || path === 'cov.cycle') S.cov.page = 1;
+          if (path.startsWith('flag.')) S.flag.err = '';
+          if (path.startsWith('exitOne.')) S.exitOne.err = '';
+        },
+        afterRender: () => {
+          document.querySelectorAll('[data-indet]').forEach((el) => {
+            el.indeterminate = true;
+          });
+          const dz = document.getElementById('dz');
+          if (dz) {
+            const on = (e) => {
+              e.preventDefault();
+              dz.classList.add('over');
+            };
+            const off = () => dz.classList.remove('over');
+            dz.addEventListener('dragenter', on);
+            dz.addEventListener('dragover', on);
+            dz.addEventListener('dragleave', off);
+            dz.addEventListener('drop', (e) => {
+              e.preventDefault();
+              off();
+              const f = e.dataTransfer.files[0];
+              if (f)
+                handleFile(
+                  { name: f.name, size: f.size },
+                  /eicar/i.test(f.name) ? 'infected' : /\.csv$/i.test(f.name) ? 'csv' : 'xlsx',
+                );
+            });
+          }
+          document.querySelectorAll('[role="link"][data-act], tr.click').forEach((el) => {
+            el.onkeydown = (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                el.click();
+              }
+            };
+          });
+        },
+        coverage: [
+          {
+            ticket: 32,
+            title: 'UI primitives round 2: drop zone, progress, stepper, data table with selection',
+            screens: ['primitives', 'w-upload', 'w-uploading', 'fl-selected'],
+            note: 'Tabs, Tooltip and Select shown on the primitives screen. Unit tests are non-visual.',
+          },
+          {
+            ticket: 34,
+            title: 'Roster workspace shell and overview (no-roster state)',
+            screens: [
+              'overview',
+              'ov-none',
+              'ov-running',
+              'ov-error',
+              'ov-ca',
+              'ov-ca-none',
+              'ov-national',
+              'ov-denied',
+              'commission-card',
+            ],
+            note: 'Dashboard "Declarant roster" card (now a link) previewed at the bottom of the Commission roster card screen.',
+          },
+          {
+            ticket: 37,
+            title: 'Wizard steps 1-2: template, upload and scan',
+            screens: [
+              'import',
+              'w-upload',
+              'w-client-size',
+              'w-client-type',
+              'w-requesting',
+              'w-uploading',
+              'w-scanning',
+              'w-infected',
+              'w-rej-type',
+              'w-rej-size',
+              'w-expired',
+              'w-discard',
+            ],
+            note: 'Real file picking and drag and drop work; client checks run before any request. Use the dark simulation bar for server outcomes.',
+          },
+          {
+            ticket: 40,
+            title: 'Wizard steps 3-5: mapping, import progress, summary',
+            screens: [
+              'w-check',
+              'w-check-csv',
+              'w-check-missing',
+              'w-check-first',
+              'w-check-conflict',
+              'w-check-limited',
+              'w-staging',
+              'w-importing',
+              'w-importing-live',
+              'w-failed',
+              'w-report-clean',
+            ],
+            note: 'Back is blocked from step 4 on (earlier steps render as locked, Cancel and Back disappear).',
+          },
+          {
+            ticket: 43,
+            title: 'Report step, import history and import report',
+            screens: [
+              'w-report',
+              'imports',
+              'h-running',
+              'h-page2',
+              'h-empty',
+              'import-report',
+              'rep-page3',
+              'rep-processing',
+              'rep-failed',
+              'rep-missing',
+              'rep-partial',
+              'rep-eacc',
+            ],
+          },
+          {
+            ticket: 46,
+            title: 'Records list and detail, overview cards, Commission roster column and card',
+            screens: [
+              'records',
+              'rec-page2',
+              'rec-flagged',
+              'rec-search',
+              'rec-nomatch',
+              'rec-empty',
+              'rec-loading',
+              'rec-error',
+              'rec-pa',
+              'rec-forbidden',
+              'record',
+              'record-exited',
+              'record-ca',
+              'overview',
+              'commission-card',
+              'cc-eacc',
+            ],
+            note: 'Commission list column and detail card belong to 01-commissions; designed here as a standalone preview.',
+          },
+          {
+            ticket: 49,
+            title: 'Flagged officers screen and exit actions',
+            screens: [
+              'flagged',
+              'fl-selected',
+              'fl-page2',
+              'fl-dialog',
+              'fl-per',
+              'fl-error',
+              'fl-empty',
+              'fl-ca',
+              'record-flagged',
+              'record-exit',
+              'w-report',
+            ],
+          },
+          {
+            ticket: 52,
+            title: 'API access page',
+            screens: [
+              'api-none',
+              'api-created',
+              'api-saved',
+              'api-access',
+              'api-never',
+              'api-rotate',
+              'api-rotated',
+              'api-revoke',
+              'api-revoked',
+              'api-ca',
+            ],
+          },
+          {
+            ticket: 55,
+            title: 'API imports in history and last-used on API access',
+            screens: ['imports', 'rep-api', 'api-access', 'api-docs'],
+          },
+          {
+            ticket: 301,
+            title: 'Console: In progress column and cycle filter on roster coverage',
+            screens: [
+              'coverage',
+              'cov-page2',
+              'cov-final',
+              'cov-bi-closed',
+              'cov-bi-open',
+              'cov-search',
+              'cov-nomatch',
+              'cov-loading',
+              'cov-refresh',
+              'cov-error',
+              'cov-ca',
+              'cov-none',
+              'cov-404',
+            ],
+            note: 'New Roster > Coverage page (linked from the overview). Counts only, per reporting entity and cycle; totals row covers all entities (or the matching ones when searching). Late overlaps Not started and In progress (tooltip). Refreshes when the window regains focus and on the refresh button. Other roles get 404 as the counts endpoint does.',
+          },
+          {
+            ticket: 75,
+            title: 'Console part: roster mismatch filter and OFR on records',
+            screens: ['rec-mismatch', 'record-mismatch', 'record-onb'],
+            note: 'Portal dashboard onboarded card (portal half of #75) is out of scope for this file.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

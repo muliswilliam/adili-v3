@@ -1,0 +1,2013 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what do the Commission obligations workspace (tiles, not-onboarded callout, filterable list, reminder drawer), the obligations policy with its start-date change, and EACC's national summary look like in every state? Covers tickets #97 #100 #87 #8 (spec 04 #81). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Obligations (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      /* ---------- file-specific ---------- */
+      .vh {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .btn:focus-visible,
+      a:focus-visible,
+      button:focus-visible,
+      .tile:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .input[aria-invalid='true'] {
+        box-shadow:
+          0 0 0 1px var(--danger),
+          0 0 0 4px rgba(201, 41, 30, 0.08);
+      }
+      .btn-primary[aria-busy='true'] {
+        background: linear-gradient(#3a3a3a, #262626);
+        color: #fff;
+        opacity: 1;
+        cursor: progress;
+      }
+      .ferr {
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+        font-size: 13px;
+        color: var(--danger);
+        font-weight: 500;
+      }
+      .ferr svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .alert {
+        display: flex;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: var(--r);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .alert svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .alert b {
+        display: block;
+        font-weight: 600;
+      }
+      .alert-danger {
+        background: var(--danger-soft);
+        color: #8a1c14;
+      }
+      .alert-warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+      }
+      .alert-info {
+        background: #eaf1fb;
+        color: #1f4f96;
+      }
+      .alert-neutral {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .alert .acts {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .issuer {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .fileno {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .tip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        cursor: default;
+      }
+      .tip .tip-body {
+        display: none;
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 8px);
+        z-index: 30;
+        width: max-content;
+        max-width: 280px;
+        padding: 9px 11px;
+        border-radius: 10px;
+        background: #1c1c1c;
+        color: #fff;
+        font-size: 12.5px;
+        line-height: 1.45;
+        font-weight: 400;
+        box-shadow: var(--shadow-pop);
+        white-space: normal;
+        text-align: left;
+      }
+      .tip.left .tip-body {
+        right: auto;
+        left: 0;
+      }
+      .tip:hover .tip-body,
+      .tip:focus-within .tip-body,
+      .tip:focus .tip-body {
+        display: block;
+      }
+      .term {
+        border-bottom: 1px dashed var(--line-2);
+        cursor: help;
+      }
+      .cardx {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+      }
+      .sec-h .ico {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+      }
+      .head-meta {
+        display: flex;
+        gap: 8px 14px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .head-meta .sep {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--line-2);
+      }
+      .cycle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--ink-2);
+        font-weight: 500;
+      }
+      /* stat tiles with accessible per-type breakdown */
+      .otiles {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      @container app (min-width: 980px) {
+        .otiles {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      .otile {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 16px;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        border: 0;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .otile:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 4px 14px -6px rgba(0, 0, 0, 0.12);
+      }
+      .otile.on {
+        box-shadow: 0 0 0 1.5px var(--ink);
+      }
+      .otile .k {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .otile .v {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.15;
+      }
+      .otile .bd {
+        list-style: none;
+        margin: 6px 0 0;
+        padding: 8px 0 0;
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 2px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .otile .bd li {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .otile .bd b {
+        font-weight: 600;
+        color: var(--ink-2);
+        font-variant-numeric: tabular-nums;
+      }
+      .otile.warn {
+        background: linear-gradient(180deg, #fffaf0, #fff);
+      }
+      .otile.warn .v {
+        color: #7a4a00;
+      }
+      .otile.skel {
+        cursor: default;
+      }
+      .kdot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .callout-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
+        padding: 10px 12px 10px 16px;
+        border-radius: var(--r);
+        background: var(--warn-soft);
+        color: #6b4000;
+        font-size: 14px;
+      }
+      .callout-row > svg {
+        flex: none;
+      }
+      .callout-row .acts {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+      .callout-row .btn-secondary {
+        background: #fff;
+      }
+      .toolbar .seg {
+        flex: none;
+      }
+      .toolbar .seg button {
+        height: 30px;
+      }
+      .table td .sub {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-top: 1px;
+      }
+      .table td a.rowlink {
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--ink);
+      }
+      .table td a.rowlink:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-color: var(--line-2);
+      }
+      .table tfoot td {
+        font-weight: 600;
+        background: #fcfcfb;
+        border-top: 1px solid var(--line-2);
+        font-variant-numeric: tabular-nums;
+      }
+      .table th.num,
+      .table td.num {
+        text-align: right;
+      }
+      .th-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: 0;
+        background: none;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        padding: 0;
+      }
+      .th-btn:hover {
+        color: var(--ink);
+      }
+      .th-btn.on {
+        color: var(--ink);
+      }
+      .zero {
+        color: var(--line-2);
+      }
+      .table-wrap.dtable {
+        overflow: visible;
+      }
+      .table.rounded thead th:first-child {
+        border-top-left-radius: 16px;
+      }
+      .table.rounded thead th:last-child {
+        border-top-right-radius: 16px;
+      }
+      .rtable td.ch {
+        white-space: nowrap;
+      }
+      .table.rounded {
+        min-width: 760px;
+      }
+      @container app (max-width: 699px) {
+        .dlx > div {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 2px;
+        }
+      }
+      .mlist {
+        display: none;
+      }
+      @container app (max-width: 699px) {
+        .dtable {
+          display: none;
+        }
+        .mlist {
+          display: block;
+        }
+      }
+      .mitem {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .mitem:last-child {
+        border-bottom: 0;
+      }
+      .mitem .top {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+      .mitem .meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .dlx {
+        margin: 0;
+      }
+      .dlx > div {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14.5px;
+      }
+      .dlx > div:last-child {
+        border-bottom: 0;
+      }
+      .dlx dt {
+        color: var(--muted);
+      }
+      .dlx dd {
+        margin: 0;
+        font-weight: 500;
+        min-width: 0;
+      }
+      .rtable {
+        width: 100%;
+        min-width: 600px;
+        border-collapse: collapse;
+        font-size: 13.5px;
+      }
+      .rtable th {
+        text-align: left;
+        font-weight: 500;
+        font-size: 12px;
+        color: var(--muted);
+        padding: 8px 8px 8px 0;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      .rtable td {
+        padding: 10px 8px 10px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .rtable tr:last-child td {
+        border-bottom: 0;
+      }
+      .oc {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 6px;
+        font-weight: 500;
+      }
+      .oc svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .oc.sent {
+        color: var(--ok);
+      }
+      .oc.skip {
+        color: var(--muted);
+      }
+      .oc.fail {
+        color: var(--danger);
+      }
+      .oc.sched {
+        color: var(--ink-2);
+        font-weight: 400;
+      }
+      .pgrid {
+        display: grid;
+      }
+      .prow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 600px) {
+        .prow {
+          grid-template-columns: 190px minmax(0, 1fr) auto;
+          gap: 16px;
+          align-items: center;
+        }
+      }
+      .prow:last-child {
+        border-bottom: 0;
+      }
+      .prow .k {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .prow .v {
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      .vh-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .vh-list li {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14px;
+      }
+      .vh-list li:last-child {
+        border-bottom: 0;
+      }
+      .vnum {
+        width: 30px;
+        height: 26px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .vnum.cur {
+        background: var(--ink);
+        color: #fff;
+      }
+      .preview {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border-radius: var(--r);
+        background: var(--sunken);
+        font-size: 13.5px;
+        color: var(--ink-2);
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .note svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .picker .select {
+        height: 38px;
+        font-size: 14px;
+        min-width: 260px;
+      }
+      .spinner.dark {
+        border-color: rgba(0, 0, 0, 0.12);
+        border-top-color: var(--ink);
+      }
+      .wlayout {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .drawer .sec-t {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.01em;
+        margin-bottom: 4px;
+      }
+      .countline {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, dialog, drawer, consoleShell, fmtDate, fmtDateTime, num } = Kit;
+
+      /* ================= helpers ================= */
+      const D = (s) => new Date(s && s.length === 10 ? s + 'T00:00:00' : s);
+      const fd = (s) => (s ? fmtDate(D(s)) : '-');
+      const fdt = (s) => (s ? fmtDateTime(D(s)) : '-');
+      const mid = (d) => {
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x;
+      };
+      const calDays = (a, b) => Math.round((mid(D(b)) - mid(a)) / 86400000);
+      const addDays = (s, n) => {
+        const x = D(s);
+        x.setDate(x.getDate() + n);
+        return iso(x);
+      };
+      const iso = (x) =>
+        `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+      const TODAY = Kit.TODAY;
+      const TODAY_ISO = iso(TODAY);
+      const nowIso = () =>
+        `${iso(TODAY)}T${String(TODAY.getHours()).padStart(2, '0')}:${String(TODAY.getMinutes()).padStart(2, '0')}:00`;
+      const P = () => Kit.persona();
+      const COMMISSION_ROLES = ['reporting-officer', 'commission-admin', 'reviewer', 'supervisor'];
+      const isAdmin = () => P() === 'platform-admin';
+      const isEacc = () => P() === 'eacc-analyst' || P() === 'eacc-supervisor';
+      const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many || one + 's'}`;
+      function uuid() {
+        return 'xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+        });
+      }
+      const spinner = (dark) =>
+        `<span class="spinner ${dark ? 'dark' : ''}" aria-hidden="true"></span>`;
+      const errLine = (id, msg) =>
+        `<div class="ferr" id="${id}" role="alert">${icon('alert', 14, 2.2)}<span>${msg}</span></div>`;
+      function alertBox(
+        kind,
+        title,
+        text = '',
+        acts = '',
+        { role = kind === 'danger' ? 'alert' : 'status' } = {},
+      ) {
+        const ic =
+          { danger: 'alert', warn: 'alert', info: 'info', neutral: 'lock' }[kind] || 'info';
+        return `<div class="alert alert-${kind}" role="${role}">${icon(ic, 18)}<div style="min-width:0;flex:1"><b>${title}</b>${text ? `<div>${text}</div>` : ''}${acts ? `<div class="acts">${acts}</div>` : ''}</div></div>`;
+      }
+
+      /* One shared table of words (spec 04 i18n note: shared by portal and console). */
+      const TYPE_LABEL = { initial: 'Initial', biennial: 'Biennial 2027', final: 'Final' };
+      const TYPE_LONG = {
+        initial: 'Initial declaration',
+        biennial: 'Biennial declaration 2027',
+        final: 'Final declaration',
+      };
+      const STATUS = {
+        upcoming: { label: 'Upcoming', cls: '', ic: 'clock', dot: 'var(--line-2)' },
+        due: { label: 'Due', cls: 'badge-info', ic: 'calendar', dot: '#2f6fd1' },
+        overdue: { label: 'Overdue', cls: 'badge-warn', ic: 'alert', dot: '#d98a00' },
+        filed: { label: 'Filed', cls: 'badge-ok', ic: 'check', dot: 'var(--ok)' },
+      };
+      const OUTCOME = {
+        sent: ['Sent by SMS and email', 'sent', 'check'],
+        'skipped-not-onboarded': ['Skipped: not yet onboarded', 'skip', 'minus'],
+        'skipped-no-contact': ['Skipped: no contact details', 'skip', 'minus'],
+        'skipped-past-due-at-creation': [
+          'Skipped: date had passed when the obligation was created',
+          'skip',
+          'minus',
+        ],
+        failed: ['Failed', 'fail', 'x'],
+        scheduled: ['Scheduled', 'sched', 'clock'],
+      };
+      const statusBadge = (s) =>
+        `<span class="badge ${STATUS[s].cls}">${icon(STATUS[s].ic, 13, 2.2)}${STATUS[s].label}</span>`;
+      /* DateText: absolute date plus a relative phrase that is safe across month and year boundaries (calendar days). */
+      function relPhrase(o) {
+        if (o.status === 'upcoming') return `Opens ${fd(o.statementDate)}`;
+        const n = calDays(TODAY, o.dueDate);
+        if (o.status === 'overdue') {
+          const m = -n;
+          return `${m} day${m === 1 ? '' : 's'} overdue`;
+        }
+        return n === 0 ? 'Due today' : `Due in ${n} day${n === 1 ? '' : 's'}`;
+      }
+      const dateText = (o) =>
+        `<span title="Due ${esc(fd(o.dueDate))}">${fd(o.dueDate)}</span><div class="sub" style="${o.status === 'overdue' ? 'color:#7a4a00;font-weight:500' : ''}">${relPhrase(o)}</div>`;
+
+      /* ================= demo data ================= */
+      const COMMISSIONS = [
+        {
+          slug: 'psc',
+          issuerCode: 'PSC',
+          name: 'Public Service Commission',
+          rosterAt: '2026-09-26T06:00:04',
+          created: '2026-08-03',
+        },
+        {
+          slug: 'tsc',
+          issuerCode: 'TSC',
+          name: 'Teachers Service Commission',
+          rosterAt: '2026-09-23T08:10:00',
+          created: '2026-08-05',
+        },
+        {
+          slug: 'eacc',
+          issuerCode: 'EACC',
+          name: 'Ethics and Anti-Corruption Commission',
+          rosterAt: '2026-09-02T11:20:00',
+          created: '2026-08-03',
+        },
+        {
+          slug: 'npsc',
+          issuerCode: 'NPSC',
+          name: 'National Police Service Commission',
+          rosterAt: '2026-09-11T09:45:00',
+          created: '2026-08-12',
+        },
+        {
+          slug: 'cbk',
+          issuerCode: 'CBK',
+          name: 'Central Bank of Kenya Board of Directors',
+          rosterAt: '2026-09-24T07:00:00',
+          created: '2026-08-20',
+        },
+        {
+          slug: 'caj',
+          issuerCode: 'CAJ',
+          name: 'Commission on Administrative Justice',
+          rosterAt: '2026-09-05T12:00:00',
+          created: '2026-08-25',
+        },
+        {
+          slug: 'jsc',
+          issuerCode: 'JSC',
+          name: 'Judicial Service Commission',
+          rosterAt: null,
+          created: '2026-09-18',
+        },
+        {
+          slug: 'parlsc',
+          issuerCode: 'PARLSC',
+          name: 'Parliamentary Service Commission',
+          rosterAt: '2026-08-14T11:00:00',
+          created: '2026-08-01',
+        },
+        {
+          slug: 'cpsb047',
+          issuerCode: 'CPSB047',
+          name: 'Nairobi City County Public Service Board',
+          rosterAt: null,
+          created: '2026-09-08',
+        },
+        {
+          slug: 'cue',
+          issuerCode: 'CUE',
+          name: 'Commission for University Education',
+          rosterAt: null,
+          created: '2026-08-27',
+        },
+        {
+          slug: 'nassembly',
+          issuerCode: 'NASSEMBLY',
+          name: 'National Assembly Committee on Ethics',
+          rosterAt: null,
+          created: '2026-09-04',
+        },
+        {
+          slug: 'cpsb001',
+          issuerCode: 'CPSB001',
+          name: 'Mombasa County Public Service Board',
+          rosterAt: null,
+          created: '2026-09-21',
+        },
+        {
+          slug: 'cpsb042',
+          issuerCode: 'CPSB042',
+          name: 'Kisumu County Public Service Board',
+          rosterAt: null,
+          created: '2026-09-22',
+        },
+        {
+          slug: 'casb047',
+          issuerCode: 'CASB047',
+          name: 'Nairobi City County Assembly Service Board',
+          rosterAt: null,
+          created: '2026-09-15',
+        },
+        {
+          slug: 'kdf',
+          issuerCode: 'KDF',
+          name: 'Defence Council',
+          rosterAt: null,
+          created: '2026-09-10',
+        },
+        {
+          slug: 'nis',
+          issuerCode: 'NIS',
+          name: 'National Intelligence Service Council',
+          rosterAt: null,
+          created: '2026-09-10',
+        },
+        {
+          slug: 'senate',
+          issuerCode: 'SENATE',
+          name: 'Senate Committee on Ethics',
+          rosterAt: null,
+          created: '2026-09-04',
+        },
+        {
+          slug: 'wpab',
+          issuerCode: 'WPAB',
+          name: 'Witness Protection Advisory Board',
+          rosterAt: null,
+          created: '2026-09-23',
+        },
+      ];
+      const CBYSLUG = Object.fromEntries(COMMISSIONS.map((c) => [c.slug, c]));
+      /* national counts per Commission (StatusCounts + notOnboarded); biennial adds upcoming once the cycle opens */
+      const NATIONAL = {
+        psc: { upcoming: 0, due: 47, overdue: 26, filed: 0, notOnboarded: 48, biennial: 48298 },
+        tsc: { upcoming: 0, due: 612, overdue: 388, filed: 0, notOnboarded: 702, biennial: 435904 },
+        parlsc: { upcoming: 0, due: 9, overdue: 3, filed: 0, notOnboarded: 6, biennial: 3302 },
+        eacc: { upcoming: 0, due: 6, overdue: 2, filed: 0, notOnboarded: 3, biennial: 1478 },
+        npsc: {
+          upcoming: 0,
+          due: 812,
+          overdue: 1406,
+          filed: 0,
+          notOnboarded: 1991,
+          biennial: 99640,
+        },
+        cbk: { upcoming: 0, due: 4, overdue: 1, filed: 0, notOnboarded: 1, biennial: 1206 },
+        caj: { upcoming: 0, due: 1, overdue: 0, filed: 0, notOnboarded: 0, biennial: 411 },
+      };
+      const PSC_SUMMARY = {
+        initial: { upcoming: 0, due: 41, overdue: 23 },
+        biennial: { upcoming: 0, due: 0, overdue: 0 },
+        final: { upcoming: 0, due: 6, overdue: 3 },
+        notOnboarded: { due: 29, overdue: 19 },
+      };
+
+      /* [name, file, type, date (appointment/exit), onboarded (OFR or null), created (import or cycle opening), special reminder outcome] */
+      const SEEDS = [
+        [
+          'Wanjiku Njeri Kamau',
+          'PSC/2026/0412',
+          'initial',
+          '2026-09-14',
+          'OFR-0482913-H',
+          '2026-09-14',
+        ],
+        ['Brian Ouma Otieno', 'PSC/2026/0398', 'initial', '2026-09-01', null, '2026-09-05'],
+        [
+          'Mercy Adhiambo Achieng',
+          'PSC/2026/0405',
+          'initial',
+          '2026-09-07',
+          'OFR-0519004-C',
+          '2026-09-20',
+        ],
+        ['Abdullahi Hassan Mohamed', 'PSC/2026/0421', 'initial', '2026-09-21', null, '2026-09-21'],
+        [
+          'Stella Wairimu Njoroge',
+          'PSC/2026/0390',
+          'initial',
+          '2026-08-28',
+          'OFR-0501127-K',
+          '2026-09-05',
+          { 1: 'skipped-no-contact' },
+        ],
+        [
+          'Kiprono Kipchirchir Rotich',
+          'PSC/2026/0417',
+          'initial',
+          '2026-09-18',
+          'OFR-0522318-A',
+          '2026-09-20',
+        ],
+        ['Daniel Musyoka Mutiso', 'PSC/2026/0426', 'initial', '2026-09-24', null, '2026-09-24'],
+        ['Faith Jepkoech Chebet', 'PSC/2026/0301', 'initial', '2026-08-04', null, '2026-08-12'],
+        [
+          'Kevin Odhiambo Omondi',
+          'PSC/2026/0322',
+          'initial',
+          '2026-08-10',
+          'OFR-0488210-M',
+          '2026-08-12',
+        ],
+        ['Grace Wanjiru Nyambura', 'PSC/2026/0355', 'initial', '2026-08-19', null, '2026-09-05'],
+        [
+          'Collins Wafula Barasa',
+          'PSC/2026/0368',
+          'initial',
+          '2026-08-24',
+          'OFR-0499631-B',
+          '2026-09-05',
+          { 2: 'failed' },
+        ],
+        ['Ruth Nafula Wekesa', 'PSC/2026/0331', 'initial', '2026-08-12', null, '2026-08-12'],
+        [
+          'Joseph Mwangi Kariuki',
+          'PSC/2009/1187',
+          'final',
+          '2026-09-05',
+          'OFR-0104455-D',
+          '2026-09-12',
+        ],
+        ['Fatuma Said Ali', 'PSC/2014/0822', 'final', '2026-08-20', null, '2026-09-05'],
+        ['Wilson Kiplagat Langat', 'PSC/2011/0345', 'final', '2026-09-15', null, '2026-09-20'],
+        [
+          'Esther Mwende Mutua',
+          'PSC/2008/0917',
+          'final',
+          '2026-08-31',
+          'OFR-0110982-F',
+          '2026-09-05',
+        ],
+        /* page 2 */
+        ['Hassan Omar Juma', 'PSC/2026/0409', 'initial', '2026-09-10', null, '2026-09-20'],
+        [
+          'Lucy Wambui Gitau',
+          'PSC/2026/0377',
+          'initial',
+          '2026-08-26',
+          'OFR-0507745-J',
+          '2026-09-05',
+        ],
+        ['Peter Kimani Ndung’u', 'PSC/2026/0314', 'initial', '2026-08-07', null, '2026-08-12'],
+        [
+          'Sharon Atieno Oduor',
+          'PSC/2026/0419',
+          'initial',
+          '2026-09-19',
+          'OFR-0523390-E',
+          '2026-09-20',
+        ],
+        ['Mohamed Abdi Farah', 'PSC/2013/0561', 'final', '2026-09-22', null, '2026-09-24'],
+        ['Janet Kerubo Nyaboke', 'PSC/2026/0386', 'initial', '2026-08-27', null, '2026-09-05'],
+      ];
+      const BIENNIAL_SEEDS = [
+        ['Peter Njoroge Kamau', 'PSC/2005/0071', 'OFR-0098812-L'],
+        ['Alice Moraa Nyamweya', 'PSC/2012/0440', null],
+        ['Samuel Kiptoo Keter', 'PSC/2017/0902', 'OFR-0233107-G'],
+        ['Mary Achieng Owino', 'PSC/2010/0218', null],
+        ['Ibrahim Noor Aden', 'PSC/2019/1033', 'OFR-0312876-N'],
+        ['Catherine Wanjiru Mwangi', 'PSC/2015/0655', null],
+      ];
+      function buildOb(seed, i, policy) {
+        const [name, file, type, date, ofr, created, special = {}] = seed;
+        const due = addDays(
+          date,
+          type === 'initial' ? policy.initialDueAfterAppointmentDays : policy.finalDueAfterExitDays,
+        );
+        const status = calDays(TODAY, due) < 0 ? 'overdue' : 'due';
+        return finish({
+          id: 'ob-' + i,
+          type,
+          cycleKey: `${type}:${date}`,
+          statementDate: date,
+          dueDate: due,
+          status,
+          createdAt: created,
+          officer: { personnelFileNumber: file, fullName: name, onboarded: !!ofr, ofr },
+          special,
+          policyVersion: 1,
+        });
+      }
+      function buildBiennial(seed, i) {
+        const [name, file, ofr] = seed;
+        return finish({
+          id: 'ob-b' + i,
+          type: 'biennial',
+          cycleKey: 'biennial:2027',
+          statementDate: '2027-11-01',
+          dueDate: '2027-12-31',
+          status: 'upcoming',
+          createdAt: '2027-07-04',
+          officer: { personnelFileNumber: file, fullName: name, onboarded: !!ofr, ofr },
+          special: {},
+          policyVersion: 1,
+        });
+      }
+      function finish(o) {
+        o.reminders = [30, 14, 7].map((off, k) => {
+          const sched = addDays(o.dueDate, -off);
+          const r = {
+            offsetDays: off,
+            scheduledAt: sched,
+            sentAt: null,
+            channels: [],
+            outcome: 'scheduled',
+          };
+          if (calDays(D(o.createdAt), sched) < 0) r.outcome = 'skipped-past-due-at-creation';
+          else if (calDays(TODAY, sched) > 0) r.outcome = 'scheduled';
+          else if (!o.officer.onboarded) r.outcome = 'skipped-not-onboarded';
+          else if (o.special[k]) r.outcome = o.special[k];
+          else {
+            r.outcome = 'sent';
+            r.sentAt = sched + 'T' + ['08:41', '11:17', '15:02'][k] + ':00';
+            r.channels = ['sms', 'email'];
+          }
+          return r;
+        });
+        o.remindersSent = o.reminders.filter((r) => r.outcome === 'sent').length;
+        return o;
+      }
+
+      /* ================= state ================= */
+      const DEFAULT_POLICY = {
+        initialDueAfterAppointmentDays: 30,
+        biennial: { statementDate: '11-01', dueDate: '12-31' },
+        finalDueAfterExitDays: 30,
+        reminderOffsetsDays: [30, 14, 7],
+        clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
+        formMDue: '07-31',
+      };
+      const seedPolicies = () =>
+        Object.fromEntries(
+          COMMISSIONS.map((c) => [
+            c.slug,
+            [
+              {
+                id: 'pv-' + c.slug + '-1',
+                version: 1,
+                effectiveFrom: c.created + 'T09:14:00',
+                obligationsStartDate: c.created,
+                ...DEFAULT_POLICY,
+                createdBy: 'Amina Wanjiru',
+                createdAt: c.created + 'T09:14:00',
+              },
+            ],
+          ]),
+        );
+      const init = () => ({
+        slug: 'psc',
+        cycleOpened: false,
+        rosterNone: false,
+        f: { type: '', status: '', onb: '', cycle: '', search: '' },
+        state: 'ready',
+        page: 1,
+        nat: {
+          state: 'ready',
+          sort: 'overdue',
+          dir: 'desc',
+          empty: false,
+          cycle: 'biennial:2027',
+          page: 1,
+          pageSize: 10,
+        },
+        policies: seedPolicies(),
+        pf: { date: '', error: '', state: 'editing', alert: null, idem: uuid() },
+        _ret: null,
+      });
+      const S = Kit.state(init());
+
+      /* ================= derived ================= */
+      const tenantSlug = () => (isAdmin() ? S.slug : 'psc');
+      const tenant = () => CBYSLUG[tenantSlug()];
+      const policyOf = (slug) => {
+        const pv = S.policies[slug];
+        return pv[pv.length - 1];
+      };
+      function allObligations() {
+        if (tenantSlug() !== 'psc' || S.rosterNone) {
+          if (!NATIONAL[tenantSlug()] || S.rosterNone) return [];
+        }
+        const pol = policyOf('psc');
+        const rows = SEEDS.map((s, i) => buildOb(s, i, pol));
+        if (S.cycleOpened) BIENNIAL_SEEDS.forEach((s, i) => rows.push(buildBiennial(s, i)));
+        if (tenantSlug() !== 'psc')
+          return rows.slice(0, 5).map((r, i) => ({
+            ...r,
+            officer: {
+              ...r.officer,
+              personnelFileNumber: r.officer.personnelFileNumber.replace(
+                'PSC',
+                tenant().issuerCode,
+              ),
+            },
+          }));
+        return rows;
+      }
+      function summary() {
+        const slug = tenantSlug();
+        if (S.rosterNone || !NATIONAL[slug]) return null;
+        if (slug === 'psc') {
+          const s = JSON.parse(JSON.stringify(PSC_SUMMARY));
+          if (S.cycleOpened) s.biennial.upcoming = NATIONAL.psc.biennial;
+          return s;
+        }
+        const n = NATIONAL[slug];
+        const iDue = Math.round(n.due * 0.8),
+          iOver = Math.round(n.overdue * 0.8);
+        return {
+          initial: { upcoming: 0, due: iDue, overdue: iOver },
+          biennial: { upcoming: S.cycleOpened ? n.biennial : 0, due: 0, overdue: 0 },
+          final: { upcoming: 0, due: n.due - iDue, overdue: n.overdue - iOver },
+          notOnboarded: {
+            due: Math.round(n.notOnboarded * 0.6),
+            overdue: n.notOnboarded - Math.round(n.notOnboarded * 0.6),
+          },
+        };
+      }
+      const tot = (s, k) => s.initial[k] + s.biennial[k] + s.final[k];
+      const hasFilters = () => Object.values(S.f).some(Boolean);
+      function filteredRows() {
+        const q = S.f.search.trim().toLowerCase();
+        let rows = allObligations();
+        if (S.f.type) rows = rows.filter((o) => o.type === S.f.type);
+        if (S.f.status) rows = rows.filter((o) => o.status === S.f.status);
+        if (S.f.onb) rows = rows.filter((o) => o.officer.onboarded === (S.f.onb === 'yes'));
+        if (S.f.cycle) rows = rows.filter((o) => o.cycleKey === S.f.cycle);
+        if (q)
+          rows = rows.filter(
+            (o) =>
+              o.officer.personnelFileNumber.toLowerCase().startsWith(q) ||
+              o.officer.fullName.toLowerCase().includes(q),
+          );
+        const rank = (o) => (o.status === 'overdue' ? 0 : 1);
+        return rows.sort(
+          (a, b) =>
+            rank(a) - rank(b) ||
+            a.dueDate.localeCompare(b.dueDate) ||
+            a.officer.fullName.localeCompare(b.officer.fullName),
+        );
+      }
+
+      /* URL-backed filters */
+      function syncUrl() {
+        const q = new URLSearchParams();
+        if (S.screen === 'obligations' || S.screen === 'policy') {
+          if (isAdmin()) q.set('slug', S.slug);
+          if (S.screen === 'obligations') {
+            if (S.f.type) q.set('type', S.f.type);
+            if (S.f.status) q.set('status', S.f.status);
+            if (S.f.onb) q.set('onboarded', S.f.onb === 'yes' ? 'true' : 'false');
+            if (S.f.cycle) q.set('cycle', S.f.cycle);
+            if (S.f.search) q.set('search', S.f.search);
+          }
+        }
+        if (S.screen === 'national' && S.nat.sort !== 'overdue') q.set('sort', S.nat.sort);
+        const qs = q.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + '#' + S.screen);
+      }
+      function readUrl() {
+        const q = new URLSearchParams(location.search);
+        if (q.get('slug') && CBYSLUG[q.get('slug')]) S.slug = q.get('slug');
+        S.f.type = q.get('type') || '';
+        S.f.status = q.get('status') || '';
+        S.f.cycle = q.get('cycle') || '';
+        S.f.search = q.get('search') || '';
+        S.f.onb =
+          q.get('onboarded') === 'true' ? 'yes' : q.get('onboarded') === 'false' ? 'no' : '';
+      }
+      function fakeLoad(setter, ms = 600) {
+        setter('loading');
+        Kit.render();
+        setTimeout(() => {
+          setter('ready');
+          Kit.render();
+        }, ms);
+      }
+
+      /* ================= Obligations workspace ================= */
+      function tileEl(key, label, value, bd, { warn = false, sub = '' } = {}) {
+        const on = S.f.status === key;
+        const clickable = ['upcoming', 'due', 'overdue'].includes(key);
+        const inner = `<span class="k">${key === 'nob' ? icon('userX', 15) : `<span class="kdot" style="background:${STATUS[key].dot}"></span>`}${label}</span><span class="v">${num(value)}</span>${sub ? `<span class="small muted">${sub}</span>` : ''}<ul class="bd" aria-label="${esc(label)} by type">${bd.map(([k, v]) => `<li><span>${k}</span><b>${num(v)}</b></li>`).join('')}</ul>`;
+        return clickable
+          ? `<button class="otile ${on ? 'on' : ''}" data-act="tile" data-arg="${key}" aria-pressed="${on}" title="${esc(label)}: ${bd.map(([k, v]) => `${k} ${v}`).join(', ')}">${inner}</button>`
+          : `<div class="otile ${warn ? 'warn' : ''}" style="cursor:default" title="${esc(label)}: ${bd.map(([k, v]) => `${k} ${v}`).join(', ')}">${inner}</div>`;
+      }
+      function tiles(s) {
+        if (!s) return '';
+        const byT = (k) => [
+          ['Initial', s.initial[k]],
+          ['Biennial', s.biennial[k]],
+          ['Final', s.final[k]],
+        ];
+        const nob = s.notOnboarded.due + s.notOnboarded.overdue;
+        return `<div class="otiles" role="group" aria-label="Summary">
+    ${tileEl('upcoming', 'Upcoming', tot(s, 'upcoming'), byT('upcoming'))}
+    ${tileEl('due', 'Due', tot(s, 'due'), byT('due'))}
+    ${tileEl('overdue', 'Overdue', tot(s, 'overdue'), byT('overdue'))}
+    ${tileEl(
+      'nob',
+      'Due or overdue but not onboarded',
+      nob,
+      [
+        ['Due', s.notOnboarded.due],
+        ['Overdue', s.notOnboarded.overdue],
+      ],
+      { warn: nob > 0 },
+    )}
+  </div>`;
+      }
+      function skeletonTiles() {
+        return `<div class="otiles">${Array.from({ length: 4 }, () => `<div class="otile skel"><span class="skeleton" style="width:50%"></span><span class="skeleton" style="width:30%;height:24px;margin:6px 0"></span><span class="skeleton" style="width:80%"></span><span class="skeleton" style="width:70%"></span></div>`).join('')}</div>`;
+      }
+      function nobCallout(s) {
+        const n = s ? s.notOnboarded.due + s.notOnboarded.overdue : 0;
+        if (!n) return '';
+        const canRoster = ['reporting-officer', 'commission-admin'].includes(P());
+        return `<div class="callout-row" role="status">${icon('userX', 18)}<div style="flex:1;min-width:240px">${plural(n, 'officer')} with a declaration due ${n === 1 ? 'has' : 'have'} not onboarded. They receive no reminders from Adili. Chase them through your own channels.</div>
+    <div class="acts">${canRoster ? `<a class="btn btn-secondary btn-sm" href="02-roster.prototype.html?state=not_onboarded#records">${icon('users', 15)} View roster</a>` : ''}<button class="btn btn-ghost btn-sm" data-act="showNob">Show in list</button></div></div>`;
+      }
+      function toolbar() {
+        const f = S.f;
+        const opt = (v, l, cur) =>
+          `<option value="${v}" ${cur === v ? 'selected' : ''}>${l}</option>`;
+        return `<div class="toolbar" role="search">
+    <div class="input-group"><span class="addon">${icon('search', 16)}</span><label class="vh" for="f-f-search">Search by file number or name</label><input id="f-f-search" class="input" type="search" data-bind="f.search" value="${esc(f.search)}" placeholder="File number or name"/></div>
+    <label class="vh" for="f-f-type">Type</label><select id="f-f-type" class="select" data-bind="f.type" data-rerender>${opt('', 'All types', f.type)}${opt('initial', 'Initial', f.type)}${opt('biennial', 'Biennial', f.type)}${opt('final', 'Final', f.type)}</select>
+    <label class="vh" for="f-f-status">Status</label><select id="f-f-status" class="select" data-bind="f.status" data-rerender>${opt('', 'All statuses', f.status)}${opt('upcoming', 'Upcoming', f.status)}${opt('due', 'Due', f.status)}${opt('overdue', 'Overdue', f.status)}</select>
+    <div class="seg" role="radiogroup" aria-label="Onboarded">${[
+      ['', 'Any'],
+      ['yes', 'Onboarded'],
+      ['no', 'Not onboarded'],
+    ]
+      .map(
+        ([v, l]) =>
+          `<button role="radio" aria-checked="${f.onb === v}" class="${f.onb === v ? 'on' : ''}" data-act="onb" data-arg="${v}">${l}</button>`,
+      )
+      .join('')}</div>
+    <label class="vh" for="f-f-cycle">Cycle</label><select id="f-f-cycle" class="select" data-bind="f.cycle" data-rerender>${opt('', 'All cycles', f.cycle)}${S.cycleOpened ? opt('biennial:2027', 'Biennial 2027', f.cycle) : '<option disabled>Biennial 2027 (not open yet)</option>'}</select>
+    ${hasFilters() ? `<button class="btn btn-ghost btn-sm" data-act="clearFilters">${icon('x', 15)} Clear</button>` : ''}
+  </div>`;
+      }
+      function remTip(o) {
+        const last = o.reminders.filter((r) => r.outcome !== 'scheduled').pop();
+        const next = o.reminders.find((r) => r.outcome === 'scheduled');
+        const lines = [
+          last
+            ? `Last: ${OUTCOME[last.outcome][0]}${last.sentAt ? ', ' + fd(last.sentAt) : ', ' + fd(last.scheduledAt)}`
+            : 'None due yet',
+          next ? `Next: ${fd(next.scheduledAt)}` : '',
+        ].filter(Boolean);
+        return `<span class="tip" tabindex="0" aria-label="${o.remindersSent} sent. ${esc(lines.join('. '))}"><span class="countline">${icon('bell', 14)} ${o.remindersSent}</span><span class="tip-body" role="tooltip">${lines.map(esc).join('<br/>')}</span></span>`;
+      }
+      const onbBadge = (o) =>
+        o.officer.onboarded
+          ? `<span class="badge badge-ok">${icon('check', 13, 2.4)}Yes</span>`
+          : `<span class="badge">${icon('minus', 13, 2.4)}No</span>`;
+      function listBody() {
+        const head = `<thead><tr><th scope="col">Officer</th><th scope="col">Type</th><th scope="col">Statement date</th><th scope="col">Due date</th><th scope="col">Status</th><th scope="col">Onboarded</th><th scope="col">Reminders</th></tr></thead>`;
+        if (S.state === 'loading')
+          return `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="vh">Obligations (loading)</caption>${head}<tbody>${Kit.skeletonRows(6, 7)}</tbody></table></div>`;
+        const rows = filteredRows();
+        if (!rows.length) {
+          if (hasFilters())
+            return Kit.empty('No matches', 'Try a different search or clear the filters.', {
+              icon: 'search',
+              action: `<button class="btn btn-secondary btn-sm" data-act="clearFilters">Clear filters</button>`,
+            });
+          const canImport =
+            ['reporting-officer', 'commission-admin'].includes(P()) &&
+            (S.rosterNone || !NATIONAL[tenantSlug()]);
+          return Kit.empty(
+            'No obligations yet',
+            'Obligations appear when the roster is imported and a cycle opens.',
+            {
+              icon: 'calendar',
+              action: canImport
+                ? `<a class="btn btn-secondary btn-sm" href="02-roster.prototype.html#overview">${icon('upload', 15)} Import roster</a>`
+                : '',
+            },
+          );
+        }
+        const PAGE = 10;
+        const page = Math.min(S.page, Math.ceil(rows.length / PAGE));
+        const items = rows.slice((page - 1) * PAGE, page * PAGE);
+        const more = rows.length > page * PAGE;
+        const tr = items
+          .map(
+            (o) => `<tr class="click" data-act="openOb" data-arg="${o.id}">
+    <td><a class="rowlink" href="#obligations" data-act="openOb" data-arg="${o.id}">${esc(o.officer.fullName)}</a><div class="fileno">${esc(o.officer.personnelFileNumber)}</div></td>
+    <td>${TYPE_LABEL[o.type]}</td>
+    <td class="nowrap">${fd(o.statementDate)}</td>
+    <td class="nowrap">${dateText(o)}</td>
+    <td>${statusBadge(o.status)}</td>
+    <td>${onbBadge(o)}</td>
+    <td>${remTip(o)}</td></tr>`,
+          )
+          .join('');
+        const m = items
+          .map(
+            (
+              o,
+            ) => `<div class="mitem" data-act="openOb" data-arg="${o.id}"><div class="top"><div style="min-width:0"><a class="rowlink" style="font-weight:500;text-decoration:none" href="#obligations" data-act="openOb" data-arg="${o.id}">${esc(o.officer.fullName)}</a><div class="fileno">${esc(o.officer.personnelFileNumber)}</div></div>${statusBadge(o.status)}</div>
+    <div class="meta">${TYPE_LABEL[o.type]} · ${fd(o.dueDate)} · <span style="${o.status === 'overdue' ? 'color:#7a4a00;font-weight:500' : ''}">${relPhrase(o)}</span></div>
+    <div class="meta">${o.officer.onboarded ? `${icon('check', 13, 2.4)} Onboarded` : 'Not onboarded'} · ${plural(o.remindersSent, 'reminder')} sent</div></div>`,
+          )
+          .join('');
+        return `<div class="table-wrap dtable"><table class="table"><caption class="vh">Officers and their obligations, overdue first</caption>${head}<tbody>${tr}</tbody></table></div><div class="mlist">${m}</div>
+    ${Kit.pager({ page, pageSize: PAGE, count: items.length, hasNext: more, act: 'page', label: 'obligations' })}`;
+      }
+      function cycleLine() {
+        return `<span class="cycle">${icon('calendar', 15)} Biennial 2027 · statement 1 Nov 2027 · due 31 Dec 2027</span>${S.cycleOpened ? '' : '<span class="badge" title="Obligations are created 120 days before the statement date">Opens 4 Jul 2027</span>'}`;
+      }
+      function picker() {
+        if (!isAdmin()) return '';
+        return `<div class="picker"><label class="small muted" for="f-slug">Commission</label><select id="f-slug" class="select" data-bind="slug" data-rerender>${COMMISSIONS.map((c) => `<option value="${c.slug}" ${c.slug === S.slug ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>`;
+      }
+      function scrObligations() {
+        const crumbs = [['Obligations', 'obligations']];
+        if (isEacc())
+          return consoleShell(
+            `<main class="cpage narrow"><div class="page-head"><div><h1>Obligations</h1></div></div>${alertBox('neutral', 'You can see counts on the Commission page, not the officer list.', '', `<a class="btn btn-secondary btn-sm" href="04-obligations.prototype.html#national">Open national obligations</a><a class="btn btn-ghost btn-sm" href="01-commissions.prototype.html#commissions">Open Commissions</a>`)}</main>`,
+            { crumbs },
+          );
+        if (S.notFound)
+          return consoleShell(
+            `<main class="cpage narrow"><div class="cardx" style="padding:8px">${Kit.empty('Commission not found', 'It does not exist or you do not have access to it.', { icon: 'search', action: `<button class="btn btn-secondary btn-sm" data-act="leave404">Open your Commission’s obligations</button>` })}</div></main>`,
+            { crumbs: [...crumbs, ['Not found', 'obligations']] },
+          );
+        const s = S.state === 'ready' ? summary() : null;
+        let content;
+        if (S.state === 'error')
+          content = alertBox(
+            'danger',
+            'Obligations could not be loaded',
+            'The declarations service did not respond.',
+            `<button class="btn btn-secondary btn-sm" data-act="retry">${icon('refresh', 15)} Try again</button>`,
+          );
+        else
+          content = `${S.state === 'loading' ? skeletonTiles() : tiles(s)}
+    ${S.state === 'ready' ? nobCallout(s) : ''}
+    <div class="card" style="overflow:visible">${toolbar()}${listBody()}</div>`;
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div style="min-width:0"><h1>Obligations</h1><div class="head-meta">${cycleLine()}</div></div><div class="actions-r">${picker()}${P() === 'reviewer' ? `<span class="badge">${icon('eye', 13)} Read only</span>` : ''}<button class="btn btn-secondary btn-sm" data-act="go" data-arg="policy">${icon('settings', 15)} Policy</button></div></div>
+    <div class="wlayout">${content}</div>
+  </main>`,
+          { crumbs },
+        );
+      }
+
+      /* ---------- obligation drawer ---------- */
+      function mOb() {
+        const o = allObligations().find((x) => x.id === S.modal.id);
+        const c = tenant();
+        const onb = o.officer.onboarded;
+        const rem = o.reminders
+          .map((r) => {
+            const [label, cls, ic] = OUTCOME[r.outcome];
+            return `<tr><td class="nowrap">${r.offsetDays} days before</td><td class="nowrap">${fd(r.scheduledAt)}</td><td class="nowrap">${r.sentAt ? `<span title="${esc(fdt(r.sentAt))}">${fd(r.sentAt)}</span>` : '-'}</td><td class="ch">${r.channels.length ? 'SMS, email' : '-'}</td><td><span class="oc ${cls}">${icon(ic, 14, 2.2)}<span>${label}</span></span></td></tr>`;
+          })
+          .join('');
+        const body = `
+    <div class="row" style="gap:8px;flex-wrap:wrap">${statusBadge(o.status)}<span class="small" style="${o.status === 'overdue' ? 'color:#7a4a00;font-weight:600' : 'color:var(--ink-2);font-weight:500'}">${relPhrase(o)}</span></div>
+    <dl class="dlx">
+      <div><dt>File number</dt><dd class="fileno" style="color:var(--ink);font-size:13.5px">${esc(o.officer.personnelFileNumber)}</dd></div>
+      <div><dt>Onboarded</dt><dd>${onbBadge(o)}${onb ? ` <span class="ref" style="font-size:13px;margin-left:6px">${esc(o.officer.ofr)}</span>` : ''}</dd></div>
+      <div><dt>Type</dt><dd>${TYPE_LONG[o.type]}</dd></div>
+      <div><dt>Commission</dt><dd>${esc(c.name)} <span class="issuer">${c.issuerCode}</span></dd></div>
+      <div><dt>Cycle</dt><dd class="mono" style="font-size:13px">${esc(o.cycleKey)}</dd></div>
+      <div><dt><span class="term" tabindex="0" title="The date the financial position is declared as at.">Statement date</span></dt><dd>${fd(o.statementDate)}</dd></div>
+      <div><dt>Due date</dt><dd>${fd(o.dueDate)}</dd></div>
+    </dl>
+    <div><div class="sec-t">Reminders</div><p class="small muted" style="margin-bottom:6px">Reminder schedule set by ${esc(c.name)} · policy v${o.policyVersion}${onb ? '' : ' · none sent until onboarded'}</p>
+      <div class="table-wrap"><table class="rtable"><caption class="vh">Reminder history</caption><thead><tr><th scope="col">Offset</th><th scope="col">Scheduled</th><th scope="col">Sent</th><th scope="col">Channels</th><th scope="col">Outcome</th></tr></thead><tbody>${rem}</tbody></table></div></div>`;
+        const foot = `<a class="btn btn-secondary" href="02-roster.prototype.html?record=${encodeURIComponent(o.officer.personnelFileNumber)}#records">${icon('users', 16)} Roster record</a><button class="btn btn-ghost" data-act="closeModal">Close</button>`;
+        return drawer({
+          title: esc(o.officer.fullName),
+          body,
+          foot,
+          wide: true,
+        });
+      }
+
+      /* ================= Policy (card + change dialog) ================= */
+      function canChangePolicy() {
+        return P() === 'commission-admin' || isAdmin();
+      }
+      function policyCard(slug) {
+        const pv = S.policies[slug];
+        const v = pv[pv.length - 1];
+        const hist = pv.slice().reverse();
+        const canChange = canChangePolicy();
+        return `<section class="cardx" aria-labelledby="h-policy"><div class="sec-h"><span class="ico">${icon('settings', 16)}</span><div><h3 id="h-policy">Policy</h3><div class="small muted">Version ${v.version} in force since ${fd(v.effectiveFrom)}</div></div></div>
+    <div class="sec-b" style="padding-top:4px;padding-bottom:8px"><div class="pgrid">
+      <div class="prow"><div class="k">Statutory periods</div><div class="v">Initial: ${v.initialDueAfterAppointmentDays} days after appointment<br/>Biennial: statement 1 Nov, due 31 Dec<br/>Final: ${v.finalDueAfterExitDays} days after leaving office</div><div></div></div>
+      <div class="prow"><div class="k">Reminders</div><div class="v">${v.reminderOffsetsDays.join(', ').replace(/, (\d+)$/, ' and $1')} days before due</div><div></div></div>
+      <div class="prow"><div class="k">Obligations start date</div><div class="v">${fd(v.obligationsStartDate)} ${Kit.tip('Initial declarations are created only for appointments on or after this date.')}</div><div>${canChange ? `<button class="btn btn-secondary btn-sm" data-act="openPolicy">${icon('pencil', 14)} Change</button>` : ''}</div></div>
+    </div></div>
+    <div style="padding:0 20px 16px"><h4 class="small" style="font-weight:600;margin:4px 0 2px">Version history</h4><ul class="vh-list">${hist.map((h, i) => `<li><span class="vnum ${i === 0 ? 'cur' : ''}">v${h.version}</span><div><div style="font-weight:500">Effective ${fdt(h.effectiveFrom)}${i === 0 ? ' <span class="badge badge-ok" style="height:20px;margin-left:4px">In force</span>' : ''}</div><div class="small muted">${h.version === 1 ? 'Platform defaults' : `Obligations start date ${fd(h.obligationsStartDate)}`} · by ${esc(h.createdBy)}</div></div></li>`).join('')}</ul></div></section>`;
+      }
+      function scrPolicy() {
+        if (isEacc())
+          return consoleShell(
+            `<main class="cpage narrow"><div class="page-head"><div><h1>Policy</h1></div></div>${alertBox('neutral', 'You do not have access to Commission policies.')}</main>`,
+            { crumbs: [['Policy', 'policy']] },
+          );
+        const c = tenant();
+        return consoleShell(
+          `<main class="cpage narrow">
+    <div class="page-head"><div style="min-width:0"><h1>Obligations policy</h1></div><div class="actions-r">${picker()}</div></div>
+    <div class="wlayout">${policyCard(c.slug)}
+    ${canChangePolicy() ? '' : `<div class="note">${icon('lock', 15)}<span>Only your Commission administrator can change the start date.</span></div>`}</div>
+  </main>`,
+          {
+            crumbs: [
+              ['Obligations', 'obligations'],
+              ['Policy', 'policy'],
+            ],
+          },
+        );
+      }
+      function mPolicy() {
+        const f = S.pf;
+        const c = tenant();
+        const busy = f.state === 'submitting';
+        const dis = busy ? 'disabled' : '';
+        const v = policyOf(c.slug);
+        const body = `${f.alert || ''}
+    <div class="preview">${icon('calendar', 16)}<span>Current start date: <b style="color:var(--ink)">${fd(v.obligationsStartDate)}</b> (version ${v.version})</span></div>
+    <div class="field"><label class="label" for="f-pf-date">Obligations start date</label><input id="f-pf-date" class="input" type="date" data-bind="pf.date" value="${esc(f.date)}" aria-describedby="f-pf-date-hint ${f.error ? 'f-pf-date-err' : ''}" ${f.error ? 'aria-invalid="true"' : ''} ${dis}/>${f.error ? errLine('f-pf-date-err', f.error) : ''}<div class="hint" id="f-pf-date-hint">Initial declarations are created only for appointments on or after this date. Earlier appointments are assumed to have declared outside Adili.</div></div>
+    <div class="note">${icon('info', 15)}<span>Saves as version ${v.version + 1}, effective now.</span></div>`;
+        const foot = `<button class="btn btn-ghost" data-act="closeModal" ${dis}>Cancel</button><button class="btn btn-primary" data-act="submitPolicy" ${dis} ${busy ? 'aria-busy="true"' : ''} style="min-width:220px">${busy ? spinner() + ' Saving…' : 'Save as new policy version'}</button>`;
+        return dialog({
+          title: 'Change obligations start date',
+          icon: 'calendar',
+          body,
+          foot,
+        });
+      }
+      function submitPolicy(forceSim) {
+        const f = S.pf;
+        const c = tenant();
+        const pv = S.policies[c.slug];
+        const v = pv[pv.length - 1];
+        f.alert = null;
+        f.error = '';
+        if (!f.date || !/^\d{4}-\d{2}-\d{2}$/.test(f.date)) f.error = 'Enter a valid date.';
+        else if (f.date === v.obligationsStartDate)
+          f.error = 'This is already the start date in force. Choose a different date.';
+        if (f.error) {
+          Kit.render();
+          setTimeout(() => document.getElementById('f-pf-date')?.focus(), 0);
+          return;
+        }
+        f.state = 'submitting';
+        S.modal.busy = true;
+        Kit.render();
+        if (forceSim === 'hold') return;
+        setTimeout(() => {
+          if (S.pf !== f || !S.modal) return;
+          f.state = 'editing';
+          S.modal.busy = false;
+          if (forceSim === 'error') {
+            f.alert = alertBox(
+              'danger',
+              'The policy was not changed. Try again.',
+              `Version ${v.version} is still in force.`,
+            );
+            Kit.render();
+            return;
+          }
+          pv.push({
+            ...v,
+            id: 'pv-' + c.slug + '-' + (v.version + 1),
+            version: v.version + 1,
+            effectiveFrom: nowIso(),
+            obligationsStartDate: f.date,
+            createdBy: Kit.PERSONAS[P()].name,
+            createdAt: nowIso(),
+          });
+          S.modal = null;
+          Kit.render();
+          Kit.toast(`Policy version ${v.version + 1} in force`, false);
+        }, 900);
+      }
+
+      /* ================= National summary ================= */
+      function natRows() {
+        if (S.nat.empty) return [];
+        return COMMISSIONS.map((c) => {
+          const n = NATIONAL[c.slug] || {
+            upcoming: 0,
+            due: 0,
+            overdue: 0,
+            notOnboarded: 0,
+            biennial: 0,
+          };
+          return {
+            c,
+            upcoming: S.cycleOpened ? n.biennial : 0,
+            due: n.due,
+            overdue: n.overdue,
+            notOnboarded: n.notOnboarded,
+            lastRosterImportAt: c.rosterAt,
+          };
+        });
+      }
+      function scrNational() {
+        const crumbs = [['National obligations', 'national']];
+        if (!isAdmin() && !isEacc())
+          return consoleShell(
+            `<main class="cpage narrow"><div class="page-head"><div><h1>National obligations</h1></div></div>${alertBox('neutral', 'You do not have access to national obligations.', '', `<a class="btn btn-secondary btn-sm" href="04-obligations.prototype.html#obligations">Open your Commission’s obligations</a>`)}</main>`,
+            { crumbs },
+          );
+        const st = S.nat.state;
+        const cols = [
+          ['name', 'Commission', false],
+          ['upcoming', 'Upcoming', true],
+          ['due', 'Due', true],
+          ['overdue', 'Overdue', true],
+          [
+            'notOnboarded',
+            'Not onboarded',
+            true,
+            'Officers with a due or overdue declaration who have no Adili account yet',
+          ],
+          ['last', 'Last roster import', false],
+        ];
+        const sortBtn = ([k, l, n, tip]) => {
+          const on = S.nat.sort === k;
+          const ar = on ? (S.nat.dir === 'desc' ? 'arrowDown' : 'arrowUp') : 'sort';
+          return `<th scope="col" class="${n ? 'num' : ''}" aria-sort="${on ? (S.nat.dir === 'desc' ? 'descending' : 'ascending') : 'none'}"><button class="th-btn ${on ? 'on' : ''}" data-act="natSort" data-arg="${k}">${l} ${icon(ar, 13)}</button>${tip ? ` ${Kit.tip(tip)}` : ''}</th>`;
+        };
+        let body;
+        if (st === 'loading')
+          body = `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="vh">Obligations per Commission (loading)</caption><thead><tr>${cols.map(([, l]) => `<th scope="col">${l}</th>`).join('')}</tr></thead><tbody>${Kit.skeletonRows(6, 6)}</tbody></table></div>`;
+        else if (st === 'error')
+          body = `<div style="padding:20px">${alertBox('danger', 'National obligations could not be loaded', 'The declarations service did not respond.', `<button class="btn btn-secondary btn-sm" data-act="natRetry">${icon('refresh', 15)} Try again</button>`)}</div>`;
+        else {
+          const rows = natRows();
+          if (!rows.length || rows.every((r) => !r.due && !r.overdue && !r.upcoming))
+            body = Kit.empty(
+              'No Commission has obligations yet.',
+              'Counts appear as rosters are imported.',
+              { icon: 'chart' },
+            );
+          else {
+            const k = S.nat.sort;
+            const dir = S.nat.dir === 'desc' ? -1 : 1;
+            rows.sort((a, b) =>
+              k === 'name'
+                ? a.c.name.localeCompare(b.c.name) * dir
+                : k === 'last'
+                  ? ((a.lastRosterImportAt || '') > (b.lastRosterImportAt || '') ? 1 : -1) * dir
+                  : (a[k] - b[k]) * dir || a.c.name.localeCompare(b.c.name),
+            );
+            const T = rows.reduce(
+              (t, r) => ({
+                upcoming: t.upcoming + r.upcoming,
+                due: t.due + r.due,
+                overdue: t.overdue + r.overdue,
+                notOnboarded: t.notOnboarded + r.notOnboarded,
+              }),
+              { upcoming: 0, due: 0, overdue: 0, notOnboarded: 0 },
+            );
+            const size = Number(S.nat.pageSize) || 10;
+            const page = Math.min(S.nat.page, Math.ceil(rows.length / size));
+            const shown = rows.slice((page - 1) * size, page * size);
+            const cell = (v) =>
+              `<td class="num">${v ? num(v) : '<span class="zero">0</span>'}</td>`;
+            body = `<div class="table-wrap"><table class="table rounded"><caption class="vh">Obligations per Commission, ${S.nat.cycle}</caption><thead><tr>${cols.map(sortBtn).join('')}</tr></thead>
+        <tbody>${shown.map((r) => `<tr class="click" data-act="natOpen" data-arg="${r.c.slug}"><td><a class="rowlink" href="01-commissions.prototype.html?slug=${r.c.slug}#detail">${esc(r.c.name)}</a><div class="issuer">${r.c.issuerCode}</div></td>${cell(r.upcoming)}${cell(r.due)}<td class="num">${r.overdue ? `<span style="color:#7a4a00;font-weight:600">${num(r.overdue)}</span>` : '<span class="zero">0</span>'}</td>${cell(r.notOnboarded)}<td class="nowrap">${r.lastRosterImportAt ? `<span title="${esc(fdt(r.lastRosterImportAt))}">${fd(r.lastRosterImportAt)}</span>` : '<span class="muted">No roster yet</span>'}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td>Total, ${plural(rows.length, 'Commission')}</td><td class="num">${num(T.upcoming)}</td><td class="num">${num(T.due)}</td><td class="num">${num(T.overdue)}</td><td class="num">${num(T.notOnboarded)}</td><td></td></tr></tfoot></table></div>${Kit.pager({ page, pageSize: size, total: rows.length, act: 'natPage', sizes: [10, 25, 50], sizeBind: 'nat.pageSize' })}`;
+          }
+        }
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div><h1>National obligations</h1></div>
+      <div class="actions-r"><label class="vh" for="f-nat-cycle">Cycle</label><select id="f-nat-cycle" class="select" style="height:38px;font-size:14px" data-bind="nat.cycle" data-rerender><option value="biennial:2027" selected>Biennial 2027 · due 31 Dec 2027</option></select></div></div>
+    ${S.cycleOpened ? '' : `<div class="alert alert-info" role="status" style="margin-bottom:16px">${icon('info', 18)}<div>Biennial 2027 opens on 4 Jul 2027. Until then, counts cover initial and final declarations.</div></div>`}
+    <div class="card" style="overflow:visible">${body}</div>
+  </main>`,
+          { crumbs },
+        );
+      }
+
+      /* ================= actions ================= */
+      let searchT = null;
+      const reload = () => {
+        S.page = 1;
+        syncUrl();
+        fakeLoad((v) => (S.state = v), 450);
+      };
+      const actions = {
+        tile: (k) => {
+          S.f.status = S.f.status === k ? '' : k;
+          reload();
+        },
+        onb: (v) => {
+          S.f.onb = v;
+          reload();
+        },
+        showNob: () => {
+          S.f.onb = 'no';
+          S.f.status = '';
+          reload();
+        },
+        clearFilters: () => {
+          S.f = { type: '', status: '', onb: '', cycle: '', search: '' };
+          reload();
+        },
+        retry: () => fakeLoad((v) => (S.state = v)),
+        page: (p) => {
+          S.page = Number(p);
+          fakeLoad((v) => (S.state = v), 350);
+        },
+        natPage: (p) => {
+          S.nat.page = Number(p);
+          Kit.render();
+        },
+        openOb: (id, el, e) => {
+          if (e && e.target.closest('.tip')) return;
+          S.modal = { kind: 'ob', id };
+          S._ret = `#view a[data-act="openOb"][data-arg="${id}"]`;
+          Kit.render();
+        },
+        openPolicy: () => {
+          S.pf = { date: '', error: '', state: 'editing', alert: null, idem: uuid() };
+          S.modal = { kind: 'policy' };
+          S._ret = '#view [data-act="openPolicy"]';
+          Kit.render();
+        },
+        submitPolicy: () => submitPolicy(),
+        natSort: (k) => {
+          S.nat.page = 1;
+          if (S.nat.sort === k) S.nat.dir = S.nat.dir === 'desc' ? 'asc' : 'desc';
+          else {
+            S.nat.sort = k;
+            S.nat.dir = k === 'name' ? 'asc' : 'desc';
+          }
+          syncUrl();
+          Kit.render();
+        },
+        natOpen: (slug, el, e) => {
+          if (e.target.closest('a')) return;
+          location.href = `01-commissions.prototype.html?slug=${slug}#detail`;
+        },
+        natRetry: () => fakeLoad((v) => (S.nat.state = v)),
+        leave404: () => {
+          S.notFound = false;
+          Kit.go('obligations');
+        },
+      };
+      const soon = () => {
+        clearTimeout(soon.t);
+        soon.t = setTimeout(() => Kit.render(), 0);
+      };
+      function onBind(path) {
+        if (path === 'f.search') {
+          clearTimeout(searchT);
+          searchT = setTimeout(reload, 300);
+        }
+        if (path === 'f.type' || path === 'f.status' || path === 'f.cycle') reload();
+        if (path === 'slug') {
+          S.f = { type: '', status: '', onb: '', cycle: '', search: '' };
+          reload();
+        }
+        if (path === 'nat.pageSize') S.nat.page = 1;
+        if (path === 'pf.date' && S.pf.error) {
+          S.pf.error = '';
+          soon();
+        }
+      }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.id === 'f-f-search') {
+          clearTimeout(searchT);
+          reload();
+        }
+      });
+
+      /* focus into dialogs/drawers, trap, return */
+      let prevModal = null;
+      function afterRender() {
+        const m = S.modal?.kind || null;
+        if (m && m !== prevModal)
+          setTimeout(() => {
+            const el =
+              document.querySelector('#layer .dialog input:not([disabled])') ||
+              document.querySelector('#layer .drawer-head button, #layer .dialog-foot button');
+            el?.focus();
+          }, 30);
+        if (!m && prevModal && S._ret) {
+          const sel = S._ret;
+          setTimeout(() => document.querySelector(sel)?.focus(), 0);
+          S._ret = null;
+        }
+        prevModal = m;
+        syncUrl();
+      }
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab') return;
+        const box = document.querySelector('#layer .dialog, #layer .drawer');
+        if (!box) return;
+        const els = [
+          ...box.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ),
+        ].filter((x) => !x.disabled && x.offsetParent !== null);
+        if (!els.length) return;
+        const first = els[0],
+          last = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        } else if (!box.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
+      });
+
+      /* ================= jumps ================= */
+      const as = (p) => localStorage.setItem('dials-proto-persona', p);
+      const reset = () => {
+        const keep = S._panel;
+        Object.assign(S, init(), { modal: null, toast: null, notFound: false });
+        S._panel = keep;
+      };
+      const at = (screen, persona, fn) => () => {
+        reset();
+        as(persona);
+        if (fn) fn();
+        Kit.go(screen);
+      };
+      const firstId = (pred) => filteredRows().find(pred)?.id;
+      const jumps = [
+        [
+          'obligations',
+          '#97 Obligations: populated (reporting officer, PSC)',
+          at('obligations', 'reporting-officer'),
+        ],
+        [
+          'o-loading',
+          '#97 Obligations: loading skeleton',
+          at('obligations', 'reporting-officer', () => {
+            S.state = 'loading';
+          }),
+        ],
+        [
+          'o-opened',
+          '#97 Obligations: after Biennial 2027 opens (simulated)',
+          at('obligations', 'reporting-officer', () => {
+            S.cycleOpened = true;
+          }),
+        ],
+        [
+          'o-overdue',
+          '#97 Filter: overdue and not onboarded (URL-backed)',
+          at('obligations', 'reporting-officer', () => {
+            S.f.status = 'overdue';
+            S.f.onb = 'no';
+          }),
+        ],
+        [
+          'o-search',
+          '#97 Search: file number prefix PSC/2009',
+          at('obligations', 'supervisor', () => {
+            S.f.search = 'PSC/2009';
+          }),
+        ],
+        [
+          'o-filtered',
+          '#97 Empty, filtered (No matches)',
+          at('obligations', 'reporting-officer', () => {
+            S.f.type = 'biennial';
+            S.f.search = 'wekesa';
+          }),
+        ],
+        [
+          'o-empty',
+          '#97 Empty, no roster yet (Import roster link)',
+          at('obligations', 'reporting-officer', () => {
+            S.rosterNone = true;
+          }),
+        ],
+        [
+          'o-error',
+          '#97 Error, declarations service down',
+          at('obligations', 'reporting-officer', () => {
+            S.state = 'error';
+          }),
+        ],
+        [
+          'o-forbidden',
+          '#97 Forbidden: EACC analyst lands by URL',
+          at('obligations', 'eacc-analyst'),
+        ],
+        [
+          'o-404',
+          '#97 Other tenant by URL (404)',
+          at('obligations', 'reporting-officer', () => {
+            S.notFound = true;
+          }),
+        ],
+        ['o-reviewer', '#97 Reviewer: same view, read only', at('obligations', 'reviewer')],
+        [
+          'o-admin',
+          '#97 Platform admin: any Commission via picker',
+          at('obligations', 'platform-admin'),
+        ],
+        [
+          'o-more',
+          '#97 List: page 2 (cursor)',
+          at('obligations', 'reporting-officer', () => {
+            S.page = 2;
+          }),
+        ],
+        [
+          'o-drawer',
+          '#97/#87 Drawer: reminder history (onboarded, sent)',
+          () => {
+            at('obligations', 'reporting-officer')();
+            actions.openOb('ob-8');
+          },
+        ],
+        [
+          'o-drawer2',
+          '#97/#87 Drawer: not onboarded, skipped reminders',
+          () => {
+            at('obligations', 'reporting-officer')();
+            actions.openOb('ob-7');
+          },
+        ],
+        [
+          'o-drawer3',
+          '#97/#87 Drawer: failed and past-at-creation outcomes',
+          () => {
+            at('obligations', 'reporting-officer')();
+            actions.openOb('ob-10');
+          },
+        ],
+        [
+          'o-drawer4',
+          '#97/#87 Drawer: final declaration, due soon',
+          () => {
+            at('obligations', 'reporting-officer')();
+            actions.openOb('ob-15');
+          },
+        ],
+        ['policy', '#100 Policy: commission admin (Change)', at('policy', 'commission-admin')],
+        [
+          'p-dialog',
+          '#100 Change start date dialog',
+          () => {
+            at('policy', 'commission-admin')();
+            actions.openPolicy();
+            S.pf.date = '2026-07-01';
+            Kit.render();
+          },
+        ],
+        [
+          'p-invalid',
+          '#100 Dialog: validation (same date)',
+          () => {
+            at('policy', 'commission-admin')();
+            actions.openPolicy();
+            S.pf.date = '2026-08-03';
+            submitPolicy();
+          },
+        ],
+        [
+          'p-saving',
+          '#100 Dialog: saving',
+          () => {
+            at('policy', 'commission-admin')();
+            actions.openPolicy();
+            S.pf.date = '2026-07-01';
+            submitPolicy('hold');
+          },
+        ],
+        [
+          'p-error',
+          '#100 Dialog: error',
+          () => {
+            at('policy', 'commission-admin')();
+            actions.openPolicy();
+            S.pf.date = '2026-07-01';
+            submitPolicy('error');
+          },
+        ],
+        [
+          'p-v2',
+          '#100 Policy: version 2 in force with history',
+          at('policy', 'commission-admin', () => {
+            S.policies.psc.push({
+              ...S.policies.psc[0],
+              id: 'pv-psc-2',
+              version: 2,
+              effectiveFrom: '2026-09-26T10:30:00',
+              obligationsStartDate: '2026-07-01',
+              createdBy: 'Daniel Kiprop',
+            });
+          }),
+        ],
+        ['p-readonly', '#100 Policy: supervisor, read only', at('policy', 'supervisor')],
+        ['national', '#100 National summary (EACC analyst)', at('national', 'eacc-analyst')],
+        ['n-sup', '#100 National summary (EACC supervisor)', at('national', 'eacc-supervisor')],
+        [
+          'n-opened',
+          '#100 National: after Biennial 2027 opens (simulated)',
+          at('national', 'eacc-analyst', () => {
+            S.cycleOpened = true;
+          }),
+        ],
+        [
+          'n-sort',
+          '#100 National: sorted by name',
+          at('national', 'platform-admin', () => {
+            S.nat.sort = 'name';
+            S.nat.dir = 'asc';
+          }),
+        ],
+        [
+          'n-loading',
+          '#100 National: loading',
+          at('national', 'eacc-analyst', () => {
+            S.nat.state = 'loading';
+          }),
+        ],
+        [
+          'n-empty',
+          '#100 National: no Commission has obligations yet',
+          at('national', 'eacc-analyst', () => {
+            S.nat.empty = true;
+          }),
+        ],
+        [
+          'n-error',
+          '#100 National: error',
+          at('national', 'eacc-analyst', () => {
+            S.nat.state = 'error';
+          }),
+        ],
+        [
+          'n-page2',
+          '#100 National: page 2',
+          at('national', 'eacc-analyst', () => {
+            S.nat.page = 2;
+          }),
+        ],
+        ['n-forbidden', '#100 National as Commission staff (403)', at('national', 'supervisor')],
+      ];
+
+      Kit.mount({
+        app: 'console',
+        start: 'obligations',
+        home: 'obligations',
+        defaultPersona: 'reporting-officer',
+        screens: { obligations: scrObligations, policy: scrPolicy, national: scrNational },
+        modals: { ob: mOb, policy: mPolicy },
+        actions,
+        jumps,
+        onBind,
+        afterRender,
+        reset: () => {
+          reset();
+          Kit.go(S.screen || 'obligations');
+        },
+        onPersona: () => {
+          S.modal = null;
+          S.notFound = false;
+        },
+        coverage: [
+          {
+            ticket: 97,
+            title: 'Obligations workspace with tiles, callout and list',
+            screens: [
+              'obligations',
+              'o-loading',
+              'o-opened',
+              'o-overdue',
+              'o-search',
+              'o-filtered',
+              'o-empty',
+              'o-error',
+              'o-forbidden',
+              'o-404',
+              'o-reviewer',
+              'o-admin',
+              'o-more',
+              'o-drawer',
+              'o-drawer2',
+              'o-drawer3',
+            ],
+            note: 'Filters live in the query string (type, status, onboarded, cycle, search). Workspace card is on 01-commissions.prototype.html#home. Kit nav omits reviewer from Obligations; reviewer reaches it from home.',
+          },
+          {
+            ticket: 100,
+            title:
+              'Policy card with start-date change, Commission obligations card, national summary',
+            screens: [
+              'policy',
+              'p-dialog',
+              'p-invalid',
+              'p-saving',
+              'p-error',
+              'p-v2',
+              'p-readonly',
+              'national',
+              'n-opened',
+              'n-sort',
+              'n-page2',
+              'n-loading',
+              'n-empty',
+              'n-error',
+              'n-forbidden',
+            ],
+            note: 'The Commission detail obligations card and the policy card on Commission detail are in 01-commissions.prototype.html (#detail, #my-commission).',
+          },
+          {
+            ticket: 87,
+            title: 'UI primitives round 4: status badge, stat tile, drawer, date text',
+            screens: ['obligations', 'o-drawer', 'o-opened'],
+            note: 'StatusBadge (upcoming neutral, due info, overdue warning, filed success), StatTile with inline per-type breakdown (reachable without hover, also in title), Drawer (focus in, Tab trapped, focus returns to the row link), DateText (absolute + calendar-day relative phrase).',
+          },
+          {
+            ticket: 8,
+            title: 'UI primitives for forms and tables (in context)',
+            screens: ['obligations', 'p-invalid', 'o-filtered'],
+            note: 'Table caption, scoped headers, row link; empty states; skeleton; form field with aria wiring.',
+          },
+        ],
+      });
+      readUrl();
+      Kit.render();
+    </script>
+  </body>
+</html>

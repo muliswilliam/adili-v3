@@ -1,0 +1,3073 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what do the console's Commission provisioning screens (list, create, detail, reporting officer assign/replace/resend, activation) and the Commission-side record look like in every state? Covers tickets #8 #12 #15 #18 #21 #24 #87 #100 (spec 01 #6, spec 04 #81). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Commissions (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      /* ---------- file-specific ---------- */
+      .vh {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .btn:focus-visible,
+      a:focus-visible,
+      button:focus-visible,
+      .tile:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .input[aria-invalid='true'],
+      .select[aria-invalid='true'] {
+        box-shadow:
+          0 0 0 1px var(--danger),
+          0 0 0 4px rgba(201, 41, 30, 0.08);
+      }
+      .input:disabled,
+      .select:disabled {
+        background: var(--sunken);
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+      .ferr {
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+        font-size: 13px;
+        color: var(--danger);
+        font-weight: 500;
+      }
+      .ferr svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .alert {
+        display: flex;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: var(--r);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .alert svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .alert b {
+        display: block;
+        font-weight: 600;
+      }
+      .alert-danger {
+        background: var(--danger-soft);
+        color: #8a1c14;
+      }
+      .alert-warn {
+        background: var(--warn-soft);
+        color: #6b4000;
+      }
+      .alert-info {
+        background: #eaf1fb;
+        color: #1f4f96;
+      }
+      .alert-neutral {
+        background: var(--sunken);
+        color: var(--ink-2);
+      }
+      .alert .acts {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .badge-type {
+        background: var(--surface);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+        color: var(--ink-2);
+      }
+      .badge-type.hosted {
+        color: var(--ink);
+      }
+      .issuer {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .cite {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink-2);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .tip {
+        position: relative;
+        display: inline-flex;
+        cursor: default;
+      }
+      .tip .tip-body {
+        display: none;
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%);
+        z-index: 30;
+        min-width: 220px;
+        max-width: 320px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #1c1c1c;
+        color: #fff;
+        font-size: 12.5px;
+        line-height: 1.45;
+        font-weight: 400;
+        box-shadow: var(--shadow-pop);
+        white-space: normal;
+        text-align: left;
+      }
+      .tip:hover .tip-body,
+      .tip:focus-within .tip-body,
+      .tip:focus .tip-body {
+        display: block;
+      }
+      .tip .tip-body div + div {
+        margin-top: 4px;
+      }
+      .more-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 6px;
+        background: var(--sunken);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+        border: 0;
+        cursor: default;
+      }
+      .cats-cell {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: nowrap;
+      }
+      .ro-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        align-items: flex-start;
+      }
+      .muted-i {
+        color: var(--muted);
+        font-size: 13.5px;
+      }
+      .table td a.rowlink {
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--ink);
+      }
+      .table td a.rowlink:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-color: var(--line-2);
+      }
+      .cardx {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        overflow: visible;
+      }
+      .cardx > .sec-h {
+        border-radius: var(--r-lg) var(--r-lg) 0 0;
+      }
+      .sec-h .ico {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+      }
+      .sec-h .r {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .dgrid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 980px) {
+        .dgrid {
+          grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+          align-items: start;
+        }
+        .dgrid .span2 {
+          grid-column: 1 / -1;
+        }
+      }
+      .dcol {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .dlx {
+        margin: 0;
+      }
+      .dlx > div {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14.5px;
+      }
+      @container app (min-width: 600px) {
+        .dlx > div {
+          grid-template-columns: 170px minmax(0, 1fr);
+          gap: 16px;
+        }
+      }
+      .dlx > div:last-child {
+        border-bottom: 0;
+      }
+      .dlx dt {
+        color: var(--muted);
+      }
+      .dlx dd {
+        margin: 0;
+        font-weight: 500;
+        min-width: 0;
+        word-break: break-word;
+      }
+      .catlist {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .catlist li {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 10px;
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .cgroup {
+        border-radius: var(--r);
+        box-shadow: var(--shadow-input);
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .cgroup + .cgroup {
+        margin-top: 12px;
+      }
+      .cgroup-h {
+        padding: 10px 14px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--muted);
+        background: #fcfcfb;
+        border-bottom: 1px solid var(--line);
+        letter-spacing: 0.01em;
+      }
+      .crow {
+        display: grid;
+        grid-template-columns: 20px 100px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1.4;
+        position: relative;
+      }
+      .crow:last-child {
+        border-bottom: 0;
+      }
+      .crow:hover {
+        background: #fcfbfa;
+      }
+      .crow input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .crow .box {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        background: var(--surface);
+        display: grid;
+        place-items: center;
+        color: transparent;
+      }
+      .crow:has(input:checked) {
+        background: var(--brand-softer);
+      }
+      .crow:has(input:checked) .box {
+        background: var(--ink);
+        box-shadow: none;
+        color: #fff;
+      }
+      .crow:has(input:focus-visible) .box {
+        outline: 3px solid rgba(26, 26, 26, 0.18);
+      }
+      .crow:has(input:disabled) {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      @container app (max-width: 520px) {
+        .crow {
+          grid-template-columns: 20px minmax(0, 1fr);
+        }
+        .crow .cite {
+          grid-column: 2;
+        }
+        .crow .cdesc {
+          grid-column: 2;
+        }
+      }
+      .preview {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border-radius: var(--r);
+        background: var(--sunken);
+        font-size: 13.5px;
+        color: var(--ink-2);
+      }
+      .preview .code {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: 0.03em;
+      }
+      .formcard {
+        padding: 22px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      @container app (min-width: 700px) {
+        .formcard {
+          padding: 28px;
+        }
+      }
+      .form-foot {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 16px 20px;
+        border-top: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      @container app (min-width: 700px) {
+        .form-foot {
+          padding: 16px 28px;
+        }
+      }
+      legend.label {
+        padding: 0;
+      }
+      .btn-primary[aria-busy='true'] {
+        background: linear-gradient(#3a3a3a, #262626);
+        color: #fff;
+        opacity: 1;
+        cursor: progress;
+      }
+      .choice.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .ro-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 28px 20px 24px;
+      }
+      .ro-empty .ico {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .ro-empty h4 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .ro-empty p {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 4px;
+        max-width: 340px;
+      }
+      .ro-head {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .note svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .wscards {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 760px) {
+        .wscards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @container app (min-width: 1180px) {
+        .wscards {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      .ws {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 20px;
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        text-decoration: none;
+        color: inherit;
+        min-height: 150px;
+      }
+      a.ws {
+        cursor: pointer;
+      }
+      a.ws:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 6px 20px -8px rgba(0, 0, 0, 0.15);
+      }
+      .ws .ico {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+      }
+      .ws.off .ico {
+        background: var(--sunken);
+        color: var(--muted);
+      }
+      .ws h3 {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .ws p {
+        font-size: 14px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .ws .go {
+        margin-top: auto;
+        font-size: 13.5px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .mlist {
+        display: none;
+      }
+      @container app (max-width: 699px) {
+        .dtable {
+          display: none;
+        }
+        .mlist {
+          display: block;
+        }
+      }
+      .mitem {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .mitem:last-child {
+        border-bottom: 0;
+      }
+      .mitem .top {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .mitem .nm {
+        font-weight: 500;
+        line-height: 1.35;
+      }
+      .mitem .meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .counts4 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      @container app (min-width: 600px) {
+        .counts4.wide {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      .cnt {
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--sunken);
+      }
+      .cnt .k {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .cnt .v {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        margin-top: 2px;
+      }
+      .cnt.warn {
+        background: var(--warn-soft);
+      }
+      .cnt.warn .k {
+        color: #7a4a00;
+      }
+      .pgrid {
+        display: grid;
+        gap: 0;
+      }
+      .prow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      @container app (min-width: 600px) {
+        .prow {
+          grid-template-columns: 170px minmax(0, 1fr) auto;
+          gap: 16px;
+          align-items: center;
+        }
+      }
+      .prow:last-child {
+        border-bottom: 0;
+      }
+      .prow .k {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .prow .v {
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      .vh-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .vh-list li {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14px;
+      }
+      .vh-list li:last-child {
+        border-bottom: 0;
+      }
+      .vnum {
+        width: 30px;
+        height: 26px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .vnum.cur {
+        background: var(--ink);
+        color: #fff;
+      }
+      .head-badges {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .skel-card {
+        padding: 20px;
+        display: grid;
+        gap: 14px;
+      }
+      .count-line {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .phone-prev {
+        font-size: 13px;
+        color: var(--ok);
+        font-weight: 500;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .dialog .once {
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .dialog-foot.col {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .dialog-foot .foot-btns {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      @container app (max-width: 699px) {
+        .dialog-foot .foot-btns .btn {
+          flex: 1;
+        }
+      }
+      .sumcards {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1fr);
+        margin-bottom: 16px;
+      }
+      @container app (min-width: 900px) {
+        .sumcards {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .sumcards.n2 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .sumcard {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 18px 20px;
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        text-decoration: none;
+        color: inherit;
+      }
+      a.sumcard:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 6px 20px -8px rgba(0, 0, 0, 0.15);
+      }
+      .sumcard .hd {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sumcard .hd .ico {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand-ink);
+        flex: none;
+      }
+      .sumcard .hd h3 {
+        font-size: 15.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .sumcard .hd .r {
+        margin-left: auto;
+        color: var(--muted);
+        display: flex;
+      }
+      .sumcard .big {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+      }
+      .sumcard .ln {
+        font-size: 13.5px;
+        color: var(--muted);
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+      }
+      .sumcard .ln > svg {
+        flex: none;
+        margin-top: 3px;
+      }
+      .sumcard .go {
+        margin-top: auto;
+        font-size: 13.5px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .signin-card {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .staff-only {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const {
+        icon,
+        esc,
+        field,
+        input,
+        select,
+        choices,
+        checkbox,
+        textarea,
+        dialog,
+        drawer,
+        consoleShell,
+        portalShell,
+        fmtDate,
+        fmtDateTime,
+        money,
+        num,
+      } = Kit;
+
+      /* ================= reference data ================= */
+      const CATS = [
+        {
+          code: 'act-s32-2',
+          citation: 'Act s.32(2)',
+          description:
+            'Cabinet, Members of the National Assembly, DPP, Secretary to the Cabinet, JSC members, Chapter Fifteen commissioners, EACC Deputy Director and above',
+        },
+        { code: 'act-s32-3', citation: 'Act s.32(3)', description: 'Senators' },
+        {
+          code: 'act-s32-4',
+          citation: 'Act s.32(4)',
+          description:
+            'County executive committees, members of county assemblies, County Public Service Board members and secretaries',
+        },
+        {
+          code: 'act-s32-5',
+          citation: 'Act s.32(5)',
+          description:
+            'Principal secretaries, ambassadors and diplomats, officers under PSC appointive and disciplinary control, state corporation officers',
+        },
+        {
+          code: 'act-s32-6',
+          citation: 'Act s.32(6)',
+          description:
+            'Officers under a County Public Service Board, and officers of county corporations',
+        },
+        {
+          code: 'act-s32-7',
+          citation: 'Act s.32(7)',
+          description: 'Judges, magistrates and officers under JSC disciplinary control',
+        },
+        {
+          code: 'act-s32-8',
+          citation: 'Act s.32(8)',
+          description: 'Officers under Parliamentary Service Commission disciplinary control',
+        },
+        {
+          code: 'act-s32-9',
+          citation: 'Act s.32(9)',
+          description: 'Officers under a County Assembly Service Board',
+        },
+        { code: 'act-s32-10', citation: 'Act s.32(10)', description: 'Registered teachers' },
+        {
+          code: 'act-s32-11',
+          citation: 'Act s.32(11)',
+          description: 'Members of the Kenya Defence Forces',
+        },
+        {
+          code: 'act-s32-12',
+          citation: 'Act s.32(12)',
+          description: 'Members of the National Intelligence Service',
+        },
+        {
+          code: 'act-s32-13',
+          citation: 'Act s.32(13)',
+          description: 'Members of the National Police Service',
+        },
+        {
+          code: 'act-s32-14',
+          citation: 'Act s.32(14)',
+          description: 'Members of the Witness Protection Agency',
+        },
+        {
+          code: 'regs-r5-a',
+          citation: 'Regs r.5(a)',
+          description: 'EACC staff below the rank of Deputy Director',
+        },
+        {
+          code: 'regs-r5-b',
+          citation: 'Regs r.5(b)',
+          description: 'Officers, employees and council members of public universities',
+        },
+        {
+          code: 'regs-r5-c',
+          citation: 'Regs r.5(c)',
+          description: 'Officers of the Central Bank of Kenya and state-corporation banks',
+        },
+        {
+          code: 'regs-r5-d',
+          citation: 'Regs r.5(d)',
+          description: 'Employees of constitutional commissions (Article 248(2))',
+        },
+        {
+          code: 'regs-r5-e',
+          citation: 'Regs r.5(e)',
+          description: 'Employees of the ODPP, Controller of Budget and Auditor-General',
+        },
+        {
+          code: 'regs-r5-f',
+          citation: 'Regs r.5(f)',
+          description: 'Officers of reporting entities with no other Responsible Commission',
+        },
+      ];
+      const CAT = Object.fromEntries(CATS.map((c) => [c.code, c]));
+      const DEFAULT_POLICY = {
+        initialDueAfterAppointmentDays: 30,
+        biennial: { statementDate: '11-01', dueDate: '12-31' },
+        finalDueAfterExitDays: 30,
+        reminderOffsetsDays: [30, 14, 7],
+        clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
+        formMDue: '07-31',
+      };
+
+      /* Accounts that already exist in Keycloak (for the 409 email-in-another-tenant case). */
+      const KNOWN_ACCOUNTS = {
+        'grace.muthoni@publicservice.go.ke': 'psc',
+        'n.macharia@tsc.go.ke': 'tsc',
+        'peter.wekesa@jsc.go.ke': 'jsc',
+        'mary.chebet@npsc.go.ke': 'npsc',
+        'joseph.kamau@nairobi.go.ke': 'cpsb047',
+      };
+
+      const ro = (name, email, phone, state, invitedAt, activatedAt = null) => ({
+        id: 'ro-' + email,
+        name,
+        email,
+        phone,
+        state,
+        invitedAt,
+        activatedAt,
+      });
+      const roster = (expected, onboarded, flagged, lastImportAt) =>
+        expected
+          ? {
+              status: 'imported',
+              expectedDeclarants: expected,
+              onboardedDeclarants: onboarded,
+              flagged,
+              lastImportAt,
+            }
+          : {
+              status: 'none',
+              expectedDeclarants: 0,
+              onboardedDeclarants: 0,
+              flagged: 0,
+              lastImportAt: null,
+            };
+      const C = (slug, name, type, cats, createdAt, officer, rost, extra = {}) => ({
+        id: 'c-' + slug,
+        slug,
+        issuerCode: slug.toUpperCase(),
+        name,
+        type,
+        categories: cats,
+        status: 'active',
+        policyVersion: 1,
+        reportingOfficer: officer,
+        roster: rost,
+        createdAt,
+        ...extra,
+      });
+
+      function seedCommissions() {
+        return [
+          C(
+            'psc',
+            'Public Service Commission',
+            'hosted',
+            ['act-s32-5', 'regs-r5-e', 'regs-r5-f'],
+            '2026-08-03T09:14:00',
+            ro(
+              'Grace Muthoni',
+              'grace.muthoni@publicservice.go.ke',
+              '+254722418305',
+              'activated',
+              '2026-08-03T09:40:00',
+              '2026-08-04T08:12:00',
+            ),
+            roster(48312, 6904, 14, '2026-09-26T06:00:04'),
+            {
+              obligations: { upcoming: 0, due: 47, overdue: 26, notOnboarded: 48 },
+              imports: [
+                ['2026-09-26T06:00:04', 'api', false, 'completed', [6, 231, 2, 0]],
+                ['2026-09-25T14:12:00', 'file', true, 'completed', [58, 312, 31, 14]],
+                ['2026-09-24T06:00:00', 'api', false, 'completed', [12, 86, 2, 0]],
+                ['2026-09-19T11:40:00', 'file', false, 'completed', [146, 1204, 9, 0]],
+                ['2026-09-18T16:05:00', 'file', false, 'failed', null],
+              ],
+            },
+          ),
+          C(
+            'tsc',
+            'Teachers Service Commission',
+            'hosted',
+            ['act-s32-10'],
+            '2026-08-05T10:00:00',
+            ro(
+              'Nancy Macharia',
+              'n.macharia@tsc.go.ke',
+              '+254722555010',
+              'activated',
+              '2026-08-05T10:20:00',
+              '2026-08-06T09:15:00',
+            ),
+            roster(436118, 81220, 0, '2026-09-23T08:10:00'),
+            { obligations: { upcoming: 0, due: 612, overdue: 388, notOnboarded: 702 } },
+          ),
+          C(
+            'eacc',
+            'Ethics and Anti-Corruption Commission',
+            'hosted',
+            ['act-s32-2', 'regs-r5-a'],
+            '2026-08-03T09:16:00',
+            ro(
+              'Kevin Mutua',
+              'k.mutua@eacc.go.ke',
+              '+254733902114',
+              'activated',
+              '2026-08-03T10:02:00',
+              '2026-08-03T15:47:00',
+            ),
+            roster(1484, 1102, 4, '2026-09-02T11:20:00'),
+            { obligations: { upcoming: 0, due: 6, overdue: 2, notOnboarded: 3 } },
+          ),
+          C(
+            'jsc',
+            'Judicial Service Commission',
+            'hosted',
+            ['act-s32-7'],
+            '2026-09-18T11:30:00',
+            ro(
+              'Peter Wekesa',
+              'peter.wekesa@jsc.go.ke',
+              '+254711508226',
+              'invited',
+              '2026-09-24T16:22:00',
+            ),
+            roster(),
+          ),
+          C(
+            'npsc',
+            'National Police Service Commission',
+            'hosted',
+            ['act-s32-13'],
+            '2026-08-12T10:05:00',
+            ro(
+              'Mary Chebet',
+              'mary.chebet@npsc.go.ke',
+              '+254720334871',
+              'activated',
+              '2026-08-12T10:20:00',
+              '2026-08-13T07:58:00',
+            ),
+            roster(101240, 12384, 212, '2026-09-11T09:45:00'),
+            { obligations: { upcoming: 0, due: 812, overdue: 1406, notOnboarded: 1991 } },
+          ),
+          C(
+            'parlsc',
+            'Parliamentary Service Commission',
+            'federated',
+            ['act-s32-8'],
+            '2026-08-01T14:10:00',
+            ro(
+              'Esther Wambui',
+              'e.wambui@parliament.go.ke',
+              '+254712660415',
+              'activated',
+              '2026-08-01T14:30:00',
+              '2026-08-03T09:02:00',
+            ),
+            roster(3310, 1402, 37, '2026-08-14T11:00:00'),
+            { obligations: { upcoming: 0, due: 9, overdue: 3, notOnboarded: 6 } },
+          ),
+          C(
+            'cpsb047',
+            'Nairobi City County Public Service Board',
+            'hosted',
+            ['act-s32-6'],
+            '2026-09-08T09:00:00',
+            ro(
+              'Joseph Kamau',
+              'joseph.kamau@nairobi.go.ke',
+              '+254701223914',
+              'invited',
+              '2026-09-19T08:45:00',
+            ),
+            roster(),
+          ),
+          C(
+            'cpsb001',
+            'Mombasa County Public Service Board',
+            'hosted',
+            ['act-s32-6'],
+            '2026-09-21T12:40:00',
+            null,
+            roster(),
+          ),
+          C(
+            'cpsb042',
+            'Kisumu County Public Service Board',
+            'hosted',
+            ['act-s32-6'],
+            '2026-09-22T10:12:00',
+            null,
+            roster(),
+          ),
+          C(
+            'casb047',
+            'Nairobi City County Assembly Service Board',
+            'hosted',
+            ['act-s32-9', 'act-s32-4'],
+            '2026-09-15T15:25:00',
+            ro(
+              'Halima Abdi',
+              'h.abdi@nairobiassembly.go.ke',
+              '+254724901356',
+              'invited',
+              '2026-09-25T09:10:00',
+            ),
+            roster(),
+          ),
+          C(
+            'cue',
+            'Commission for University Education',
+            'federated',
+            ['regs-r5-b'],
+            '2026-08-27T13:00:00',
+            ro(
+              'Dr. Paul Odhiambo',
+              'p.odhiambo@cue.or.ke',
+              '+254735114209',
+              'invited',
+              '2026-08-27T13:15:00',
+            ),
+            roster(),
+          ),
+          C(
+            'cbk',
+            'Central Bank of Kenya Board of Directors',
+            'federated',
+            ['regs-r5-c'],
+            '2026-08-20T09:30:00',
+            ro(
+              'Lucy Njeri',
+              'l.njeri@centralbank.go.ke',
+              '+254722007731',
+              'activated',
+              '2026-08-20T09:48:00',
+              '2026-08-21T10:31:00',
+            ),
+            roster(1210, 944, 0, '2026-09-24T07:00:00'),
+            { obligations: { upcoming: 0, due: 4, overdue: 1, notOnboarded: 1 } },
+          ),
+          C(
+            'kdf',
+            'Defence Council',
+            'federated',
+            ['act-s32-11'],
+            '2026-09-10T08:20:00',
+            null,
+            roster(),
+          ),
+          C(
+            'nis',
+            'National Intelligence Service Council',
+            'federated',
+            ['act-s32-12'],
+            '2026-09-10T08:25:00',
+            null,
+            roster(),
+          ),
+          C(
+            'caj',
+            'Commission on Administrative Justice',
+            'hosted',
+            ['regs-r5-d'],
+            '2026-08-25T16:00:00',
+            ro(
+              'Ann Kerubo',
+              'a.kerubo@ombudsman.go.ke',
+              '+254710448290',
+              'activated',
+              '2026-08-25T16:10:00',
+              '2026-08-26T08:30:00',
+            ),
+            roster(412, 388, 2, '2026-09-05T12:00:00'),
+            { obligations: { upcoming: 0, due: 1, overdue: 0, notOnboarded: 0 } },
+          ),
+          C(
+            'nassembly',
+            'National Assembly Committee on Ethics',
+            'hosted',
+            ['act-s32-2'],
+            '2026-09-04T11:00:00',
+            ro(
+              'Collins Barasa',
+              'c.barasa@parliament.go.ke',
+              '+254718220463',
+              'activated',
+              '2026-09-04T11:15:00',
+              '2026-09-07T10:04:00',
+            ),
+            roster(),
+          ),
+          C(
+            'senate',
+            'Senate Committee on Ethics',
+            'hosted',
+            ['act-s32-3'],
+            '2026-09-04T11:05:00',
+            null,
+            roster(),
+          ),
+          C(
+            'wpab',
+            'Witness Protection Advisory Board',
+            'hosted',
+            ['act-s32-14'],
+            '2026-09-23T09:50:00',
+            null,
+            roster(),
+          ),
+        ];
+      }
+      function seedPolicies() {
+        const v1 = (slug, createdAt) => ({
+          id: 'pv-' + slug + '-1',
+          version: 1,
+          effectiveFrom: createdAt,
+          obligationsStartDate: createdAt.slice(0, 10),
+          ...DEFAULT_POLICY,
+          createdBy: 'Amina Wanjiru',
+          createdAt,
+          note: 'Platform defaults',
+        });
+        return Object.fromEntries(
+          seedCommissions().map((c) => [c.slug, [v1(c.slug, c.createdAt)]]),
+        );
+      }
+
+      /* ================= state ================= */
+      const newCreate = () => ({
+        name: '',
+        slug: '',
+        type: 'hosted',
+        cats: {},
+        errors: {},
+        summary: null,
+        alert: null,
+        state: 'editing',
+        idem: uuid(),
+        tried: false,
+        sim: null,
+      });
+      const newAssign = (mode) => ({
+        mode,
+        name: '',
+        email: '',
+        phone: '',
+        errors: {},
+        alert: null,
+        state: 'editing',
+        idem: uuid(),
+        tried: false,
+        sim: null,
+      });
+      function uuid() {
+        return 'xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+        });
+      }
+
+      const init = () => ({
+        commissions: seedCommissions(),
+        policies: seedPolicies(),
+        list: { search: '', type: '', ro: '', state: 'ready', page: 1 },
+        listEmptyPlatform: false,
+        sel: 'psc',
+        detailState: 'ready',
+        roLoading: false,
+        resendBusy: false,
+        create: newCreate(),
+        af: newAssign('assign'),
+        pf: { date: '', error: '', state: 'editing', alert: null, idem: uuid() },
+        resendSim: null,
+        _ret: null,
+        myFresh: false,
+        aiOn: true,
+      });
+      const S = Kit.state(init());
+
+      /* ================= helpers ================= */
+      const D = (s) => new Date(s && s.length === 10 ? s + 'T00:00:00' : s);
+      const fd = (s) => (s ? fmtDate(D(s)) : '-');
+      const fdt = (s) => (s ? fmtDateTime(D(s)) : '-');
+      const mid = (d) => {
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x;
+      };
+      const calDays = (a, b) => Math.round((mid(D(b)) - mid(a)) / 86400000);
+      const ago = (s) => {
+        const n = calDays(D(s), Kit.TODAY);
+        if (n <= 0) return 'today';
+        if (n === 1) return 'yesterday';
+        if (n < 31) return `${n} days ago`;
+        const m = Math.round(n / 30);
+        return m <= 1 ? '1 month ago' : `${m} months ago`;
+      };
+      const relT = (s) => {
+        const h = Math.round((Kit.TODAY - D(s)) / 3600000);
+        if (h < 1) return 'just now';
+        if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+        return ago(s);
+      };
+      const P = () => Kit.persona();
+      const isAdmin = () => P() === 'platform-admin';
+      const isEacc = () => P() === 'eacc-analyst' || P() === 'eacc-supervisor';
+      const seesAll = () => isAdmin() || isEacc();
+      const staffTenant = () => (isAdmin() ? 'platform' : isEacc() ? 'eacc' : 'psc');
+      const byslug = (s) => S.commissions.find((c) => c.slug === s);
+      const cur = () => byslug(S.sel);
+      const fmtPhone = (e) =>
+        e && e.startsWith('+254') && e.length === 13
+          ? `+254 ${e.slice(4, 7)} ${e.slice(7, 10)} ${e.slice(10)}`
+          : e;
+      const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many || one + 's'}`;
+      function normPhone(raw) {
+        let s = String(raw || '').replace(/[\s\-().]/g, '');
+        if (!s) return null;
+        if (s.startsWith('00')) s = '+' + s.slice(2);
+        if (!s.startsWith('+')) {
+          if (/^0[17]\d{8}$/.test(s)) s = '+254' + s.slice(1);
+          else if (/^254[17]\d{8}$/.test(s)) s = '+' + s;
+          else if (/^[17]\d{8}$/.test(s)) s = '+254' + s;
+          else return null;
+        }
+        return /^\+[1-9][0-9]{6,14}$/.test(s) ? s : null;
+      }
+      const nowIso = () => {
+        const x = Kit.TODAY;
+        const p2 = (n) => String(n).padStart(2, '0');
+        return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}T${p2(x.getHours())}:${p2(x.getMinutes())}:00`;
+      };
+      const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) && e.length <= 254;
+
+      /* URL-backed state: filters and the selected Commission live in the query string, the screen in the hash. */
+      function syncUrl() {
+        const q = new URLSearchParams();
+        if (S.screen === 'commissions') {
+          if (S.list.search) q.set('search', S.list.search);
+          if (S.list.type) q.set('type', S.list.type);
+          if (S.list.ro) q.set('reportingOfficer', S.list.ro);
+        }
+        if (S.screen === 'detail') q.set('slug', S.sel);
+        const qs = q.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + '#' + S.screen);
+      }
+      function readUrl() {
+        const q = new URLSearchParams(location.search);
+        S.list.search = q.get('search') || '';
+        S.list.type = q.get('type') || '';
+        S.list.ro = q.get('reportingOfficer') || '';
+        if (q.get('slug')) S.sel = q.get('slug');
+      }
+      function nav(screen, slug) {
+        if (slug) S.sel = slug;
+        Kit.go(screen);
+      }
+      function fakeLoad(setter, ms = 650) {
+        setter('loading');
+        Kit.render();
+        setTimeout(() => {
+          setter('ready');
+          Kit.render();
+        }, ms);
+      }
+
+      /* ---------- small components ---------- */
+      const errLine = (id, msg) =>
+        `<div class="ferr" id="${id}" role="alert">${icon('alert', 14, 2.2)}<span>${msg}</span></div>`;
+      function ff(label, control, { id, hint = '', error = '', opt = false, extraHint = '' } = {}) {
+        return `<div class="field"><label class="label" for="${id}"><span>${label}</span>${opt ? '<span class="opt">Optional</span>' : ''}</label>${control}${error ? errLine(id + '-err', error) : ''}${hint ? `<div class="hint" id="${id}-hint">${hint}</div>` : ''}${extraHint}</div>`;
+      }
+      const described = (id, err, hint = true) =>
+        `aria-describedby="${[hint ? id + '-hint' : '', err ? id + '-err' : ''].filter(Boolean).join(' ')}" ${err ? 'aria-invalid="true"' : ''}`;
+      function alertBox(
+        kind,
+        title,
+        text = '',
+        acts = '',
+        { role = kind === 'danger' ? 'alert' : 'status' } = {},
+      ) {
+        const ic =
+          { danger: 'alert', warn: 'alert', info: 'info', neutral: 'lock' }[kind] || 'info';
+        return `<div class="alert alert-${kind}" role="${role}">${icon(ic, 18)}<div style="min-width:0;flex:1"><b>${title}</b>${text ? `<div>${text}</div>` : ''}${acts ? `<div class="acts">${acts}</div>` : ''}</div></div>`;
+      }
+      const typeBadge = (t) =>
+        t === 'federated'
+          ? `<span class="badge badge-type">${icon('link', 13)}Federated</span>`
+          : `<span class="badge badge-type hosted">${icon('server', 13)}Hosted</span>`;
+      function roBadge(o) {
+        if (!o) return '';
+        return o.state === 'activated'
+          ? `<span class="badge badge-ok">${icon('check', 13, 2.4)}Activated</span>`
+          : `<span class="badge badge-warn">${icon('mail', 13)}Invited</span>`;
+      }
+      function catsCell(codes) {
+        if (!codes.length) return '<span class="muted-i">None recorded</span>';
+        const shown = codes
+          .slice(0, 2)
+          .map(
+            (c, i, a) =>
+              `<span class="cite">${CAT[c].citation}${i < a.length - 1 ? ',' : ''}</span>`,
+          )
+          .join('');
+        const rest = codes.slice(2);
+        return `<div class="cats-cell">${shown}${rest.length ? `<span class="tip" tabindex="0" aria-label="${rest.length} more: ${esc(rest.map((c) => CAT[c].citation).join(', '))}"><span class="more-chip">+${rest.length}</span><span class="tip-body" role="tooltip">${rest.map((c) => `<div><b>${CAT[c].citation}</b> ${esc(CAT[c].description)}</div>`).join('')}</span></span>` : ''}</div>`;
+      }
+      const rosterCell = (r) =>
+        r.status === 'none'
+          ? '<span class="muted-i">No roster yet</span>'
+          : `<div class="roster-cell"><div class="row wrap" style="gap:6px"><span style="font-weight:500" class="tabular">${num(r.onboardedDeclarants)} of ${num(r.expectedDeclarants)} onboarded</span>${r.flagged ? `<span class="badge badge-warn">${num(r.flagged)} flagged</span>` : ''}</div></div>`;
+      const createdCell = (c) =>
+        `<span title="${esc(fdt(c.createdAt))}" class="nowrap">${ago(c.createdAt)}</span>`;
+      const spinner = (dark) =>
+        `<span class="spinner ${dark ? 'dark' : ''}" aria-hidden="true"></span>`;
+
+      /* ================= screens ================= */
+      const NOT_STAFF_OF_TENANT = () => !seesAll();
+
+      function noAccessPage(title, text, actions = '') {
+        return consoleShell(
+          `<main class="cpage narrow"><div class="page-head"><div><h1>${title}</h1></div></div>${alertBox('neutral', text, '', actions)}</main>`,
+          { crumbs: [[title, S.screen]] },
+        );
+      }
+
+      /* ---------- console landing (signed out) ---------- */
+      function scrLanding() {
+        return `<div class="auth"><div class="auth-main">
+    <div class="auth-top">${Kit.logo(24, '')}<span class="staff-only">${icon('lock', 14)} Staff console</span></div>
+    <div class="auth-body">
+      <h1 class="title">Sign in to the console</h1>
+      <p class="subtitle">For EACC and Commission staff. Declarants use the Adili portal.</p>
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:14px">
+        <button class="btn btn-primary btn-block" data-act="signIn">${icon('key', 17)} Sign in</button>
+        <p class="small muted" style="text-align:center" id="expired-help">Activation link expired? Ask EACC to resend your invitation.</p>
+      </div>
+    </div>
+    <div class="auth-foot">Ethics and Anti-Corruption Commission</div>
+  </div>
+  <div class="auth-art"><svg class="hills" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice"><rect width="600" height="800" fill="#f3d2bd"/><path d="M0 520 Q150 430 300 500 T600 470 V800 H0Z" fill="#eab596"/><path d="M0 610 Q200 540 360 600 T600 590 V800 H0Z" fill="#df9a73"/><path d="M0 700 Q180 650 330 690 T600 680 V800 H0Z" fill="#cf7f55"/><circle cx="450" cy="220" r="70" fill="#f8e3d5"/></svg><div class="halftone"></div>
+    <div class="art-copy"><h2>Every Responsible Commission, one calm workspace.</h2></div>
+  </div></div>`;
+      }
+
+      /* ---------- console home (workspace cards) ---------- */
+      function wsCard({ title, text, icon: ic, href, act, arg, off }) {
+        if (off)
+          return `<div class="ws off" aria-disabled="true"><span class="ico">${icon(ic, 19)}</span><div class="row" style="gap:8px"><h3>${title}</h3><span class="badge">Not yet available</span></div><p>${text}</p></div>`;
+        const attrs = act
+          ? `data-act="${act}" data-arg="${arg || ''}" href="#${arg || ''}"`
+          : `href="${href}"`;
+        return `<a class="ws" ${attrs}><span class="ico">${icon(ic, 19)}</span><h3>${title}</h3><p>${text}</p><span class="go">Open ${icon('arrowRight', 15)}</span></a>`;
+      }
+      function scrHome() {
+        const p = Kit.PERSONAS[P()];
+        const cards = [];
+        const oblText = 'Who must declare, by when, and who has been reminded.';
+        if (isAdmin())
+          cards.push({
+            title: 'Commissions',
+            text: 'Create Responsible Commissions and assign their reporting officers.',
+            icon: 'building',
+            act: 'go',
+            arg: 'commissions',
+          });
+        if (isEacc())
+          cards.push({
+            title: 'Commissions',
+            text: 'Responsible Commissions, their reporting officers and roster coverage.',
+            icon: 'building',
+            act: 'go',
+            arg: 'commissions',
+          });
+        if (seesAll())
+          cards.push({
+            title: 'National obligations',
+            text: 'Due and overdue counts per Commission.',
+            icon: 'chart',
+            href: '04-obligations.prototype.html#national',
+          });
+        if (P() === 'reporting-officer' || P() === 'commission-admin')
+          cards.push({
+            title: 'Declarant roster',
+            text: 'Officers expected to declare.',
+            icon: 'users',
+            href: '02-roster.prototype.html#overview',
+          });
+        if (['reporting-officer', 'commission-admin', 'reviewer', 'supervisor'].includes(P()))
+          cards.push({
+            title: 'Obligations',
+            text: oblText,
+            icon: 'calendar',
+            href: '04-obligations.prototype.html#obligations',
+          });
+        if (['reviewer', 'supervisor'].includes(P()))
+          cards.push({
+            title: 'Review queue',
+            text: 'Declarations waiting for review.',
+            icon: 'listCheck',
+            href: '07a-review.prototype.html#queue',
+          });
+        if (!seesAll())
+          cards.push({
+            title: 'Your Commission',
+            text: 'Record, reporting officer and policy.',
+            icon: 'home',
+            act: 'go',
+            arg: 'my-commission',
+          });
+        if (isAdmin())
+          cards.push({
+            title: 'Platform settings',
+            text: 'Configuration and reference data.',
+            icon: 'settings',
+            off: true,
+          });
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div><h1>Good morning, ${esc(p.name.split(' ')[0])}</h1></div></div>
+    <div class="wscards">${cards.map(wsCard).join('')}</div>
+  </main>`,
+          { crumbs: [['Home', 'home']] },
+        );
+      }
+
+      /* ---------- Commissions list ---------- */
+      const PAGE = 10;
+      function filtered() {
+        if (S.listEmptyPlatform) return [];
+        const q = S.list.search.trim().toLowerCase();
+        let items = S.commissions.slice().sort((a, b) => a.name.localeCompare(b.name));
+        if (!seesAll()) items = items.filter((c) => c.slug === staffTenant());
+        if (q) items = items.filter((c) => c.name.toLowerCase().includes(q) || c.slug.includes(q));
+        if (S.list.type) items = items.filter((c) => c.type === S.list.type);
+        if (S.list.ro)
+          items = items.filter((c) =>
+            S.list.ro === 'none' ? !c.reportingOfficer : c.reportingOfficer?.state === S.list.ro,
+          );
+        return items;
+      }
+      const hasFilters = () => !!(S.list.search || S.list.type || S.list.ro);
+      function listToolbar() {
+        const dis = S.list.state === 'forbidden' ? 'disabled' : '';
+        return `<div class="toolbar" role="search">
+    <div class="input-group"><span class="addon">${icon('search', 16)}</span><label class="vh" for="f-list-search">Search Commissions</label><input id="f-list-search" class="input" type="search" data-bind="list.search" value="${esc(S.list.search)}" placeholder="Search by name or key" ${dis}/></div>
+    <label class="vh" for="f-list-type">Type</label>
+    <select id="f-list-type" class="select" data-bind="list.type" data-rerender ${dis}><option value="" ${!S.list.type ? 'selected' : ''}>All types</option><option value="hosted" ${S.list.type === 'hosted' ? 'selected' : ''}>Hosted</option><option value="federated" ${S.list.type === 'federated' ? 'selected' : ''}>Federated</option></select>
+    <label class="vh" for="f-list-ro">Reporting officer</label>
+    <select id="f-list-ro" class="select" data-bind="list.ro" data-rerender ${dis}><option value="" ${!S.list.ro ? 'selected' : ''}>Any reporting officer</option><option value="none" ${S.list.ro === 'none' ? 'selected' : ''}>Not assigned</option><option value="invited" ${S.list.ro === 'invited' ? 'selected' : ''}>Invited</option><option value="activated" ${S.list.ro === 'activated' ? 'selected' : ''}>Activated</option></select>
+    ${hasFilters() ? `<button class="btn btn-ghost btn-sm" data-act="clearFilters">${icon('x', 15)} Clear</button>` : ''}
+  </div>`;
+      }
+      function listBody() {
+        const st = S.list.state;
+        const head = `<thead><tr><th scope="col">Commission</th><th scope="col">Type</th><th scope="col">Categories</th><th scope="col">Reporting officer</th><th scope="col">Roster</th><th scope="col">Created</th></tr></thead>`;
+        if (st === 'loading')
+          return `<div class="table-wrap"><table class="table" aria-busy="true"><caption class="vh">Responsible Commissions (loading)</caption>${head}<tbody>${Kit.skeletonRows(5, 6)}</tbody></table></div>`;
+        if (st === 'error')
+          return `<div style="padding:20px">${alertBox('danger', 'Commissions could not be loaded', 'The directory service did not respond.', `<button class="btn btn-secondary btn-sm" data-act="retryList">${icon('refresh', 15)} Try again</button>`)}</div>`;
+        if (st === 'forbidden')
+          return `<div style="padding:20px">${alertBox('neutral', 'You do not have access to Commissions.')}</div>`;
+        const all = filtered();
+        if (!all.length) {
+          if (hasFilters())
+            return Kit.empty('No matches', 'Try a different search or clear the filters.', {
+              icon: 'search',
+              action: `<button class="btn btn-secondary btn-sm" data-act="clearFilters">Clear filters</button>`,
+            });
+          return Kit.empty(
+            'No Commissions yet',
+            'Create the first Responsible Commission to start onboarding.',
+            {
+              icon: 'building',
+              action: isAdmin()
+                ? `<button class="btn btn-primary btn-sm" data-act="go" data-arg="commission-new">${icon('plus', 16)} New Commission</button>`
+                : '',
+            },
+          );
+        }
+        const page = Math.min(S.list.page, Math.ceil(all.length / PAGE));
+        const items = all.slice((page - 1) * PAGE, page * PAGE);
+        const more = all.length > page * PAGE;
+        const rows = items
+          .map(
+            (c) => `<tr class="click" data-act="openDetail" data-arg="${c.slug}">
+      <td><a class="rowlink" href="?slug=${c.slug}#detail" data-act="openDetail" data-arg="${c.slug}">${esc(c.name)}</a><div class="issuer" style="margin-top:2px">${c.issuerCode}</div></td>
+      <td>${typeBadge(c.type)}</td>
+      <td>${catsCell(c.categories)}</td>
+      <td>${c.reportingOfficer ? `<div class="ro-cell"><span class="nowrap">${esc(c.reportingOfficer.name)}</span>${roBadge(c.reportingOfficer)}</div>` : '<span class="muted-i">Not assigned</span>'}</td>
+      <td>${rosterCell(c.roster)}</td>
+      <td>${createdCell(c)}</td></tr>`,
+          )
+          .join('');
+        const mrows = items
+          .map(
+            (c) => `<div class="mitem" data-act="openDetail" data-arg="${c.slug}">
+      <div class="top"><div style="flex:1;min-width:0"><a class="rowlink nm" href="?slug=${c.slug}#detail" data-act="openDetail" data-arg="${c.slug}" style="text-decoration:none">${esc(c.name)}</a><div class="issuer">${c.issuerCode}</div></div>${typeBadge(c.type)}</div>
+      <div class="meta">${c.reportingOfficer ? `${esc(c.reportingOfficer.name)} ${roBadge(c.reportingOfficer)}` : '<span>Reporting officer not assigned</span>'}</div>
+      <div class="meta">${c.roster.status === 'none' ? 'No roster yet' : `${num(c.roster.onboardedDeclarants)} of ${num(c.roster.expectedDeclarants)} onboarded`}</div>
+    </div>`,
+          )
+          .join('');
+        return `<div class="table-wrap dtable"><table class="table"><caption class="vh">Responsible Commissions</caption>${head}<tbody>${rows}</tbody></table></div>
+    <div class="mlist">${mrows}</div>
+    ${Kit.pager({ page, pageSize: PAGE, count: items.length, hasNext: more, act: 'listPage', label: 'Commissions' })}`;
+      }
+      function scrCommissions() {
+        if (!seesAll())
+          return noAccessPage(
+            'Commissions',
+            'You do not have access to Commissions.',
+            `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="my-commission">Open your Commission</button>`,
+          );
+        const n = S.list.state === 'ready' ? filtered().length : null;
+        const total = S.listEmptyPlatform ? 0 : S.commissions.length;
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div><h1>Commissions</h1><p class="count-line">${S.list.state === 'ready' ? (hasFilters() ? `${plural(n, 'match', 'matches')} of ${plural(total, 'Commission')}` : plural(total, 'Commission')) : S.list.state === 'loading' ? '<span class="skeleton" style="width:110px;display:inline-block"></span>' : '&nbsp;'}</p></div>
+      <div class="actions-r">${isAdmin() && S.list.state !== 'forbidden' ? `<button class="btn btn-primary" data-act="go" data-arg="commission-new">${icon('plus', 17)} New Commission</button>` : isEacc() ? `<span class="badge">${icon('eye', 13)} Read only</span>` : ''}</div></div>
+    <div class="card" style="overflow:visible">${listToolbar()}${listBody()}</div>
+  </main>`,
+          { crumbs: [['Commissions', 'commissions']] },
+        );
+      }
+
+      /* ---------- create ---------- */
+      function validateCreate(f) {
+        const e = {};
+        const name = f.name.trim();
+        if (name.length < 3 || name.length > 120)
+          e.name = 'Enter the Commission’s name (3 to 120 characters).';
+        if (f.slug === 'platform') e.slug = 'This key is reserved.';
+        else if (!/^[a-z][a-z0-9]{1,19}$/.test(f.slug))
+          e.slug = 'Use 2 to 20 lowercase letters or digits, starting with a letter.';
+        if (!['hosted', 'federated'].includes(f.type))
+          e.type = 'Choose how the Commission will use the platform.';
+        return e;
+      }
+      function slugPreview(slug) {
+        if (!slug || slug === 'platform' || !/^[a-z][a-z0-9]{1,19}$/.test(slug))
+          return `<div class="hint" id="f-create-slug-hint">Cannot be changed later.</div>`;
+        const code = slug.toUpperCase();
+        return `<div class="preview" id="f-create-slug-hint" aria-live="polite">${icon('hash', 16)}<span>Issuer code: <span class="code">${esc(code)}</span>. Appears in reference numbers, e.g. <span class="mono" style="font-weight:600;color:var(--ink)">DCB-${esc(code)}-2027-0012345-K</span>. Cannot be changed later.</span></div>`;
+      }
+      function scrCreate() {
+        if (!isAdmin())
+          return noAccessPage(
+            'New Commission',
+            isEacc()
+              ? 'Only platform administrators can create Commissions.'
+              : 'You do not have access to Commissions.',
+            isEacc()
+              ? `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="commissions">Back to Commissions</button>`
+              : '',
+          );
+        const f = S.create;
+        const e = f.errors;
+        const busy = f.state === 'submitting';
+        const dis = busy ? 'disabled' : '';
+        const nErr = Object.keys(e).length;
+        const selected = Object.values(f.cats).filter(Boolean).length;
+        const catRow = (c) =>
+          `<label class="crow"><input type="checkbox" data-bind="create.cats.${c.code}" data-rerender ${f.cats[c.code] ? 'checked' : ''} ${dis}/><span class="box">${icon('check', 14, 3)}</span><span class="cite">${c.citation}</span><span class="cdesc">${esc(c.description)}</span></label>`;
+        const summary = f.summary
+          ? alertBox('danger', f.summary.title, f.summary.text || '', '', { role: 'alert' })
+          : '';
+        return consoleShell(
+          `<main class="cpage narrow">
+    <div class="page-head"><div><h1>New Commission</h1></div></div>
+    <form class="card" novalidate data-form="create" onsubmit="return false">
+      <div class="formcard">
+        ${summary}
+        ${f.alert ? f.alert : ''}
+        ${ff('Name', `<input id="f-create-name" class="input" data-bind="create.name" value="${esc(f.name)}" autocomplete="off" maxlength="140" ${described('f-create-name', e.name)} ${dis}/>`, { id: 'f-create-name', hint: 'Official name as gazetted.', error: e.name })}
+        <div class="field"><label class="label" for="f-create-slug"><span>Commission key</span></label>
+          <input id="f-create-slug" class="input mono" data-bind="create.slug" data-live value="${esc(f.slug)}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="24" placeholder="e.g. tsc" ${described('f-create-slug', e.slug)} ${dis}/>
+          ${e.slug ? errLine('f-create-slug-err', e.slug) : ''}
+          ${slugPreview(f.slug)}
+        </div>
+        <fieldset class="field" style="border:0;padding:0;margin:0" ${e.type ? 'aria-invalid="true"' : ''} >
+          <legend class="label" style="margin-bottom:6px">Type</legend>
+          <div class="choices" role="radiogroup" style="grid-template-columns:1fr">
+            ${[
+              ['hosted', 'Hosted on Adili', 'Staff use this console.', 'server'],
+              [
+                'federated',
+                'Federated (runs its own system)',
+                'The Commission exchanges data through the API.',
+                'link',
+              ],
+            ]
+              .map(
+                ([k, l, sub, ic]) =>
+                  `<label class="choice ${busy ? 'disabled' : ''}" style="align-items:flex-start"><input type="radio" name="create.type" value="${k}" data-bind="create.type" ${f.type === k ? 'checked' : ''} ${dis}/><span class="dot" style="margin-top:2px"></span><span style="flex:1">${l}<div class="hint" style="font-weight:400;margin-top:2px">${sub}</div></span><span class="muted" style="display:flex">${icon(ic, 17)}</span></label>`,
+              )
+              .join('')}
+          </div>
+          ${e.type ? errLine('f-create-type-err', e.type) : ''}
+        </fieldset>
+        <fieldset class="field" style="border:0;padding:0;margin:0" aria-describedby="f-create-cats-hint">
+          <legend class="label" style="margin-bottom:4px;width:100%;display:flex;justify-content:space-between"><span>Categories of officers</span><span class="opt">${selected ? `${selected} selected` : 'Optional'}</span></legend>
+          <div class="hint" id="f-create-cats-hint" style="margin-bottom:8px">Which public officers this Commission is responsible for (Act s.32, Regs r.5).</div>
+          ${e.categories ? errLine('f-create-cats-err', e.categories) : ''}
+          <div class="cgroup" role="group" aria-label="Conflict of Interest Act 2025, section 32"><div class="cgroup-h">Act, section 32</div>${CATS.filter(
+            (c) => c.code.startsWith('act'),
+          )
+            .map(catRow)
+            .join('')}</div>
+          <div class="cgroup" role="group" aria-label="Conflict of Interest Regulations 2026, regulation 5"><div class="cgroup-h">Regulations, regulation 5</div>${CATS.filter(
+            (c) => c.code.startsWith('regs'),
+          )
+            .map(catRow)
+            .join('')}</div>
+        </fieldset>
+      </div>
+      <div class="form-foot">
+        <button type="submit" class="btn btn-primary" data-act="submitCreate" ${dis} ${busy ? 'aria-busy="true"' : ''} style="min-width:190px">${busy ? spinner() + ' Creating…' : 'Create Commission'}</button>
+        <a class="btn btn-ghost ${busy ? 'is-disabled' : ''}" href="#commissions" data-act="cancelCreate">Cancel</a>
+      </div>
+    </form>
+  </main>`,
+          {
+            crumbs: [
+              ['Commissions', 'commissions'],
+              ['New Commission', 'commission-new'],
+            ],
+          },
+        );
+      }
+
+      /* ---------- detail ---------- */
+      function detailsCard(c, { compact = false } = {}) {
+        const pv = S.policies[c.slug];
+        const curV = pv[pv.length - 1];
+        return `<section class="cardx" aria-labelledby="h-details"><div class="sec-h"><span class="ico">${icon('building', 16)}</span><h3 id="h-details">Details</h3></div><div class="sec-b" style="padding-top:6px;padding-bottom:6px">
+    <dl class="dlx">
+      <div><dt>Commission key</dt><dd class="mono">${c.slug}</dd></div>
+      <div><dt>Issuer code</dt><dd><span class="mono" title="e.g. DCB-${c.issuerCode}-2027-0012345-K">${c.issuerCode}</span></dd></div>
+      <div><dt>Type</dt><dd>${c.type === 'hosted' ? 'Hosted on Adili' : 'Federated (runs its own system)'}</dd></div>
+      <div><dt>Categories</dt><dd>${c.categories.length ? `<ul class="catlist">${c.categories.map((x) => `<li><span class="cite">${CAT[x].citation}</span><span>${esc(CAT[x].description)}</span></li>`).join('')}</ul>` : '<span class="muted" style="font-weight:400">None recorded</span>'}</dd></div>
+      <div><dt>Policy version</dt><dd>${curV.version === 1 ? 'Version 1, platform defaults' : `Version ${curV.version}, obligations start date changed`}</dd></div>
+      <div><dt>Created</dt><dd>${fdt(c.createdAt)}</dd></div>
+    </dl></div></section>`;
+      }
+      function roCard(c, { readOnly = false } = {}) {
+        const o = c.reportingOfficer;
+        const canWrite = isAdmin() && !readOnly;
+        let body,
+          head = '';
+        if (S.roLoading)
+          body = `<div class="skel-card"><span class="skeleton" style="width:50%"></span><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:40%"></span><span class="skeleton" style="width:60%"></span></div>`;
+        else if (!o)
+          body = `<div class="ro-empty"><span class="ico">${icon('userPlus', 19)}</span><h4>No reporting officer</h4><p>Assign the officer responsible for this Commission’s roster. They receive one activation email.</p>${canWrite ? `<div style="margin-top:16px"><button class="btn btn-primary btn-sm" data-act="openAssign" data-arg="assign">${icon('userPlus', 16)} Assign reporting officer</button></div>` : ''}</div>`;
+        else {
+          head = roBadge(o);
+          const inv = o.state === 'invited';
+          body = `<div class="sec-b" style="padding-top:6px;padding-bottom:${canWrite ? 6 : 14}px">
+      <dl class="dlx">
+        <div><dt>Name</dt><dd>${esc(o.name)}</dd></div>
+        <div><dt>Email</dt><dd>${esc(o.email)}</dd></div>
+        <div><dt>Phone</dt><dd class="tabular">${esc(fmtPhone(o.phone))}</dd></div>
+        <div><dt>State</dt><dd>${roBadge(o)}</dd></div>
+        ${inv ? `<div><dt>Invited on</dt><dd>${fd(o.invitedAt)} <span class="muted small" style="font-weight:400">(${ago(o.invitedAt)})</span></dd></div>` : `<div><dt>Activated on</dt><dd>${fd(o.activatedAt)}</dd></div>`}
+      </dl>
+      ${inv ? `<div class="note" style="margin:6px 0 10px">${icon('clock', 15)}<span>The activation link is valid for 72 hours.</span></div>` : ''}
+    </div>
+    ${canWrite ? `<div class="card-foot" style="justify-content:flex-end">${inv ? `<button class="btn btn-secondary btn-sm" data-act="resend" ${S.resendBusy ? 'disabled aria-busy="true"' : ''}>${S.resendBusy ? spinner(true) + ' Resending…' : icon('send', 15) + ' Resend invitation'}</button>` : ''}<button class="btn btn-secondary btn-sm" data-act="openAssign" data-arg="replace" ${S.resendBusy ? 'disabled' : ''}>${icon('swap', 15)} Replace</button></div>` : ''}`;
+        }
+        return `<section class="cardx" aria-labelledby="h-ro" aria-busy="${S.roLoading}"><div class="sec-h"><span class="ico">${icon('userCheck', 16)}</span><h3 id="h-ro" tabindex="-1">Reporting officer</h3></div>${body}</section>`;
+      }
+      function importsFor(c) {
+        if (c.imports) return c.imports;
+        const r = c.roster;
+        return [
+          [
+            r.lastImportAt,
+            'file',
+            true,
+            'completed',
+            [r.expectedDeclarants, 0, Math.round(r.expectedDeclarants * 0.004), r.flagged],
+          ],
+        ];
+      }
+      const chBadge = (ch) =>
+        ch === 'api'
+          ? `<span class="badge badge-ai">${icon('plug', 12)}API</span>`
+          : `<span class="badge">${icon('file', 12)}File</span>`;
+      const impState = (st) =>
+        st === 'completed'
+          ? `<span class="badge badge-ok">${icon('check', 12, 2.4)}Completed</span>`
+          : `<span class="badge badge-danger">${icon('alert', 12, 2.2)}Failed</span>`;
+      function rosterCard(c) {
+        const r = c.roster;
+        if (r.status === 'none')
+          return `<section class="cardx" aria-labelledby="h-roster"><div class="sec-h"><span class="ico">${icon('users', 16)}</span><h3 id="h-roster">Roster</h3></div>${Kit.empty('No roster yet', 'The reporting officer imports the roster after activating their account.', { icon: 'users' })}</section>`;
+        const hist = importsFor(c).slice(0, 5);
+        const pctv = Math.round(Kit.pct(r.onboardedDeclarants, r.expectedDeclarants));
+        return `<section class="cardx" aria-labelledby="h-roster"><div class="sec-h"><span class="ico">${icon('users', 16)}</span><h3 id="h-roster">Roster</h3>${isAdmin() ? `<span class="r"><a class="btn btn-secondary btn-sm" href="02-roster.prototype.html#records" title="Opening roster records is recorded in the audit trail">${icon('eye', 15)} Roster records</a></span>` : ''}</div><div class="sec-b">
+    <div class="counts4 wide">
+      <div class="cnt"><div class="k">Expected declarants</div><div class="v">${num(r.expectedDeclarants)}</div></div>
+      <div class="cnt"><div class="k">Onboarded</div><div class="v">${num(r.onboardedDeclarants)} <small class="muted" style="font-size:13px;font-weight:500">${pctv}%</small></div></div>
+      <div class="cnt"><div class="k">Flagged</div><div class="v">${num(r.flagged)}</div></div>
+      <div class="cnt"><div class="k">Last import</div><div class="v" style="font-size:16px;margin-top:6px" title="${esc(fdt(r.lastImportAt))}">${fd(r.lastImportAt)}</div></div></div></div>
+    ${
+      seesAll()
+        ? `<div class="table-wrap" style="border-top:1px solid var(--line)"><table class="table"><caption class="vh">Recent imports</caption><thead><tr><th scope="col">Started</th><th scope="col">Channel</th><th scope="col">Complete?</th><th scope="col">State</th><th scope="col" class="num">Created</th><th scope="col" class="num">Updated</th><th scope="col" class="num">Rejected</th><th scope="col" class="num">Flagged</th></tr></thead><tbody>
+      ${hist.map(([at, ch, full, st, n]) => `<tr><td class="nowrap">${fdt(at)}</td><td>${chBadge(ch)}</td><td>${full ? 'Yes' : 'Partial'}</td><td>${impState(st)}</td>${(n || [null, null, null, null]).map((x) => `<td class="num">${x == null ? '-' : num(x)}</td>`).join('')}</tr>`).join('')}
+    </tbody></table></div><div class="card-foot" style="justify-content:flex-end"><a class="link small" href="02-roster.prototype.html#imports">All imports</a></div>`
+        : ''
+    }</section>`;
+      }
+      /* spec 04 FE-4: obligations card for EACC and platform-admin */
+      function obligationsCard(c) {
+        const o = c.obligations;
+        const link = isAdmin() && o;
+        return `<section class="cardx" aria-labelledby="h-obl"><div class="sec-h"><span class="ico">${icon('calendar', 16)}</span><div><h3 id="h-obl">Obligations</h3><div class="small muted">Biennial 2027 · due 31 Dec 2027</div></div></div>
+    ${
+      o
+        ? `<div class="sec-b"><div class="counts4">
+      <div class="cnt"><div class="k">Upcoming</div><div class="v">${num(o.upcoming)}</div></div>
+      <div class="cnt"><div class="k">Due</div><div class="v">${num(o.due)}</div></div>
+      <div class="cnt ${o.overdue ? 'warn' : ''}"><div class="k">Overdue</div><div class="v">${num(o.overdue)}</div></div>
+      <div class="cnt" title="Due or overdue, not onboarded"><div class="k">Not onboarded</div><div class="v">${num(o.notOnboarded)}</div></div></div></div>${link ? `<div class="card-foot" style="justify-content:flex-end"><a class="btn btn-secondary btn-sm" href="04-obligations.prototype.html?slug=${c.slug}#obligations">Obligations ${icon('arrowRight', 15)}</a></div>` : ''}`
+        : Kit.empty(
+            'No obligations yet',
+            'Obligations appear when the roster is imported and a cycle opens.',
+            { icon: 'calendar' },
+          )
+    }</section>`;
+      }
+      /* spec 04 FE-4: policy card (commission-admin of the tenant, platform-admin); read only for other staff of the tenant */
+      function policyCard(c, { canChange, ai = false }) {
+        const pv = S.policies[c.slug];
+        const v = pv[pv.length - 1];
+        const hist = pv.slice().reverse();
+        return `<section class="cardx" aria-labelledby="h-policy"><div class="sec-h"><span class="ico">${icon('settings', 16)}</span><div><h3 id="h-policy">Policy</h3><div class="small muted">Version ${v.version} in force since ${fd(v.effectiveFrom)}</div></div></div>
+    <div class="sec-b" style="padding-top:4px;padding-bottom:8px"><div class="pgrid">
+      <div class="prow"><div class="k">Statutory periods</div><div class="v">Initial: ${v.initialDueAfterAppointmentDays} days after appointment<br/>Biennial: statement 1 Nov, due 31 Dec<br/>Final: ${v.finalDueAfterExitDays} days after leaving office</div><div></div></div>
+      <div class="prow"><div class="k">Reminders</div><div class="v">${v.reminderOffsetsDays.join(', ').replace(/, (\d+)$/, ' and $1')} days before due</div><div></div></div>
+      <div class="prow"><div class="k">Obligations start date</div><div class="v">${fd(v.obligationsStartDate)} ${Kit.tip('Initial declarations are created only for appointments on or after this date.')}</div><div>${canChange ? `<button class="btn btn-secondary btn-sm" data-act="openPolicy">${icon('pencil', 14)} Change</button>` : ''}</div></div>
+      ${ai ? `<div class="prow"><div class="k">AI assistance</div><div class="v row" style="gap:8px;flex-wrap:wrap">${S.aiOn ? Kit.badge(icon('check', 12, 2.6) + ' Enabled', 'ok') : Kit.badge(icon('ban', 12) + ' Not enabled')}<span style="font-weight:400;color:var(--ink-2)">${S.aiOn ? 'External provider, synthetic data only' : 'No declaration data is sent to an AI provider'}</span></div><div><a class="btn btn-secondary btn-sm" href="07c-copilot.prototype.html#commission-ai">Details</a></div></div>` : ''}
+    </div></div>
+    <div style="padding:0 20px 16px"><h4 class="small" style="font-weight:600;margin:4px 0 2px">Version history</h4><ul class="vh-list">${hist.map((h, i) => `<li><span class="vnum ${i === 0 ? 'cur' : ''}">v${h.version}</span><div><div style="font-weight:500">Effective ${fdt(h.effectiveFrom)}${i === 0 ? ' <span class="badge badge-ok" style="height:20px;margin-left:4px">In force</span>' : ''}</div><div class="small muted">${h.version === 1 ? 'Platform defaults' : `Obligations start date ${fd(h.obligationsStartDate)}`} · by ${esc(h.createdBy)}</div></div></li>`).join('')}</ul></div></section>`;
+      }
+      function detailSkeleton() {
+        return `<div class="page-head"><div style="flex:1"><span class="skeleton" style="width:320px;height:24px;max-width:80%"></span><span class="skeleton" style="width:140px;margin-top:12px"></span></div></div><div class="dgrid"><div class="cardx skel-card">${'<span class="skeleton"></span>'.repeat(6)}</div><div class="cardx skel-card">${'<span class="skeleton" style="width:70%"></span>'.repeat(4)}</div></div>`;
+      }
+      function notFound(backScreen = 'commissions') {
+        return `<div class="cardx" style="padding:8px">${Kit.empty('Commission not found', 'It does not exist or you do not have access to it.', { icon: 'search', action: `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="${backScreen}">${seesAll() ? 'Back to Commissions' : 'Open your Commission'}</button>` })}</div>`;
+      }
+      function scrDetail() {
+        const c = cur();
+        const visible = c && (seesAll() || c.slug === staffTenant());
+        const crumbsBase = seesAll() ? [['Commissions', 'commissions']] : [];
+        if (S.detailState === 'loading')
+          return consoleShell(`<main class="cpage" aria-busy="true">${detailSkeleton()}</main>`, {
+            crumbs: [...crumbsBase, ['Loading…', 'detail']],
+          });
+        if (!visible || S.detailState === 'notfound')
+          return consoleShell(
+            `<main class="cpage narrow">${notFound(seesAll() ? 'commissions' : 'my-commission')}</main>`,
+            { crumbs: [...crumbsBase, ['Not found', 'detail']] },
+          );
+        if (!seesAll()) {
+          return scrMy();
+        }
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div style="min-width:0"><h1>${esc(c.name)}</h1><div class="head-badges"><span class="mono-badge issuer" style="font-size:12.5px;padding:3px 8px;border-radius:6px;background:var(--sunken);color:var(--ink-2)">${c.issuerCode}</span>${typeBadge(c.type)}${isEacc() ? `<span class="badge">${icon('eye', 13)} Read only</span>` : ''}</div></div></div>
+    <div class="dgrid">
+      <div class="dcol">${detailsCard(c)}${policyOrNothing(c)}</div>
+      <div class="dcol">${roCard(c)}${obligationsCard(c)}</div>
+      <div class="span2">${rosterCard(c)}</div>
+    </div>
+  </main>`,
+          {
+            crumbs: [
+              ['Commissions', 'commissions'],
+              [c.name, 'detail'],
+            ],
+          },
+        );
+      }
+      const policyOrNothing = (c) => (isAdmin() ? policyCard(c, { canChange: true }) : '');
+
+      /* ---------- my Commission (staff overview of their own record) ---------- */
+      function sumCards(c, role) {
+        const cards = [];
+        const fresh = S.myFresh;
+        const r = fresh ? { status: 'none' } : c.roster;
+        const o = fresh ? null : c.obligations;
+        const rosterLink = role === 'reporting-officer' || role === 'commission-admin';
+        const wrap = (href, inner, label) =>
+          href
+            ? `<a class="sumcard" href="${href}" aria-label="${esc(label)}">${inner}</a>`
+            : `<div class="sumcard">${inner}</div>`;
+        const hd = (ic, t, link) =>
+          `<div class="hd"><span class="ico">${icon(ic, 17)}</span><h3>${t}</h3>${link ? `<span class="r">${icon('right', 17)}</span>` : ''}</div>`;
+        /* Roster (matches 02-roster "Commission roster card") */
+        cards.push(
+          wrap(
+            rosterLink ? '02-roster.prototype.html#overview' : '',
+            r.status === 'none'
+              ? `${hd('users', 'Roster', rosterLink)}<div class="big" style="font-size:18px">No roster yet</div>${role === 'reporting-officer' ? `<span class="go">Import roster ${icon('arrowRight', 15)}</span>` : ''}`
+              : `${hd('users', 'Roster', rosterLink)}<div class="big">${num(r.onboardedDeclarants)} <span style="font-size:14px;font-weight:500;color:var(--muted)">of ${num(r.expectedDeclarants)} onboarded</span></div><div class="ln" title="${esc(fdt(r.lastImportAt))}"><span>Last import ${relT(r.lastImportAt)}</span>${r.flagged ? `<span class="badge badge-warn">${num(r.flagged)} flagged</span>` : ''}</div>`,
+            'Roster',
+          ),
+        );
+        /* Obligations */
+        cards.push(
+          wrap(
+            '04-obligations.prototype.html#obligations',
+            o
+              ? `${hd('calendar', 'Obligations', true)}<div class="big"><span style="color:#7a4a00">${num(o.overdue)} overdue</span> <span style="font-size:14px;font-weight:500;color:var(--muted)">· ${num(o.due)} due</span></div><div class="ln">${icon('userX', 13)}<span>${num(o.notOnboarded)} not onboarded</span></div>`
+              : `${hd('calendar', 'Obligations', true)}<div class="big" style="font-size:18px">No obligations yet</div><div class="ln">Obligations appear when the roster is imported and a cycle opens.</div>`,
+            'Obligations',
+          ),
+        );
+        /* Form M (spec 09) */
+        if (!fresh && ['reporting-officer', 'commission-admin', 'supervisor'].includes(role))
+          cards.push(
+            wrap(
+              '09-form-m.prototype.html#form-m',
+              `${hd('file', 'Form M 2025/2026', true)}<div class="big" style="color:var(--danger)">57 days overdue</div><div class="ln">Due 31 Jul 2026 · draft not submitted</div>`,
+              'Form M',
+            ),
+          );
+        return `<div class="sumcards ${cards.length === 2 ? 'n2' : ''}">${cards.join('')}</div>`;
+      }
+      function scrMy() {
+        if (isAdmin())
+          return consoleShell(
+            `<main class="cpage narrow"><div class="page-head"><div><h1>Your Commission</h1></div></div>${alertBox('info', 'Platform administrators are not staff of a Commission.', '', `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="commissions">Open Commissions</button>`, { role: 'status' })}</main>`,
+            { crumbs: [['Your Commission', 'my-commission']] },
+          );
+        const c = byslug(staffTenant());
+        if (S.detailState === 'loading')
+          return consoleShell(`<main class="cpage" aria-busy="true">${detailSkeleton()}</main>`, {
+            crumbs: [['Overview', 'my-commission']],
+          });
+        const role = P();
+        const canChange = role === 'commission-admin';
+        const showPolicy = !isEacc();
+        return consoleShell(
+          `<main class="cpage">
+    <div class="page-head"><div style="min-width:0"><h1>${esc(c.name)}</h1><div class="head-badges"><span class="issuer" style="font-size:12.5px;padding:3px 8px;border-radius:6px;background:var(--sunken);color:var(--ink-2)">${c.issuerCode}</span>${typeBadge(c.type)}</div></div></div>
+    ${isEacc() ? '' : sumCards(c, role)}
+    <div class="dgrid">
+      <div class="dcol">${detailsCard(c)}</div>
+      <div class="dcol">${roCard(c, { readOnly: true })}${showPolicy ? policyCard(c, { canChange, ai: ['commission-admin', 'supervisor'].includes(role) }) : ''}
+        ${showPolicy && !canChange ? `<div class="note" style="padding:0 4px">${icon('lock', 15)}<span>Only your Commission administrator can change the start date.</span></div>` : ''}
+        ${canChange ? `<a class="sumcard" href="12-open-data.prototype.html#commission-preview" aria-label="Open data preview"><div class="hd"><span class="ico">${icon('chart', 17)}</span><h3>Open data preview</h3><span class="r">${icon('right', 17)}</span></div><div class="ln">FY 2025/2026 annual · Published 18 Sep 2026</div></a>` : ''}</div>
+    </div>
+  </main>`,
+          { crumbs: [['Overview', 'my-commission']] },
+        );
+      }
+
+      /* ================= modals ================= */
+      function mAssign() {
+        const f = S.af;
+        const c = cur();
+        const e = f.errors;
+        const busy = f.state === 'submitting';
+        const dis = busy ? 'disabled' : '';
+        const replace = f.mode === 'replace';
+        const norm = normPhone(f.phone);
+        const body = `
+    ${replace && c.reportingOfficer ? alertBox('warn', `${esc(c.reportingOfficer.name)} will lose access to this Commission immediately. Their account will be disabled.`, '', '', { role: 'status' }) : ''}
+    ${f.alert || ''}
+    ${ff('Full name', `<input id="f-af-name" class="input" data-bind="af.name" value="${esc(f.name)}" autocomplete="off" maxlength="130" ${described('f-af-name', e.name, false)} ${dis}/>`, { id: 'f-af-name', error: e.name })}
+    ${ff('Official email', `<input id="f-af-email" class="input" type="email" data-bind="af.email" value="${esc(f.email)}" autocomplete="off" maxlength="260" placeholder="name@commission.go.ke" ${described('f-af-email', e.email)} ${dis}/>`, { id: 'f-af-email', error: e.email, hint: 'Becomes their console username.' })}
+    ${ff('Phone', `<input id="f-af-phone" class="input tabular" type="tel" data-bind="af.phone" data-live value="${esc(f.phone)}" autocomplete="off" placeholder="0712 345 678" ${described('f-af-phone', e.phone)} ${dis}/>`, { id: 'f-af-phone', error: e.phone, hint: 'Include the country code for non-Kenyan numbers.', extraHint: norm && !e.phone ? `<div class="phone-prev">${icon('check', 14, 2.4)} Saved as ${esc(fmtPhone(norm))}</div>` : '' })}`;
+        const foot = `<div class="once">${icon('mail', 15)}<span>One activation email will be sent to this address. No one else is contacted.</span></div>
+    <div class="foot-btns"><button class="btn btn-ghost" data-act="closeModal" ${dis}>Cancel</button><button class="btn btn-primary" data-act="submitAssign" ${dis} ${busy ? 'aria-busy="true"' : ''} style="min-width:170px">${busy ? spinner() + ' Sending…' : `${icon('send', 16)} Send invitation`}</button></div>`;
+        return dialog({
+          title: replace ? 'Replace reporting officer' : 'Assign reporting officer',
+          icon: replace ? 'swap' : 'userPlus',
+          body,
+          foot,
+        }).replace('class="dialog-foot"', 'class="dialog-foot col"');
+      }
+      function mPolicy() {
+        const f = S.pf;
+        const c = cur();
+        const busy = f.state === 'submitting';
+        const dis = busy ? 'disabled' : '';
+        const pv = S.policies[c.slug];
+        const v = pv[pv.length - 1];
+        const body = `${f.alert || ''}
+    <div class="preview">${icon('calendar', 16)}<span>Current start date: <b style="color:var(--ink)">${fd(v.obligationsStartDate)}</b> (version ${v.version})</span></div>
+    ${ff('Obligations start date', `<input id="f-pf-date" class="input" type="date" data-bind="pf.date" value="${esc(f.date)}" ${described('f-pf-date', f.error)} ${dis}/>`, { id: 'f-pf-date', error: f.error, hint: 'Initial declarations are created only for appointments on or after this date. Earlier appointments are assumed to have declared outside Adili.' })}
+    <div class="note">${icon('info', 15)}<span>Saves as version ${v.version + 1}, effective now.</span></div>`;
+        const foot = `<button class="btn btn-ghost" data-act="closeModal" ${dis}>Cancel</button><button class="btn btn-primary" data-act="submitPolicy" ${dis} ${busy ? 'aria-busy="true"' : ''} style="min-width:220px">${busy ? spinner() + ' Saving…' : 'Save as new policy version'}</button>`;
+        return dialog({
+          title: 'Change obligations start date',
+          icon: 'calendar',
+          body,
+          foot,
+        });
+      }
+
+      /* ================= actions ================= */
+      let searchT = null;
+      const actions = {
+        signIn: () => {
+          Kit.go('home');
+          Kit.toast('Signed in (prototype)');
+        },
+        openDetail: (slug, el, e) => {
+          if (e && e.target.closest('.tip')) return;
+          S.sel = slug;
+          S.detailState = 'ready';
+          Kit.go('detail');
+          syncUrl();
+        },
+        clearFilters: () => {
+          S.list.search = '';
+          S.list.type = '';
+          S.list.ro = '';
+          S.list.page = 1;
+          syncUrl();
+          fakeLoad((v) => (S.list.state = v), 450);
+        },
+        retryList: () => fakeLoad((v) => (S.list.state = v)),
+        listPage: (p) => {
+          S.list.page = Number(p);
+          fakeLoad((v) => (S.list.state = v), 350);
+        },
+        cancelCreate: () => {
+          if (S.create.state === 'submitting') return;
+          S.create = newCreate();
+          Kit.go('commissions');
+          syncUrl();
+        },
+        submitCreate: () => submitCreate(),
+        openAssign: (mode, el) => {
+          S.af = newAssign(mode);
+          S.modal = { kind: 'assign' };
+          S._ret = { act: 'openAssign', arg: mode };
+          Kit.render();
+        },
+        submitAssign: () => submitAssign(),
+        resend: () => resend(),
+        openPolicy: () => {
+          S.pf = { date: '', error: '', state: 'editing', alert: null, idem: uuid() };
+          S.modal = { kind: 'policy' };
+          S._ret = { act: 'openPolicy', arg: '' };
+          Kit.render();
+        },
+        submitPolicy: () => submitPolicy(),
+      };
+
+      function focusFirstInvalid() {
+        setTimeout(() => {
+          const el = document.querySelector(
+            '#view [aria-invalid="true"], #layer [aria-invalid="true"]',
+          );
+          if (el) (el.tagName === 'FIELDSET' ? el.querySelector('input') : el).focus();
+        }, 0);
+      }
+
+      function submitCreate(forceSim) {
+        const f = S.create;
+        if (f.state === 'submitting') return;
+        f.tried = true;
+        f.alert = null;
+        f.summary = null;
+        f.errors = validateCreate(f);
+        const n = Object.keys(f.errors).length;
+        if (n) {
+          f.summary = { title: `Fix ${n} field${n > 1 ? 's' : ''} to continue` };
+          Kit.render();
+          focusFirstInvalid();
+          return;
+        }
+        f.state = 'submitting';
+        Kit.render();
+        const sim = forceSim || f.sim;
+        setTimeout(
+          () => {
+            if (S.create !== f) return;
+            f.state = 'editing';
+            const name = f.name.trim();
+            const dupSlug = byslug(f.slug);
+            const dupName = S.commissions.find((c) => c.name.toLowerCase() === name.toLowerCase());
+            if (sim === 'error') {
+              f.alert = alertBox(
+                'danger',
+                'The Commission was not created. Try again.',
+                'Your details are kept. Retrying is safe.',
+                '',
+                { role: 'alert' },
+              );
+            } else if (sim === '422') {
+              f.alert = alertBox(
+                'danger',
+                'This form changed after an earlier attempt',
+                'The first attempt may have created the Commission. Check the Commissions list before creating it again.',
+                `<button class="btn btn-secondary btn-sm" data-act="go" data-arg="commissions">Check the list</button>`,
+                { role: 'alert' },
+              );
+            } else if (sim === 'conflict-nopath') {
+              f.alert = alertBox(
+                'danger',
+                'A Commission with this key or name already exists.',
+                '',
+                '',
+                { role: 'alert' },
+              );
+            } else if (sim === '400') {
+              f.errors = {
+                categories:
+                  'One of the selected categories is not in the statutory list. Reload the page and choose again.',
+              };
+              f.summary = {
+                title: 'Fix 1 field to continue',
+                text: 'Also: the request had a field the directory does not accept (issuerCode).',
+              };
+              setTimeout(() => document.querySelector('#view .crow input')?.focus(), 0);
+            } else if (dupSlug) {
+              f.errors = {
+                slug: `The key ${esc(f.slug)} is already used by ${esc(dupSlug.name)}.`,
+              };
+              focusFirstInvalid();
+            } else if (dupName) {
+              f.errors = { name: 'A Commission with this name already exists.' };
+              focusFirstInvalid();
+            } else {
+              const c = C(
+                f.slug,
+                name,
+                f.type,
+                CATS.map((x) => x.code).filter((k) => f.cats[k]),
+                nowIso(),
+                null,
+                roster(),
+              );
+              S.commissions.push(c);
+              S.policies[c.slug] = [
+                {
+                  id: 'pv-' + c.slug + '-1',
+                  version: 1,
+                  effectiveFrom: c.createdAt,
+                  obligationsStartDate: c.createdAt.slice(0, 10),
+                  ...DEFAULT_POLICY,
+                  createdBy: Kit.PERSONAS[P()].name,
+                  createdAt: c.createdAt,
+                },
+              ];
+              S.create = newCreate();
+              S.sel = c.slug;
+              S.detailState = 'ready';
+              Kit.go('detail');
+              syncUrl();
+              Kit.toast(`${name} created`, false);
+              return;
+            }
+            Kit.render();
+          },
+          forceSim === 'hold' ? 1e9 : 1000,
+        );
+      }
+
+      function validateAssign(f) {
+        const e = {};
+        const n = f.name.trim();
+        if (n.length < 2 || n.length > 120) e.name = 'Enter the officer’s full name.';
+        if (!validEmail(f.email.trim())) e.email = 'Enter a valid official email address.';
+        if (!normPhone(f.phone))
+          e.phone = 'Enter a valid phone number, e.g. 0712 345 678 or +254 712 345 678.';
+        return e;
+      }
+      function submitAssign(forceSim) {
+        const f = S.af;
+        const c = cur();
+        if (f.state === 'submitting') return;
+        f.tried = true;
+        f.alert = null;
+        f.errors = validateAssign(f);
+        if (Object.keys(f.errors).length) {
+          Kit.render();
+          focusFirstInvalid();
+          return;
+        }
+        f.state = 'submitting';
+        S.modal.busy = true;
+        Kit.render();
+        const sim = forceSim || f.sim;
+        if (sim === 'hold') return;
+        setTimeout(() => {
+          if (S.af !== f || !S.modal) return;
+          f.state = 'editing';
+          S.modal.busy = false;
+          const email = f.email.trim().toLowerCase();
+          const owner = KNOWN_ACCOUNTS[email];
+          if (sim === 'error') {
+            f.alert = alertBox('danger', 'The invitation was not sent. Try again.', '', '', {
+              role: 'alert',
+            });
+          } else if (sim === '400') {
+            f.errors = {
+              phone: 'Enter a valid phone number, e.g. 0712 345 678 or +254 712 345 678.',
+            };
+            f.alert = alertBox(
+              'danger',
+              'Some details were not accepted',
+              'Check the highlighted field.',
+              '',
+              { role: 'alert' },
+            );
+            focusFirstInvalid();
+          } else if (owner && owner !== c.slug) {
+            f.errors = { email: 'This email already belongs to an account in another Commission.' };
+            focusFirstInvalid();
+          } else {
+            KNOWN_ACCOUNTS[email] = c.slug;
+            c.reportingOfficer = ro(f.name.trim(), email, normPhone(f.phone), 'invited', nowIso());
+            S.modal = null;
+            S.roLoading = true;
+            Kit.render();
+            Kit.toast(`Invitation sent to ${email}`, false);
+            setTimeout(() => {
+              S.roLoading = false;
+              Kit.render();
+              document.getElementById('h-ro')?.focus();
+            }, 500);
+            return;
+          }
+          Kit.render();
+        }, 1000);
+      }
+      function resend(forceSim) {
+        const c = cur();
+        if (S.resendBusy) return;
+        S.resendBusy = true;
+        Kit.render();
+        const sim = forceSim || S.resendSim;
+        if (sim === 'hold') return;
+        setTimeout(() => {
+          if (cur() !== c || !S.resendBusy) return;
+          S.resendBusy = false;
+          if (sim === '409' || c.reportingOfficer._activatedOnServer) {
+            S.resendSim = null;
+            c.reportingOfficer.state = 'activated';
+            c.reportingOfficer.activatedAt =
+              c.reportingOfficer.activatedAt || '2026-09-26T09:52:00';
+            S.roLoading = true;
+            Kit.toast('This officer has already activated.', true);
+            setTimeout(() => {
+              S.roLoading = false;
+              Kit.render();
+            }, 500);
+          } else Kit.toast(`Invitation sent again to ${c.reportingOfficer.email}`, false);
+        }, 900);
+      }
+      function submitPolicy(forceSim) {
+        const f = S.pf;
+        const c = cur();
+        const pv = S.policies[c.slug];
+        const v = pv[pv.length - 1];
+        f.alert = null;
+        f.error = '';
+        if (!f.date || !/^\d{4}-\d{2}-\d{2}$/.test(f.date)) f.error = 'Enter a valid date.';
+        else if (f.date === v.obligationsStartDate)
+          f.error = 'This is already the start date in force. Choose a different date.';
+        if (f.error) {
+          Kit.render();
+          focusFirstInvalid();
+          return;
+        }
+        f.state = 'submitting';
+        S.modal.busy = true;
+        Kit.render();
+        const sim = forceSim || f.sim;
+        if (sim === 'hold') return;
+        setTimeout(() => {
+          if (S.pf !== f || !S.modal) return;
+          f.state = 'editing';
+          S.modal.busy = false;
+          if (sim === 'error') {
+            f.alert = alertBox(
+              'danger',
+              'The policy was not changed. Try again.',
+              'Version ' + v.version + ' is still in force.',
+              '',
+              { role: 'alert' },
+            );
+            Kit.render();
+            return;
+          }
+          const nv = {
+            ...v,
+            id: 'pv-' + c.slug + '-' + (v.version + 1),
+            version: v.version + 1,
+            effectiveFrom: nowIso(),
+            obligationsStartDate: f.date,
+            createdBy: Kit.PERSONAS[P()].name,
+            createdAt: nowIso(),
+          };
+          pv.push(nv);
+          c.policyVersion = nv.version;
+          S.modal = null;
+          Kit.render();
+          Kit.toast(`Policy version ${nv.version} in force`, false);
+        }, 900);
+      }
+
+      /* ================= a11y helpers: focus into dialogs, trap, and return ================= */
+      let prevModal = null;
+      function afterRender() {
+        const m = S.modal?.kind || null;
+        if (m && m !== prevModal)
+          setTimeout(() => {
+            const el =
+              document.querySelector('#layer .dialog input:not([disabled])') ||
+              document.querySelector('#layer .dialog .dialog-foot button:not([disabled])');
+            el?.focus();
+          }, 30);
+        if (!m && prevModal && S._ret) {
+          const r = S._ret;
+          setTimeout(() => {
+            const t =
+              document.querySelector(
+                `#view [data-act="${r.act}"]${r.arg ? `[data-arg="${r.arg}"]` : ''}`,
+              ) || document.querySelector('#view #h-ro');
+            t?.focus();
+          }, 0);
+          S._ret = null;
+        }
+        prevModal = m;
+        if (S.screen !== 'landing') syncUrl();
+      }
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab') return;
+        const box = document.querySelector('#layer .dialog, #layer .drawer');
+        if (!box) return;
+        const els = [
+          ...box.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ),
+        ].filter((x) => !x.disabled && x.offsetParent !== null);
+        if (!els.length) return;
+        const first = els[0],
+          last = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        } else if (!box.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
+      });
+
+      /* ================= binding side effects ================= */
+      const soon = () => {
+        clearTimeout(soon.t);
+        soon.t = setTimeout(() => Kit.render(), 0);
+      };
+      function onBind(path, v) {
+        if (path === 'create.slug') {
+          S.create.slug = String(v).toLowerCase().replace(/\s+/g, '');
+          if (S.create.tried) {
+            S.create.errors = validateCreate(S.create);
+            if (!Object.keys(S.create.errors).length) S.create.summary = null;
+          }
+        } else if (path.startsWith('create.') && S.create.tried) {
+          S.create.errors = validateCreate(S.create);
+          if (!Object.keys(S.create.errors).length) S.create.summary = null;
+        }
+        if (path.startsWith('af.') && S.af.tried) {
+          S.af.errors = validateAssign(S.af);
+        }
+        if (path === 'pf.date' && S.pf.error) {
+          S.pf.error = '';
+          soon();
+        }
+        if (path === 'list.search') {
+          clearTimeout(searchT);
+          searchT = setTimeout(() => {
+            S.list.page = 1;
+            syncUrl();
+            fakeLoad((x) => (S.list.state = x), 400);
+          }, 300);
+        }
+        if (path === 'list.type' || path === 'list.ro') {
+          S.list.page = 1;
+          syncUrl();
+          fakeLoad((x) => (S.list.state = x), 400);
+        }
+      }
+      /* after a failed submit, refresh inline errors when the person leaves a field (not on every keystroke) */
+      document.addEventListener('change', (e) => {
+        const b = e.target.dataset?.bind || '';
+        if ((b.startsWith('af.') && S.af.tried) || (b === 'create.name' && S.create.tried)) soon();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.id === 'f-list-search') {
+          clearTimeout(searchT);
+          S.list.page = 1;
+          syncUrl();
+          fakeLoad((x) => (S.list.state = x), 400);
+        }
+      });
+
+      /* ================= jumps ================= */
+      const as = (p) => {
+        localStorage.setItem('dials-proto-persona', p);
+      };
+      const reset = () => {
+        const keep = S._panel;
+        Object.assign(S, init(), { modal: null, toast: null });
+        S._panel = keep;
+      };
+      function atDetail(slug, persona = 'platform-admin') {
+        reset();
+        as(persona);
+        S.sel = slug;
+        Kit.go('detail');
+        syncUrl();
+      }
+      function createWith(vals, sim) {
+        reset();
+        as('platform-admin');
+        Object.assign(S.create, vals);
+        Kit.go('commission-new');
+        if (sim !== undefined) submitCreate(sim);
+      }
+      function assignWith(slug, mode, vals, sim) {
+        atDetail(slug);
+        S.af = Object.assign(newAssign(mode), vals);
+        S.modal = { kind: 'assign' };
+        Kit.render();
+        if (sim !== undefined) submitAssign(sim);
+      }
+      const NEWC = {
+        name: 'Kiambu County Public Service Board',
+        slug: 'cpsb022',
+        type: 'hosted',
+        cats: { 'act-s32-6': true },
+      };
+
+      const jumps = [
+        [
+          'landing',
+          '#24 Console landing (signed out): expired-link help',
+          () => {
+            reset();
+            Kit.go('landing');
+          },
+        ],
+        [
+          'home',
+          'Console home: workspace cards (per persona)',
+          () => {
+            reset();
+            Kit.go('home');
+          },
+        ],
+        [
+          'commissions',
+          '#12 Commissions list: populated (platform admin)',
+          () => {
+            reset();
+            as('platform-admin');
+            Kit.go('commissions');
+            syncUrl();
+          },
+        ],
+        [
+          'c-loading',
+          '#12 List: loading skeleton',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.state = 'loading';
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-empty',
+          '#12 List: empty, no Commissions yet',
+          () => {
+            reset();
+            as('platform-admin');
+            S.listEmptyPlatform = true;
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-filtered',
+          '#12 List: empty, filtered',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.search = 'coast';
+            S.list.type = 'federated';
+            Kit.go('commissions');
+            syncUrl();
+          },
+        ],
+        [
+          'c-filter-inv',
+          '#12 List: filtered to Invited (URL-backed)',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.ro = 'invited';
+            Kit.go('commissions');
+            syncUrl();
+          },
+        ],
+        [
+          'c-more',
+          '#12 List: page 2 (cursor)',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.page = 2;
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-error',
+          '#12 List: error, directory unreachable',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.state = 'error';
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-forbidden',
+          '#12 List: forbidden (403 from directory)',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.state = 'forbidden';
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-readonly',
+          '#12 List as EACC analyst: read only',
+          () => {
+            reset();
+            as('eacc-analyst');
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-sup',
+          '#12 List as EACC supervisor: read only',
+          () => {
+            reset();
+            as('eacc-supervisor');
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'c-noaccess',
+          '#12 List as Commission staff: no workspace',
+          () => {
+            reset();
+            as('reviewer');
+            Kit.go('commissions');
+          },
+        ],
+        [
+          'commission-new',
+          '#15 Create Commission: editing',
+          () => {
+            reset();
+            as('platform-admin');
+            Kit.go('commission-new');
+          },
+        ],
+        [
+          'n-filled',
+          '#15 Create: filled in (Kiambu CPSB, live issuer code)',
+          () => createWith(NEWC),
+        ],
+        [
+          'n-valid',
+          '#15 Create: client validation (summary + inline)',
+          () => createWith({ name: 'TS', slug: 'platform', cats: {} }, null),
+        ],
+        [
+          'n-valid2',
+          '#15 Create: key pattern error',
+          () =>
+            createWith(
+              { name: 'Teachers Service Commission', slug: 'too-long-key-abcdefghijk' },
+              null,
+            ),
+        ],
+        ['n-submitting', '#15 Create: submitting', () => createWith(NEWC, 'hold')],
+        [
+          'n-conflict-slug',
+          '#15 Create: 409 key already exists',
+          () =>
+            createWith(
+              {
+                name: 'Teachers Service Commission of Kenya',
+                slug: 'tsc',
+                type: 'hosted',
+                cats: { 'act-s32-10': true },
+              },
+              null,
+            ),
+        ],
+        [
+          'n-conflict-name',
+          '#15 Create: 409 name already exists',
+          () =>
+            createWith(
+              {
+                name: 'teachers service commission',
+                slug: 'tsck',
+                type: 'hosted',
+                cats: { 'act-s32-10': true },
+              },
+              null,
+            ),
+        ],
+        [
+          'n-conflict-nopath',
+          '#15 Create: 409 without a field path',
+          () => createWith(NEWC, 'conflict-nopath'),
+        ],
+        [
+          'n-400',
+          '#15 Create: 400 server validation (mapped + unmapped)',
+          () => createWith({ ...NEWC }, '400'),
+        ],
+        ['n-error', '#15 Create: network or 5xx error (key kept)', () => createWith(NEWC, 'error')],
+        ['n-422', '#15 Create: 422 key reused after editing (gap)', () => createWith(NEWC, '422')],
+        ['detail', '#12 Detail: PSC, activated, roster imported', () => atDetail('psc')],
+        [
+          'd-loading',
+          '#12 Detail: loading skeleton',
+          () => {
+            atDetail('psc');
+            S.detailState = 'loading';
+            Kit.render();
+          },
+        ],
+        [
+          'd-notfound',
+          '#12 Detail: other tenant as reviewer (404)',
+          () => {
+            reset();
+            as('reviewer');
+            S.sel = 'jsc';
+            Kit.go('detail');
+            syncUrl();
+          },
+        ],
+        ['d-none', '#18 Officer card: none (Mombasa CPSB)', () => atDetail('cpsb001')],
+        ['d-invited', '#18 Officer card: invited (JSC)', () => atDetail('jsc')],
+        ['d-activated', '#24 Officer card: activated (Parliamentary SC)', () => atDetail('parlsc')],
+        ['d-federated', '#12 Detail: federated, invited 30 days ago (CUE)', () => atDetail('cue')],
+        ['a-open', '#18 Assign dialog (Mombasa CPSB)', () => assignWith('cpsb001', 'assign', {})],
+        [
+          'a-filled',
+          '#18 Assign: filled, phone normalised',
+          () =>
+            assignWith('cpsb001', 'assign', {
+              name: 'Fatuma Hassan',
+              email: 'f.hassan@mombasa.go.ke',
+              phone: '0712 345 678',
+            }),
+        ],
+        [
+          'a-invalid',
+          '#18 Assign: validation errors',
+          () =>
+            assignWith('cpsb001', 'assign', { name: 'F', email: 'fatuma@', phone: '12345' }, null),
+        ],
+        [
+          'a-submitting',
+          '#18 Assign: sending',
+          () =>
+            assignWith(
+              'cpsb001',
+              'assign',
+              { name: 'Fatuma Hassan', email: 'f.hassan@mombasa.go.ke', phone: '0712345678' },
+              'hold',
+            ),
+        ],
+        [
+          'a-conflict',
+          '#18 Assign: 409 email in another Commission',
+          () =>
+            assignWith(
+              'cpsb001',
+              'assign',
+              {
+                name: 'Grace Muthoni',
+                email: 'grace.muthoni@publicservice.go.ke',
+                phone: '+254 722 418 305',
+              },
+              null,
+            ),
+        ],
+        [
+          'a-400',
+          '#18 Assign: 400 server validation',
+          () =>
+            assignWith(
+              'cpsb001',
+              'assign',
+              { name: 'Fatuma Hassan', email: 'f.hassan@mombasa.go.ke', phone: '+44 20 7946 0958' },
+              '400',
+            ),
+        ],
+        [
+          'a-error',
+          '#18 Assign: 5xx error',
+          () =>
+            assignWith(
+              'cpsb001',
+              'assign',
+              { name: 'Fatuma Hassan', email: 'f.hassan@mombasa.go.ke', phone: '0712345678' },
+              'error',
+            ),
+        ],
+        [
+          'r-open',
+          '#21 Replace dialog: warning names current officer (JSC)',
+          () => assignWith('jsc', 'replace', {}),
+        ],
+        [
+          'r-activated',
+          '#21 Replace an activated officer (PSC)',
+          () =>
+            assignWith('psc', 'replace', {
+              name: 'Wilson Kiprotich',
+              email: 'w.kiprotich@publicservice.go.ke',
+              phone: '0733 100 200',
+            }),
+        ],
+        [
+          'rs-busy',
+          '#21 Resend: in progress',
+          () => {
+            atDetail('jsc');
+            resend('hold');
+          },
+        ],
+        [
+          'rs-409',
+          '#21 Resend: 409 already activated (click Resend)',
+          () => {
+            atDetail('jsc');
+            byslug('jsc').reportingOfficer._activatedOnServer = true;
+            Kit.render();
+          },
+        ],
+        [
+          'act',
+          '#24 Officer signs in: JSC card flips to Activated',
+          () => {
+            atDetail('jsc');
+            const o = byslug('jsc').reportingOfficer;
+            o.state = 'activated';
+            o.activatedAt = '2026-09-26T09:52:00';
+            Kit.render();
+          },
+        ],
+        [
+          'act-list',
+          '#24 List: Activated badge in the column',
+          () => {
+            reset();
+            as('platform-admin');
+            S.list.ro = 'activated';
+            Kit.go('commissions');
+            syncUrl();
+          },
+        ],
+        [
+          'officer-home',
+          '#24 New reporting officer lands on home',
+          () => {
+            reset();
+            as('reporting-officer');
+            Kit.go('home');
+          },
+        ],
+        [
+          'd-eacc',
+          '#100 Detail as EACC analyst: obligations counts, read only',
+          () => atDetail('psc', 'eacc-analyst'),
+        ],
+        [
+          'd-obl-none',
+          '#100 Obligations card: no obligations yet (JSC)',
+          () => atDetail('jsc', 'eacc-analyst'),
+        ],
+        [
+          'p-change',
+          '#100 Policy: change start date (platform admin)',
+          () => {
+            atDetail('psc');
+            actions.openPolicy();
+            S.pf.date = '2026-07-01';
+            Kit.render();
+          },
+        ],
+        [
+          'p-invalid',
+          '#100 Policy dialog: validation',
+          () => {
+            atDetail('psc');
+            actions.openPolicy();
+            S.pf.date = '2026-08-03';
+            submitPolicy();
+          },
+        ],
+        [
+          'p-saving',
+          '#100 Policy dialog: saving',
+          () => {
+            atDetail('psc');
+            actions.openPolicy();
+            S.pf.date = '2026-07-01';
+            submitPolicy('hold');
+          },
+        ],
+        [
+          'p-error',
+          '#100 Policy dialog: error',
+          () => {
+            atDetail('psc');
+            actions.openPolicy();
+            S.pf.date = '2026-07-01';
+            submitPolicy('error');
+          },
+        ],
+        [
+          'p-v2',
+          '#100 Policy: version 2 in force, history',
+          () => {
+            atDetail('psc');
+            S.policies.psc.push({
+              ...S.policies.psc[0],
+              id: 'pv-psc-2',
+              version: 2,
+              effectiveFrom: '2026-09-12T11:05:00',
+              obligationsStartDate: '2026-07-01',
+              createdBy: 'Daniel Kiprop',
+            });
+            byslug('psc').policyVersion = 2;
+            Kit.render();
+          },
+        ],
+        [
+          'my-commission',
+          'Your Commission: overview as reporting officer',
+          () => {
+            reset();
+            as('reporting-officer');
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-admin',
+          '#100 Your Commission as commission admin: policy card, Change',
+          () => {
+            reset();
+            as('commission-admin');
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-admin-ai-off',
+          '#291 Your Commission as commission admin: AI assistance not enabled',
+          () => {
+            reset();
+            as('commission-admin');
+            S.aiOn = false;
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-reviewer',
+          '#100 Your Commission as reviewer: policy read only',
+          () => {
+            reset();
+            as('reviewer');
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-supervisor',
+          'Your Commission as supervisor: roster read only, Form M',
+          () => {
+            reset();
+            as('supervisor');
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-fresh',
+          '#24 Your Commission right after activation (no roster yet)',
+          () => {
+            reset();
+            as('reporting-officer');
+            S.myFresh = true;
+            Kit.go('my-commission');
+          },
+        ],
+        [
+          'my-loading',
+          'Your Commission: loading',
+          () => {
+            reset();
+            as('supervisor');
+            S.detailState = 'loading';
+            Kit.go('my-commission');
+          },
+        ],
+      ];
+
+      Kit.mount({
+        app: 'console',
+        start: 'commissions',
+        home: 'home',
+        defaultPersona: 'platform-admin',
+        screens: {
+          landing: scrLanding,
+          home: scrHome,
+          commissions: scrCommissions,
+          'commission-new': scrCreate,
+          detail: scrDetail,
+          'my-commission': scrMy,
+        },
+        modals: { assign: mAssign, policy: mPolicy },
+        actions,
+        jumps,
+        onBind,
+        afterRender,
+        reset: () => {
+          reset();
+          Kit.go(S.screen || 'commissions');
+        },
+        onPersona: () => {
+          S.modal = null;
+        },
+        coverage: [
+          {
+            ticket: 8,
+            title: 'UI primitives for forms and tables',
+            screens: ['commissions', 'n-valid', 'a-open', 'c-loading', 'c-empty', 'commission-new'],
+            note: 'Shown in context: table (hidden caption, scoped headers, row link), checkbox group, dialog (focus moves in, Tab trapped, focus returns, Esc ignored while busy), textarea n/a here, toast (polite; destructive for 409), skeleton, empty state, form field (label, hint, error with role=alert, aria-invalid, aria-describedby).',
+          },
+          {
+            ticket: 12,
+            title: 'Commissions workspace, list and detail',
+            screens: [
+              'home',
+              'commissions',
+              'c-loading',
+              'c-empty',
+              'c-filtered',
+              'c-error',
+              'c-forbidden',
+              'c-readonly',
+              'c-noaccess',
+              'c-more',
+              'detail',
+              'd-loading',
+              'd-notfound',
+            ],
+            note: 'Filters are in the query string (search, type, reportingOfficer); search debounced 300 ms, Enter submits. Typed client generation is non-visual.',
+          },
+          {
+            ticket: 15,
+            title: 'Create Commission screen',
+            screens: [
+              'commission-new',
+              'n-filled',
+              'n-valid',
+              'n-submitting',
+              'n-conflict-slug',
+              'n-conflict-name',
+              'n-conflict-nopath',
+              'n-400',
+              'n-error',
+              'n-422',
+            ],
+            note: 'Idempotency-Key per form instance is non-visual; see the State panel (create.idem) - kept on error, new after success or cancel.',
+          },
+          {
+            ticket: 18,
+            title: 'Reporting officer card and assign dialog',
+            screens: [
+              'd-none',
+              'd-invited',
+              'a-open',
+              'a-filled',
+              'a-invalid',
+              'a-submitting',
+              'a-conflict',
+              'a-400',
+              'a-error',
+            ],
+          },
+          {
+            ticket: 21,
+            title: 'Replace dialog and resend action',
+            screens: ['r-open', 'r-activated', 'rs-busy', 'rs-409'],
+          },
+          {
+            ticket: 24,
+            title: 'Activated state and expired-link help',
+            screens: ['d-activated', 'act', 'act-list', 'landing', 'officer-home'],
+          },
+          {
+            ticket: 87,
+            title: 'UI primitives round 4 (status badge, stat tile, drawer, date text)',
+            screens: ['d-eacc'],
+            note: 'Used in context mainly in 04-obligations.prototype.html (tiles, drawer, relative dates).',
+          },
+          {
+            ticket: 100,
+            title: 'Policy card, Commission obligations card, national summary',
+            screens: [
+              'd-eacc',
+              'd-obl-none',
+              'p-change',
+              'p-invalid',
+              'p-saving',
+              'p-error',
+              'p-v2',
+              'my-admin',
+              'my-reviewer',
+            ],
+            note: 'National summary screen lives in 04-obligations.prototype.html#national.',
+          },
+        ],
+      });
+      readUrl();
+      Kit.render();
+    </script>
+  </body>
+</html>
