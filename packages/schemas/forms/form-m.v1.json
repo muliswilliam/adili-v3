@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adili.go.ke/schemas/form-m.v1.json",
+  "title": "Form M: Compliance report by a Responsible Commission (Regs r.25(2)(a))",
+  "description": "One compliance report per Responsible Commission per financial year (1 July to 30 June), mirroring the prescribed Form M: Part I description, Part II declarations (sections 1-5) and complaints (sections 6-7), Part III authentication. Draft: spec 09.",
+  "type": "object",
+  "required": ["schemaVersion", "partI", "partII", "partIII"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "form-m.v1" },
+    "partI": {
+      "type": "object",
+      "description": "Description of the Responsible Commission",
+      "required": [
+        "commissionName",
+        "issuerCode",
+        "contactDetails",
+        "physicalAddress",
+        "emailAddress",
+        "period"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "commissionName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "issuerCode": { "type": "string", "pattern": "^[A-Z0-9]{2,20}$" },
+        "contactDetails": { "type": "string", "maxLength": 200 },
+        "physicalAddress": { "type": "string", "maxLength": 200 },
+        "emailAddress": { "type": "string", "format": "email" },
+        "period": {
+          "type": "object",
+          "required": ["from", "to", "financialYearStart"],
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": "string",
+              "format": "date",
+              "description": "1 July of the FY start year"
+            },
+            "to": {
+              "type": "string",
+              "format": "date",
+              "description": "30 June of the following year"
+            },
+            "financialYearStart": { "type": "integer", "minimum": 2025 }
+          }
+        }
+      }
+    },
+    "partII": {
+      "type": "object",
+      "required": [
+        "initial",
+        "biennial",
+        "final",
+        "clarifications",
+        "accessRequests",
+        "complaints"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "initial": { "$ref": "#/$defs/DeclarationSection" },
+        "biennial": {
+          "allOf": [
+            { "$ref": "#/$defs/DeclarationSection" },
+            {
+              "type": "object",
+              "properties": {
+                "noCycleInPeriod": {
+                  "type": "boolean",
+                  "description": "True in a financial year with no biennial statement date"
+                }
+              }
+            }
+          ]
+        },
+        "final": { "$ref": "#/$defs/DeclarationSection" },
+        "clarifications": {
+          "type": "object",
+          "description": "Section 4: public officers from whom clarification was sought and status of compliance",
+          "required": ["items"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "designation",
+                  "identifier",
+                  "natureInGeneralTerms",
+                  "statusOfCompliance"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "designation": { "type": "string" },
+                  "identifier": {
+                    "type": "string",
+                    "description": "Staff, file, ID or passport number"
+                  },
+                  "natureInGeneralTerms": { "type": "string", "maxLength": 300 },
+                  "statusOfCompliance": {
+                    "type": "string",
+                    "enum": ["responded", "resolved", "pending", "overdue", "withdrawn"]
+                  },
+                  "clarificationReference": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "accessRequests": {
+          "type": "object",
+          "description": "Section 5: access to information in declarations or clarifications (Act s.36)",
+          "required": ["received", "granted", "declined", "declineReasons", "dataUnavailable"],
+          "additionalProperties": false,
+          "properties": {
+            "received": { "type": "integer", "minimum": 0 },
+            "granted": { "type": "integer", "minimum": 0 },
+            "declined": { "type": "integer", "minimum": 0 },
+            "declineReasons": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["reason", "count"],
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Regs r.24 grounds",
+                    "enum": [
+                      "public-interest",
+                      "prejudice-proceeding",
+                      "frivolous-vexatious",
+                      "not-objectives",
+                      "other"
+                    ]
+                  },
+                  "count": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "dataUnavailable": {
+              "type": "boolean",
+              "description": "True when access-request data is not yet captured on the platform"
+            }
+          }
+        },
+        "complaints": {
+          "type": "object",
+          "description": "Part B, sections 6-7: complaints and investigations (entered manually)",
+          "required": ["registerMaintained", "items"],
+          "additionalProperties": false,
+          "properties": {
+            "registerMaintained": { "type": ["boolean", "null"] },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "designation", "identifier", "nature", "status"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "designation": { "type": "string" },
+                  "identifier": { "type": "string" },
+                  "nature": { "type": "string", "maxLength": 300 },
+                  "status": { "type": "string", "maxLength": 100 }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "partIII": {
+      "type": "object",
+      "description": "Authentication of information",
+      "required": ["compiledBy", "confirmedBy"],
+      "additionalProperties": false,
+      "properties": {
+        "compiledBy": { "$ref": "#/$defs/Signatory" },
+        "confirmedBy": { "$ref": "#/$defs/Signatory" }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Platform metadata, not part of the prescribed form",
+      "additionalProperties": false,
+      "properties": {
+        "compiledAt": { "type": "string", "format": "date-time" },
+        "reference": { "type": "string" },
+        "source": { "type": "string", "enum": ["hosted", "federated"] }
+      }
+    }
+  },
+  "$defs": {
+    "Signatory": {
+      "type": "object",
+      "required": ["name", "designation", "date"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": ["string", "null"], "maxLength": 200 },
+        "designation": { "type": ["string", "null"], "maxLength": 100 },
+        "date": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "NonFilerRow": {
+      "type": "object",
+      "required": ["name", "designation", "identifier", "date", "actionTaken", "complied"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "identifier": { "type": "string", "description": "Staff, file, ID or passport number" },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of appointment (initial, biennial) or of exit (final)"
+        },
+        "actionTaken": {
+          "type": "string",
+          "description": "Latest administrative action step or none",
+          "enum": [
+            "none",
+            "notice-to-comply",
+            "warning",
+            "salary-stoppage",
+            "disciplinary-referral",
+            "referred-to-eacc"
+          ]
+        },
+        "complied": { "type": "string", "enum": ["yes", "no", "pending"] },
+        "remarks": { "type": "string", "maxLength": 500 },
+        "obligationId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "DeclarationSection": {
+      "type": "object",
+      "description": "Sections 1-3: counts and the list of officers who did not declare",
+      "required": ["expected", "declared", "notDeclared", "nonFilers"],
+      "additionalProperties": false,
+      "properties": {
+        "expected": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Appointed (initial), in service (biennial) or exited (final) within the period"
+        },
+        "declared": { "type": "integer", "minimum": 0 },
+        "notDeclared": { "type": "integer", "minimum": 0 },
+        "nonFilers": { "type": "array", "items": { "$ref": "#/$defs/NonFilerRow" } },
+        "noCycleInPeriod": { "type": "boolean" }
+      }
+    }
+  }
+}

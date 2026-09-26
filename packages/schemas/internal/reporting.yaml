@@ -1,0 +1,886 @@
+openapi: 3.1.0
+info:
+  title: reporting API - Form M, EACC intake, NCR, referrals intake (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 09. Compliance reports (Form M) compiled from event projections,
+    reviewed and confirmed by Commission officers or submitted by federated Commissions;
+    EACC intake, national consolidation and referral handoff to ICMS. The reporting service's
+    Swagger document becomes the source of truth once implemented.
+servers:
+  - url: http://localhost:4005
+security:
+  - bearer: []
+tags:
+  - name: form-m
+  - name: federated
+  - name: eacc
+  - name: ncr
+  - name: referrals-intake
+paths:
+  /v1/commissions/{slug}/compliance-reports:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [form-m]
+      operationId: listComplianceReports
+      summary: Report periods for the Commission with status per financial year
+      responses:
+        '200':
+          description: Periods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComplianceReportSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/compliance-reports/{fy}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/FinancialYear'
+    get:
+      tags: [form-m]
+      operationId: getComplianceReport
+      summary: The report for a financial year (draft or submitted) with its document
+      responses:
+        '200':
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/compliance-reports/{fy}/compile:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/FinancialYear'
+    post:
+      tags: [form-m]
+      operationId: compileComplianceReport
+      summary: Compile a preview (from 1 April) or recompile a draft (supervisor)
+      responses:
+        '202':
+          description: Compilation started
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Report already submitted, or preview not yet available
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/compliance-reports/{fy}/remarks:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/FinancialYear'
+    patch:
+      tags: [form-m]
+      operationId: updateReportRemarks
+      summary: Edit remarks on non-filer rows (supervisor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [remarks]
+              properties:
+                remarks:
+                  type: array
+                  items:
+                    type: object
+                    required: [obligationId, remark]
+                    properties:
+                      obligationId:
+                        type: string
+                        format: uuid
+                      remark:
+                        type: string
+                        maxLength: 500
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/compliance-reports/{fy}/manual:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/FinancialYear'
+    patch:
+      tags: [form-m]
+      operationId: updateReportManualFields
+      summary: Edit Part I contact details and Part B complaints (commission-admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualFields'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/compliance-reports/{fy}/reviewed:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/FinancialYear'
+    post:
+      tags: [form-m]
+      operationId: markReportReviewed
+      summary: Supervisor marks the draft reviewed (records Part III compiled-by)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [designation]
+              properties:
+                designation:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: Reviewed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/compliance-reports/{fy}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/FinancialYear'
+    post:
+      tags: [form-m]
+      operationId: confirmComplianceReport
+      summary: Commission-admin confirms and submits to EACC (step-up token required)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Submitted with reference and receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '400':
+          description: Draft incomplete (Part I missing, not reviewed)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Role or `step-up-required`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already submitted
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/compliance-reports:
+    post:
+      tags: [federated]
+      operationId: submitComplianceReport
+      summary: Federated Commission submits a form-m.v1 document (reports:submit scope)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: A form-m.v1 document (see forms/form-m.v1.json)
+              additionalProperties: true
+      responses:
+        '201':
+          description: Accepted with reference and receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '400':
+          description: Schema or business-rule validation failed (paths in errors)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Scope missing or Commission does not match the token tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: A report for this financial year already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different document
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/compliance-reports:
+    get:
+      tags: [eacc]
+      operationId: getEaccIntake
+      summary: Per-Commission report status, rates and outliers for a financial year (EACC roles)
+      parameters:
+        - name: fy
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/IntakeStatus'
+        - name: outliersOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Intake
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Intake'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/eacc/compliance-reports/{reportId}:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [eacc]
+      operationId: getSubmittedReport
+      summary: A submitted report as filed, with PDF and receipt links (EACC roles)
+      responses:
+        '200':
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/eacc/national-reports/{fy}:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    get:
+      tags: [ncr]
+      operationId: getNationalReport
+      summary: The national consolidated report for a financial year
+      responses:
+        '200':
+          description: NCR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/eacc/national-reports/{fy}/build:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    post:
+      tags: [ncr]
+      operationId: buildNationalReport
+      summary: Build or rebuild aggregates from submitted reports (analyst); narrative preserved
+      responses:
+        '200':
+          description: Built
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Already approved
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/national-reports/{fy}/narrative:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    patch:
+      tags: [ncr]
+      operationId: updateNationalReportNarrative
+      summary: Save narrative sections (analyst)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Narrative'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalReport'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Already approved
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/national-reports/{fy}/approve:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    post:
+      tags: [ncr]
+      operationId: approveNationalReport
+      summary: EACC supervisor (not the author) approves; allocates NCR and issues the PDF
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalReport'
+        '403':
+          description: 'Role or `separation-of-duties`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/eacc/referrals:
+    get:
+      tags: [referrals-intake]
+      operationId: listReferralIntake
+      summary: Referrals sent by Commissions with ICMS status (EACC roles)
+      parameters:
+        - name: icmsStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/IcmsStatus'
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReferralIntakeItem'
+                  nextCursor:
+                    type: [string, 'null']
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/eacc/referrals/{referralId}/push:
+    parameters:
+      - name: referralId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [referrals-intake]
+      operationId: pushReferralToIcms
+      summary: Push a referral to ICMS and store the case number (analyst)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Registered (or already registered)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralIntakeItem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: ICMS unavailable; status push-failed, retry later
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    FinancialYear:
+      name: fy
+      in: path
+      required: true
+      description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
+      schema:
+        type: integer
+        minimum: 2025
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role or scope
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ReportStatus:
+      type: string
+      enum: [not-started, compiling, draft, reviewed, submitted]
+    ReportSource:
+      type: string
+      enum: [hosted, federated]
+    IntakeStatus:
+      type: string
+      enum: [not-reported, submitted-on-time, submitted-late]
+    IcmsStatus:
+      type: string
+      enum: [not-pushed, pushed, registered, push-failed]
+    Officer:
+      type: object
+      required: [subject, name]
+      properties:
+        subject:
+          type: string
+        name:
+          type: string
+    ComplianceReportSummary:
+      type: object
+      required: [fy, status, dueDate, reference, submittedAt, late, previewAvailable]
+      properties:
+        fy:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        dueDate:
+          type: string
+          format: date
+        reference:
+          type: [string, 'null']
+        submittedAt:
+          type: [string, 'null']
+          format: date-time
+        late:
+          type: [boolean, 'null']
+        previewAvailable:
+          type: boolean
+    ManualFields:
+      type: object
+      properties:
+        contactDetails:
+          type: [string, 'null']
+          maxLength: 200
+        physicalAddress:
+          type: [string, 'null']
+          maxLength: 200
+        emailAddress:
+          type: [string, 'null']
+          format: email
+        complaintsRegisterMaintained:
+          type: [boolean, 'null']
+        complaints:
+          type: array
+          items:
+            type: object
+            required: [name, designation, identifier, nature, status]
+            properties:
+              name:
+                type: string
+              designation:
+                type: string
+              identifier:
+                type: string
+              nature:
+                type: string
+              status:
+                type: string
+    ComplianceReport:
+      type: object
+      required:
+        - id
+        - commission
+        - fy
+        - status
+        - source
+        - compiledAt
+        - reviewedBy
+        - confirmedBy
+        - submittedAt
+        - late
+        - reference
+        - dueDate
+        - document
+        - counts
+        - formMDocumentId
+        - receiptDocumentId
+        - accessDataUnavailable
+      properties:
+        id:
+          type: string
+          format: uuid
+        commission:
+          type: object
+          required: [slug, issuerCode, name]
+          properties:
+            slug:
+              type: string
+            issuerCode:
+              type: string
+            name:
+              type: string
+        fy:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        source:
+          $ref: '#/components/schemas/ReportSource'
+        compiledAt:
+          type: [string, 'null']
+          format: date-time
+        reviewedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        confirmedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        submittedAt:
+          type: [string, 'null']
+          format: date-time
+        late:
+          type: [boolean, 'null']
+        reference:
+          type: [string, 'null']
+          description: 'RPT-<ISSUER>-<FY>-<seq>-<check>'
+        dueDate:
+          type: string
+          format: date
+        document:
+          description: The form-m.v1 document (draft or frozen); null while compiling
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        counts:
+          type: object
+          description: Headline counts per section for lists and intake
+          additionalProperties: true
+        formMDocumentId:
+          type: [string, 'null']
+          format: uuid
+        receiptDocumentId:
+          type: [string, 'null']
+          format: uuid
+        accessDataUnavailable:
+          type: boolean
+    Intake:
+      type: object
+      required: [fy, totals, commissions]
+      properties:
+        fy:
+          type: integer
+        totals:
+          type: object
+          required: [onTime, late, notReported, nationalDeclaredRate]
+          properties:
+            onTime:
+              type: integer
+            late:
+              type: integer
+            notReported:
+              type: integer
+            nationalDeclaredRate:
+              type: [number, 'null']
+        commissions:
+          type: array
+          items:
+            type: object
+            required:
+              [commission, status, reportId, reference, submittedAt, rates, outliers, chases]
+            properties:
+              commission:
+                type: object
+                required: [slug, name]
+                properties:
+                  slug:
+                    type: string
+                  name:
+                    type: string
+              status:
+                $ref: '#/components/schemas/IntakeStatus'
+              reportId:
+                type: [string, 'null']
+                format: uuid
+              reference:
+                type: [string, 'null']
+              submittedAt:
+                type: [string, 'null']
+                format: date-time
+              rates:
+                type: object
+                description: Per section expected, declared and rate
+                additionalProperties:
+                  type: object
+                  required: [expected, declared, rate]
+                  properties:
+                    expected:
+                      type: integer
+                    declared:
+                      type: integer
+                    rate:
+                      type: [number, 'null']
+              outliers:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    [
+                      low-initial-rate,
+                      low-biennial-rate,
+                      low-final-rate,
+                      zero-expected-with-declared,
+                      section-missing,
+                    ]
+              chases:
+                type: object
+                required: [count, lastAt]
+                properties:
+                  count:
+                    type: integer
+                  lastAt:
+                    type: [string, 'null']
+                    format: date-time
+    Narrative:
+      type: object
+      required: [overview, findings, recommendations]
+      properties:
+        overview:
+          type: string
+          maxLength: 20000
+        findings:
+          type: string
+          maxLength: 40000
+        recommendations:
+          type: string
+          maxLength: 20000
+    NationalReport:
+      type: object
+      required:
+        [
+          id,
+          fy,
+          status,
+          builtAt,
+          reportsIncluded,
+          aggregates,
+          narrative,
+          author,
+          approver,
+          reference,
+          documentId,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fy:
+          type: integer
+        status:
+          type: string
+          enum: [draft, approved]
+        builtAt:
+          type: [string, 'null']
+          format: date-time
+        reportsIncluded:
+          type: integer
+        aggregates:
+          type: object
+          additionalProperties: true
+        narrative:
+          $ref: '#/components/schemas/Narrative'
+        author:
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        approver:
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        reference:
+          type: [string, 'null']
+          description: 'NCR-EACC-<FY>-<seq>-<check>'
+        documentId:
+          type: [string, 'null']
+          format: uuid
+    ReferralIntakeItem:
+      type: object
+      required:
+        [
+          referralId,
+          commission,
+          reference,
+          grounds,
+          sentAt,
+          packageDocumentId,
+          icmsStatus,
+          icmsCaseNumber,
+          pushedAt,
+          pushedBy,
+          error,
+        ]
+      properties:
+        referralId:
+          type: string
+          format: uuid
+        commission:
+          type: object
+          required: [slug, name]
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        reference:
+          type: string
+        grounds:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        packageDocumentId:
+          type: string
+          format: uuid
+        icmsStatus:
+          $ref: '#/components/schemas/IcmsStatus'
+        icmsCaseNumber:
+          type: [string, 'null']
+        pushedAt:
+          type: [string, 'null']
+          format: date-time
+        pushedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        error:
+          type: [string, 'null']
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string

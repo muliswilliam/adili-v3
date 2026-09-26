@@ -3,7 +3,7 @@ info:
   title: notifications API - internal messages (draft)
   version: '1'
   description: |
-    Draft contract for specs 03 (declarant onboarding), 04 (obligation reminders), 06 (acknowledgement slips) 07a (clarifications) and 08 (decisions, notices, salary stoppage and reinstatement). Synchronous, templated email and
+    Draft contract for specs 03 (declarant onboarding), 04 (obligation reminders), 06 (acknowledgement slips) 07a (clarifications) 08 (decisions, notices, salary stoppage and reinstatement) and 09 (Form M). Synchronous, templated email and
     SMS sending for other services and the Keycloak OTP authenticator. Internal paths are
     not routed by the public entrypoint. The notifications service's Swagger document
     becomes the source of truth once implemented.
@@ -104,6 +104,10 @@ components:
         - salary-stopped-sms
         - salary-reinstated-email
         - salary-reinstated-sms
+        - form-m-draft-ready-email
+        - form-m-reminder-email
+        - form-m-chase-email
+        - form-m-receipt-email
     Recipient:
       oneOf:
         - type: object

@@ -3,7 +3,7 @@ info:
   title: documents API - uploads (draft)
   version: '1'
   description: |
-    Draft contract for specs 02 (roster import), 05 (declaration attachments), 06 (document issuance) 07a (clarification letters) and 08 (decision, notice, warning, stoppage letters, referral packages). Presigned uploads to quarantine,
+    Draft contract for specs 02 (roster import), 05 (declaration attachments), 06 (document issuance) 07a (clarification letters) 08 (decision, notice, warning, stoppage letters, referral packages) and 09 (Form M, receipts, NCR). Presigned uploads to quarantine,
     ClamAV scan on completion, presigned download of clean objects for other services.
     The documents service's Swagger document becomes the source of truth once implemented.
 servers:
@@ -379,6 +379,9 @@ components:
         - salary-stoppage
         - disciplinary-referral
         - referral-package
+        - form-m
+        - compliance-report-receipt
+        - ncr
     DisclosureLevel:
       type: string
       enum: [public, restricted, confidential]
