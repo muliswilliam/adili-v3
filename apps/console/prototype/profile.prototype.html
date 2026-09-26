@@ -1,0 +1,842 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what does a staff member's own profile look like in the console (account, who manages it, security, sessions, own audit activity, what the role can do), for every persona? Covers spec 01 #6 (reporting officer invitation facts); the rest is designed ahead of spec (ADR-004 security settings, ADR-008 audit trail). Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Staff profile (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .proto-note {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: #6d5a2a;
+        background: #fffaf0;
+        border: 1px dashed #e2c98f;
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      .ph {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 6px;
+      }
+      .ph .avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 17px;
+      }
+      .ph h1 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      @container app (min-width: 700px) {
+        .ph h1 {
+          font-size: 26px;
+        }
+      }
+      .cpage .tabs {
+        margin: 14px 0 22px;
+      }
+      .pgrid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+      }
+      @container app (min-width: 1000px) {
+        .pgrid {
+          grid-template-columns: minmax(0, 1fr) 340px;
+        }
+      }
+      .dl.pad {
+        margin: 0;
+        padding: 2px 20px 4px;
+      }
+      @container app (min-width: 700px) {
+        .dl.pad {
+          padding: 2px 24px 4px;
+        }
+      }
+      .dl > div {
+        align-items: center;
+      }
+      .dl dd {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        min-width: 0;
+        text-align: right;
+      }
+      @container app (max-width: 599px) {
+        .dl.pad > div {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+        }
+        .dl.pad dd {
+          justify-content: flex-start;
+          align-items: flex-start !important;
+          text-align: left;
+        }
+      }
+      .lock {
+        color: var(--muted);
+        display: inline-flex;
+      }
+      .can {
+        list-style: none;
+        margin: 0;
+        padding: 6px 20px 12px;
+        display: grid;
+        gap: 10px;
+        font-size: 14px;
+      }
+      .can li {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .can li svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .can .yes svg {
+        color: var(--ok);
+      }
+      .can .no {
+        color: var(--muted);
+      }
+      .item.gone .t,
+      .item.gone .d {
+        color: var(--muted);
+      }
+      .ico.ok {
+        background: var(--ok-soft) !important;
+        color: var(--ok) !important;
+      }
+      .ico.warn {
+        background: var(--warn-soft) !important;
+        color: var(--warn) !important;
+      }
+      .sk-line {
+        display: block;
+        height: 12px;
+        margin: 10px 0;
+      }
+      .card > .pager {
+        border-top: 1px solid var(--line);
+      }
+      .otp input {
+        min-width: 0;
+      }
+      .done-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 8px 0 4px;
+      }
+      .done-box .success-mark {
+        margin-bottom: 14px;
+        width: 56px;
+        height: 56px;
+      }
+      .act-ref {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12.5px;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, field, input, dialog, consoleShell, fmtDate, fmtDateTime, num } = Kit;
+      Kit.I.laptop =
+        '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>';
+
+      /* ---------- per-persona account facts (the kit persona gives name, role, org, initials) ---------- */
+      const PLATFORM_ADMIN = {
+        who: 'the EACC platform administrator',
+        how: 'dials-support@eacc.go.ke',
+      };
+      const PSC_ADMIN = {
+        who: 'your Commission administrator, Daniel Kiprop',
+        how: 'daniel.kiprop@publicservice.go.ke',
+      };
+      const EXTRA = {
+        'platform-admin': {
+          email: 'amina.wanjiru@eacc.go.ke',
+          phone: '+254 722 301 118',
+          tenant: 'eacc',
+          invited: { by: 'EACC ICT (initial setup)', at: '2026-07-14T09:00:00' },
+          activatedAt: '2026-07-14T11:20:00',
+          managedBy: { who: 'another platform administrator', how: 'dials-support@eacc.go.ke' },
+          can: [
+            'Create Commissions and assign reporting officers',
+            'Manage integrations and platform settings',
+          ],
+          cannot: ['See declaration content (break-glass only, alerted)'],
+        },
+        'eacc-analyst': {
+          email: 'brian.otieno@eacc.go.ke',
+          phone: '+254 733 204 961',
+          tenant: 'eacc',
+          invited: { by: 'Amina Wanjiru, platform administrator', at: '2026-08-05T10:12:00' },
+          activatedAt: '2026-08-05T14:40:00',
+          managedBy: PLATFORM_ADMIN,
+          can: [
+            'Read Commissions and national obligations',
+            'Analyse compliance reports (Form M)',
+            'Receive referrals',
+          ],
+          cannot: ['Browse declarations without a referral or request', 'Change Commissions'],
+        },
+        'eacc-supervisor': {
+          email: 'esther.chebet@eacc.go.ke',
+          phone: '+254 711 870 332',
+          tenant: 'eacc',
+          invited: { by: 'Amina Wanjiru, platform administrator', at: '2026-08-05T10:15:00' },
+          activatedAt: '2026-08-06T08:02:00',
+          managedBy: PLATFORM_ADMIN,
+          can: [
+            'Everything an EACC analyst can do',
+            'Consolidate compliance reports and act on referrals',
+          ],
+          cannot: ['Browse declarations without a referral or request'],
+        },
+        'reporting-officer': {
+          email: 'grace.muthoni@publicservice.go.ke',
+          phone: '+254 722 418 305',
+          tenant: 'psc',
+          invited: {
+            by: 'Amina Wanjiru, platform administrator (EACC)',
+            at: '2026-08-03T09:40:00',
+          },
+          activatedAt: '2026-08-04T08:12:00',
+          managedBy: PLATFORM_ADMIN,
+          can: [
+            'Import and maintain the roster',
+            'Resolve onboarding no-matches',
+            'Manage API access for roster sync',
+            'Prepare the compliance report (Form M)',
+          ],
+          cannot: ['See financial content of declarations'],
+        },
+        'commission-admin': {
+          email: 'daniel.kiprop@publicservice.go.ke',
+          phone: '+254 720 551 904',
+          tenant: 'psc',
+          invited: {
+            by: 'Amina Wanjiru, platform administrator (EACC)',
+            at: '2026-08-03T10:05:00',
+          },
+          activatedAt: '2026-08-03T15:30:00',
+          managedBy: PLATFORM_ADMIN,
+          can: [
+            'Manage staff accounts, policies and templates',
+            'Change the obligations start date',
+            'Maintain the roster',
+          ],
+          cannot: ['See financial content of declarations'],
+        },
+        reviewer: {
+          email: 'faith.achieng@publicservice.go.ke',
+          phone: '+254 712 660 247',
+          tenant: 'psc',
+          invited: { by: 'Daniel Kiprop, Commission administrator', at: '2026-08-12T09:30:00' },
+          activatedAt: '2026-08-12T11:05:00',
+          managedBy: PSC_ADMIN,
+          can: [
+            'Review declarations and raise clarifications',
+            'Propose compliance determinations and actions',
+          ],
+          cannot: ['Approve your own proposals'],
+        },
+        supervisor: {
+          email: 'samuel.njoroge@publicservice.go.ke',
+          phone: '+254 722 093 518',
+          tenant: 'psc',
+          invited: { by: 'Daniel Kiprop, Commission administrator', at: '2026-08-12T09:34:00' },
+          activatedAt: '2026-08-13T08:20:00',
+          managedBy: PSC_ADMIN,
+          can: [
+            'Approve determinations and administrative actions',
+            'Reassign cases and run bulk closure',
+            'Submit Form M',
+          ],
+          cannot: ['Review and approve the same case'],
+        },
+      };
+
+      /* ---------- own activity (audit events, ADR-008), generated per persona ---------- */
+      const ACTS = {
+        'platform-admin': [
+          ['change', 'Created Commission', 'CUE'],
+          ['change', 'Assigned reporting officer', 'JSC'],
+          ['change', 'Resent activation email', 'CUE'],
+          ['view', 'Viewed Commission', 'TSC'],
+          ['change', 'Updated integration settings', 'KRA'],
+        ],
+        'eacc-analyst': [
+          ['view', 'Viewed compliance report', 'RPT-PSC-2026-0000014-2'],
+          ['view', 'Viewed referral', 'RFL-TSC-2026-0000031-K'],
+          ['change', 'Recorded intake decision', 'RPT-JSC-2026-0000006-7'],
+          ['view', 'Viewed national obligations', '-'],
+        ],
+        'eacc-supervisor': [
+          ['view', 'Viewed referral', 'RFL-TSC-2026-0000031-K'],
+          ['change', 'Consolidated compliance reports', '2025/26'],
+          ['view', 'Viewed compliance report', 'RPT-PSC-2026-0000014-2'],
+        ],
+        'reporting-officer': [
+          ['change', 'Imported roster file', 'IMP-PSC-0042'],
+          ['change', 'Resolved onboarding no-match', 'PSC/2014/220913'],
+          ['view', 'Viewed roster record', 'PSC/2011/118402'],
+          ['change', 'Created API client', 'psc-hrmis'],
+          ['change', 'Saved Form M draft', 'RPT-PSC-2026-0000014-2'],
+        ],
+        'commission-admin': [
+          ['change', 'Invited staff member', 'faith.achieng@…'],
+          ['change', 'Saved policy version 2', 'PSC'],
+          ['view', 'Viewed roster record', 'PSC/2011/118402'],
+          ['change', 'Updated letter template', 'Notice to comply'],
+        ],
+        reviewer: [
+          ['view', 'Opened declaration', 'DCI-PSC-2026-0004127-3'],
+          ['change', 'Issued clarification', 'CLR-PSC-2026-0000388-M'],
+          ['change', 'Proposed determination', 'DCI-PSC-2026-0004127-3'],
+          ['view', 'Opened declaration', 'DCB-PSC-2025-0019044-P'],
+          ['change', 'Claimed case', 'DCB-PSC-2025-0019044-P'],
+        ],
+        supervisor: [
+          ['change', 'Approved determination', 'DCI-PSC-2026-0004127-3'],
+          ['view', 'Opened declaration', 'DCI-PSC-2026-0004127-3'],
+          ['change', 'Reassigned case', 'DCB-PSC-2025-0019044-P'],
+          ['change', 'Returned action for changes', 'ADM-PSC-2026-0000052-8'],
+        ],
+      };
+      const DENIED = {
+        'platform-admin': ['Opened declaration', 'DCI-TSC-2026-0003418-P'],
+        'eacc-analyst': ['Opened declaration', 'DCI-PSC-2026-0004127-3'],
+        'eacc-supervisor': ['Opened declaration', 'DCI-PSC-2026-0004127-3'],
+        'reporting-officer': ['Opened declaration', 'DCI-PSC-2026-0004127-3'],
+        'commission-admin': ['Opened declaration', 'DCI-PSC-2026-0004127-3'],
+        reviewer: ['Approved determination', 'DCI-PSC-2026-0004127-3'],
+        supervisor: ['Approved determination', 'DCB-PSC-2025-0020117-4'],
+      };
+      function buildActivity(p) {
+        const tpl = ACTS[p] || ACTS.reviewer;
+        const rows = [];
+        for (let i = 0; i < 46; i++) {
+          if (i % 9 === 2) rows.push({ kind: 'signin', t: 'Signed in', ref: '-', out: 'ok' });
+          else if (i === 13 || i === 31)
+            rows.push({ kind: 'denied', t: DENIED[p][0], ref: DENIED[p][1], out: 'denied' });
+          else if (i === 22)
+            rows.push({ kind: 'signin', t: 'Wrong authenticator code', ref: '-', out: 'failed' });
+          else {
+            const [k, tt, ref] = tpl[i % tpl.length];
+            rows.push({ kind: k, t: tt, ref, out: 'ok' });
+          }
+          // Working hours only: about three events a working day, newest first.
+          const d = new Date('2026-09-26T00:00:00');
+          d.setDate(d.getDate() - Math.floor(i / 3) - 2 * Math.floor(i / 15));
+          d.setHours(16 - (i % 3) * 3, i % 3 === 2 ? 5 + (i % 4) * 7 : (i * 17) % 60);
+          rows[rows.length - 1].at = d.toISOString();
+        }
+        return rows;
+      }
+      function seedSessions() {
+        return [
+          {
+            id: 's1',
+            dev: 'Chrome on Windows',
+            ico: 'laptop',
+            where: 'Nairobi · 41.90.64.12',
+            last: 'Active now',
+            current: true,
+          },
+          {
+            id: 's2',
+            dev: 'Edge on Windows',
+            ico: 'laptop',
+            where: 'Nairobi · 41.90.64.37',
+            last: 'Yesterday, 17:42',
+          },
+          {
+            id: 's3',
+            dev: 'Safari on iPhone',
+            ico: 'phone',
+            where: 'Nairobi · 197.232.8.14',
+            last: '3 days ago',
+          },
+        ];
+      }
+
+      const blankCode = () => ['', '', '', '', '', ''];
+      const S = Kit.state({
+        st: 'ok',
+        phones: {},
+        chg: null,
+        sessions: seedSessions(),
+        act: { kind: 'all', page: 1, pageSize: 10 },
+      });
+
+      /* ---------- helpers ---------- */
+      const P = () => Kit.persona();
+      const ME = () => ({ ...Kit.PERSONAS[P()], ...EXTRA[P()] });
+      const phoneOf = () => S.phones[P()] || ME().phone;
+      const plural = (n, w) => `${num(n)} ${w}${n === 1 ? '' : 's'}`;
+      const note = (h) => `<div class="proto-note">${h}</div>`;
+      const locked = (title) => `<span class="lock" title="${title}">${icon('lock', 14)}</span>`;
+      const skel = (ws = [60, 80, 45, 70]) =>
+        `<div class="card card-pad" aria-busy="true">${ws.map((w) => `<span class="skeleton sk-line" style="width:${w}%"></span>`).join('')}</div>`;
+      const TABS = [
+        ['profile', 'Account'],
+        ['security', 'Security'],
+        ['activity', 'Activity'],
+      ];
+      function page(active, body) {
+        const me = ME();
+        let content = body;
+        if (S.st === 'loading')
+          content = `<div class="pgrid"><div class="stack-lg">${skel()}${skel([55, 70, 40])}</div>${skel([40, 70, 60])}</div>`;
+        if (S.st === 'error')
+          content = `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div style="flex:1">We could not load your profile. Try again.<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" data-act="retry">${icon('refresh', 15)} Try again</button></div></div></div>`;
+        return consoleShell(
+          `<div class="cpage narrow" style="max-width:1080px">
+      <div class="ph"><span class="avatar">${me.initials}</span><h1>${me.name}</h1><span class="badge badge-ok">${icon('check', 12, 2.4)}Active</span></div>
+      <nav class="tabs" aria-label="Profile sections">${TABS.map(([id, l]) => `<a href="#${id}" data-act="go" data-arg="${id}" class="${active === id ? 'on' : ''}" ${active === id ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
+      ${content}
+    </div>`,
+          { crumbs: [['Profile', 'profile']], active: 'none' },
+        );
+      }
+
+      /* ---------- Account ---------- */
+      function accountBody() {
+        const me = ME();
+        const tenantName = me.tenant === 'eacc' ? 'Ethics and Anti-Corruption Commission' : me.org;
+        const account = `<section class="card" aria-label="Account details">
+    <dl class="dl pad">
+      <div><dt>Official email</dt><dd><span style="word-break:break-all">${esc(me.email)}</span>${locked('Managed for you')}</dd></div>
+      <div><dt>Phone</dt><dd class="tabular">${esc(phoneOf())}<button class="btn btn-secondary btn-xs" data-act="openChange">Change</button></dd></div>
+      <div><dt>Role</dt><dd>${esc(me.role)}${locked('Managed for you')}</dd></div>
+      <div><dt>Commission</dt><dd><span class="badge" style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${me.code}</span>${esc(tenantName)}${locked('Managed for you')}</dd></div>
+      <div><dt>Invited</dt><dd style="flex-direction:column;align-items:flex-end;gap:0"><span>${fmtDate(me.invited.at)}</span><span class="small muted" style="font-weight:400">by ${esc(me.invited.by)}</span></dd></div>
+      <div><dt>Activated</dt><dd>${fmtDate(me.activatedAt)}</dd></div>
+    </dl>
+    <div class="card-foot small muted" style="align-items:flex-start;flex-wrap:nowrap;gap:8px"><span style="display:flex;margin-top:1px">${icon('lock', 14)}</span><span>Name, email, role and Commission are managed by ${esc(me.managedBy.who)}. To change them, email <a class="link" href="mailto:${me.managedBy.how}">${me.managedBy.how}</a>.</span></div>
+  </section>`;
+        const role = `<section class="card" aria-labelledby="h-role">
+    <div class="card-head"><h3 id="h-role" style="flex:1">What you can do</h3></div>
+    <ul class="can">${me.can.map((c) => `<li class="yes">${icon('check', 16, 2.2)}<span>${esc(c)}</span></li>`).join('')}${me.cannot.map((c) => `<li class="no">${icon('ban', 16)}<span>Cannot ${esc(c.charAt(0).toLowerCase() + c.slice(1))}</span></li>`).join('')}</ul>
+    <div class="card-foot"><a class="link small" style="display:inline-flex;gap:6px;align-items:center" data-act="toast" data-arg="Help centre: ${esc(me.role)} guide would open here">${icon('help', 15)} Role guide</a></div>
+  </section>`;
+        return `<div class="pgrid">${account}${role}</div>`;
+      }
+
+      /* ---------- Security ---------- */
+      function securityBody() {
+        const me = ME();
+        const signin = `<section class="card" aria-labelledby="h-si">
+    <div class="card-head"><h3 id="h-si">Sign-in</h3></div>
+    <div class="item"><span class="ico">${icon('key', 17)}</span><div class="item-body"><div class="t">Password</div><div class="d">Changed ${fmtDate(me.activatedAt)}</div></div><div class="acts"><a class="btn btn-secondary btn-sm" href="../../keycloak-theme/prototype/login.prototype.html#update-password">Change</a></div></div>
+    <div class="item"><span class="ico">${icon('shield', 17)}</span><div class="item-body"><div class="t">Authenticator app</div><div class="d">Set up ${fmtDate(me.activatedAt)} · required for staff</div></div><span class="item-tag"><span class="badge badge-ok">${icon('check', 12, 2.4)}On</span></span><div class="acts"><button class="btn btn-secondary btn-sm" data-act="modal" data-arg="totp">Replace</button></div></div>
+    <div class="item"><span class="ico">${icon('finger', 17)}</span><div class="item-body"><div class="t">Passkey</div><div class="d">Not available for staff yet</div></div></div>
+  </section>`;
+        const live = S.sessions.filter((s) => !s.revoked && !s.current).length;
+        const devices = `<section class="card" aria-labelledby="h-dev">
+    <div class="card-head"><h3 id="h-dev" style="flex:1">Sessions</h3>${live ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger)" data-act="modal" data-arg="signoutAll">Sign out everywhere else</button>` : ''}</div>
+    ${S.sessions
+      .map(
+        (s) =>
+          `<div class="item ${s.revoked ? 'gone' : ''}"><span class="ico">${icon(s.ico, 17)}</span><div class="item-body"><div class="t">${s.dev}</div><div class="d">${s.where} · ${s.revoked ? 'Signed out just now' : s.last}</div></div>${s.current ? '<span class="item-tag"><span class="badge badge-ok">This device</span></span>' : ''}<div class="acts">${s.current ? '' : s.revoked ? `<span class="badge">${icon('logout', 12)}Signed out</span>` : `<button class="btn btn-secondary btn-sm" data-act="revoke" data-arg="${s.id}" aria-label="Sign out of ${s.dev}">Sign out</button>`}</div></div>`,
+      )
+      .join('')}
+    <div class="card-foot small muted">Don't recognise a session? Sign it out and change your password.</div>
+  </section>`;
+        return `<div class="stack-lg" style="max-width:780px">${signin}${devices}</div>`;
+      }
+
+      /* ---------- Activity ---------- */
+      const KINDS = [
+        ['all', 'All activity'],
+        ['signin', 'Sign-in'],
+        ['view', 'Views'],
+        ['change', 'Changes'],
+        ['denied', 'Denied'],
+      ];
+      function activityBody() {
+        const all = buildActivity(P());
+        const k = S.act.kind;
+        const list = k === 'all' ? all : all.filter((r) => r.kind === k);
+        const { page: p } = S.act;
+        const ps = +S.act.pageSize;
+        const rows = list.slice((p - 1) * ps, p * ps);
+        const out = (o) =>
+          o === 'ok'
+            ? '<span class="badge badge-ok">Success</span>'
+            : o === 'denied'
+              ? `<span class="badge badge-danger">${icon('ban', 12)}Denied</span>`
+              : `<span class="badge badge-warn">${icon('alert', 12)}Failed</span>`;
+        const table = rows.length
+          ? `<div class="table-wrap"><table class="table"><thead><tr><th>When</th><th>Action</th><th>Record</th><th>Outcome</th></tr></thead><tbody>${rows.map((r) => `<tr><td class="nowrap tabular">${fmtDateTime(r.at)}</td><td>${esc(r.t)}</td><td>${r.ref === '-' ? '<span class="muted">-</span>' : `<span class="${/^[A-Z]{3}-/.test(r.ref) ? 'act-ref' : ''}">${esc(r.ref)}</span>`}</td><td>${out(r.out)}</td></tr>`).join('')}</tbody></table></div>`
+          : Kit.empty('No activity', 'Nothing of this kind yet.', {
+              icon: 'activity',
+              action:
+                '<button class="btn btn-secondary btn-sm" data-act="actKind" data-arg="all">Show all</button>',
+            });
+        return `<div class="card">
+    <div class="toolbar"><label class="sr-only" for="f-act-kind">Filter activity</label><select id="f-act-kind" class="select" style="width:auto" data-act-change="actKindSel">${KINDS.map(([v, l]) => `<option value="${v}" ${v === k ? 'selected' : ''}>${l}</option>`).join('')}</select><span class="spacer"></span><span class="small muted" style="display:inline-flex;gap:6px;align-items:center">${icon('lock', 14)}Recorded in the audit trail ${Kit.tip ? Kit.tip('Entries cannot be changed. Auditors can see them too.') : ''}</span></div>
+    ${table}
+    ${list.length ? Kit.pager({ page: p, pageSize: ps, total: list.length, act: 'actPage', sizes: [10, 25, 50], sizeBind: 'act.pageSize' }) : ''}
+  </div>`;
+      }
+
+      const screens = {
+        profile: () => page('profile', accountBody()),
+        security: () => page('security', securityBody()),
+        activity: () => page('activity', activityBody()),
+      };
+
+      /* ---------- phone change (designed ahead of spec) ---------- */
+      let coolTimer = null;
+      function startCool() {
+        S.chg.cool = 60;
+        clearInterval(coolTimer);
+        coolTimer = setInterval(() => {
+          if (!S.chg || S.chg.step !== 'code' || S.chg.cool <= 0) return clearInterval(coolTimer);
+          S.chg.cool--;
+          Kit.render();
+        }, 1000);
+      }
+      function openChange() {
+        S.chg = { step: 'enter', value: '', err: '', code: blankCode(), left: 5, cool: 0 };
+        S.modal = { kind: 'phone' };
+      }
+      function phoneModal() {
+        const c = S.chg;
+        if (!c) return '';
+        let body = '',
+          foot = '';
+        if (c.step === 'enter') {
+          body = `${field('New phone number', `<div class="input-group"><span class="addon">+254</span>${input('chg.value', { type: 'tel', ph: '712 345 678', cls: c.err ? 'is-invalid' : '', extra: 'autocomplete="tel-national" inputmode="tel" style="box-shadow:none"' })}</div>`, { id: 'f-chg-value', error: c.err, hint: 'We will send a code to it to check it is yours.' })}
+      <div style="margin-top:14px">${note('<b>Prototype.</b> 700 000 000 is in use. Real app asks for an authenticator code first.')}</div>`;
+          foot = `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="sendCode" ${c.busy ? 'disabled aria-busy="true"' : ''}>${c.busy ? '<span class="spinner"></span> Sending…' : 'Send code'}</button>`;
+        } else if (c.step === 'code') {
+          let alert = '';
+          if (c.codeErr === 'wrong')
+            alert = `<div class="callout callout-danger" role="alert" style="margin-bottom:14px">${icon('alert', 17)}<div>That code is not right. ${plural(c.left, 'attempt')} left.</div></div>`;
+          if (c.codeErr === 'expired')
+            alert = `<div class="callout callout-warn" role="alert" style="margin-bottom:14px">${icon('clock', 17)}<div>This code has expired. Send a new one.</div></div>`;
+          body = `${alert}<p style="margin-bottom:16px">Enter the 6-digit code we sent to <b>+254 ${esc(c.value)}</b>.</p>
+      ${Kit.otp('chg.code', 'verifyCode')}
+      <div class="row" style="margin-top:16px;gap:10px">${c.cool > 0 ? `<span class="small muted" aria-live="polite">Resend in ${Math.floor(c.cool / 60)}:${String(c.cool % 60).padStart(2, '0')}</span>` : `<button class="btn btn-ghost btn-sm" data-act="resend">${icon('refresh', 15)} Resend code</button>`}<span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="chgBack">Change number</button></div>
+      <div style="margin-top:14px">${note('<b>Prototype.</b> 123456 verifies; anything else is wrong.')}</div>`;
+        } else if (c.step === 'failed') {
+          body = `<div class="done-box"><div class="success-mark" style="background:var(--danger-soft);color:var(--danger)">${icon('x', 26, 2.4)}</div><h4 style="font-size:17px;font-weight:600">Too many wrong codes</h4><p class="muted" style="margin-top:6px;max-width:340px">Your phone number was not changed. Start again to get a new code.</p></div>`;
+          foot = `<button class="btn btn-ghost" data-act="closeModal">Close</button><button class="btn btn-primary" data-act="openChange">Start again</button>`;
+        } else {
+          body = `<div class="done-box"><div class="success-mark">${icon('check', 26, 2.6)}</div><h4 style="font-size:17px;font-weight:600">Phone changed</h4><p class="muted" style="margin-top:6px;max-width:360px">We will use <b style="color:var(--ink)">${esc(phoneOf())}</b> from now on.</p></div>`;
+          foot = `<button class="btn btn-primary btn-block" data-act="closeModal">Done</button>`;
+        }
+        return dialog({ title: 'Change phone', body, foot });
+      }
+
+      const modals = {
+        phone: phoneModal,
+        totp: () =>
+          dialog({
+            title: 'Replace authenticator app?',
+            icon: 'shield',
+            body: `<p>You will scan a new QR code. Your old app stops working when you finish.</p>`,
+            foot: `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><a class="btn btn-primary" href="../../keycloak-theme/prototype/login.prototype.html#configure-totp">Continue</a>`,
+          }),
+        signoutAll: () => {
+          const n = S.sessions.filter((s) => !s.current && !s.revoked).length;
+          return dialog({
+            title: `Sign out of ${plural(n, 'other session')}?`,
+            icon: 'logout',
+            tint: ['var(--danger-soft)', 'var(--danger)'],
+            body: `<p>They will need your password and an authenticator code to sign in again. This session stays signed in.</p>`,
+            foot: `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-danger" data-act="signoutAll">Sign out ${plural(n, 'session')}</button>`,
+          });
+        },
+      };
+
+      const actions = {
+        retry: () => {
+          S.st = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.st = 'ok';
+            Kit.render();
+          }, 900);
+        },
+        openChange: () => {
+          openChange();
+          Kit.render();
+          setTimeout(() => document.getElementById('f-chg-value')?.focus(), 30);
+        },
+        chgBack: () => {
+          S.chg.step = 'enter';
+          S.chg.codeErr = null;
+          Kit.render();
+        },
+        sendCode: () => {
+          const c = S.chg;
+          const d = String(c.value || '')
+            .replace(/\D/g, '')
+            .replace(/^(254)?0?/, '');
+          c.err = '';
+          if (!d) c.err = 'Enter your new phone number.';
+          else if (!/^[17]\d{8}$/.test(d))
+            c.err = 'Enter a Kenyan mobile number, like 712 345 678.';
+          else if (d === '700000000')
+            c.err = 'Another account uses this number. Use a different one.';
+          else if ('+254 ' + d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') === phoneOf())
+            c.err = 'This is already your phone number.';
+          if (c.err) return Kit.render();
+          c.value = d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+          c.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            Object.assign(c, {
+              busy: false,
+              step: 'code',
+              codeErr: null,
+              left: 5,
+              code: blankCode(),
+            });
+            startCool();
+            Kit.render();
+            document.querySelector('#layer .otp input')?.focus();
+          }, 700);
+        },
+        resend: () => {
+          S.chg.codeErr = null;
+          S.chg.left = 5;
+          startCool();
+          Kit.toast('New code sent');
+        },
+        verifyCode: (code) => {
+          const c = S.chg;
+          if (!c || c.codeErr === 'expired') return Kit.render();
+          if (code === '123456') {
+            S.phones[P()] = '+254 ' + c.value;
+            c.step = 'done';
+          } else {
+            c.left--;
+            if (c.left <= 0) c.step = 'failed';
+            else c.codeErr = 'wrong';
+          }
+          Kit.render();
+          document.querySelector('#layer .otp input')?.focus();
+        },
+        revoke: (id) => {
+          const s = S.sessions.find((x) => x.id === id);
+          s.revoked = true;
+          Kit.toast(`Signed out of ${s.dev}`);
+        },
+        signoutAll: () => {
+          const n = S.sessions.filter((s) => !s.current && !s.revoked).length;
+          S.sessions.forEach((s) => !s.current && (s.revoked = true));
+          S.modal = null;
+          Kit.toast(`Signed out of ${plural(n, 'other session')}`);
+        },
+        actKindSel: (el) => {
+          S.act.kind = el.value;
+          S.act.page = 1;
+          Kit.render();
+        },
+        actKind: (k) => {
+          S.act.kind = k;
+          S.act.page = 1;
+          Kit.render();
+        },
+        actPage: (p) => {
+          S.act.page = +String(p).split('|').pop();
+          Kit.render();
+        },
+      };
+
+      /* ---------- jumps ---------- */
+      function reset() {
+        Object.assign(S, {
+          st: 'ok',
+          phones: {},
+          chg: null,
+          modal: null,
+          sessions: seedSessions(),
+          act: { kind: 'all', page: 1, pageSize: 10 },
+        });
+      }
+      const at = (screen, fn, persona) => () => {
+        reset();
+        if (persona) localStorage.setItem('dials-proto-persona', persona);
+        fn && fn();
+        const m = S.modal;
+        Kit.go(screen);
+        if (m) {
+          S.modal = m;
+          Kit.render();
+        }
+      };
+      const chgAt = (step, extra = {}) =>
+        at('profile', () => {
+          openChange();
+          Object.assign(
+            S.chg,
+            step === 'enter' ? {} : { value: '733 118 402' },
+            { step, cool: step === 'code' ? 42 : 0 },
+            extra,
+          );
+        });
+      const jumps = [
+        ['profile', 'Account (current persona)'],
+        [
+          'j-ro',
+          '#6 Account: reporting officer, invited by EACC',
+          at('profile', null, 'reporting-officer'),
+        ],
+        [
+          'j-reviewer',
+          'Account: reviewer (managed by Commission admin)',
+          at('profile', null, 'reviewer'),
+        ],
+        ['j-pa', 'Account: platform administrator', at('profile', null, 'platform-admin')],
+        ['j-analyst', 'Account: EACC analyst', at('profile', null, 'eacc-analyst')],
+        ['j-loading', 'Account: loading', at('profile', () => (S.st = 'loading'))],
+        ['j-error', 'Account: error', at('profile', () => (S.st = 'error'))],
+        ['j-chg-enter', 'Change phone: enter', chgAt('enter')],
+        [
+          'j-chg-taken',
+          'Change phone: in use',
+          chgAt('enter', {
+            value: '700 000 000',
+            err: 'Another account uses this number. Use a different one.',
+          }),
+        ],
+        ['j-chg-sent', 'Change phone: code sent', chgAt('code')],
+        [
+          'j-chg-wrong',
+          'Change phone: wrong code',
+          chgAt('code', { codeErr: 'wrong', left: 3, cool: 0 }),
+        ],
+        [
+          'j-chg-expired',
+          'Change phone: code expired',
+          chgAt('code', { codeErr: 'expired', cool: 0 }),
+        ],
+        ['j-chg-failed', 'Change phone: failed', chgAt('failed')],
+        [
+          'j-chg-done',
+          'Change phone: verified',
+          at('profile', () => {
+            openChange();
+            S.phones[P()] = '+254 733 118 402';
+            S.chg.step = 'done';
+          }),
+        ],
+        ['security', 'Security'],
+        [
+          'j-totp',
+          'Security: replace authenticator',
+          at('security', () => (S.modal = { kind: 'totp' })),
+        ],
+        [
+          'j-revoked',
+          'Security: session signed out',
+          at('security', () => (S.sessions[1].revoked = true)),
+        ],
+        [
+          'j-signout-all',
+          'Security: sign out everywhere',
+          at('security', () => (S.modal = { kind: 'signoutAll' })),
+        ],
+        [
+          'j-signout-done',
+          'Security: signed out everywhere',
+          at('security', () => S.sessions.forEach((s) => !s.current && (s.revoked = true))),
+        ],
+        ['activity', 'Activity'],
+        ['j-act-p3', 'Activity: page 3', at('activity', () => (S.act.page = 3))],
+        ['j-act-denied', 'Activity: denied only', at('activity', () => (S.act.kind = 'denied'))],
+      ];
+
+      Kit.mount({
+        app: 'console',
+        start: 'profile',
+        home: 'profile',
+        defaultPersona: 'reviewer',
+        screens,
+        modals,
+        actions,
+        jumps,
+        onPersona: () => {
+          S.act.page = 1;
+        },
+        onBind: (path) => {
+          if (path === 'act.pageSize') S.act.page = 1;
+          if (path === 'chg.value' && S.chg?.err) S.chg.err = '';
+        },
+        reset: () => {
+          reset();
+          Kit.go('profile');
+        },
+        coverage: [
+          {
+            ticket: 6,
+            title:
+              'Spec 01: reporting officer invitation facts (invited by, invited on, activated on)',
+            screens: ['j-ro'],
+            note: 'Assignment record: name, official email, E.164 phone, invitedAt, activatedAt, createdBy. MFA via CONFIGURE_TOTP.',
+          },
+          {
+            ticket: 0,
+            title: 'Account for every persona, who manages it, role summary',
+            screens: ['profile', 'j-reviewer', 'j-pa', 'j-analyst', 'j-loading', 'j-error'],
+            note: 'Designed ahead of spec. No staff /v1/me profile schema exists yet.',
+          },
+          {
+            ticket: 0,
+            title: 'Phone change with OTP',
+            screens: [
+              'j-chg-enter',
+              'j-chg-taken',
+              'j-chg-sent',
+              'j-chg-wrong',
+              'j-chg-expired',
+              'j-chg-failed',
+              'j-chg-done',
+            ],
+            note: 'Designed ahead of spec.',
+          },
+          {
+            ticket: 0,
+            title: 'Security: password, authenticator, sessions',
+            screens: ['security', 'j-totp', 'j-revoked', 'j-signout-all', 'j-signout-done'],
+            note: 'Designed ahead of spec (ADR-004 point 9).',
+          },
+          {
+            ticket: 0,
+            title: 'Own activity from the audit trail (ADR-008)',
+            screens: ['activity', 'j-act-p3', 'j-act-denied'],
+            note: 'Designed ahead of spec. ADR-008 restricts audit reads to auditors; own-activity view needs a decision.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

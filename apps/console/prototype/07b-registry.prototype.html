@@ -1,0 +1,768 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: how does a platform administrator see registry integration health (calls, cache hit rate, breaker, last success, paused) and pause or resume a registry during an outage? Covers tickets #180 (BreakerBadge, SystemStatusRow in use), #182, #188 (pause and resume). The Registry tab and Re-check (#185, #188) live in 07a-review.prototype.html. Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Integrations (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      *:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      /* keep the PROTOTYPE bar clear of drawer and dialog footers */
+      body:not(.mobile):has(#layer .drawer-ov) .proto {
+        right: auto;
+        left: 14px;
+        max-width: calc(100vw - 770px);
+      }
+      .stay .dialog,
+      .stay .overlay {
+        animation: none !important;
+      }
+      .choice .dot {
+        background: var(--surface);
+      }
+      /* BreakerBadge */
+      .bb {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px 0 7px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .bb.closed {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .bb.half-open {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .bb.open {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      /* coverage table built from SystemStatusRow */
+      .cov-head,
+      .srow {
+        display: grid;
+        grid-template-columns: minmax(200px, 1.6fr) 0.8fr 1fr 0.9fr 1fr 0.8fr 120px 28px;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 16px;
+      }
+      .cov-head {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--muted);
+        background: #fcfcfb;
+        border-bottom: 1px solid var(--line);
+        border-radius: var(--r-lg) var(--r-lg) 0 0;
+      }
+      .sysr {
+        border-bottom: 1px solid var(--line);
+      }
+      .sysr:last-child {
+        border-bottom: 0;
+      }
+      .sysr.paused {
+        background: #fbfaf8;
+      }
+      .srow {
+        cursor: pointer;
+      }
+      .srow:hover {
+        background: #fbfaf8;
+      }
+      .srow .nm {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .srow .ico {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+      }
+      .srow .t {
+        font-weight: 600;
+        font-size: 14.5px;
+      }
+      .srow .d {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .srow .num {
+        font-variant-numeric: tabular-nums;
+        font-size: 14px;
+      }
+      .srow .k {
+        display: none;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .expbtn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 0;
+        background: none;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: transform 0.15s;
+      }
+      .expbtn[aria-expanded='true'] {
+        transform: rotate(180deg);
+      }
+      .hit {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .hit .bar {
+        flex: 1;
+        max-width: 70px;
+        height: 6px;
+        border-radius: 6px;
+        background: var(--sunken);
+        overflow: hidden;
+      }
+      .hit .bar i {
+        display: block;
+        height: 100%;
+        background: var(--ink-2);
+        border-radius: 6px;
+      }
+      .detail {
+        padding: 4px 16px 18px 60px;
+        display: grid;
+        gap: 14px;
+      }
+      .detail .kv .v {
+        font-size: 14px;
+      }
+      @container app (max-width: 900px) {
+        .cov-head {
+          display: none;
+        }
+        .srow {
+          grid-template-columns: 1fr 1fr;
+          gap: 10px 14px;
+          align-items: start;
+        }
+        .srow .nm {
+          grid-column: 1 / -1;
+        }
+        .srow .k {
+          display: block;
+        }
+        .srow .acts {
+          grid-column: 1 / -1;
+        }
+        .srow .expc {
+          position: absolute;
+          right: 16px;
+          top: 14px;
+        }
+        .sysr {
+          position: relative;
+        }
+        .detail {
+          padding: 4px 16px 18px;
+        }
+      }
+      .upd {
+        font-size: 13px;
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .not-found {
+        max-width: 520px;
+        margin: 60px auto;
+        text-align: center;
+      }
+      .not-found .code {
+        font-size: 56px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        color: var(--line-2);
+        line-height: 1;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, dialog, consoleShell, fmtDate, fmtDateTime, num, badge, empty } = Kit;
+      const NOW = '2026-09-26T10:30';
+      const D = (s) => new Date(s);
+      const minsAgo = (d) => Math.round((D(NOW) - D(d)) / 60000);
+      const ago = (d) => {
+        if (!d) return 'Never';
+        const m = minsAgo(d);
+        if (m < 1) return 'Just now';
+        if (m < 60) return `${m} min ago`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h} h ${m % 60 ? (m % 60) + ' min ' : ''}ago`;
+        return fmtDateTime(d);
+      };
+      const time = (d) => fmtDateTime(d).split(', ')[1];
+      const isAdmin = () => Kit.persona() === 'platform-admin';
+      const setPersona = (p) => localStorage.setItem('dials-proto-persona', p);
+      const ttl = (s) =>
+        s === 0
+          ? 'Not cached'
+          : s % 3600 === 0
+            ? `${s / 3600} hours`
+            : `${Math.round(s / 60)} minutes`;
+
+      const META = {
+        iprs: {
+          name: 'IPRS',
+          owner: 'National Registration Bureau',
+          use: 'Identity checks at onboarding',
+          ic: 'user',
+          note: '',
+        },
+        kra: {
+          name: 'KRA iTax',
+          owner: 'Kenya Revenue Authority',
+          use: 'PIN, tax compliance and income declared to KRA',
+          ic: 'landmark',
+          note: '',
+        },
+        ntsa: {
+          name: 'NTSA TIMS',
+          owner: 'National Transport and Safety Authority',
+          use: 'Vehicles by owner',
+          ic: 'car',
+          note: '',
+        },
+        brs: {
+          name: 'BRS',
+          owner: 'Business Registration Service',
+          use: 'Directorships, shareholdings and the employer supplier check',
+          ic: 'briefcase',
+          note: '',
+        },
+        ardhisasa: {
+          name: 'ArdhiSasa',
+          owner: 'Ministry of Lands and Physical Planning',
+          use: 'Land parcels by owner',
+          ic: 'pin',
+          note: '',
+        },
+        payroll: {
+          name: 'Payroll (IPPD)',
+          owner: 'State Department for Public Service',
+          use: 'Stop and resume salary instructions (spec 08)',
+          ic: 'banknote',
+          note: 'Pausing holds approved salary instructions until you resume. Nothing is lost; each instruction is sent once.',
+        },
+        icms: {
+          name: 'EACC ICMS',
+          owner: 'Ethics and Anti-Corruption Commission',
+          use: 'Registering approved referrals as cases (spec 09)',
+          ic: 'flag',
+          note: 'Pausing holds approved referrals until you resume. They are then sent in order.',
+        },
+      };
+      const PAUSE_EFFECT = {
+        payroll: 'Salary stop and resume instructions wait until resumed.',
+        icms: 'Approved referrals wait and are sent when resumed.',
+      };
+      function seed() {
+        return [
+          {
+            system: 'iprs',
+            calls24h: 18422,
+            cacheHitRate: 0.71,
+            breaker: 'closed',
+            lastSuccessAt: '2026-09-26T10:29',
+            paused: false,
+            rateLimitPerMinute: 600,
+            cacheTtlSeconds: 86400,
+            failures24h: 3,
+          },
+          {
+            system: 'kra',
+            calls24h: 41230,
+            cacheHitRate: 0.38,
+            breaker: 'half-open',
+            lastSuccessAt: '2026-09-26T10:27',
+            paused: false,
+            rateLimitPerMinute: 900,
+            cacheTtlSeconds: 86400,
+            failures24h: 412,
+            reason: 'Timeouts from 10:12 to 10:24.',
+          },
+          {
+            system: 'ntsa',
+            calls24h: 29870,
+            cacheHitRate: 0.41,
+            breaker: 'open',
+            lastSuccessAt: '2026-09-26T05:58',
+            paused: true,
+            pausedBy: 'Amina Wanjiru',
+            pausedAt: '2026-09-26T06:00',
+            rateLimitPerMinute: 900,
+            cacheTtlSeconds: 86400,
+            failures24h: 0,
+            reason: 'NTSA maintenance window, 06:00 to 14:00.',
+          },
+          {
+            system: 'brs',
+            calls24h: 40115,
+            cacheHitRate: 0.44,
+            breaker: 'closed',
+            lastSuccessAt: '2026-09-26T10:30',
+            paused: false,
+            rateLimitPerMinute: 900,
+            cacheTtlSeconds: 86400,
+            failures24h: 18,
+          },
+          {
+            system: 'ardhisasa',
+            calls24h: 12004,
+            cacheHitRate: 0.52,
+            breaker: 'open',
+            lastSuccessAt: '2026-09-26T07:41',
+            paused: false,
+            rateLimitPerMinute: 300,
+            cacheTtlSeconds: 86400,
+            failures24h: 2981,
+            reason: '5 failures in a row (upstream error). Retrying every 30 seconds.',
+          },
+          {
+            system: 'payroll',
+            calls24h: 37,
+            cacheHitRate: 0,
+            breaker: 'closed',
+            lastSuccessAt: '2026-09-26T09:12',
+            paused: false,
+            rateLimitPerMinute: 60,
+            cacheTtlSeconds: 0,
+            failures24h: 0,
+          },
+          {
+            system: 'icms',
+            calls24h: 4,
+            cacheHitRate: 0,
+            breaker: 'closed',
+            lastSuccessAt: '2026-09-25T16:40',
+            paused: false,
+            rateLimitPerMinute: 30,
+            cacheTtlSeconds: 0,
+            failures24h: 0,
+          },
+        ];
+      }
+      const S = Kit.state({ sys: seed(), view: 'ok', open: {}, updatedAt: NOW, pauseFail: false });
+
+      /* ---------- BreakerBadge (#180) ---------- */
+      const BB = {
+        closed: ['Closed', 'check', 'Working normally'],
+        'half-open': ['Half-open', 'activity', 'Testing recovery with a few calls'],
+        open: ['Open', 'ban', 'Calls are not being sent'],
+      };
+      const bbadge = (b) =>
+        `<span class="bb ${b}" title="${BB[b][2]}">${icon(BB[b][1], 12, 2.4)}${BB[b][0]}</span>`;
+      const pct = (x) => `${Math.round(x * 100)}%`;
+
+      /* ---------- screen ---------- */
+      function forbidden() {
+        return consoleShell(
+          `<main class="cpage"><div class="not-found"><div class="code">403</div><h1 class="page-title" style="margin-top:10px">You do not have access to integrations</h1><p class="muted" style="margin-top:8px">Only platform administrators can see integrations.</p><div style="margin-top:20px"><a class="btn btn-secondary" href="01-commissions.prototype.html#my-commission">Go to overview</a></div></div></main>`,
+          { crumbs: [['Platform'], ['Integrations']] },
+        );
+      }
+      function sysRow(s) {
+        const m = META[s.system];
+        const open = !!S.open[s.system];
+        const hitCell =
+          s.cacheTtlSeconds === 0
+            ? '<span class="muted small">Not cached</span>'
+            : `<span class="hit"><span class="num">${pct(s.cacheHitRate)}</span><span class="bar" aria-hidden="true"><i style="width:${pct(s.cacheHitRate)}"></i></span></span>`;
+        const lastOld = minsAgo(s.lastSuccessAt) > 60 && s.cacheTtlSeconds > 0 && !s.paused;
+        const act = s.paused
+          ? `<button class="btn btn-primary btn-sm" data-act="resumeDlg" data-arg="${s.system}">${icon('play', 14)} Resume</button>`
+          : `<button class="btn btn-secondary btn-sm" data-act="pauseDlg" data-arg="${s.system}">${icon('pause', 14)} Pause</button>`;
+        return `<div class="sysr ${s.paused ? 'paused' : ''}">
+    <div class="srow" data-act="toggle" data-arg="${s.system}">
+      <div class="nm"><span class="ico">${icon(m.ic, 17)}</span><div style="min-width:0"><div class="t">${m.name}</div><div class="d">${esc(m.use)}</div></div></div>
+      <div><div class="k">Calls (24 h)</div><span class="num">${num(s.calls24h)}</span></div>
+      <div><div class="k">Cache hit rate</div>${hitCell}</div>
+      <div><div class="k">Breaker</div>${bbadge(s.breaker)}</div>
+      <div><div class="k">Last success</div><span class="num" style="${lastOld ? 'color:var(--danger);font-weight:600' : ''}">${ago(s.lastSuccessAt)}</span></div>
+      <div><div class="k">Paused</div>${s.paused ? badge(`${icon('pause', 11)} Paused`, 'warn') : '<span class="muted">No</span>'}</div>
+      <div class="acts">${act}</div>
+      <div class="expc"><button class="expbtn" data-act="toggle" data-arg="${s.system}" aria-expanded="${open}" aria-controls="det-${s.system}" aria-label="${open ? 'Hide' : 'Show'} details for ${m.name}">${icon('down', 16)}</button></div>
+    </div>
+    ${
+      open
+        ? `<div class="detail" id="det-${s.system}">
+      ${s.paused ? `<div class="callout callout-warn">${icon('pause', 16)}<span>Paused by ${esc(s.pausedBy)} at ${time(s.pausedAt)}. ${esc(s.reason || '')}</span></div>` : s.breaker !== 'closed' ? `<div class="callout ${s.breaker === 'open' ? 'callout-danger' : 'callout-warn'}">${icon(s.breaker === 'open' ? 'ban' : 'activity', 16)}<span>${esc(s.reason)}</span></div>` : ''}
+      <div class="kv k3">
+        <div><div class="k">Operated by</div><div class="v">${esc(m.owner)}</div></div>
+        <div><div class="k">Rate limit</div><div class="v">${num(s.rateLimitPerMinute)} calls a minute</div></div>
+        <div><div class="k">Cache lifetime</div><div class="v">${ttl(s.cacheTtlSeconds)}${s.cacheTtlSeconds ? ', hits and misses' : ''}</div></div>
+        <div><div class="k">Failed calls (24 h)</div><div class="v">${num(s.failures24h)}</div></div>
+        <div><div class="k">Breaker rule</div><div class="v">Opens after 5 failures in a row, tries again after 30 seconds</div></div>
+        <div><div class="k">Timeout</div><div class="v">2 seconds per call</div></div>
+      </div>
+      ${m.note ? `<p class="small muted">${esc(m.note)}</p>` : ''}
+    </div>`
+        : ''
+    }
+  </div>`;
+      }
+      screens_integrations = () => {
+        if (!isAdmin()) return forbidden();
+        const head = `<div class="page-head"><div><h1>Integrations</h1></div><div class="actions-r" style="align-items:center"><span class="upd">${icon('clock', 14)} Updated ${time(S.updatedAt)}</span><button class="btn btn-secondary btn-sm" data-act="refresh">${S.view === 'loading' ? '<span class="spinner dark"></span>' : icon('refresh', 15)} Refresh</button></div></div>`;
+        if (S.view === 'error')
+          return consoleShell(
+            `<main class="cpage">${head}<div class="callout callout-danger" role="alert">${icon('alert', 17)}<div style="flex:1"><b>Coverage could not be loaded.</b><div style="margin-top:2px">Registries may still be working. Try again in a moment.</div></div><button class="btn btn-secondary btn-sm" data-act="refresh">${icon('refresh', 15)} Try again</button></div></main>`,
+            { crumbs: [['Platform'], ['Integrations']] },
+          );
+        if (S.view === 'loading')
+          return consoleShell(
+            `<main class="cpage">${head}<div class="tiles" style="margin-bottom:18px">${Array.from({ length: 4 }, () => `<div class="tile"><span class="skeleton" style="width:50%"></span><span class="skeleton" style="width:30%;height:24px"></span></div>`).join('')}</div><div class="card"><div class="cov-head"><span>System</span><span>Calls (24 h)</span><span>Cache hit rate</span><span>Breaker</span><span>Last success</span><span>Paused</span><span></span><span></span></div>${Array.from({ length: 7 }, () => `<div class="sysr"><div class="srow" style="cursor:default">${[70, 40, 50, 45, 50, 30, 60].map((w) => `<span class="skeleton" style="width:${w}%"></span>`).join('')}<span></span></div></div>`).join('')}</div></main>`,
+            { crumbs: [['Platform'], ['Integrations']] },
+          );
+        const regs = S.sys.filter((s) => s.cacheTtlSeconds > 0);
+        const total = S.sys.reduce((a, s) => a + s.calls24h, 0);
+        const hits =
+          regs.reduce((a, s) => a + s.calls24h * s.cacheHitRate, 0) /
+          regs.reduce((a, s) => a + s.calls24h, 0);
+        const openN = S.sys.filter((s) => s.breaker === 'open' && !s.paused);
+        const halfN = S.sys.filter((s) => s.breaker === 'half-open');
+        const pausedN = S.sys.filter((s) => s.paused);
+        const alerts = [
+          ...openN.map(
+            (s) =>
+              `<div class="callout callout-danger" role="alert">${icon('ban', 17)}<div><b>${META[s.system].name} is not responding.</b> Breaker open. Last success ${ago(s.lastSuccessAt)}.</div></div>`,
+          ),
+          ...halfN.map(
+            (s) =>
+              `<div class="callout callout-warn">${icon('activity', 17)}<div><b>${META[s.system].name} is recovering.</b> Breaker half-open, testing with a few calls.</div></div>`,
+          ),
+          ...pausedN.map(
+            (s) =>
+              `<div class="callout callout-info">${icon('pause', 17)}<div><b>${META[s.system].name} is paused</b> by ${esc(s.pausedBy)} since ${time(s.pausedAt)}.</div></div>`,
+          ),
+        ];
+        return consoleShell(
+          `<main class="cpage">${head}
+    <div class="tiles" style="margin-bottom:18px">
+      <div class="tile"><span class="k">Calls (24 h)</span><span class="v">${num(total)}</span></div>
+      <div class="tile"><span class="k">Cache hit rate</span><span class="v">${pct(hits)}</span></div>
+      <div class="tile"><span class="k">${openN.length ? '<span class="dot danger"></span>' : ''} Breakers open</span><span class="v">${openN.length}</span><span class="s">${halfN.length} half-open</span></div>
+      <div class="tile"><span class="k">Paused</span><span class="v">${pausedN.length}</span>${pausedN.length ? `<span class="s">${pausedN.map((s) => META[s.system].name).join(', ')}</span>` : ''}</div>
+    </div>
+    ${alerts.length ? `<div class="stack" style="gap:10px;margin-bottom:18px">${alerts.join('')}</div>` : `<div class="callout callout-ok" style="margin-bottom:18px">${icon('check', 17)}<span><b>All systems are working normally.</b></span></div>`}
+    <div class="card" role="table" aria-label="Integration coverage">
+      <div class="cov-head" role="row"><span role="columnheader">System</span><span role="columnheader">Calls (24 h)</span><span role="columnheader">Cache hit rate</span><span role="columnheader">Breaker</span><span role="columnheader">Last success</span><span role="columnheader">Paused</span><span role="columnheader"><span class="sr">Actions</span></span><span></span></div>
+      ${S.sys.map(sysRow).join('')}
+    </div>
+    <p class="small muted row" style="gap:8px;margin-top:14px">${icon('info', 14)} Rate limits and cache lifetimes are configuration; contact the platform team to change them.</p>
+  </main>`,
+          { crumbs: [['Platform'], ['Integrations']] },
+        );
+      };
+
+      /* ---------- modals (#188) ---------- */
+      const modals = {
+        pause: () => {
+          const s = S.sys.find((x) => x.system === S.modal.id);
+          const m = META[s.system];
+          return dialog({
+            title: `Pause ${m.name}?`,
+            icon: 'pause',
+            tint: ['var(--warn-soft)', 'var(--warn)'],
+            body: `<p>${PAUSE_EFFECT[s.system] ? `Pause ${m.name}? Calls will be held until resumed.` : `Pause ${m.name}? Lookups will be marked unavailable until resumed.`}</p>
+      <ul class="small" style="margin:0;padding-left:18px;color:var(--ink-2);display:grid;gap:4px"><li>Nothing is sent to ${m.name} while it is paused.</li>${PAUSE_EFFECT[s.system] ? `<li>${PAUSE_EFFECT[s.system]}</li>` : `<li>Cases keep flowing. Their Registry tab shows ${m.name} as unavailable.</li><li>After you resume, affected cases are re-checked automatically every hour.</li>`}<li>Recorded in the audit trail with your name.</li></ul>
+      ${S.modal.err ? `<div class="callout callout-danger" role="alert">${icon('alert', 16)}<span>Could not pause ${m.name}. Nothing changed. Try again.</span></div>` : ''}`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal" ${S.modal.busy ? 'disabled' : ''}>Cancel</button><button class="btn btn-primary" data-act="doPause" ${S.modal.busy ? 'disabled' : ''}>${S.modal.busy ? '<span class="spinner"></span> Pausing…' : `${icon('pause', 15)} Pause ${m.name}`}</button>`,
+          });
+        },
+        resume: () => {
+          const s = S.sys.find((x) => x.system === S.modal.id);
+          const m = META[s.system];
+          return dialog({
+            title: `Resume ${m.name}?`,
+            icon: 'play',
+            tint: ['var(--ok-soft)', 'var(--ok)'],
+            body: `<p>Lookups to ${m.name} start again, within its rate limit of ${num(s.rateLimitPerMinute)} calls a minute.</p><p class="small muted">The breaker starts half-open and closes after calls succeed.${PAUSE_EFFECT[s.system] ? ' Waiting items are sent first.' : ''}</p>`,
+            foot: `<button class="btn btn-secondary" data-act="closeModal" ${S.modal.busy ? 'disabled' : ''}>Cancel</button><button class="btn btn-primary" data-act="doResume" ${S.modal.busy ? 'disabled' : ''}>${S.modal.busy ? '<span class="spinner"></span> Resuming…' : `${icon('play', 15)} Resume ${m.name}`}</button>`,
+          });
+        },
+      };
+      const actions = {
+        toggle: (sys, el, e) => {
+          if (e.target.closest('.acts')) return;
+          S.open[sys] = !S.open[sys];
+          Kit.render();
+        },
+        refresh: () => {
+          S.view = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.view = 'ok';
+            S.updatedAt = NOW;
+            Kit.render();
+          }, 900);
+        },
+        pauseDlg: (sys) => {
+          S.modal = { kind: 'pause', id: sys };
+          Kit.render();
+        },
+        resumeDlg: (sys) => {
+          S.modal = { kind: 'resume', id: sys };
+          Kit.render();
+        },
+        doPause: () => {
+          S.modal.busy = true;
+          S.modal.err = false;
+          Kit.render();
+          setTimeout(() => {
+            if (S.pauseFail) {
+              S.modal.busy = false;
+              S.modal.err = true;
+              S.pauseFail = false;
+              Kit.render();
+              return;
+            }
+            const s = S.sys.find((x) => x.system === S.modal.id);
+            Object.assign(s, {
+              paused: true,
+              breaker: 'open',
+              pausedBy: Kit.PERSONAS['platform-admin'].name,
+              pausedAt: NOW,
+              reason: '',
+            });
+            S.modal = null;
+            S.open[s.system] = true;
+            Kit.toast(`${META[s.system].name} paused`);
+          }, 900);
+        },
+        doResume: () => {
+          S.modal.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            const s = S.sys.find((x) => x.system === S.modal.id);
+            Object.assign(s, {
+              paused: false,
+              breaker: 'half-open',
+              reason: 'Resumed just now. Testing with a few calls before closing.',
+            });
+            S.modal = null;
+            Kit.toast(`${META[s.system].name} resumed`);
+          }, 900);
+        },
+      };
+
+      let lastModal = null;
+      const J = (key, label, p, fn) => [
+        key,
+        label,
+        () => {
+          setPersona(p);
+          S.view = 'ok';
+          S.modal = null;
+          S.pauseFail = false;
+          S.open = {};
+          fn();
+        },
+      ];
+      const jumps = [
+        J(
+          'integrations',
+          '#182 Integrations: populated (open, half-open, paused)',
+          'platform-admin',
+          () => {
+            S.sys = seed();
+            S.open = {};
+            Kit.go('integrations');
+          },
+        ),
+        J('int-healthy', '#182 All systems working normally', 'platform-admin', () => {
+          S.sys = seed().map((s) => ({
+            ...s,
+            breaker: 'closed',
+            paused: false,
+            lastSuccessAt: '2026-09-26T10:29',
+            failures24h: Math.min(s.failures24h, 12),
+          }));
+          S.open = {};
+          Kit.go('integrations');
+        }),
+        J('int-open', '#182 Breaker open (ArdhiSasa not responding)', 'platform-admin', () => {
+          S.sys = seed();
+          S.open = { ardhisasa: true };
+          Kit.go('integrations');
+        }),
+        J('int-degraded', '#182 Degraded: KRA half-open, recovering', 'platform-admin', () => {
+          S.sys = seed();
+          S.open = { kra: true };
+          Kit.go('integrations');
+        }),
+        J('int-paused', '#182 Paused: NTSA (details)', 'platform-admin', () => {
+          S.sys = seed();
+          S.open = { ntsa: true };
+          Kit.go('integrations');
+        }),
+        J('int-coverage', '#182 Coverage details: IPRS and payroll rows', 'platform-admin', () => {
+          S.sys = seed();
+          S.open = { iprs: true, payroll: true };
+          Kit.go('integrations');
+        }),
+        J('pause-confirm', '#188 Pause confirm (KRA)', 'platform-admin', () => {
+          S.sys = seed();
+          Kit.go('integrations');
+          actions.pauseDlg('kra');
+        }),
+        J(
+          'pause-confirm-payroll',
+          '#188 Pause confirm (payroll: instructions wait)',
+          'platform-admin',
+          () => {
+            S.sys = seed();
+            Kit.go('integrations');
+            actions.pauseDlg('payroll');
+          },
+        ),
+        J('pausing', '#188 Pausing (in progress)', 'platform-admin', () => {
+          S.sys = seed();
+          Kit.go('integrations');
+          S.modal = { kind: 'pause', id: 'kra', busy: true };
+          Kit.render();
+        }),
+        J('pause-error', '#188 Pause failed (nothing changed)', 'platform-admin', () => {
+          S.sys = seed();
+          Kit.go('integrations');
+          S.modal = { kind: 'pause', id: 'kra', err: true };
+          Kit.render();
+        }),
+        J('resume-confirm', '#188 Resume confirm (NTSA)', 'platform-admin', () => {
+          S.sys = seed();
+          Kit.go('integrations');
+          actions.resumeDlg('ntsa');
+        }),
+        J('int-loading', '#182 Loading', 'platform-admin', () => {
+          S.view = 'loading';
+          Kit.go('integrations');
+        }),
+        J('int-error', '#182 Error: coverage could not be loaded', 'platform-admin', () => {
+          S.view = 'error';
+          Kit.go('integrations');
+        }),
+        J('int-forbidden', '#182 Forbidden (reviewer, 403)', 'reviewer', () =>
+          Kit.go('integrations'),
+        ),
+        [
+          'to-registry',
+          '#185 #188 Registry tab and Re-check (opens 07a file)',
+          () => {
+            setPersona('reviewer');
+            location.href = '07a-review.prototype.html#registry';
+          },
+        ],
+        [
+          'to-primitives',
+          '#180 SystemStatusRow and MatchTable gallery (opens 07a file)',
+          () => {
+            location.href = '07a-review.prototype.html#primitives';
+          },
+        ],
+      ];
+      var screens_integrations;
+      Kit.mount({
+        app: 'console',
+        start: 'integrations',
+        home: 'integrations',
+        defaultPersona: 'platform-admin',
+        screens: { integrations: () => screens_integrations() },
+        modals,
+        actions,
+        jumps,
+        coverage: [
+          {
+            ticket: 180,
+            title: 'UI primitives round 8: system status row, match table, breaker badge',
+            screens: ['integrations', 'int-coverage', 'to-primitives'],
+            note: 'BreakerBadge and expandable SystemStatusRow (aria-expanded) are used here. MatchTable and the case variant of SystemStatusRow are in 07a-review.prototype.html#primitives.',
+          },
+          {
+            ticket: 182,
+            title: 'Console: Integrations page (coverage, read-only)',
+            screens: [
+              'integrations',
+              'int-healthy',
+              'int-open',
+              'int-degraded',
+              'int-paused',
+              'int-coverage',
+              'int-loading',
+              'int-error',
+              'int-forbidden',
+            ],
+          },
+          {
+            ticket: 185,
+            title: 'Console: Registry tab, queue filter and icon',
+            screens: ['to-registry'],
+            note: 'Built in 07a-review.prototype.html (Registry tab on the case, queue filter and icon).',
+          },
+          {
+            ticket: 188,
+            title: 'Console: Re-check button; pause and resume on Integrations',
+            screens: [
+              'pause-confirm',
+              'pause-confirm-payroll',
+              'pausing',
+              'pause-error',
+              'resume-confirm',
+              'to-registry',
+            ],
+            note: 'Re-check states are in 07a-review.prototype.html (Registry tab).',
+          },
+        ],
+        afterRender: () => {
+          const layer = document.getElementById('layer');
+          const mk = S.modal ? S.modal.kind : null;
+          layer.classList.toggle('stay', !!mk && mk === lastModal);
+          lastModal = mk;
+        },
+      });
+    </script>
+  </body>
+</html>

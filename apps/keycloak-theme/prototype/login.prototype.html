@@ -1,0 +1,1510 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what should every Keycloak-hosted page (declarant sign-in with SMS/email code, staff TOTP, set password, activation, expired links, errors, step-up before submit) look like and say, within Keycloakify's constraints? Covers tickets #78, #133 (UI side), spec #6 FE-6 activation pages, spec #58 FE-7. Open by double-clicking. State is in memory. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - sign-in pages (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .auth-body {
+        max-width: 440px;
+      }
+      .auth-foot a {
+        color: var(--muted);
+      }
+      .as-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 8px 8px 12px;
+        border-radius: var(--r);
+        background: var(--sunken);
+        font-size: 14px;
+        margin-bottom: 22px;
+      }
+      .as-user .who {
+        flex: 1;
+        min-width: 0;
+        font-weight: 500;
+      }
+      .as-user .who span {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .otp-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        font-size: 14px;
+      }
+      .otp[aria-disabled='true'] input {
+        background: var(--sunken);
+        color: var(--muted);
+      }
+      .link[disabled] {
+        color: var(--muted);
+        text-decoration: none;
+        cursor: default;
+      }
+      .rules {
+        list-style: none;
+        margin: 4px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .rules li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .rules li .m {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        flex: none;
+      }
+      .rules li.ok {
+        color: var(--ok);
+      }
+      .rules li.ok .m {
+        background: var(--ok-soft);
+        box-shadow: none;
+      }
+      .steps-list {
+        display: grid;
+        gap: 0;
+        margin-top: 22px;
+      }
+      .steps-list .s {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .steps-list .s:last-child {
+        border-bottom: 0;
+      }
+      .steps-list .n {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        box-shadow: inset 0 0 0 1.5px var(--line-2);
+        color: var(--muted);
+        flex: none;
+      }
+      .steps-list .s.done .n {
+        background: var(--ok-soft);
+        color: var(--ok);
+        box-shadow: none;
+      }
+      .steps-list .t {
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      .steps-list .d {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin-top: 1px;
+      }
+      .totp-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: center;
+      }
+      @container app (min-width: 520px) {
+        .totp-grid {
+          grid-template-columns: auto 1fr;
+        }
+      }
+      .qr-box {
+        padding: 10px;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: var(--shadow-card);
+        justify-self: start;
+        line-height: 0;
+      }
+      .secret {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        word-break: break-all;
+        font-weight: 600;
+      }
+      .why {
+        margin-top: 26px;
+      }
+      .num {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: var(--sunken);
+        color: var(--ink-2);
+        flex: none;
+        margin-top: -1px;
+      }
+      .state-mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 20px;
+      }
+      /* engineer aid: which Keycloak template and client render this page */
+      .kc-note {
+        position: fixed;
+        left: 12px;
+        top: 6px;
+        z-index: 100;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 0 0 1px var(--line);
+        color: var(--muted);
+        font:
+          500 10.5px/1.4 ui-monospace,
+          'SF Mono',
+          Menlo,
+          monospace;
+        opacity: 0.75;
+        max-width: calc(100vw - 24px);
+        pointer-events: none;
+      }
+      body.mobile .kc-note {
+        left: 8px;
+        top: 8px;
+      }
+      [data-focus-alert]:focus {
+        outline: none;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn-row .btn {
+        flex: 1;
+        min-width: 150px;
+      }
+      .code-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 12px;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, field, input, checkbox, dialog, logo, qr } = Kit;
+
+      const PORTAL = '../../portal/prototype/declarant-journey.prototype.html';
+      const PORTAL_HOME = PORTAL + '#home';
+      // Step-up return target. The portal agent defines the real "summary with stepUp=done" screen; #home is the safe fallback.
+      const PORTAL_STEPUP_RETURN = PORTAL + '#stepup-return';
+      const PORTAL_STEPUP_FAILED = PORTAL + '#stepup-failed';
+      const CONSOLE_HOME = '../../console/prototype/01-commissions.prototype.html#my-commission';
+
+      const D = {
+        name: 'John Kennedy',
+        ofr: 'OFR-0012345-B',
+        phoneMasked: '07** *** 123',
+        emailMasked: 'j***@gmail.com',
+        email: 'john.kennedy@gmail.com',
+        commission: 'Teachers Service Commission',
+      };
+      const STAFF = {
+        name: 'Grace Muthoni',
+        email: 'g.muthoni@psc.go.ke',
+        commission: 'Public Service Commission',
+        role: 'Reporting officer',
+      };
+      const TOTP_SECRET = 'JBSW Y3DP EHPK 3PXP KVQW 4ZLN MFZG 6ZTE';
+      const blankCode = () => ['', '', '', '', '', ''];
+
+      const fresh = () => ({
+        aud: 'declarant', // 'declarant' (client portal) | 'staff' (client console)
+        flow: 'login', // 'login' | 'stepup' | 'activation' | 'reset'
+        login: { id: '', pw: '', showPw: false, error: null, notice: null, busy: false },
+        otp: {
+          code: blankCode(),
+          channel: 'sms',
+          cooldownEnds: Date.now() + 60000,
+          attemptsLeft: 5,
+          resends: 0,
+          error: null,
+          busy: false,
+          sendFailed: null,
+          done: false,
+        },
+        totp: { code: blankCode(), error: null, busy: false },
+        pw: {
+          a: '',
+          b: '',
+          showA: false,
+          showB: false,
+          error: null,
+          busy: false,
+          logoutOthers: true,
+          touched: false,
+        },
+        cfg: { code: blankCode(), device: '', manual: false, error: null, busy: false },
+        reset: { id: '', error: null },
+        staffAct: { emailVerified: true, passwordSet: false },
+        loggedOut: false,
+      });
+      const S = Kit.state(fresh());
+
+      /* ---------- helpers ---------- */
+      const isStaff = () => S.aud === 'staff';
+      const secsLeft = () => Math.max(0, Math.ceil((S.otp.cooldownEnds - Date.now()) / 1000));
+      const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      const masked = (text) =>
+        `<b style="color:var(--ink)">${esc(text)}</b><span class="sr-only"> (partially hidden for privacy)</span>`;
+      // Kit.otp with ids (so focus survives re-renders), "Digit N of 6" labels and a labelled group.
+      const otpBox = (bind, done, label, disabled = false) =>
+        `<div role="group" aria-label="${esc(label)}">${Kit.otp(bind, done)
+          .replace(
+            /data-otp-i="(\d)"/g,
+            (m, i) =>
+              `id="otp-${bind.replace(/\W/g, '')}-${i}" data-otp-i="${i}" ${disabled ? 'disabled' : ''}`,
+          )
+          .replace(/aria-label="Digit (\d)"/g, 'aria-label="Digit $1 of 6"')
+          .replace('class="otp"', `class="otp" ${disabled ? 'aria-disabled="true"' : ''}`)}</div>`;
+      const alertBox = (kind, title, text, ic) =>
+        `<div class="callout callout-${kind}" role="alert" tabindex="-1" data-focus-alert>${icon(ic || (kind === 'ok' ? 'check' : kind === 'info' ? 'info' : 'alert'), 18)}<div>${title ? `<div style="font-weight:600;margin-bottom:2px">${title}</div>` : ''}${text}</div></div>`;
+      const langBtn = () =>
+        `<button class="btn btn-ghost btn-sm" data-act="lang">${icon('globe', 16)} English</button>`;
+      const hint = (t) =>
+        `<p class="hint" style="margin-top:14px">${icon('info', 13)} <i>Prototype:</i> ${t}</p>`;
+
+      function art(variant) {
+        const V = {
+          declarant: {
+            h: 'Welcome back.',
+            items: [
+              ['shield', 'Sent only to your Commission'],
+              ['phone', 'Sign-in codes by SMS'],
+              ['file', 'Signed slip when you submit'],
+            ],
+          },
+          staff: {
+            h: 'The staff console.',
+            items: [
+              ['lock', 'Password and app code'],
+              ['building', 'Your Commission only'],
+              ['activity', 'Every action audited'],
+            ],
+          },
+          stepup: {
+            h: 'One last check.',
+            items: [
+              ['shield', 'Code only, no password'],
+              ['clock', '5 minutes to submit'],
+              ['file', 'Your answers stay saved'],
+            ],
+          },
+          activate: {
+            h: 'Set up your account.',
+            items: [
+              ['key', 'A password only you know'],
+              ['phone', 'Codes to your verified phone'],
+              ['cloud', 'Progress saves as you go'],
+            ],
+          },
+        }[variant];
+        return `<aside class="auth-art" aria-hidden="true">
+    <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3d2"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
+        <radialGradient id="sun" cx=".72" cy=".47" r=".22"><stop offset="0" stop-color="#fff4e6"/><stop offset=".5" stop-color="#ffd9b8" stop-opacity=".8"/><stop offset="1" stop-color="#ffd9b8" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="800" height="1000" fill="url(#sky)"/><rect width="800" height="1000" fill="url(#sun)"/>
+      <circle cx="576" cy="470" r="46" fill="#fff6ea" opacity=".95"/>
+      <path d="M0 560 C120 520 200 540 300 510 C420 470 520 520 640 490 C720 470 770 480 800 470 V1000 H0Z" fill="#e7936a" opacity=".55"/>
+      <path d="M0 610 C140 570 230 620 360 580 C500 540 600 600 800 555 V1000 H0Z" fill="#d97a4f" opacity=".7"/>
+      <path d="M0 680 C160 640 260 700 420 660 C560 625 660 690 800 650 V1000 H0Z" fill="#b95b35"/>
+      <path d="M0 770 C180 730 300 790 470 750 C610 720 700 770 800 745 V1000 H0Z" fill="#8f3f22"/>
+      <path d="M0 860 C200 830 330 880 520 845 C650 822 730 850 800 840 V1000 H0Z" fill="#5e2814"/>
+      <g fill="#4a1f0f"><path d="M150 745c-40-6-70 4-80 10 18 2 36-2 56 0-6 4-12 10-12 26h4c2-14 8-20 16-24 10 2 24 6 34 4-6-8-12-14-18-16Z"/><rect x="146" y="748" width="4" height="40"/></g>
+      <g fill="#4a1f0f"><path d="M640 735c-30-5-52 3-60 8 14 2 27-1 42 0-5 3-9 8-9 20h3c2-11 6-15 12-18 8 1 18 4 26 3-5-6-9-11-14-13Z"/><rect x="637" y="738" width="3" height="30"/></g>
+    </svg>
+    <div class="halftone"></div>
+    <div class="art-copy"><h2>${V.h}</h2></div>
+    <div class="art-list">${V.items.map(([ic, t]) => `<div class="art-item"><span class="ico">${icon(ic, 17)}</span>${t}</div>`).join('')}</div>
+  </aside>`;
+      }
+      // Page frame for every Keycloak page (Template.tsx): brand, body, language, footer.
+      function page(body, { artV = null, top = null, stepper = null } = {}) {
+        const a = artV || (S.flow === 'stepup' ? 'stepup' : isStaff() ? 'staff' : 'declarant');
+        const st = stepper
+          ? `<div class="stepper" role="img" aria-label="Step ${stepper[0]} of ${stepper[1]}">${Array.from({ length: stepper[1] }, (_, i) => `<span class="s ${i + 1 < stepper[0] ? 'done' : i + 1 === stepper[0] ? 'cur' : ''}"></span>`).join('')}</div>`
+          : '';
+        return `<div class="auth"><main class="auth-main">
+    <div class="auth-top">${logo(24, '')}${isStaff() ? '<span class="badge" style="margin-right:auto;margin-left:8px;height:22px;font-size:11.5px">Console</span>' : ''}<div class="row" style="gap:4px">${top ?? langBtn()}</div></div>
+    <div class="auth-body">${st}${body}</div>
+    <div class="auth-foot">Adili Online · <a class="link" style="font-weight:400" data-act="toast" data-arg="Privacy notice would open">Privacy</a> · <a class="link" style="font-weight:400" data-act="toast" data-arg="Help centre would open">Help</a></div>
+  </main>${art(a)}</div>`;
+      }
+      const pwInput = (bind, show, showAct, ph, auto, extraErr) =>
+        `<div class="input-group" ${extraErr ? 'style="box-shadow:0 0 0 1.5px var(--danger)"' : ''}>${input(bind, { type: S[bind.split('.')[0]][show] ? 'text' : 'password', ph, extra: `autocomplete="${auto}" ${extraErr ? 'aria-invalid="true"' : ''}` })}<button class="btn btn-ghost icon-btn" style="margin:4px" data-act="${showAct}" aria-label="${S[bind.split('.')[0]][show] ? 'Hide password' : 'Show password'}" aria-pressed="${!!S[bind.split('.')[0]][show]}">${icon(S[bind.split('.')[0]][show] ? 'eyeOff' : 'eye', 17)}</button></div>`;
+      const stateMark = (ic, kind) => {
+        const c = {
+          ok: ['var(--ok-soft)', 'var(--ok)'],
+          warn: ['var(--warn-soft)', 'var(--warn)'],
+          danger: ['var(--danger-soft)', 'var(--danger)'],
+          neutral: ['var(--sunken)', 'var(--ink)'],
+          brand: ['var(--brand-soft)', 'var(--brand-ink)'],
+        }[kind];
+        return `<div class="state-mark" style="background:${c[0]};color:${c[1]}">${icon(ic, 28)}</div>`;
+      };
+
+      /* ---------- Keycloak page / client annotation (engineer aid, not part of the design) ---------- */
+      const FTL = {
+        login: 'login.ftl',
+        'reset-password': 'login-reset-password.ftl',
+        otp: 'login-adili-otp.ftl (custom)',
+        'otp-send-failed': 'login-adili-otp.ftl (sendFailed)',
+        'staff-totp': 'login-otp.ftl',
+        'action-landing': 'info.ftl (execute-actions)',
+        'verify-email': 'login-verify-email.ftl',
+        'update-password': 'login-update-password.ftl',
+        'configure-totp': 'login-config-totp.ftl',
+        'actions-done': 'info.ftl (actions done)',
+        'link-expired': 'error.ftl (expired action token)',
+        'link-invalid': 'error.ftl (invalid action token)',
+        'account-disabled': 'error.ftl / login.ftl message',
+        error: 'error.ftl',
+        'page-expired': 'login-page-expired.ftl',
+        logout: 'logout-confirm.ftl',
+        'step-up': 'login-adili-otp.ftl (acr=step-up)',
+        'step-up-locked': 'error.ftl (step-up failed)',
+      };
+
+      /* ---------- screens ---------- */
+      const screens = {};
+
+      screens.login = () => {
+        const L = S.login;
+        const staff = isStaff();
+        const notices = {
+          'otp-locked': [
+            'warn',
+            'Too many wrong codes',
+            'For your security we stopped this sign-in. Sign in again to get a new code.',
+          ],
+          'otp-resends': [
+            'warn',
+            'Too many codes requested',
+            'You asked for a new code too many times. Sign in again to start over.',
+          ],
+          timeout: [
+            'info',
+            'Your sign-in took too long',
+            'For your security we started again. Enter your details once more.',
+          ],
+          'reset-sent': [
+            'ok',
+            'Check your email',
+            'If an account exists, we sent a reset link. It works for 24 hours.',
+          ],
+          'password-set': [
+            'ok',
+            'Your password is set',
+            'Sign in with your new password to continue.',
+          ],
+          'signed-out': ['ok', 'You are signed out', 'Sign in again whenever you are ready.'],
+          disabled: [
+            'danger',
+            'Your account is disabled',
+            staff
+              ? 'Contact the EACC platform team if you think this is a mistake.'
+              : "Contact your Commission's reporting officer and quote your officer reference.",
+          ],
+          locked: [
+            'danger',
+            'Sign-in paused for 15 minutes',
+            'Too many wrong passwords. Wait, or reset your password.',
+          ],
+        };
+        const n = L.notice && notices[L.notice];
+        return page(`
+    <h1 class="title">${staff ? 'Sign in to the console' : 'Sign in'}</h1>
+    <div class="stack" style="margin-top:26px">
+      ${n ? alertBox(n[0], n[1], n[2]) : ''}
+      ${L.error ? alertBox('danger', '', L.error) : ''}
+      ${
+        !staff
+          ? `<button class="btn btn-secondary btn-block" data-act="passkey">${icon('finger', 18)} Sign in with a passkey</button>
+      <div class="row muted small" style="gap:12px"><span style="flex:1;height:1px;background:var(--line)"></span>or<span style="flex:1;height:1px;background:var(--line)"></span></div>`
+          : ''
+      }
+      ${field(staff ? 'Official email' : 'Email or officer reference', input('login.id', { ph: staff ? 'name@psc.go.ke' : 'e.g. OFR-0012345-B', type: staff ? 'email' : 'text', extra: `autocomplete="username" autocapitalize="off" spellcheck="false" ${L.error ? 'aria-invalid="true"' : ''}` }), { id: 'f-login-id', hint: staff ? '' : 'Your officer reference is in your welcome email.' })}
+      <div class="field">
+        <label class="label" for="f-login-pw"><span>Password</span><a class="link small" data-act="go" data-arg="reset-password">Forgot password?</a></label>
+        ${pwInput('login.pw', 'showPw', 'togglePw', 'Your password', 'current-password', !!L.error)}
+      </div>
+      <button class="btn btn-primary btn-block" data-act="signIn" ${L.busy ? 'disabled' : ''}>${L.busy ? '<span class="spinner"></span> Signing in' : 'Sign in'}</button>
+      ${staff ? `<p class="small muted" style="text-align:center">Activation link expired? Ask EACC to resend your invitation.</p>` : ''}
+    </div>
+    ${
+      !staff
+        ? `<div class="card" style="margin-top:26px;display:flex;gap:14px;align-items:center;padding:16px 18px">
+      <span class="avatar" style="background:var(--brand-soft);color:var(--brand-ink)">${icon('user', 17)}</span>
+      <div style="flex:1;min-width:0"><div style="font-weight:500">First time here?</div><div class="small muted">Have your file number and ID ready.</div></div>
+      <a class="btn btn-secondary btn-sm" href="${PORTAL}">Get started</a></div>`
+        : ''
+    }
+    ${hint('password <b>wrong</b> shows the error.')}
+  `);
+      };
+
+      screens['reset-password'] = () =>
+        page(`
+  <button class="btn btn-ghost btn-sm" style="margin:-6px 0 18px -10px" data-act="go" data-arg="login">${icon('left', 16)} Back to sign in</button>
+  <h1 class="title">Reset your password</h1>
+  <p class="subtitle">We will email you a reset link.</p>
+  <div class="stack" style="margin-top:24px">
+    ${S.reset.error ? alertBox('danger', '', S.reset.error) : ''}
+    ${field(isStaff() ? 'Official email' : 'Email or officer reference', input('reset.id', { ph: isStaff() ? 'name@psc.go.ke' : 'e.g. OFR-0012345-B', extra: 'autocomplete="username" autocapitalize="off"' }), { id: 'f-reset-id' })}
+    <button class="btn btn-primary btn-block" data-act="sendReset">Send reset link</button>
+    <p class="small muted">${isStaff() ? 'Lost access to this email? Ask EACC.' : 'Email changed? Ask your reporting officer.'}</p>
+  </div>`);
+
+      function otpScreen(step) {
+        const O = S.otp;
+        const s = secsLeft();
+        const email = O.channel === 'email';
+        const dest = email ? D.emailMasked : D.phoneMasked;
+        const resendLeft = 3 - O.resends;
+        if (O.done) {
+          return page(
+            `<div role="status" aria-live="polite">${stateMark('check', 'ok')}
+      <h1 class="title">${step ? 'Identity confirmed' : 'Code accepted'}</h1>
+      <p class="subtitle">${step ? 'You have 5 minutes to submit.' : 'Taking you to Adili Online.'}</p>
+      <div class="row" style="margin-top:24px"><span class="spinner dark"></span><a class="link small" href="${step ? PORTAL_STEPUP_RETURN : PORTAL_HOME}">Continue now</a></div></div>`,
+            { top: step ? '' : null },
+          );
+        }
+        const top = step
+          ? `<a class="btn btn-ghost btn-sm" href="${PORTAL_STEPUP_FAILED}">${icon('x', 16)} Cancel</a>`
+          : null;
+        return page(
+          `
+    ${step ? '' : `<div class="as-user"><span class="avatar sm" style="background:var(--surface);color:var(--ink-2);box-shadow:var(--shadow-card)">${icon('user', 14)}</span><div class="who truncate">${D.ofr}</div><button class="btn btn-ghost btn-sm" data-act="restartLogin">${icon('undo', 15)} Not you?</button></div>`}
+    <h1 class="title">${step ? "Confirm it's you" : 'Enter the code we sent'}</h1>
+    <p class="subtitle">${step ? `Enter the code we sent ${email ? 'to' : 'by SMS to'} ${masked(dest)}. No password needed.` : `We sent a 6-digit code ${email ? 'to' : 'by SMS to'} ${masked(dest)}.`}</p>
+    <div class="stack" style="margin-top:24px;gap:0">
+      ${O.error ? `<div style="margin-bottom:16px">${O.error === 'wrong' ? alertBox('danger', '', `That code is not right. ${O.attemptsLeft} attempt${O.attemptsLeft === 1 ? '' : 's'} left.`) : O.error === 'expired' ? alertBox('warn', '', 'That code has expired. Resend to get a new one.', 'clock') : alertBox('ok', '', O.error)}</div>` : ''}
+      ${otpBox('otp.code', 'verifyOtp', 'Enter the 6-digit code', O.busy)}
+      <div class="code-meta" ${O.busy ? 'role="status"' : ''}>${O.busy ? `<span class="spinner dark" style="width:14px;height:14px"></span> Checking the code` : `${icon('clock', 14)} The code works for 10 minutes.`}</div>
+      <div class="otp-row">
+        <span>Didn't get it? ${s > 0 ? `<button class="link" disabled aria-disabled="true">Resend in <span data-cd>${mmss(s)}</span></button><span class="sr-only" aria-live="polite" data-cd-sr>Resend available in ${Math.ceil(s / 10) * 10} seconds</span>` : `<button class="link" data-act="resend">Resend code</button>`}</span>
+        <button class="link" data-act="switchChannel">${email ? 'Send it by SMS instead' : 'Send it by email instead'}</button>
+      </div>
+      ${O.resends > 0 ? `<p class="hint" style="margin-top:8px">You can ask for ${resendLeft} more code${resendLeft === 1 ? '' : 's'}.</p>` : ''}
+    </div>
+    ${step ? `<details class="help why"><summary>${icon('help', 17)} Why a code again?<span class="chev">${icon('down', 16)}</span></summary><div class="body">Submitting is a legal act. This check makes sure nobody else can submit in your name. Your answers stay saved.</div></details>` : ''}
+    ${hint('<b>000000</b> = wrong, <b>111111</b> = expired.')}
+  `,
+          { top },
+        );
+      }
+      screens.otp = () => otpScreen(false);
+      screens['step-up'] = () => otpScreen(true);
+
+      screens['otp-send-failed'] = () => {
+        const both = S.otp.sendFailed === 'both';
+        const step = S.flow === 'stepup';
+        if (both) {
+          return page(
+            `${stateMark('wifiOff', 'danger')}
+      <h1 class="title">We could not send your code</h1>
+      <p class="subtitle">SMS and email are not responding. Your account is fine. Try again in a few minutes.</p>
+      <div class="stack" style="margin-top:24px">
+        <button class="btn btn-primary btn-block" data-act="retrySend">${icon('refresh', 17)} Try again</button>
+        ${step ? `<a class="btn btn-secondary btn-block" href="${PORTAL_STEPUP_FAILED}">Back to declaration</a><p class="small muted">Your declaration is saved.</p>` : `<button class="btn btn-secondary btn-block" data-act="restartLogin">Back to sign in</button>`}
+      </div>`,
+            { top: step ? '' : null },
+          );
+        }
+        return page(
+          `
+    <h1 class="title">We could not send the SMS</h1>
+    <p class="subtitle">Choose another way to get your code.</p>
+    <div class="stack" style="margin-top:24px">
+      <label class="secure-opt"><input type="radio" name="ch" checked/><span class="ico">${icon('mail', 19)}</span><span style="flex:1"><div style="font-weight:600">Email me the code</div><div class="small muted">To ${masked(D.emailMasked)}</div></span></label>
+      <label class="secure-opt" style="opacity:.6;cursor:not-allowed"><input type="radio" name="ch" disabled/><span class="ico">${icon('phone', 19)}</span><span style="flex:1"><div style="font-weight:600">Text me the code</div><div class="small muted">Not available right now</div></span></label>
+      <button class="btn btn-primary btn-block" data-act="sendByEmail">Send by email</button>
+      <button class="btn btn-ghost btn-block" data-act="retrySms">Try SMS again</button>
+    </div>`,
+          {
+            top: step
+              ? `<a class="btn btn-ghost btn-sm" href="${PORTAL_STEPUP_FAILED}">${icon('x', 16)} Cancel</a>`
+              : null,
+          },
+        );
+      };
+
+      screens['step-up-locked'] = () =>
+        page(
+          `${stateMark('lock', 'warn')}
+  <h1 class="title">We could not confirm it's you</h1>
+  <p class="subtitle">${S.otp.resends > 3 ? 'Too many new codes requested.' : 'The code was wrong too many times.'} Your declaration was not submitted. Your answers are saved.</p>
+  <div class="stack" style="margin-top:24px">
+    <a class="btn btn-primary btn-block" href="${PORTAL_STEPUP_RETURN}">Back to declaration</a>
+    <p class="small muted">Press Submit again to get a new code.</p>
+  </div>`,
+          { top: '' },
+        );
+
+      screens['staff-totp'] = () => {
+        const T = S.totp;
+        return page(`
+    <div class="as-user"><span class="avatar sm" style="background:var(--surface);color:var(--ink-2);box-shadow:var(--shadow-card)">${icon('user', 14)}</span><div class="who truncate">${STAFF.email}</div><button class="btn btn-ghost btn-sm" data-act="restartLogin">${icon('undo', 15)} Not you?</button></div>
+    <h1 class="title">Enter your authenticator code</h1>
+    <p class="subtitle">The 6-digit code from the app you set up for Adili Online.</p>
+    <div class="stack" style="margin-top:24px;gap:0">
+      ${T.error ? `<div style="margin-bottom:16px">${alertBox('danger', '', 'That code is not right. Codes change every 30 seconds, so enter the one showing now.')}</div>` : ''}
+      ${otpBox('totp.code', 'verifyTotp', 'Enter the 6-digit code from your app', T.busy)}
+      <div class="code-meta">${T.busy ? '<span class="spinner dark" style="width:14px;height:14px"></span> Checking the code' : `${icon('clock', 14)} A new code appears every 30 seconds.`}</div>
+    </div>
+    <p class="small muted" style="margin-top:24px">Lost your phone? Ask the EACC platform team to reset it.</p>
+    ${hint('<b>000000</b> = wrong code.')}
+  `);
+      };
+
+      screens['action-landing'] = () => {
+        if (!isStaff()) {
+          return page(
+            `<h1 class="title">Set your password</h1>
+      <p class="subtitle">Your account for ${D.commission} is ready.</p>
+      <div class="card" style="margin-top:22px;padding:14px 16px;display:flex;gap:12px;align-items:center">
+        <span class="avatar" style="background:var(--brand-soft);color:var(--brand-ink)">JK</span>
+        <div style="flex:1;min-width:0"><div style="font-weight:500">${D.name}</div><div class="small muted">Officer reference <span class="mono">${D.ofr}</span></div></div>
+      </div>
+      <div class="stack" style="margin-top:22px">
+        <button class="btn btn-primary btn-block" data-act="go" data-arg="update-password">Set password</button>
+        <p class="small muted">This link works once, within 24 hours.</p>
+      </div>`,
+            { artV: 'activate' },
+          );
+        }
+        return page(
+          `<h1 class="title">Activate your console account</h1>
+    <p class="subtitle">${STAFF.role}, ${STAFF.commission}</p>
+    <div class="card steps-list">
+      <div class="s done"><span class="n">${icon('check', 14, 2.6)}</span><div><div class="t">Verify your email</div><div class="d">${esc(STAFF.email)} confirmed</div></div></div>
+      <div class="s"><span class="n">2</span><div><div class="t">Set a password</div><div class="d">At least 12 characters.</div></div></div>
+      <div class="s"><span class="n">3</span><div><div class="t">Set up an authenticator app</div><div class="d">You will need your phone.</div></div></div>
+    </div>
+    <div class="stack" style="margin-top:22px">
+      <button class="btn btn-primary btn-block" data-act="go" data-arg="update-password">Start</button>
+      <p class="small muted">This link works once, within 72 hours.</p>
+    </div>`,
+          { artV: 'staff' },
+        );
+      };
+
+      screens['verify-email'] = () =>
+        page(
+          `
+  <h1 class="title">Verify your email</h1>
+  <p class="subtitle">Open the link we sent to <b style="color:var(--ink)">${esc(STAFF.email)}</b> on this device.</p>
+  <div class="stack" style="margin-top:24px">
+    ${S.staffAct.resent ? alertBox('ok', '', 'We sent the email again. It can take a few minutes to arrive.') : ''}
+    <div class="callout callout-info">${icon('info', 18)}<div>Not there? Check spam for <b>no-reply@adili.go.ke</b>.</div></div>
+    <button class="btn btn-secondary btn-block" data-act="resendVerify">Resend email</button>
+    <button class="btn btn-ghost btn-block" data-act="verifyDone">I opened the link</button>
+  </div>`,
+          { stepper: [1, 3] },
+        );
+
+      screens['update-password'] = () => {
+        const P = S.pw;
+        const staff = isStaff();
+        const reset = S.flow === 'reset';
+        const idLow = (staff ? STAFF.email : D.ofr).toLowerCase();
+        const a = P.a;
+        const rules = [
+          ['At least 12 characters', a.length >= 12],
+          [
+            staff ? 'Not your email address' : 'Not your email or officer reference',
+            a.length > 0 &&
+              !a.toLowerCase().includes(idLow.split('@')[0]) &&
+              !a.toLowerCase().includes('0012345'),
+          ],
+          ...(reset
+            ? [['Not one of your last 3 passwords', a.length > 0 && a !== 'Password12345']]
+            : []),
+        ];
+        const mismatch = P.b && a !== P.b;
+        return page(
+          `
+    <h1 class="title">${reset ? 'Choose a new password' : 'Set your password'}</h1>
+    <div class="stack" style="margin-top:24px">
+      ${P.error ? alertBox('danger', '', P.error) : ''}
+      <div class="field">
+        <label class="label" for="f-pw-a"><span>New password</span></label>
+        ${pwInput('pw.a', 'showA', 'toggleA', '', 'new-password', false).replace('data-bind="pw.a"', 'data-bind="pw.a" data-live aria-describedby="pw-rules"')}
+        <ul class="rules" id="pw-rules" aria-label="Password rules">${rules.map(([t, ok]) => `<li class="${ok ? 'ok' : ''}"><span class="m">${ok ? icon('check', 12, 3) : ''}</span>${t}<span class="sr-only">${ok ? ' (met)' : ' (not met yet)'}</span></li>`).join('')}</ul>
+      </div>
+      <div class="field">
+        <label class="label" for="f-pw-b"><span>Confirm new password</span></label>
+        ${pwInput('pw.b', 'showB', 'toggleB', '', 'new-password', mismatch).replace('data-bind="pw.b"', 'data-bind="pw.b" data-live')}
+        ${mismatch ? '<div class="hint" style="color:var(--danger);font-weight:500">The passwords do not match.</div>' : ''}
+      </div>
+      ${reset ? checkbox('pw.logoutOthers', 'Sign out of other devices', { sub: 'Recommended if someone may know your old password.' }) : ''}
+      <button class="btn btn-primary btn-block" data-act="savePassword" ${P.busy ? 'disabled' : ''}>${P.busy ? '<span class="spinner"></span> Saving' : 'Save and continue'}</button>
+    </div>
+    ${hint('<b>Password12345</b> = recently used.')}
+  `,
+          { artV: staff ? 'staff' : 'activate', stepper: staff && !reset ? [2, 3] : null },
+        );
+      };
+
+      screens['configure-totp'] = () => {
+        const C = S.cfg;
+        return page(
+          `
+    <h1 class="title">Set up your authenticator app</h1>
+    <div class="stack-lg" style="margin-top:24px">
+      <div class="card card-pad stack" style="gap:12px">
+        <div class="row" style="align-items:flex-start"><span class="num">1</span><div><div style="font-weight:500">Install an app on your phone</div><div class="small muted">For example Google or Microsoft Authenticator.</div></div></div>
+        <div class="row" style="align-items:flex-start"><span class="num">2</span><div style="flex:1;min-width:0"><div style="font-weight:500">Scan this QR code with the app</div>
+          <div class="totp-grid" style="margin-top:12px">
+            <div class="qr-box">${qr(41, 132).replace('aria-label="QR code"', 'aria-label="QR code to add Adili Online to your authenticator app. The same key is available as text below."')}</div>
+            <div class="small">${C.manual ? `<div class="muted" style="margin-bottom:4px">Enter this key in the app:</div><div class="secret">${TOTP_SECRET}</div><div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-xs" data-act="copy" data-arg="${TOTP_SECRET.replace(/ /g, '')}">${icon('copy', 13)} Copy key</button></div><div class="muted" style="margin-top:8px">Time-based · 6 digits · every 30 seconds</div>` : `<button class="link" data-act="toggleManual">Can't scan? Enter a key</button>`}</div>
+          </div></div></div>
+        <div class="row" style="align-items:flex-start"><span class="num">3</span><div style="flex:1;min-width:0"><div style="font-weight:500">Enter the 6-digit code the app shows</div>
+          <div style="margin-top:12px">${C.error ? `<div style="margin-bottom:12px">${alertBox('danger', '', 'That code is not right. Check that the time on your phone is set automatically, then enter the code showing now.')}</div>` : ''}${otpBox('cfg.code', 'cfgCodeDone', 'Code from your authenticator app')}</div></div></div>
+      </div>
+      ${field('Name this device', input('cfg.device', { ph: 'e.g. Work phone' }), { opt: true, id: 'f-cfg-device' })}
+      <button class="btn btn-primary btn-block" data-act="finishTotp" ${C.busy ? 'disabled' : ''}>${C.busy ? '<span class="spinner"></span> Checking' : 'Finish setup'}</button>
+    </div>
+    ${hint('<b>000000</b> = wrong code.')}
+  `,
+          { artV: 'staff', stepper: [3, 3] },
+        );
+      };
+
+      screens['actions-done'] = () => {
+        const staff = isStaff();
+        return page(
+          `${stateMark('check', 'ok')}
+    <h1 class="title">${staff ? 'Your console account is active' : 'Your password is set'}</h1>
+    <p class="subtitle">${staff ? 'Sign in with your email, password and authenticator code.' : 'Next time, sign in with your password and a code sent to your phone.'}</p>
+    <div class="card" style="margin-top:22px;padding:14px 16px">
+      <dl class="dl" style="margin:0">
+        ${
+          staff
+            ? `<div><dt>Signed in as</dt><dd>${esc(STAFF.email)}</dd></div><div><dt>Role</dt><dd>Reporting officer</dd></div><div><dt>Commission</dt><dd>${STAFF.commission}</dd></div>`
+            : `<div><dt>Officer reference</dt><dd class="mono">${D.ofr}</dd></div><div><dt>Sign-in codes go to</dt><dd>${D.phoneMasked}</dd></div>`
+        }
+      </dl>
+    </div>
+    <div class="stack" style="margin-top:22px">
+      ${staff ? `<a class="btn btn-primary btn-block" href="${CONSOLE_HOME}">Go to console</a>` : `<button class="btn btn-primary btn-block" data-act="afterSetPassword">Sign in</button>`}
+    </div>`,
+          { artV: staff ? 'staff' : 'activate' },
+        );
+      };
+
+      screens['link-expired'] = () => {
+        const staff = isStaff();
+        return page(
+          `${stateMark('clock', 'warn')}
+    <h1 class="title">This link has expired</h1>
+    <p class="subtitle">${staff ? 'Activation links work for 72 hours. Ask EACC to resend your invitation.' : 'Set-password links work for 24 hours.'}</p>
+    <div class="stack" style="margin-top:24px">
+      ${
+        staff
+          ? `<button class="btn btn-secondary btn-block" data-act="setAud" data-arg="staff|login">Back to sign in</button>`
+          : `<a class="btn btn-primary btn-block" href="${PORTAL}">Get a new link</a>
+        <div class="callout callout-info">${icon('info', 18)}<div>On another device? Use <button class="link" data-act="go" data-arg="reset-password">Forgot password</button> instead. It sets your password too.</div></div>`
+      }
+    </div>`,
+          { artV: staff ? 'staff' : 'activate' },
+        );
+      };
+
+      screens['link-invalid'] = () =>
+        page(`${stateMark('link', 'danger')}
+  <h1 class="title">This link does not work</h1>
+  <p class="subtitle">It may be used already, or copied only in part.</p>
+  <div class="stack" style="margin-top:24px">
+    <div class="callout callout-info">${icon('info', 18)}<div>${isStaff() ? 'Already activated? Sign in. If not, ask EACC to resend your invitation.' : 'Already set your password? Sign in. If not, get a new link from the portal.'}</div></div>
+    <button class="btn btn-primary btn-block" data-act="setAud" data-arg="${S.aud}|login">Go to sign in</button>
+  </div>`);
+
+      screens['account-disabled'] = () => {
+        const staff = isStaff();
+        return page(`${stateMark('ban', 'danger')}
+    <h1 class="title">${staff ? 'Your console access has ended' : 'Your account is disabled'}</h1>
+    <p class="subtitle">${staff ? 'EACC has usually assigned another reporting officer to your Commission.' : 'You cannot sign in with this account.'}</p>
+    <div class="stack" style="margin-top:24px">
+      <div class="callout callout-info">${icon('info', 18)}<div>${staff ? 'Contact the EACC platform team if you think this is a mistake.' : `Contact your Commission's reporting officer. Quote your officer reference, never your ID number or password.`}</div></div>
+      <button class="btn btn-secondary btn-block" data-act="setAud" data-arg="${S.aud}|login">Back to sign in</button>
+    </div>`);
+      };
+
+      screens.error = () =>
+        page(`${stateMark('alert', 'neutral')}
+  <h1 class="title">Something went wrong</h1>
+  <p class="subtitle">Nothing has changed on your account. Try signing in again.</p>
+  <div class="stack" style="margin-top:24px">
+    <button class="btn btn-primary btn-block" data-act="setAud" data-arg="${S.aud}|login">Back to sign in</button>
+    <p class="small muted">If it keeps happening, contact ${isStaff() ? 'the EACC platform team' : "your Commission's reporting officer"}.</p>
+  </div>`);
+
+      screens['page-expired'] = () =>
+        page(`${stateMark('timer', 'warn')}
+  <h1 class="title">This page has expired</h1>
+  <p class="subtitle">You may have waited too long, or opened sign-in in another tab.</p>
+  <div class="stack" style="margin-top:24px">
+    <button class="btn btn-primary btn-block" data-act="restartLogin">Start again</button>
+    <button class="btn btn-secondary btn-block" data-act="go" data-arg="${isStaff() ? 'staff-totp' : 'otp'}">Continue</button>
+  </div>`);
+
+      screens.logout = () => {
+        if (S.loggedOut) {
+          return page(`${stateMark('logout', 'ok')}
+      <h1 class="title">You are signed out</h1>
+      <p class="subtitle">On a shared computer, also close this browser window.</p>
+      <div class="stack" style="margin-top:24px"><button class="btn btn-primary btn-block" data-act="restartLogin">Sign in again</button></div>`);
+        }
+        return page(`${stateMark('logout', 'neutral')}
+    <h1 class="title">Sign out of Adili Online?</h1>
+    <p class="subtitle">${isStaff() ? 'You will need your password and authenticator code to sign in again.' : 'Your saved declaration stays safe.'}</p>
+    <div class="btn-row" style="margin-top:24px">
+      <button class="btn btn-secondary" data-act="toast" data-arg="Back to where you were (prototype)">Cancel</button>
+      <button class="btn btn-primary" data-act="doLogout">Sign out</button>
+    </div>`);
+      };
+
+      /* ---------- actions ---------- */
+      let busyT;
+      const later = (fn, ms = 700) => {
+        clearTimeout(busyT);
+        busyT = setTimeout(() => {
+          fn();
+          Kit.render();
+        }, ms);
+      };
+      const resetOtp = (channel = 'sms') =>
+        Object.assign(S.otp, {
+          code: blankCode(),
+          channel,
+          cooldownEnds: Date.now() + 60000,
+          attemptsLeft: 5,
+          resends: 0,
+          error: null,
+          busy: false,
+          sendFailed: null,
+          done: false,
+        });
+      function leaveTo(url, ms = 1400) {
+        later(() => {
+          location.href = url;
+        }, ms);
+      }
+
+      const actions = {
+        lang: () => Kit.toast('Kiswahili: strings are slots for now'),
+        togglePw: () => {
+          S.login.showPw = !S.login.showPw;
+          Kit.render();
+        },
+        toggleA: () => {
+          S.pw.showA = !S.pw.showA;
+          Kit.render();
+        },
+        toggleB: () => {
+          S.pw.showB = !S.pw.showB;
+          Kit.render();
+        },
+        passkey: () => {
+          Kit.toast('Your device asks for your fingerprint, face or PIN');
+          later(() => {
+            location.href = PORTAL_HOME;
+          }, 1500);
+        },
+        signIn: () => {
+          const L = S.login;
+          L.notice = null;
+          if (!L.id.trim() || !L.pw) {
+            L.error = isStaff()
+              ? 'Enter your official email and password.'
+              : 'Enter your email or officer reference, and your password.';
+            Kit.render();
+            return;
+          }
+          L.error = null;
+          L.busy = true;
+          Kit.render();
+          later(() => {
+            L.busy = false;
+            if (L.pw.toLowerCase() === 'wrong') {
+              L.error = isStaff()
+                ? 'The email or password is not right. Check them and try again.'
+                : 'The email, officer reference or password is not right. Check them and try again.';
+              L.pw = '';
+              return;
+            }
+            S.flow = 'login';
+            if (isStaff()) {
+              S.totp = { code: blankCode(), error: null, busy: false };
+              Kit.go('staff-totp');
+            } else {
+              resetOtp();
+              Kit.go('otp');
+            }
+          }, 800);
+        },
+        restartLogin: () => {
+          const aud = S.aud;
+          Object.assign(S, fresh(), { aud });
+          Kit.go('login');
+        },
+        sendReset: () => {
+          if (!S.reset.id.trim()) {
+            S.reset.error =
+              'Enter your ' + (isStaff() ? 'official email.' : 'email or officer reference.');
+            Kit.render();
+            return;
+          }
+          S.reset.error = null;
+          S.login.notice = 'reset-sent';
+          Kit.go('login');
+        },
+        verifyOtp: (code) => {
+          const O = S.otp;
+          O.busy = true;
+          O.error = null;
+          Kit.render();
+          later(() => {
+            O.busy = false;
+            if (code === '000000') {
+              O.attemptsLeft -= 1;
+              if (O.attemptsLeft <= 0) {
+                if (S.flow === 'stepup') {
+                  Kit.go('step-up-locked');
+                } else {
+                  const aud = S.aud;
+                  Object.assign(S, fresh(), { aud });
+                  S.login.notice = 'otp-locked';
+                  Kit.go('login');
+                }
+                return;
+              }
+              O.error = 'wrong';
+              return;
+            }
+            if (code === '111111') {
+              O.error = 'expired';
+              return;
+            }
+            O.done = true;
+            leaveTo(S.flow === 'stepup' ? PORTAL_STEPUP_RETURN : PORTAL_HOME, 1600);
+          }, 800);
+        },
+        resend: () => {
+          const O = S.otp;
+          O.resends += 1;
+          if (O.resends > 3) {
+            if (S.flow === 'stepup') {
+              Kit.go('step-up-locked');
+            } else {
+              const aud = S.aud;
+              Object.assign(S, fresh(), { aud });
+              S.login.notice = 'otp-resends';
+              Kit.go('login');
+            }
+            return;
+          }
+          O.cooldownEnds = Date.now() + 60000;
+          O.error = null;
+          O.code = blankCode();
+          O.attemptsLeft = 5;
+          Kit.toast('New code sent');
+        },
+        switchChannel: () => {
+          const O = S.otp;
+          O.channel = O.channel === 'sms' ? 'email' : 'sms';
+          O.cooldownEnds = Date.now() + 60000;
+          O.error = null;
+          O.code = blankCode();
+          O.attemptsLeft = 5;
+          Kit.toast(O.channel === 'email' ? 'Code sent by email' : 'Code sent by SMS');
+        },
+        sendByEmail: () => {
+          S.otp.sendFailed = null;
+          resetOtp('email');
+          Kit.go(S.flow === 'stepup' ? 'step-up' : 'otp');
+          Kit.toast('Code sent by email');
+        },
+        retrySms: () => {
+          resetOtp('sms');
+          Kit.go(S.flow === 'stepup' ? 'step-up' : 'otp');
+          Kit.toast('Code sent by SMS');
+        },
+        retrySend: () => {
+          resetOtp('sms');
+          Kit.go(S.flow === 'stepup' ? 'step-up' : 'otp');
+          Kit.toast('Code sent by SMS');
+        },
+        verifyTotp: (code) => {
+          const T = S.totp;
+          T.busy = true;
+          T.error = null;
+          Kit.render();
+          later(() => {
+            T.busy = false;
+            if (code === '000000') {
+              T.error = true;
+              return;
+            }
+            Kit.toast('Signed in');
+            location.href = CONSOLE_HOME;
+          }, 700);
+        },
+        resendVerify: () => {
+          S.staffAct.resent = true;
+          Kit.render();
+        },
+        verifyDone: () => Kit.go('update-password'),
+        savePassword: () => {
+          const P = S.pw;
+          P.error = null;
+          if (P.a.length < 12) {
+            P.error = 'Use at least 12 characters.';
+            Kit.render();
+            return;
+          }
+          if (P.a !== P.b) {
+            P.error = 'The passwords do not match. Type the same password twice.';
+            Kit.render();
+            return;
+          }
+          P.busy = true;
+          Kit.render();
+          later(() => {
+            P.busy = false;
+            if (P.a === 'Password12345') {
+              P.error = 'You used this password recently. Choose a different one.';
+              P.a = '';
+              P.b = '';
+              return;
+            }
+            if (isStaff() && S.flow === 'activation') {
+              S.cfg = {
+                code: blankCode(),
+                device: '',
+                manual: false,
+                error: null,
+                busy: false,
+                entered: '',
+              };
+              Kit.go('configure-totp');
+            } else if (S.flow === 'reset') {
+              S.login.notice = 'password-set';
+              S.flow = 'login';
+              Kit.go('login');
+            } else Kit.go('actions-done');
+          }, 800);
+        },
+        cfgCodeDone: (code) => {
+          S.cfg.entered = code;
+          S.cfg.code = code.split('');
+          Kit.render();
+        },
+        toggleManual: () => {
+          S.cfg.manual = !S.cfg.manual;
+          Kit.render();
+        },
+        finishTotp: () => {
+          const C = S.cfg;
+          const code = C.entered || C.code.join('');
+          if (code.length < 6) {
+            Kit.toast('Enter the 6-digit code from the app', true);
+            return;
+          }
+          C.busy = true;
+          C.error = null;
+          Kit.render();
+          later(() => {
+            C.busy = false;
+            if (code === '000000') {
+              C.error = true;
+              C.code = blankCode();
+              C.entered = '';
+              return;
+            }
+            Kit.go('actions-done');
+          }, 800);
+        },
+        afterSetPassword: () => {
+          S.flow = 'login';
+          S.login.notice = 'password-set';
+          Kit.go('login');
+        },
+        doLogout: () => {
+          S.loggedOut = true;
+          Kit.render();
+        },
+        setAud: (arg) => {
+          const [aud, scr] = arg.split('|');
+          S.aud = aud;
+          S.flow = 'login';
+          Kit.go(scr);
+        },
+      };
+
+      /* ---------- jumps: every state in one click ---------- */
+      const J = (aud, flow, scr, extra) => () => {
+        const keep = { aud, flow };
+        Object.assign(S, fresh(), keep);
+        if (extra) extra();
+        Kit.go(scr);
+      };
+      const jumps = [
+        ['login', '#78 Declarant: sign in', J('declarant', 'login', 'login')],
+        [
+          'j-login-bad',
+          '#78 Sign in: wrong password',
+          J('declarant', 'login', 'login', () => {
+            S.login.id = 'OFR-0012345-B';
+            S.login.error =
+              'The email, officer reference or password is not right. Check them and try again.';
+          }),
+        ],
+        [
+          'j-login-timeout',
+          '#78 Sign in: took too long (session timed out)',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'timeout';
+          }),
+        ],
+        [
+          'j-login-lock',
+          '#78 Sign in: paused after wrong passwords (open question)',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'locked';
+          }),
+        ],
+        [
+          'j-login-disabled',
+          '#78 Sign in: account disabled message',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'disabled';
+          }),
+        ],
+        ['reset-password', '#78 Forgot password', J('declarant', 'reset', 'reset-password')],
+        [
+          'j-reset-sent',
+          '#78 Forgot password: email sent',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'reset-sent';
+          }),
+        ],
+        ['otp', '#78 OTP: code sent by SMS (cooldown)', J('declarant', 'login', 'otp')],
+        [
+          'j-otp-resend',
+          '#78 OTP: resend available',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.cooldownEnds = Date.now() - 1;
+          }),
+        ],
+        [
+          'j-otp-email',
+          '#78 OTP: sent by email instead',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.channel = 'email';
+          }),
+        ],
+        [
+          'j-otp-wrong',
+          '#78 OTP: wrong code, attempts left',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.error = 'wrong';
+            S.otp.attemptsLeft = 3;
+          }),
+        ],
+        [
+          'j-otp-expired',
+          '#78 OTP: code expired',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.error = 'expired';
+            S.otp.cooldownEnds = Date.now() - 1;
+          }),
+        ],
+        [
+          'j-otp-busy',
+          '#78 OTP: checking the code',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.busy = true;
+            S.otp.code = ['4', '8', '2', '9', '1', '7'];
+          }),
+        ],
+        [
+          'j-otp-resent',
+          '#78 OTP: after 2 resends',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.resends = 2;
+          }),
+        ],
+        [
+          'j-otp-locked',
+          '#78 OTP: too many wrong codes (back to sign in)',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'otp-locked';
+          }),
+        ],
+        [
+          'j-otp-resends',
+          '#78 OTP: too many resends (back to sign in)',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'otp-resends';
+          }),
+        ],
+        [
+          'otp-send-failed',
+          '#78 OTP: SMS failed, choose email',
+          J('declarant', 'login', 'otp-send-failed', () => {
+            S.otp.sendFailed = 'sms';
+          }),
+        ],
+        [
+          'j-send-both',
+          '#78 OTP: SMS and email both failed',
+          J('declarant', 'login', 'otp-send-failed', () => {
+            S.otp.sendFailed = 'both';
+          }),
+        ],
+        [
+          'j-otp-done',
+          '#78 OTP: accepted, going to portal',
+          J('declarant', 'login', 'otp', () => {
+            S.otp.done = true;
+          }),
+        ],
+        [
+          'action-landing',
+          '#78 Set-password link landing (declarant)',
+          J('declarant', 'activation', 'action-landing'),
+        ],
+        [
+          'update-password',
+          '#78 Set your password',
+          J('declarant', 'activation', 'update-password'),
+        ],
+        [
+          'j-pw-rules',
+          '#78 Set password: rules partly met, mismatch',
+          J('declarant', 'activation', 'update-password', () => {
+            S.pw.a = 'mango2026';
+            S.pw.b = 'mango20';
+          }),
+        ],
+        [
+          'j-pw-server',
+          '#78 Set password: server rejects (recently used)',
+          J('declarant', 'reset', 'update-password', () => {
+            S.pw.error = 'You used this password recently. Choose a different one.';
+          }),
+        ],
+        [
+          'j-pw-reset',
+          '#78 Reset password: choose new (sign out others)',
+          J('declarant', 'reset', 'update-password'),
+        ],
+        [
+          'actions-done',
+          '#78 Password set (declarant)',
+          J('declarant', 'activation', 'actions-done'),
+        ],
+        [
+          'j-login-pwset',
+          '#78 Sign in after setting password',
+          J('declarant', 'login', 'login', () => {
+            S.login.notice = 'password-set';
+          }),
+        ],
+        [
+          'link-expired',
+          '#78 Expired set-password link (declarant)',
+          J('declarant', 'activation', 'link-expired'),
+        ],
+        ['link-invalid', '#78 Invalid or used link', J('declarant', 'activation', 'link-invalid')],
+        [
+          'account-disabled',
+          '#78 Account disabled (declarant)',
+          J('declarant', 'login', 'account-disabled'),
+        ],
+        ['error', '#78 Generic error', J('declarant', 'login', 'error')],
+        [
+          'page-expired',
+          '#78 Page expired (session expired)',
+          J('declarant', 'login', 'page-expired'),
+        ],
+        ['logout', '#78 Sign out: confirm', J('declarant', 'login', 'logout')],
+        [
+          'j-logged-out',
+          '#78 Sign out: done',
+          J('declarant', 'login', 'logout', () => {
+            S.loggedOut = true;
+          }),
+        ],
+        ['step-up', "#133 Step-up: confirm it's you (SMS)", J('declarant', 'stepup', 'step-up')],
+        [
+          'j-su-wrong',
+          '#133 Step-up: wrong code',
+          J('declarant', 'stepup', 'step-up', () => {
+            S.otp.error = 'wrong';
+            S.otp.attemptsLeft = 2;
+          }),
+        ],
+        [
+          'j-su-expired',
+          '#133 Step-up: code expired',
+          J('declarant', 'stepup', 'step-up', () => {
+            S.otp.error = 'expired';
+            S.otp.cooldownEnds = Date.now() - 1;
+          }),
+        ],
+        [
+          'j-su-email',
+          '#133 Step-up: code by email',
+          J('declarant', 'stepup', 'step-up', () => {
+            S.otp.channel = 'email';
+          }),
+        ],
+        [
+          'j-su-failed',
+          '#133 Step-up: SMS failed, choose email',
+          J('declarant', 'stepup', 'otp-send-failed', () => {
+            S.otp.sendFailed = 'sms';
+          }),
+        ],
+        [
+          'step-up-locked',
+          '#133 Step-up: too many wrong codes',
+          J('declarant', 'stepup', 'step-up-locked'),
+        ],
+        [
+          'j-su-done',
+          '#133 Step-up: confirmed, returning to portal',
+          J('declarant', 'stepup', 'step-up', () => {
+            S.otp.done = true;
+          }),
+        ],
+        ['j-staff-login', '#6 Staff: sign in to the console', J('staff', 'login', 'login')],
+        ['staff-totp', '#6 Staff: authenticator code', J('staff', 'login', 'staff-totp')],
+        [
+          'j-totp-wrong',
+          '#6 Staff: wrong authenticator code',
+          J('staff', 'login', 'staff-totp', () => {
+            S.totp.error = true;
+          }),
+        ],
+        [
+          'j-staff-landing',
+          '#6 Staff activation: link landing (72 h)',
+          J('staff', 'activation', 'action-landing'),
+        ],
+        [
+          'verify-email',
+          '#6 Staff activation: verify email (edge)',
+          J('staff', 'activation', 'verify-email'),
+        ],
+        [
+          'j-staff-pw',
+          '#6 Staff activation: set password',
+          J('staff', 'activation', 'update-password'),
+        ],
+        [
+          'configure-totp',
+          '#6 Staff activation: set up authenticator app',
+          J('staff', 'activation', 'configure-totp'),
+        ],
+        [
+          'j-cfg-manual',
+          '#6 Staff activation: authenticator, manual key, wrong code',
+          J('staff', 'activation', 'configure-totp', () => {
+            S.cfg.manual = true;
+            S.cfg.error = true;
+          }),
+        ],
+        [
+          'j-staff-done',
+          '#6 Staff activation: account active',
+          J('staff', 'activation', 'actions-done'),
+        ],
+        [
+          'j-staff-expired',
+          '#6 Staff: activation link expired',
+          J('staff', 'activation', 'link-expired'),
+        ],
+        [
+          'j-staff-disabled',
+          '#6 Staff: access ended (replaced officer)',
+          J('staff', 'login', 'account-disabled'),
+        ],
+      ];
+
+      Kit.mount({
+        app: 'keycloak',
+        start: 'login',
+        home: 'login',
+        screens,
+        actions,
+        jumps,
+        coverage: [
+          {
+            ticket: 78,
+            title: 'Keycloak theme: OTP entry, update password, expired link and error pages',
+            screens: [
+              'login',
+              'j-login-bad',
+              'j-login-timeout',
+              'reset-password',
+              'otp',
+              'j-otp-resend',
+              'j-otp-email',
+              'j-otp-wrong',
+              'j-otp-expired',
+              'j-otp-busy',
+              'j-otp-locked',
+              'j-otp-resends',
+              'otp-send-failed',
+              'j-send-both',
+              'action-landing',
+              'update-password',
+              'j-pw-rules',
+              'j-pw-server',
+              'j-pw-reset',
+              'actions-done',
+              'link-expired',
+              'link-invalid',
+              'account-disabled',
+              'error',
+              'page-expired',
+              'logout',
+            ],
+            note: 'Declarant and staff variants chosen by client_id (portal vs console). Custom page login-adili-otp.ftl needs KcContextExtensionPerPage fields: channel, maskedDestination, attemptsLeft, resendAvailableAt, resendsLeft, sendFailed, isStepUp. Swahili: realm internationalizationEnabled is false today.',
+          },
+          {
+            ticket: 133,
+            title: 'Step-up re-authentication page shown before submit (UI side)',
+            screens: [
+              'step-up',
+              'j-su-wrong',
+              'j-su-expired',
+              'j-su-email',
+              'j-su-failed',
+              'step-up-locked',
+              'j-su-done',
+            ],
+            note:
+              'OTP only, no password. Success returns to the portal (' +
+              PORTAL_STEPUP_RETURN +
+              '); cancel and failure return to (' +
+              PORTAL_STEPUP_FAILED +
+              '); the portal owns stepUp=done / stepUp=failed handling.',
+          },
+          {
+            ticket: 6,
+            title:
+              'Spec 01 FE-6: reporting officer activation (VERIFY_EMAIL, UPDATE_PASSWORD, CONFIGURE_TOTP, 72 h link)',
+            screens: [
+              'j-staff-login',
+              'staff-totp',
+              'j-totp-wrong',
+              'j-staff-landing',
+              'verify-email',
+              'j-staff-pw',
+              'configure-totp',
+              'j-cfg-manual',
+              'j-staff-done',
+              'j-staff-expired',
+              'j-staff-disabled',
+            ],
+            note: 'Requested alongside #78; verify-email is normally skipped because opening the execute-actions link verifies the email.',
+          },
+        ],
+        afterRender: () => {
+          let n = document.querySelector('.kc-note');
+          if (!n) {
+            n = document.createElement('div');
+            n.className = 'kc-note';
+            n.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(n);
+          }
+          n.textContent = `${FTL[S.screen] || ''} · client ${isStaff() ? 'console' : 'portal'}`;
+          const a = document.querySelector('[data-focus-alert]');
+          if (a && S._lastAlert !== a.textContent) {
+            S._lastAlert = a.textContent;
+            a.focus({ preventScroll: true });
+          }
+          if (!a) S._lastAlert = null;
+        },
+      });
+
+      // Resend countdown: update text in place (no re-render, so typing is not interrupted); re-render once when it reaches 0.
+      let wasCounting = true;
+      setInterval(() => {
+        if (!['otp', 'step-up'].includes(S.screen)) return;
+        const s = secsLeft();
+        const el = document.querySelector('[data-cd]');
+        if (el) el.textContent = mmss(s);
+        const sr = document.querySelector('[data-cd-sr]');
+        if (sr && s % 10 === 0 && s > 0) sr.textContent = `Resend available in ${s} seconds`;
+        if (s === 0 && wasCounting) {
+          wasCounting = false;
+          Kit.render();
+        }
+        if (s > 0) wasCounting = true;
+      }, 1000);
+    </script>
+  </body>
+</html>

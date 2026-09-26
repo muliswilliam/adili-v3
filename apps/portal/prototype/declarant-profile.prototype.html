@@ -1,0 +1,1154 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Question: what does a declarant's own account area look like (identity from the roster, Commission memberships, contact details, sign-in and devices, notifications and language, and "Who accessed my declaration")? Covers ticket #74 (profile data from GET /v1/me/declarant, S18) with #76 as its backend; everything else is designed ahead of spec (ADR-004 security settings, ADR-008 access log). Open by double-clicking. State is in memory. -->
+<!-- Demo assumption: this file follows the after-submission world (declarant-after-submission.prototype.html): John Kennedy onboarded at TSC on 14 Apr 2026 and his initial declaration DCI-TSC-2026-0003418-P was received on 28 Apr 2026, so the access log has history. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - Declarant profile (prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../packages/ui/prototype/kit.css" />
+    <style>
+      .pp {
+        max-width: 780px;
+      }
+      .pp .tabs {
+        margin: 14px 0 22px;
+      }
+      .proto-note {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: #6d5a2a;
+        background: #fffaf0;
+        border: 1px dashed #e2c98f;
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      .mono-code {
+        display: inline-grid;
+        place-items: center;
+        min-width: 40px;
+        height: 26px;
+        padding: 0 7px;
+        border-radius: 7px;
+        background: var(--sunken);
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .dl.pad {
+        margin: 0;
+        padding: 2px 20px 4px;
+      }
+      @container app (min-width: 700px) {
+        .dl.pad {
+          padding: 2px 24px 4px;
+        }
+      }
+      .dl > div {
+        align-items: center;
+      }
+      .dl dd {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .v-ok {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--ok-soft);
+        color: var(--ok);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .lock-note {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .lock-note svg {
+        flex: none;
+        margin-top: 2px;
+      }
+      .item .when {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+        text-align: right;
+      }
+      .item.click {
+        cursor: pointer;
+      }
+      .item.click:hover {
+        background: #fbfaf8;
+      }
+      .item.gone .t,
+      .item.gone .d {
+        color: var(--muted);
+      }
+      .ico.warn {
+        background: var(--warn-soft) !important;
+        color: var(--warn) !important;
+      }
+      .ico.info {
+        background: #eaf2fd !important;
+        color: #1f5fbf !important;
+      }
+      .ico.brand {
+        background: var(--brand-soft) !important;
+        color: var(--brand-ink) !important;
+      }
+      .ico.ok {
+        background: var(--ok-soft) !important;
+        color: var(--ok) !important;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 2px;
+        margin: 0 -2px 14px;
+      }
+      .sk-line {
+        display: block;
+        height: 12px;
+        margin: 10px 0;
+      }
+      .cool {
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .done-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 8px 0 4px;
+      }
+      .done-box .success-mark {
+        margin-bottom: 14px;
+        width: 56px;
+        height: 56px;
+      }
+      .ch-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @container app (min-width: 520px) {
+        .ch-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .card > .pager {
+        border-top: 0;
+        padding: 10px 20px;
+      }
+      @container app (min-width: 700px) {
+        .card > .pager {
+          padding: 10px 24px;
+        }
+      }
+      .otp input {
+        min-width: 0;
+      }
+      @container app (max-width: 599px) {
+        .item .when {
+          grid-column: 2;
+          grid-row: 3;
+          text-align: left;
+        }
+      }
+      .row-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex: none;
+      }
+    </style>
+    <script src="../../../packages/ui/prototype/kit.js"></script>
+  </head>
+  <body>
+    <script>
+      const { icon, esc, field, input, dialog, drawer, portalShell, fmtDate, fmtDateTime, num } =
+        Kit;
+      Kit.I.laptop =
+        '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>';
+
+      /* ---------- demo data ---------- */
+      const ME = {
+        full: 'John Fitzgerald Kennedy',
+        nidMasked: '•••• 3219',
+        ofr: 'OFR-0012345-B',
+        email: 'john.kennedy@gmail.com',
+        phone: '+254 712 480 123',
+        emailMasked: 'j***@gmail.com',
+        phoneMasked: '07** *** 123',
+        pwdChanged: '2026-04-14T10:31:00',
+      };
+      const COMMS = {
+        tsc: {
+          code: 'TSC',
+          name: 'Teachers Service Commission',
+          fileNo: '2012445581',
+          designation: 'Deputy Principal',
+          entity: 'Moi Girls High School, Eldoret',
+          state: 'onboarded',
+          onboardedAt: '2026-04-14T10:22:00',
+          ro: { name: 'Nancy Macharia', email: 'n.macharia@tsc.go.ke' },
+        },
+        psc: {
+          code: 'PSC',
+          name: 'Public Service Commission',
+          fileNo: 'PSC/2009/118204',
+          designation: 'Senior Education Officer',
+          entity: 'Ministry of Education',
+          state: 'exited',
+          onboardedAt: '2026-03-12T09:05:00',
+          ro: { name: 'Grace Muthoni', email: 'grace.muthoni@publicservice.go.ke' },
+        },
+      };
+      const DECL = 'DCI-TSC-2026-0003418-P';
+      const CLR = 'CLR-TSC-2026-0000519-4';
+      const ARQ1 = 'ARQ-TSC-2026-0000045-X';
+      const ARQ2 = 'ARQ-TSC-2026-0000052-3';
+      const LEA1 = 'LEA-TSC-2026-0000007-M';
+
+      function seedSessions() {
+        return [
+          {
+            id: 's1',
+            dev: 'Chrome on Windows',
+            ico: 'laptop',
+            where: 'Eldoret',
+            last: 'Active now',
+            current: true,
+          },
+          {
+            id: 's2',
+            dev: 'Safari on iPhone',
+            ico: 'phone',
+            where: 'Eldoret',
+            last: '2 hours ago',
+          },
+          {
+            id: 's3',
+            dev: 'Chrome on Android',
+            ico: 'phone',
+            where: 'Nairobi',
+            last: '3 days ago',
+          },
+        ];
+      }
+
+      /* Sign-in activity (Keycloak events, ADR-004 point 8). Newest first. */
+      function seedActivity() {
+        const base = [
+          ['2026-09-26T08:14', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-09-26T06:02', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-09-23T19:40', 'signin', 'Chrome on Android', 'Nairobi'],
+          ['2026-09-23T19:38', 'code-wrong', 'Chrome on Android', 'Nairobi'],
+          ['2026-09-18T07:55', 'signin-email', 'Chrome on Windows', 'Eldoret'],
+          ['2026-09-11T21:10', 'signout', 'Safari on iPhone', 'Eldoret'],
+          ['2026-09-11T20:47', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-09-02T09:12', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-08-21T18:30', 'pwd-wrong', 'Firefox on Windows', 'Kisumu'],
+          ['2026-08-21T18:29', 'pwd-wrong', 'Firefox on Windows', 'Kisumu'],
+          ['2026-08-14T08:03', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-07-30T12:44', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-07-20T16:15', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-07-02T10:05', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-06-18T19:22', 'signin', 'Safari on iPhone', 'Eldoret'],
+          ['2026-06-02T08:40', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-05-20T13:11', 'signin-email', 'Chrome on Windows', 'Eldoret'],
+          ['2026-05-07T09:30', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-28T14:05', 'stepup', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-28T13:20', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-14T10:32', 'signin', 'Chrome on Windows', 'Eldoret'],
+          ['2026-04-14T10:31', 'pwd-set', 'Chrome on Windows', 'Eldoret'],
+        ];
+        return base.map(([at, kind, dev, where], i) => ({ id: 'a' + i, at, kind, dev, where }));
+      }
+      const ACT = {
+        signin: ['Signed in', 'check', 'ok', 'Password and SMS code'],
+        'signin-email': ['Signed in', 'check', 'ok', 'Password and email code'],
+        'code-wrong': ['Wrong sign-in code', 'alert', 'warn', ''],
+        'pwd-wrong': ['Wrong password', 'alert', 'warn', ''],
+        signout: ['Signed out', 'logout', '', ''],
+        'signout-remote': ['Signed out from another device', 'logout', '', ''],
+        stepup: ['Confirmed with a code to submit', 'shield', 'info', ''],
+        'pwd-set': ['Password set', 'key', '', ''],
+        'email-changed': ['Email changed', 'mail', 'info', ''],
+        'phone-changed': ['Phone changed', 'phone', 'info', ''],
+        'channel-changed': ['Sign-in code channel changed', 'settings', '', ''],
+      };
+
+      /* Access log (ADR-008 "Who accessed my declaration"). Newest first after sort. */
+      function seedLog() {
+        const rv = 'Reviewer';
+        const tsc = 'Teachers Service Commission';
+        const rows = [
+          {
+            at: '2026-09-22T11:05',
+            kind: 'arq',
+            who: 'Applicant',
+            org: 'Form K access request',
+            what: 'Asked to see your declaration',
+            ref: ARQ2,
+            basis: 'Access request under Form K',
+            outcome: 'waiting',
+            steps: [
+              ['2026-09-22T11:05', 'Request received by TSC', 'inbox'],
+              ['2026-09-22T11:20', 'You were notified by email and SMS', 'bell'],
+              [null, 'Waiting for TSC to decide', 'clock'],
+            ],
+          },
+          {
+            at: '2026-09-03T10:12',
+            kind: 'lea',
+            who: 'Asset Recovery Agency',
+            org: 'Law enforcement agency',
+            what: 'Downloaded a copy of your declaration',
+            ref: LEA1,
+            basis: 'Written law enforcement request',
+            outcome: 'disclosed',
+            steps: [
+              ['2026-08-28T09:40', 'Written request received by TSC', 'inbox'],
+              ['2026-08-28T10:02', 'You were notified by email and SMS', 'bell'],
+              ['2026-09-02T15:30', 'TSC disclosed your declaration', 'check'],
+              ['2026-09-03T10:12', 'The agency downloaded the copy', 'download'],
+            ],
+          },
+          {
+            at: '2026-09-01T14:22',
+            kind: 'lea',
+            who: 'Access officer',
+            org: tsc,
+            what: 'Opened your declaration',
+            ref: DECL,
+            basis: `To decide law enforcement request ${LEA1}`,
+            outcome: 'viewed',
+          },
+          {
+            at: '2026-08-09T16:48',
+            kind: 'arq',
+            who: 'Applicant',
+            org: 'Form K access request',
+            what: 'Downloaded part of your declaration',
+            ref: ARQ1,
+            basis: 'Access request under Form K, granted in part',
+            outcome: 'disclosed',
+            scope: 'Income and assets. Liabilities and family details withheld.',
+            steps: [
+              ['2026-07-20T10:15', 'Request received by TSC', 'inbox'],
+              ['2026-07-20T10:40', 'You were notified by email and SMS', 'bell'],
+              ['2026-08-05T12:00', 'TSC granted it in part', 'check'],
+              ['2026-08-09T16:48', 'The applicant downloaded the copy', 'download'],
+            ],
+          },
+          {
+            at: '2026-08-03T09:35',
+            kind: 'arq',
+            who: 'Access officer',
+            org: tsc,
+            what: 'Opened your declaration',
+            ref: DECL,
+            basis: `To decide access request ${ARQ1}`,
+            outcome: 'viewed',
+          },
+          {
+            at: '2026-06-10T11:02',
+            kind: 'review',
+            who: 'Supervisor',
+            org: tsc,
+            what: 'Opened your declaration',
+            ref: DECL,
+            basis: 'Approving the compliance determination',
+            outcome: 'viewed',
+          },
+          {
+            at: '2026-06-02T15:44',
+            kind: 'review',
+            who: rv,
+            org: tsc,
+            what: 'Opened your clarification response',
+            ref: CLR,
+            basis: 'Compliance review',
+            outcome: 'viewed',
+          },
+          {
+            at: '2026-05-07T10:20',
+            kind: 'review',
+            who: rv,
+            org: tsc,
+            what: 'Opened your declaration',
+            ref: DECL,
+            basis: 'Compliance review',
+            outcome: 'viewed',
+          },
+          {
+            at: '2026-04-28T14:31',
+            kind: 'review',
+            who: 'Adili registry check',
+            org: `For ${tsc}`,
+            what: 'Checked KRA, NTSA, Ardhisasa and BRS',
+            ref: DECL,
+            basis: 'Compliance review',
+            outcome: 'checked',
+          },
+        ];
+        // Filler: routine re-opens by the reviewer and registry re-checks between May and Sep.
+        const days = [
+          '2026-09-19T10:05',
+          '2026-09-15T12:30',
+          '2026-09-10T09:14',
+          '2026-08-27T15:02',
+          '2026-08-20T11:47',
+          '2026-08-12T10:10',
+          '2026-07-29T14:25',
+          '2026-07-15T09:02',
+          '2026-07-08T16:40',
+          '2026-06-30T10:33',
+          '2026-06-24T13:15',
+          '2026-06-16T09:50',
+          '2026-06-05T11:28',
+          '2026-05-28T10:02',
+          '2026-05-21T14:36',
+          '2026-05-14T09:18',
+          '2026-05-11T15:55',
+          '2026-05-08T12:04',
+          '2026-05-06T16:21',
+          '2026-05-06T11:09',
+          '2026-05-04T10:45',
+          '2026-04-29T09:05',
+        ];
+        days.forEach((at, i) => {
+          const reg = i % 5 === 2;
+          rows.push({
+            at,
+            kind: 'review',
+            who: reg ? 'Adili registry check' : rv,
+            org: reg ? `For ${tsc}` : tsc,
+            what: reg ? 'Re-checked KRA and NTSA' : 'Opened your declaration',
+            ref: DECL,
+            basis: 'Compliance review',
+            outcome: reg ? 'checked' : 'viewed',
+          });
+        });
+        return rows;
+      }
+      const PSC_LOG = [
+        {
+          at: '2026-04-16T10:40',
+          kind: 'review',
+          who: 'Reviewer',
+          org: 'Public Service Commission',
+          what: 'Opened your declaration',
+          ref: 'DCF-PSC-2026-0000891-3',
+          basis: 'Compliance review',
+          outcome: 'viewed',
+        },
+        {
+          at: '2026-04-15T09:12',
+          kind: 'review',
+          who: 'Adili registry check',
+          org: 'For Public Service Commission',
+          what: 'Checked KRA and NTSA',
+          ref: 'DCF-PSC-2026-0000891-3',
+          basis: 'Compliance review',
+          outcome: 'checked',
+        },
+      ];
+
+      const blankCode = () => ['', '', '', '', '', ''];
+      const S = Kit.state({
+        st: 'ok', // ok | loading | error
+        multi: false,
+        email: ME.email,
+        phone: ME.phone,
+        emailAt: '2026-04-14T10:12:00',
+        phoneAt: '2026-04-14T10:15:00',
+        chg: null,
+        codeChannel: 'sms',
+        passkey: false,
+        sessions: seedSessions(),
+        activity: seedActivity(),
+        actPage: 1,
+        lang: 'en',
+        log: { filter: 'all', page: 1, pageSize: 10, empty: false },
+      });
+
+      /* ---------- helpers ---------- */
+      const vOk = () => `<span class="v-ok">${icon('check', 12, 2.6)}Verified</span>`;
+      const plural = (n, w) => `${num(n)} ${w}${n === 1 ? '' : 's'}`;
+      const note = (html) => `<div class="proto-note">${html}</div>`;
+      const skel = (ws = [60, 80, 45, 70]) =>
+        `<div class="card card-pad" aria-busy="true">${ws.map((w) => `<span class="skeleton sk-line" style="width:${w}%"></span>`).join('')}</div>`;
+      const memberships = () => (S.multi ? [COMMS.tsc, COMMS.psc] : [COMMS.tsc]);
+      const logRows = () =>
+        S.log.empty
+          ? []
+          : [...seedLog(), ...(S.multi ? PSC_LOG : [])].sort((a, b) => (a.at < b.at ? 1 : -1));
+      const KIND = {
+        review: ['Commission review', 'eye', ''],
+        arq: ['Access requests', 'users', 'brand'],
+        lea: ['Law enforcement', 'shield', 'info'],
+      };
+      const TABS = [
+        ['profile', 'Profile'],
+        ['security', 'Security'],
+        ['notifications', 'Notifications'],
+        ['access-log', 'Access log'],
+      ];
+
+      function page(active, body) {
+        const tabs = `<nav class="tabs" aria-label="Account sections">${TABS.map(([id, l]) => `<a href="#${id}" data-act="go" data-arg="${id}" class="${active === id ? 'on' : ''}" ${active === id ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`;
+        let content = body;
+        if (S.st === 'loading')
+          content = `<div class="stack-lg">${skel()}${skel([50, 75, 40])}</div>`;
+        if (S.st === 'error')
+          content = `<div class="callout callout-danger" role="alert">${icon('alert', 18)}<div style="flex:1">We could not load your account. Check your connection and try again.<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" data-act="retry">${icon('refresh', 15)} Try again</button></div></div></div>`;
+        return portalShell(
+          `<div class="page pp"><h1 class="page-title">Your account</h1>${tabs}${content}</div>`,
+          { active: '' },
+        );
+      }
+
+      /* ---------- Profile ---------- */
+      function identityCard() {
+        return `<section class="card" aria-labelledby="h-id">
+    <div class="card-head"><h3 id="h-id" style="flex:1">Identity</h3><span class="badge">${icon('lock', 12)} From your roster</span></div>
+    <dl class="dl pad">
+      <div><dt>Full name</dt><dd>${ME.full}</dd></div>
+      <div><dt>National ID</dt><dd class="tabular">${ME.nidMasked}</dd></div>
+      <div><dt>Officer reference</dt><dd><span class="mono" style="font-weight:600">${ME.ofr}</span><button class="btn btn-ghost btn-xs icon-btn" data-act="copy" data-arg="${ME.ofr}" aria-label="Copy officer reference" title="Copy">${icon('copy', 15)}</button></dd></div>
+    </dl>
+    <div class="card-foot"><div class="lock-note">${icon('info', 15)}<span>Something wrong? Ask your reporting officer to correct it.</span></div></div>
+  </section>`;
+      }
+      function commissionCard(c) {
+        const exited = c.state === 'exited';
+        return `<section class="card" aria-label="${esc(c.name)}">
+    <div class="card-head"><span class="mono-code">${c.code}</span><h3 style="flex:1;min-width:0">${esc(c.name)}</h3>${exited ? '<span class="badge">Exited</span>' : `<span class="badge badge-ok">${icon('check', 12, 2.4)}Active</span>`}</div>
+    <dl class="dl pad">
+      <div><dt>Personnel file number</dt><dd class="mono">${esc(c.fileNo)}</dd></div>
+      <div><dt>Designation</dt><dd>${esc(c.designation)}</dd></div>
+      <div><dt>Reporting entity</dt><dd style="text-align:right">${esc(c.entity)}</dd></div>
+      <div><dt>Onboarded</dt><dd>${fmtDate(c.onboardedAt)}</dd></div>
+      <div><dt>Reporting officer</dt><dd><a class="link" href="mailto:${c.ro.email}">${esc(c.ro.name)}</a></dd></div>
+    </dl>
+  </section>`;
+      }
+      function contactCard() {
+        const row = (kind, ic, label, val, at) => `<div class="item">
+      <span class="ico">${icon(ic, 17)}</span>
+      <div class="item-body"><div class="small muted" style="font-weight:500">${label}</div><div class="t truncate">${esc(val)}</div></div>
+      <span class="item-tag">${vOk()}</span>
+      <div class="acts"><button class="btn btn-secondary btn-sm" data-act="openChange" data-arg="${kind}" aria-label="Change ${label.toLowerCase()}">Change</button></div>
+    </div>`;
+        return `<section class="card" aria-labelledby="h-ct">
+    <div class="card-head"><h3 id="h-ct" style="flex:1">Contact details</h3></div>
+    ${row('email', 'mail', 'Email', S.email, S.emailAt)}
+    ${row('phone', 'phone', 'Phone', S.phone, S.phoneAt)}
+    <div class="card-foot small muted">Reminders, notices and sign-in codes go here.</div>
+  </section>`;
+      }
+      const screens = {
+        profile: () =>
+          page(
+            'profile',
+            `<div class="stack-lg">${identityCard()}${contactCard()}<div class="stack" style="gap:12px"><h2 class="section-title" style="margin-top:6px">${S.multi ? 'Commissions' : 'Commission'}</h2>${memberships().map(commissionCard).join('')}</div></div>`,
+          ),
+        security: () => page('security', securityBody()),
+        notifications: () => page('notifications', notificationsBody()),
+        'access-log': () => page('access-log', accessLogBody()),
+      };
+
+      /* ---------- Contact change (designed ahead of spec) ---------- */
+      const chgLabel = (k) => (k === 'email' ? 'email' : 'phone number');
+      function contactModal() {
+        const c = S.chg;
+        if (!c) return '';
+        const isEmail = c.kind === 'email';
+        const title = isEmail ? 'Change email' : 'Change phone';
+        let body = '',
+          foot = '';
+        if (c.step === 'enter') {
+          const ctl = isEmail
+            ? input('chg.value', {
+                type: 'email',
+                ph: 'name@example.com',
+                cls: c.err ? 'is-invalid' : '',
+                extra: 'autocomplete="email" inputmode="email"',
+              })
+            : `<div class="input-group"><span class="addon">+254</span>${input('chg.value', { type: 'tel', ph: '712 345 678', cls: c.err ? 'is-invalid' : '', extra: 'autocomplete="tel-national" inputmode="tel" style="box-shadow:none"' })}</div>`;
+          body = `${field(isEmail ? 'New email' : 'New phone number', ctl, { id: 'f-chg-value', error: c.err, hint: `We will send a code to it to check it is yours.` })}
+      <div style="margin-top:14px">${note(`<b>Prototype.</b> ${isEmail ? 'taken@example.com' : '700 000 000'} is in use. Real app asks for a sign-in code first.`)}</div>`;
+          foot = `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-primary" data-act="sendCode" ${c.busy ? 'disabled aria-busy="true"' : ''}>${c.busy ? '<span class="spinner"></span> Sending…' : 'Send code'}</button>`;
+        } else if (c.step === 'code') {
+          const dest = isEmail ? c.value : `+254 ${c.value}`;
+          let alert = '';
+          if (c.codeErr === 'wrong')
+            alert = `<div class="callout callout-danger" role="alert" style="margin-bottom:14px">${icon('alert', 17)}<div>That code is not right. ${plural(c.left, 'attempt')} left.</div></div>`;
+          if (c.codeErr === 'expired')
+            alert = `<div class="callout callout-warn" role="alert" style="margin-bottom:14px">${icon('clock', 17)}<div>This code has expired. Send a new one.</div></div>`;
+          body = `${alert}<p style="margin-bottom:16px">Enter the 6-digit code we sent to <b>${esc(dest)}</b>.</p>
+      ${Kit.otp('chg.code', 'verifyCode')}
+      <div class="row" style="margin-top:16px;gap:10px">${c.cool > 0 ? `<span class="cool" aria-live="polite">Resend in ${Math.floor(c.cool / 60)}:${String(c.cool % 60).padStart(2, '0')}</span>` : `<button class="btn btn-ghost btn-sm" data-act="resend">${icon('refresh', 15)} Resend code</button>`}<span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="chgBack">Change ${isEmail ? 'email' : 'number'}</button></div>
+      <div style="margin-top:14px">${note('<b>Prototype.</b> 123456 verifies; anything else is wrong.')}</div>`;
+          foot = '';
+        } else if (c.step === 'failed') {
+          body = `<div class="done-box"><div class="success-mark" style="background:var(--danger-soft);color:var(--danger)">${icon('x', 26, 2.4)}</div><h4 style="font-size:17px;font-weight:600">Too many wrong codes</h4><p class="muted" style="margin-top:6px;max-width:340px">Your ${chgLabel(c.kind)} was not changed. Start again to get a new code.</p></div>`;
+          foot = `<button class="btn btn-ghost" data-act="closeModal">Close</button><button class="btn btn-primary" data-act="openChange" data-arg="${c.kind}">Start again</button>`;
+        } else if (c.step === 'done') {
+          const v = isEmail ? S.email : S.phone;
+          body = `<div class="done-box"><div class="success-mark">${icon('check', 26, 2.6)}</div><h4 style="font-size:17px;font-weight:600">${isEmail ? 'Email' : 'Phone'} changed</h4><p class="muted" style="margin-top:6px;max-width:360px">We will use <b style="color:var(--ink)">${esc(v)}</b> from now on. We told your old ${chgLabel(c.kind)} about this change.</p></div>`;
+          foot = `<button class="btn btn-primary btn-block" data-act="closeModal">Done</button>`;
+        }
+        return dialog({ title, body, foot });
+      }
+      let coolTimer = null;
+      function startCool() {
+        S.chg.cool = 60;
+        clearInterval(coolTimer);
+        coolTimer = setInterval(() => {
+          if (!S.chg || S.chg.step !== 'code' || S.chg.cool <= 0) return clearInterval(coolTimer);
+          S.chg.cool--;
+          Kit.render();
+        }, 1000);
+      }
+      function openChange(kind) {
+        S.chg = { kind, step: 'enter', value: '', err: '', code: blankCode(), left: 5, cool: 0 };
+        S.modal = { kind: 'contact' };
+      }
+
+      /* ---------- Security ---------- */
+      function securityBody() {
+        const channels = [
+          ['sms', 'phone', 'SMS', ME.phoneMasked],
+          ['email', 'mail', 'Email', ME.emailMasked],
+        ];
+        const signin = `<section class="card" aria-labelledby="h-si">
+    <div class="card-head"><h3 id="h-si">Sign-in</h3></div>
+    <div class="item"><span class="ico">${icon('key', 17)}</span><div class="item-body"><div class="t">Password</div><div class="d">Changed ${fmtDate(ME.pwdChanged)}</div></div><div class="acts"><a class="btn btn-secondary btn-sm" href="../../keycloak-theme/prototype/login.prototype.html#update-password">Change</a></div></div>
+    <div class="item" style="display:block">
+      <div class="row" style="gap:14px;margin-bottom:12px"><span class="ico">${icon('msg', 17)}</span><div class="item-body"><div class="t" id="ch-l">Sign-in code</div><div class="d">If one channel fails, we use the other.</div></div></div>
+      <div class="ch-grid" role="radiogroup" aria-labelledby="ch-l">${channels
+        .map(
+          ([k, ic, l, m]) =>
+            `<label class="choice"><input type="radio" name="codeChannel" value="${k}" data-bind="codeChannel" ${S.codeChannel === k ? 'checked' : ''}/><span class="dot"></span><span>${l} <span class="muted" style="font-weight:400">${m}</span></span></label>`,
+        )
+        .join('')}</div>
+    </div>
+    <div class="item"><span class="ico">${icon('finger', 17)}</span><div class="item-body"><div class="t">Passkey</div><div class="d">${S.passkey ? 'Set up on this device' : 'Sign in with your fingerprint or face'}</div></div><div class="acts">${S.passkey ? `<span class="badge badge-ok">${icon('check', 12, 2.4)}On</span>` : '<button class="btn btn-secondary btn-sm" data-act="passkey">Set up</button>'}</div></div>
+  </section>`;
+        const live = S.sessions.filter((s) => !s.revoked && !s.current).length;
+        const devices = `<section class="card" aria-labelledby="h-dev">
+    <div class="card-head"><h3 id="h-dev" style="flex:1">Devices</h3>${live ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger)" data-act="modal" data-arg="signoutAll">Sign out everywhere else</button>` : ''}</div>
+    ${S.sessions
+      .map(
+        (s) =>
+          `<div class="item ${s.revoked ? 'gone' : ''}"><span class="ico">${icon(s.ico, 17)}</span><div class="item-body"><div class="t">${s.dev}</div><div class="d">${s.where} · ${s.revoked ? 'Signed out just now' : s.last}</div></div>${s.current ? '<span class="item-tag"><span class="badge badge-ok">This device</span></span>' : ''}<div class="acts">${s.current ? '' : s.revoked ? `<span class="badge">${icon('logout', 12)}Signed out</span>` : `<button class="btn btn-secondary btn-sm" data-act="revoke" data-arg="${s.id}" aria-label="Sign out of ${s.dev}">Sign out</button>`}</div></div>`,
+      )
+      .join('')}
+    <div class="card-foot small muted">Don't recognise a device? Sign it out and change your password.</div>
+  </section>`;
+        const ps = 8;
+        const rows = S.activity.slice((S.actPage - 1) * ps, S.actPage * ps);
+        const activity = `<section class="card" aria-labelledby="h-act">
+    <div class="card-head"><h3 id="h-act">Recent activity</h3></div>
+    ${rows
+      .map((a) => {
+        const [t, ic, tone, how] = ACT[a.kind];
+        return `<div class="item"><span class="ico ${tone}">${icon(ic, 16)}</span><div class="item-body"><div class="t">${t}</div><div class="d">${[how, a.dev, a.where].filter(Boolean).join(' · ')}</div></div><span class="when">${fmtDateTime(a.at)}</span></div>`;
+      })
+      .join('')}
+    ${Kit.pager({ page: S.actPage, pageSize: ps, total: S.activity.length, act: 'actPage' })}
+  </section>`;
+        return `<div class="stack-lg">${signin}${devices}${activity}</div>`;
+      }
+
+      /* ---------- Notifications ---------- */
+      function notificationsBody() {
+        const rows = [
+          ['calendar', 'Filing reminders', '30, 14 and 7 days before a declaration is due'],
+          ['msg', 'Clarifications and decisions', 'When your Commission writes to you'],
+          ['users', 'Access requests', 'When someone asks to see your declaration'],
+          ['file', 'Acknowledgement slips', 'After you submit'],
+        ];
+        return `<div class="stack-lg">
+    <section class="card" aria-labelledby="h-nt">
+      <div class="card-head"><h3 id="h-nt">Messages</h3></div>
+      ${rows.map(([ic, t, d]) => `<div class="item"><span class="ico">${icon(ic, 17)}</span><div class="item-body"><div class="t">${t}</div><div class="d">${d}</div></div><span class="item-tag"><span class="badge">${icon('lock', 12)}SMS and email</span></span></div>`).join('')}
+      <div class="card-foot small muted" style="justify-content:space-between"><span>These are legal notices, so they are always on.</span><a class="link" data-act="go" data-arg="profile">Contact details</a></div>
+    </section>
+    <section class="card" aria-labelledby="h-lang">
+      <div class="card-head"><h3 id="h-lang">Language</h3></div>
+      <div class="card-pad">${Kit.choices(
+        'lang',
+        [
+          { k: 'en', label: 'English' },
+          { k: 'sw', label: 'Kiswahili' },
+        ],
+        'c2',
+      )}<p class="small muted" style="margin-top:10px">For the portal, messages and letters.</p>
+      ${S.lang === 'sw' ? `<div style="margin-top:12px">${note('<b>Prototype.</b> Kiswahili copy is not written yet (spec 03/04 non-goal). The real app would switch all text.')}</div>` : ''}</div>
+    </section>
+  </div>`;
+      }
+
+      /* ---------- Access log ---------- */
+      function accessLogBody() {
+        const all = logRows();
+        if (!all.length)
+          return `<div class="card">${Kit.empty('No one has accessed your declarations', 'When someone opens one, it shows here.', { icon: 'eye' })}</div>`;
+        const counts = { all: all.length };
+        all.forEach((r) => (counts[r.kind] = (counts[r.kind] || 0) + 1));
+        const f = S.log.filter;
+        const list = f === 'all' ? all : all.filter((r) => r.kind === f);
+        const pending = all.find((r) => r.outcome === 'waiting');
+        const chips = `<div class="chips" role="group" aria-label="Filter">${[['all', 'All'], ...Object.entries(KIND).map(([k, v]) => [k, v[0]])].map(([k, l]) => `<button class="chip ${f === k ? 'on' : ''}" data-act="logFilter" data-arg="${k}" aria-pressed="${f === k}">${l}<span class="n">${counts[k] || 0}</span></button>`).join('')}</div>`;
+        const { page: p, pageSize: ps } = S.log;
+        const rows = list.slice((p - 1) * ps, p * ps);
+        const items = rows
+          .map((r) => {
+            const idx = all.indexOf(r);
+            const [, ic, tone] = KIND[r.kind];
+            const tag =
+              r.outcome === 'waiting'
+                ? `<span class="item-tag"><span class="badge badge-warn">Waiting for decision</span></span>`
+                : '';
+            return `<div class="item click" role="button" tabindex="0" data-act="logOpen" data-arg="${idx}"><span class="ico ${tone}">${icon(ic, 16)}</span><div class="item-body"><div class="t">${esc(r.who)} <span class="muted" style="font-weight:400">· ${esc(r.org)}</span></div><div class="d">${esc(r.what)} <span class="mono" style="font-size:12.5px">${r.ref}</span></div></div>${tag}<span class="when">${fmtDate(r.at)}</span></div>`;
+          })
+          .join('');
+        return `${pending ? `<div class="callout callout-warn" style="margin-bottom:16px;align-items:center">${icon('bell', 17)}<div style="flex:1">An access request is waiting for TSC's decision.</div><button class="btn btn-secondary btn-sm" data-act="logOpen" data-arg="${all.indexOf(pending)}">View</button></div>` : ''}
+    ${chips}
+    <div class="card">${items || Kit.empty('Nothing here', 'No entries of this kind.', { icon: 'filter', action: '<button class="btn btn-secondary btn-sm" data-act="logFilter" data-arg="all">Show all</button>' })}
+      ${list.length ? Kit.pager({ page: p, pageSize: ps, total: list.length, act: 'logPage' }) : ''}
+    </div>
+    <p class="small muted" style="margin-top:12px;display:flex;gap:6px;align-items:center">${icon('lock', 14)}Staff names are hidden. Entries cannot be changed.</p>`;
+      }
+      function logDrawer() {
+        const r = logRows()[S.modal.id];
+        if (!r) return '';
+        const out = {
+          waiting: '<span class="badge badge-warn">Waiting for decision</span>',
+          disclosed: '<span class="badge badge-info">Copy disclosed</span>',
+          viewed: '<span class="badge">Viewed</span>',
+          checked: '<span class="badge">Checked</span>',
+        }[r.outcome];
+        const steps = r.steps
+          ? `<h4 class="section-title" style="font-size:14.5px;margin:22px 0 12px">Timeline</h4><ol class="timeline">${r.steps.map(([at, t, ic]) => `<li><span class="tl-ico">${icon(ic, 14)}</span><div><div class="tl-t">${t}</div>${at ? `<div class="tl-s">${fmtDateTime(at)}</div>` : ''}</div></li>`).join('')}</ol>`
+          : '';
+        return drawer({
+          title: esc(r.what),
+          body: `<div class="kv" style="grid-template-columns:1fr">
+        <div><div class="k">When</div><div class="v">${fmtDateTime(r.at)}</div></div>
+        <div><div class="k">Who</div><div class="v">${esc(r.who)}<div class="small muted" style="font-weight:400">${esc(r.org)}</div></div></div>
+        <div><div class="k">Record</div><div class="v mono">${r.ref}</div></div>
+        <div><div class="k">Why</div><div class="v">${esc(r.basis)}</div></div>
+        ${r.scope ? `<div><div class="k">What was shared</div><div class="v">${esc(r.scope)}</div></div>` : ''}
+        <div><div class="k">Outcome</div><div class="v">${out}</div></div>
+      </div>${steps}
+      ${r.outcome === 'waiting' ? `<div class="callout callout-info" style="margin-top:18px">${icon('info', 17)}<div>To object, reply to TSC's notice before it decides.</div></div>` : ''}`,
+        });
+      }
+
+      /* ---------- actions ---------- */
+      const actions = {
+        retry: () => {
+          S.st = 'loading';
+          Kit.render();
+          setTimeout(() => {
+            S.st = 'ok';
+            Kit.render();
+          }, 900);
+        },
+        openChange: (k) => {
+          openChange(k);
+          Kit.render();
+          setTimeout(() => document.getElementById('f-chg-value')?.focus(), 30);
+        },
+        chgBack: () => {
+          S.chg.step = 'enter';
+          S.chg.codeErr = null;
+          Kit.render();
+        },
+        sendCode: () => {
+          const c = S.chg;
+          const v = String(c.value || '').trim();
+          const isEmail = c.kind === 'email';
+          c.err = '';
+          if (isEmail) {
+            if (!v) c.err = 'Enter your new email.';
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
+              c.err = 'Enter an email like name@example.com.';
+            else if (v.toLowerCase() === S.email) c.err = 'This is already your email.';
+            else if (v.toLowerCase() === 'taken@example.com')
+              c.err = 'Another Adili account uses this email. Use a different one.';
+          } else {
+            const d = v.replace(/\D/g, '').replace(/^0/, '');
+            if (!d) c.err = 'Enter your new phone number.';
+            else if (!/^[17]\d{8}$/.test(d))
+              c.err = 'Enter a Kenyan mobile number, like 712 345 678.';
+            else if ('+254 ' + d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') === S.phone)
+              c.err = 'This is already your phone number.';
+            else if (d === '700000000')
+              c.err = 'Another Adili account uses this number. Use a different one.';
+            else c.value = d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+          }
+          if (c.err) return Kit.render();
+          c.busy = true;
+          Kit.render();
+          setTimeout(() => {
+            c.busy = false;
+            c.step = 'code';
+            c.codeErr = null;
+            c.left = 5;
+            c.code = blankCode();
+            startCool();
+            Kit.render();
+            document.querySelector('#layer .otp input')?.focus();
+          }, 700);
+        },
+        resend: () => {
+          S.chg.codeErr = null;
+          S.chg.left = 5;
+          startCool();
+          Kit.toast('New code sent');
+        },
+        verifyCode: (code) => {
+          const c = S.chg;
+          if (!c) return;
+          if (c.codeErr === 'expired') return Kit.render();
+          if (code === '123456') {
+            const isEmail = c.kind === 'email';
+            if (isEmail) {
+              S.email = c.value.toLowerCase();
+              S.emailAt = Kit.TODAY.toISOString();
+            } else {
+              S.phone = '+254 ' + c.value;
+              S.phoneAt = Kit.TODAY.toISOString();
+            }
+            S.activity.unshift({
+              id: 'a' + Date.now(),
+              at: '2026-09-26T10:30',
+              kind: isEmail ? 'email-changed' : 'phone-changed',
+              dev: 'Chrome on Windows',
+              where: 'Eldoret',
+            });
+            c.step = 'done';
+          } else {
+            c.left--;
+            if (c.left <= 0) c.step = 'failed';
+            else c.codeErr = 'wrong';
+          }
+          Kit.render();
+          document.querySelector('#layer .otp input')?.focus();
+        },
+        passkey: () => Kit.toast('Would open passkey setup on this device'),
+        revoke: (id) => {
+          const s = S.sessions.find((x) => x.id === id);
+          s.revoked = true;
+          S.activity.unshift({
+            id: 'a' + Date.now(),
+            at: '2026-09-26T10:30',
+            kind: 'signout-remote',
+            dev: s.dev,
+            where: s.where,
+          });
+          Kit.toast(`Signed out of ${s.dev}`);
+        },
+        signoutAll: () => {
+          const n = S.sessions.filter((s) => !s.current && !s.revoked).length;
+          S.sessions.forEach((s) => {
+            if (!s.current) s.revoked = true;
+          });
+          S.modal = null;
+          Kit.toast(`Signed out of ${plural(n, 'other device')}`);
+        },
+        actPage: (p) => {
+          S.actPage = +p;
+          Kit.render();
+        },
+        logFilter: (k) => {
+          S.log.filter = k;
+          S.log.page = 1;
+          Kit.render();
+        },
+        logPage: (p) => {
+          S.log.page = +p;
+          Kit.render();
+        },
+        logOpen: (i) => {
+          S.modal = { kind: 'log', id: +i };
+          Kit.render();
+        },
+      };
+
+      const modals = {
+        contact: contactModal,
+        log: logDrawer,
+        signoutAll: () => {
+          const n = S.sessions.filter((s) => !s.current && !s.revoked).length;
+          return dialog({
+            title: `Sign out of ${plural(n, 'other device')}?`,
+            icon: 'logout',
+            tint: ['var(--danger-soft)', 'var(--danger)'],
+            body: `<p>Anyone using them will need your password and a code to sign in again. This device stays signed in.</p>`,
+            foot: `<button class="btn btn-ghost" data-act="closeModal">Cancel</button><button class="btn btn-danger" data-act="signoutAll">Sign out ${plural(n, 'device')}</button>`,
+          });
+        },
+      };
+
+      /* ---------- jumps ---------- */
+      function reset() {
+        Object.assign(S, {
+          st: 'ok',
+          multi: false,
+          email: ME.email,
+          phone: ME.phone,
+          chg: null,
+          modal: null,
+          codeChannel: 'sms',
+          passkey: false,
+          sessions: seedSessions(),
+          activity: seedActivity(),
+          actPage: 1,
+          lang: 'en',
+          log: { filter: 'all', page: 1, pageSize: 10, empty: false },
+        });
+      }
+      const at = (screen, fn) => () => {
+        reset();
+        fn && fn();
+        const m = S.modal;
+        Kit.go(screen);
+        if (m) {
+          S.modal = m;
+          Kit.render();
+        }
+      };
+      const chgAt = (kind, step, extra = {}) =>
+        at('profile', () => {
+          openChange(kind);
+          Object.assign(
+            S.chg,
+            step === 'enter'
+              ? {}
+              : { value: kind === 'email' ? 'jkennedy@tsc.go.ke' : '722 904 551' },
+            { step },
+            extra,
+          );
+          if (step === 'code') {
+            S.chg.cool = extra.cool ?? 42;
+          }
+        });
+
+      const jumps = [
+        ['profile', '#74 Profile'],
+        ['j-multi', '#74 Profile: two Commissions', at('profile', () => (S.multi = true))],
+        ['j-loading', '#74 Profile: loading', at('profile', () => (S.st = 'loading'))],
+        ['j-error', '#74 Profile: error', at('profile', () => (S.st = 'error'))],
+        ['j-chg-enter', 'Change email: enter', chgAt('email', 'enter')],
+        [
+          'j-chg-taken',
+          'Change email: in use',
+          chgAt('email', 'enter', {
+            value: 'taken@example.com',
+            err: 'Another Adili account uses this email. Use a different one.',
+          }),
+        ],
+        ['j-chg-sent', 'Change phone: code sent', chgAt('phone', 'code')],
+        [
+          'j-chg-wrong',
+          'Change phone: wrong code',
+          chgAt('phone', 'code', { codeErr: 'wrong', left: 4, cool: 0 }),
+        ],
+        [
+          'j-chg-expired',
+          'Change email: code expired',
+          chgAt('email', 'code', { codeErr: 'expired', cool: 0 }),
+        ],
+        ['j-chg-failed', 'Change email: failed', chgAt('email', 'failed')],
+        [
+          'j-chg-done',
+          'Change email: verified',
+          at('profile', () => {
+            openChange('email');
+            S.email = 'jkennedy@tsc.go.ke';
+            S.chg.step = 'done';
+          }),
+        ],
+        ['security', 'Security'],
+        [
+          'j-revoked',
+          'Security: device signed out',
+          at('security', () => (S.sessions[1].revoked = true)),
+        ],
+        [
+          'j-signout-all',
+          'Security: sign out everywhere',
+          at('security', () => (S.modal = { kind: 'signoutAll' })),
+        ],
+        [
+          'j-signout-done',
+          'Security: signed out everywhere',
+          at('security', () => S.sessions.forEach((s) => !s.current && (s.revoked = true))),
+        ],
+        ['j-act-p2', 'Security: activity page 2', at('security', () => (S.actPage = 2))],
+        ['notifications', 'Notifications'],
+        ['j-sw', 'Notifications: Kiswahili', at('notifications', () => (S.lang = 'sw'))],
+        ['access-log', 'Access log'],
+        ['j-log-p3', 'Access log: page 3', at('access-log', () => (S.log.page = 3))],
+        [
+          'j-log-lea',
+          'Access log: law enforcement',
+          at('access-log', () => (S.log.filter = 'lea')),
+        ],
+        [
+          'j-log-arq',
+          'Access log: access request detail',
+          at(
+            'access-log',
+            () =>
+              (S.modal = {
+                kind: 'log',
+                id: logRows().findIndex((r) => r.ref === ARQ1 && r.who === 'Applicant'),
+              }),
+          ),
+        ],
+        [
+          'j-log-pending',
+          'Access log: waiting request detail',
+          at('access-log', () => (S.modal = { kind: 'log', id: 0 })),
+        ],
+        [
+          'j-log-review',
+          'Access log: reviewer detail',
+          at(
+            'access-log',
+            () =>
+              (S.modal = { kind: 'log', id: logRows().findIndex((r) => r.who === 'Supervisor') }),
+          ),
+        ],
+        ['j-log-empty', 'Access log: empty', at('access-log', () => (S.log.empty = true))],
+        ['j-log-loading', 'Access log: loading', at('access-log', () => (S.st = 'loading'))],
+      ];
+
+      document.addEventListener('keydown', (e) => {
+        const el = e.target.closest?.('[role=button][data-act]');
+        if (el && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          el.click();
+        }
+      });
+      Kit.mount({
+        app: 'portal',
+        start: 'profile',
+        home: 'profile',
+        screens,
+        modals,
+        actions,
+        jumps,
+        reset: () => {
+          reset();
+          Kit.go('profile');
+        },
+        onBind: (path, v) => {
+          if (path === 'codeChannel') {
+            S.activity.unshift({
+              id: 'a' + Date.now(),
+              at: '2026-09-26T10:30',
+              kind: 'channel-changed',
+              dev: 'Chrome on Windows',
+              where: 'Eldoret',
+            });
+            setTimeout(() =>
+              Kit.toast(`Sign-in codes will go to your ${v === 'sms' ? 'phone' : 'email'}`),
+            );
+          }
+          if (path === 'lang')
+            setTimeout(() =>
+              Kit.toast(v === 'sw' ? 'Language set to Kiswahili' : 'Language set to English'),
+            );
+          if (path === 'chg.value' && S.chg?.err) {
+            S.chg.err = '';
+          }
+        },
+        coverage: [
+          {
+            ticket: 74,
+            title: 'Signed-in declarant views: profile from GET /v1/me/declarant (S18)',
+            screens: ['profile', 'j-multi', 'j-loading', 'j-error'],
+            note: 'Commission(s), OFR with copy, roster record summary, verified contacts, onboarded date. Designation and reporting entity are not in DeclarantProfile yet (spec gap).',
+          },
+          {
+            ticket: 76,
+            title: 'Directory: /v1/me/declarant (backend)',
+            screens: ['profile'],
+            note: 'Non-visual. 404 for non-declarants is not reachable from the portal.',
+          },
+          {
+            ticket: 0,
+            title: 'Contact change with OTP to the new contact',
+            screens: [
+              'j-chg-enter',
+              'j-chg-taken',
+              'j-chg-sent',
+              'j-chg-wrong',
+              'j-chg-expired',
+              'j-chg-failed',
+              'j-chg-done',
+            ],
+            note: 'Designed ahead of spec. Assumes Keycloak step-up first and write-back to the roster record (source declarant).',
+          },
+          {
+            ticket: 0,
+            title: 'Sign-in and security: code channel, password, passkey, devices, activity',
+            screens: ['security', 'j-revoked', 'j-signout-all', 'j-signout-done', 'j-act-p2'],
+            note: 'Designed ahead of spec (ADR-004 point 9: our app owns security settings).',
+          },
+          {
+            ticket: 0,
+            title: 'Notifications and language',
+            screens: ['notifications', 'j-sw'],
+            note: 'Designed ahead of spec. Reminders go on both channels (spec 04); preferences are a spec 04 non-goal, so all are shown as always on.',
+          },
+          {
+            ticket: 0,
+            title: 'Who accessed my declaration (ADR-008)',
+            screens: [
+              'access-log',
+              'j-log-p3',
+              'j-log-lea',
+              'j-log-arq',
+              'j-log-pending',
+              'j-log-review',
+              'j-log-empty',
+              'j-log-loading',
+            ],
+            note: 'Designed ahead of spec. No audit read API exists yet.',
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

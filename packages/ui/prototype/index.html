@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- PROTOTYPE - throwaway. Index of the clickable HTML prototypes. Open by double-clicking. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dials - prototypes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="kit.css" />
+    <style>
+      body {
+        background: var(--bg);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 48px 20px 80px;
+      }
+      .grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        margin-top: 16px;
+      }
+      .p {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 18px;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: var(--shadow-card);
+        text-decoration: none;
+        color: inherit;
+      }
+      .p:hover {
+        box-shadow:
+          0 0 0 1px var(--line-2),
+          0 6px 20px -8px rgba(0, 0, 0, 0.15);
+      }
+      .p .t {
+        font-weight: 600;
+        font-size: 16px;
+      }
+      .p .d {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .p .specs {
+        font-size: 12.5px;
+        color: var(--brand-ink);
+        font-weight: 500;
+      }
+      h2 {
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 36px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="logo" style="font-size: 28px">
+        <svg width="27" height="28" viewBox="0 0 19 20">
+          <path
+            fill="currentColor"
+            d="M0 2.5A2.5 2.5 0 0 1 2.5 0H9a10 10 0 0 1 0 20H2.5A2.5 2.5 0 0 1 0 17.5V13h5V7H0Z"
+          />
+          <rect x="7.5" y="7" width="5" height="6" rx="1" fill="#fff" /></svg
+        ><span>ials</span>
+      </div>
+      <h1 class="title" style="margin-top: 18px">Clickable prototypes</h1>
+      <p class="subtitle">
+        Throwaway designs for every <code>design-pending</code> ticket in the Adili V3 DIALs
+        project, grouped by app. Each file has a PROTOTYPE bar: jump to any screen, switch desktop
+        or mobile, switch persona (console), and open "Tickets" to see which ticket each screen
+        covers.
+      </p>
+      <div id="list"></div>
+    </div>
+    <script>
+      const P = [
+        [
+          'Declarant portal',
+          [
+            [
+              '../../../apps/portal/prototype/declarant-journey.prototype.html',
+              'Declarant journey',
+              'Onboarding, login, dashboard and obligations, declaration capture, attachments, review, step-up submit, slip, amendments.',
+              'Specs 03, 04, 05, 06',
+            ],
+            [
+              '../../../apps/portal/prototype/declarant-profile.prototype.html',
+              'Declarant profile',
+              'Account and Commissions, contact details, sign-in and security, notifications, who accessed my declaration.',
+              'Designed ahead of spec (03, 04)',
+            ],
+            [
+              '../../../apps/portal/prototype/declarant-after-submission.prototype.html',
+              'After submission',
+              "Clarifications and responses, decisions, notices and warnings, salary stoppage notices. Separate scenario: John's initial declaration DCI-TSC-2026-0003418-P was received on 28 Apr 2026, so review and enforcement timelines have had time to run.",
+              'Specs 07a, 08',
+            ],
+          ],
+        ],
+        [
+          'Sign-in (Keycloak theme)',
+          [
+            [
+              '../../../apps/keycloak-theme/prototype/login.prototype.html',
+              'Login and account pages',
+              'Login with SMS or email code, update password, expired link, errors, staff activation, step-up.',
+              'Specs 01, 03, 06',
+            ],
+          ],
+        ],
+        [
+          'Public verification',
+          [
+            [
+              '../../../apps/verify/prototype/verify.prototype.html',
+              'Verify a document',
+              'Manual entry, QR landing, result states, in-browser file hash check.',
+              'Spec 06',
+            ],
+          ],
+        ],
+        [
+          'Generated documents',
+          [
+            [
+              '../../../services/documents/prototype/documents.prototype.html',
+              'PDF documents',
+              'Acknowledgement slip, clarification letter, decision letters, notices, warnings, stoppage and reinstatement, referral package, Form M report, receipt and national consolidated report.',
+              'Specs 06, 07a, 08, 09 (#135 #156 #194 #218)',
+            ],
+          ],
+        ],
+        [
+          'Staff console',
+          [
+            [
+              '../../../apps/console/prototype/profile.prototype.html',
+              'Staff profile',
+              'Staff account, role and Commission, password and authenticator, sessions, own activity.',
+              'Designed ahead of spec (01)',
+            ],
+            [
+              '../../../apps/console/prototype/01-commissions.prototype.html',
+              'Commissions',
+              'Commission list and detail, create, reporting officer assign, replace, resend, activation.',
+              'Spec 01, 03 (OFR)',
+            ],
+            [
+              '../../../apps/console/prototype/02-roster.prototype.html',
+              'Roster',
+              'Roster overview, import wizard, import reports and history, records, flagged officers, API access.',
+              'Spec 02, 03',
+            ],
+            [
+              '../../../apps/console/prototype/04-obligations.prototype.html',
+              'Obligations',
+              'Commission obligations workspace, policy start date, national summary.',
+              'Spec 04',
+            ],
+            [
+              '../../../apps/console/prototype/07a-review.prototype.html',
+              'Review and clarifications',
+              'Review queue, case view, version compare, clarification composer and detail.',
+              'Spec 07a',
+            ],
+            [
+              '../../../apps/console/prototype/07b-registry.prototype.html',
+              'Registry cross-checks',
+              'Registry tab and queue filter, re-check, Integrations page with pause and resume.',
+              'Spec 07b',
+            ],
+            [
+              '../../../apps/console/prototype/08-determinations.prototype.html',
+              'Determinations and actions',
+              'Determination form, approvals inbox, bulk closure, notices and warnings, stoppage, referrals.',
+              'Spec 08',
+            ],
+            [
+              '../../../apps/console/prototype/09-form-m.prototype.html',
+              'Form M and EACC intake',
+              'Form M workspace, remarks, confirm and submit, EACC intake dashboard, report viewer, referrals received.',
+              'Spec 09',
+            ],
+          ],
+        ],
+      ];
+      document.getElementById('list').innerHTML = P.map(
+        ([g, items]) =>
+          `<h2>${g}</h2><div class="grid">${items.map(([href, t, d, s]) => `<a class="p" href="${href}"><span class="t">${t}</span><span class="d">${d}</span><span class="specs">${s}</span></a>`).join('')}</div>`,
+      ).join('');
+    </script>
+  </body>
+</html>
