@@ -644,9 +644,6 @@ importers:
       '@temporalio/client':
         specifier: ^1.24.0
         version: 1.24.0
-      '@temporalio/testing':
-        specifier: ^1.24.0
-        version: 1.24.0(esbuild@0.28.2)
       '@temporalio/worker':
         specifier: ^1.24.0
         version: 1.24.0(esbuild@0.28.2)
@@ -669,6 +666,9 @@ importers:
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
+      '@temporalio/testing':
+        specifier: ^1.24.0
+        version: 1.24.0(esbuild@0.28.2)
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6

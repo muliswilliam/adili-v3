@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { FakeCipher } from '../src/index.js';
+import { FakeCipher } from '../src/testing.js';
 import { describeFieldCipherContract } from './field-cipher.contract.js';
 
 describeFieldCipherContract('FakeCipher', () => ({

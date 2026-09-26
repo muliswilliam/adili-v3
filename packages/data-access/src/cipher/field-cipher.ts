@@ -4,18 +4,22 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
  * Stored beside the ciphertext of every encrypted field. Holds no secret on its own: the data
  * key is wrapped by the tenant's key in the key service.
  */
-export interface FieldEnvelope {
+export interface FieldEnvelope extends WrappedDataKey {
   v: 1;
   /** Responsible Commission slug whose key wrapped the data key. */
   tenant: string;
-  /** Version of the tenant key that wrapped the data key (key rotation). */
-  keyVersion: number;
-  /** Base64 data key as wrapped by the tenant key. */
-  wrappedDek: string;
   /** Base64 96-bit AES-GCM nonce. */
   iv: string;
   /** Base64 128-bit AES-GCM authentication tag. */
   tag: string;
+}
+
+/** A data key as wrapped by a tenant key in the key service. */
+export interface WrappedDataKey {
+  /** Base64 data key as wrapped by the tenant key. */
+  wrappedDek: string;
+  /** Version of the tenant key that wrapped the data key (key rotation). */
+  keyVersion: number;
 }
 
 export interface SealedField {
@@ -66,9 +70,9 @@ export abstract class FieldCipher {
 
 /** Wraps data keys with a per-tenant key encryption key held by a key service. */
 export interface KeyWrapper {
-  wrap(tenant: string, dataKey: Buffer): Promise<{ wrappedDek: string; keyVersion: number }>;
+  wrap(tenant: string, dataKey: Buffer): Promise<WrappedDataKey>;
   /** Rejects with `FieldCipherError('decryption-failed')` when the key does not unwrap. */
-  unwrap(tenant: string, wrapped: { wrappedDek: string; keyVersion: number }): Promise<Buffer>;
+  unwrap(tenant: string, wrapped: WrappedDataKey): Promise<Buffer>;
 }
 
 const ALGORITHM = 'aes-256-gcm';

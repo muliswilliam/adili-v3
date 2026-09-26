@@ -28,9 +28,16 @@
     "@adili/api-kit": "workspace:*",
     "@nestjs/common": "^12.1.0",
     "@temporalio/client": "^1.24.0",
-    "@temporalio/testing": "^1.24.0",
     "@temporalio/worker": "^1.24.0",
     "@temporalio/workflow": "^1.24.0"
+  },
+  "peerDependencies": {
+    "@temporalio/testing": "^1.24.0"
+  },
+  "peerDependenciesMeta": {
+    "@temporalio/testing": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
@@ -38,6 +45,7 @@
     "@nestjs/core": "^12.1.0",
     "@nestjs/testing": "^12.1.0",
     "@swc/core": "^1.16.2",
+    "@temporalio/testing": "^1.24.0",
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
     "reflect-metadata": "^0.2.2",

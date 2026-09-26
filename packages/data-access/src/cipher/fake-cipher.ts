@@ -8,6 +8,7 @@ import {
   type KeyWrapper,
   type SealedField,
   tenantKeyName,
+  type WrappedDataKey,
 } from './field-cipher.js';
 
 export interface FakeCipherCall {
@@ -63,7 +64,7 @@ const KEY_VERSION = 1;
 class FakeKeyWrapper implements KeyWrapper {
   readonly used = new Set<string>();
 
-  wrap(tenant: string, dataKey: Buffer): Promise<{ wrappedDek: string; keyVersion: number }> {
+  wrap(tenant: string, dataKey: Buffer): Promise<WrappedDataKey> {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.keyFor(tenant), iv);
     const wrapped = Buffer.concat([cipher.update(dataKey), cipher.final()]);
@@ -73,7 +74,7 @@ class FakeKeyWrapper implements KeyWrapper {
     });
   }
 
-  unwrap(tenant: string, { wrappedDek, keyVersion }: { wrappedDek: string; keyVersion: number }) {
+  unwrap(tenant: string, { wrappedDek, keyVersion }: WrappedDataKey) {
     try {
       if (keyVersion !== KEY_VERSION) throw new Error(`Unknown key version ${keyVersion}`);
       const bytes = Buffer.from(wrappedDek, 'base64');

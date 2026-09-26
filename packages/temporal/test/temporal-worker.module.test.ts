@@ -1,5 +1,8 @@
 import 'reflect-metadata';
 
+import { createServer, type Server, type Socket } from 'node:net';
+import type { AddressInfo } from 'node:net';
+
 import { Injectable } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { describe, expect, it } from 'vitest';
@@ -42,6 +45,40 @@ describe('TemporalWorkerModule', () => {
     const started = Date.now();
     await moduleRef.close();
     expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it('shuts down promptly while still connecting to an unresponsive server', async () => {
+    // Accepts TCP connections and never answers, so the gRPC handshake hangs.
+    const sockets = new Set<Socket>();
+    const silent: Server = createServer((socket) => {
+      sockets.add(socket);
+    });
+    await new Promise<void>((resolve) => silent.listen(0, '127.0.0.1', resolve));
+    const { port } = silent.address() as AddressInfo;
+    try {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          TemporalWorkerModule.forRoot({
+            ...options,
+            address: `127.0.0.1:${port}`,
+            activities: [GreetingActivities],
+            drainTimeoutMs: 60_000,
+          }),
+        ],
+      })
+        .useMocker((token) => (token === GREETING_PREFIX ? 'Habari' : undefined))
+        .compile();
+      await moduleRef.init();
+      // Let the connection attempt start.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const started = Date.now();
+      await moduleRef.close();
+      expect(Date.now() - started).toBeLessThan(2_000);
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => silent.close(resolve));
+    }
   });
 
   it('refuses two providers defining the same activity name', async () => {

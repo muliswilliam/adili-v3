@@ -1,4 +1,3 @@
-export { type FakeCipherCall, FakeCipher } from './cipher/fake-cipher.js';
 export {
   type DecryptFieldInput,
   type EncryptFieldInput,
@@ -9,6 +8,7 @@ export {
   type FieldEnvelope,
   type KeyWrapper,
   type SealedField,
+  type WrappedDataKey,
 } from './cipher/field-cipher.js';
 export {
   type OpenBaoOptions,

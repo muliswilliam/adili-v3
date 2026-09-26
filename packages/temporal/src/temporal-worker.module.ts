@@ -71,20 +71,32 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
     this.running = this.runUntilStopped();
   }
 
-  /** Drains before other shutdown hooks close the connections activities depend on. */
+  /**
+   * Drains before other shutdown hooks close the connections activities depend on. Waits at most
+   * the drain time plus the cancellation grace, whatever state the worker is in.
+   */
   async beforeApplicationShutdown(): Promise<void> {
     this.shutdown.abort();
     if (this.worker?.getState() === 'RUNNING') {
       this.worker.shutdown();
     }
-    await this.running;
+    const bound = new AbortController();
+    const gaveUp = await Promise.race([
+      this.running?.then(() => false),
+      sleep(this.drainTimeoutMs() + CANCELLATION_GRACE_MS, true, { signal: bound.signal }),
+    ]);
+    bound.abort();
+    if (gaveUp) {
+      this.logger.warn('Temporal worker did not stop within the drain time; shutting down anyway');
+    }
   }
 
   private async runUntilStopped(): Promise<void> {
     while (!this.stopping()) {
       let connection: NativeConnection | undefined;
       try {
-        connection = await NativeConnection.connect({ address: this.options.address });
+        connection = await this.connect();
+        if (!connection) break;
         this.worker = await this.createWorker(connection);
         if (!this.stopping()) {
           await this.worker.run();
@@ -109,8 +121,35 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
     return this.shutdown.signal.aborted;
   }
 
+  /**
+   * Connects, or resolves undefined if shutdown starts first: an unresponsive server can hold a
+   * connection attempt open far longer than shutdown should wait, with nothing in flight to drain.
+   */
+  private async connect(): Promise<NativeConnection | undefined> {
+    const connecting = NativeConnection.connect({ address: this.options.address });
+    const stopped = new Promise<undefined>((resolve) => {
+      this.shutdown.signal.addEventListener(
+        'abort',
+        () => {
+          resolve(undefined);
+        },
+        { once: true },
+      );
+    });
+    const connection = await Promise.race([connecting, stopped]);
+    if (!connection) {
+      // Close the connection if the abandoned attempt succeeds later.
+      connecting.then((late) => late.close()).catch(() => undefined);
+    }
+    return connection;
+  }
+
+  private drainTimeoutMs(): number {
+    return this.options.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS;
+  }
+
   private createWorker(connection: NativeConnection): Promise<Worker> {
-    const drainTimeoutMs = this.options.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS;
+    const drainTimeoutMs = this.drainTimeoutMs();
     return Worker.create({
       connection,
       namespace: this.options.namespace,

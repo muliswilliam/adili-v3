@@ -5,6 +5,7 @@ import {
   FieldCipherError,
   type KeyWrapper,
   tenantKeyName,
+  type WrappedDataKey,
 } from './field-cipher.js';
 
 export interface OpenBaoOptions {
@@ -57,7 +58,7 @@ class TransitKeyWrapper implements KeyWrapper {
     private readonly mount: string,
   ) {}
 
-  async wrap(tenant: string, dataKey: Buffer): Promise<{ wrappedDek: string; keyVersion: number }> {
+  async wrap(tenant: string, dataKey: Buffer): Promise<WrappedDataKey> {
     const key = tenantKeyName(tenant);
     await this.ensureKey(key);
     const response = await this.client.request('POST', `${this.mount}/encrypt/${key}`, {
@@ -74,10 +75,7 @@ class TransitKeyWrapper implements KeyWrapper {
     return { keyVersion: Number(match[1]), wrappedDek: match[2] };
   }
 
-  async unwrap(
-    tenant: string,
-    { wrappedDek, keyVersion }: { wrappedDek: string; keyVersion: number },
-  ): Promise<Buffer> {
+  async unwrap(tenant: string, { wrappedDek, keyVersion }: WrappedDataKey): Promise<Buffer> {
     const key = tenantKeyName(tenant);
     const response = await this.client.request('POST', `${this.mount}/decrypt/${key}`, {
       ciphertext: `vault:v${keyVersion}:${wrappedDek}`,

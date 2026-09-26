@@ -20,7 +20,8 @@ export interface ExecuteWorkflowOptions<W extends Workflow> {
 
 /**
  * Temporal's time-skipping test server for workflow tests: timers resolve instantly,
- * activities are mocks, and each workflow bundle is built once per test file.
+ * activities are mocks, and each workflow bundle is built once per test file. Services using
+ * `@adili/temporal/testing` add `@temporalio/testing` to their devDependencies.
  *
  * ```ts
  * const env = await WorkflowTestEnvironment.create();
