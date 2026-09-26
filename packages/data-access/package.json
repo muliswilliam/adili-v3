@@ -16,7 +16,9 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
@@ -30,6 +32,7 @@
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",
     "eslint": "^10.11.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
   }
 }
