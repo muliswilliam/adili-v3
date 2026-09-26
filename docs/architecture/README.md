@@ -199,7 +199,7 @@ flowchart TB
 **Service runtime.** Every service is a NestJS **hybrid application** (NestJS microservices guideline): one process serves Fastify HTTP (`/v1`, `/internal/v1`, `/health/*`, `/docs`) and consumes its RabbitMQ queue through the Nest RMQ transport. Each service has one durable quorum queue, `<service>.events`, bound to the `adili.events` topic exchange once per `@OnEvent('<type>')` handler, with a per-service dead-letter queue. Publishing goes through the transactional outbox, relayed with the Nest RMQ `ClientProxy`.
 
 **Common shared libraries** (`packages/`, used by every service):
-- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth, RFC 9457 problem details, health endpoints
+- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth, RFC 9457 problem details, health endpoints, `Idempotency-Key` handling (`@RequireIdempotencyKey()`, `idempotency_keys` table per service)
 - `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security
 - `events`: CloudEvents envelope, outbox relay, inbox (idempotent consumers), RMQ topology, `@OnEvent`
 - `temporal`: Temporal client and readiness
