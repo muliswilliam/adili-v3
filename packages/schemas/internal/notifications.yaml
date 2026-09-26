@@ -108,6 +108,16 @@ components:
         - form-m-reminder-email
         - form-m-chase-email
         - form-m-receipt-email
+        - access-request-acknowledged-email
+        - access-request-notified-email
+        - access-request-notified-sms
+        - access-decision-applicant-email
+        - access-decision-declarant-email
+        - access-package-ready-email
+        - access-officer-reminder-email
+        - lea-grant-notice-email
+        - lea-decision-email
+        - certified-copy-ready-email
     Recipient:
       oneOf:
         - type: object

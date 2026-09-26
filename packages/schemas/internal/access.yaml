@@ -1,0 +1,1144 @@
+openapi: 3.1.0
+info:
+  title: access API - Form K, law-enforcement requests, representations, register (draft)
+  version: '1'
+  description: |
+    Draft contract for spec 10. Access to declarations under Act s.36: Form K requests by
+    applicants, law-enforcement requests, declarant representations, decisions with
+    Regulation 24 grounds, scoped watermarked packages, the access register and self-access
+    certified copies. The access service's Swagger document becomes the source of truth once
+    implemented.
+servers:
+  - url: http://localhost:4004
+security:
+  - bearer: []
+tags:
+  - name: applicant
+  - name: declarant
+  - name: officer
+  - name: lea
+paths:
+  /v1/access/commissions:
+    get:
+      tags: [applicant]
+      operationId: listAccessCommissions
+      summary: Commissions an applicant can address, with the declaration years available
+      responses:
+        '200':
+          description: Commissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [slug, name, years]
+                  properties:
+                    slug:
+                      type: string
+                    name:
+                      type: string
+                    years:
+                      type: array
+                      items:
+                        type: integer
+  /v1/access/requests:
+    post:
+      tags: [applicant]
+      operationId: submitAccessRequest
+      summary: Submit Form K (applicant); allocates the ARQ reference and acknowledges
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: A form-k.v1 document (see forms/form-k.v1.json)
+              additionalProperties: true
+      responses:
+        '201':
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [applicant]
+      operationId: listMyAccessRequests
+      summary: The applicant's requests
+      responses:
+        '200':
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccessRequest'
+  /v1/access/requests/{requestId}:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [applicant]
+      operationId: getMyAccessRequest
+      summary: One request with decision and package status (applicant)
+      responses:
+        '200':
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/access/requests/{requestId}/withdraw:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [applicant]
+      operationId: withdrawAccessRequest
+      summary: Withdraw before a decision
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already decided
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/package/download:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [applicant]
+      operationId: downloadAccessPackage
+      summary: Short-lived link to the granted package (registered as a download)
+      responses:
+        '200':
+          description: Link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadLink'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Download window expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/access-notices:
+    get:
+      tags: [declarant]
+      operationId: listMyAccessNotices
+      summary: Requests the declarant has been notified about, with windows and outcomes
+      responses:
+        '200':
+          description: Notices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarantNotice'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/access-notices/{requestId}/representations:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    put:
+      tags: [declarant]
+      operationId: submitRepresentations
+      summary: Create or update representations within the window
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepresentationsInput'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantNotice'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Window closed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/access-history:
+    get:
+      tags: [declarant]
+      operationId: getMyAccessHistory
+      summary: Who accessed my declaration (register entries visible to the declarant)
+      responses:
+        '200':
+          description: Entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegisterEntry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/certified-copies:
+    post:
+      tags: [declarant]
+      operationId: requestCertifiedCopy
+      summary: Certified copy of one of my submitted versions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [declarationId, version]
+              properties:
+                declarationId:
+                  type: string
+                  format: uuid
+                version:
+                  type: integer
+                  minimum: 1
+      responses:
+        '202':
+          description: Issuance requested; poll the copy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertifiedCopy'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [declarant]
+      operationId: listMyCertifiedCopies
+      summary: My certified copies with download links
+      responses:
+        '200':
+          description: Copies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CertifiedCopy'
+  /v1/commissions/{slug}/access/requests:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [officer]
+      operationId: listCommissionAccessRequests
+      summary: Queue of Form K and LEA requests with deadlines (access officer; supervisor read)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [form-k, lea]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QueueItem'
+                  nextCursor:
+                    type: [string, 'null']
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/access/requests/{requestId}/officer:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [officer]
+      operationId: getAccessRequestForOfficer
+      summary: Full request for the access officer (Form K, representations, register)
+      responses:
+        '200':
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/access/requests/{requestId}/verify-applicant:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [officer]
+      operationId: verifyApplicantIdentity
+      summary: Record manual verification of a passport applicant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verified, note]
+              properties:
+                verified:
+                  type: boolean
+                note:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/access/requests/{requestId}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [officer]
+      operationId: resolveRequestedOfficer
+      summary: Identify the officer on the roster, or record that they cannot be identified
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rosterRecordId]
+              properties:
+                rosterRecordId:
+                  type: [string, 'null']
+                  format: uuid
+                  description: null records cannot-identify
+                note:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Resolved; declarant notification follows, or request closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already resolved
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/decision:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [officer]
+      operationId: decideAccessRequest
+      summary: 'Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '200':
+          description: Decided; notifications and package follow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already decided or not yet under decision
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/lea/requests:
+    post:
+      tags: [lea]
+      operationId: submitLeaRequest
+      summary: Law-enforcement officer submits a written request (no Form K); allocates the LEA reference
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaRequestInput'
+      responses:
+        '201':
+          description: Received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaRequest'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [lea]
+      operationId: listMyLeaRequests
+      summary: The officer's requests
+      responses:
+        '200':
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaRequest'
+  /v1/lea/requests/{leaRequestId}:
+    parameters:
+      - $ref: '#/components/parameters/LeaRequestId'
+    get:
+      tags: [lea]
+      operationId: getLeaRequest
+      summary: One request (officer who filed it, or the Commission's access officer)
+      responses:
+        '200':
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/lea/requests/{leaRequestId}/verify:
+    parameters:
+      - $ref: '#/components/parameters/LeaRequestId'
+    post:
+      tags: [officer]
+      operationId: verifyLeaRequest
+      summary: Access officer records the provenance and reason check and resolves the officer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rosterRecordId, note]
+              properties:
+                rosterRecordId:
+                  type: [string, 'null']
+                  format: uuid
+                note:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/lea/requests/{leaRequestId}/decision:
+    parameters:
+      - $ref: '#/components/parameters/LeaRequestId'
+    post:
+      tags: [officer]
+      operationId: decideLeaRequest
+      summary: Grant (package, declarant notified after) or deny with reasons
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '200':
+          description: Decided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already decided
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/lea/requests/{leaRequestId}/package/download:
+    parameters:
+      - $ref: '#/components/parameters/LeaRequestId'
+    get:
+      tags: [lea]
+      operationId: downloadLeaPackage
+      summary: Short-lived link to the granted package (registered)
+      responses:
+        '200':
+          description: Link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadLink'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Download window expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LeaRequestId:
+      name: leaRequestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    AccessRequestStatus:
+      type: string
+      enum:
+        - submitted
+        - pending-applicant-verification
+        - officer-unresolved
+        - awaiting-representations
+        - under-decision
+        - granted
+        - partially-granted
+        - denied
+        - cannot-identify
+        - withdrawn
+    LeaRequestStatus:
+      type: string
+      enum: [received, verified, granted, denied, withdrawn]
+    Outcome:
+      type: string
+      enum: [grant, partial-grant, deny]
+    Ground:
+      type: string
+      description: Regulation 24
+      enum: [public-interest, prejudice-proceeding, frivolous-vexatious, not-objectives]
+    Section:
+      type: string
+      enum: [bio, income, assets, liabilities, other]
+    Scope:
+      type: object
+      required: [years, includeSpouses, includeChildren, sections]
+      properties:
+        years:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Section'
+    Decision:
+      type: object
+      required: [outcome, grantedScope, grounds, reasons, decidedBy, decidedAt]
+      properties:
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        grantedScope:
+          oneOf:
+            - $ref: '#/components/schemas/Scope'
+            - type: 'null'
+        grounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ground'
+        reasons:
+          type: string
+        decidedBy:
+          type: object
+          required: [subject, name]
+          properties:
+            subject:
+              type: string
+            name:
+              type: string
+        decidedAt:
+          type: string
+          format: date-time
+    DecisionInput:
+      type: object
+      required: [outcome, reasons]
+      properties:
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        grantedScope:
+          oneOf:
+            - $ref: '#/components/schemas/Scope'
+            - type: 'null'
+          description: Required for partial-grant; must be a subset of the requested scope
+        grounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ground'
+          description: Required for partial-grant and deny
+        reasons:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    Package:
+      type: object
+      required: [documentId, verificationId, issuedAt, downloadExpiresAt, downloads]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        verificationId:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        downloadExpiresAt:
+          type: string
+          format: date-time
+        downloads:
+          type: integer
+    AccessRequest:
+      type: object
+      required:
+        [
+          id,
+          reference,
+          commission,
+          status,
+          formK,
+          submittedAt,
+          decisionDeadlineAt,
+          decision,
+          package,
+          timeline,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          description: 'ARQ-<ISSUER>-<YEAR>-<seq>-<check>'
+        commission:
+          type: object
+          required: [slug, name]
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        status:
+          $ref: '#/components/schemas/AccessRequestStatus'
+        formK:
+          type: object
+          description: The form-k.v1 document as submitted
+          additionalProperties: true
+        submittedAt:
+          type: string
+          format: date-time
+        decisionDeadlineAt:
+          type: string
+          format: date-time
+        decision:
+          oneOf:
+            - $ref: '#/components/schemas/Decision'
+            - type: 'null'
+        package:
+          oneOf:
+            - $ref: '#/components/schemas/Package'
+            - type: 'null'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisterEntry'
+    QueueItem:
+      type: object
+      required:
+        [
+          kind,
+          id,
+          reference,
+          applicantOrAgency,
+          officerSought,
+          resolvedName,
+          status,
+          submittedAt,
+          deadlineAt,
+          windowEndsAt,
+          late,
+        ]
+      properties:
+        kind:
+          type: string
+          enum: [form-k, lea]
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        applicantOrAgency:
+          type: string
+        officerSought:
+          type: string
+        resolvedName:
+          type: [string, 'null']
+        status:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: string
+          format: date-time
+        windowEndsAt:
+          type: [string, 'null']
+          format: date-time
+        late:
+          type: boolean
+    Representations:
+      type: object
+      required: [stance, text, attachments, submittedAt, updatedAt]
+      properties:
+        stance:
+          type: string
+          enum: [object, consent, context]
+        text:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            required: [uploadId, fileName]
+            properties:
+              uploadId:
+                type: string
+                format: uuid
+              fileName:
+                type: string
+        submittedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RepresentationsInput:
+      type: object
+      required: [stance, text, attachments]
+      properties:
+        stance:
+          type: string
+          enum: [object, consent, context]
+        text:
+          type: string
+          maxLength: 8000
+        attachments:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+    OfficerRequestView:
+      allOf:
+        - $ref: '#/components/schemas/AccessRequest'
+        - type: object
+          required: [applicantIdentityStatus, resolvedRosterRecordId, representations, windowEndsAt]
+          properties:
+            applicantIdentityStatus:
+              type: string
+              enum: [verified, pending-verification]
+            resolvedRosterRecordId:
+              type: [string, 'null']
+              format: uuid
+            representations:
+              oneOf:
+                - $ref: '#/components/schemas/Representations'
+                - type: 'null'
+            windowEndsAt:
+              type: [string, 'null']
+              format: date-time
+    DeclarantNotice:
+      type: object
+      required:
+        [
+          requestId,
+          reference,
+          kind,
+          commission,
+          applicantName,
+          purposeInGeneralTerms,
+          scope,
+          notifiedAt,
+          windowEndsAt,
+          representations,
+          decision,
+        ]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        kind:
+          type: string
+          enum: [form-k, lea]
+        commission:
+          type: object
+          required: [slug, name]
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        applicantName:
+          type: string
+          description: Applicant name, or agency name for LEA (shown after grant)
+        purposeInGeneralTerms:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+        notifiedAt:
+          type: string
+          format: date-time
+        windowEndsAt:
+          type: [string, 'null']
+          format: date-time
+        representations:
+          oneOf:
+            - $ref: '#/components/schemas/Representations'
+            - type: 'null'
+        decision:
+          oneOf:
+            - $ref: '#/components/schemas/Decision'
+            - type: 'null'
+    RegisterEntry:
+      type: object
+      required: [id, kind, at, actor, summary, reference]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            [
+              received,
+              verified,
+              notified,
+              representations,
+              decided,
+              package-issued,
+              downloaded,
+              expired,
+              withdrawn,
+              cannot-identify,
+              self-access,
+            ]
+        at:
+          type: string
+          format: date-time
+        actor:
+          type: [string, 'null']
+        summary:
+          type: string
+        reference:
+          type: string
+    CertifiedCopy:
+      type: object
+      required:
+        [id, declarationId, version, status, documentId, verificationId, downloadUrl, requestedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [pending, issued, failed]
+        documentId:
+          type: [string, 'null']
+          format: uuid
+        verificationId:
+          type: [string, 'null']
+        downloadUrl:
+          type: [string, 'null']
+          format: uri
+        requestedAt:
+          type: string
+          format: date-time
+    LeaRequestInput:
+      type: object
+      required: [commission, officerSought, reason, caseReference, scope]
+      properties:
+        commission:
+          type: string
+        officerSought:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+            entity:
+              type: string
+            workStation:
+              type: string
+            personnelFileNumber:
+              type: string
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        caseReference:
+          type: string
+          maxLength: 100
+        scope:
+          $ref: '#/components/schemas/Scope'
+    LeaRequest:
+      type: object
+      required:
+        [
+          id,
+          reference,
+          commission,
+          agency,
+          officer,
+          officerSought,
+          reason,
+          caseReference,
+          scope,
+          status,
+          receivedAt,
+          deadlineAt,
+          verification,
+          decision,
+          package,
+          timeline,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          description: 'LEA-<ISSUER>-<YEAR>-<seq>-<check>'
+        commission:
+          type: object
+          required: [slug, name]
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        agency:
+          type: object
+          required: [code, name]
+          properties:
+            code:
+              type: string
+            name:
+              type: string
+        officer:
+          type: object
+          required: [subject, name]
+          properties:
+            subject:
+              type: string
+            name:
+              type: string
+        officerSought:
+          type: object
+          additionalProperties: true
+        reason:
+          type: string
+        caseReference:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+        status:
+          $ref: '#/components/schemas/LeaRequestStatus'
+        receivedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: string
+          format: date-time
+        verification:
+          oneOf:
+            - type: object
+              required: [by, at, note]
+              properties:
+                by:
+                  type: string
+                at:
+                  type: string
+                  format: date-time
+                note:
+                  type: string
+            - type: 'null'
+        decision:
+          oneOf:
+            - $ref: '#/components/schemas/Decision'
+            - type: 'null'
+        package:
+          oneOf:
+            - $ref: '#/components/schemas/Package'
+            - type: 'null'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisterEntry'
+    DownloadLink:
+      type: object
+      required: [downloadUrl, expiresAt, sha256]
+      properties:
+        downloadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
