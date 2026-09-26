@@ -2,9 +2,10 @@
   "name": "@adili/schemas",
   "version": "0.0.0",
   "private": true,
-  "description": "Contracts shared across languages: OpenAPI for the external systems the platform integrates with, and internal service contracts the services converge to (ADR-012, ADR-013).",
+  "description": "Contracts shared across languages: OpenAPI for external systems and internal services, and JSON Schemas for the prescribed forms (ADR-009, ADR-012, ADR-013).",
   "files": [
     "external",
-    "internal"
+    "internal",
+    "forms"
   ]
 }

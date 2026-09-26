@@ -1,0 +1,536 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adili.go.ke/schemas/declaration.v1.json",
+  "title": "Declaration of Income, Assets and Liabilities (First Schedule, Conflict of Interest Act 2025)",
+  "description": "One declaration as submitted by a public officer: paragraphs 1-9 of the First Schedule. Amounts are integers in minor units (KES cents). Draft: spec 05.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "type",
+    "statementDate",
+    "incomePeriod",
+    "officer",
+    "spouses",
+    "children",
+    "statements",
+    "otherInformation",
+    "attestation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "declaration.v1" },
+    "type": { "type": "string", "enum": ["initial", "biennial", "final"] },
+    "statementDate": { "type": "string", "format": "date" },
+    "incomePeriod": {
+      "type": "object",
+      "required": ["from", "to", "fromSource"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "format": "date" },
+        "to": { "type": "string", "format": "date" },
+        "fromSource": {
+          "type": "string",
+          "enum": ["declared", "assumed"],
+          "description": "declared: previous statement date from an Adili declaration; assumed: no prior record on Adili, start derived from type"
+        }
+      }
+    },
+    "officer": {
+      "type": "object",
+      "description": "Paragraphs 1-5",
+      "required": ["name", "birth", "maritalStatus", "address", "employment"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/PersonName" },
+        "birth": {
+          "type": "object",
+          "required": ["date", "place"],
+          "additionalProperties": false,
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "place": { "type": "string", "minLength": 2, "maxLength": 100 }
+          }
+        },
+        "maritalStatus": {
+          "type": "string",
+          "enum": ["single", "married", "separated", "divorced", "widowed"]
+        },
+        "maritalStatusChange": { "$ref": "#/$defs/MaritalStatusChange" },
+        "address": {
+          "type": "object",
+          "required": ["postal", "physical"],
+          "additionalProperties": false,
+          "properties": {
+            "postal": { "type": "string", "minLength": 3, "maxLength": 200 },
+            "physical": { "type": "string", "minLength": 3, "maxLength": 200 }
+          }
+        },
+        "employment": {
+          "type": "object",
+          "required": ["designation", "employer", "nature", "responsibleCommission"],
+          "additionalProperties": false,
+          "properties": {
+            "designation": { "type": "string", "maxLength": 100 },
+            "employer": { "type": "string", "maxLength": 200 },
+            "nature": {
+              "type": "string",
+              "enum": ["permanent", "temporary", "contract", "other"]
+            },
+            "natureOther": { "type": "string", "maxLength": 100 },
+            "responsibleCommission": {
+              "type": "string",
+              "description": "Tenant key of the Responsible Commission",
+              "pattern": "^[a-z][a-z0-9]{1,19}$"
+            },
+            "personnelFileNumber": { "type": "string", "maxLength": 30 }
+          }
+        }
+      }
+    },
+    "spouses": {
+      "type": "object",
+      "description": "Paragraph 6",
+      "required": ["none", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "none": {
+          "type": "boolean",
+          "description": "Explicit declaration that there is no spouse"
+        },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/Spouse" } }
+      }
+    },
+    "children": {
+      "type": "object",
+      "description": "Paragraph 7",
+      "required": ["none", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "none": {
+          "type": "boolean",
+          "description": "Explicit declaration that there are no dependent children under 18"
+        },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/Child" } }
+      }
+    },
+    "statements": {
+      "type": "array",
+      "description": "Paragraph 8: one financial statement per person (officer, each spouse, each included child)",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Statement" }
+    },
+    "otherInformation": {
+      "type": "object",
+      "description": "Paragraph 9; material changes per Regs r.21",
+      "required": ["materialChanges", "registrableInterests", "freeText"],
+      "additionalProperties": false,
+      "properties": {
+        "materialChanges": {
+          "type": "array",
+          "description": "Composed from flagged items and the marital status change",
+          "items": { "$ref": "#/$defs/MaterialChangeEntry" }
+        },
+        "registrableInterests": { "$ref": "#/$defs/RegistrableInterests" },
+        "freeText": { "type": "string", "maxLength": 4000 }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "required": ["text"],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "const": "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete."
+        },
+        "declaredAt": { "type": "string", "format": "date-time" },
+        "reference": {
+          "type": "string",
+          "description": "Reference number issued at submission (slice 06)"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "PersonName": {
+      "type": "object",
+      "required": ["surname", "firstName"],
+      "additionalProperties": false,
+      "properties": {
+        "surname": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "firstName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "otherNames": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "PersonKey": {
+      "type": "string",
+      "pattern": "^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$"
+    },
+    "Money": {
+      "type": "object",
+      "required": ["kesCents"],
+      "additionalProperties": false,
+      "properties": {
+        "kesCents": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Approximate value in Kenyan shilling cents"
+        },
+        "original": {
+          "type": "object",
+          "description": "Original currency and amount for holdings outside Kenya (note 13); no conversion is performed",
+          "required": ["currency", "minorUnits"],
+          "additionalProperties": false,
+          "properties": {
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+            "minorUnits": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "Location": {
+      "type": "object",
+      "required": ["inKenya"],
+      "additionalProperties": false,
+      "properties": {
+        "inKenya": { "type": "boolean" },
+        "county": {
+          "type": "string",
+          "description": "Kenyan county code 001-047 when inKenya",
+          "pattern": "^0(0[1-9]|[1-3][0-9]|4[0-7])$"
+        },
+        "country": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-2 when outside Kenya",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "detail": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "ChangeFlag": {
+      "type": "object",
+      "description": "Act s.31(3)-(4): change since the previous declaration",
+      "required": ["changed"],
+      "additionalProperties": false,
+      "properties": {
+        "changed": { "type": "boolean" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "value-change",
+            "acquisition",
+            "disposal",
+            "new-source",
+            "source-ended",
+            "settled"
+          ]
+        },
+        "explanation": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      },
+      "if": { "properties": { "changed": { "const": true } } },
+      "then": { "required": ["changed", "kind", "explanation"] }
+    },
+    "MaritalStatusChange": {
+      "type": "object",
+      "required": ["changed"],
+      "additionalProperties": false,
+      "properties": {
+        "changed": { "type": "boolean" },
+        "explanation": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      },
+      "if": { "properties": { "changed": { "const": true } } },
+      "then": { "required": ["changed", "explanation"] }
+    },
+    "Attachment": {
+      "type": "object",
+      "required": ["uploadId", "fileName", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "uploadId": { "type": "string", "format": "uuid" },
+        "fileName": { "type": "string", "maxLength": 255 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "Spouse": {
+      "type": "object",
+      "required": ["id", "name", "separated"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "$ref": "#/$defs/PersonName" },
+        "nationalId": { "type": "string", "pattern": "^[0-9]{5,10}$" },
+        "kraPin": { "type": "string", "pattern": "^[AP][0-9]{9}[A-Z]$" },
+        "occupationSector": {
+          "type": "string",
+          "enum": ["public", "private", "not-employed", "unknown"]
+        },
+        "separated": { "type": "boolean" },
+        "separationDate": { "type": "string", "format": "date" }
+      }
+    },
+    "Child": {
+      "type": "object",
+      "required": ["id", "name", "dateOfBirth", "includedAtStatementDate"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "$ref": "#/$defs/PersonName" },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "nationalId": { "type": "string", "pattern": "^[0-9]{5,10}$" },
+        "includedAtStatementDate": {
+          "type": "boolean",
+          "description": "True when under 18 on the statement date; derived, not entered"
+        }
+      }
+    },
+    "IncomeItem": {
+      "type": "object",
+      "required": ["id", "type", "description", "amount", "location", "change"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "salary-emoluments",
+            "allowances",
+            "business",
+            "rent",
+            "dividends-interest",
+            "pension",
+            "farming",
+            "consultancy",
+            "other"
+          ]
+        },
+        "description": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "amount": { "$ref": "#/$defs/Money" },
+        "location": { "$ref": "#/$defs/Location" },
+        "change": { "$ref": "#/$defs/ChangeFlag" },
+        "attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" } }
+      }
+    },
+    "AssetItem": {
+      "type": "object",
+      "required": ["id", "type", "description", "value", "location", "joint", "change"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "land",
+            "building",
+            "vehicle",
+            "securities",
+            "shareholding",
+            "bank-account",
+            "cash",
+            "receivable",
+            "other"
+          ]
+        },
+        "description": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "details": {
+          "type": "object",
+          "description": "Type-specific identifiers; no account numbers",
+          "additionalProperties": false,
+          "properties": {
+            "parcelNumber": { "type": "string", "maxLength": 100 },
+            "size": { "type": "string", "maxLength": 50 },
+            "registration": { "type": "string", "maxLength": 20 },
+            "makeModel": { "type": "string", "maxLength": 100 },
+            "issuer": { "type": "string", "maxLength": 200 },
+            "quantityOrPercent": { "type": "string", "maxLength": 50 },
+            "institution": { "type": "string", "maxLength": 200 },
+            "accountType": { "type": "string", "maxLength": 50 },
+            "debtor": { "type": "string", "maxLength": 200 }
+          }
+        },
+        "value": { "$ref": "#/$defs/Money" },
+        "location": { "$ref": "#/$defs/Location" },
+        "joint": {
+          "type": "object",
+          "required": ["isJoint"],
+          "additionalProperties": false,
+          "properties": {
+            "isJoint": { "type": "boolean" },
+            "sharePercent": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+            "coOwner": { "type": "string", "maxLength": 200 }
+          },
+          "if": { "properties": { "isJoint": { "const": true } } },
+          "then": { "required": ["isJoint", "sharePercent"] }
+        },
+        "change": { "$ref": "#/$defs/ChangeFlag" },
+        "attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" } }
+      }
+    },
+    "LiabilityItem": {
+      "type": "object",
+      "required": ["id", "type", "description", "creditor", "outstanding", "location", "change"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "type": { "type": "string", "enum": ["mortgage", "loan", "guarantee", "other"] },
+        "description": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "creditor": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "outstanding": { "$ref": "#/$defs/Money" },
+        "location": { "$ref": "#/$defs/Location" },
+        "change": { "$ref": "#/$defs/ChangeFlag" },
+        "attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" } }
+      }
+    },
+    "Statement": {
+      "type": "object",
+      "description": "Paragraph 8 for one person",
+      "required": [
+        "personKey",
+        "personName",
+        "statementDate",
+        "incomePeriod",
+        "incomeNil",
+        "income",
+        "assetsNil",
+        "assets",
+        "liabilitiesNil",
+        "liabilities"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "personKey": { "$ref": "#/$defs/PersonKey" },
+        "personName": { "$ref": "#/$defs/PersonName" },
+        "statementDate": { "type": "string", "format": "date" },
+        "incomePeriod": {
+          "type": "object",
+          "required": ["from", "to"],
+          "additionalProperties": false,
+          "properties": {
+            "from": { "type": "string", "format": "date" },
+            "to": { "type": "string", "format": "date" }
+          }
+        },
+        "incomeNil": { "type": "boolean" },
+        "income": { "type": "array", "items": { "$ref": "#/$defs/IncomeItem" } },
+        "assetsNil": { "type": "boolean" },
+        "assets": { "type": "array", "items": { "$ref": "#/$defs/AssetItem" } },
+        "liabilitiesNil": { "type": "boolean" },
+        "liabilities": { "type": "array", "items": { "$ref": "#/$defs/LiabilityItem" } },
+        "knowledgeLimitation": {
+          "type": "string",
+          "description": "For a separated spouse: extent to which the officer knows their affairs",
+          "maxLength": 1000
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "incomeNil": { "const": true } } },
+          "then": { "properties": { "income": { "maxItems": 0 } } },
+          "else": { "properties": { "income": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "assetsNil": { "const": true } } },
+          "then": { "properties": { "assets": { "maxItems": 0 } } },
+          "else": { "properties": { "assets": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "liabilitiesNil": { "const": true } } },
+          "then": { "properties": { "liabilities": { "maxItems": 0 } } },
+          "else": { "properties": { "liabilities": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "MaterialChangeEntry": {
+      "type": "object",
+      "required": ["kind", "explanation"],
+      "additionalProperties": false,
+      "properties": {
+        "personKey": { "$ref": "#/$defs/PersonKey" },
+        "itemId": { "type": "string", "format": "uuid" },
+        "itemDescription": { "type": "string", "maxLength": 200 },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "value-change",
+            "acquisition",
+            "disposal",
+            "new-source",
+            "source-ended",
+            "settled",
+            "marital-status",
+            "directorship",
+            "membership"
+          ]
+        },
+        "explanation": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "RegistrableInterests": {
+      "type": "object",
+      "description": "Second Schedule vocabulary relevant to paragraph 9",
+      "required": ["directorships", "memberships", "dualCitizenship", "pendingCases"],
+      "additionalProperties": false,
+      "properties": {
+        "directorships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["company", "role", "remunerated"],
+            "additionalProperties": false,
+            "properties": {
+              "company": { "type": "string", "maxLength": 200 },
+              "role": { "type": "string", "maxLength": 100 },
+              "remunerated": { "type": "boolean" },
+              "change": { "$ref": "#/$defs/ChangeFlag" }
+            }
+          }
+        },
+        "memberships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["entity", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "entity": { "type": "string", "maxLength": 200 },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "company",
+                  "partnership",
+                  "society",
+                  "club",
+                  "foundation",
+                  "trust",
+                  "other"
+                ]
+              },
+              "change": { "$ref": "#/$defs/ChangeFlag" }
+            }
+          }
+        },
+        "dualCitizenship": {
+          "type": "object",
+          "required": ["holds", "pendingApplication"],
+          "additionalProperties": false,
+          "properties": {
+            "holds": { "type": "boolean" },
+            "country": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "pendingApplication": { "type": "boolean" }
+          }
+        },
+        "pendingCases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["forum", "reference", "nature"],
+            "additionalProperties": false,
+            "properties": {
+              "forum": { "type": "string", "maxLength": 200 },
+              "reference": { "type": "string", "maxLength": 100 },
+              "nature": { "type": "string", "maxLength": 500 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
