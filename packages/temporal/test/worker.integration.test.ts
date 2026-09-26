@@ -1,0 +1,152 @@
+import 'reflect-metadata';
+
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
+import { Module } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import type { Client } from '@temporalio/client';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import {
+  TEMPORAL_CLIENT,
+  TemporalModule,
+  TemporalWorkerModule,
+  TemporalWorkerReadinessCheck,
+} from '../src/index.js';
+import { GREETING_PREFIX, GreetingActivities } from './fixtures/greeting-activities.js';
+import { greetNow } from './fixtures/workflows.js';
+
+/**
+ * Runs the worker module inside a Nest app against compose Temporal (`pnpm infra:up`):
+ * workflow + Nest-provided activity round trip, readiness, and shutdown drain.
+ */
+const ADDRESS = requireEnv('TEST_TEMPORAL_ADDRESS');
+const NAMESPACE = requireEnv('TEST_TEMPORAL_NAMESPACE');
+const workflowsPath = fileURLToPath(new URL('fixtures/workflows.ts', import.meta.url));
+
+@Module({
+  providers: [{ provide: GREETING_PREFIX, useValue: 'Habari' }],
+  exports: [GREETING_PREFIX],
+})
+class PrefixModule {}
+
+async function createApp(options: { taskQueue: string; drainTimeoutMs?: number }) {
+  return Test.createTestingModule({
+    imports: [
+      TemporalModule.forRoot({ address: ADDRESS, namespace: NAMESPACE }),
+      TemporalWorkerModule.forRoot({
+        address: ADDRESS,
+        namespace: NAMESPACE,
+        taskQueue: options.taskQueue,
+        workflowsPath,
+        imports: [PrefixModule],
+        activities: [GreetingActivities],
+        drainTimeoutMs: options.drainTimeoutMs,
+      }),
+    ],
+  }).compile();
+}
+
+async function waitUntil(condition: () => boolean | Promise<boolean>, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await condition())) {
+    if (Date.now() > deadline) throw new Error('condition not met in time');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+async function isUp(readiness: TemporalWorkerReadinessCheck): Promise<boolean> {
+  return readiness.check().then(
+    () => true,
+    () => false,
+  );
+}
+
+describe('TemporalWorkerModule against compose Temporal', () => {
+  let app: TestingModule | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it('runs a workflow whose activity is a Nest provider', async () => {
+    const taskQueue = `worker-test-${randomUUID()}`;
+    app = await createApp({ taskQueue });
+    await app.init();
+    const client = app.get<Client>(TEMPORAL_CLIENT);
+
+    const result = await client.workflow.execute(greetNow, {
+      taskQueue,
+      workflowId: randomUUID(),
+      args: ['Amina'],
+    });
+
+    expect(result).toBe('Habari, Amina');
+  });
+
+  it('reports down until the worker is polling, then up', async () => {
+    app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
+    const readiness = app.get(TemporalWorkerReadinessCheck);
+
+    await expect(readiness.check()).rejects.toThrow(/not polling/);
+    await app.init();
+    await waitUntil(() => isUp(readiness));
+  });
+
+  it('reports down and waits for in-flight activities while shutting down', async () => {
+    const taskQueue = `worker-test-${randomUUID()}`;
+    app = await createApp({ taskQueue, drainTimeoutMs: 10_000 });
+    await app.init();
+    const readiness = app.get(TemporalWorkerReadinessCheck);
+    const activities = app.get(GreetingActivities);
+    activities.delayMs = 1_500;
+    const client = app.get<Client>(TEMPORAL_CLIENT);
+
+    await client.workflow.start(greetNow, {
+      taskQueue,
+      workflowId: randomUUID(),
+      args: ['Baraka'],
+      // The worker stops before the workflow finishes; let Temporal close it.
+      workflowExecutionTimeout: '1 minute',
+    });
+    await waitUntil(() => activities.started === 1);
+    const closing = app.close();
+    app = undefined;
+    await waitUntil(async () => !(await isUp(readiness)));
+    expect(activities.completed).toBe(0);
+    await closing;
+
+    expect(activities.completed).toBe(1);
+  });
+
+  it('stops waiting for in-flight activities after the drain time', async () => {
+    const taskQueue = `worker-test-${randomUUID()}`;
+    app = await createApp({ taskQueue, drainTimeoutMs: 500 });
+    await app.init();
+    const activities = app.get(GreetingActivities);
+    activities.delayMs = 60_000;
+    const client = app.get<Client>(TEMPORAL_CLIENT);
+
+    await client.workflow.start(greetNow, {
+      taskQueue,
+      workflowId: randomUUID(),
+      args: ['Chebet'],
+      workflowExecutionTimeout: '1 minute',
+    });
+    await waitUntil(() => activities.started === 1);
+    const started = Date.now();
+    await app.close();
+    app = undefined;
+
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(activities.completed).toBe(0);
+  });
+});
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not set`);
+  return value;
+}

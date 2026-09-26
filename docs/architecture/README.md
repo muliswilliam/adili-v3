@@ -202,7 +202,7 @@ flowchart TB
 - `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth, RFC 9457 problem details, health endpoints
 - `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security
 - `events`: CloudEvents envelope, outbox relay, inbox (idempotent consumers), RMQ topology, `@OnEvent`
-- `temporal`: Temporal client and readiness
+- `temporal`: Temporal client, worker module (workflows + Nest-provided activities on a task queue, readiness, drain on shutdown), time-skipping test helper
 - `cache`: Valkey client and readiness
 - `telemetry`: OpenTelemetry preload
 - `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
