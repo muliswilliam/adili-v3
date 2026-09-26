@@ -1324,12 +1324,18 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(pg@8.23.0)
+      nodemailer:
+        specifier: ^10.0.10
+        version: 10.0.10
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+      uuid:
+        specifier: ^14.0.2
+        version: 14.0.2
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -1340,6 +1346,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@nestjs/platform-fastify':
+        specifier: ^12.1.0
+        version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.1.0)
       '@nestjs/testing':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
@@ -1352,12 +1361,21 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
         version: 10.11.0(jiti@2.7.0)
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -5490,6 +5508,10 @@ packages:
   node-releases@2.0.57:
     resolution: {integrity: sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw==}
     engines: {node: '>=18'}
+
+  nodemailer@10.0.10:
+    resolution: {integrity: sha512-He9XskOFms62SyAKkLu8CcGcYHAo+BSHSsORI8s4PJH8qZgZY4L4lDfvyN0twvmbpyG+eGrxpyBlskj9d9rJ8A==}
+    engines: {node: '>=20.0.0'}
 
   oauth4webapi@3.8.8:
     resolution: {integrity: sha512-8N28E+a/oxfXWBgOMt+ZP/JUf/XR+IFbvkAEPP3gznXOMv9BpAAwiIj0TFNz3tGTPc0ZQ8zmWBNgN1nAys0gng==}
@@ -10250,6 +10272,8 @@ snapshots:
       formdata-polyfill: 4.0.10
 
   node-releases@2.0.57: {}
+
+  nodemailer@10.0.10: {}
 
   oauth4webapi@3.8.8: {}
 
