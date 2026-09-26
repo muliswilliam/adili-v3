@@ -6,6 +6,7 @@ import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { IdentityModule } from './identity/identity.module.js';
 import { MeController } from './me/me.controller.js';
 
 @Module({
@@ -22,6 +23,7 @@ import { MeController } from './me/me.controller.js';
     }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    IdentityModule,
   ],
   controllers: [MeController],
 })

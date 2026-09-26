@@ -9,6 +9,9 @@ export const envSchema = baseEnvSchema.extend({
   DATABASE_URL: z.url(),
   RABBITMQ_URL: z.url(),
   VALKEY_URL: z.url(),
+  /** Confidential Keycloak client whose service account provisions staff users. */
+  KEYCLOAK_CLIENT_ID: z.string().min(1).default('directory'),
+  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

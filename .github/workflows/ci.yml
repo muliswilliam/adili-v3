@@ -29,7 +29,7 @@ jobs:
       - run: pnpm deps:check
 
   integration:
-    name: Integration (Postgres, RabbitMQ)
+    name: Integration (Postgres, RabbitMQ, Keycloak)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -49,17 +49,37 @@ jobs:
         ports: ['5672:5672']
         options: >-
           --health-cmd "rabbitmq-diagnostics -q check_port_connectivity" --health-interval 5s --health-timeout 10s --health-retries 30
+      # Keycloak's realm sends email to host `mailpit`, as in infra/compose.
+      mailpit:
+        image: axllent/mailpit:v1.31.2
+        ports: ['8025:8025']
+        options: >-
+          --health-cmd "/mailpit readyz" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       TEST_DATABASE_URL: postgres://adili_test:adili_test_dev@localhost:5432/adili_test
       TEST_RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
+      TEST_KEYCLOAK_ISSUER_URL: http://localhost:8080/realms/adili
+      TEST_MAILPIT_URL: http://localhost:8025
     steps:
       - uses: actions/checkout@v5
+      # Service containers cannot take a command, so Keycloak (same version as
+      # infra/docker/keycloak.Dockerfile, without the login theme) runs here.
+      - name: Start Keycloak with the realm import
+        run: |
+          docker run -d --name keycloak --network ${{ job.services.mailpit.network }} -p 8080:8080 \
+            -e KC_HOSTNAME=http://localhost:8080 \
+            -v "$PWD/infra/compose/keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro" \
+            quay.io/keycloak/keycloak:26.7.4 start-dev --import-realm
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Wait for Keycloak
+        run: |
+          timeout 180 sh -c 'until curl -sf "$TEST_KEYCLOAK_ISSUER_URL/.well-known/openid-configuration" >/dev/null; do sleep 2; done' \
+            || { docker logs keycloak; exit 1; }
       - run: pnpm test:integration
 
   python:

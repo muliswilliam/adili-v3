@@ -1,0 +1,229 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  EmailTaken,
+  IdentityUnavailable,
+  IdentityUserNotFound,
+} from '../../src/identity/identity-provisioning.js';
+import {
+  KeycloakIdentityProvisioning,
+  splitName,
+} from '../../src/identity/keycloak-identity-provisioning.js';
+import { ACTIVATION, reportingOfficer } from './identity-provisioning.contract.js';
+
+/**
+ * Error mapping and request shape against a scripted fetch. Behaviour against a real
+ * Keycloak is covered by keycloak-identity-provisioning.integration.test.ts.
+ */
+type Handler = (url: URL, init: RequestInit) => Response | Promise<Response>;
+
+interface Recorded {
+  method: string;
+  url: URL;
+  body: unknown;
+}
+
+function keycloak(routes: Record<string, Handler>) {
+  const requests: Recorded[] = [];
+  const fetchStub = async (input: string | URL | Request, init: RequestInit = {}) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const method = init.method ?? 'GET';
+    const body =
+      typeof init.body === 'string'
+        ? (JSON.parse(init.body) as unknown)
+        : init.body instanceof URLSearchParams
+          ? init.body.toString()
+          : undefined;
+    requests.push({ method, url, body });
+    const handler = routes[`${method} ${url.pathname}`];
+    if (!handler) {
+      return new Response(`no route for ${method} ${url.pathname}`, { status: 599 });
+    }
+    return handler(url, init);
+  };
+  const adapter = new KeycloakIdentityProvisioning({
+    issuerUrl: 'http://keycloak.test/realms/adili',
+    clientId: 'directory',
+    clientSecret: 'secret',
+    fetch: fetchStub,
+  });
+  return { adapter, requests };
+}
+
+const TOKEN = 'POST /realms/adili/protocol/openid-connect/token';
+const ADMIN = '/admin/realms/adili';
+const tokenOk: Handler = () => Response.json({ access_token: 'token', expires_in: 300 });
+const available: Handler = () => Response.json([{ id: 'role-id', name: 'reporting-officer' }]);
+
+describe('KeycloakIdentityProvisioning', () => {
+  it('creates the user with the Keycloak representation, then maps the realm role', async () => {
+    const { adapter, requests } = keycloak({
+      [TOKEN]: tokenOk,
+      [`POST ${ADMIN}/users`]: () =>
+        new Response(null, {
+          status: 201,
+          headers: { location: `http://keycloak.test${ADMIN}/users/user-1` },
+        }),
+      [`GET ${ADMIN}/users/user-1/role-mappings/realm/available`]: available,
+      [`POST ${ADMIN}/users/user-1/role-mappings/realm`]: () => new Response(null, { status: 204 }),
+    });
+
+    const userId = await adapter.createStaffUser(reportingOfficer('Officer@TSC.go.ke'));
+
+    expect(userId).toBe('user-1');
+    expect(requests[0]?.body).toBe(
+      'grant_type=client_credentials&client_id=directory&client_secret=secret',
+    );
+    expect(requests[1]?.body).toEqual({
+      username: 'officer@tsc.go.ke',
+      email: 'officer@tsc.go.ke',
+      firstName: 'Otieno',
+      lastName: 'Odhiambo Ouma',
+      enabled: true,
+      emailVerified: false,
+      attributes: { tenant: ['tsc'], phone: ['+254712345678'] },
+      requiredActions: ['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP'],
+    });
+    expect(requests.at(-1)?.body).toEqual([{ id: 'role-id', name: 'reporting-officer' }]);
+  });
+
+  it('maps 409 on creation to EmailTaken', async () => {
+    const { adapter } = keycloak({
+      [TOKEN]: tokenOk,
+      [`POST ${ADMIN}/users`]: () =>
+        Response.json({ errorMessage: 'User exists with same email' }, { status: 409 }),
+    });
+
+    await expect(adapter.createStaffUser(reportingOfficer('a@tsc.go.ke'))).rejects.toEqual(
+      new EmailTaken('a@tsc.go.ke'),
+    );
+  });
+
+  it('deletes a created user when the role mapping fails', async () => {
+    const { adapter, requests } = keycloak({
+      [TOKEN]: tokenOk,
+      [`POST ${ADMIN}/users`]: () =>
+        new Response(null, { status: 201, headers: { location: `${ADMIN}/users/user-1` } }),
+      [`GET ${ADMIN}/users/user-1/role-mappings/realm/available`]: available,
+      [`POST ${ADMIN}/users/user-1/role-mappings/realm`]: () => new Response(null, { status: 503 }),
+      [`DELETE ${ADMIN}/users/user-1`]: () => new Response(null, { status: 204 }),
+    });
+
+    await expect(adapter.createStaffUser(reportingOfficer('a@tsc.go.ke'))).rejects.toBeInstanceOf(
+      IdentityUnavailable,
+    );
+    expect(requests.at(-1)).toMatchObject({ method: 'DELETE' });
+  });
+
+  it.each([
+    ['5xx', () => new Response('boom', { status: 500 })],
+    ['403 (service account lacks roles)', () => new Response(null, { status: 403 })],
+    [
+      'network failure',
+      () => {
+        throw new TypeError('fetch failed');
+      },
+    ],
+  ])('maps %s to IdentityUnavailable', async (_label, handler: Handler) => {
+    const { adapter } = keycloak({ [TOKEN]: tokenOk, [`GET ${ADMIN}/users`]: handler });
+
+    await expect(adapter.findByEmail('a@tsc.go.ke')).rejects.toBeInstanceOf(IdentityUnavailable);
+  });
+
+  it('maps refused client credentials to IdentityUnavailable', async () => {
+    const { adapter } = keycloak({
+      [TOKEN]: () => Response.json({ error: 'unauthorized_client' }, { status: 401 }),
+    });
+
+    await expect(adapter.findByEmail('a@tsc.go.ke')).rejects.toBeInstanceOf(IdentityUnavailable);
+  });
+
+  it('maps a timeout to IdentityUnavailable', async () => {
+    const adapter = new KeycloakIdentityProvisioning({
+      issuerUrl: 'http://keycloak.test/realms/adili',
+      clientId: 'directory',
+      clientSecret: 'secret',
+      timeoutMs: 10,
+      fetch: ((_input: unknown, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            reject(init.signal?.reason as Error);
+          });
+        })) as typeof fetch,
+    });
+
+    await expect(adapter.findByEmail('a@tsc.go.ke')).rejects.toBeInstanceOf(IdentityUnavailable);
+  });
+
+  it('reuses the service-account token and renews it once on 401', async () => {
+    let tokens = 0;
+    let searches = 0;
+    const { adapter } = keycloak({
+      [TOKEN]: () => Response.json({ access_token: `token-${++tokens}`, expires_in: 300 }),
+      [`GET ${ADMIN}/users`]: (_url, init) => {
+        searches++;
+        const authorization = new Headers(init.headers).get('authorization');
+        return searches === 2 && authorization === 'Bearer token-1'
+          ? new Response(null, { status: 401 })
+          : Response.json([]);
+      },
+    });
+
+    await adapter.findByEmail('a@tsc.go.ke');
+    await adapter.findByEmail('a@tsc.go.ke');
+
+    expect(tokens).toBe(2);
+    expect(searches).toBe(3);
+  });
+
+  it('maps 404 on a user resource to IdentityUserNotFound', async () => {
+    const { adapter } = keycloak({
+      [TOKEN]: tokenOk,
+      [`PUT ${ADMIN}/users/missing/execute-actions-email`]: () =>
+        Response.json({ error: 'User not found' }, { status: 404 }),
+    });
+
+    await expect(adapter.sendActivationEmail('missing', ACTIVATION)).rejects.toEqual(
+      new IdentityUserNotFound('missing'),
+    );
+  });
+
+  it('sends execute-actions-email with lifespan, redirect and client', async () => {
+    const { adapter, requests } = keycloak({
+      [TOKEN]: tokenOk,
+      [`PUT ${ADMIN}/users/user-1/execute-actions-email`]: () =>
+        new Response(null, { status: 204 }),
+    });
+
+    await adapter.sendActivationEmail('user-1', ACTIVATION);
+
+    const request = requests.at(-1);
+    expect(Object.fromEntries(request?.url.searchParams ?? [])).toEqual({
+      lifespan: '259200',
+      redirect_uri: 'http://localhost:3020/',
+      client_id: 'console',
+    });
+    expect(request?.body).toEqual(['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP']);
+  });
+
+  it('rejects an issuer URL that is not a Keycloak realm', () => {
+    expect(
+      () =>
+        new KeycloakIdentityProvisioning({
+          issuerUrl: 'http://keycloak.test/',
+          clientId: 'directory',
+          clientSecret: 'secret',
+        }),
+    ).toThrow(/realm issuer/);
+  });
+});
+
+describe('splitName', () => {
+  it.each([
+    ['Otieno Odhiambo', { firstName: 'Otieno', lastName: 'Odhiambo' }],
+    ['  Mary  Wanjiku   Kamau ', { firstName: 'Mary', lastName: 'Wanjiku Kamau' }],
+    ['Zawadi', { firstName: 'Zawadi', lastName: '' }],
+  ])('%s', (name, expected) => {
+    expect(splitName(name)).toEqual(expected);
+  });
+});
