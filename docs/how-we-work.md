@@ -96,10 +96,6 @@ For UI primitives rounds, mocks, one-off tickets, or fixes after review. Use `/t
 
 The reviewer for each spec is fixed: BE by the other fullstack, app changes by the app's FE owner, acceptance by @denisngahu on the preview. Review once when the PR flips to ready; request fixes as comments and let the runner apply them with another agent run. Merge in spec order (01 → 02 → 03 → 04 → 05 → 06 → 07a → 07c/07b → 08 → 09 → 10 → 11 → 05b → 09b) so nothing lands on missing foundations.
 
-## Credits and models
-
-All agent spend goes on the team's Anthropic org. You will each get an API key (workspace with a spend limit); set `ANTHROPIC_API_KEY` in your shell and Claude Code bills the org, not your personal plan. Implementer and merger subagents run on Sonnet, the orchestrator and code review on Opus; agent definitions for this will land in the repo; do not override them.
-
 ## Local setup
 
 ```
