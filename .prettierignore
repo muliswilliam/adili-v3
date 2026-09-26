@@ -9,6 +9,7 @@ coverage
 docs/reference
 mocks
 apps/keycloak-theme/src/kc.gen.tsx
+apps/keycloak-theme/public/keycloakify-dev-resources
 docs
 *.md
 packages/schemas/external
