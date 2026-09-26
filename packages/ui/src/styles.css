@@ -53,6 +53,10 @@
   --control: var(--card);
   /* Behind dialogs. */
   --scrim: rgb(24 20 16 / 0.42);
+  /* Warm glow at the foot of the onboarding screens, sampled from the Figma frame
+     "onboarding-step-1". Replace with the exact stops once exported. */
+  --glow: #f0cab9;
+  --glow-soft: #f5e4dc;
   --radius: 10px;
 
   /* Hairline rings, focus rings and lifts, from the kit's --shadow-* tokens. */
@@ -110,6 +114,8 @@
     --input: oklch(0.376 0.007 84.6); /* #43413d */
     --ring: oklch(0.964 0.003 84.6);
     --scrim: rgb(0 0 0 / 0.6);
+    --glow: oklch(0.35 0.05 45);
+    --glow-soft: oklch(0.25 0.03 45);
 
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
@@ -198,6 +204,15 @@
       transform: translateX(330%);
     }
   }
+}
+
+/* The onboarding page background: the page colour with a warm glow rising from the bottom. */
+@utility bg-glow {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(90% 55% at 50% 100%, var(--glow) 0%, transparent 70%),
+    radial-gradient(140% 70% at 50% 100%, var(--glow-soft) 0%, transparent 75%);
+  background-attachment: fixed;
 }
 
 @layer base {

@@ -44,6 +44,7 @@ Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `
 | `ring` | `--ink` | `#1a1a1a` | focus outlines and rings |
 | `control` | | `card` | fill of inputs, textareas and selects |
 | `scrim` | `.overlay` | `rgb(24 20 16 / 0.42)` | behind dialogs |
+| `glow` / `glow-soft` | | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `logo` | | `#f06225` | the Dials logo only |
 
 Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`).
@@ -148,6 +149,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 |---|---|---|---|
 | Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `packages/ui/prototype/kit.css` | applied |
 | Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | `apps/console/prototype/01-commissions.prototype.html` | tokens only |
+| Get started (Identify) | [#66](https://github.com/muliswilliam/adili-v3/issues/66) | `apps/portal/prototype/declarant-journey.prototype.html` (`gs-*` screens) | built from the Figma frame `onboarding-step-1` with a national ID field the frame lacks; glow colours sampled; prototype pass pending |
 
 Add a row when a screen's design pass starts, and flip the status when it merges.
 

@@ -10,13 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
+import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
+import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email'
+import { Route as GetStartedConfirmRouteImport } from './routes/get-started/confirm'
+import { Route as GetStartedDoneRouteImport } from './routes/get-started/done'
+import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
+import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
+import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GetStartedRouteRoute = GetStartedRouteRouteImport.update({
+  id: '/get-started',
+  path: '/get-started',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -34,36 +47,131 @@ const AuthLogoutRoute = AuthLogoutRouteImport.update({
   path: '/auth/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GetStartedIndexRoute = GetStartedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const GetStartedCheckEmailRoute = GetStartedCheckEmailRouteImport.update({
+  id: '/check-email',
+  path: '/check-email',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const GetStartedConfirmRoute = GetStartedConfirmRouteImport.update({
+  id: '/confirm',
+  path: '/confirm',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const GetStartedDoneRoute = GetStartedDoneRouteImport.update({
+  id: '/done',
+  path: '/done',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const GetStartedNotVerifiedRoute = GetStartedNotVerifiedRouteImport.update({
+  id: '/not-verified',
+  path: '/not-verified',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const GetStartedVerifyEmailRoute = GetStartedVerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const GetStartedVerifyPhoneRoute = GetStartedVerifyPhoneRouteImport.update({
+  id: '/verify-phone',
+  path: '/verify-phone',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/get-started': typeof GetStartedRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/get-started/check-email': typeof GetStartedCheckEmailRoute
+  '/get-started/confirm': typeof GetStartedConfirmRoute
+  '/get-started/done': typeof GetStartedDoneRoute
+  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
+  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
+  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/get-started/': typeof GetStartedIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/get-started/check-email': typeof GetStartedCheckEmailRoute
+  '/get-started/confirm': typeof GetStartedConfirmRoute
+  '/get-started/done': typeof GetStartedDoneRoute
+  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
+  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
+  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/get-started': typeof GetStartedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/get-started': typeof GetStartedRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/get-started/check-email': typeof GetStartedCheckEmailRoute
+  '/get-started/confirm': typeof GetStartedConfirmRoute
+  '/get-started/done': typeof GetStartedDoneRoute
+  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
+  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
+  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/get-started/': typeof GetStartedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/callback' | '/auth/login' | '/auth/logout'
+  fullPaths:
+    | '/'
+    | '/get-started'
+    | '/auth/callback'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/get-started/check-email'
+    | '/get-started/confirm'
+    | '/get-started/done'
+    | '/get-started/not-verified'
+    | '/get-started/verify-email'
+    | '/get-started/verify-phone'
+    | '/get-started/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/callback' | '/auth/login' | '/auth/logout'
-  id: '__root__' | '/' | '/auth/callback' | '/auth/login' | '/auth/logout'
+  to:
+    | '/'
+    | '/auth/callback'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/get-started/check-email'
+    | '/get-started/confirm'
+    | '/get-started/done'
+    | '/get-started/not-verified'
+    | '/get-started/verify-email'
+    | '/get-started/verify-phone'
+    | '/get-started'
+  id:
+    | '__root__'
+    | '/'
+    | '/get-started'
+    | '/auth/callback'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/get-started/check-email'
+    | '/get-started/confirm'
+    | '/get-started/done'
+    | '/get-started/not-verified'
+    | '/get-started/verify-email'
+    | '/get-started/verify-phone'
+    | '/get-started/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -76,6 +184,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/get-started': {
+      id: '/get-started'
+      path: '/get-started'
+      fullPath: '/get-started'
+      preLoaderRoute: typeof GetStartedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -99,11 +214,85 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/get-started/': {
+      id: '/get-started/'
+      path: '/'
+      fullPath: '/get-started/'
+      preLoaderRoute: typeof GetStartedIndexRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
+    '/get-started/check-email': {
+      id: '/get-started/check-email'
+      path: '/check-email'
+      fullPath: '/get-started/check-email'
+      preLoaderRoute: typeof GetStartedCheckEmailRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
+    '/get-started/confirm': {
+      id: '/get-started/confirm'
+      path: '/confirm'
+      fullPath: '/get-started/confirm'
+      preLoaderRoute: typeof GetStartedConfirmRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
+    '/get-started/done': {
+      id: '/get-started/done'
+      path: '/done'
+      fullPath: '/get-started/done'
+      preLoaderRoute: typeof GetStartedDoneRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
+    '/get-started/not-verified': {
+      id: '/get-started/not-verified'
+      path: '/not-verified'
+      fullPath: '/get-started/not-verified'
+      preLoaderRoute: typeof GetStartedNotVerifiedRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
+    '/get-started/verify-email': {
+      id: '/get-started/verify-email'
+      path: '/verify-email'
+      fullPath: '/get-started/verify-email'
+      preLoaderRoute: typeof GetStartedVerifyEmailRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
+    '/get-started/verify-phone': {
+      id: '/get-started/verify-phone'
+      path: '/verify-phone'
+      fullPath: '/get-started/verify-phone'
+      preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
   }
 }
 
+interface GetStartedRouteRouteChildren {
+  GetStartedCheckEmailRoute: typeof GetStartedCheckEmailRoute
+  GetStartedConfirmRoute: typeof GetStartedConfirmRoute
+  GetStartedDoneRoute: typeof GetStartedDoneRoute
+  GetStartedNotVerifiedRoute: typeof GetStartedNotVerifiedRoute
+  GetStartedVerifyEmailRoute: typeof GetStartedVerifyEmailRoute
+  GetStartedVerifyPhoneRoute: typeof GetStartedVerifyPhoneRoute
+  GetStartedIndexRoute: typeof GetStartedIndexRoute
+}
+
+const GetStartedRouteRouteChildren: GetStartedRouteRouteChildren = {
+  GetStartedCheckEmailRoute: GetStartedCheckEmailRoute,
+  GetStartedConfirmRoute: GetStartedConfirmRoute,
+  GetStartedDoneRoute: GetStartedDoneRoute,
+  GetStartedNotVerifiedRoute: GetStartedNotVerifiedRoute,
+  GetStartedVerifyEmailRoute: GetStartedVerifyEmailRoute,
+  GetStartedVerifyPhoneRoute: GetStartedVerifyPhoneRoute,
+  GetStartedIndexRoute: GetStartedIndexRoute,
+}
+
+const GetStartedRouteRouteWithChildren = GetStartedRouteRoute._addFileChildren(
+  GetStartedRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GetStartedRouteRoute: GetStartedRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
