@@ -3,7 +3,7 @@ info:
   title: review API - cases, flags and clarifications (draft)
   version: '1'
   description: |
-    Draft contract for spec 07a. Review cases are created by the processing workflow from
+    Draft contract for specs 07a (queue, cases, clarifications) and 07b (registry cross-checks). Review cases are created by the processing workflow from
     submitted declarations; the service stores flags and case data only and reads declaration
     content from the declarations service on demand. The review service's Swagger document
     becomes the source of truth once implemented.
@@ -578,6 +578,42 @@ paths:
                 $ref: '#/components/schemas/ClarificationLetterPayload'
         '404':
           $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/registry:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    get:
+      tags: [cases]
+      operationId: getCaseRegistryChecks
+      summary: Per-person, per-system registry status with records pulled from the gateway and paired with declared items
+      responses:
+        '200':
+          description: Registry view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistryView'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/review/cases/{caseId}/recheck:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    post:
+      tags: [cases]
+      operationId: recheckCaseRegistries
+      summary: Re-run registry lookups and matching for the case (assignee or supervisor)
+      responses:
+        '202':
+          description: Re-check started
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          description: Re-checked within the last 10 minutes
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:
@@ -659,6 +695,16 @@ components:
         - late-filing
         - foreign-holdings
         - joint-share-inconsistent
+        - registry-parcel-undeclared
+        - declared-parcel-not-found
+        - registry-vehicle-undeclared
+        - declared-vehicle-not-found
+        - registry-directorship-undeclared
+        - declared-company-not-found
+        - directorship-employer-supplier
+        - kra-pin-missing
+        - kra-non-compliant
+        - kra-income-mismatch
     ClarificationStatus:
       type: string
       enum: [draft, issued, responded, resolved, overdue, withdrawn]
@@ -801,6 +847,9 @@ components:
                 format: uuid
               sectionKey:
                 type: [string, 'null']
+        closedReason:
+          type: [string, 'null']
+          enum: [superseded-by-recheck, null]
         reviewed:
           oneOf:
             - type: object
@@ -1195,3 +1244,66 @@ components:
           type: string
         code:
           type: string
+    RegistrySystem:
+      type: string
+      enum: [kra, ntsa, brs, ardhisasa]
+    RegistryCheckStatus:
+      type: string
+      enum: [matched, mismatched, unavailable, not-checked, no-id]
+    RegistryView:
+      type: object
+      required: [checkedAt, persons]
+      properties:
+        checkedAt:
+          type: [string, 'null']
+          format: date-time
+        persons:
+          type: array
+          items:
+            type: object
+            required: [personKey, personName, hasNationalId, systems]
+            properties:
+              personKey:
+                type: string
+              personName:
+                type: string
+              hasNationalId:
+                type: boolean
+              systems:
+                type: array
+                items:
+                  type: object
+                  required: [system, status, reason, checkedAt, resultId, rows, flags]
+                  properties:
+                    system:
+                      $ref: '#/components/schemas/RegistrySystem'
+                    status:
+                      $ref: '#/components/schemas/RegistryCheckStatus'
+                    reason:
+                      type: [string, 'null']
+                    checkedAt:
+                      type: [string, 'null']
+                      format: date-time
+                    resultId:
+                      type: [string, 'null']
+                      format: uuid
+                    rows:
+                      type: array
+                      description: Registry record paired with the declared item it matched, if any
+                      items:
+                        type: object
+                        required: [registryRecord, declaredItemId, relation]
+                        properties:
+                          registryRecord:
+                            type: object
+                            additionalProperties: true
+                          declaredItemId:
+                            type: [string, 'null']
+                            format: uuid
+                          relation:
+                            type: string
+                            enum: [matched, not-declared, not-in-registry]
+                    flags:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Flag'
