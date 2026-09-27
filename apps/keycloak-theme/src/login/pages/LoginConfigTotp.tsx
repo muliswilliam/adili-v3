@@ -2,9 +2,11 @@ import { Button, Input, Label } from '@adili/ui';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { useState } from 'react';
 
-import { CheckboxRow, FieldError, Steps } from '../components';
+import { CheckboxRow, FieldError } from '../components/KcFields';
+import { Steps } from '../components/Steps';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
+import Template from '../Template';
 
 type LoginConfigTotpProps = PageProps<
   Extract<KcContext, { pageId: 'login-config-totp.ftl' }>,
@@ -16,7 +18,6 @@ export default function LoginConfigTotp({
   kcContext,
   i18n,
   doUseDefaultCss,
-  Template,
   classes,
 }: LoginConfigTotpProps) {
   const { url, isAppInitiatedAction, totp, mode, messagesPerField } = kcContext;

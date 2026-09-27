@@ -3,17 +3,17 @@ import { createRoot } from 'react-dom/client';
 
 import { KcPage } from './kc.gen';
 
-// Dev preview: `pnpm dev`, then open /?page=login.ftl (or any Keycloak page ID), or a named
-// state of the activation flow such as /?preview=activation-landing (see login/previews.ts).
+// Dev preview: `pnpm dev`, then open /?page=login.ftl (any Keycloak page ID) or a named state
+// from src/login/stories.ts, e.g. /?story=otp-wrong.
 if (import.meta.env.DEV && !window.kcContext) {
   const { getKcContextMock } = await import('./login/mock');
-  const { previews } = await import('./login/previews');
-  const search = new URLSearchParams(window.location.search);
-  const preview = search.get('preview');
-  const pageId = search.get('page') ?? 'login.ftl';
+  const { stories } = await import('./login/stories');
+  const params = new URLSearchParams(window.location.search);
+  const storyName = params.get('story');
+  const pageId = params.get('page') ?? 'login.ftl';
   window.kcContext =
-    preview && preview in previews
-      ? previews[preview as keyof typeof previews]()
+    storyName && storyName in stories
+      ? stories[storyName as keyof typeof stories]()
       : getKcContextMock({
           pageId: pageId as Parameters<typeof getKcContextMock>[0]['pageId'],
           overrides: {},

@@ -25,7 +25,7 @@ ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so lo
 - `smtpServer` sends to Mailpit (`mailpit:1025`); execute-actions email fails without it.
 - `emailTheme: adili` is the activation email in `apps/keycloak-theme/src/email`, so the stock Keycloak image cannot import this realm. Use `adili/keycloak:dev` (compose builds it; CI builds it in the Keycloak workflow).
 - The user profile declares the admin-only attributes `commissionName` and `invitedRole`, which the activation email reads. The unmanaged attribute policy is `ADMIN_VIEW`, so an undeclared attribute cannot be written.
-- The login theme reads `ADILI_CONSOLE_URL` (default `http://localhost:3020`) from Keycloak's environment: an expired or already used activation link offers sign-in there. Set it to the console's public origin in every deployment.
+- The login theme reads `ADILI_CONSOLE_URL` (default `http://localhost:3020`) and `ADILI_PORTAL_URL` (default `http://localhost:3010`) from Keycloak's environment. Keycloak renders an expired or already used emailed link without a client, so its page offers sign-in (or a new link) there. Set both to the apps' public origins in every deployment.
 - New staff get the required actions `VERIFY_EMAIL`, `UPDATE_PASSWORD` and `CONFIGURE_TOTP`; the activation link completes them in that realm's priority order (TOTP, then password). Their later sign-ins go through `adili staff totp`.
 
 ## Plug-in for #79 (Adili OTP authenticator)

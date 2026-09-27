@@ -1,0 +1,6 @@
+personnelFileNumber,fullName,nationalId,designation,jobGroup,reportingEntity,employerCode,appointmentDate,email,phone,dateOfBirth,sex,placeOfBirth,kraPin,annualIncome
+KEMSA/2011/0457,Wanjiku Njoki Kamau,27451863,Senior Procurement Officer,M,Kenya Medical Supplies Authority,KEMSA,2011-08-01,wanjiku.kamau@kemsa.go.ke,+254712000001,1984-03-14,F,Kiambu,A004518637K,3120000.00
+MOH/2015/1123,Otieno Juma Odhiambo,30194427,Human Resource Officer,K,Ministry of Health,MOH,2015-03-16,otieno.odhiambo@health.go.ke,+254712000002,1988-11-23,M,Kisumu,A003019442P,1440000.00
+PSC/2012/0311,Achieng Atieno Njeri,28836510,Compliance Officer,L,Public Service Commission,PSC,2012-10-01,achieng.njeri@publicservice.go.ke,+254712000003,1986-05-09,F,Siaya,A002883651Q,2280000.00
+PSC/2006/0098,Kiprono Kibet Chebet,22607781,"Deputy Director, Compliance",Q,Public Service Commission,PSC,2006-04-03,kiprono.chebet@publicservice.go.ke,+254712000004,1979-01-30,M,Uasin Gishu,A002260778R,2640000.00
+PSC/2018/0702,Amina Halima Hassan,31552094,Legal Officer,K,Public Service Commission,PSC,2018-01-08,amina.hassan@publicservice.go.ke,+254712000005,1990-09-17,F,Mombasa,A003155209S,1680000.00

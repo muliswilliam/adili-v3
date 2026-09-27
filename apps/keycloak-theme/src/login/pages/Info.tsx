@@ -3,70 +3,113 @@ import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 
-import { Lead, StateTitle, type Step, Steps } from '../components';
+import { type Step, Steps } from '../components/Steps';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
+import { audienceCopy, audienceOf, messageIsOneOf } from '../shared';
+import Template from '../Template';
 
-type InfoProps = PageProps<Extract<KcContext, { pageId: 'info.ftl' }>, I18n>;
+type InfoKcContext = Extract<KcContext, { pageId: 'info.ftl' }>;
+type InfoProps = PageProps<InfoKcContext, I18n>;
+
+export type InfoState = 'actions-landing' | 'actions-done' | 'other';
 
 /** The order Keycloak runs the staff required actions in (by their realm priority). */
-const KNOWN_ACTIONS = ['VERIFY_EMAIL', 'CONFIGURE_TOTP', 'UPDATE_PASSWORD'];
+const STAFF_ACTION_ORDER = ['VERIFY_EMAIL', 'CONFIGURE_TOTP', 'UPDATE_PASSWORD'];
+
+/** Which of the designed info pages this is. */
+export function infoState(kcContext: InfoKcContext, i18n: I18n): InfoState {
+  if (kcContext.requiredActions?.length && kcContext.actionUri) return 'actions-landing';
+  if (messageIsOneOf(kcContext, i18n, ['accountUpdatedMessage'])) return 'actions-done';
+  return 'other';
+}
 
 /**
- * info.ftl. Three cases get their own design: the page an emailed execute-actions link opens
- * (what the link will ask for, and Continue), the page after those actions ("account ready",
- * with the way into sign-in), and any other information Keycloak shows.
+ * info.ftl: the landing page of the set-password (execute-actions) link, the page after the
+ * password is set, and any other notice Keycloak shows.
  */
-export default function Info({ kcContext, i18n, doUseDefaultCss, Template, classes }: InfoProps) {
-  const { messageHeader, message, requiredActions, skipLink, pageRedirectUri, actionUri, client } =
-    kcContext;
-  const { msg, msgStr, advancedMsgStr } = i18n;
-  const frame = { kcContext, i18n, doUseDefaultCss, classes, displayMessage: false } as const;
-
-  if (requiredActions?.length && actionUri) {
-    const activation = requiredActions.includes('VERIFY_EMAIL');
-    const ordered = [
-      ...KNOWN_ACTIONS.filter((action) => requiredActions.includes(action)),
-      ...requiredActions.filter((action) => !KNOWN_ACTIONS.includes(action)),
-    ];
-    return (
-      <Template {...frame} headerNode={msg(activation ? 'adiliActivateTitle' : 'adiliSetupTitle')}>
-        <Lead>{msg(activation ? 'adiliActivateLead' : 'adiliSetupLead')}</Lead>
-        <Steps steps={ordered.map((action) => stepFor(action, i18n))} />
-        <Button asChild className="w-full">
-          <a href={actionUri}>{msg('adiliContinue')}</a>
-        </Button>
-      </Template>
-    );
+export default function Info(props: InfoProps) {
+  switch (infoState(props.kcContext, props.i18n)) {
+    case 'actions-landing':
+      return <ActionsLanding {...props} />;
+    case 'actions-done':
+      return <ActionsDone {...props} />;
+    case 'other':
+      return <OtherInfo {...props} />;
   }
+}
 
-  if (message.summary === msgStr('accountUpdatedMessage')) {
-    const next = skipLink ? undefined : (pageRedirectUri ?? client.baseUrl);
-    return (
-      <Template
-        {...frame}
-        headerNode={
-          <StateTitle icon={CheckmarkCircle02Icon} tone="success">
-            {msg('adiliAccountReadyTitle')}
-          </StateTitle>
-        }
-      >
-        <Lead>{msg('adiliAccountReadyLead')}</Lead>
-        {next ? (
-          <Button asChild className="w-full">
-            <a href={next}>{msg('adiliSignIn')}</a>
-          </Button>
-        ) : (
-          <p className="text-sm text-muted-foreground">{msg('adiliCloseWindow')}</p>
-        )}
-      </Template>
-    );
-  }
+function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
+  const { requiredActions = [], actionUri } = kcContext;
+  const { msg } = i18n;
+  const audience = audienceOf(kcContext);
+  const copy = audienceCopy(audience, i18n);
 
-  const next = skipLink ? undefined : (pageRedirectUri ?? actionUri ?? client.baseUrl);
   return (
     <Template
-      {...frame}
+      kcContext={kcContext}
+      i18n={i18n}
+      doUseDefaultCss={doUseDefaultCss}
+      classes={classes}
+      displayMessage={false}
+      headerNode={copy.msg('activateTitle')}
+      subtitleNode={copy.msg('activateText')}
+    >
+      {audience === 'staff' ? (
+        <Steps
+          steps={[
+            ...STAFF_ACTION_ORDER.filter((action) => requiredActions.includes(action)),
+            ...requiredActions.filter((action) => !STAFF_ACTION_ORDER.includes(action)),
+          ].map((action) => stepFor(action, i18n))}
+        />
+      ) : null}
+      <div className="grid gap-3">
+        <Button asChild className="w-full">
+          <a href={actionUri}>{copy.msg('activateButton')}</a>
+        </Button>
+        <p className="text-[13px] text-muted-foreground">{msg('adiliLinkWorksOnce')}</p>
+      </div>
+    </Template>
+  );
+}
+
+function ActionsDone({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
+  const { pageRedirectUri, client, skipLink } = kcContext;
+  const copy = audienceCopy(audienceOf(kcContext), i18n);
+  const next = pageRedirectUri ?? client.baseUrl;
+
+  return (
+    <Template
+      kcContext={kcContext}
+      i18n={i18n}
+      doUseDefaultCss={doUseDefaultCss}
+      classes={classes}
+      displayMessage={false}
+      mark={{ icon: CheckmarkCircle02Icon, tone: 'success' }}
+      headerNode={copy.msg('activeTitle')}
+      subtitleNode={copy.msg('activeText')}
+    >
+      {!skipLink && next ? (
+        <Button asChild className="w-full">
+          <a href={next}>{copy.msg('goToApp')}</a>
+        </Button>
+      ) : null}
+    </Template>
+  );
+}
+
+function OtherInfo({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
+  const { messageHeader, message, skipLink, pageRedirectUri, actionUri, client } = kcContext;
+  const { msg, advancedMsgStr } = i18n;
+  const next = pageRedirectUri ?? actionUri ?? client.baseUrl;
+
+  return (
+    <Template
+      kcContext={kcContext}
+      i18n={i18n}
+      doUseDefaultCss={doUseDefaultCss}
+      classes={classes}
+      displayMessage={false}
       headerNode={
         <span
           dangerouslySetInnerHTML={{
@@ -77,21 +120,20 @@ export default function Info({ kcContext, i18n, doUseDefaultCss, Template, class
     >
       {messageHeader ? (
         <p
-          className="-mt-2 text-sm leading-6 text-muted-foreground"
+          className="text-sm text-muted-foreground"
           dangerouslySetInnerHTML={{ __html: kcSanitize(message.summary) }}
         />
       ) : null}
-      {next ? (
+      {!skipLink && next ? (
         <Button asChild className="w-full">
-          <a href={next}>
-            {msg(actionUri && !pageRedirectUri ? 'adiliContinue' : 'adiliBackToAdili')}
-          </a>
+          <a href={next}>{msg('adiliContinue')}</a>
         </Button>
       ) : null}
     </Template>
   );
 }
 
+/** A staff required action as a step: what it is and what it asks of them. */
 function stepFor(action: string, i18n: I18n): Step {
   const { msg, advancedMsgStr } = i18n;
   switch (action) {

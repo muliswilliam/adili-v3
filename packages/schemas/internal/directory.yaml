@@ -1533,6 +1533,11 @@ components:
           items:
             type: string
           description: Realm roles from the token
+        scopes:
+          type: array
+          items:
+            type: string
+          description: OAuth scopes granted to the token (`scope`), e.g. `messages` for service clients
         clientId:
           description: OAuth client that obtained the token (`azp`)
           type:
@@ -1542,6 +1547,7 @@ components:
         - subject
         - tenant
         - roles
+        - scopes
         - clientId
     Slug:
       type: string
@@ -2348,7 +2354,7 @@ components:
       description: Officer reference (ADR-011), permanent and person-level
       pattern: ^OFR-[0-9]{7}-[0-9A-Z]$
       examples:
-        - OFR-0482913-H
+        - OFR-0482913-L
     OtpChannel:
       type: string
       enum:

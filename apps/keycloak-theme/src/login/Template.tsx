@@ -1,4 +1,13 @@
-import { Alert, AlertDescription, Card, Icon, LogoMark } from '@adili/ui';
+import {
+  Alert,
+  AlertDescription,
+  Card,
+  Icon,
+  type IconProps,
+  LogoMark,
+  StatusMark,
+  type StatusMarkTone,
+} from '@adili/ui';
 import {
   Alert02Icon,
   AlertCircleIcon,
@@ -9,7 +18,7 @@ import {
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useInitialize } from 'keycloakify/login/Template.useInitialize';
 import type { TemplateProps } from 'keycloakify/login/TemplateProps';
-import { useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 import type { I18n } from './i18n';
 import type { KcContext } from './KcContext';
@@ -21,9 +30,23 @@ const messageIcons = {
   info: InformationCircleIcon,
 } as const;
 
+export interface PageMark {
+  icon: IconProps['icon'];
+  tone: StatusMarkTone;
+}
+
+export type AdiliTemplateProps = TemplateProps<KcContext, I18n> & {
+  /** A large state icon above the title, for outcome and error pages. */
+  mark?: PageMark;
+  /** A line under the title. */
+  subtitleNode?: ReactNode;
+};
+
 /** Page frame for every login flow: brand, card, messages and language switch. */
-export default function Template(props: TemplateProps<KcContext, I18n>) {
+export default function Template(props: AdiliTemplateProps) {
   const {
+    mark,
+    subtitleNode,
     displayInfo = false,
     displayMessage = true,
     headerNode,
@@ -64,24 +87,26 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
           </div>
 
           <Card className="gap-6">
-            <header className="grid gap-5">
+            <header className="grid gap-3">
               {showAttemptedUsername ? (
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
-                  <span className="min-w-0 truncate text-sm font-medium">
-                    {auth.attemptedUsername}
-                  </span>
+                  <span className="truncate text-sm font-medium">{auth.attemptedUsername}</span>
                   <a
                     href={url.loginRestartFlowUrl}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-sm text-sm font-medium whitespace-nowrap text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <Icon icon={RotateLeft01Icon} className="size-3.5" />
                     {msg('restartLoginTooltip')}
                   </a>
                 </div>
               ) : null}
-              <h1 id="kc-page-title" className="text-xl font-semibold tracking-tight">
+              {mark ? <StatusMark icon={mark.icon} tone={mark.tone} className="mb-1" /> : null}
+              <h1 id="kc-page-title" className="text-lg font-semibold tracking-tight">
                 {headerNode}
               </h1>
+              {subtitleNode ? (
+                <p className="text-sm text-muted-foreground">{subtitleNode}</p>
+              ) : null}
             </header>
 
             <div id="kc-content" className="grid gap-5">

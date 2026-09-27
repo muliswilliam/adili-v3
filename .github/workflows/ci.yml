@@ -76,7 +76,7 @@ jobs:
     uses: ./.github/workflows/keycloak.yml
 
   integration:
-    name: Integration (Postgres, Valkey, RabbitMQ, Keycloak)
+    name: Integration (Postgres, Valkey, RabbitMQ, OpenBao, Temporal, Keycloak)
     runs-on: ubuntu-latest
     needs: keycloak
     services:
@@ -104,6 +104,13 @@ jobs:
         ports: ['5672:5672']
         options: >-
           --health-cmd "rabbitmq-diagnostics -q check_port_connectivity" --health-interval 5s --health-timeout 10s --health-retries 30
+      openbao:
+        image: openbao/openbao:2.7.0
+        env:
+          BAO_DEV_ROOT_TOKEN_ID: adili-test-root-token
+        ports: ['8200:8200']
+        options: >-
+          --cap-add IPC_LOCK --health-cmd "wget -q -O /dev/null http://127.0.0.1:8200/v1/sys/health" --health-interval 5s --health-timeout 5s --health-retries 20
       # Keycloak's realm sends email to host `mailpit`, as in infra/compose.
       mailpit:
         image: axllent/mailpit:v1.31.2
@@ -114,11 +121,12 @@ jobs:
       TEST_DATABASE_URL: postgres://adili_test:adili_test_dev@localhost:5432/adili_test
       TEST_VALKEY_URL: redis://localhost:6379
       TEST_RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
+      TEST_OPENBAO_URL: http://localhost:8200
+      TEST_OPENBAO_TOKEN: adili-test-root-token
+      TEST_TEMPORAL_ADDRESS: localhost:7233
+      TEST_TEMPORAL_NAMESPACE: adili
       TEST_KEYCLOAK_ISSUER_URL: http://localhost:8080/realms/adili
       TEST_MAILPIT_URL: http://localhost:8025
-      # Workflow tests start @temporalio/testing in-process (time-skipping). Set this
-      # to point at a real server only when a ticket needs it.
-      TEST_TEMPORAL_ADDRESS: ''
     steps:
       - uses: actions/checkout@v5
       # Service containers cannot mount the repo, so the compose init script is copied in.
@@ -147,6 +155,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Temporal's single-binary dev server (service containers cannot pass it arguments).
+      - name: Start Temporal
+        run: |
+          docker run -d --name temporal -p 7233:7233 temporalio/temporal:1.6.1 \
+            server start-dev --ip 0.0.0.0 --namespace adili
+          timeout 60 sh -c 'until docker exec temporal temporal operator namespace describe --namespace adili >/dev/null 2>&1; do sleep 1; done'
       - name: Wait for Keycloak
         run: |
           timeout 180 sh -c 'until curl -sf "$TEST_KEYCLOAK_ISSUER_URL/.well-known/openid-configuration" >/dev/null; do sleep 2; done' \

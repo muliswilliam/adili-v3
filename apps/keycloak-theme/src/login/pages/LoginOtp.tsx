@@ -3,20 +3,15 @@ import { Clock01Icon } from '@hugeicons/core-free-icons';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { useState } from 'react';
 
-import { FieldError, Lead } from '../components';
+import { FieldError } from '../components/KcFields';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
+import Template from '../Template';
 
 type LoginOtpProps = PageProps<Extract<KcContext, { pageId: 'login-otp.ftl' }>, I18n>;
 
 /** The authenticator code step of staff sign-in (login-otp.ftl). */
-export default function LoginOtp({
-  kcContext,
-  i18n,
-  doUseDefaultCss,
-  Template,
-  classes,
-}: LoginOtpProps) {
+export default function LoginOtp({ kcContext, i18n, doUseDefaultCss, classes }: LoginOtpProps) {
   const { otpLogin, url, messagesPerField } = kcContext;
   const { msg, msgStr } = i18n;
   const [submitting, setSubmitting] = useState(false);
@@ -30,11 +25,11 @@ export default function LoginOtp({
       doUseDefaultCss={doUseDefaultCss}
       classes={classes}
       displayMessage={!hasError}
-      headerNode={msg('adiliOtpTitle')}
+      headerNode={msg('adiliTotpCodeTitle')}
+      subtitleNode={msg('adiliTotpCodeLead')}
       displayInfo
-      infoNode={msg('adiliOtpLostPhone')}
+      infoNode={msg('adiliTotpLostPhone')}
     >
-      <Lead>{msg('adiliOtpLead')}</Lead>
       <form
         id="kc-otp-login-form"
         action={url.loginAction}
@@ -46,7 +41,7 @@ export default function LoginOtp({
       >
         {devices.length > 1 ? (
           <fieldset className="grid gap-2">
-            <legend className="mb-2 text-sm font-medium">{msg('adiliOtpDevice')}</legend>
+            <legend className="mb-2 text-sm font-medium">{msg('adiliTotpDevice')}</legend>
             {devices.map((device) => (
               <label
                 key={device.id}
@@ -82,7 +77,7 @@ export default function LoginOtp({
           ) : (
             <p id="otp-hint" className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Icon icon={Clock01Icon} className="size-3.5" />
-              {msg('adiliOtpNewCode')}
+              {msg('adiliTotpNewCode')}
             </p>
           )}
         </div>

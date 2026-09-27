@@ -1555,7 +1555,7 @@ components:
       type: string
       description: Officer reference (ADR-011), permanent and person-level
       pattern: '^OFR-[0-9]{7}-[0-9A-Z]$'
-      examples: [OFR-0482913-H]
+      examples: [OFR-0482913-L]
     OtpChannel:
       type: string
       enum: [email, phone]

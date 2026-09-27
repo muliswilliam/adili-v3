@@ -36,10 +36,49 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "config.faults.FaultInjectionMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+        "OPTIONS": {"autoescape": True},
+    }
+]
+
+
+def _int_env(name: str, default: int = 0, minimum: int = 0) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        return max(minimum, int(raw))
+    except ValueError:
+        return default
+
+
+def _truthy_env(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
+
+
+# 07b adapter kit (config/faults.py): env defaults, overridden per request by
+# X-Mock-Latency-Ms / X-Mock-Failure. Registries also take pause and rate-limit controls.
+_MOCK_REGISTRIES = ("kra", "ntsa", "brs", "ardhisasa")
+_MOCK_SYSTEMS = ("iprs", "sms", *_MOCK_REGISTRIES)
+MOCK_LATENCIES_MS = {
+    system: _int_env(f"MOCK_{system.upper()}_LATENCY_MS") for system in _MOCK_SYSTEMS
+}
+MOCK_FAILURES = {
+    system: os.environ.get(f"MOCK_{system.upper()}_FAILURE", "").strip().lower()
+    for system in _MOCK_SYSTEMS
+}
+# Initial pause state only; POST /demo/registries/<system>/pause|resume overrides it.
+MOCK_REGISTRY_PAUSED = {
+    system for system in _MOCK_REGISTRIES if _truthy_env(f"MOCK_{system.upper()}_PAUSED")
+}
+MOCK_REGISTRY_RATE_LIMIT = _int_env("MOCK_REGISTRY_RATE_LIMIT", 60, minimum=1)
 
 DATABASES = {
     "default": dj_database_url.parse(

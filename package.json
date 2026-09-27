@@ -9,9 +9,10 @@
   "scripts": {
     "bootstrap": "node scripts/setup-env.mjs && pnpm install",
     "infra:up": "./scripts/infra-up.sh",
-    "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
-    "infra:reset": "docker compose -f infra/compose/docker-compose.yml down -v",
-    "infra:logs": "docker compose -f infra/compose/docker-compose.yml logs -f",
+    "infra:down": "./scripts/infra-down.sh",
+    "infra:reset": "./scripts/infra-down.sh --volumes",
+    "infra:logs": "./scripts/infra-logs.sh",
+    "infra:health": "./scripts/infra-health.sh",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "turbo run db:seed",
     "dev": "turbo run dev --concurrency=64",

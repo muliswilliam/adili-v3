@@ -1,133 +1,166 @@
 import { Button } from '@adili/ui';
-import { AlertCircleIcon, CheckmarkCircle02Icon, Clock01Icon } from '@hugeicons/core-free-icons';
+import {
+  Alert01Icon,
+  Clock01Icon,
+  UnavailableIcon,
+  Unlink01Icon,
+} from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
+import type { MessageKey_defaultSet } from 'keycloakify/login';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
-import { actionTokenOf } from '../action-token';
-import { Lead, StateTitle } from '../components';
+import { type ActionToken, actionTokenOf } from '../action-token';
+import { Callout } from '../components/PageAlert';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
+import { audienceCopy, audienceOfClient, clientUrl, messageIsOneOf, signInUrlOf } from '../shared';
+import Template, { type PageMark } from '../Template';
 
-type ErrorProps = PageProps<Extract<KcContext, { pageId: 'error.ftl' }>, I18n>;
+type ErrorKcContext = Extract<KcContext, { pageId: 'error.ftl' }>;
+type ErrorProps = PageProps<ErrorKcContext, I18n>;
 
-/** Keycloak messages that mean an emailed link (action token) has expired. */
-const EXPIRED_MESSAGES = [
-  'expiredActionTokenNoSessionMessage',
-  'expiredActionTokenSessionExistsMessage',
-  'expiredActionMessage',
-] as const;
+export type ErrorState = 'link-expired' | 'link-invalid' | 'account-disabled' | 'other';
+
+/** Where the portal explains how to get a new set-password link (spec 03, Check your email). */
+export const PORTAL_NEW_LINK_PATH = 'get-started/check-email';
+
+/** The Keycloak messages behind each designed error page. */
+const ERROR_MESSAGES: Record<Exclude<ErrorState, 'other'>, readonly MessageKey_defaultSet[]> = {
+  'link-expired': [
+    'expiredActionMessage',
+    'expiredActionTokenNoSessionMessage',
+    'expiredActionTokenSessionExistsMessage',
+  ],
+  'link-invalid': [
+    'invalidCodeMessage',
+    'invalidTokenRequiredActions',
+    'staleEmailVerificationLink',
+  ],
+  'account-disabled': ['accountDisabledMessage'],
+};
+
+export function errorState(
+  kcContext: ErrorKcContext,
+  i18n: I18n,
+  token: ActionToken | null = null,
+): ErrorState {
+  for (const [state, keys] of Object.entries(ERROR_MESSAGES)) {
+    if (!messageIsOneOf(kcContext, i18n, keys)) continue;
+    // Keycloak says "expired" for a link already used too; one whose token has not expired was.
+    if (state === 'link-expired' && token && !token.expired) return 'link-invalid';
+    return state as ErrorState;
+  }
+  return 'other';
+}
+
+/** How each error page reads: its mark, copy, help callout and sign-in button. */
+interface ErrorPageCopy {
+  mark: PageMark;
+  title: ReactNode;
+  text: ReactNode;
+  help?: ReactNode;
+  signIn: { label: 'adiliGoToSignIn' | 'adiliBackToSignIn'; primary: boolean };
+}
 
 /**
- * error.ftl. An expired activation link says how to get a new one (ask EACC, spec 01 story 25),
- * and a used one leads to sign-in; other errors keep Keycloak's explanation under a plain title.
+ * error.ftl: an expired or unusable set-password link, a disabled account, or anything else
+ * Keycloak could not complete. Declarant and staff copy differ by client (portal or console).
  */
-export default function Error({ kcContext, i18n, doUseDefaultCss, Template, classes }: ErrorProps) {
-  const { message, skipLink } = kcContext;
-  // Absent at runtime on some errors (an expired link has no client), whatever the type says.
-  const client = kcContext.client as { baseUrl?: string } | undefined;
-  const { msg, msgStr } = i18n;
-  const frame = { kcContext, i18n, doUseDefaultCss, classes, displayMessage: false } as const;
-  const back = skipLink ? undefined : client?.baseUrl;
-  const signIn = consoleSignIn(kcContext.properties.ADILI_CONSOLE_URL);
-  // The token is still in the address bar: it tells an activation link apart, and whether it
-  // really expired or was already used (Keycloak reports both as "Action expired.").
+export default function ErrorPage({ kcContext, i18n, doUseDefaultCss, classes }: ErrorProps) {
+  const { url, message, properties } = kcContext;
+  // Absent at runtime when an emailed link expired, whatever the type says.
+  const client = kcContext.client as Partial<ErrorKcContext['client']> | undefined;
+  const { msg } = i18n;
+  // An emailed link's token is still in the address bar. Read for display only: anyone can
+  // craft one, so it picks the copy (whose link it was, whether it was used), never a URL.
   const [token] = useState(() => actionTokenOf(window.location.search, Date.now()));
+  const state = errorState(kcContext, i18n, token);
+  const audience = audienceOfClient(client?.clientId ?? token?.azp);
+  const copy = audienceCopy(audience, i18n);
+  const signInUrl = client?.baseUrl ?? signInUrlOf(audience, properties) ?? url.loginUrl;
+  const newLinkUrl = clientUrl(
+    client?.baseUrl ?? properties.ADILI_PORTAL_URL,
+    PORTAL_NEW_LINK_PATH,
+  );
 
-  if (EXPIRED_MESSAGES.some((key) => message.summary === msgStr(key))) {
-    if (token?.typ === 'execute-actions') {
-      return !token.expired ? (
-        <Template
-          {...frame}
-          headerNode={
-            <StateTitle icon={CheckmarkCircle02Icon} tone="success">
-              {msg('adiliLinkUsedTitle')}
-            </StateTitle>
-          }
-        >
-          <Lead>{msg('adiliLinkUsedLead')}</Lead>
-          {signIn ? (
-            <Button asChild className="w-full">
-              <a href={signIn}>{msg('adiliSignIn')}</a>
-            </Button>
-          ) : null}
-        </Template>
-      ) : (
-        <Template
-          {...frame}
-          headerNode={
-            <StateTitle icon={Clock01Icon} tone="warning">
-              {msg('adiliLinkExpiredTitle')}
-            </StateTitle>
-          }
-        >
-          <Lead>
-            {[
-              token.lifespanHours > 0
-                ? msgStr('adiliActivationLifespan', String(token.lifespanHours))
-                : '',
-              msgStr('adiliActivationAskResend'),
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          </Lead>
-          {signIn ? (
-            <Button asChild variant="secondary" className="w-full">
-              <a href={signIn}>{msg('adiliAlreadyActivated')}</a>
-            </Button>
-          ) : null}
-        </Template>
-      );
-    }
-    return (
-      <Template
-        {...frame}
-        headerNode={
-          <StateTitle icon={Clock01Icon} tone="warning">
-            {msg('adiliLinkExpiredTitle')}
-          </StateTitle>
-        }
-      >
-        <Lead>{msg('adiliLinkExpiredLead')}</Lead>
-        {back ? (
-          <Button asChild variant="secondary" className="w-full">
-            <a href={back}>{msg('adiliBackToAdili')}</a>
-          </Button>
-        ) : null}
-      </Template>
-    );
-  }
+  const pages: Record<ErrorState, ErrorPageCopy> = {
+    'link-expired': {
+      mark: { icon: Clock01Icon, tone: 'warning' },
+      title: msg('adiliLinkExpiredTitle'),
+      text: copy.msg('linkExpiredText'),
+      signIn: { label: 'adiliBackToSignIn', primary: false },
+    },
+    'link-invalid': {
+      mark: { icon: Unlink01Icon, tone: 'destructive' },
+      title: msg('adiliLinkInvalidTitle'),
+      text: msg('adiliLinkInvalidText'),
+      help: copy.msg('linkInvalidHelp'),
+      signIn: { label: 'adiliGoToSignIn', primary: true },
+    },
+    'account-disabled': {
+      mark: { icon: UnavailableIcon, tone: 'destructive' },
+      title: copy.msg('disabledTitle'),
+      text: copy.msg('disabledText'),
+      help: copy.msg('disabledHelp'),
+      signIn: { label: 'adiliBackToSignIn', primary: false },
+    },
+    other: {
+      mark: { icon: Alert01Icon, tone: 'neutral' },
+      title: msg('adiliErrorTitle'),
+      text: msg('adiliErrorText'),
+      signIn: { label: 'adiliBackToSignIn', primary: true },
+    },
+  };
+  const page = pages[state];
+  // A declarant with an expired link gets a new one from the portal instead of signing in.
+  const offerNewLink = state === 'link-expired' && audience === 'declarant' && newLinkUrl;
 
   return (
     <Template
-      {...frame}
-      headerNode={
-        <StateTitle icon={AlertCircleIcon} tone="neutral">
-          {msg('adiliErrorTitle')}
-        </StateTitle>
-      }
+      kcContext={kcContext}
+      i18n={i18n}
+      doUseDefaultCss={doUseDefaultCss}
+      classes={classes}
+      displayMessage={false}
+      mark={page.mark}
+      headerNode={page.title}
+      subtitleNode={page.text}
     >
-      <p
-        className="-mt-2 text-sm leading-6 text-muted-foreground"
-        dangerouslySetInnerHTML={{ __html: kcSanitize(message.summary) }}
-      />
-      <p className="text-sm leading-6 text-muted-foreground">{msg('adiliErrorHelp')}</p>
-      {back ? (
-        <Button asChild className="w-full">
-          <a id="backToApplication" href={back}>
-            {msg('adiliBackToAdili')}
-          </a>
-        </Button>
-      ) : null}
+      <div className="grid gap-3">
+        {offerNewLink ? (
+          <>
+            <Button asChild className="w-full">
+              <a href={newLinkUrl}>{msg('adiliGetNewLink')}</a>
+            </Button>
+            <Callout>{msg('adiliLinkExpiredOtherDevice')}</Callout>
+          </>
+        ) : (
+          <>
+            {page.help ? <Callout>{page.help}</Callout> : null}
+            <Button
+              asChild
+              variant={page.signIn.primary ? 'default' : 'secondary'}
+              className="w-full"
+            >
+              <a href={signInUrl}>{msg(page.signIn.label)}</a>
+            </Button>
+          </>
+        )}
+
+        {state === 'other' ? (
+          <>
+            <p className="text-[13px] text-muted-foreground">
+              {msg('adiliErrorHelp', copy.msgStr('helpContact'))}
+            </p>
+            {/* Keycloak's own wording, for whoever helps them. */}
+            <p
+              className="text-[13px] text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: kcSanitize(message.summary) }}
+            />
+          </>
+        ) : null}
+      </div>
     </Template>
   );
-}
-
-/** The console's sign-in, which starts sign-in at once; undefined when the URL is not set. */
-function consoleSignIn(consoleUrl: string): string | undefined {
-  try {
-    return new URL('/auth/login', consoleUrl).toString();
-  } catch {
-    return undefined;
-  }
 }

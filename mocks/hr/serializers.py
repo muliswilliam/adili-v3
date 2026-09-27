@@ -33,3 +33,16 @@ class EmployeeSerializer(serializers.Serializer[Employee]):
     id_number = serializers.CharField()
     full_name = serializers.CharField()
     employments = EmploymentSerializer(many=True)
+
+
+@dataclass(frozen=True)
+class EmployerSupplierList:
+    employer_code: str
+    registration_numbers: list[str]
+
+
+class EmployerSupplierListSerializer(serializers.Serializer[EmployerSupplierList]):
+    """Supplier company registration numbers for one employer."""
+
+    employer_code = serializers.CharField()
+    registration_numbers = serializers.ListField(child=serializers.CharField())

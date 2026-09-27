@@ -30,21 +30,32 @@ pnpm dev            # all services, apps and mocks in watch mode
 pnpm health         # readiness of everything
 ```
 
-`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm test:integration` runs the tests that need the infrastructure (Postgres, RabbitMQ, Keycloak, Mailpit). They connect as `adili_test`, which like the services' roles owns its database but is not a superuser, so row-level security applies to them; CI creates it with the same `infra/compose/postgres/init-databases.sh`. `pnpm infra:down` stops the infrastructure; `pnpm infra:reset` also deletes its data.
+`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm test:integration` runs the tests that need the infrastructure (Postgres, Valkey, RabbitMQ, Keycloak, Mailpit). They connect as `adili_test`, which like the services' roles owns its database but is not a superuser, so row-level security applies to them; CI creates it with the same `infra/compose/postgres/init-databases.sh`. `pnpm infra:down` stops the infrastructure. `pnpm infra:down -- --volumes` (or `pnpm infra:reset`) also deletes its data. `pnpm infra:health` checks compose health. Docker Compose and Podman Compose are both accepted.
 
 Keycloak imports the realm (`infra/compose/keycloak/adili-realm.json`) only when it does not exist yet, so after a realm change run `pnpm infra:reset` before `pnpm infra:up`.
 
-| Component                        | URL                                                                   |
-| -------------------------------- | --------------------------------------------------------------------- |
-| portal (declarants)              | http://localhost:3010                                                 |
-| console (Commissions, EACC)      | http://localhost:3020                                                 |
-| verify (public)                  | http://localhost:3030                                                 |
-| services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) |
-| government-system mocks          | http://localhost:8000                                                 |
-| Keycloak (admin / admin_dev)     | http://localhost:8080                                                 |
-| Temporal UI                      | http://localhost:8233                                                 |
-| RabbitMQ (adili / adili_dev)     | http://localhost:15672                                                |
-| Mailpit                          | http://localhost:8025                                                 |
+Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili/mocks dev`) against the `mocks` database created by `infra:up`.
+
+| Component                        | URL / port                                                            | Credentials |
+| -------------------------------- | --------------------------------------------------------------------- | ----------- |
+| portal (declarants)              | http://localhost:3010                                                 | demo accounts below |
+| console (Commissions, EACC)      | http://localhost:3020                                                 | demo accounts below |
+| verify (public)                  | http://localhost:3030                                                 | none |
+| services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) | service env |
+| government-system mocks          | http://localhost:8000 (SMS inbox `/sms/inbox`, payroll `/payroll/status`, ICMS `/icms/status`, flag map: `mocks/demo/REGISTRY_FLAGS.md`) | none (dev) |
+| Keycloak                         | http://localhost:8080                                                 | `admin` / `admin_dev` |
+| Temporal gRPC / UI               | `localhost:7233` / http://localhost:8233                              | namespace `adili` |
+| Postgres                         | `localhost:55432`                                                     | `postgres` / `postgres_dev` |
+| Valkey                           | `localhost:56379`                                                     | none |
+| RabbitMQ AMQP / UI               | `localhost:55672` / http://localhost:15672                            | `adili` / `adili_dev` |
+| SeaweedFS S3 / master            | `localhost:8333` / `localhost:9333`                                   | see `infra/compose/seaweedfs/s3.json` |
+| OpenBao                          | http://localhost:8200                                                 | token `adili-dev-root-token` |
+| ClamAV                           | `localhost:3310`                                                      | none |
+| Gotenberg                        | http://localhost:3300                                                 | none |
+| Mailpit SMTP / UI                | `localhost:1025` / http://localhost:8025                              | none |
+| OTel collector OTLP              | `localhost:4317` (gRPC), `localhost:4318` (HTTP)                      | none |
+
+Per-service Postgres roles (password is `<role>_dev`): `adili_directory`, `adili_declarations`, `adili_review`, `adili_access`, `adili_reporting`, `adili_documents`, `adili_verification`, `adili_ai_gateway`, `adili_integration_gateway`, `adili_notifications`, `adili_audit`, plus `keycloak` / `keycloak_dev`, `mocks` / `mocks_dev`, `temporal` / `temporal_dev`, `adili_test` / `adili_test_dev`.
 
 Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.
 
