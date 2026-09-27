@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discardDeclarationFn } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import { DISCARD_BODY, DISCARD_TITLE } from './discard-dialog';
 import { SUBMIT_NEXT_RELEASE } from './summary';
 import { SummaryView } from './summary-view';
 import {
@@ -432,8 +431,9 @@ describe('Discard from the summary', () => {
     renderSummary();
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard draft' }));
-    const dialog = screen.getByRole('dialog', { name: DISCARD_TITLE });
-    expect(within(dialog).getByText(DISCARD_BODY)).toBeTruthy();
+    // The spec's copy, exactly: "Discard this draft? Everything you entered will be deleted."
+    const dialog = screen.getByRole('dialog', { name: 'Discard this draft?' });
+    expect(within(dialog).getByText('Everything you entered will be deleted.')).toBeTruthy();
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Discard draft' }));
       await Promise.resolve();
