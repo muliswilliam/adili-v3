@@ -4,6 +4,12 @@ export { type Principal, principalSchema } from './auth/principal.js';
 export { Public } from './auth/public.decorator.js';
 export { RequireScopes, ScopesGuard } from './auth/require-scopes.decorator.js';
 export { notFoundIfInvisible, Roles, RolesGuard } from './auth/roles.js';
+export {
+  ACTING_TENANT_HEADER,
+  ServiceTokenClient,
+  type ServiceTokenClientOptions,
+  ServiceTokenError,
+} from './auth/service-token-client.js';
 export { TokenVerifier } from './auth/token-verifier.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig } from './config.js';
