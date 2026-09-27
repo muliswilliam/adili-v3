@@ -29,7 +29,7 @@ export function importEnded(imp: Pick<RosterImport, 'state'>): boolean {
 
 type ImportFailure = NonNullable<RosterImport['failure']>;
 
-/** Why an import stopped, completing "The import stopped after {n} rows: …". */
+/** Why an import stopped, completing "The import stopped after {n} of {total} rows: …". */
 export function failureReason(failure: Pick<ImportFailure, 'code'>): string {
   switch (failure.code) {
     case 'missing-columns':

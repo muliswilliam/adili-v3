@@ -51,7 +51,10 @@ export const columnMappingSchema = z.object({
 });
 
 export const importCountsSchema = z.object({
-  accepted: z.number().int().meta({ description: 'Rows that passed validation when staged' }),
+  accepted: z.number().int().meta({
+    description:
+      'Rows applied to the roster (created, updated or unchanged). Like every count, only rows processed: a failed import does not count the rows it did not reach (totalRows - processedRows)',
+  }),
   created: z.number().int(),
   updated: z.number().int(),
   unchanged: z.number().int(),

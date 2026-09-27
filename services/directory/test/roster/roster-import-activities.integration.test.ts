@@ -265,6 +265,25 @@ describe('finalise', () => {
   });
 });
 
+describe('finalise a failed import', () => {
+  it('counts only the rows it processed, not accepted rows of chunks never applied', async () => {
+    const ref = await givenImport();
+    await stageImport(api.db, api.uploads, ref);
+
+    await finaliseImport(api.db, events, ref, {
+      state: 'failed',
+      failure: { code: 'internal', detail: 'Rows could not be applied.' },
+    });
+
+    expect(await importRow(ref)).toMatchObject({
+      state: 'failed',
+      totalRows: 4,
+      processedRows: 1,
+      counts: { accepted: 0, created: 0, updated: 0, unchanged: 0, rejected: 1 },
+    });
+  });
+});
+
 describe('flagAbsent', () => {
   /** A completed import of FILE, then a staged and applied one of `content`. */
   async function givenSecondImport(content: string, declaredComplete = true): Promise<ImportRef> {

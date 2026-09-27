@@ -259,8 +259,10 @@ export const en = {
     `${formatNumber(processed)} of ${formatNumber(total)} rows`,
   canLeave: 'You can leave this page; the import continues.',
   reconnecting: 'Lost contact with the import. Retrying…',
-  stoppedAfter: (processed: number, reason: string) =>
-    `The import stopped after ${formatNumber(processed)} ${processed === 1 ? 'row' : 'rows'}: ${reason}.`,
+  stoppedAfter: (processed: number, total: number | null, reason: string) =>
+    total !== null && total > processed
+      ? `The import stopped after ${formatNumber(processed)} of ${formatNumber(total)} rows: ${reason}.`
+      : `The import stopped after ${formatNumber(processed)} ${processed === 1 ? 'row' : 'rows'}: ${reason}.`,
   stoppedKept: 'Rows already applied are kept. Fix the file and import again.',
   stoppedBefore: (reason: string) => `The import stopped before any rows were applied: ${reason}.`,
   stoppedNothing: 'Nothing on the roster changed. Fix the file and import again.',
@@ -357,7 +359,10 @@ export const en = {
   metaRows: 'Rows',
   rowsNotRead: 'Not read',
   rowsCounting: 'Counting…',
-  countsUpToStop: 'Counts up to the stop.',
+  countsUpToStop: (processed: number, total: number | null) =>
+    total !== null && total > processed
+      ? `Counts of the ${formatNumber(processed)} of ${formatNumber(total)} rows processed before the stop. The other rows changed nothing.`
+      : 'Counts up to the stop.',
   reportErrorTitle: 'The import could not be loaded',
   backToHistory: 'Back to import history',
   // Leaving with an upload

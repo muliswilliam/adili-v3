@@ -1,6 +1,6 @@
 import { type Database, withTenant } from '@adili/data-access';
 import type { EventPublisher } from '@adili/events';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, isNotNull, or, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
@@ -79,7 +79,11 @@ export async function finaliseImport(
   });
 }
 
-/** The import's counts from its rows' statuses and outcomes. */
+/**
+ * The import's counts from its rows' statuses and outcomes: the rows it processed, those rejected
+ * when staged and those applied. Accepted rows of chunks never applied (the import failed first)
+ * are not counted; they changed nothing.
+ */
 async function tally(
   tx: Transaction,
   importId: string,
@@ -92,7 +96,12 @@ async function tally(
       rows: count(),
     })
     .from(rosterImportRows)
-    .where(eq(rosterImportRows.importId, importId))
+    .where(
+      and(
+        eq(rosterImportRows.importId, importId),
+        or(eq(rosterImportRows.status, 'rejected'), isNotNull(rosterImportRows.appliedAt)),
+      ),
+    )
     .groupBy(rosterImportRows.status, rosterImportRows.outcome);
   const counts: ImportCounts = {
     accepted: 0,

@@ -213,7 +213,7 @@ function Report({
               <FailureAlert imp={imp} />
               {imp.counts ? (
                 <p className="mt-[18px] mb-2.5 text-[13px] text-muted-foreground">
-                  {m.countsUpToStop}
+                  {m.countsUpToStop(imp.processedRows, imp.totalRows)}
                 </p>
               ) : null}
             </div>

@@ -139,7 +139,9 @@ export function FailureAlert({
     <Alert variant="destructive">
       <Icon icon={AlertCircleIcon} />
       <AlertTitle>
-        {applied ? m.stoppedAfter(imp.processedRows, reason) : m.stoppedBefore(reason)}
+        {applied
+          ? m.stoppedAfter(imp.processedRows, imp.totalRows, reason)
+          : m.stoppedBefore(reason)}
       </AlertTitle>
       {detail ? <AlertDescription>{detail}</AlertDescription> : null}
       <AlertDescription>
