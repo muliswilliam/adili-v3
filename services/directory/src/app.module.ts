@@ -9,6 +9,7 @@ import { schema } from './db/schema.js';
 import { CommissionsModule } from './commissions/commissions.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { MeController } from './me/me.controller.js';
+import { ApiCredentialModule } from './roster/api-credential/api-credential.module.js';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { MeController } from './me/me.controller.js';
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
     IdentityModule,
     CommissionsModule,
+    ApiCredentialModule,
   ],
   controllers: [MeController],
 })

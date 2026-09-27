@@ -391,74 +391,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/api-credential:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags: [roster]
-      operationId: getRosterApiCredential
-      summary: Metadata of the Commission's HR-system credential (never the secret)
-      responses:
-        '200':
-          description: Metadata, or null when none was created
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/RosterApiCredential'
-                  - type: 'null'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    post:
-      tags: [roster]
-      operationId: createRosterApiCredential
-      summary: Create the credential; the secret is returned once
-      responses:
-        '201':
-          description: Credential with secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          description: A credential already exists; rotate or revoke it
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-    delete:
-      tags: [roster]
-      operationId: revokeRosterApiCredential
-      summary: Revoke the credential; the HR system loses access immediately
-      responses:
-        '204':
-          description: Revoked
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/api-credential/rotate:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags: [roster]
-      operationId: rotateRosterApiCredential
-      summary: Issue a new secret; the previous one stops working immediately
-      responses:
-        '200':
-          description: Credential with the new secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/onboarding/commissions:
     get:
       tags: [onboarding]
@@ -1516,41 +1448,6 @@ components:
           format: uuid
         count:
           type: integer
-    RosterApiCredential:
-      type: object
-      required: [clientId, createdAt, createdBy, rotatedAt, revokedAt, lastUsedAt]
-      properties:
-        clientId:
-          type: string
-          examples: [roster-psc]
-        createdAt:
-          type: string
-          format: date-time
-        createdBy:
-          type: string
-        rotatedAt:
-          type: [string, 'null']
-          format: date-time
-        revokedAt:
-          type: [string, 'null']
-          format: date-time
-        lastUsedAt:
-          type: [string, 'null']
-          format: date-time
-    RosterApiCredentialWithSecret:
-      allOf:
-        - $ref: '#/components/schemas/RosterApiCredential'
-        - type: object
-          required: [secret, tokenEndpoint, scope]
-          properties:
-            secret:
-              type: string
-              description: Shown once; the platform does not store it
-            tokenEndpoint:
-              type: string
-              format: uri
-            scope:
-              const: roster:write
     Ofr:
       type: string
       description: Officer reference (ADR-011), permanent and person-level

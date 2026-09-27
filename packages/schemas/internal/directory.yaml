@@ -311,6 +311,160 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/api-credential:
+    get:
+      tags:
+        - roster
+      summary: Metadata of the Commission's HR-system credential (never the secret)
+      description: Reporting officer of the Commission. Revoked credentials are returned too.
+      operationId: getRosterApiCredential
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Metadata, or null when none was created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RosterApiCredential'
+                  - type: 'null'
+        '403':
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "Not found: another Commission's credential, or the Commission does not exist"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - roster
+      summary: Create the credential; the secret is returned once
+      description: Reporting officer of the Commission. Creates an API client whose tokens (client credentials grant) carry the `roster:write` scope and the Commission as `tenant`. Allowed when there is no credential or it was revoked; a new credential gets a new client id.
+      operationId: createRosterApiCredential
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '201':
+          description: Credential with secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
+        '403':
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "Not found: another Commission's credential, or the Commission does not exist"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `api-credential-exists`: a credential exists; rotate or revoke it'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `identity-unavailable`: the identity provider failed and nothing changed. Safe to retry.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - roster
+      summary: Revoke the credential; the HR system loses access immediately
+      description: Reporting officer of the Commission. The client obtains no more tokens; tokens already issued expire within their lifespan (minutes).
+      operationId: revokeRosterApiCredential
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '204':
+          description: Revoked
+        '403':
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "Not found: another Commission's credential, or the Commission does not exist, or there is no credential that is not revoked"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `identity-unavailable`: the identity provider failed and nothing changed. Safe to retry.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/api-credential/rotate:
+    post:
+      tags:
+        - roster
+      summary: Issue a new secret; the previous one stops working immediately
+      description: Reporting officer of the Commission. The client id stays the same.
+      operationId: rotateRosterApiCredential
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Credential with the new secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
+        '403':
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "Not found: another Commission's credential, or the Commission does not exist, or there is no credential that is not revoked"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: "Problem type `api-credential-client-missing`: the credential's client no longer exists in the identity provider; revoke and create new credentials"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `identity-unavailable`: the identity provider failed and nothing changed. Safe to retry.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/roster/template:
     get:
       tags:
@@ -737,82 +891,6 @@ paths:
                 properties:
                   count:
                     type: integer
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/api-credential:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - roster
-      summary: Metadata of the Commission's HR-system credential (never the secret)
-      operationId: getRosterApiCredential
-      x-draft: true
-      responses:
-        '200':
-          description: Metadata, or null when none was created
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/RosterApiCredential'
-                  - type: 'null'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    post:
-      tags:
-        - roster
-      summary: Create the credential; the secret is returned once
-      operationId: createRosterApiCredential
-      x-draft: true
-      responses:
-        '201':
-          description: Credential with secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          description: A credential already exists; rotate or revoke it
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-    delete:
-      tags:
-        - roster
-      summary: Revoke the credential; the HR system loses access immediately
-      operationId: revokeRosterApiCredential
-      x-draft: true
-      responses:
-        '204':
-          description: Revoked
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/api-credential/rotate:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags:
-        - roster
-      summary: Issue a new secret; the previous one stops working immediately
-      operationId: rotateRosterApiCredential
-      x-draft: true
-      responses:
-        '200':
-          description: Credential with the new secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -1543,12 +1621,18 @@ components:
           type:
             - string
             - 'null'
+        name:
+          description: 'Display name: the `name` claim, else `preferred_username`'
+          type:
+            - string
+            - 'null'
       required:
         - subject
         - tenant
         - roles
         - scopes
         - clientId
+        - name
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
@@ -1792,6 +1876,127 @@ components:
         - items
         - nextCursor
         - total
+    RosterApiCredential:
+      type: object
+      properties:
+        clientId:
+          type: string
+          description: OAuth client id the HR system authenticates with
+          examples:
+            - roster-psc-3f9a2c1d
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Creator's account (`sub`)
+            name:
+              description: Their display name when they created it; null when the token had none
+              examples:
+                - Fatuma Wanjiru
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+          description: The reporting officer who created the credential
+        rotatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: Latest secret rotation; null if never rotated
+        revokedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When access was revoked; a revoked credential obtains no tokens
+        lastUsedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: Latest request made with one of its tokens (at most once a minute); null if never
+      required:
+        - clientId
+        - createdAt
+        - createdBy
+        - rotatedAt
+        - revokedAt
+        - lastUsedAt
+    RosterApiCredentialWithSecret:
+      type: object
+      properties:
+        clientId:
+          type: string
+          description: OAuth client id the HR system authenticates with
+          examples:
+            - roster-psc-3f9a2c1d
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Creator's account (`sub`)
+            name:
+              description: Their display name when they created it; null when the token had none
+              examples:
+                - Fatuma Wanjiru
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - name
+          description: The reporting officer who created the credential
+        rotatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: Latest secret rotation; null if never rotated
+        revokedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When access was revoked; a revoked credential obtains no tokens
+        lastUsedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: Latest request made with one of its tokens (at most once a minute); null if never
+        secret:
+          type: string
+          description: Shown once; the platform does not store it
+        tokenEndpoint:
+          type: string
+          format: uri
+          description: Where the HR system exchanges the client id and secret for a token
+          examples:
+            - https://auth.adili.go.ke/realms/adili/protocol/openid-connect/token
+        scope:
+          type: string
+          const: roster:write
+      required:
+        - clientId
+        - createdAt
+        - createdBy
+        - rotatedAt
+        - revokedAt
+        - lastUsedAt
+        - secret
+        - tokenEndpoint
+        - scope
     ProblemDetails:
       type: object
       properties:
@@ -2298,57 +2503,6 @@ components:
           format: uuid
         count:
           type: integer
-    RosterApiCredential:
-      type: object
-      required:
-        - clientId
-        - createdAt
-        - createdBy
-        - rotatedAt
-        - revokedAt
-        - lastUsedAt
-      properties:
-        clientId:
-          type: string
-          examples:
-            - roster-psc
-        createdAt:
-          type: string
-          format: date-time
-        createdBy:
-          type: string
-        rotatedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        revokedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        lastUsedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-    RosterApiCredentialWithSecret:
-      allOf:
-        - $ref: '#/components/schemas/RosterApiCredential'
-        - type: object
-          required:
-            - secret
-            - tokenEndpoint
-            - scope
-          properties:
-            secret:
-              type: string
-              description: Shown once; the platform does not store it
-            tokenEndpoint:
-              type: string
-              format: uri
-            scope:
-              const: roster:write
     Ofr:
       type: string
       description: Officer reference (ADR-011), permanent and person-level
