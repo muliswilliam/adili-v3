@@ -63,3 +63,38 @@ describe('S18 Commissions workspace', () => {
     expect(workspaceFor(['reviewer'], 'review')?.href).toBeUndefined();
   });
 });
+
+describe('Roster workspace', () => {
+  it('opens for reporting officers with write access', () => {
+    expect(workspaceFor(['reporting-officer'], 'roster')).toEqual({
+      id: 'roster',
+      title: 'Declarant roster',
+      description:
+        "Import and maintain your Commission's roster and help officers who cannot onboard.",
+      href: '/roster',
+      readOnly: false,
+    });
+  });
+
+  it('opens read-only for commission admins', () => {
+    expect(workspaceFor(['commission-admin'], 'roster')).toMatchObject({
+      href: '/roster',
+      readOnly: true,
+      description: "Your Commission's roster and import history.",
+    });
+  });
+
+  it.each([
+    'platform-admin',
+    'eacc-analyst',
+    'eacc-supervisor',
+    'reviewer',
+    'supervisor',
+    'access-officer',
+    'auditor',
+    'helpdesk',
+    'declarant',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'roster')).toBeUndefined();
+  });
+});
