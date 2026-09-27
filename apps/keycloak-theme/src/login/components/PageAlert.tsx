@@ -11,17 +11,15 @@ export function PageAlert({
   variant,
   icon,
   children,
-  focus = true,
 }: {
   variant: 'destructive' | 'warning' | 'info' | 'neutral';
   icon: IconProps['icon'];
   children: ReactNode;
-  focus?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (focus) ref.current?.focus();
-  }, [focus]);
+    ref.current?.focus();
+  }, []);
   return (
     <Alert ref={ref} tabIndex={-1} variant={variant} className="outline-none">
       <Icon icon={icon} />
