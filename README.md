@@ -48,7 +48,7 @@ Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili
 | Postgres                         | `localhost:55432`                                                     | `postgres` / `postgres_dev` |
 | Valkey                           | `localhost:56379`                                                     | none |
 | RabbitMQ AMQP / UI               | `localhost:55672` / http://localhost:15672                            | `adili` / `adili_dev` |
-| SeaweedFS S3 / master            | `localhost:8333` / `localhost:9333`                                   | see `infra/compose/seaweedfs/s3.json` |
+| SeaweedFS S3 / master            | `localhost:8333` / `localhost:9333` (SSE-S3 on; CORS for 3010, 3020)  | see `infra/compose/seaweedfs/s3.json` |
 | OpenBao                          | http://localhost:8200                                                 | token `adili-dev-root-token` |
 | ClamAV                           | `localhost:3310`                                                      | none |
 | Gotenberg                        | http://localhost:3300                                                 | none |

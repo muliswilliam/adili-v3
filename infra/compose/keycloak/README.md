@@ -34,6 +34,11 @@ ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so lo
 - `roster:write` is a realm client scope, included in the token's `scope` claim and in no client's defaults except those API clients.
 - Listing `clientScopes` in the file replaces Keycloak's built-in scopes, so the file lists them all (as Keycloak 26.7 creates them) plus `roster:write`, and the realm defaults. `pnpm keycloak:check` fails when a client names a scope the file does not list. Keycloak's own clients (`account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console`) are created before the scopes on import and so get no default scopes; Adili uses none of them (the account console is off, `accountThemeImplementation: 'none'`, and admins use the master realm).
 
+## Service-to-service calls (spec 27)
+
+- The directory calls the documents service's internal API (`/internal/v1/uploads/{id}/download`) with its own client credentials token and the header `X-Acting-Tenant: <slug>` (`ServiceTokenClient` and `ACTING_TENANT_HEADER` in `packages/api-kit`). Documents trusts the header only for tokens with scope `documents:internal`, and answers 404 for uploads of another tenant.
+- So the `directory` client has the default client scope `documents:internal` (a realm client scope in the token's `scope` claim) and the `adili-api` audience mapper services verify. Its service account holds no realm roles beyond `default-roles-adili`, so the token passes no role check.
+
 ## Plug-in for #79 (Adili OTP authenticator)
 
 Add a REQUIRED execution with provider id `adili-otp` to `adili declarant otp` and `adili applicant otp`. Do not add it to the staff TOTP flow. The authenticator must honour LoA so a step-up request re-runs only the OTP (spec 06 S16).

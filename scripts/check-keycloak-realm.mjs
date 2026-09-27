@@ -2,8 +2,8 @@
 // Checks that the Adili realm file still has the roles, BFF clients,
 // authentication flows, staff provisioning setup (directory service client,
 // SMTP, email theme, user profile attributes) and API client setup (roster:write
-// client scope) specs 03, 04, 06 and 27 require. Demo users are optional (#371
-// seeds them).
+// client scope; documents:internal and the adili-api audience for the directory)
+// specs 03, 04, 06 and 27 require. Demo users are optional (#371 seeds them).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -169,6 +169,26 @@ if (!rosterWrite) {
   if (rosterWrite.attributes?.['include.in.token.scope'] !== 'true') {
     fail('roster:write must be included in the token scope claim');
   }
+}
+// The directory's own token calls the documents internal API (spec 27 decision 2): it
+// needs the documents:internal scope by default and the adili-api audience services verify.
+const documentsInternal = scopes.get('documents:internal');
+if (!documentsInternal) {
+  fail('missing client scope documents:internal (service-to-service, spec 27)');
+} else if (documentsInternal.attributes?.['include.in.token.scope'] !== 'true') {
+  fail('documents:internal must be included in the token scope claim');
+}
+if (directory) {
+  if (!directory.defaultClientScopes?.includes('documents:internal')) {
+    fail('directory must get client scope documents:internal by default');
+  }
+  const audience = (directory.protocolMappers ?? []).some(
+    (mapper) =>
+      mapper.protocolMapper === 'oidc-audience-mapper' &&
+      mapper.config?.['included.custom.audience'] === 'adili-api' &&
+      mapper.config?.['access.token.claim'] === 'true',
+  );
+  if (!audience) fail('directory tokens need the adili-api audience mapper');
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.
 if (!scopes.has('basic')) fail('missing client scope basic (API client tokens need sub)');
