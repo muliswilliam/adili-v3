@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, Icon } from '@adili/ui';
+import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
 import {
   AlertCircleIcon,
   Flag02Icon,
@@ -7,6 +7,7 @@ import {
   Tick02Icon,
   UserAdd01Icon,
 } from '@hugeicons/core-free-icons';
+import { Link } from '@tanstack/react-router';
 
 import type {
   DirectoryResult,
@@ -32,8 +33,8 @@ const TILES = [
 
 /**
  * What an ended import did (wizard step 5 and the import report): the five counts, a warning
- * when officers were flagged as absent, then the rejected rows with their CSV, or that none
- * were rejected. Nothing while the import has no counts.
+ * with the way to review them when officers were flagged as absent, then the rejected rows with
+ * their CSV, or that none were rejected. Nothing while the import has no counts.
  */
 export function ImportReportBody({
   imp,
@@ -73,7 +74,12 @@ export function ImportReportBody({
         <Alert variant="warning" role="status" className="mt-4">
           <Icon icon={Flag02Icon} />
           <AlertTitle>{m.flaggedTitle(counts.flaggedAbsent)}</AlertTitle>
-          <AlertDescription>{m.flaggedText}</AlertDescription>
+          <AlertDescription>
+            {m.flaggedText}
+            <Button asChild variant="secondary" size="sm" className="mt-2.5 flex w-fit">
+              <Link to="/roster/flagged">{m.reviewFlaggedButton}</Link>
+            </Button>
+          </AlertDescription>
         </Alert>
       ) : null}
       {counts.rejected === 0 ? (

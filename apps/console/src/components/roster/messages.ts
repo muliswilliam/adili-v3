@@ -435,6 +435,67 @@ export const en = {
     'These credentials no longer exist in the sign-in service. Revoke them and create new ones.',
   apiNoAccess: 'Only the reporting officer can manage API credentials.',
   apiErrorTitle: 'API access could not be loaded',
+  // Flagged officers
+  flaggedTitlePage: 'Flagged officers',
+  flaggedIntro: (date: string | null) =>
+    `These officers were on the roster but not in the latest complete import${date ? ` (${date})` : ''}. Confirm who has left, or mark who is still employed.`,
+  flaggedIntroReadOnly: (date: string | null) =>
+    `These officers were on the roster but not in the latest complete import${date ? ` (${date})` : ''}.`,
+  flaggedReadOnly: 'Only the reporting officer can confirm exits.',
+  flaggedCaption: 'Flagged officers ordered by name',
+  flaggedLoadingCaption: 'Loading flagged officers',
+  columnFlaggedIn: 'Flagged in',
+  flaggedEmptyTitle: 'Nobody is flagged.',
+  flaggedEmptyText: 'Officers missing from a complete import appear here.',
+  flaggedErrorTitle: 'Flagged officers could not be loaded.',
+  flaggedLoadMoreError: 'More officers could not be loaded. Try again.',
+  flaggedShown: (count: number) => `Showing ${formatNumber(count)}`,
+  flaggedAllShown: (count: number) =>
+    count === 1 ? '1 flagged officer' : `All ${formatNumber(count)} flagged officers shown`,
+  rosterOverview: 'Roster overview',
+  navFlagged: (count: number) => `${formatNumber(count)} flagged`,
+  reviewFlaggedButton: 'Review flagged',
+  selectOfficer: (name: string) => `Select ${name}`,
+  selectAllOnPage: 'Select all on page',
+  /** Before the flagged date on a phone card: "Flagged 3 Sept 2026". */
+  flaggedOn: 'Flagged',
+  selectedCount: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'officer' : 'officers'} selected`,
+  bulkActions: 'Bulk actions',
+  confirmExits: 'Confirm exits',
+  stillEmployed: 'Still employed',
+  markStillEmployed: 'Mark as still employed',
+  markingStillEmployed: 'Saving…',
+  confirmExit: 'Confirm exit',
+  // Confirm exits dialog
+  exitsTitle: (count: number) =>
+    count === 1 ? 'Confirm exit' : `Confirm ${formatNumber(count)} exits`,
+  exitsDate: 'Exit date',
+  exitsDateHint: 'Applies to all selected. Not in the future.',
+  exitDateHint: 'Last day worked. Not in the future.',
+  exitsPerOfficer: 'Set per officer',
+  exitsPerOfficerHint: 'Officers without their own date get the exit date above.',
+  exitDateFor: (name: string) => `Exit date for ${name}`,
+  exitsNote:
+    'Exited officers stay on the roster for their final declaration and are no longer counted as expected declarants.',
+  exitsConfirm: (count: number) =>
+    count === 1 ? 'Confirm exit' : `Confirm ${formatNumber(count)} exits`,
+  exitsRecording: 'Recording…',
+  exitsCancel: 'Cancel',
+  exitDateRequired: 'Enter an exit date.',
+  exitDateInvalid: 'Enter a date as day, month and year.',
+  exitDateFuture: 'The exit date cannot be in the future.',
+  exitsFailed: (count: number) =>
+    count === 1 ? 'The exit was not recorded. Try again.' : 'Exits were not recorded. Try again.',
+  exitsForbidden: 'Only the reporting officer can confirm exits.',
+  exitsStale:
+    'Some of these officers changed since the page loaded, so nothing was recorded. The list is up to date now.',
+  exitsRecorded: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'exit' : 'exits'} recorded`,
+  keptToast: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'officer' : 'officers'} marked as still employed`,
+  keepFailed: 'Nobody was marked as still employed. Try again.',
+  keepForbidden: 'Only the reporting officer can mark officers as still employed.',
 } as const;
 
 /** Swahili translations, key by key; empty until reviewed. */

@@ -28,24 +28,27 @@ import { ImportOutcomeBadge, NotInLatestImportBadge, RecordStateBadge } from './
 
 /**
  * One roster record in full (spec 02 FE-6): every field with the national ID unmasked, its
- * status and the imports that touched it. Read only in this slice: imports are the source of
- * truth, and exits arrive with the flagged officers screen.
+ * status and the imports that touched it. Fields are not edited here: imports are the source of
+ * truth. The reporting officer's `actions` (confirm exit, mark as still employed) sit by the title.
  */
 export function RecordDetail({
   record,
   banner,
+  actions,
   readOnly,
 }: {
   record: RosterRecord;
   /** Above the heading, e.g. the audit notice for platform admins. */
   banner?: ReactNode;
+  /** Next to the title, e.g. the reporting officer's exit actions. */
+  actions?: ReactNode;
   readOnly: boolean;
 }) {
   const flagged = isFlagged(record);
   return (
     <Page>
       {banner}
-      <PageHead title={record.fullName}>
+      <PageHead title={record.fullName} actions={actions}>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="font-mono text-[13.5px] text-muted-foreground">
             {record.personnelFileNumber}

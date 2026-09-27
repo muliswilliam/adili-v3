@@ -1,5 +1,5 @@
 import { Button, Stepper, useToast } from '@adili/ui';
-import { createFileRoute, Link, useBlocker, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker, useNavigate, useRouter } from '@tanstack/react-router';
 import { useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
 import { z } from 'zod';
 
@@ -115,6 +115,7 @@ function ImportPage() {
  */
 function ImportWizard({ slug }: { slug: string }) {
   const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const search = Route.useSearch();
   const [state, dispatch] = useReducer(wizardReducer, search.import, wizardStateFor);
@@ -201,6 +202,8 @@ function ImportWizard({ slug }: { slug: string }) {
       signIn(following);
     },
     onEnded: (imp) => {
+      // The layout's roster summary (the sidebar's flagged count) changed with the import.
+      void router.invalidate({ filter: (match) => match.routeId === '/roster' });
       dispatch({
         type: 'import-ended',
         importId: imp.id,

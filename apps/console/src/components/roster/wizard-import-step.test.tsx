@@ -224,6 +224,9 @@ describe('WizardReportStep', () => {
       { readRows },
     );
     expect(screen.getByText('14 officers were not in this file.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Review flagged' }).getAttribute('href')).toBe(
+      '/roster/flagged',
+    );
     expect(screen.queryByText('No rows were rejected.')).toBeNull();
     const table = await screen.findByRole('table', { name: 'Rejected rows' });
     expect(within(table).getByRole('rowheader', { name: '14' })).toBeTruthy();

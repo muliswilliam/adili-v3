@@ -40,8 +40,6 @@ import { type NextStep, nextSteps } from '../../components/roster/next-steps';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
 import { Tile, TileValue } from '../../components/roster/tile';
 import { useTemplateDownload } from '../../components/roster/use-template-download';
-import { signInRedirect } from '../../components/sign-in-redirect';
-import { getCommission } from '../../server/commissions';
 import type {
   Commission,
   DirectoryResult,
@@ -60,20 +58,19 @@ interface OverviewData {
 }
 
 export const Route = createFileRoute('/roster/')({
-  loader: async ({ location, context }): Promise<OverviewData | null> => {
+  loader: async ({ context, parentMatchPromise }): Promise<OverviewData | null> => {
     // The layout shows no overview without the workspace; do not fetch one.
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
     if (!slug) return { commission: noCommission, lastImport: null, credential: null };
-    const [commission, credential] = await Promise.all([
-      getCommission({ data: { slug } }),
+    const [layout, credential] = await Promise.all([
+      // The layout loads the Commission (and signs in again when the session ended).
+      parentMatchPromise,
       // Credentials are the reporting officer's alone; the directory refuses anyone else.
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
     ]);
-    if (!commission.ok && commission.error.kind === 'unauthenticated') {
-      throw signInRedirect(location.href);
-    }
+    const commission = layout.loaderData?.commission ?? noCommission;
     const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
     const lastImport = lastImportId
       ? await getRosterImport({ data: { slug, importId: lastImportId } })
@@ -138,6 +135,12 @@ function RosterOverview() {
           <Link to="/roster/records">
             <Icon icon={LeftToRightListBulletIcon} />
             {m.records}
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/flagged">
+            <Icon icon={Flag02Icon} />
+            {m.flaggedTitlePage}
           </Link>
         </Button>
         <Button asChild variant="secondary" size="sm">
@@ -288,8 +291,7 @@ function SummaryTiles({ roster }: { roster: RosterSummary }) {
           <TileValue>{formatNumber(roster.flagged)}</TileValue>
           {flagged ? (
             <Link
-              to="/roster/records"
-              search={{ flagged: true }}
+              to="/roster/flagged"
               aria-label={m.reviewFlagged}
               className="inline-flex items-center gap-0.5 rounded-sm text-[13.5px] font-medium underline-offset-[3px] outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5"
             >
@@ -423,7 +425,7 @@ function StepBody({ step, label }: { step: NextStep; label: string }) {
 function StepLink({ step }: { step: NextStep }) {
   if (step.kind === 'review-flagged') {
     return (
-      <Link to="/roster/records" search={{ flagged: true }} className={STEP_LINK}>
+      <Link to="/roster/flagged" className={STEP_LINK}>
         <StepBody step={step} label={m.nextReviewFlagged(step.count)} />
       </Link>
     );
