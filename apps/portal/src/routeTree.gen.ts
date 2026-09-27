@@ -14,6 +14,7 @@ import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
+import { Route as AuthRecoverRouteImport } from './routes/auth/recover'
 import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
 import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email'
 import { Route as GetStartedConfirmRouteImport } from './routes/get-started/confirm'
@@ -46,6 +47,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
   path: '/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRecoverRoute = AuthRecoverRouteImport.update({
+  id: '/auth/recover',
+  path: '/auth/recover',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GetStartedIndexRoute = GetStartedIndexRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/auth/recover': typeof AuthRecoverRoute
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
   '/get-started/done': typeof GetStartedDoneRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/auth/recover': typeof AuthRecoverRoute
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
   '/get-started/done': typeof GetStartedDoneRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/auth/recover': typeof AuthRecoverRoute
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
   '/get-started/done': typeof GetStartedDoneRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/auth/recover'
     | '/get-started/check-email'
     | '/get-started/confirm'
     | '/get-started/done'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/auth/recover'
     | '/get-started/check-email'
     | '/get-started/confirm'
     | '/get-started/done'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/auth/recover'
     | '/get-started/check-email'
     | '/get-started/confirm'
     | '/get-started/done'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
+  AuthRecoverRoute: typeof AuthRecoverRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/logout'
       fullPath: '/auth/logout'
       preLoaderRoute: typeof AuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/recover': {
+      id: '/auth/recover'
+      path: '/auth/recover'
+      fullPath: '/auth/recover'
+      preLoaderRoute: typeof AuthRecoverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/get-started/': {
@@ -317,6 +337,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
+  AuthRecoverRoute: AuthRecoverRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

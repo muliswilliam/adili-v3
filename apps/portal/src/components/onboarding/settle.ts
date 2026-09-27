@@ -62,9 +62,9 @@ export function useSettle(
 
 /**
  * Forgets the session in this browser (the cookie is cleared on the server) and goes back to
- * step 1 with the Commission kept, saying why when there is a reason.
+ * step 1, with the Commission kept when given and saying why when there is a reason.
  */
-export function useStartAgain(commission: string): (notice?: StartAgainNotice) => Promise<void> {
+export function useStartAgain(commission?: string): (notice?: StartAgainNotice) => Promise<void> {
   const navigate = useNavigate();
   return async (notice) => {
     await leaveOnboarding();

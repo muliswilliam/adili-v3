@@ -9,18 +9,24 @@ import {
   useCountdownAnnouncement,
   useToast,
 } from '@adili/ui';
-import { AlertCircleIcon, Mail01Icon, SentIcon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import {
+  AlertCircleIcon,
+  LockKeyIcon,
+  Mail01Icon,
+  SentIcon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
+import { useEffect, useState } from 'react';
 
 import type { OnboardingSession } from '../../server/directory/types';
-import { resendSetPasswordEmail } from '../../server/onboarding';
-import type { StepGuard } from './guard';
+import { leaveOnboarding, resendSetPasswordEmail } from '../../server/onboarding';
+import type { CheckEmailGuard, StepGuard } from './guard';
+import { RECOVER_ACCESS, SIGN_IN } from './links';
 import { StepHeading, SuccessMark } from './onboarding-layout';
 import { GENERIC_ERROR } from './problems';
 import { useSettle, useStartAgain } from './settle';
 import { SessionUnavailable } from './step-alerts';
 
-const SIGN_IN = '/auth/login';
 /** The wait between set-password emails (spec 03), when the directory does not give a time. */
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -32,10 +38,56 @@ function emailWait(resendAvailableAt: string | null): number {
   return resendAvailableAt === null ? RESEND_COOLDOWN_SECONDS : secondsUntil(resendAvailableAt);
 }
 
-/** Check your email (step 6): the new account's set-password email, with resend. */
-export function CheckEmailStep({ guard }: { guard: StepGuard }) {
+/**
+ * Check your email (step 6): the new account's set-password email, with resend. Without a
+ * session (e.g. from an expired link on another device) it explains how to get a new link.
+ */
+export function CheckEmailStep({ guard }: { guard: CheckEmailGuard }) {
   if (guard.status === 'unavailable') return <SessionUnavailable />;
+  if (guard.status === 'none') return <NewLinkHelp />;
   return <CheckEmail session={guard.session} />;
+}
+
+/**
+ * The set-password link can only be sent again from the browser that onboarded, while its
+ * session lasts. Anywhere else, "Forgot password" on the sign-in page sends a link that sets
+ * the password just the same (FE-7).
+ */
+function NewLinkHelp() {
+  return (
+    <>
+      <SuccessMark tone="brand">
+        <Icon icon={LockKeyIcon} strokeWidth={2} />
+      </SuccessMark>
+      <StepHeading
+        title="Get a new link to set your password"
+        description="We cannot send the email again from this browser. Use Forgot password on the sign-in page instead: enter your email or officer reference and we will email you a new link. It sets your password too."
+      />
+      <div className="mt-[22px] grid gap-2.5">
+        <Button asChild className="w-full">
+          <a href={RECOVER_ACCESS}>Forgot password</a>
+        </Button>
+        <Button asChild variant="ghost" className="w-full">
+          <a href={SIGN_IN}>Sign in</a>
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/** Leaves this finished onboarding so the declarant can onboard with another Commission. */
+function StartAnother() {
+  const startAgain = useStartAgain();
+  return (
+    <Button
+      type="button"
+      variant="link"
+      className="justify-self-center"
+      onClick={() => void startAgain()}
+    >
+      Start again for another Commission
+    </Button>
+  );
 }
 
 function CheckEmail({ session }: { session: OnboardingSession }) {
@@ -65,6 +117,7 @@ function CheckEmail({ session }: { session: OnboardingSession }) {
         <Button asChild variant="ghost" className="w-full">
           <a href={SIGN_IN}>Sign in</a>
         </Button>
+        <StartAnother />
       </div>
     </>
   );
@@ -163,7 +216,16 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
 /** Done (step 6): the roster record was linked to the declarant's existing account. */
 export function DoneStep({ guard }: { guard: StepGuard }) {
   if (guard.status === 'unavailable') return <SessionUnavailable />;
-  const { session } = guard;
+  return <Done session={guard.session} />;
+}
+
+function Done({ session }: { session: OnboardingSession }) {
+  // Nothing more happens on this session, so this browser forgets it once the page is shown;
+  // Get started then starts a new onboarding rather than coming back here.
+  useEffect(() => {
+    void leaveOnboarding();
+  }, []);
+
   return (
     <>
       <SuccessMark>
@@ -182,9 +244,12 @@ export function DoneStep({ guard }: { guard: StepGuard }) {
           )
         }
       />
-      <Button asChild className="mt-6 w-full">
-        <a href={SIGN_IN}>Sign in</a>
-      </Button>
+      <div className="mt-6 grid gap-2.5">
+        <Button asChild className="w-full">
+          <a href={SIGN_IN}>Sign in</a>
+        </Button>
+        <StartAnother />
+      </div>
     </>
   );
 }

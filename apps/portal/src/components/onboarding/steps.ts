@@ -62,3 +62,17 @@ export function routeForSession(session: Pick<OnboardingSession, 'state' | 'outc
   }
   return ROUTE_FOR_STATE[session.state];
 }
+
+/**
+ * Where a declarant who comes back to the start of Get started is sent: the step their session
+ * is on, or null when it has finished (an account created or linked, or stopped at identity
+ * mismatch) or ended, so they can start a new onboarding, e.g. for another Commission. The
+ * finished pages stay reachable at their own routes while the cookie lasts.
+ */
+export function resumeRoute(
+  session: Pick<OnboardingSession, 'state' | 'outcome'>,
+): Exclude<StepRoute, '/get-started'> | null {
+  if (session.state === 'confirmed' || session.state === 'identity-mismatch') return null;
+  const route = routeForSession(session);
+  return route === '/get-started' ? null : route;
+}

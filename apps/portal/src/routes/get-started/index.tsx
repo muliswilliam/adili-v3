@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import { CommissionStep } from '../../components/onboarding/commission-step';
-import { routeForSession } from '../../components/onboarding/steps';
+import { resumeRoute } from '../../components/onboarding/steps';
 import { getOnboardingCommissions, getOnboardingSession } from '../../server/onboarding';
 
 export const Route = createFileRoute('/get-started/')({
@@ -19,10 +19,9 @@ export const Route = createFileRoute('/get-started/')({
       getOnboardingSession(),
       getOnboardingCommissions(),
     ]);
-    if (lookup.status === 'active') {
-      const target = routeForSession(lookup.session);
-      if (target !== '/get-started') throw redirect({ to: target });
-    }
+    // A session in progress resumes; a finished one does not hold the declarant on its page.
+    const resume = lookup.status === 'active' ? resumeRoute(lookup.session) : null;
+    if (resume) throw redirect({ to: resume });
     return { commissions };
   },
   component: ChooseCommission,
