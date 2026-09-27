@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, Icon, LogoMark } from '@adili/ui';
+import { Alert, AlertDescription, Icon, type IconProps, LogoMark } from '@adili/ui';
 import {
   Alert02Icon,
   AlertCircleIcon,
@@ -9,7 +9,7 @@ import {
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useInitialize } from 'keycloakify/login/Template.useInitialize';
 import type { TemplateProps } from 'keycloakify/login/TemplateProps';
-import { useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 import type { I18n } from './i18n';
 import type { KcContext } from './KcContext';
@@ -21,9 +21,30 @@ const messageIcons = {
   info: InformationCircleIcon,
 } as const;
 
+const markTones = {
+  success: 'bg-success-subtle text-success-subtle-foreground',
+  warning: 'bg-warning-subtle text-warning-subtle-foreground',
+  destructive: 'bg-destructive-subtle text-destructive-subtle-foreground',
+  neutral: 'bg-muted text-foreground',
+} as const;
+
+export interface PageMark {
+  icon: IconProps['icon'];
+  tone: keyof typeof markTones;
+}
+
+export type AdiliTemplateProps = TemplateProps<KcContext, I18n> & {
+  /** A large state icon above the title, for outcome and error pages. */
+  mark?: PageMark;
+  /** A line under the title. */
+  subtitleNode?: ReactNode;
+};
+
 /** Page frame for every login flow: brand, card, messages and language switch. */
-export default function Template(props: TemplateProps<KcContext, I18n>) {
+export default function Template(props: AdiliTemplateProps) {
   const {
+    mark,
+    subtitleNode,
     displayInfo = false,
     displayMessage = true,
     headerNode,
@@ -64,7 +85,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
           </div>
 
           <div className="grid gap-6 rounded-xl border bg-card p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:p-8">
-            <header className="grid gap-2">
+            <header className="grid gap-3">
               {showAttemptedUsername ? (
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
                   <span className="truncate text-sm font-medium">{auth.attemptedUsername}</span>
@@ -76,11 +97,21 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                     {msg('restartLoginTooltip')}
                   </a>
                 </div>
-              ) : (
-                <h1 id="kc-page-title" className="text-lg font-semibold tracking-tight">
-                  {headerNode}
-                </h1>
-              )}
+              ) : null}
+              {mark ? (
+                <div
+                  aria-hidden="true"
+                  className={`mb-1 flex size-14 items-center justify-center rounded-full ${markTones[mark.tone]}`}
+                >
+                  <Icon icon={mark.icon} className="size-7" />
+                </div>
+              ) : null}
+              <h1 id="kc-page-title" className="text-lg font-semibold tracking-tight">
+                {headerNode}
+              </h1>
+              {subtitleNode ? (
+                <p className="text-sm text-muted-foreground">{subtitleNode}</p>
+              ) : null}
             </header>
 
             <div id="kc-content" className="grid gap-5">
