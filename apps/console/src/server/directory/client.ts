@@ -20,6 +20,18 @@ export type AssignReportingOfficer = Schemas['AssignReportingOfficer'];
 export type ProblemDetails = Schemas['ProblemDetails'];
 export type RosterApiCredential = Schemas['RosterApiCredential'];
 export type RosterApiCredentialWithSecret = Schemas['RosterApiCredentialWithSecret'];
+export type RosterSummary = Schemas['RosterSummary'];
+export type RosterImport = Schemas['RosterImport'];
+export type RosterRecordListItem = Schemas['RosterRecordListItem'];
+export type RosterRecord = Schemas['RosterRecord'];
+export type RosterRecordState = Schemas['RosterRecordState'];
+export type RosterRecordPage =
+  paths['/v1/commissions/{slug}/roster/records']['get']['responses'][200]['content']['application/json'];
+export type ListRosterRecordsQuery = NonNullable<
+  paths['/v1/commissions/{slug}/roster/records']['get']['parameters']['query']
+>;
+export type RosterImportPage =
+  paths['/v1/commissions/{slug}/roster/imports']['get']['responses'][200]['content']['application/json'];
 export type CommissionPage =
   paths['/v1/commissions']['get']['responses'][200]['content']['application/json'];
 export type ListCommissionsQuery = NonNullable<
