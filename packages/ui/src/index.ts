@@ -63,6 +63,7 @@ export {
   maskEmail,
   maskPhone,
 } from './components/masked-contact';
+export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
