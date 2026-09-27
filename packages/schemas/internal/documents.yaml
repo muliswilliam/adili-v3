@@ -5,7 +5,8 @@ info:
   description: |
     Draft contract for specs 02 (roster import), 05 (declaration attachments), 06 (document issuance) 07a (clarification letters) 08 (decision, notice, warning, stoppage letters, referral packages) and 09 (Form M, receipts, NCR). Presigned uploads to quarantine,
     ClamAV scan on completion, presigned download of clean objects for other services.
-    The documents service's Swagger document becomes the source of truth once implemented.
+    The upload operations are implemented (spec 02, purpose roster-import); the documents service's
+    Swagger document becomes the source of truth once its export lands (#57).
 servers:
   - url: http://localhost:4006
 security:
@@ -20,6 +21,10 @@ paths:
       tags: [uploads]
       operationId: createUpload
       summary: Reserve an upload and get a presigned PUT to quarantine
+      description: |
+        The purpose's roles only (roster-import: reporting-officer). The upload belongs to the
+        caller's tenant. The PUT URL is valid for 15 minutes and accepts exactly the declared
+        Content-Type and size.
       requestBody:
         required: true
         content:
@@ -61,8 +66,12 @@ paths:
       operationId: completeUpload
       summary: Verify, scan and move the uploaded object to the clean bucket
       description: |
-        Synchronous for purposes with small size limits (roster-import, 50 MB). Returns the
-        final state: clean, infected or rejected (type, size, missing, timeout).
+        Synchronous for purposes with small size limits (roster-import, 50 MB), bounded by a
+        60-second budget. Checks the object exists and has the declared size (within the
+        purpose's limit), sniffs its type (must equal the declared one), streams it through
+        ClamAV and copies clean bytes to the clean bucket with server-side encryption. Returns
+        the final state: clean, infected or rejected (type, size, missing, timeout). The
+        quarantine object is deleted in every case.
       responses:
         '200':
           description: Final state after scanning
@@ -73,7 +82,17 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Upload already completed or expired
+          description: |
+            Problem type `upload-completed` (already clean, infected or rejected),
+            `upload-expired`, or `upload-completing` (another request is completing it)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: |
+            Problem type `upload-check-unavailable`: storage or the scanner failed; nothing
+            changed, retry
           content:
             application/problem+json:
               schema:
@@ -81,11 +100,15 @@ paths:
   /internal/v1/uploads/{id}/download:
     parameters:
       - $ref: '#/components/parameters/UploadId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags: [internal]
       operationId: getUploadDownload
       summary: Short-lived presigned GET on a clean object, for services
-      description: Not routed by the public entrypoint. Caller acts for the upload's tenant.
+      description: |
+        Not routed by the public entrypoint. Service tokens (client credentials) with scope
+        `documents:internal` only, acting for the tenant named in `X-Acting-Tenant`; the upload
+        must belong to it. The URL is valid for 5 minutes.
       responses:
         '200':
           description: Download URL valid for a few minutes
@@ -93,10 +116,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadDownload'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          description: Token lacks scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Upload is not clean
+          description: 'Problem type `upload-not-clean`: the upload is not clean'
           content:
             application/problem+json:
               schema:
@@ -225,6 +256,14 @@ components:
       schema:
         type: string
         format: uuid
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for (decision 2 of spec 02)
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
     DocumentId:
       name: documentId
       in: path
@@ -254,7 +293,9 @@ components:
   schemas:
     UploadPurpose:
       type: string
-      description: Sets allowed content types and the size limit
+      description: |
+        Sets allowed content types and the size limit. Implemented: roster-import (text/csv or
+        XLSX, 50 MB). The others are drafted for later specs and refused with 400 until then.
       enum:
         - roster-import
         - declaration-attachment
@@ -275,12 +316,13 @@ components:
           $ref: '#/components/schemas/UploadPurpose'
         contentType:
           type: string
+          description: One of the purpose's types; the PUT to uploadUrl must send it as Content-Type
           examples:
             ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
         declaredSize:
           type: integer
           minimum: 1
-          description: Bytes; must be within the purpose's limit
+          description: Bytes; within the purpose's limit. The PUT must send exactly this many bytes
         fileName:
           type: string
           maxLength: 255
@@ -295,7 +337,7 @@ components:
         uploadUrl:
           type: string
           format: uri
-          description: Presigned PUT; send the raw bytes with the declared content type
+          description: Presigned PUT; send the raw bytes with the declared Content-Type and size
         expiresAt:
           type: string
           format: date-time
@@ -338,11 +380,13 @@ components:
           format: date-time
     UploadDownload:
       type: object
-      required: [id, state, downloadUrl, expiresAt, sha256, size]
+      required: [id, purpose, state, downloadUrl, expiresAt, sha256, size, fileName, detectedType]
       properties:
         id:
           type: string
           format: uuid
+        purpose:
+          $ref: '#/components/schemas/UploadPurpose'
         state:
           const: clean
         downloadUrl:
@@ -355,6 +399,12 @@ components:
           type: string
         size:
           type: integer
+        fileName:
+          type: [string, 'null']
+          description: As given at createUpload; display only
+        detectedType:
+          type: string
+          description: Sniffed content type, e.g. text/csv or the XLSX type
     ProblemDetails:
       type: object
       required: [type, title, status]

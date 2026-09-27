@@ -7,6 +7,7 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { S3ReadinessCheck, StorageModule } from './storage/storage.module.js';
+import { UploadsModule } from './uploads/uploads.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { S3ReadinessCheck, StorageModule } from './storage/storage.module.js';
       namespace: config.TEMPORAL_NAMESPACE,
     }),
     StorageModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}
