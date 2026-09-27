@@ -36,7 +36,28 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "config.registry_control.RegistryControlMiddleware",
 ]
+
+
+def _truthy_env(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return default
+
+
+MOCK_REGISTRY_RATE_LIMIT = _int_env("MOCK_REGISTRY_RATE_LIMIT", 60)
+MOCK_REGISTRY_PAUSED = {
+    system
+    for system in ("kra", "ntsa", "brs", "ardhisasa")
+    if _truthy_env(f"MOCK_{system.upper()}_PAUSED")
+}
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
