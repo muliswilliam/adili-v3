@@ -7,6 +7,7 @@ import { ApplicationFailure } from '@temporalio/common';
 import type { DirectorySchema } from '../../db/schema.js';
 import { applyChunk } from './apply-chunk.js';
 import { finaliseImport } from './finalise.js';
+import { flagAbsent } from './flag-absent.js';
 import { DocumentsUnavailable, RosterUploads } from './roster-uploads.js';
 import { stageImport } from './staging.js';
 import {
@@ -49,6 +50,11 @@ export class RosterImportActivities {
   /** Applies chunk `chunkIndex` of the import's accepted rows in one transaction. */
   applyChunk(ref: ImportRef, chunkIndex: number): Promise<ChunkCounts> {
     return applyChunk(this.db, ref, chunkIndex);
+  }
+
+  /** Flags the records a declared-complete import left out; returns how many it flagged. */
+  flagAbsent(ref: ImportRef): Promise<number> {
+    return flagAbsent(this.db, ref);
   }
 
   /** Ends the import: counts, state, summary and event, in one transaction. */

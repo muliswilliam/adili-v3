@@ -27,10 +27,18 @@ export type ColumnMapping = Schemas['ColumnMapping'];
 export type ImportCounts = Schemas['ImportCounts'];
 export type RosterImportRow = Schemas['RosterImportRow'];
 export type RowError = Schemas['RowError'];
-export type RosterImportPage =
-  paths['/v1/commissions/{slug}/roster/imports']['get']['responses'][200]['content']['application/json'];
 export type RosterImportRowPage =
   paths['/v1/commissions/{slug}/roster/imports/{importId}/rows']['get']['responses'][200]['content']['application/json'];
+export type RosterRecordListItem = Schemas['RosterRecordListItem'];
+export type RosterRecord = Schemas['RosterRecord'];
+export type RosterRecordState = Schemas['RosterRecordState'];
+export type RosterRecordPage =
+  paths['/v1/commissions/{slug}/roster/records']['get']['responses'][200]['content']['application/json'];
+export type ListRosterRecordsQuery = NonNullable<
+  paths['/v1/commissions/{slug}/roster/records']['get']['parameters']['query']
+>;
+export type RosterImportPage =
+  paths['/v1/commissions/{slug}/roster/imports']['get']['responses'][200]['content']['application/json'];
 export type CommissionPage =
   paths['/v1/commissions']['get']['responses'][200]['content']['application/json'];
 export type ListCommissionsQuery = NonNullable<

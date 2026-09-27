@@ -1,6 +1,7 @@
 import { type Database, withTenant } from '@adili/data-access';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
+import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import type { ColumnMapping } from '../header-mapping.js';
 import { type ParsedRosterRow, parseRosterFile } from '../roster-file.js';
@@ -98,8 +99,8 @@ export async function stageImport(
   }
 
   const chunkCount = Math.ceil(writer.accepted / CHUNK_SIZE);
-  await withTenant(db, context, (tx) =>
-    tx
+  await withTenant(db, context, async (tx) => {
+    await tx
       .update(rosterImports)
       .set({
         totalRows: writer.accepted + writer.rejected,
@@ -107,9 +108,38 @@ export async function stageImport(
         chunkCount,
         mapping: source.mapping,
       })
-      .where(eq(rosterImports.id, ref.importId)),
-  );
+      .where(eq(rosterImports.id, ref.importId));
+    await markRejectedRowsSeen(tx, ref);
+  });
   return { outcome: 'staged', chunkCount, declaredComplete: current.declaredComplete };
+}
+
+/**
+ * Whitespace as the row validator's `\s` trims it (JavaScript's `\s`, which Postgres's does not
+ * fully cover), for reading a rejected row's personnel file number as the validator would.
+ */
+const WHITESPACE = String.raw`[\s\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]`;
+
+/**
+ * Marks the records that rows rejected when staged were for as seen in this import: the officer
+ * is in the file even though their row has errors, so a declared-complete import must not flag
+ * them absent (decision in #41). A row names a record when its personnel file number, trimmed,
+ * is the record's (case-insensitively); an invalid file number names none, because every record's
+ * is valid. Rows rejected later (`identity-locked`) are marked seen when applied.
+ */
+async function markRejectedRowsSeen(tx: Transaction, ref: ImportRef): Promise<void> {
+  await tx.execute(sql`
+    update roster_records as record set last_seen_import_id = ${ref.importId}
+    from (
+      select distinct lower(regexp_replace(
+        raw ->> 'personnelFileNumber', ${`^${WHITESPACE}+|${WHITESPACE}+$`}, '', 'g'
+      )) as file_number_key
+      from roster_import_rows
+      where import_id = ${ref.importId} and status = 'rejected' and chunk_index is null
+    ) as rejected
+    where record.tenant = ${ref.tenant}
+      and lower(record.personnel_file_number) = rejected.file_number_key
+  `);
 }
 
 async function openSource(uploads: RosterUploads, row: ImportRow): Promise<StagingSource> {

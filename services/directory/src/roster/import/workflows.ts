@@ -41,6 +41,12 @@ const { applyChunk } = proxyActivities<RosterImportActivities>({
   retry: THREE_ATTEMPTS,
 });
 
+const { flagAbsent } = proxyActivities<RosterImportActivities>({
+  // One statement over the tenant's records; minutes only for the very largest rosters.
+  startToCloseTimeout: '5 minutes',
+  retry: THREE_ATTEMPTS,
+});
+
 // Retried until it succeeds: an import that never ends would block the tenant's next import.
 const { finalise } = proxyActivities<RosterImportActivities>({
   startToCloseTimeout: '30 seconds',
@@ -57,9 +63,9 @@ export type RosterImportOutcome = ImportResult['state'] | 'ended';
 
 /**
  * `RosterImportWorkflow` (spec #27), started by the directory with the import id as workflow
- * id: stage the rows, apply the accepted ones chunk by chunk in order, then finalise. An
- * activity that exhausts its retries fails the import; chunks already applied stay applied and
- * the import keeps its processed count.
+ * id: stage the rows, apply the accepted ones chunk by chunk in order, flag the officers a
+ * declared-complete import left out, then finalise. An activity that exhausts its retries fails
+ * the import; chunks already applied stay applied and the import keeps its processed count.
  */
 export async function rosterImport(input: RosterImportInput): Promise<RosterImportOutcome> {
   const ref: ImportRef = { importId: input.importId, tenant: input.tenant };
@@ -99,7 +105,21 @@ export async function rosterImport(input: RosterImportInput): Promise<RosterImpo
     }
   }
 
-  return end(ref, { state: 'completed' });
+  if (!plan.declaredComplete) return end(ref, { state: 'completed' });
+  let flaggedAbsent;
+  try {
+    flaggedAbsent = await flagAbsent(ref);
+  } catch {
+    return end(ref, {
+      state: 'failed',
+      failure: {
+        code: 'internal',
+        detail:
+          'Officers missing from the file could not be flagged. Rows already applied are kept.',
+      },
+    });
+  }
+  return end(ref, { state: 'completed', flaggedAbsent });
 }
 
 async function end(ref: ImportRef, result: ImportResult): Promise<RosterImportOutcome> {

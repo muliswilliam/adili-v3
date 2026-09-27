@@ -42,8 +42,9 @@ type Decision =
 /**
  * Applies one chunk of an import's accepted rows in one transaction: creates reporting entities
  * named for the first time, creates or updates records by personnel file number (case-insensitive),
- * rejects rows that would change an onboarded record's identity (`identity-locked`), marks every
- * record with a row as seen in this import, and marks the rows applied with their outcome.
+ * rejects rows that would change an onboarded record's identity (`identity-locked`), re-activates
+ * exited records, marks every record with a row as seen in this import, and marks the rows
+ * applied with their outcome.
  *
  * Idempotent: only rows not yet applied are applied, and the import row is locked first, so a
  * re-run (after a crash, or racing a straggling attempt) applies nothing twice and returns zeros.
@@ -166,10 +167,12 @@ export async function applyChunk(
 
 /**
  * The decision for one row. A row for an onboarded record may not change its identity (national
- * ID, full name); the row is rejected whole and the record keeps every field.
+ * ID, full name); the row is rejected whole and the record keeps every field. A row for an
+ * exited record re-activates it (`updateRecords`), so it is an update even with the same values.
  */
 function decide(values: RecordValues, existing: ExistingRecord | undefined): Decision {
   if (!existing) return { kind: 'create', values };
+  if (existing.state === 'exited') return { kind: 'update', recordId: existing.id, values };
   if (existing.state === 'onboarded') {
     const errors = identityChanges(existing, values);
     if (errors.length > 0) return { kind: 'locked', recordId: existing.id, errors };
@@ -332,7 +335,10 @@ async function createRecords(
   return new Map(rows.map((row) => [fileNumberKey(row.personnelFileNumber), row.id]));
 }
 
-/** Writes the rows' values to their records in one statement. */
+/**
+ * Writes the rows' values to their records in one statement. An exited record is re-activated:
+ * back to `not_onboarded` without its exit date (spec #27; slice 03 onboards it again).
+ */
 async function updateRecords(
   tx: Transaction,
   ref: ImportRef,
@@ -363,6 +369,8 @@ async function updateRecords(
       appointment_date = source.appointment_date,
       email = source.email,
       phone = source.phone,
+      state = case when target.state = 'exited' then 'not_onboarded' else target.state end,
+      exit_date = case when target.state = 'exited' then null else target.exit_date end,
       source = ${channel},
       last_seen_import_id = ${ref.importId},
       updated_at = now()

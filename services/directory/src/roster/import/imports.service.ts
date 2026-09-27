@@ -5,15 +5,12 @@ import { InjectTemporalClient } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
-import {
-  canSeeCommission,
-  REPORTING_OFFICER_ROLE,
-  tenantContextOf,
-} from '../../commissions/access.js';
+import { canSeeCommission, tenantContextOf } from '../../commissions/access.js';
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
 import { commissions, type DirectorySchema } from '../../db/schema.js';
+import { rosterActorOf } from '../actor.js';
 import { rosterImports } from '../schema.js';
 import { RosterFileError } from '../sheet.js';
 import { decodeImportCursor, encodeImportCursor } from './cursors.js';
@@ -262,21 +259,12 @@ async function requireCommission(tx: Transaction, slug: string): Promise<void> {
   notFoundIfInvisible(commission);
 }
 
-/**
- * Who started an import (decision 10): a user with their token's display name, or an HR system
- * by its client id.
- */
+/** Who started an import (decision 10): a user, or an HR system by its client id. */
 function startedBy(
   principal: Principal,
 ): Pick<ImportRow, 'startedByKind' | 'startedBy' | 'startedByName'> {
-  if (principal.roles.includes(REPORTING_OFFICER_ROLE) || principal.clientId === null) {
-    return { startedByKind: 'user', startedBy: principal.subject, startedByName: principal.name };
-  }
-  return {
-    startedByKind: 'client',
-    startedBy: principal.clientId,
-    startedByName: principal.clientId,
-  };
+  const actor = rosterActorOf(principal);
+  return { startedByKind: actor.kind, startedBy: actor.id, startedByName: actor.name };
 }
 
 export function toRosterImport(row: ImportRow): RosterImport {

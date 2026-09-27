@@ -7,10 +7,10 @@ import { formatDate, formatDateTime, formatNumber } from '../../../../components
 import { LoadError } from '../../../../components/load-error';
 import { Page, PageHead } from '../../../../components/page';
 import {
-  ChannelBadge,
+  ImportChannelBadge,
   CompletenessBadge,
   ImportStateBadge,
-} from '../../../../components/roster/import-badges';
+} from '../../../../components/roster/roster-badges';
 import { StartedBy } from '../../../../components/roster/import-history-table';
 import { importEnded } from '../../../../components/roster/import-progress';
 import { importRunning, rowsPurged } from '../../../../components/roster/import-report';
@@ -173,7 +173,7 @@ function Report({
         }
       >
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <ChannelBadge channel={imp.channel} />
+          <ImportChannelBadge channel={imp.channel} />
           <CompletenessBadge declaredComplete={imp.declaredComplete} />
           <ImportStateBadge state={imp.state} />
         </div>
@@ -242,7 +242,7 @@ function ImportMeta({ imp }: { imp: RosterImport }) {
           <StartedBy startedBy={imp.startedBy} />
         </Meta>
         <Meta term={m.metaSource}>
-          {imp.channel === 'api' ? m.sourceApi : (imp.format?.toUpperCase() ?? m.channelFile)}
+          {imp.channel === 'api' ? m.sourceApiBatch : (imp.format?.toUpperCase() ?? m.channelFile)}
         </Meta>
         <Meta term={m.metaRows}>
           {imp.totalRows !== null ? (

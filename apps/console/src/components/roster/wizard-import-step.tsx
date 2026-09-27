@@ -19,7 +19,7 @@ import { Link } from '@tanstack/react-router';
 import type { RosterImport } from '../../server/directory/client';
 import { formatNumber } from '../format';
 import { FileBox } from './file-box';
-import { CompletenessBadge } from './import-badges';
+import { CompletenessBadge } from './roster-badges';
 import { failureDetail, failureReason, importProgress } from './import-progress';
 import { messages as m } from './messages';
 import { WizardCard, WizardFoot, WizardSection, WizardTitle } from './wizard-card';

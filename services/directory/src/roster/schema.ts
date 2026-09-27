@@ -110,7 +110,10 @@ export const rosterRecords = pgTable(
     absentFromLatestImport: boolean().notNull().default(false),
     flaggedByImportId: uuid().references((): AnyPgColumn => rosterImports.id),
     flaggedAt: timestamp({ withTimezone: true }),
-    /** `sub` of who cleared the flag by keeping the record, and when. */
+    /**
+     * Who last resolved the record, and when: kept it (flag cleared) or confirmed its exit. The
+     * user's `sub`, or an HR system's client id. Reset when a later import flags it again.
+     */
     flagClearedBy: text(),
     flagClearedAt: timestamp({ withTimezone: true }),
     /** Channel of the last change. */

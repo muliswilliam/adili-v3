@@ -24,3 +24,8 @@ minimumReleaseAgeExclude:
 # installs and splits @nestjs/core in two, so guards in shared packages see another Reflector.
 # Shared Nest packages also take the framework as peerDependencies.
 dedupePeers: true
+# Node's watch mode (dev scripts) posts dependency reports from worker threads to the Worker's
+# 'message' listeners (nodejs/node#62368); the SDK took them for patch activation callbacks and
+# crashed the process. The patch ignores messages the SDK did not send. Drop it once upstream does.
+patchedDependencies:
+  '@temporalio/worker@1.24.0': patches/@temporalio__worker@1.24.0.patch

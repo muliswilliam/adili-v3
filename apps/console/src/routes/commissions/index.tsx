@@ -1,4 +1,4 @@
-import { Button, Card, EmptyState, Icon, Input, Select, SelectItem, Skeleton } from '@adili/ui';
+import { Button, Card, EmptyState, Icon, Select, SelectItem, Skeleton } from '@adili/ui';
 import { Add01Icon, Building03Icon, Cancel01Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import {
   createFileRoute,
@@ -7,7 +7,7 @@ import {
   useNavigate,
   useRouterState,
 } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { useId } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
 import {
@@ -20,7 +20,6 @@ import {
   commissionListSearch,
   filtersOf,
   hasFilters,
-  SEARCH_DEBOUNCE_MS,
 } from '../../components/commissions/list-search';
 import { messages as m } from '../../components/commissions/messages';
 import { CursorPager } from '../../components/cursor-pager';
@@ -34,6 +33,7 @@ import {
   pagingView,
   previousPage,
 } from '../../components/paging';
+import { SearchBox } from '../../components/search-box';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { listCommissions } from '../../server/commissions';
 import type { CommissionPage, DirectoryResult } from '../../server/directory/client';
@@ -149,6 +149,9 @@ function Toolbar({ search, disabled }: { search: CommissionListSearch; disabled:
     <div role="search" className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
       <SearchBox
         id={`${id}-search`}
+        label={m.searchLabel}
+        placeholder={m.searchPlaceholder}
+        maxLength={100}
         applied={search.search ?? ''}
         disabled={disabled}
         onSearch={(value) => {
@@ -205,77 +208,6 @@ function Toolbar({ search, disabled }: { search: CommissionListSearch; disabled:
         </Button>
       ) : null}
     </div>
-  );
-}
-
-/**
- * Search input that applies its text 300 ms after the last keystroke, or at once on Enter or
- * blur. Follows `applied` (the URL) when that changes from elsewhere, e.g. "Clear filters".
- */
-function SearchBox({
-  id,
-  applied,
-  disabled,
-  onSearch,
-}: {
-  id: string;
-  applied: string;
-  disabled: boolean;
-  onSearch: (value: string) => void;
-}) {
-  const [text, setText] = useState(applied);
-  const [seen, setSeen] = useState(applied);
-  if (applied !== seen) {
-    setSeen(applied);
-    if (applied !== text.trim()) setText(applied);
-  }
-
-  const apply = (value: string) => {
-    if (value.trim() !== applied) onSearch(value.trim());
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      apply(text);
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      clearTimeout(timer);
-    };
-    // Restart the timer on keystrokes only; `apply` changes with every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
-
-  return (
-    <form
-      className="relative max-w-[360px] min-w-[220px] flex-1"
-      onSubmit={(event) => {
-        event.preventDefault();
-        apply(text);
-      }}
-    >
-      <label htmlFor={id} className="sr-only">
-        {m.searchLabel}
-      </label>
-      <Icon
-        icon={Search01Icon}
-        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
-      />
-      <Input
-        id={id}
-        type="search"
-        placeholder={m.searchPlaceholder}
-        value={text}
-        maxLength={100}
-        disabled={disabled}
-        onChange={(event) => {
-          setText(event.target.value);
-        }}
-        onBlur={() => {
-          apply(text);
-        }}
-        className="h-9 pl-9 text-sm"
-      />
-    </form>
   );
 }
 

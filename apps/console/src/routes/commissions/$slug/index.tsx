@@ -1,131 +1,60 @@
-import {
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  DialogTrigger,
-  EmptyState,
-  Icon,
-  Skeleton,
-  useToast,
-} from '@adili/ui';
+import { Badge, Button, Dialog, DialogTrigger, EmptyState, Icon, useToast } from '@adili/ui';
 import {
   ArrowDataTransferHorizontalIcon,
   Building03Icon,
   Clock01Icon,
   Loading03Icon,
-  Search01Icon,
   SentIcon,
   UserAdd01Icon,
-  UserGroupIcon,
   UserSquareIcon,
 } from '@hugeicons/core-free-icons';
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
+import { createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 
-import { AssignDialogContent } from '../../components/commissions/assign-dialog';
+import { AssignDialogContent } from '../../../components/commissions/assign-dialog';
 import {
   CommissionTypeBadge,
   OfficerStateBadge,
   ReadOnlyBadge,
-} from '../../components/commissions/badges';
-import { messages as m } from '../../components/commissions/messages';
-import { formatPhone } from '../../components/commissions/phone';
-import { resendOutcome } from '../../components/commissions/resend';
-import { formatDate, formatDateTime, formatRelativeDate } from '../../components/format';
-import { LoadError } from '../../components/load-error';
-import { DetailItem, DetailList, Page, PageHead, SectionCard } from '../../components/page';
-import { signInRedirect } from '../../components/sign-in-redirect';
-import { getCommission, resendInvitation } from '../../server/commissions';
-import type { Commission, DirectoryResult } from '../../server/directory/client';
+} from '../../../components/commissions/badges';
+import { messages as m } from '../../../components/commissions/messages';
+import { formatPhone } from '../../../components/commissions/phone';
+import { resendOutcome } from '../../../components/commissions/resend';
+import { RECENT_IMPORTS, RosterCard } from '../../../components/commissions/roster-card';
+import { formatDate, formatDateTime, formatRelativeDate } from '../../../components/format';
+import { DetailItem, DetailList, Page, PageHead, SectionCard } from '../../../components/page';
+import { signInRedirect } from '../../../components/sign-in-redirect';
+import { resendInvitation } from '../../../server/commissions';
+import type { Commission } from '../../../server/directory/client';
+import { listRecentRosterImports } from '../../../server/roster-records';
 
-/** Hidden: the directory answers 404 for other tenants too, so the two read the same. */
-function isHidden(result: DirectoryResult<unknown>): boolean {
-  return (
-    !result.ok &&
-    result.error.kind === 'problem' &&
-    (result.error.problem.status === 404 || result.error.problem.status === 403)
-  );
-}
-
-/** The breadcrumb for a detail match, from loader data the router only knows as `unknown`. */
-function detailCrumb(loaderData: unknown): string | null {
-  if (loaderData === undefined) return m.loading;
-  // No workspace: the layout says so under the workspace's title, as on the list.
-  if (loaderData === null) return m.title;
-  if (typeof loaderData !== 'object' || !('ok' in loaderData)) return null;
-  if (!loaderData.ok) {
-    return isHidden(loaderData as DirectoryResult<unknown>) ? m.notFoundCrumb : m.detailErrorTitle;
-  }
-  const commission = 'data' in loaderData ? loaderData.data : null;
-  return typeof commission === 'object' &&
-    commission !== null &&
-    'name' in commission &&
-    typeof commission.name === 'string'
-    ? commission.name
-    : null;
-}
-
-export const Route = createFileRoute('/commissions/$slug')({
+export const Route = createFileRoute('/commissions/$slug/')({
   loader: async ({ params, location, context }) => {
-    // The layout shows no detail without the workspace; do not fetch one.
+    // The layout shows no Commission without the workspace; do not fetch its imports.
     if (!context.workspace) return null;
-    const result = await getCommission({ data: { slug: params.slug } });
-    if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return result;
+    const imports = await listRecentRosterImports({
+      data: { slug: params.slug, limit: RECENT_IMPORTS },
+    });
+    if (!imports.ok && imports.error.kind === 'unauthenticated') {
+      throw signInRedirect(location.href);
+    }
+    return imports;
   },
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: `${loaderData?.ok ? loaderData.data.name : m.title} · Adili Online Console`,
-      },
-    ],
-  }),
-  staticData: {
-    crumb: ({ loaderData }) => detailCrumb(loaderData),
-  },
-  pendingComponent: DetailSkeleton,
   component: CommissionDetail,
 });
 
+const commissionRoute = getRouteApi('/commissions/$slug');
+
 function CommissionDetail() {
-  const result = Route.useLoaderData();
-  if (!result) return null;
-  if (result.ok) {
-    return <Detail commission={result.data} />;
-  }
-  if (isHidden(result)) {
-    return (
-      <Page narrow>
-        <Card className="p-2 sm:p-2">
-          <EmptyState
-            icon={<Icon icon={Search01Icon} />}
-            title={m.notFoundTitle}
-            description={m.notFoundText}
-            action={
-              <Button asChild variant="secondary" size="sm">
-                <Link to="/commissions">{m.backToCommissions}</Link>
-              </Button>
-            }
-          />
-        </Card>
-      </Page>
-    );
-  }
-  const { error } = result;
-  return (
-    <Page narrow>
-      <LoadError
-        title={m.detailErrorTitle}
-        detail={(error.kind === 'unavailable' ? error.detail : null) ?? m.errorDetail}
-        retryLabel={m.tryAgain}
-      />
-    </Page>
-  );
+  const result = commissionRoute.useLoaderData();
+  // The layout shows the Commission's failed load or absence.
+  if (!result?.ok) return null;
+  return <Detail commission={result.data} />;
 }
 
 function Detail({ commission }: { commission: Commission }) {
   const { workspace } = Route.useRouteContext();
+  const imports = Route.useLoaderData();
   return (
     <Page>
       <PageHead title={commission.name}>
@@ -138,18 +67,12 @@ function Detail({ commission }: { commission: Commission }) {
       <div className="grid items-start gap-4 min-[980px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <DetailsCard commission={commission} />
         <OfficerCard commission={commission} />
-        <SectionCard
-          id="roster"
-          icon={UserGroupIcon}
-          title={m.rosterCardTitle}
+        <RosterCard
+          commission={commission}
+          imports={imports}
+          canOpenRecords={workspace?.readOnly === false}
           className="min-[980px]:col-span-2"
-        >
-          <EmptyState
-            icon={<Icon icon={UserGroupIcon} />}
-            title={m.rosterNoneTitle}
-            description={m.rosterNoneText}
-          />
-        </SectionCard>
+        />
       </div>
     </Page>
   );
@@ -361,28 +284,5 @@ function OfficerCard({ commission }: { commission: Commission }) {
         />
       </Dialog>
     </SectionCard>
-  );
-}
-
-function DetailSkeleton() {
-  return (
-    <Page aria-busy="true" aria-label={m.title}>
-      <div className="mb-[22px]">
-        <Skeleton className="h-6 w-[320px] max-w-[80%]" />
-        <Skeleton className="mt-3 w-[140px]" />
-      </div>
-      <div className="grid items-start gap-4 min-[980px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <Card className="gap-3.5">
-          {Array.from({ length: 7 }, (_, line) => (
-            <Skeleton key={line} />
-          ))}
-        </Card>
-        <Card className="gap-3.5">
-          {Array.from({ length: 4 }, (_, line) => (
-            <Skeleton key={line} className="w-[70%]" />
-          ))}
-        </Card>
-      </div>
-    </Page>
   );
 }

@@ -14,7 +14,7 @@ import type {
 import { CHUNKS_PER_RUN, rosterImport } from '../../src/roster/import/workflows.js';
 
 /**
- * S14: `RosterImportWorkflow` orchestration against mocked activities in Temporal's
+ * S14 (and the flag-absent step of S8/S9): `RosterImportWorkflow` orchestration against mocked activities in Temporal's
  * time-skipping test environment, so retry backoff costs nothing.
  */
 const workflowsPath = fileURLToPath(
@@ -22,19 +22,25 @@ const workflowsPath = fileURLToPath(
 );
 const REF: ImportRef = { importId: '0199a000-0000-7000-8000-000000000001', tenant: 'psc' };
 const APPLIED: ChunkCounts = { created: 1000, updated: 0, unchanged: 0, rejected: 0 };
+const FLAGGED = 7;
 
 type Activities = { [K in keyof RosterImportActivities]: RosterImportActivities[K] };
 
-function activities(overrides: Partial<Activities> & { chunks?: number } = {}) {
+function activities(
+  overrides: Partial<Activities> & { chunks?: number; declaredComplete?: boolean } = {},
+) {
   const staged: StageResult = {
     outcome: 'staged',
     chunkCount: overrides.chunks ?? 3,
-    declaredComplete: true,
+    declaredComplete: overrides.declaredComplete ?? true,
   };
   return {
     stage: vi.fn<Activities['stage']>(overrides.stage ?? (() => Promise.resolve(staged))),
     applyChunk: vi.fn<Activities['applyChunk']>(
       overrides.applyChunk ?? (() => Promise.resolve(APPLIED)),
+    ),
+    flagAbsent: vi.fn<Activities['flagAbsent']>(
+      overrides.flagAbsent ?? (() => Promise.resolve(FLAGGED)),
     ),
     finalise: vi.fn<Activities['finalise']>(overrides.finalise ?? (() => Promise.resolve())),
   };
@@ -54,7 +60,7 @@ describe('RosterImportWorkflow', () => {
   const run = (mocks: ReturnType<typeof activities>) =>
     env.execute(rosterImport, { workflowsPath, activities: mocks, args: [REF] });
 
-  it('stages, applies 2,500 rows as three chunks in order, then finalises once', async () => {
+  it('stages, applies 2,500 rows as three chunks in order, flags absent officers, then finalises once', async () => {
     const mocks = activities({ chunks: 3 });
 
     await expect(run(mocks)).resolves.toBe('completed');
@@ -65,7 +71,51 @@ describe('RosterImportWorkflow', () => {
       [REF, 1],
       [REF, 2],
     ]);
+    expect(mocks.flagAbsent).toHaveBeenCalledExactlyOnceWith(REF);
+    expect(mocks.flagAbsent.mock.invocationCallOrder[0]).toBeGreaterThan(
+      Math.max(...mocks.applyChunk.mock.invocationCallOrder),
+    );
+    expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, {
+      state: 'completed',
+      flaggedAbsent: FLAGGED,
+    });
+  }, 60_000);
+
+  it('flags nobody for a partial import', async () => {
+    const mocks = activities({ declaredComplete: false });
+
+    await expect(run(mocks)).resolves.toBe('completed');
+
+    expect(mocks.flagAbsent).not.toHaveBeenCalled();
     expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, { state: 'completed' });
+  }, 60_000);
+
+  it('flags absent officers after a retry', async () => {
+    let attempts = 0;
+    const mocks = activities({
+      flagAbsent: () =>
+        ++attempts < 2 ? Promise.reject(new Error('database hiccup')) : Promise.resolve(FLAGGED),
+    });
+
+    await expect(run(mocks)).resolves.toBe('completed');
+
+    expect(mocks.flagAbsent).toHaveBeenCalledTimes(2);
+    expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, {
+      state: 'completed',
+      flaggedAbsent: FLAGGED,
+    });
+  }, 60_000);
+
+  it('fails the import when flagging absent officers exhausts its retries', async () => {
+    const mocks = activities({ flagAbsent: () => Promise.reject(new Error('lock timeout')) });
+
+    await expect(run(mocks)).resolves.toBe('failed');
+
+    expect(mocks.flagAbsent).toHaveBeenCalledTimes(3);
+    expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, {
+      state: 'failed',
+      failure: { code: 'internal', detail: expect.any(String) as string },
+    } satisfies ImportResult);
   }, 60_000);
 
   it('completes when a chunk fails twice and then succeeds', async () => {
@@ -80,7 +130,10 @@ describe('RosterImportWorkflow', () => {
     await expect(run(mocks)).resolves.toBe('completed');
 
     expect(mocks.applyChunk.mock.calls.map(([, chunk]) => chunk)).toEqual([0, 1, 1, 1, 2]);
-    expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, { state: 'completed' });
+    expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, {
+      state: 'completed',
+      flaggedAbsent: FLAGGED,
+    });
   }, 60_000);
 
   it('fails the import when a chunk exhausts its retries, applying no later chunk', async () => {
@@ -93,6 +146,7 @@ describe('RosterImportWorkflow', () => {
 
     // Chunk 0 stays applied (the import keeps its processed count); chunk 2 never runs.
     expect(mocks.applyChunk.mock.calls.map(([, chunk]) => chunk)).toEqual([0, 1, 1, 1]);
+    expect(mocks.flagAbsent).not.toHaveBeenCalled();
     expect(mocks.finalise).toHaveBeenCalledExactlyOnceWith(REF, {
       state: 'failed',
       failure: { code: 'internal', detail: expect.any(String) as string },
@@ -145,6 +199,8 @@ describe('RosterImportWorkflow', () => {
     expect(mocks.applyChunk.mock.calls.map(([, chunk]) => chunk)).toEqual(
       Array.from({ length: chunks }, (_, index) => index),
     );
+    // The staged plan survives continue-as-new: the complete import still flags, once.
+    expect(mocks.flagAbsent).toHaveBeenCalledOnce();
     expect(mocks.finalise).toHaveBeenCalledOnce();
   }, 60_000);
 });

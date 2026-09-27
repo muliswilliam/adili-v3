@@ -15,7 +15,7 @@ import { Link } from '@tanstack/react-router';
 
 import type { RosterImport } from '../../server/directory/client';
 import { formatDateTime, formatNumber } from '../format';
-import { ChannelBadge, ImportStateBadge } from './import-badges';
+import { ImportChannelBadge, ImportStateBadge } from './roster-badges';
 import { importProgress } from './import-progress';
 import { importRunning } from './import-report';
 import { messages as m } from './messages';
@@ -139,7 +139,7 @@ function HistoryTable({ items }: { items: readonly RosterImport[] }) {
                 ) : null}
               </TableHead>
               <TableCell>
-                <ChannelBadge channel={imp.channel} />
+                <ImportChannelBadge channel={imp.channel} />
               </TableCell>
               <TableCell>{imp.declaredComplete ? m.completeYes : m.completePartial}</TableCell>
               <TableCell>
@@ -188,7 +188,7 @@ function HistoryCards({ items }: { items: readonly RosterImport[] }) {
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <ChannelBadge channel={imp.channel} />
+              <ImportChannelBadge channel={imp.channel} />
               <ImportStateBadge state={imp.state} />
               <span className="text-[13px] text-muted-foreground">
                 {imp.declaredComplete ? m.completeRoster : m.partialUpdate}
