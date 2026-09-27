@@ -53,7 +53,7 @@ function valueOf(term: string) {
 }
 
 describe('OnboardingStatusItems', () => {
-  it('shows the OFR and when the officer onboarded', () => {
+  it('shows the OFR and when the declarant onboarded', () => {
     renderStatus(onboarded);
 
     expect(terms()).toEqual(['State', 'Officer reference', 'Onboarded on', 'Exit date']);
@@ -75,7 +75,7 @@ describe('OnboardingStatusItems', () => {
     expect(screen.getByRole('status').textContent).toContain('Officer reference copied');
   });
 
-  it('adds nothing for an officer who has not onboarded', () => {
+  it('adds nothing for a declarant who has not onboarded', () => {
     renderStatus(notOnboarded);
 
     expect(terms()).toEqual(['State', 'Exit date']);
@@ -88,7 +88,7 @@ describe('OnboardingStatusItems', () => {
     expect(valueOf('Identity check').textContent).toBe('Identity check failed');
   });
 
-  it('leaves out the OFR of an exited officer', () => {
+  it('leaves out the OFR of an exited declarant', () => {
     renderStatus({ ...onboarded, state: 'exited' });
 
     expect(terms()).toEqual(['State', 'Exit date']);
@@ -96,7 +96,7 @@ describe('OnboardingStatusItems', () => {
 });
 
 describe('locked identity', () => {
-  it('locks full name and national ID only once the officer has onboarded', () => {
+  it('locks full name and national ID only once the declarant has onboarded', () => {
     expect(isIdentityLocked(onboarded)).toBe(true);
     expect(isIdentityLocked(notOnboarded)).toBe(false);
     expect(isIdentityLocked({ state: 'exited' })).toBe(false);
@@ -110,7 +110,7 @@ describe('locked identity', () => {
       </p>,
     );
 
-    const chip = screen.getByTitle('Locked because the officer has onboarded');
-    expect(chip.textContent).toBe('Locked because the officer has onboarded');
+    const chip = screen.getByTitle('Locked because the declarant has onboarded');
+    expect(chip.textContent).toBe('Locked because the declarant has onboarded');
   });
 });
