@@ -6,17 +6,14 @@ import { and, asc, count, eq, ilike, isNull, ne, or, type SQL, sql } from 'drizz
 
 import { violatedUniqueConstraint } from '../db/errors.js';
 import type { DirectorySchema } from '../db/schema.js';
+import { rosterSummaries } from '../roster/schema.js';
+import { rosterSummaryColumns, toRosterSummary } from '../roster/summary.js';
 import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
 import type { CreateCommissionBody } from './create-commission.js';
 import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
-import {
-  type Commission,
-  type CommissionPage,
-  NO_ROSTER,
-  type OfficerCategory,
-} from './representation.js';
+import { type Commission, type CommissionPage, type OfficerCategory } from './representation.js';
 import {
   commissionCategories,
   commissions,
@@ -63,6 +60,7 @@ const commissionColumns = {
     invitedAt: reportingOfficerAssignments.invitedAt,
     activatedAt: reportingOfficerAssignments.activatedAt,
   },
+  roster: rosterSummaryColumns,
 };
 
 /** Unique constraints of `commissions` and the request field each one protects. */
@@ -220,7 +218,8 @@ export class CommissionsService {
     return tx
       .select(commissionColumns)
       .from(commissions)
-      .leftJoin(reportingOfficerAssignments, currentAssignment);
+      .leftJoin(reportingOfficerAssignments, currentAssignment)
+      .leftJoin(rosterSummaries, eq(rosterSummaries.tenant, commissions.slug));
   }
 
   private filtersFor(principal: Principal, query: ListCommissionsQuery): (SQL | undefined)[] {
@@ -284,7 +283,7 @@ function toCommission(row: CommissionRow): Commission {
           activatedAt: officer.activatedAt?.toISOString() ?? null,
         }
       : null,
-    roster: NO_ROSTER,
+    roster: toRosterSummary(row.roster),
     createdAt: row.createdAt.toISOString(),
   };
 }

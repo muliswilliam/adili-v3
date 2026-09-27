@@ -28,6 +28,14 @@ import {
   startFileImportBody,
 } from './roster/import/representation.js';
 import {
+  reportingEntityRefSchema,
+  rosterRecordImportSchema,
+  rosterRecordListItemSchema,
+  rosterRecordPageSchema,
+  rosterRecordSchema,
+  rosterRecordStateSchema,
+} from './roster/records/representation.js';
+import {
   rosterApiCredentialSchema,
   rosterApiCredentialWithSecretSchema,
 } from './roster/api-credential/representation.js';
@@ -60,4 +68,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   StartFileImport: startFileImportBody,
   PreviewRosterImport: previewRosterImportBody,
   RosterImportPreview: rosterImportPreviewSchema,
+  RosterRecordState: rosterRecordStateSchema,
+  ReportingEntityRef: reportingEntityRefSchema,
+  RosterRecordListItem: rosterRecordListItemSchema,
+  RosterRecordImport: rosterRecordImportSchema,
+  RosterRecord: rosterRecordSchema,
+  RosterRecordPage: rosterRecordPageSchema,
 };

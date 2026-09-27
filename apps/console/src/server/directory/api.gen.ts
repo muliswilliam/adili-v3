@@ -261,13 +261,54 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Expected, onboarded and flagged counts and the last import */
+        /**
+         * Expected, onboarded and flagged counts and the last import
+         * @description The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission. The same summary as the Commission's `roster`.
+         */
         get: operations["getRosterSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Roster records with masked national IDs
+         * @description The Commission's reporting officer and commission admin; platform admins for every Commission, audited. EACC may not read records (403). Ordered by full name. A search matches the beginning of a personnel file number, part of a full name, or a whole national ID.
+         */
+        get: operations["listRosterRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One roster record in full, with its import history
+         * @description The Commission's reporting officer and commission admin; platform admins for every Commission, audited. EACC may not read records (403). The national ID in full.
+         */
+        get: operations["getRosterRecord"];
         put?: never;
         post?: never;
         delete?: never;
@@ -308,45 +349,6 @@ export interface paths {
         };
         /** Rejected rows as CSV with reason columns appended */
         get: operations["getRosterImportReportCsv"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Roster records with masked national IDs */
-        get: operations["listRosterRecords"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/records/{recordId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        /** One roster record in full, with its import history */
-        get: operations["getRosterRecord"];
         put?: never;
         post?: never;
         delete?: never;
@@ -888,13 +890,21 @@ export interface components {
             activatedAt: string | null;
         };
         RosterSummary: {
-            /** @enum {string} */
+            /**
+             * @description `imported` once an import of the roster has completed
+             * @enum {string}
+             */
             status: "none" | "imported";
+            /** @description Roster records not exited */
             expectedDeclarants: number;
             onboardedDeclarants: number;
+            /** @description Records not exited flagged as absent from the latest complete import */
             flagged: number;
+            /** @description When the latest completed import (complete or partial) finished */
             lastImportAt: string | null;
             lastImportId: string | null;
+            /** @description When the latest completed import declared as the complete roster finished */
+            lastCompleteImportAt: string | null;
         };
         Commission: {
             /** Format: uuid */
@@ -1089,6 +1099,97 @@ export interface components {
             /** @description Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files */
             estimatedRows: number | null;
         };
+        /**
+         * @description `not_onboarded` until the declarant onboards against the record (slice 03); `exited` once an exit is recorded
+         * @enum {string}
+         */
+        RosterRecordState: "not_onboarded" | "onboarded" | "exited";
+        ReportingEntityRef: {
+            /** Format: uuid */
+            id: string;
+            /** @description As first written in a roster row */
+            name: string;
+        };
+        RosterRecordListItem: {
+            /** Format: uuid */
+            id: string;
+            personnelFileNumber: string;
+            fullName: string;
+            /**
+             * @description All but the last three digits replaced, e.g. •••••123
+             * @example •••••123
+             */
+            nationalIdMasked: string;
+            designation: string | null;
+            jobGroup: string | null;
+            reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+            state: components["schemas"]["RosterRecordState"];
+            /** @description Not in the latest complete import; stays set until an exit is confirmed or the record is kept */
+            absentFromLatestImport: boolean;
+            /** @description The complete import that flagged the record; null when not flagged */
+            flaggedByImportId: string | null;
+            /** @description When the record was flagged */
+            flaggedAt: string | null;
+        };
+        RosterRecordImport: {
+            /** Format: uuid */
+            importId: string;
+            /** Format: date-time */
+            startedAt: string;
+            /**
+             * @description What the import's row did to the record; `rejected` when it would have changed the identity of an onboarded record
+             * @enum {string}
+             */
+            outcome: "created" | "updated" | "unchanged" | "rejected";
+        };
+        RosterRecord: {
+            /** Format: uuid */
+            id: string;
+            personnelFileNumber: string;
+            fullName: string;
+            /**
+             * @description All but the last three digits replaced, e.g. •••••123
+             * @example •••••123
+             */
+            nationalIdMasked: string;
+            designation: string | null;
+            jobGroup: string | null;
+            reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+            state: components["schemas"]["RosterRecordState"];
+            /** @description Not in the latest complete import; stays set until an exit is confirmed or the record is kept */
+            absentFromLatestImport: boolean;
+            /** @description The complete import that flagged the record; null when not flagged */
+            flaggedByImportId: string | null;
+            /** @description When the record was flagged */
+            flaggedAt: string | null;
+            /** @description Full value, digits only; reads are audited */
+            nationalId: string;
+            appointmentDate: string | null;
+            email: string | null;
+            /** @description E.164 */
+            phone: string | null;
+            exitDate: string | null;
+            /** @description Channel of the last change */
+            source: components["schemas"]["ImportChannel"];
+            /** Format: uuid */
+            firstSeenImportId: string;
+            /**
+             * Format: uuid
+             * @description The latest import with a row for this record, whether or not it changed it
+             */
+            lastSeenImportId: string;
+            /** @description Imports with a row for this record, newest first; at most the latest 50, from the import rows kept (rows are purged after 30 days) */
+            imports: components["schemas"]["RosterRecordImport"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RosterRecordPage: {
+            items: components["schemas"]["RosterRecordListItem"][];
+            /** @description Pass as `cursor` for the next page; null on the last page */
+            nextCursor: string | null;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1101,8 +1202,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        RosterRecordState: "not_onboarded" | "onboarded" | "exited";
         /** @description One roster row as accepted from the template or an API batch (pre-normalisation) */
         RosterRowInput: {
             personnelFileNumber: string;
@@ -1142,54 +1241,6 @@ export interface components {
             outcome: "created" | "updated" | "unchanged" | null;
             /** Format: uuid */
             recordId: string | null;
-        };
-        ReportingEntityRef: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-        };
-        RosterRecordListItem: {
-            /** Format: uuid */
-            id: string;
-            personnelFileNumber: string;
-            fullName: string;
-            /** @description All but the last three digits replaced, e.g. •••••123 */
-            nationalIdMasked: string;
-            designation: string | null;
-            jobGroup: string | null;
-            reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
-            state: components["schemas"]["RosterRecordState"];
-            absentFromLatestImport: boolean;
-        };
-        RosterRecord: components["schemas"]["RosterRecordListItem"] & {
-            /** @description Full value; reads are audited */
-            nationalId: string;
-            /** Format: date */
-            appointmentDate: string | null;
-            email: string | null;
-            phone: string | null;
-            /** Format: date */
-            exitDate: string | null;
-            source: components["schemas"]["ImportChannel"];
-            /** Format: uuid */
-            flaggedByImportId: string | null;
-            /** Format: uuid */
-            firstSeenImportId: string | null;
-            /** Format: uuid */
-            lastSeenImportId: string | null;
-            /** @description Imports that touched this record, newest first */
-            imports: {
-                /** Format: uuid */
-                importId: string;
-                /** Format: date-time */
-                startedAt: string;
-                /** @enum {string} */
-                outcome: "created" | "updated" | "unchanged";
-            }[];
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
         };
         ConfirmExits: {
             records: {
@@ -2307,7 +2358,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
@@ -2322,7 +2373,133 @@ export interface operations {
                     "application/json": components["schemas"]["RosterSummary"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listRosterRecords: {
+        parameters: {
+            query?: {
+                /** @description A personnel file number or its beginning, part of a name (both case-insensitive), or a full national ID; blank means no search */
+                search?: string;
+                /** @description `not_onboarded` until the declarant onboards against the record (slice 03); `exited` once an exit is recorded */
+                state?: "not_onboarded" | "onboarded" | "exited";
+                /** @description Only records flagged as absent from the latest complete import, or only those not flagged */
+                flagged?: "true" | "false";
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of records */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterRecordPage"];
+                };
+            };
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getRosterRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterRecord"];
+                };
+            };
+            /** @description recordId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist, or no such record in it */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listRosterImportRows: {
@@ -2377,65 +2554,6 @@ export interface operations {
                     "text/csv": string;
                 };
             };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listRosterRecords: {
-        parameters: {
-            query?: {
-                /** @description File number prefix, name fragment, or a full national ID */
-                search?: string;
-                state?: components["schemas"]["RosterRecordState"];
-                flagged?: boolean;
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of records ordered by full name */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["RosterRecordListItem"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getRosterRecord: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterRecord"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

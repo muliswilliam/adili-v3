@@ -730,14 +730,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/roster/summary:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
     get:
       tags:
         - roster
       summary: Expected, onboarded and flagged counts and the last import
+      description: The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission. The same summary as the Commission's `roster`.
       operationId: getRosterSummary
-      x-draft: true
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
       responses:
         '200':
           description: The summary
@@ -745,8 +749,147 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RosterSummary'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: 'Not found: another Commission, or the Commission does not exist'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/records:
+    get:
+      tags:
+        - roster
+      summary: Roster records with masked national IDs
+      description: The Commission's reporting officer and commission admin; platform admins for every Commission, audited. EACC may not read records (403). Ordered by full name. A search matches the beginning of a personnel file number, part of a full name, or a whole national ID.
+      operationId: listRosterRecords
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: search
+          required: false
+          in: query
+          description: A personnel file number or its beginning, part of a name (both case-insensitive), or a full national ID; blank means no search
+          schema:
+            type: string
+            maxLength: 200
+        - name: state
+          required: false
+          in: query
+          description: '`not_onboarded` until the declarant onboards against the record (slice 03); `exited` once an exit is recorded'
+          schema:
+            type: string
+            enum:
+              - not_onboarded
+              - onboarded
+              - exited
+        - name: flagged
+          required: false
+          in: query
+          description: Only records flagged as absent from the latest complete import, or only those not flagged
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+        - name: cursor
+          required: false
+          in: query
+          description: '`nextCursor` of the previous page; omit for the first page'
+          schema:
+            type: string
+            maxLength: 500
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 50
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: One page of records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterRecordPage'
+        '400':
+          description: Query failed validation, or the cursor is unknown
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.records.listed
+        resource: roster-record
+  /v1/commissions/{slug}/roster/records/{recordId}:
+    get:
+      tags:
+        - roster
+      summary: One roster record in full, with its import history
+      description: The Commission's reporting officer and commission admin; platform admins for every Commission, audited. EACC may not read records (403). The national ID in full.
+      operationId: getRosterRecord
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterRecord'
+        '400':
+          description: recordId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist, or no such record in it'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.record.viewed
+        resource: roster-record
   /v1/commissions/{slug}/roster/imports/{importId}/rows:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -814,90 +957,6 @@ paths:
             text/csv:
               schema:
                 type: string
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/records:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - roster
-      summary: Roster records with masked national IDs
-      operationId: listRosterRecords
-      x-draft: true
-      parameters:
-        - name: search
-          in: query
-          description: File number prefix, name fragment, or a full national ID
-          schema:
-            type: string
-            maxLength: 200
-        - name: state
-          in: query
-          schema:
-            $ref: '#/components/schemas/RosterRecordState'
-        - name: flagged
-          in: query
-          schema:
-            type: boolean
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-      responses:
-        '200':
-          description: Page of records ordered by full name
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                  - nextCursor
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/RosterRecordListItem'
-                  nextCursor:
-                    type:
-                      - string
-                      - 'null'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/records/{recordId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: recordId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    get:
-      tags:
-        - roster
-      summary: One roster record in full, with its import history
-      operationId: getRosterRecord
-      x-draft: true
-      responses:
-        '200':
-          description: The record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterRecord'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/exits:
@@ -1907,22 +1966,32 @@ components:
           enum:
             - none
             - imported
+          description: '`imported` once an import of the roster has completed'
         expectedDeclarants:
           type: integer
+          description: Roster records not exited
         onboardedDeclarants:
           type: integer
         flagged:
           type: integer
+          description: Records not exited flagged as absent from the latest complete import
         lastImportAt:
           anyOf:
             - type: string
               format: date-time
             - type: 'null'
+          description: When the latest completed import (complete or partial) finished
         lastImportId:
           anyOf:
             - type: string
               format: uuid
             - type: 'null'
+        lastCompleteImportAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the latest completed import declared as the complete roster finished
       required:
         - status
         - expectedDeclarants
@@ -1930,6 +1999,7 @@ components:
         - flagged
         - lastImportAt
         - lastImportId
+        - lastCompleteImportAt
     Commission:
       type: object
       properties:
@@ -2394,6 +2464,227 @@ components:
         - mapping
         - missingRequired
         - estimatedRows
+    RosterRecordState:
+      type: string
+      enum:
+        - not_onboarded
+        - onboarded
+        - exited
+      description: '`not_onboarded` until the declarant onboards against the record (slice 03); `exited` once an exit is recorded'
+    ReportingEntityRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: As first written in a roster row
+      required:
+        - id
+        - name
+    RosterRecordListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        nationalIdMasked:
+          type: string
+          description: All but the last three digits replaced, e.g. •••••123
+          examples:
+            - •••••123
+        designation:
+          type:
+            - string
+            - 'null'
+        jobGroup:
+          type:
+            - string
+            - 'null'
+        reportingEntity:
+          anyOf:
+            - $ref: '#/components/schemas/ReportingEntityRef'
+            - type: 'null'
+        state:
+          $ref: '#/components/schemas/RosterRecordState'
+        absentFromLatestImport:
+          type: boolean
+          description: Not in the latest complete import; stays set until an exit is confirmed or the record is kept
+        flaggedByImportId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The complete import that flagged the record; null when not flagged
+        flaggedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the record was flagged
+      required:
+        - id
+        - personnelFileNumber
+        - fullName
+        - nationalIdMasked
+        - designation
+        - jobGroup
+        - reportingEntity
+        - state
+        - absentFromLatestImport
+        - flaggedByImportId
+        - flaggedAt
+    RosterRecordImport:
+      type: object
+      properties:
+        importId:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        outcome:
+          type: string
+          enum:
+            - created
+            - updated
+            - unchanged
+            - rejected
+          description: What the import's row did to the record; `rejected` when it would have changed the identity of an onboarded record
+      required:
+        - importId
+        - startedAt
+        - outcome
+    RosterRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        nationalIdMasked:
+          type: string
+          description: All but the last three digits replaced, e.g. •••••123
+          examples:
+            - •••••123
+        designation:
+          type:
+            - string
+            - 'null'
+        jobGroup:
+          type:
+            - string
+            - 'null'
+        reportingEntity:
+          anyOf:
+            - $ref: '#/components/schemas/ReportingEntityRef'
+            - type: 'null'
+        state:
+          $ref: '#/components/schemas/RosterRecordState'
+        absentFromLatestImport:
+          type: boolean
+          description: Not in the latest complete import; stays set until an exit is confirmed or the record is kept
+        flaggedByImportId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The complete import that flagged the record; null when not flagged
+        flaggedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the record was flagged
+        nationalId:
+          type: string
+          description: Full value, digits only; reads are audited
+        appointmentDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+        email:
+          type:
+            - string
+            - 'null'
+        phone:
+          description: E.164
+          type:
+            - string
+            - 'null'
+        exitDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+        source:
+          description: Channel of the last change
+          $ref: '#/components/schemas/ImportChannel'
+        firstSeenImportId:
+          type: string
+          format: uuid
+        lastSeenImportId:
+          type: string
+          format: uuid
+          description: The latest import with a row for this record, whether or not it changed it
+        imports:
+          type: array
+          items:
+            $ref: '#/components/schemas/RosterRecordImport'
+          description: Imports with a row for this record, newest first; at most the latest 50, from the import rows kept (rows are purged after 30 days)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - personnelFileNumber
+        - fullName
+        - nationalIdMasked
+        - designation
+        - jobGroup
+        - reportingEntity
+        - state
+        - absentFromLatestImport
+        - flaggedByImportId
+        - flaggedAt
+        - nationalId
+        - appointmentDate
+        - email
+        - phone
+        - exitDate
+        - source
+        - firstSeenImportId
+        - lastSeenImportId
+        - imports
+        - createdAt
+        - updatedAt
+    RosterRecordPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RosterRecordListItem'
+        nextCursor:
+          description: Pass as `cursor` for the next page; null on the last page
+          type:
+            - string
+            - 'null'
+      required:
+        - items
+        - nextCursor
     ProblemDetails:
       type: object
       properties:
@@ -2424,12 +2715,6 @@ components:
         - type
         - title
         - status
-    RosterRecordState:
-      type: string
-      enum:
-        - not_onboarded
-        - onboarded
-        - exited
     RosterRowInput:
       type: object
       description: One roster row as accepted from the template or an API batch (pre-normalisation)
@@ -2556,140 +2841,6 @@ components:
             - string
             - 'null'
           format: uuid
-    ReportingEntityRef:
-      type: object
-      required:
-        - id
-        - name
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-    RosterRecordListItem:
-      type: object
-      required:
-        - id
-        - personnelFileNumber
-        - fullName
-        - nationalIdMasked
-        - designation
-        - jobGroup
-        - reportingEntity
-        - state
-        - absentFromLatestImport
-      properties:
-        id:
-          type: string
-          format: uuid
-        personnelFileNumber:
-          type: string
-        fullName:
-          type: string
-        nationalIdMasked:
-          type: string
-          description: All but the last three digits replaced, e.g. •••••123
-        designation:
-          type:
-            - string
-            - 'null'
-        jobGroup:
-          type:
-            - string
-            - 'null'
-        reportingEntity:
-          oneOf:
-            - $ref: '#/components/schemas/ReportingEntityRef'
-            - type: 'null'
-        state:
-          $ref: '#/components/schemas/RosterRecordState'
-        absentFromLatestImport:
-          type: boolean
-    RosterRecord:
-      allOf:
-        - $ref: '#/components/schemas/RosterRecordListItem'
-        - type: object
-          required:
-            - nationalId
-            - appointmentDate
-            - email
-            - phone
-            - exitDate
-            - source
-            - flaggedByImportId
-            - firstSeenImportId
-            - lastSeenImportId
-            - imports
-            - createdAt
-            - updatedAt
-          properties:
-            nationalId:
-              type: string
-              description: Full value; reads are audited
-            appointmentDate:
-              type:
-                - string
-                - 'null'
-              format: date
-            email:
-              type:
-                - string
-                - 'null'
-            phone:
-              type:
-                - string
-                - 'null'
-            exitDate:
-              type:
-                - string
-                - 'null'
-              format: date
-            source:
-              $ref: '#/components/schemas/ImportChannel'
-            flaggedByImportId:
-              type:
-                - string
-                - 'null'
-              format: uuid
-            firstSeenImportId:
-              type:
-                - string
-                - 'null'
-              format: uuid
-            lastSeenImportId:
-              type:
-                - string
-                - 'null'
-              format: uuid
-            imports:
-              type: array
-              description: Imports that touched this record, newest first
-              items:
-                type: object
-                required:
-                  - importId
-                  - startedAt
-                  - outcome
-                properties:
-                  importId:
-                    type: string
-                    format: uuid
-                  startedAt:
-                    type: string
-                    format: date-time
-                  outcome:
-                    type: string
-                    enum:
-                      - created
-                      - updated
-                      - unchanged
-            createdAt:
-              type: string
-              format: date-time
-            updatedAt:
-              type: string
-              format: date-time
     ConfirmExits:
       type: object
       required:
