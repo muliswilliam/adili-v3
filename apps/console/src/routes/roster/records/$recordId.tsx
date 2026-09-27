@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { messages as m } from '../../../components/roster/messages';
+import { RecordActions } from '../../../components/roster/record-actions';
 import { RecordDetail, RecordDetailSkeleton } from '../../../components/roster/record-detail';
 import {
   loadRosterRecord,
@@ -29,7 +30,7 @@ export const Route = createFileRoute('/roster/records/$recordId')({
 
 function RosterRecordPage() {
   const result = Route.useLoaderData();
-  const { workspace } = Route.useRouteContext();
+  const { workspace, tenant } = Route.useRouteContext();
   if (!result || !workspace) return null;
   if (!result.ok) {
     return (
@@ -43,5 +44,15 @@ function RosterRecordPage() {
       />
     );
   }
-  return <RecordDetail record={result.data} readOnly={workspace.readOnly} />;
+  return (
+    <RecordDetail
+      record={result.data}
+      readOnly={workspace.readOnly}
+      actions={
+        workspace.readOnly || !tenant ? undefined : (
+          <RecordActions slug={tenant} record={result.data} />
+        )
+      }
+    />
+  );
 }

@@ -28,6 +28,9 @@ export type ImportCounts = Schemas['ImportCounts'];
 export type RosterRecordListItem = Schemas['RosterRecordListItem'];
 export type RosterRecord = Schemas['RosterRecord'];
 export type RosterRecordState = Schemas['RosterRecordState'];
+export type ConfirmExits = Schemas['ConfirmExits'];
+export type ExitsResult = Schemas['ExitsResult'];
+export type KeepResult = Schemas['KeepResult'];
 export type RosterRecordPage =
   paths['/v1/commissions/{slug}/roster/records']['get']['responses'][200]['content']['application/json'];
 export type ListRosterRecordsQuery = NonNullable<

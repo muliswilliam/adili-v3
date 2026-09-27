@@ -79,7 +79,12 @@ export function WizardReportStep({
             <Alert variant="warning" role="status" className="mt-4">
               <Icon icon={Flag02Icon} />
               <AlertTitle>{m.flaggedTitle(counts.flaggedAbsent)}</AlertTitle>
-              <AlertDescription>{m.flaggedText}</AlertDescription>
+              <AlertDescription>
+                {m.flaggedText}
+                <Button asChild variant="secondary" size="sm" className="mt-2.5 flex w-fit">
+                  <Link to="/roster/flagged">{m.reviewFlaggedButton}</Link>
+                </Button>
+              </AlertDescription>
             </Alert>
           ) : null}
           {counts.rejected === 0 ? (

@@ -20,6 +20,7 @@ import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteImport } from './routes/roster/api-access'
+import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
 import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
@@ -85,6 +86,11 @@ const RosterApiAccessRoute = RosterApiAccessRouteImport.update({
   path: '/api-access',
   getParentRoute: () => RosterRouteRoute,
 } as any)
+const RosterFlaggedRoute = RosterFlaggedRouteImport.update({
+  id: '/flagged',
+  path: '/flagged',
+  getParentRoute: () => RosterRouteRoute,
+} as any)
 const RosterImportRoute = RosterImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/roster/api-access': typeof RosterApiAccessRoute
+  '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/roster/api-access': typeof RosterApiAccessRoute
+  '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions': typeof CommissionsIndexRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/roster/api-access': typeof RosterApiAccessRoute
+  '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/roster/api-access'
+    | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions/'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/roster/api-access'
+    | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/roster/api-access'
+    | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions/'
@@ -346,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/api-access'
       fullPath: '/roster/api-access'
       preLoaderRoute: typeof RosterApiAccessRouteImport
+      parentRoute: typeof RosterRouteRoute
+    }
+    '/roster/flagged': {
+      id: '/roster/flagged'
+      path: '/flagged'
+      fullPath: '/roster/flagged'
+      preLoaderRoute: typeof RosterFlaggedRouteImport
       parentRoute: typeof RosterRouteRoute
     }
     '/roster/import': {
@@ -475,6 +494,7 @@ const RosterRecordsRouteRouteWithChildren =
 interface RosterRouteRouteChildren {
   RosterRecordsRouteRoute: typeof RosterRecordsRouteRouteWithChildren
   RosterApiAccessRoute: typeof RosterApiAccessRoute
+  RosterFlaggedRoute: typeof RosterFlaggedRoute
   RosterImportRoute: typeof RosterImportRoute
   RosterTemplateRoute: typeof RosterTemplateRoute
   RosterIndexRoute: typeof RosterIndexRoute
@@ -483,6 +503,7 @@ interface RosterRouteRouteChildren {
 const RosterRouteRouteChildren: RosterRouteRouteChildren = {
   RosterRecordsRouteRoute: RosterRecordsRouteRouteWithChildren,
   RosterApiAccessRoute: RosterApiAccessRoute,
+  RosterFlaggedRoute: RosterFlaggedRoute,
   RosterImportRoute: RosterImportRoute,
   RosterTemplateRoute: RosterTemplateRoute,
   RosterIndexRoute: RosterIndexRoute,

@@ -139,6 +139,12 @@ function RosterOverview() {
             {m.records}
           </Link>
         </Button>
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/flagged">
+            <Icon icon={Flag02Icon} />
+            {m.flaggedTitlePage}
+          </Link>
+        </Button>
         {readOnly ? null : (
           <Button asChild variant="secondary" size="sm">
             <Link to="/roster/api-access">
@@ -281,8 +287,7 @@ function SummaryTiles({ roster }: { roster: RosterSummary }) {
           <TileValue>{formatNumber(roster.flagged)}</TileValue>
           {flagged ? (
             <Link
-              to="/roster/records"
-              search={{ flagged: true }}
+              to="/roster/flagged"
               aria-label={m.reviewFlagged}
               className="inline-flex items-center gap-0.5 rounded-sm text-[13.5px] font-medium underline-offset-[3px] outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5"
             >
@@ -408,7 +413,7 @@ function StepBody({ step, label }: { step: NextStep; label: string }) {
 function StepLink({ step }: { step: NextStep }) {
   if (step.kind === 'review-flagged') {
     return (
-      <Link to="/roster/records" search={{ flagged: true }} className={STEP_LINK}>
+      <Link to="/roster/flagged" className={STEP_LINK}>
         <StepBody step={step} label={m.nextReviewFlagged(step.count)} />
       </Link>
     );
