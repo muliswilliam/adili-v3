@@ -1,4 +1,4 @@
-import { SiteFooter, TooltipProvider } from '@adili/ui';
+import { SiteFooter, ToastProvider, TooltipProvider } from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -40,10 +40,12 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       </head>
       <body>
         <TooltipProvider>
-          <div className="flex min-h-dvh flex-col">
-            {children}
-            <SiteFooter />
-          </div>
+          <ToastProvider>
+            <div className="flex min-h-dvh flex-col">
+              {children}
+              <SiteFooter />
+            </div>
+          </ToastProvider>
         </TooltipProvider>
         <Scripts />
       </body>

@@ -1380,7 +1380,7 @@ components:
       type: string
       description: |
         Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars.
-        Upper-cased it is the issuer code in reference numbers. `platform` is reserved.
+        Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
       pattern: '^[a-z][a-z0-9]{1,19}$'
       examples: [psc, tsc, cpsb047, naeth]
     CommissionType:

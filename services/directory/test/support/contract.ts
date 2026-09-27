@@ -18,10 +18,13 @@ const ajv = new Ajv2020({ strict: false, allErrors: true });
 addFormats.default(ajv);
 ajv.addSchema(parse(readFileSync(contractPath, 'utf8')) as object, CONTRACT_ID);
 
-/** JSON pointer of the 200 response body of an operation, e.g. `('/v1/commissions', 'get')`. */
-export function okResponse(path: string, method: 'get' | 'post' | 'put'): string {
+/**
+ * JSON pointer of the success response body of an operation, e.g. `('/v1/commissions', 'get')`
+ * or `('/v1/commissions', 'post', 201)`.
+ */
+export function okResponse(path: string, method: 'get' | 'post' | 'put', status = 200): string {
   const escaped = path.replaceAll('~', '~0').replaceAll('/', '~1');
-  return `/paths/${escaped}/${method}/responses/200/content/application~1json/schema`;
+  return `/paths/${escaped}/${method}/responses/${status}/content/application~1json/schema`;
 }
 
 export function componentSchema(name: string): string {

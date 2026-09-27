@@ -1,6 +1,6 @@
 import { Badge, Button, Card, EmptyState, Input, Select, Skeleton } from '@adili/ui';
-import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
-import { Building2, Eye, Search, SearchX, X } from 'lucide-react';
+import { createFileRoute, Link, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Building2, Eye, Plus, Search, SearchX, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -82,13 +82,30 @@ function CommissionsPage({ result }: { result: DirectoryResult<CommissionPage> |
             <Eye aria-hidden="true" />
             {m.readOnly}
           </Badge>
-        ) : null}
+        ) : forbidden ? null : (
+          <NewCommissionButton />
+        )}
       </div>
       <Card className="overflow-hidden">
         <Toolbar search={search} disabled={forbidden} />
-        {loading ? <CommissionsTableSkeleton /> : <Results result={result} search={search} />}
+        {loading ? (
+          <CommissionsTableSkeleton />
+        ) : (
+          <Results result={result} search={search} readOnly={readOnly} />
+        )}
       </Card>
     </div>
+  );
+}
+
+function NewCommissionButton({ size }: { size?: 'sm' }) {
+  return (
+    <Button asChild size={size}>
+      <Link to="/commissions/new">
+        <Plus aria-hidden="true" />
+        {m.newCommission}
+      </Link>
+    </Button>
   );
 }
 
@@ -229,9 +246,11 @@ function SearchBox({
 function Results({
   result,
   search,
+  readOnly,
 }: {
   result: DirectoryResult<CommissionPage>;
   search: CommissionListSearch;
+  readOnly: boolean;
 }) {
   const navigate = useNavigate({ from: '/commissions/' });
   if (!result.ok) {
@@ -272,7 +291,12 @@ function Results({
         }
       />
     ) : (
-      <EmptyState icon={<Building2 />} title={m.emptyTitle} text={m.emptyText} />
+      <EmptyState
+        icon={<Building2 />}
+        title={m.emptyTitle}
+        text={m.emptyText}
+        action={readOnly ? undefined : <NewCommissionButton size="sm" />}
+      />
     );
   }
   // Keyed by the filters so "Load more" state resets when they change.

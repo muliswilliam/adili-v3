@@ -10,13 +10,14 @@ import {
   Skeleton,
 } from '@adili/ui';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ChevronRight, Search, UserPlus, Users } from 'lucide-react';
+import { Search, UserPlus, Users } from 'lucide-react';
 
 import {
   CommissionTypeBadge,
   IssuerCode,
   OfficerStateBadge,
 } from '../../components/commissions/badges';
+import { CommissionsBreadcrumb } from '../../components/commissions/breadcrumb';
 import { messages as m } from '../../components/commissions/messages';
 import { formatDate, formatDateTime } from '../../components/format';
 import { LoadError } from '../../components/load-error';
@@ -50,7 +51,7 @@ function CommissionDetail() {
   if (error.kind === 'problem' && (error.problem.status === 404 || error.problem.status === 403)) {
     return (
       <div className="grid gap-6">
-        <Breadcrumb current={m.notFoundTitle} />
+        <CommissionsBreadcrumb current={m.notFoundTitle} />
         <Card>
           <EmptyState
             icon={<Search />}
@@ -68,7 +69,7 @@ function CommissionDetail() {
   }
   return (
     <div className="grid gap-6">
-      <Breadcrumb current={m.detailErrorTitle} />
+      <CommissionsBreadcrumb current={m.detailErrorTitle} />
       <LoadError
         title={m.detailErrorTitle}
         detail={(error.kind === 'unavailable' ? error.detail : null) ?? m.errorDetail}
@@ -78,33 +79,10 @@ function CommissionDetail() {
   );
 }
 
-function Breadcrumb({ current }: { current: string }) {
-  return (
-    <nav aria-label={m.breadcrumb}>
-      <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-        <li>
-          <Link
-            to="/commissions"
-            className="rounded-sm underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {m.title}
-          </Link>
-        </li>
-        <li aria-hidden="true">
-          <ChevronRight className="size-3.5" />
-        </li>
-        <li aria-current="page" className="font-medium text-foreground">
-          {current}
-        </li>
-      </ol>
-    </nav>
-  );
-}
-
 function Detail({ commission }: { commission: Commission }) {
   return (
     <div className="grid gap-6">
-      <Breadcrumb current={commission.name} />
+      <CommissionsBreadcrumb current={commission.name} />
       <header className="grid gap-2">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">{commission.name}</h1>
         <div className="flex flex-wrap items-center gap-2">

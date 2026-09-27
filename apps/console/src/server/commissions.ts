@@ -7,11 +7,13 @@ import {
   callDirectory,
   type Commission,
   type CommissionPage,
+  type CreateCommission,
   createDirectoryClient,
   type DirectoryClient,
   type DirectoryResult,
   type OfficerCategory,
 } from './directory/client';
+import { OFFICER_CATEGORY_CODES } from './directory/contract';
 import { env } from './env.server';
 
 /** Runs `work` with a directory client acting as the signed-in user. */
@@ -64,3 +66,32 @@ export const listOfficerCategories = createServerFn({ method: 'GET' }).handler(
   (): Promise<DirectoryResult<OfficerCategory[]>> =>
     asViewer((client) => callDirectory(() => client.GET('/v1/reference/officer-categories'))),
 );
+
+export const createCommissionInput = z.object({
+  /** One per form instance, reused on retry (spec 01). */
+  idempotencyKey: z.uuid(),
+  // Loose bounds only: the directory validates and its 400 problem maps back to the form.
+  commission: z.object({
+    slug: z.string().max(100),
+    name: z.string().max(500),
+    type: z.enum(['hosted', 'federated']),
+    categories: z.array(z.enum(OFFICER_CATEGORY_CODES)).max(OFFICER_CATEGORY_CODES.length),
+  }) satisfies z.ZodType<CreateCommission>,
+});
+
+/**
+ * `POST /v1/commissions` with the form's Idempotency-Key. The directory allows platform admins
+ * only; anyone else gets its 403 problem.
+ */
+export const createCommission = createServerFn({ method: 'POST' })
+  .validator(createCommissionInput)
+  .handler(({ data }): Promise<DirectoryResult<Commission>> =>
+    asViewer((client) =>
+      callDirectory(() =>
+        client.POST('/v1/commissions', {
+          params: { header: { 'Idempotency-Key': data.idempotencyKey } },
+          body: data.commission,
+        }),
+      ),
+    ),
+  );
