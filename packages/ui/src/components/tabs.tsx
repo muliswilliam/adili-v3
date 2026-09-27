@@ -2,6 +2,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 
 /**
  * Tabs switch between panels on one page. Arrow keys move between tabs and Tab moves into the
@@ -26,7 +27,9 @@ export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsP
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-foreground data-[state=active]:text-foreground',
+        focusRing,
+        // Inset, so the ring is not clipped by the scrolling tab list.
+        '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:-outline-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-foreground data-[state=active]:text-foreground',
         className,
       )}
       {...props}
@@ -49,12 +52,6 @@ export function TabsCount({ className, ...props }: ComponentProps<'span'>) {
 
 export function TabsContent({ className, ...props }: ComponentProps<typeof TabsPrimitive.Content>) {
   return (
-    <TabsPrimitive.Content
-      className={cn(
-        'mt-4 rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-        className,
-      )}
-      {...props}
-    />
+    <TabsPrimitive.Content className={cn(focusRing, 'mt-4 rounded-lg', className)} {...props} />
   );
 }
