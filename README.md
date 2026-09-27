@@ -40,7 +40,7 @@ Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili
 | console (Commissions, EACC)      | http://localhost:3020                                                 | demo accounts below |
 | verify (public)                  | http://localhost:3030                                                 | none |
 | services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) | service env |
-| government-system mocks          | http://localhost:8000                                                 | none (dev) |
+| government-system mocks          | http://localhost:8000 (SMS inbox `/sms/inbox`)                        | none (dev) |
 | Keycloak                         | http://localhost:8080                                                 | `admin` / `admin_dev` |
 | Temporal gRPC / UI               | `localhost:7233` / http://localhost:8233                              | namespace `adili` |
 | Postgres                         | `localhost:55432`                                                     | `postgres` / `postgres_dev` |

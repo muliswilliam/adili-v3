@@ -1,14 +1,14 @@
 """Synthetic, internally consistent records across every simulated system.
 
-The same national ID numbers appear in IPRS, KRA, HR, NTSA, BRS and ArdhiSasa, matching the
-demo accounts in the Keycloak realm. A few records are planted to surface in the demo:
+IPRS persons and HR employments come from `demo/fixtures/rosters/` so onboarding
+matches the spec 02 demo roster files. The same national IDs appear in KRA, NTSA,
+BRS and ArdhiSasa. A few records are planted to surface in the demo:
 
 - Wanjiku Kamau (declarant) owns a vehicle and a Kajiado parcel she has not declared, and is
   a director of a company that supplies her employer (KEMSA).
 - Kiprono Chebet is not tax compliant.
 """
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
@@ -16,62 +16,11 @@ from django.db import transaction
 
 from ardhisasa.models import Parcel
 from brs.models import Company, Directorship
+from demo.fixtures import load_dependants, load_extra_people, load_roster_rows, parse_name
 from hr.models import Employment
 from iprs.models import Person
 from kra.models import Taxpayer
 from ntsa.models import Vehicle
-
-
-@dataclass(frozen=True)
-class DemoPerson:
-    id_number: str
-    first_name: str
-    middle_name: str
-    last_name: str
-    date_of_birth: date
-    sex: str
-    place_of_birth: str
-    kra_pin: str
-    annual_income: Decimal
-
-
-WANJIKU = DemoPerson(
-    "27451863", "Wanjiku", "Njoki", "Kamau", date(1984, 3, 14), "F", "Kiambu",
-    "A004518637K", Decimal("3120000.00"),
-)  # fmt: skip
-PEOPLE = [
-    WANJIKU,
-    DemoPerson("24718355", "Peter", "Mwangi", "Kamau", date(1981, 7, 2), "M", "Murang'a",
-               "A002471835M", Decimal("1860000.00")),
-    DemoPerson("30194427", "Otieno", "Juma", "Odhiambo", date(1988, 11, 23), "M", "Kisumu",
-               "A003019442P", Decimal("1440000.00")),
-    DemoPerson("28836510", "Achieng", "Atieno", "Njeri", date(1986, 5, 9), "F", "Siaya",
-               "A002883651Q", Decimal("2280000.00")),
-    DemoPerson("22607781", "Kiprono", "Kibet", "Chebet", date(1979, 1, 30), "M", "Uasin Gishu",
-               "A002260778R", Decimal("2640000.00")),
-    DemoPerson("31552094", "Amina", "Halima", "Hassan", date(1990, 9, 17), "F", "Mombasa",
-               "A003155209S", Decimal("1680000.00")),
-]  # fmt: skip
-
-# Wanjiku's dependent children (under 18): registered in IPRS, no other records.
-CHILDREN = [
-    ("40731125", "Imani", "Wairimu", "Kamau", date(2012, 6, 21), "F"),
-    ("40731126", "Baraka", "Kariuki", "Kamau", date(2015, 2, 8), "M"),
-]
-
-# (id_number, personal_number, employer_code, employer_name, title, job_group, appointed)
-EMPLOYMENTS = [
-    ("27451863", "KEMSA/2011/0457", "KEMSA", "Kenya Medical Supplies Authority",
-     "Senior Procurement Officer", "M", date(2011, 8, 1)),
-    ("30194427", "MOH/2015/1123", "MOH", "Ministry of Health",
-     "Human Resource Officer", "K", date(2015, 3, 16)),
-    ("28836510", "PSC/2012/0311", "PSC", "Public Service Commission",
-     "Compliance Officer", "L", date(2012, 10, 1)),
-    ("22607781", "PSC/2006/0098", "PSC", "Public Service Commission",
-     "Deputy Director, Compliance", "Q", date(2006, 4, 3)),
-    ("31552094", "PSC/2018/0702", "PSC", "Public Service Commission",
-     "Legal Officer", "K", date(2018, 1, 8)),
-]  # fmt: skip
 
 # (registration, make, model, year, owner, registered_on)
 VEHICLES = [
@@ -101,71 +50,128 @@ COMPANIES = [
 NON_COMPLIANT_TAXPAYERS = {"22607781"}
 
 
-def full_name(person: DemoPerson) -> str:
-    return f"{person.first_name} {person.middle_name} {person.last_name}"
+def _full_name(first: str, middle: str, last: str) -> str:
+    return " ".join(part for part in (first, middle, last) if part)
+
+
+def _upsert_person(
+    id_number: str,
+    first_name: str,
+    middle_name: str,
+    last_name: str,
+    date_of_birth: date,
+    sex: str,
+    place_of_birth: str,
+    date_of_issue: date,
+) -> None:
+    Person.objects.update_or_create(
+        id_number=id_number,
+        defaults={
+            "first_name": first_name,
+            "middle_name": middle_name,
+            "last_name": last_name,
+            "date_of_birth": date_of_birth,
+            "sex": sex,
+            "place_of_birth": place_of_birth,
+            "date_of_issue": date_of_issue,
+        },
+    )
+
+
+def _upsert_taxpayer(
+    id_number: str,
+    name: str,
+    kra_pin: str,
+    date_of_birth: date,
+    annual_income: Decimal,
+) -> None:
+    compliant = id_number not in NON_COMPLIANT_TAXPAYERS
+    Taxpayer.objects.update_or_create(
+        id_number=id_number,
+        defaults={
+            "pin": kra_pin,
+            "name": name.upper(),
+            "registered_on": date(date_of_birth.year + 22, 3, 1),
+            "compliance_status": "compliant" if compliant else "non_compliant",
+            "compliance_certificate_number": f"TCC{id_number}" if compliant else "",
+            "compliance_valid_until": date(2027, 6, 30) if compliant else None,
+            "annual_income_declared": annual_income,
+        },
+    )
 
 
 @transaction.atomic
 def seed_demo() -> None:
     """Creates or refreshes every demo record. Safe to run repeatedly."""
-    by_id = {person.id_number: person for person in PEOPLE}
+    names_by_id: dict[str, str] = {}
 
-    for person in PEOPLE:
-        Person.objects.update_or_create(
-            id_number=person.id_number,
-            defaults={
-                "first_name": person.first_name,
-                "middle_name": person.middle_name,
-                "last_name": person.last_name,
-                "date_of_birth": person.date_of_birth,
-                "sex": person.sex,
-                "place_of_birth": person.place_of_birth,
-                "date_of_issue": date(person.date_of_birth.year + 18, 1, 15),
-            },
+    for row in load_roster_rows():
+        first, middle, last = parse_name(row.full_name)
+        names_by_id[row.national_id] = row.full_name
+        _upsert_person(
+            row.national_id,
+            first,
+            middle,
+            last,
+            row.date_of_birth,
+            row.sex,
+            row.place_of_birth,
+            date(row.date_of_birth.year + 18, 1, 15),
         )
-        compliant = person.id_number not in NON_COMPLIANT_TAXPAYERS
-        Taxpayer.objects.update_or_create(
-            id_number=person.id_number,
-            defaults={
-                "pin": person.kra_pin,
-                "name": full_name(person).upper(),
-                "registered_on": date(person.date_of_birth.year + 22, 3, 1),
-                "compliance_status": "compliant" if compliant else "non_compliant",
-                "compliance_certificate_number": f"TCC{person.id_number}" if compliant else "",
-                "compliance_valid_until": date(2027, 6, 30) if compliant else None,
-                "annual_income_declared": person.annual_income,
-            },
+        _upsert_taxpayer(
+            row.national_id,
+            row.full_name,
+            row.kra_pin,
+            row.date_of_birth,
+            row.annual_income,
         )
-
-    for id_number, first, middle, last, born, sex in CHILDREN:
-        Person.objects.update_or_create(
-            id_number=id_number,
-            defaults={
-                "first_name": first,
-                "middle_name": middle,
-                "last_name": last,
-                "date_of_birth": born,
-                "sex": sex,
-                "place_of_birth": "Nairobi",
-                # Minors hold birth certificates; the registry still assigns an identifier.
-                "date_of_issue": born,
-            },
-        )
-
-    for id_number, personal_number, code, employer, title, group, appointed in EMPLOYMENTS:
         Employment.objects.update_or_create(
-            employer_code=code,
-            personal_number=personal_number,
+            employer_code=row.employer_code,
+            personal_number=row.personnel_file_number,
             defaults={
-                "id_number": id_number,
-                "full_name": full_name(by_id[id_number]),
-                "employer_name": employer,
-                "job_title": title,
-                "job_group": group,
-                "appointment_date": appointed,
+                "id_number": row.national_id,
+                "full_name": row.full_name,
+                "employer_name": row.reporting_entity,
+                "job_title": row.designation,
+                "job_group": row.job_group,
+                "appointment_date": row.appointment_date,
                 "status": "active",
                 "exit_date": None,
             },
+        )
+
+    for person in load_extra_people():
+        names_by_id[person.national_id] = _full_name(
+            person.first_name, person.middle_name, person.last_name
+        )
+        _upsert_person(
+            person.national_id,
+            person.first_name,
+            person.middle_name,
+            person.last_name,
+            person.date_of_birth,
+            person.sex,
+            person.place_of_birth,
+            date(person.date_of_birth.year + 18, 1, 15),
+        )
+        _upsert_taxpayer(
+            person.national_id,
+            names_by_id[person.national_id],
+            person.kra_pin,
+            person.date_of_birth,
+            person.annual_income,
+        )
+
+    for child in load_dependants():
+        _upsert_person(
+            child.national_id,
+            child.first_name,
+            child.middle_name,
+            child.last_name,
+            child.date_of_birth,
+            child.sex,
+            child.place_of_birth,
+            child.date_of_birth,
         )
 
     for registration, make, model, year, owner, registered_on in VEHICLES:
@@ -202,7 +208,7 @@ def seed_demo() -> None:
                 company=company,
                 id_number=id_number,
                 defaults={
-                    "full_name": full_name(by_id[id_number]),
+                    "full_name": names_by_id[id_number],
                     "role": role,
                     "shares": shares,
                     "appointed_on": appointed_on,
