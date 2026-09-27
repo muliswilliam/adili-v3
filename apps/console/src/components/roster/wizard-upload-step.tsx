@@ -198,7 +198,7 @@ function UploadProgress({
 }
 
 /** A spinner line for work in progress, announced once as it starts. */
-function Busy({ strong = false, children }: { strong?: boolean; children: ReactNode }) {
+export function Busy({ strong = false, children }: { strong?: boolean; children: ReactNode }) {
   return (
     <span
       role="status"

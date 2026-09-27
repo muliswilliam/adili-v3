@@ -1,29 +1,48 @@
 import { Button, Stepper, useToast } from '@adili/ui';
 import { createFileRoute, Link, useBlocker, useNavigate } from '@tanstack/react-router';
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
+import { z } from 'zod';
 
-import { NoAccess } from '../../components/load-error';
+import { LoadError, NoAccess } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { DiscardUploadDialog } from '../../components/roster/discard-upload-dialog';
 import {
   canGoBackTo,
   holdsUpload,
   importStarted,
-  initialWizardState,
   uploadInFlight,
   WIZARD_STEPS,
   type WizardStep,
   wizardReducer,
+  wizardStateFor,
 } from '../../components/roster/import-wizard';
 import { messages as m } from '../../components/roster/messages';
 import { putFile, type UploadDeps, uploadRosterFile } from '../../components/roster/upload';
+import { useColumnCheck } from '../../components/roster/use-column-check';
+import { useImportPolling } from '../../components/roster/use-import-polling';
 import { WIZARD_TITLE_ID } from '../../components/roster/wizard-card';
 import { WizardCheckStep } from '../../components/roster/wizard-check-step';
+import { ImportUnavailable, WizardImportStep } from '../../components/roster/wizard-import-step';
+import { WizardReportStep } from '../../components/roster/wizard-report-step';
 import { WizardTemplateStep } from '../../components/roster/wizard-template-step';
 import { WizardUploadStep } from '../../components/roster/wizard-upload-step';
+import type { RosterImport } from '../../server/directory/client';
+import {
+  checkRosterUpload,
+  findRunningRosterImport,
+  getRosterImport,
+  startRosterImport,
+} from '../../server/roster-imports';
 import { completeUpload, createRosterUpload } from '../../server/uploads';
 
+/**
+ * `import`: the import this wizard follows from step 4 on, so a refresh, a return visit or a
+ * shared link shows its progress and report again.
+ */
+const importSearch = z.object({ import: z.uuid().optional().catch(undefined) });
+
 export const Route = createFileRoute('/roster/import')({
+  validateSearch: importSearch,
   head: () => ({ meta: [{ title: `${m.importTitle} · Adili Online Console` }] }),
   staticData: { crumb: m.importTitle },
   component: ImportPage,
@@ -46,13 +65,18 @@ const uploadDeps: UploadDeps = {
   completeUpload: (id) => completeUpload({ data: { id } }),
 };
 
-const RETURN_TO = '/roster/import';
+const returnTo = (importId: string | null) =>
+  importId ? `/roster/import?import=${importId}` : '/roster/import';
+
+const signIn = (importId: string | null) => {
+  window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo(importId))}`);
+};
 
 /** Blocks every navigation while enabled; `disabled` switches it. Stable, so it registers once. */
 const blockAll = () => true;
 
 function ImportPage() {
-  const { workspace } = Route.useRouteContext();
+  const { workspace, tenant } = Route.useRouteContext();
   // The layout shows why there is no workspace.
   if (!workspace) return null;
   if (workspace.readOnly) {
@@ -70,19 +94,32 @@ function ImportPage() {
       </Page>
     );
   }
-  return <ImportWizard />;
+  // A reporting officer without a tenant: a broken account, shown as a failed load.
+  if (!tenant) {
+    return (
+      <Page narrow>
+        <PageHead title={m.importTitle} />
+        <LoadError title={m.errorTitle} detail={m.errorDetail} retryLabel={m.tryAgain} />
+      </Page>
+    );
+  }
+  return <ImportWizard slug={tenant} />;
 }
 
 /**
  * The import wizard (spec 02): Template, Upload, Check, Import, Report. The file goes from the
  * browser straight to object storage through a presigned PUT; the console only reserves and
- * completes the upload. Leaving with an upload in flight or a clean file asks first.
+ * completes the upload. Leaving with an upload in flight or a clean file asks first. Once the
+ * import starts its id goes in the URL, the earlier steps lock, and the officer may leave.
  */
-function ImportWizard() {
+function ImportWizard({ slug }: { slug: string }) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
+  const search = Route.useSearch();
+  const [state, dispatch] = useReducer(wizardReducer, search.import, wizardStateFor);
   const upload = useRef<{ file: File; controller: AbortController } | null>(null);
+  // The start's answer, shown until the first poll comes back.
+  const [started, setStarted] = useState<RosterImport | null>(null);
 
   const holds = holdsUpload(state);
   const blocker = useBlocker({
@@ -91,6 +128,27 @@ function ImportWizard() {
     enableBeforeUnload: holds,
     withResolver: true,
   });
+
+  // The URL follows the import the wizard follows (replacing the entry, so Back leaves the
+  // wizard), and a URL naming another import (e.g. "View progress") makes the wizard follow it.
+  const urlImport = search.import ?? null;
+  const followUrl = useEffectEvent((importId: string | null) => {
+    if (importId && importId !== state.importId) dispatch({ type: 'open', importId });
+  });
+  useEffect(() => {
+    followUrl(urlImport);
+  }, [urlImport]);
+  const updateUrl = useEffectEvent((importId: string | null) => {
+    if (importId === urlImport) return;
+    void navigate({
+      to: '/roster/import',
+      search: importId ? { import: importId } : {},
+      replace: true,
+    });
+  });
+  useEffect(() => {
+    updateUrl(state.importId);
+  }, [state.importId]);
 
   const stopUpload = () => {
     upload.current?.controller.abort();
@@ -110,6 +168,43 @@ function ImportWizard() {
     window.scrollTo({ top: 0 });
     document.getElementById(WIZARD_TITLE_ID)?.focus({ preventScroll: true });
   }, [state.step]);
+
+  const cleanUpload =
+    state.step === 'check' && state.upload.phase === 'clean' ? state.upload : null;
+  const columnCheck = useColumnCheck(cleanUpload?.upload ?? null, {
+    check: (uploadId) => checkRosterUpload({ data: { slug, uploadId } }),
+    start: (input) => startRosterImport({ data: { slug, ...input } }),
+    findRunning: () => findRunningRosterImport({ data: { slug } }),
+    onUnauthenticated: () => {
+      signIn(null);
+    },
+    onStarted: (imp) => {
+      setStarted(imp);
+      dispatch({ type: 'started', importId: imp.id });
+    },
+    onViewRunning: (importId) => {
+      void navigate({ to: '/roster/import', search: { import: importId } });
+    },
+    onRunningGone: () => {
+      toast({ title: m.runningGone });
+    },
+  });
+
+  const following = importStarted(state.step) ? state.importId : null;
+  const polling = useImportPolling(following, {
+    read: (importId) => getRosterImport({ data: { slug, importId } }),
+    onUnauthenticated: () => {
+      signIn(following);
+    },
+    onEnded: (imp) => {
+      dispatch({
+        type: 'import-ended',
+        importId: imp.id,
+        outcome: imp.state === 'completed' ? 'completed' : 'failed',
+      });
+    },
+  });
+  const imp = polling.imp ?? (started?.id === following ? started : null);
 
   const start = (file: File) => {
     if (state.step !== 'upload' || uploadInFlight(state.upload)) return;
@@ -131,9 +226,7 @@ function ImportWizard() {
         dispatch({ type: 'scanning', attempt });
       },
     }).then((outcome) => {
-      if (outcome.kind === 'unauthenticated') {
-        window.location.assign(`/auth/login?returnTo=${encodeURIComponent(RETURN_TO)}`);
-      }
+      if (outcome.kind === 'unauthenticated') signIn(null);
       dispatch({ type: 'finished', attempt, outcome });
     });
   };
@@ -151,6 +244,12 @@ function ImportWizard() {
   const retry = () => {
     const file = upload.current?.file;
     if (file) start(file);
+  };
+
+  const importAnother = () => {
+    stopUpload();
+    setStarted(null);
+    dispatch({ type: 'import-another' });
   };
 
   const discard = () => {
@@ -175,6 +274,7 @@ function ImportWizard() {
         label={m.importSteps}
         steps={STEPS}
         current={state.step}
+        failed={state.step === 'importing' && state.importFailed}
         onSelect={(id) => {
           if (isStep(id)) go(id);
         }}
@@ -197,12 +297,37 @@ function ImportWizard() {
             go('template');
           }}
         />
-      ) : state.step === 'check' && state.upload.phase === 'clean' ? (
+      ) : cleanUpload ? (
         <WizardCheckStep
-          upload={state.upload.upload}
+          upload={cleanUpload.upload}
+          check={columnCheck.check}
+          declaredComplete={columnCheck.declaredComplete}
+          onDeclaredCompleteChange={columnCheck.setDeclaredComplete}
+          starting={columnCheck.starting}
+          startFailure={columnCheck.startFailure}
+          onStart={() => void columnCheck.start()}
+          onRetryCheck={columnCheck.retryCheck}
+          onViewRunning={() => void columnCheck.viewRunning()}
           onBack={() => {
             go('upload');
           }}
+        />
+      ) : polling.error ? (
+        <ImportUnavailable
+          notFound={polling.error === 'not-found'}
+          onRetry={polling.retry}
+          onStartNew={() => {
+            dispatch({ type: 'restart' });
+          }}
+        />
+      ) : state.step === 'report' && imp ? (
+        <WizardReportStep imp={imp} onImportAnother={importAnother} />
+      ) : state.step === 'importing' ? (
+        <WizardImportStep
+          imp={imp}
+          fileSize={state.upload.phase === 'clean' ? state.upload.file.size : undefined}
+          reconnecting={polling.reconnecting}
+          onImportAnother={importAnother}
         />
       ) : null}
       <DiscardUploadDialog
