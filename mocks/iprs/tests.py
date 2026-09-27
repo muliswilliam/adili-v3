@@ -59,3 +59,9 @@ def test_latency_header_delays_lookup(api: APIClient) -> None:
 def test_failure_header_injects_status(api: APIClient, failure: str, status: int) -> None:
     response = api.get("/iprs/v1/persons/27451863", headers={"X-Mock-Failure": failure})
     assert response.status_code == status
+
+
+@pytest.mark.usefixtures("seeded")
+def test_failure_header_is_case_insensitive(api: APIClient) -> None:
+    response = api.get("/iprs/v1/persons/27451863", headers={"X-Mock-Failure": " Timeout "})
+    assert response.status_code == 504

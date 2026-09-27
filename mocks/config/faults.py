@@ -26,6 +26,11 @@ def _system_for(path: str) -> str | None:
     return None
 
 
+def _failure_header(request: HttpRequest) -> str:
+    """Header values are case-insensitive, matching how the env flags are parsed."""
+    return request.headers.get("X-Mock-Failure", "").strip().lower()
+
+
 def _int_header(request: HttpRequest, name: str) -> int | None:
     raw = request.headers.get(name)
     if raw is None or raw == "":
@@ -47,7 +52,7 @@ class FaultInjectionMiddleware:
 
         failures = settings.MOCK_FAILURES
         latencies = settings.MOCK_LATENCIES_MS
-        failure = request.headers.get("X-Mock-Failure") or failures.get(system) or ""
+        failure = _failure_header(request) or failures.get(system) or ""
         latency_ms = _int_header(request, "X-Mock-Latency-Ms")
         if latency_ms is None:
             latency_ms = latencies.get(system, 0)
