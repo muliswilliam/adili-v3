@@ -1,11 +1,11 @@
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.http import require_http_methods
 
-from config.registry_control import SYSTEMS, is_paused, pause, resume
+from config.faults import REGISTRIES, is_paused, pause, resume
 
 
 def _system(system: str) -> str | None:
-    if system not in SYSTEMS:
+    if system not in REGISTRIES:
         return None
     return system
 

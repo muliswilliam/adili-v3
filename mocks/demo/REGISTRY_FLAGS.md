@@ -20,4 +20,6 @@ POST /demo/registries/kra/pause
 POST /demo/registries/kra/resume
 ```
 
-Or set `MOCK_KRA_PAUSED=true` (same for `NTSA`, `BRS`, `ARDHISASA`). Per-request overrides: `X-Mock-Failure=timeout|unavailable|error` and `X-Mock-Rate-Limited=1`. Every registry response includes `RateLimit-*` headers (`MOCK_REGISTRY_RATE_LIMIT`, default 60/min).
+`GET /demo/registries/kra` reports the current state. `MOCK_KRA_PAUSED=true` (same for `NTSA`, `BRS`, `ARDHISASA`) only sets the starting state: pause and resume override it, and the override is stored in the mocks database so it survives reloads and applies to every worker.
+
+Per-request overrides: `X-Mock-Failure=timeout|unavailable|error` (case-insensitive), `X-Mock-Latency-Ms` and `X-Mock-Rate-Limited=1`. Every registry response includes `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` (seconds until the window resets; wait that long on 429). The limit is `MOCK_REGISTRY_RATE_LIMIT` per minute (default 60), counted in memory per process, so it resets on reload and each gunicorn worker counts on its own.
