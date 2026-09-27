@@ -36,14 +36,13 @@ services:
   rabbitmq:
     image: rabbitmq:4.3.6-management-alpine
     hostname: rabbitmq
-    # Healthchecks exec as the container user; as root they would create a root-owned
-    # Erlang cookie the broker cannot read.
-    user: rabbitmq
+    # Official image starts as root, chowns /var/lib/rabbitmq, then drops to rabbitmq.
+    # Do not set `user:` or mount only `mnesia/` - Ra cannot create its data dir.
     environment:
       RABBITMQ_DEFAULT_USER: adili
       RABBITMQ_DEFAULT_PASS: adili_dev
     ports: ['55672:5672', '15672:15672']
-    volumes: [rabbitmq-data:/var/lib/rabbitmq/mnesia]
+    volumes: [rabbitmq-data:/var/lib/rabbitmq]
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
@@ -106,6 +105,8 @@ services:
       dockerfile: infra/docker/keycloak.Dockerfile
     depends_on:
       postgres: { condition: service_healthy }
+    # Import is skip-if-exists, so infra:up stays idempotent. Recreate the
+    # realm (infra:reset, or delete adili in the admin console) after edits.
     command: ['start-dev', '--import-realm']
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -196,6 +197,8 @@ services:
       test: ['CMD', '/mailpit', 'readyz']
 
   otel-collector:
+    # Image is FROM scratch: no shell, so no in-container healthcheck.
+    # The collector exposes a health_check extension on 13133 inside the network.
     image: otel/opentelemetry-collector-contrib:0.161.0
     command: ['--config=/etc/otelcol/collector.yaml']
     ports: ['4317:4317', '4318:4318']
