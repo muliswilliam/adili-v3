@@ -15,11 +15,11 @@ export async function requireStep(route: StepRoute): Promise<StepGuard> {
   const lookup = await getOnboardingSession();
   if (lookup.status === 'unavailable') return lookup;
   if (lookup.status !== 'active') {
-    throw redirect({ to: '/get-started', search: { ended: true } });
+    throw redirect({ to: '/get-started', search: { notice: 'ended' } });
   }
   const target = routeForSession(lookup.session);
   if (target === '/get-started') {
-    throw redirect({ to: '/get-started', search: { ended: true } });
+    throw redirect({ to: '/get-started', search: { notice: 'ended' } });
   }
   if (target !== route) {
     throw redirect({ to: target });

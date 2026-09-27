@@ -3,6 +3,7 @@ import type { OnboardingSession, OnboardingState } from '../../server/directory/
 /** Every route in the Get started flow, in order. */
 export const STEP_ROUTES = [
   '/get-started',
+  '/get-started/identify',
   '/get-started/verify-email',
   '/get-started/verify-phone',
   '/get-started/confirm',
@@ -12,6 +13,29 @@ export const STEP_ROUTES = [
 ] as const;
 
 export type StepRoute = (typeof STEP_ROUTES)[number];
+
+/** The six steps the stepper shows. Check your email and Done are both the last one. */
+export const STEP_NAMES = [
+  'Choose your Commission',
+  'Identify yourself',
+  'Verify your email',
+  'Verify your phone',
+  'Confirm your details',
+  'Set your password',
+] as const;
+
+export const STEP_COUNT = STEP_NAMES.length;
+
+export type StepNumber = 1 | 2 | 3 | 4 | 5 | 6;
+
+declare module '@tanstack/react-router' {
+  interface StaticDataRouteOption {
+    /** The step a Get started route shows in the stepper; unset for pages outside it. */
+    onboardingStep?: StepNumber;
+    /** Shows a Back button to the Commission step above the stepper. */
+    onboardingBack?: boolean;
+  }
+}
 
 const ROUTE_FOR_STATE: Record<Exclude<OnboardingState, 'confirmed'>, StepRoute> = {
   // A session is only `identified` for the moment before the first code goes out.

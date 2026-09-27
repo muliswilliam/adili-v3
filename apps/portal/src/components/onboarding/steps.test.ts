@@ -51,6 +51,8 @@ describe('routeForSession', () => {
       ...states.map((state) => routeForSession({ state, outcome: null })),
       routeForSession({ state: 'confirmed', outcome: 'linked-existing-account' }),
     ]);
-    expect([...reached].sort()).toEqual([...STEP_ROUTES].sort());
+    // Identify comes before there is a session: the Commission step links to it.
+    const afterIdentify = STEP_ROUTES.filter((route) => route !== '/get-started/identify');
+    expect([...reached].sort()).toEqual([...afterIdentify].sort());
   });
 });

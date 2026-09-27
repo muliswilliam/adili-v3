@@ -1,36 +1,31 @@
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
-  Badge,
   Button,
   CheckboxItem,
+  DescriptionItem,
+  DescriptionList,
   Icon,
   MaskedContact,
 } from '@adili/ui';
-import { AlertCircleIcon } from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, Clock01Icon } from '@hugeicons/core-free-icons';
 import { useNavigate, useRouter } from '@tanstack/react-router';
-import { type SubmitEvent, useEffect, useRef, useState } from 'react';
+import { type Ref, type SubmitEvent, useEffect, useRef, useState } from 'react';
 
 import type { OnboardingSession, OtpChannel } from '../../server/directory/types';
 import { confirmOnboarding } from '../../server/onboarding';
 import type { StepGuard } from './guard';
-import { HelpFooter, StepHeading } from './onboarding-layout';
+import { Spinner, StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from './problems';
-import { ReadOnlyField } from './read-only-field';
 import { SessionUnavailable } from './step-alerts';
 import { routeForSession } from './steps';
 
-interface Failure {
-  title?: string;
-  message: string;
-  /** Offers to run the check again; the session waits at this step. */
-  retry?: boolean;
-}
+/** Why confirming failed. The register being down is a wait; the rest are errors. */
+type Failure = 'iprs-unavailable' | 'identity-unavailable' | 'unavailable';
 
 /**
- * Confirm (#72). The roster's details, read-only; confirming runs the national register check
- * and creates or links the account, and the session's outcome picks the next step.
+ * Step 5, Confirm your details. The roster's details, read-only; confirming runs the national
+ * register check and creates or links the account, and the session's outcome picks the next step.
  */
 export function ConfirmStep({ guard }: { guard: StepGuard }) {
   if (guard.status === 'unavailable' || !guard.session.details) return <SessionUnavailable />;
@@ -50,7 +45,6 @@ function ConfirmDetails({
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const alertRef = useRef<HTMLDivElement>(null);
-  const commission = session.commission.name;
 
   useEffect(() => {
     if (failure) alertRef.current?.focus();
@@ -65,36 +59,30 @@ function ConfirmDetails({
       if (result.ok) {
         await navigate({ to: routeForSession(result.session) });
       } else if (result.code === 'ended') {
-        await navigate({ to: '/get-started', search: { ended: true } });
+        await navigate({
+          to: '/get-started',
+          search: { commission: session.commission.slug, notice: 'ended' },
+        });
       } else if (result.code === 'moved') {
         // Another tab confirmed first; the loader guard sends this one to the outcome.
         await router.invalidate();
-      } else if (result.code === 'iprs-unavailable') {
-        setFailure({
-          title: 'The national register is not responding',
-          message: problemMessage('iprs-unavailable'),
-          retry: true,
-        });
-      } else if (result.code === 'identity-unavailable') {
-        setFailure({
-          title: 'Your account was not created',
-          message: problemMessage('identity-unavailable'),
-        });
+      } else if (result.code === 'iprs-unavailable' || result.code === 'identity-unavailable') {
+        setFailure(result.code);
       } else {
-        setFailure({ message: GENERIC_ERROR });
+        setFailure('unavailable');
       }
     } catch {
-      setFailure({ message: GENERIC_ERROR });
+      setFailure('unavailable');
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="grid gap-8">
+    <>
       <StepHeading
         title="Confirm your details"
-        description={`Confirm these are your details. They come from ${commission}'s roster and cannot be changed here.`}
+        description="From your Commission's roster. You cannot change them here."
       />
       <form
         noValidate
@@ -102,82 +90,105 @@ function ConfirmDetails({
           event.preventDefault();
           void confirm();
         }}
-        className="grid gap-5"
+        className="contents"
       >
-        {failure ? (
-          <Alert ref={alertRef} tabIndex={-1} variant="destructive" className="outline-none">
-            <Icon icon={AlertCircleIcon} />
-            {failure.title ? <AlertTitle>{failure.title}</AlertTitle> : null}
-            <AlertDescription>{failure.message}</AlertDescription>
-            {failure.retry ? (
-              <Button type="submit" variant="secondary" size="sm" className="mt-2 w-fit">
-                Try again
-              </Button>
-            ) : null}
-          </Alert>
-        ) : null}
-        <dl className="grid grid-cols-2 gap-x-2.5 gap-y-4">
-          <ReadOnlyField label="Full name" className="col-span-2">
-            {details.fullName}
-          </ReadOnlyField>
-          <ReadOnlyField label="Personnel file number">
-            <span className="font-mono">{details.personnelFileNumber}</span>
-          </ReadOnlyField>
-          <ReadOnlyField label="Designation">{orMissing(details.designation)}</ReadOnlyField>
-          <ReadOnlyField label="Reporting entity" className="col-span-2">
-            {orMissing(details.reportingEntity)}
-          </ReadOnlyField>
-          <ReadOnlyField label="Responsible Commission" className="col-span-2">
-            {commission}
-          </ReadOnlyField>
-          <ContactField channel="email" label="Email address" session={session} />
-          <ContactField channel="phone" label="Phone number" session={session} />
-        </dl>
+        <div className="mt-[18px] rounded-2xl bg-card px-[18px] py-4 shadow-card">
+          <DescriptionList>
+            <DescriptionItem term="Full name">{details.fullName}</DescriptionItem>
+            <DescriptionItem term="Personnel file number">
+              <span className="font-mono">{details.personnelFileNumber}</span>
+            </DescriptionItem>
+            <DescriptionItem term="Designation">{orMissing(details.designation)}</DescriptionItem>
+            <DescriptionItem term="Reporting entity">
+              {orMissing(details.reportingEntity)}
+            </DescriptionItem>
+            <DescriptionItem term="Responsible Commission">
+              {session.commission.name}
+            </DescriptionItem>
+            <ContactItem channel="email" term="Email" session={session} />
+            <ContactItem channel="phone" term="Phone" session={session} />
+          </DescriptionList>
+        </div>
+        {failure ? <FailureAlert ref={alertRef} failure={failure} /> : null}
         <CheckboxItem
           label="I confirm these are my details."
           checked={checked}
           disabled={submitting}
+          className="mt-[18px]"
           onChange={(event) => {
             setChecked(event.target.checked);
           }}
         />
-        <div className="grid gap-2">
-          <Button type="submit" className="w-full" disabled={!checked || submitting}>
-            {submitting ? 'Checking the national register…' : 'Confirm and create my account'}
-          </Button>
-          <p className="text-center text-[13px] text-muted-foreground">
-            We will check your name and ID against the national register.
-          </p>
-        </div>
+        <Button type="submit" className="mt-[18px] w-full" disabled={!checked || submitting}>
+          {submitting ? (
+            <>
+              <Spinner />
+              Checking the national register…
+            </>
+          ) : (
+            'Confirm and create my account'
+          )}
+        </Button>
+        <p className="mt-2.5 text-center text-[13.5px] text-muted-foreground">
+          Checked against the national register.
+        </p>
       </form>
-      <HelpFooter>
-        Something wrong? Ask your Commission's reporting officer to correct your record.
-      </HelpFooter>
-    </div>
+    </>
+  );
+}
+
+function FailureAlert({ ref, failure }: { ref: Ref<HTMLDivElement>; failure: Failure }) {
+  const shared = { ref, tabIndex: -1, className: 'mt-4 outline-none' };
+  if (failure === 'iprs-unavailable') {
+    // A wait, not a mistake: the session is kept and the same check can run again.
+    return (
+      <Alert {...shared} variant="warning">
+        <Icon icon={Clock01Icon} />
+        <AlertDescription>{problemMessage('iprs-unavailable')}</AlertDescription>
+        <Button type="submit" variant="secondary" size="sm" className="mt-2.5 w-fit">
+          Try again
+        </Button>
+      </Alert>
+    );
+  }
+  return (
+    <Alert {...shared} variant="destructive">
+      <Icon icon={AlertCircleIcon} />
+      <AlertDescription>
+        {failure === 'identity-unavailable'
+          ? problemMessage('identity-unavailable')
+          : GENERIC_ERROR}
+      </AlertDescription>
+    </Alert>
   );
 }
 
 function orMissing(value: string | null) {
-  return value ?? <span className="text-muted-foreground">Not on your record</span>;
+  return value ?? <span className="font-normal text-muted-foreground">Not on your record</span>;
 }
 
-function ContactField({
+function ContactItem({
   channel,
-  label,
+  term,
   session,
 }: {
   channel: OtpChannel;
-  label: string;
+  term: string;
   session: OnboardingSession;
 }) {
   const contact = session.contacts[channel];
   return (
-    <ReadOnlyField
-      label={label}
-      className="col-span-2"
-      action={contact?.verified ? <Badge variant="success">Verified</Badge> : undefined}
-    >
-      {contact ? <MaskedContact kind={channel} value={contact.masked} /> : orMissing(null)}
-    </ReadOnlyField>
+    <DescriptionItem term={term}>
+      {contact ? (
+        <MaskedContact
+          kind={channel}
+          value={contact.masked}
+          verified={contact.verified}
+          className="justify-end gap-1.5"
+        />
+      ) : (
+        orMissing(null)
+      )}
+    </DescriptionItem>
   );
 }

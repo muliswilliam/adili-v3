@@ -18,6 +18,7 @@ import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
 import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email'
 import { Route as GetStartedConfirmRouteImport } from './routes/get-started/confirm'
 import { Route as GetStartedDoneRouteImport } from './routes/get-started/done'
+import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/identify'
 import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
 import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
 import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
@@ -67,6 +68,11 @@ const GetStartedDoneRoute = GetStartedDoneRouteImport.update({
   path: '/done',
   getParentRoute: () => GetStartedRouteRoute,
 } as any)
+const GetStartedIdentifyRoute = GetStartedIdentifyRouteImport.update({
+  id: '/identify',
+  path: '/identify',
+  getParentRoute: () => GetStartedRouteRoute,
+} as any)
 const GetStartedNotVerifiedRoute = GetStartedNotVerifiedRouteImport.update({
   id: '/not-verified',
   path: '/not-verified',
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
   '/get-started/done': typeof GetStartedDoneRoute
+  '/get-started/identify': typeof GetStartedIdentifyRoute
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
   '/get-started/done': typeof GetStartedDoneRoute
+  '/get-started/identify': typeof GetStartedIdentifyRoute
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
   '/get-started/done': typeof GetStartedDoneRoute
+  '/get-started/identify': typeof GetStartedIdentifyRoute
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/get-started/check-email'
     | '/get-started/confirm'
     | '/get-started/done'
+    | '/get-started/identify'
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/get-started/check-email'
     | '/get-started/confirm'
     | '/get-started/done'
+    | '/get-started/identify'
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/get-started/check-email'
     | '/get-started/confirm'
     | '/get-started/done'
+    | '/get-started/identify'
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
@@ -242,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GetStartedDoneRouteImport
       parentRoute: typeof GetStartedRouteRoute
     }
+    '/get-started/identify': {
+      id: '/get-started/identify'
+      path: '/identify'
+      fullPath: '/get-started/identify'
+      preLoaderRoute: typeof GetStartedIdentifyRouteImport
+      parentRoute: typeof GetStartedRouteRoute
+    }
     '/get-started/not-verified': {
       id: '/get-started/not-verified'
       path: '/not-verified'
@@ -270,6 +289,7 @@ interface GetStartedRouteRouteChildren {
   GetStartedCheckEmailRoute: typeof GetStartedCheckEmailRoute
   GetStartedConfirmRoute: typeof GetStartedConfirmRoute
   GetStartedDoneRoute: typeof GetStartedDoneRoute
+  GetStartedIdentifyRoute: typeof GetStartedIdentifyRoute
   GetStartedNotVerifiedRoute: typeof GetStartedNotVerifiedRoute
   GetStartedVerifyEmailRoute: typeof GetStartedVerifyEmailRoute
   GetStartedVerifyPhoneRoute: typeof GetStartedVerifyPhoneRoute
@@ -280,6 +300,7 @@ const GetStartedRouteRouteChildren: GetStartedRouteRouteChildren = {
   GetStartedCheckEmailRoute: GetStartedCheckEmailRoute,
   GetStartedConfirmRoute: GetStartedConfirmRoute,
   GetStartedDoneRoute: GetStartedDoneRoute,
+  GetStartedIdentifyRoute: GetStartedIdentifyRoute,
   GetStartedNotVerifiedRoute: GetStartedNotVerifiedRoute,
   GetStartedVerifyEmailRoute: GetStartedVerifyEmailRoute,
   GetStartedVerifyPhoneRoute: GetStartedVerifyPhoneRoute,
