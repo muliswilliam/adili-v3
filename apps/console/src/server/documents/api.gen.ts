@@ -13,7 +13,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reserve an upload and get a presigned PUT to quarantine */
+        /**
+         * Reserve an upload and get a presigned PUT to quarantine
+         * @description The purpose's roles only (roster-import: reporting-officer). The upload belongs to the
+         *     caller's tenant. The PUT URL is valid for 15 minutes and accepts exactly the declared
+         *     Content-Type and size.
+         */
         post: operations["createUpload"];
         delete?: never;
         options?: never;
@@ -53,8 +58,12 @@ export interface paths {
         put?: never;
         /**
          * Verify, scan and move the uploaded object to the clean bucket
-         * @description Synchronous for purposes with small size limits (roster-import, 50 MB). Returns the
-         *     final state: clean, infected or rejected (type, size, missing, timeout).
+         * @description Synchronous for purposes with small size limits (roster-import, 50 MB), bounded by a
+         *     60-second budget. Checks the object exists and has the declared size (within the
+         *     purpose's limit), sniffs its type (must equal the declared one), streams it through
+         *     ClamAV and copies clean bytes to the clean bucket with server-side encryption. Returns
+         *     the final state: clean, infected or rejected (type, size, missing, timeout). The
+         *     quarantine object is deleted in every case.
          */
         post: operations["completeUpload"];
         delete?: never;
@@ -66,7 +75,10 @@ export interface paths {
     "/internal/v1/uploads/{id}/download": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for (decision 2 of spec 02) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 id: components["parameters"]["UploadId"];
             };
@@ -74,7 +86,9 @@ export interface paths {
         };
         /**
          * Short-lived presigned GET on a clean object, for services
-         * @description Not routed by the public entrypoint. Caller acts for the upload's tenant.
+         * @description Not routed by the public entrypoint. Service tokens (client credentials) with scope
+         *     `documents:internal` only, acting for the tenant named in `X-Acting-Tenant`; the upload
+         *     must belong to it. The URL is valid for 5 minutes.
          */
         get: operations["getUploadDownload"];
         put?: never;
@@ -168,7 +182,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description Sets allowed content types and the size limit
+         * @description Sets allowed content types and the size limit. Implemented: roster-import (text/csv or
+         *     XLSX, 50 MB). The others are drafted for later specs and refused with 400 until then.
          * @enum {string}
          */
         UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "action-response" | "access-representation";
@@ -179,11 +194,12 @@ export interface components {
         CreateUpload: {
             purpose: components["schemas"]["UploadPurpose"];
             /**
+             * @description One of the purpose's types; the PUT to uploadUrl must send it as Content-Type
              * @example text/csv
              * @example application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
              */
             contentType: string;
-            /** @description Bytes; must be within the purpose's limit */
+            /** @description Bytes; within the purpose's limit. The PUT must send exactly this many bytes */
             declaredSize: number;
             /** @description Display only; never used as an object key */
             fileName?: string;
@@ -193,7 +209,7 @@ export interface components {
             id: string;
             /**
              * Format: uri
-             * @description Presigned PUT; send the raw bytes with the declared content type
+             * @description Presigned PUT; send the raw bytes with the declared Content-Type and size
              */
             uploadUrl: string;
             /** Format: date-time */
@@ -222,6 +238,7 @@ export interface components {
         UploadDownload: {
             /** Format: uuid */
             id: string;
+            purpose: components["schemas"]["UploadPurpose"];
             /** @constant */
             state: "clean";
             /** Format: uri */
@@ -230,6 +247,10 @@ export interface components {
             expiresAt: string;
             sha256: string;
             size: number;
+            /** @description As given at createUpload; display only */
+            fileName: string | null;
+            /** @description Sniffed content type, e.g. text/csv or the XLSX type */
+            detectedType: string;
         };
         ProblemDetails: {
             type: string;
@@ -331,6 +352,8 @@ export interface components {
     };
     parameters: {
         UploadId: string;
+        /** @description Tenant the calling service acts for (decision 2 of spec 02) */
+        ActingTenant: string;
         DocumentId: string;
     };
     requestBodies: never;
@@ -409,8 +432,23 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Upload already completed or expired */
+            /**
+             * @description Problem type `upload-completed` (already clean, infected or rejected),
+             *     `upload-expired`, or `upload-completing` (another request is completing it)
+             */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Problem type `upload-check-unavailable`: storage or the scanner failed; nothing
+             *     changed, retry
+             */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -423,7 +461,10 @@ export interface operations {
     getUploadDownload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for (decision 2 of spec 02) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 id: components["parameters"]["UploadId"];
             };
@@ -440,8 +481,18 @@ export interface operations {
                     "application/json": components["schemas"]["UploadDownload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            /** @description Token lacks scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
-            /** @description Upload is not clean */
+            /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
                 headers: {
                     [name: string]: unknown;
