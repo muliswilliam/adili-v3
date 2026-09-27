@@ -1,9 +1,28 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 
-import { SectionComingSoon } from '../../../components/declaration/route-helpers';
+import {
+  loginHref,
+  requireDeclarationId,
+  SectionUnavailable,
+} from '../../../components/declaration/route-helpers';
+import { SummaryView } from '../../../components/declaration/summary-view';
+import { getDeclarationSummary } from '../../../server/declarations';
 
-// Placeholder until #128 builds this screen The route files stay put.
 export const Route = createFileRoute('/declarations/$id/summary')({
+  loader: async ({ params, location }) => {
+    const result = await getDeclarationSummary({
+      data: { declarationId: requireDeclarationId(params.id) },
+    });
+    if (result.status === 'unauthenticated') throw redirect({ href: loginHref(location.href) });
+    if (result.status === 'not-found') throw notFound();
+    return result;
+  },
   head: () => ({ meta: [{ title: 'Summary · Adili Online' }] }),
-  component: SectionComingSoon,
+  component: SummaryRoute,
 });
+
+function SummaryRoute() {
+  const load = Route.useLoaderData();
+  if (load.status === 'unavailable') return <SectionUnavailable />;
+  return <SummaryView summary={load.summary} />;
+}
