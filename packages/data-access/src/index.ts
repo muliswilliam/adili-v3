@@ -1,4 +1,21 @@
 export {
+  type DecryptFieldInput,
+  type EncryptFieldInput,
+  EnvelopeFieldCipher,
+  FieldCipher,
+  FieldCipherError,
+  type FieldCipherErrorCode,
+  type FieldEnvelope,
+  type KeyWrapper,
+  type SealedField,
+  type WrappedDataKey,
+} from './cipher/field-cipher.js';
+export {
+  type OpenBaoOptions,
+  OpenBaoReadinessCheck,
+  OpenBaoTransitCipher,
+} from './cipher/openbao-transit-cipher.js';
+export {
   createDatabase,
   type Database,
   type DatabaseOptions,

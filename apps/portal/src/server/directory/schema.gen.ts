@@ -1068,7 +1068,7 @@ export interface components {
         };
         /**
          * @description Officer reference (ADR-011), permanent and person-level
-         * @example OFR-0482913-H
+         * @example OFR-0482913-L
          */
         Ofr: string;
         /** @enum {string} */

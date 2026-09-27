@@ -59,7 +59,7 @@ jobs:
         run: pnpm --filter @adili/schemas check:drift
 
   integration:
-    name: Integration (Postgres, RabbitMQ)
+    name: Integration (Postgres, RabbitMQ, OpenBao, Temporal)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -79,12 +79,20 @@ jobs:
         ports: ['5672:5672']
         options: >-
           --health-cmd "rabbitmq-diagnostics -q check_port_connectivity" --health-interval 5s --health-timeout 10s --health-retries 30
+      openbao:
+        image: openbao/openbao:2.7.0
+        env:
+          BAO_DEV_ROOT_TOKEN_ID: adili-test-root-token
+        ports: ['8200:8200']
+        options: >-
+          --cap-add IPC_LOCK --health-cmd "wget -q -O /dev/null http://127.0.0.1:8200/v1/sys/health" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       TEST_DATABASE_URL: postgres://adili_test:adili_test_dev@localhost:5432/adili_test
       TEST_RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
-      # Workflow tests start @temporalio/testing in-process (time-skipping). Set this
-      # to point at a real server only when a ticket needs it.
-      TEST_TEMPORAL_ADDRESS: ''
+      TEST_OPENBAO_URL: http://localhost:8200
+      TEST_OPENBAO_TOKEN: adili-test-root-token
+      TEST_TEMPORAL_ADDRESS: localhost:7233
+      TEST_TEMPORAL_NAMESPACE: adili
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -93,6 +101,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Temporal's single-binary dev server (service containers cannot pass it arguments).
+      - name: Start Temporal
+        run: |
+          docker run -d --name temporal -p 7233:7233 temporalio/temporal:1.6.1 \
+            server start-dev --ip 0.0.0.0 --namespace adili
+          timeout 60 sh -c 'until docker exec temporal temporal operator namespace describe --namespace adili >/dev/null 2>&1; do sleep 1; done'
       - run: pnpm test:integration
 
   python:
