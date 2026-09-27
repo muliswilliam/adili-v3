@@ -4,7 +4,8 @@ import { parseEnv } from 'node:util';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
-// Needs Postgres, SeaweedFS (S3, with SSE-S3 configured and the ADR-002 buckets) and ClamAV.
+// Needs Postgres, SeaweedFS (S3, with SSE-S3 configured and the ADR-002 buckets), ClamAV and
+// Keycloak (with the committed realm import).
 // Defaults point at local infra (`pnpm infra:up`); CI overrides them.
 export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
@@ -18,6 +19,8 @@ export default defineConfig({
       TEST_DATABASE_URL:
         process.env.TEST_DATABASE_URL ??
         'postgres://adili_test:adili_test_dev@localhost:55432/adili_test',
+      TEST_KEYCLOAK_ISSUER_URL:
+        process.env.TEST_KEYCLOAK_ISSUER_URL ?? 'http://localhost:8080/realms/adili',
       TEST_S3_ENDPOINT: process.env.TEST_S3_ENDPOINT ?? 'http://localhost:8333',
       TEST_CLAMAV_HOST: process.env.TEST_CLAMAV_HOST ?? 'localhost',
       TEST_CLAMAV_PORT: process.env.TEST_CLAMAV_PORT ?? '3310',

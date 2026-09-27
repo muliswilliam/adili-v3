@@ -34,6 +34,11 @@ export interface DocumentsApiOptions {
   /** Replaces the clamd scanner, e.g. with one that never answers. */
   scanner?: MalwareScanner;
   completeBudgetMs?: number;
+  /**
+   * Also accept tokens Keycloak issues at this realm (e.g. a service's client credentials
+   * token); locally signed tokens keep working.
+   */
+  keycloakIssuerUrl?: string;
 }
 
 export interface DocumentsApi {
@@ -72,7 +77,7 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
     .overrideProvider(DATABASE)
     .useValue(db)
     .overrideProvider(TokenVerifier)
-    .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
+    .useValue(verifier(jwk, options.keycloakIssuerUrl))
     .overrideProvider(S3)
     .useValue(s3)
     .overrideProvider(S3_PUBLIC)
@@ -133,6 +138,13 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
       await app.close();
     },
   };
+}
+
+function verifier(jwk: JWK, keycloakIssuerUrl: string | undefined): Pick<TokenVerifier, 'verify'> {
+  const local = new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] }));
+  if (!keycloakIssuerUrl) return local;
+  const keycloak = new TokenVerifier(keycloakIssuerUrl, AUDIENCE);
+  return { verify: (token) => local.verify(token).catch(() => keycloak.verify(token)) };
 }
 
 function testS3Client(): S3Client {
