@@ -38,7 +38,7 @@ const IDENTIFY_PROBLEM_CODES = [
   'no-match',
   'no-roster',
   'already-onboarded',
-  'rate-limited',
+  'rate-limit-exceeded',
 ] as const satisfies readonly OnboardingProblemCode[];
 
 type IdentifyProblemCode = (typeof IDENTIFY_PROBLEM_CODES)[number];

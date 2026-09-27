@@ -3836,7 +3836,7 @@ components:
                 - session-expired
                 - iprs-unavailable
                 - identity-unavailable
-                - rate-limited
+                - rate-limit-exceeded
             attemptsLeft:
               type: integer
             retryAfterSeconds:
@@ -4073,7 +4073,7 @@ components:
         $ref: '#/components/schemas/OtpChannel'
   responses:
     RateLimited:
-      description: Problem code `rate-limited`; RateLimit-* headers present
+      description: Problem code `rate-limit-exceeded`; RateLimit-* headers present
       content:
         application/problem+json:
           schema:
