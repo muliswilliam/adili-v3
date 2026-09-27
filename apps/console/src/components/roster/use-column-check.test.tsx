@@ -38,10 +38,16 @@ const inProgress = (importId?: string): DirectoryResult<RosterImport> => ({
   },
 });
 
-function deps(start: DirectoryResult<RosterImport>): ColumnCheckDeps {
+function deps(
+  first: DirectoryResult<RosterImport>,
+  ...then: DirectoryResult<RosterImport>[]
+): ColumnCheckDeps {
+  const starts = [first, ...then];
+  let call = 0;
+  let key = 0;
   return {
     check: vi.fn(() => Promise.resolve(check)),
-    start: vi.fn(() => Promise.resolve(start)),
+    start: vi.fn(() => Promise.resolve(starts[Math.min(call++, starts.length - 1)] ?? first)),
     findRunning: vi.fn(() =>
       Promise.resolve<DirectoryResult<RosterImport | null>>({ ok: true, data: null }),
     ),
@@ -50,7 +56,7 @@ function deps(start: DirectoryResult<RosterImport>): ColumnCheckDeps {
     onViewRunning: vi.fn(),
     onRunningGone: vi.fn(),
     onRunningUnavailable: vi.fn(),
-    newIdempotencyKey: () => '0199a0b4-0000-7000-8000-00000000ffff',
+    newIdempotencyKey: () => `0199a0b4-0000-7000-8000-00000000fff${key++}`,
   };
 }
 
@@ -84,5 +90,42 @@ describe('useColumnCheck: View progress', () => {
     expect(options.findRunning).toHaveBeenCalled();
     expect(options.onRunningGone).toHaveBeenCalled();
     expect(options.onViewRunning).not.toHaveBeenCalled();
+  });
+});
+
+describe('useColumnCheck: Idempotency-Key', () => {
+  const keyInUse: DirectoryResult<RosterImport> = {
+    ok: false,
+    error: {
+      kind: 'problem',
+      problem: { type: 'idempotency-key-in-use', title: 'Request in progress', status: 409 },
+    },
+  };
+  const keysSent = (options: ColumnCheckDeps) =>
+    vi.mocked(options.start).mock.calls.map(([body]) => body.idempotencyKey);
+
+  it('says the start is still processing and retries with the same key', async () => {
+    const options = deps(keyInUse, inProgress(RUNNING));
+    const hook = renderHook(() => useColumnCheck(upload, options));
+    await waitFor(() => {
+      expect(hook.result.current.check.phase).toBe('ready');
+    });
+
+    await act(() => hook.result.current.start());
+    expect(hook.result.current.startFailure).toBe('processing');
+    await act(() => hook.result.current.start());
+
+    const [first, second] = keysSent(options);
+    expect(second).toBe(first);
+  });
+
+  it('takes a new key after a recorded refusal', async () => {
+    const options = deps(inProgress(RUNNING));
+    const { result } = await refusedStart(options);
+
+    await act(() => result.current.start());
+
+    const [first, second] = keysSent(options);
+    expect(second).not.toBe(first);
   });
 });

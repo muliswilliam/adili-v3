@@ -238,6 +238,8 @@ export const en = {
   viewProgress: 'View progress',
   runningGone: 'That import has finished. Start this one now.',
   runningUnavailable: 'The running import could not be opened. Try again.',
+  processingTitle: 'Still starting this import.',
+  processingText: 'Your last try is still being processed. Try again in a few seconds.',
   limitedTitle: 'Too many requests.',
   limitedText: 'Try again in a minute.',
   startFailedTitle: 'The import did not start.',

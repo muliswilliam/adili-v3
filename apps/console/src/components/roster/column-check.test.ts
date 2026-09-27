@@ -118,7 +118,9 @@ describe('checkFailure', () => {
 describe('startFailure', () => {
   it('maps the refusals the step explains', () => {
     expect(startFailure(problem(409, 'import-in-progress'))).toBe('running');
+    expect(startFailure(problem(409, 'idempotency-key-in-use'))).toBe('processing');
     expect(startFailure(problem(409, 'upload-not-clean'))).toBe('upload-gone');
+    expect(startFailure(problem(409, 'something-else'))).toBe('failed');
     expect(startFailure(problem(404))).toBe('upload-gone');
     expect(startFailure(problem(429, 'rate-limit-exceeded'))).toBe('limited');
     expect(startFailure(problem(400))).toBe('failed');
@@ -130,5 +132,9 @@ describe('needsNewIdempotencyKey', () => {
   it('keeps the key after a timeout or outage, not after a problem answer', () => {
     expect(needsNewIdempotencyKey({ kind: 'unavailable', detail: null })).toBe(false);
     expect(needsNewIdempotencyKey(problem(409, 'import-in-progress'))).toBe(true);
+  });
+
+  it('keeps the key while its first request is still being answered', () => {
+    expect(needsNewIdempotencyKey(problem(409, 'idempotency-key-in-use'))).toBe(false);
   });
 });

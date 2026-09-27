@@ -422,6 +422,8 @@ function StartFailed({
           </Button>
         </Problem>
       );
+    case 'processing':
+      return <Problem icon={Clock01Icon} title={m.processingTitle} text={m.processingText} />;
     case 'limited':
       return <Problem icon={Clock01Icon} title={m.limitedTitle} text={m.limitedText} />;
     case 'upload-gone':

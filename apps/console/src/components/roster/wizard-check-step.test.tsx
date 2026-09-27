@@ -152,6 +152,16 @@ describe('WizardCheckStep', () => {
     expect(onViewRunning).toHaveBeenCalled();
   });
 
+  it('says a start still being processed can be tried again shortly', () => {
+    renderStep(ready(allMatched), { startFailure: 'processing' });
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Still starting this import.');
+    expect(alert.textContent).toContain('Try again in a few seconds.');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Start import' }).disabled).toBe(
+      false,
+    );
+  });
+
   it('explains a rate limit', () => {
     renderStep(ready(allMatched), { startFailure: 'limited' });
     expect(screen.getByRole('alert').textContent).toContain('Too many requests.');

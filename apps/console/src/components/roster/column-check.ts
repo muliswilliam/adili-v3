@@ -68,6 +68,11 @@ export function checkFailure(error: DirectoryError): CheckFailure {
 export type StartFailure =
   /** Another import of the Commission is running (409 `import-in-progress`). */
   | 'running'
+  /**
+   * The last try with this Idempotency-Key is still being answered (409
+   * `idempotency-key-in-use`): trying again shortly, with the same key, gets its outcome.
+   */
+  | 'processing'
   /** Rate limited (429). */
   | 'limited'
   /** The upload is gone or not clean (404, or 409 `upload-not-clean`). */
@@ -78,16 +83,24 @@ export function startFailure(error: DirectoryError): StartFailure {
   if (error.kind !== 'problem') return 'failed';
   const { status, type } = error.problem;
   if (status === 429) return 'limited';
-  if (status === 409) return type === 'upload-not-clean' ? 'upload-gone' : 'running';
   if (status === 404) return 'upload-gone';
+  if (status === 409) {
+    if (type === 'import-in-progress') return 'running';
+    if (type === IDEMPOTENCY_KEY_IN_USE) return 'processing';
+    if (type === 'upload-not-clean') return 'upload-gone';
+  }
   return 'failed';
 }
 
+/** api-kit's answer to a key whose first request has not finished; it is not recorded. */
+const IDEMPOTENCY_KEY_IN_USE = 'idempotency-key-in-use';
+
 /**
  * Whether a refused start is final for its Idempotency-Key. A problem answer is recorded against
- * the key, so trying again after the other import finishes needs a new one; a timeout or outage
- * keeps the key, so a start that did go through is not doubled.
+ * the key, so trying again after the other import finishes needs a new one. A timeout or outage
+ * keeps the key, so a start that did go through is not doubled, and so does a key still in use:
+ * its first request may yet start the import.
  */
 export function needsNewIdempotencyKey(error: DirectoryError): boolean {
-  return error.kind === 'problem';
+  return error.kind === 'problem' && error.problem.type !== IDEMPOTENCY_KEY_IN_USE;
 }
