@@ -300,7 +300,7 @@ export function DateInput({
                   onClick={() => {
                     pick(day);
                   }}
-                  className="h-9 rounded-md text-sm tabular-nums outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-[current=date]:font-semibold aria-[current=date]:underline"
+                  className="h-9 rounded-md text-sm tabular-nums outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-[current=date]:font-semibold aria-[current=date]:underline"
                 >
                   {day}
                 </button>

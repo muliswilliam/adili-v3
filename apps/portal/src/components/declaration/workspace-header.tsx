@@ -25,7 +25,7 @@ function Term({ label, explanation }: { label: string; explanation: string }) {
         <button
           type="button"
           aria-label={`What is ${label.toLowerCase()}?`}
-          className="inline-grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
         >
           <Icon icon={InformationCircleIcon} className="size-4" />
         </button>

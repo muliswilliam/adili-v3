@@ -92,7 +92,7 @@ function Row({
       {link ? (
         <Link
           {...link}
-          className="flex min-h-14 items-center gap-3 px-4 py-2.5 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          className="flex min-h-14 items-center gap-3 px-4 py-2.5 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
           {body}
         </Link>

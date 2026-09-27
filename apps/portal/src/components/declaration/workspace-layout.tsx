@@ -119,7 +119,7 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
           <Link
             {...stepLink(declaration.id, 'overview')}
             aria-current={step === 'overview' ? 'page' : undefined}
-            className="grid rounded-md px-2.5 py-1.5 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+            className="grid rounded-md px-2.5 py-1.5 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
           >
             <span className="text-sm font-semibold">{typeLabel}</span>
             <span className="text-[13px] text-muted-foreground">
