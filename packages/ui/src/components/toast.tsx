@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 
 /**
@@ -181,7 +182,9 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
           onDismiss(entry.id);
         }}
         className={cn(
-          '-my-0.5 flex size-6 shrink-0 items-center justify-center rounded-md opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2',
+          focusRing,
+          // The ring hugs the button on the tight pill; it takes the pill's text colour.
+          '-my-0.5 flex size-6 shrink-0 items-center justify-center rounded-md opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-offset-0',
           assertive
             ? 'focus-visible:outline-destructive-foreground'
             : 'focus-visible:outline-background',

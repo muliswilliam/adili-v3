@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { type ComponentProps, createContext, useContext } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 import { isInToastViewport } from './toast';
 
@@ -121,7 +122,10 @@ export function DialogContent({
           {/* Before the content in the DOM, so focus order matches its top-right position. */}
           <DialogClose
             {...{ [DISMISS_ATTRIBUTE]: '' }}
-            className="absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6"
+            className={cn(
+              focusRing,
+              'absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6',
+            )}
           >
             <Icon icon={Cancel01Icon} className="size-[18px]" />
             <span className="sr-only">Close</span>

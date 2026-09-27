@@ -102,4 +102,5 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
+export { focusRing } from './lib/focus';
 export { formatDate, formatDateTime } from './lib/format-date';

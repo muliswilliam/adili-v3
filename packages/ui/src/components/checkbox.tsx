@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { useFieldIds } from '../lib/use-field-ids';
 import { FieldError, FieldHint } from './form-field';
 
@@ -12,7 +13,8 @@ export function Checkbox({ className, ...props }: CheckboxProps) {
     <input
       type="checkbox"
       className={cn(
-        'peer size-[18px] shrink-0 cursor-pointer rounded-sm accent-primary outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50',
+        focusRing,
+        'peer size-[18px] shrink-0 cursor-pointer rounded-sm accent-primary disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}

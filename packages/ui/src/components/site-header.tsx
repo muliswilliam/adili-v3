@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Logo } from './logo';
 
 export type SiteHeaderProps = ComponentProps<'header'> & {
@@ -24,10 +25,7 @@ export function SiteHeader({
       {...props}
     >
       <div className="mx-auto flex h-[60px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-7">
-        <a
-          href={homeHref}
-          className="-mx-1.5 rounded-md px-1.5 py-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
+        <a href={homeHref} className={cn(focusRing, '-mx-1.5 rounded-md px-1.5 py-1')}>
           <Logo product={product} />
         </a>
         {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
