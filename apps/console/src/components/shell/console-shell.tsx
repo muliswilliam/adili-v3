@@ -1,4 +1,4 @@
-import { Badge, Button, cn, Icon, LogoWordmark } from '@adili/ui';
+import { Badge, Button, cn, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 import { Link, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
@@ -27,7 +27,9 @@ export interface ConsoleShellProps {
 
 /**
  * Signed-in console layout (the kit's `consoleShell`): a 248px sidebar from 1024px, and below
- * that a menu button in the top bar that opens the same sidebar as a drawer.
+ * that a menu button in the top bar that opens the same sidebar as a drawer. The site footer
+ * closes the main column, so the sidebar keeps the full height of the window however far the
+ * page scrolls.
  */
 export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleShellProps) {
   const drawer = useRef<HTMLDialogElement>(null);
@@ -80,6 +82,11 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
           <Breadcrumbs />
         </header>
         {children}
+        {/* Lined up with a page's content (`Page`). */}
+        <SiteFooter
+          className="mt-auto"
+          contentClassName="max-w-[1280px] sm:px-4 min-[700px]:px-7!"
+        />
       </div>
     </div>
   );
