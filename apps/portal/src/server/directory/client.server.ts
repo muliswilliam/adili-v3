@@ -27,3 +27,16 @@ export function onboardingClient(clientIp?: string) {
 }
 
 export type OnboardingClient = ReturnType<typeof onboardingClient>;
+
+/** Typed client for the directory's authenticated endpoints, called as the signed-in user. */
+export function directoryClient(accessToken: string) {
+  const config = env();
+  const send = config.DIRECTORY_MOCK ? mockDirectoryFetch : fetch;
+  return createClient<paths>({
+    baseUrl: config.DIRECTORY_API_URL,
+    headers: { accept: 'application/json', authorization: `Bearer ${accessToken}` },
+    fetch: (request) => send(new Request(request, { signal: AbortSignal.timeout(TIMEOUT_MS) })),
+  });
+}
+
+export type DirectoryClient = ReturnType<typeof directoryClient>;

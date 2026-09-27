@@ -1,6 +1,7 @@
 /**
- * In-memory stand-in for the directory's public onboarding endpoints (contract draft, spec 03),
- * used when DIRECTORY_MOCK is set until the directory implements them (#67).
+ * In-memory stand-in for the directory's public onboarding endpoints and `GET /v1/me/declarant`
+ * (contract draft, spec 03), used when DIRECTORY_MOCK is set until the directory implements them
+ * (#67).
  *
  * Demo declarants (personnel file number / national ID):
  * - TSC/100200 / 12345678 at the Teachers Service Commission: match, codes go to the roster
@@ -17,6 +18,10 @@
  * Anything else is `no-match`; five misses from one address in a row are rate-limited.
  * The Judicial Service Commission has no roster yet.
  *
+ * `GET /v1/me/declarant` reads the bearer token's claims without checking its signature. A user
+ * with the `declarant` realm role gets the profile listed under their username in
+ * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 404.
+ *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
  * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
  * set-password email can be sent again after the same 60 seconds.
@@ -24,6 +29,7 @@
 import { maskContact } from '@adili/ui';
 
 import type {
+  DeclarantProfile,
   IdentifyDeclarant,
   OnboardingCommission,
   OnboardingProblem,
@@ -136,6 +142,85 @@ const ROSTER: RosterRecord[] = [
     confirmFailures: ['iprs-unavailable', 'identity-unavailable'],
   },
 ];
+
+const DEMO_DECLARANT: DeclarantProfile = {
+  personId: '5b0c8f7e-3f5d-4d59-9a53-0d6c1f0b2a11',
+  ofr: 'OFR-0000312-7',
+  fullName: 'Mwangi Njoroge Kamau',
+  contacts: { email: 'mwangi.kamau@tsc.go.ke', phone: '+254712345789' },
+  commissions: [
+    {
+      slug: 'tsc',
+      name: 'Teachers Service Commission',
+      personnelFileNumber: 'TSC/999999',
+      rosterRecordId: '0f8e1c52-6a7b-4c3d-8e9f-1a2b3c4d5e6f',
+      state: 'onboarded',
+      onboardedAt: '2026-09-26T07:42:00Z',
+    },
+  ],
+};
+
+/** Profiles by Keycloak username (the OFR); users with the declarant role fall back to the demo. */
+export const DECLARANT_PROFILES: Record<string, DeclarantProfile> = {
+  'OFR-0000417-4': {
+    personId: '8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5',
+    ofr: 'OFR-0000417-4',
+    fullName: 'Grace Wambui Njeri',
+    contacts: { email: 'grace.njeri@npsc.go.ke', phone: '+254712345901' },
+    commissions: [
+      {
+        slug: 'psc',
+        name: 'Public Service Commission',
+        personnelFileNumber: 'PSC/2009/118204',
+        rosterRecordId: '3c2b1a09-8f7e-4d6c-9b5a-4a3b2c1d0e9f',
+        state: 'onboarded',
+        onboardedAt: '2026-03-12T09:15:00Z',
+      },
+      {
+        slug: 'npsc',
+        name: 'National Police Service Commission',
+        personnelFileNumber: 'NPSC/400500',
+        rosterRecordId: '7e6d5c4b-3a29-4f18-8e07-6d5c4b3a2918',
+        state: 'onboarded',
+        onboardedAt: '2026-09-26T10:05:00Z',
+      },
+    ],
+  },
+};
+
+interface TokenClaims {
+  preferred_username?: string;
+  realm_access?: { roles?: string[] };
+}
+
+/** The claims of a bearer token, unverified; the mock trusts whatever the BFF sends. */
+function bearerClaims(request: Request): TokenClaims | null {
+  const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
+  const payload = token?.split('.')[1];
+  if (!payload) return null;
+  try {
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as TokenClaims;
+  } catch {
+    return null;
+  }
+}
+
+function myDeclarantProfile(request: Request) {
+  const claims = bearerClaims(request);
+  if (!claims) return json(401, { type: 'about:blank', title: 'Unauthorized', status: 401 });
+  const username = claims.preferred_username ?? '';
+  const profile =
+    DECLARANT_PROFILES[username] ??
+    (claims.realm_access?.roles?.includes('declarant') ? DEMO_DECLARANT : undefined);
+  if (!profile) {
+    return json(404, {
+      type: 'about:blank',
+      title: 'The caller is not an onboarded declarant',
+      status: 404,
+    });
+  }
+  return json(200, profile);
+}
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const STEP_EXTENSION_MS = 10 * 60 * 1000;
@@ -478,6 +563,10 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
       200,
       ONBOARDING_COMMISSIONS.filter((entry) => entry.name.toLowerCase().includes(search)),
     );
+  }
+
+  if (request.method === 'GET' && path === '/v1/me/declarant') {
+    return myDeclarantProfile(request);
   }
 
   if (request.method === 'POST' && path === '/v1/onboarding/sessions') {
