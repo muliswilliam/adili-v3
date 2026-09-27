@@ -1,7 +1,7 @@
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { describe, expect, it } from 'vitest';
 
-import { withDraft } from '../../src/contract/draft.js';
+import { withDraft } from '../src/contract.js';
 
 const implemented: OpenAPIObject = {
   openapi: '3.1.0',

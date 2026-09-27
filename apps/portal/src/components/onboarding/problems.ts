@@ -39,7 +39,7 @@ export const PROBLEM_COPY: Record<OnboardingProblemCode, (context: ProblemContex
   'iprs-unavailable': () =>
     'The national register is not responding. Wait a few minutes and try again.',
   'identity-unavailable': () => 'Your account could not be created. Try again.',
-  'rate-limited': ({ retryAfterSeconds }) =>
+  'rate-limit-exceeded': ({ retryAfterSeconds }) =>
     `Too many attempts. Try again in ${plural(minutesFrom(retryAfterSeconds ?? 60), 'minute', 'minutes')}.`,
 };
 

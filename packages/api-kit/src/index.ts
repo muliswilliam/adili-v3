@@ -76,6 +76,7 @@ export {
   takeToken,
   type TokenBucket,
 } from './rate-limit/rate-limit.store.js';
+export { type ContractExportOptions, exportContract } from './contract.js';
 export {
   ApiProblemResponse,
   ApiQueryParameters,

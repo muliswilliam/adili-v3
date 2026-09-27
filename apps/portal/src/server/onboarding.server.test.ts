@@ -84,7 +84,7 @@ describe('identify', () => {
 
     const { result } = await identify(client(), teacher);
 
-    expect(result).toMatchObject({ ok: false, code: 'rate-limited' });
+    expect(result).toMatchObject({ ok: false, code: 'rate-limit-exceeded' });
     expect(result.ok ? 0 : result.retryAfterSeconds).toBeGreaterThan(0);
   });
 

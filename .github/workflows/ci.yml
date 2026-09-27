@@ -67,7 +67,7 @@ jobs:
       - name: Meta-validate form JSON Schemas
         run: pnpm --filter @adili/schemas lint:forms
       # Services with a `contracts` script export their OpenAPI; each export must equal the
-      # committed packages/schemas/internal/<service>.yaml.
+      # committed packages/schemas/internal/<service>.yaml (directory, documents).
       - name: Internal contracts match the services
         run: pnpm contracts:drift
 

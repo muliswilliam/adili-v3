@@ -1482,7 +1482,7 @@ export interface components {
         };
         OnboardingProblem: components["schemas"]["ProblemDetails"] & {
             /** @enum {string} */
-            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limited";
+            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limit-exceeded";
             attemptsLeft?: number;
             retryAfterSeconds?: number;
             /** @description Present for already-onboarded */
@@ -1566,7 +1566,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Problem code `rate-limited`; RateLimit-* headers present */
+        /** @description Problem code `rate-limit-exceeded`; RateLimit-* headers present */
         RateLimited: {
             headers: {
                 [name: string]: unknown;
