@@ -357,7 +357,7 @@ function identify(body: IdentifyDeclarant, clientIp: string) {
 
   if (record.onboarded || onboarded.has(record)) {
     return problem(409, 'already-onboarded', 'Already onboarded', {
-      links: { signIn: '/auth/login', recoverAccess: '/auth/login?action=recover' },
+      links: { signIn: '/auth/login', recoverAccess: '/auth/recover' },
     });
   }
   return json(201, createSession(record, commission));

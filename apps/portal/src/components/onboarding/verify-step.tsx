@@ -36,6 +36,7 @@ const COPY = {
     noContact: 'No email on file. Enter one to get your code.',
     label: 'Email address',
     placeholder: 'name@example.com',
+    hint: undefined,
   },
   phone: {
     title: 'Verify your phone',
@@ -45,6 +46,7 @@ const COPY = {
     noContact: 'No mobile number on file. Enter one to get your code.',
     label: 'Mobile number',
     placeholder: '0712 345 678',
+    hint: 'Kenyan mobile, e.g. 0712 345 678',
   },
 } as const;
 
@@ -262,6 +264,8 @@ function ResendCode({
   async function resend() {
     if (sending) return;
     // One more code would end the session in the directory, so say why rather than ask for it.
+    // Contract gap: the directory has no call to end a session, so this only forgets it in this
+    // browser (leaveOnboarding) and the directory's copy lapses at its expiry. Flagged on #386.
     if (resendsLeft <= 0) {
       await startAgain('too-many');
       return;
@@ -364,7 +368,7 @@ function ContactForm({ channel, settle }: { channel: OtpChannel; settle: Settle 
         className="mt-[22px] grid gap-4"
       >
         {failure ? <StepFailureAlert ref={alertRef} message={failure} /> : null}
-        <FormField label={copy.label} error={error}>
+        <FormField label={copy.label} hint={copy.hint} error={error}>
           <Input
             ref={inputRef}
             name={channel}

@@ -166,6 +166,25 @@ describe('VerifyStep', () => {
     expect(link.disabled).toBe(true);
   });
 
+  it('shows the Kenyan mobile hint when the declarant enters a phone', () => {
+    render(
+      <ToastProvider>
+        <VerifyStep
+          channel="phone"
+          route="/get-started/verify-phone"
+          guard={{
+            status: 'active',
+            session: { ...session(), state: 'phone-contact-required' },
+          }}
+        />
+      </ToastProvider>,
+    );
+
+    const input = screen.getByRole('textbox', { name: 'Mobile number' });
+    const hint = screen.getByText('Kenyan mobile, e.g. 0712 345 678');
+    expect(input.getAttribute('aria-describedby')).toContain(hint.id);
+  });
+
   it('offers to start again for a contact the declarant typed', () => {
     const typed = session();
     typed.contacts.email = {
