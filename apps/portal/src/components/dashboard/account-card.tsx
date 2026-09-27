@@ -10,11 +10,12 @@ import {
   CardHeader,
   CardIcon,
   CardTitle,
-  CopyButton,
   DescriptionItem,
   DescriptionList,
+  formatDate,
   Icon,
   MaskedContact,
+  OfficerReference,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -26,11 +27,10 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import type { DeclarantAccount } from '../../server/declarant.server';
-import { formatDate } from './format-date';
 
 /** "Your account" for an onboarded declarant: Commission, OFR to copy, verified contacts. */
 export function DeclarantCard({ account }: { account: DeclarantAccount }) {
-  const several = account.commissions.length > 1;
+  const multipleCommissions = account.commissions.length > 1;
   return (
     <Card>
       <CardHeader className="flex-row items-center gap-3">
@@ -44,8 +44,10 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
       </CardHeader>
       <CardContent>
         <DescriptionList>
-          <DescriptionItem term={several ? 'Responsible Commissions' : 'Responsible Commission'}>
-            {several ? (
+          <DescriptionItem
+            term={multipleCommissions ? 'Responsible Commissions' : 'Responsible Commission'}
+          >
+            {multipleCommissions ? (
               <ul className="grid gap-0.5">
                 {account.commissions.map((commission) => (
                   <li key={commission.slug}>{commission.name}</li>
@@ -56,15 +58,7 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
             )}
           </DescriptionItem>
           <DescriptionItem term="Officer reference" className="items-center">
-            <span className="inline-flex items-center gap-1">
-              <span className="font-mono font-semibold tracking-[0.02em]">{account.ofr}</span>
-              <CopyButton
-                value={account.ofr}
-                label="Copy officer reference"
-                copiedMessage="Officer reference copied"
-                className="-my-1.5"
-              />
-            </span>
+            <OfficerReference value={account.ofr} />
           </DescriptionItem>
           <DescriptionItem term="Email">
             <Contact kind="email" value={account.maskedEmail} />
@@ -79,7 +73,7 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
         <ul className="grid gap-0.5">
           {account.commissions.map((commission) => (
             <li key={commission.slug}>
-              {several
+              {multipleCommissions
                 ? `Onboarded at ${commission.name} on ${formatDate(commission.onboardedAt)}`
                 : `Onboarded on ${formatDate(commission.onboardedAt)}`}
             </li>
@@ -98,7 +92,7 @@ function Contact({ kind, value }: { kind: 'email' | 'phone'; value: string | nul
 }
 
 /**
- * The signed-in user has no onboarded roster record (`GET /v1/me/declarant` answered 404), so
+ * The signed-in person has no onboarded roster record (`GET /v1/me/declarant` answered 404), so
  * there is nothing to declare yet. Points public officers to Get started.
  */
 export function NotDeclarantCard() {

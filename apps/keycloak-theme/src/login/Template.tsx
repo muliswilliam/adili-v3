@@ -1,4 +1,12 @@
-import { Alert, AlertDescription, Icon, type IconProps, LogoMark } from '@adili/ui';
+import {
+  Alert,
+  AlertDescription,
+  Icon,
+  type IconProps,
+  LogoMark,
+  StatusMark,
+  type StatusMarkTone,
+} from '@adili/ui';
 import {
   Alert02Icon,
   AlertCircleIcon,
@@ -21,16 +29,9 @@ const messageIcons = {
   info: InformationCircleIcon,
 } as const;
 
-const markTones = {
-  success: 'bg-success-subtle text-success-subtle-foreground',
-  warning: 'bg-warning-subtle text-warning-subtle-foreground',
-  destructive: 'bg-destructive-subtle text-destructive-subtle-foreground',
-  neutral: 'bg-muted text-foreground',
-} as const;
-
 export interface PageMark {
   icon: IconProps['icon'];
-  tone: keyof typeof markTones;
+  tone: StatusMarkTone;
 }
 
 export type AdiliTemplateProps = TemplateProps<KcContext, I18n> & {
@@ -98,14 +99,7 @@ export default function Template(props: AdiliTemplateProps) {
                   </a>
                 </div>
               ) : null}
-              {mark ? (
-                <div
-                  aria-hidden="true"
-                  className={`mb-1 flex size-14 items-center justify-center rounded-full ${markTones[mark.tone]}`}
-                >
-                  <Icon icon={mark.icon} className="size-7" />
-                </div>
-              ) : null}
+              {mark ? <StatusMark icon={mark.icon} tone={mark.tone} className="mb-1" /> : null}
               <h1 id="kc-page-title" className="text-lg font-semibold tracking-tight">
                 {headerNode}
               </h1>

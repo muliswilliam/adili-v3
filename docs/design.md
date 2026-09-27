@@ -126,6 +126,12 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `OtpInput` | `.otp` | 54 × 58px boxes, 24px semibold digits, 8px apart with a 10px gap between the halves; 1.5px ring on focus and on error; disabled boxes fill `muted` |
 | `MaskedContact` | `.masked`, `.vbadge-ok` | semibold tabular value; the optional verified badge is `success` with a tick |
 | `CopyButton` | copy button in the portal gallery | 36px ghost icon button, or `sm` with its label shown; confirms with a polite toast |
+| `OfficerReference` | `.mono` officer reference in the portal dashboard | the officer reference in semibold mono with a `CopyButton` after it |
+| `FilterChip` | `.chip`, `.chip.on` | 32px pill toggle, 13.5px medium, with an optional icon and count; ink when pressed, a control ring when not; state in `aria-pressed` |
+| `Spinner` | `.spinner` | 18px ring in the current text colour, spinning (still when reduced motion is set); decorative |
+| `StatusMark` | state icon on login outcome pages | 56px circle with a 28px icon above an outcome or error title; tones `success`, `warning`, `destructive`, `neutral` on their soft fills |
+
+Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 
 ## Dark theme
 

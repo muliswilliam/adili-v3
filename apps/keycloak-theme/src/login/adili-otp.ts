@@ -5,8 +5,6 @@
  * here only together with the Java side.
  */
 
-export const ADILI_OTP_PAGE_ID = 'login-adili-otp.ftl';
-
 export type OtpChannel = 'sms' | 'email';
 
 /** Attributes the authenticator puts on the page (KcContextExtensionPerPage). */
@@ -63,6 +61,8 @@ export const OTP_ACTIONS = {
 export type OtpAction = (typeof OTP_ACTIONS)[keyof typeof OTP_ACTIONS];
 
 /**
+ * Not read by the theme: kept to document the Java side of the contract.
+ *
  * Message keys the authenticator sets (`form.setError(key)`) when it stops the sign-in and sends
  * the user back to login.ftl. The theme defines their text (see i18n.ts), so Keycloak resolves
  * them from the theme's messages bundle.

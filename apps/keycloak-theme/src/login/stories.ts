@@ -89,7 +89,10 @@ export const stories = {
   'update-password-rejected': story('login-update-password.ftl', () =>
     fieldError(['password'], 'Invalid password: must not be equal to any of last 3 passwords.'),
   ),
-  'update-password-staff': story('login-update-password.ftl', () => staff),
+  'update-password-staff': story('login-update-password.ftl', () => ({
+    ...staff,
+    passwordPolicies: { length: 12, notEmail: true },
+  })),
 
   // Set-password link (execute-actions)
   'actions-landing': story('info.ftl', () => ({

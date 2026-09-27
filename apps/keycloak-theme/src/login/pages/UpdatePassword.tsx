@@ -1,4 +1,4 @@
-import { Button, CheckboxItem, cn, Icon, Input, Label } from '@adili/ui';
+import { Button, CheckboxItem, cn, Icon, Input, Label, Spinner } from '@adili/ui';
 import {
   AlertCircleIcon,
   Tick02Icon,
@@ -11,10 +11,9 @@ import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { type InputHTMLAttributes, type Ref, useRef, useState } from 'react';
 
 import { PageAlert } from '../components/PageAlert';
-import { Spinner } from '../components/Spinner';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { audienceOf } from '../shared';
+import { type Audience, audienceCopy, audienceOf } from '../shared';
 import Template from '../Template';
 
 type UpdatePasswordProps = PageProps<
@@ -22,61 +21,62 @@ type UpdatePasswordProps = PageProps<
   I18n
 >;
 
-/** Used when Keycloak does not pass the realm policy: the design's 12 characters, no identifier. */
-export const DEFAULT_POLICY: PasswordPolicies = { length: 12, notUsername: true, notEmail: true };
-
 interface Rule {
   label: string;
   /** Checked as the user types; rules the page cannot check (the identifier) have none. */
   met?: (password: string) => boolean;
 }
 
-const count = (password: string, pattern: RegExp) => password.match(pattern)?.length ?? 0;
+type CountedPolicy = 'length' | 'digits' | 'upperCase' | 'lowerCase' | 'specialChars';
 
+/** The realm's minimum-count policies, in the order they are listed. */
+const COUNTED_RULES: readonly {
+  policy: CountedPolicy;
+  label:
+    | 'adiliRuleLength'
+    | 'adiliRuleDigits'
+    | 'adiliRuleUpperCase'
+    | 'adiliRuleLowerCase'
+    | 'adiliRuleSpecialChars';
+  count: (password: string) => number;
+}[] = [
+  { policy: 'length', label: 'adiliRuleLength', count: (p) => p.length },
+  { policy: 'digits', label: 'adiliRuleDigits', count: (p) => matches(p, /\d/g) },
+  { policy: 'upperCase', label: 'adiliRuleUpperCase', count: (p) => matches(p, /\p{Lu}/gu) },
+  { policy: 'lowerCase', label: 'adiliRuleLowerCase', count: (p) => matches(p, /\p{Ll}/gu) },
+  {
+    policy: 'specialChars',
+    label: 'adiliRuleSpecialChars',
+    count: (p) => matches(p, /[^\p{L}\p{N}\s]/gu),
+  },
+];
+
+function matches(password: string, pattern: RegExp): number {
+  return password.match(pattern)?.length ?? 0;
+}
+
+/**
+ * The rules the realm enforces, from Keycloak's `passwordPolicies`. None when Keycloak does not
+ * pass the policy: the page does not guess at rules the realm may not have.
+ */
 export function passwordRules(
-  policy: PasswordPolicies,
+  policy: PasswordPolicies | undefined,
   i18n: I18n,
-  audience: 'declarant' | 'staff',
+  audience: Audience,
 ): Rule[] {
-  const { msgStr } = i18n;
+  if (!policy) return [];
   const rules: Rule[] = [];
-  const { length, digits, upperCase, lowerCase, specialChars } = policy;
-  if (length) {
-    rules.push({
-      label: msgStr('adiliRuleLength', String(length)),
-      met: (p) => p.length >= length,
-    });
-  }
-  if (digits) {
-    rules.push({
-      label: msgStr('adiliRuleDigits', String(digits)),
-      met: (p) => count(p, /\d/g) >= digits,
-    });
-  }
-  if (upperCase) {
-    rules.push({
-      label: msgStr('adiliRuleUpperCase', String(upperCase)),
-      met: (p) => count(p, /\p{Lu}/gu) >= upperCase,
-    });
-  }
-  if (lowerCase) {
-    rules.push({
-      label: msgStr('adiliRuleLowerCase', String(lowerCase)),
-      met: (p) => count(p, /\p{Ll}/gu) >= lowerCase,
-    });
-  }
-  if (specialChars) {
-    rules.push({
-      label: msgStr('adiliRuleSpecialChars', String(specialChars)),
-      met: (p) => count(p, /[^\p{L}\p{N}\s]/gu) >= specialChars,
-    });
+  for (const { policy: name, label, count } of COUNTED_RULES) {
+    const minimum = policy[name];
+    if (minimum) {
+      rules.push({
+        label: i18n.msgStr(label, String(minimum)),
+        met: (password) => count(password) >= minimum,
+      });
+    }
   }
   if (policy.notUsername || policy.notEmail) {
-    rules.push({
-      label: msgStr(
-        audience === 'staff' ? 'adiliRuleNotIdentifierStaff' : 'adiliRuleNotIdentifierDeclarant',
-      ),
-    });
+    rules.push({ label: audienceCopy(audience, i18n).msgStr('ruleNotIdentifier') });
   }
   return rules;
 }
@@ -102,7 +102,7 @@ export default function UpdatePassword({
   const serverError = messagesPerField.existsError('password', 'password-confirm')
     ? messagesPerField.getFirstError('password', 'password-confirm')
     : undefined;
-  const rules = passwordRules(passwordPolicies ?? DEFAULT_POLICY, i18n, audienceOf(kcContext));
+  const rules = passwordRules(passwordPolicies, i18n, audienceOf(kcContext));
   const mismatch = confirmation !== '' && confirmation !== password;
 
   return (
@@ -148,40 +148,45 @@ export default function UpdatePassword({
               setPassword(event.target.value);
             }}
             aria-invalid={serverError ? true : undefined}
-            aria-describedby="password-rules"
+            aria-describedby={rules.length > 0 ? 'password-rules' : undefined}
           />
-          <ul
-            id="password-rules"
-            aria-label={msgStr('adiliPasswordRules')}
-            className="grid gap-1 text-[13px] text-muted-foreground"
-          >
-            {rules.map((rule) => {
-              const met = rule.met?.(password);
-              return (
-                <li
-                  key={rule.label}
-                  className={cn('flex items-center gap-2', met && 'text-success-subtle-foreground')}
-                >
-                  <span
-                    aria-hidden="true"
+          {rules.length > 0 ? (
+            <ul
+              id="password-rules"
+              aria-label={msgStr('adiliPasswordRules')}
+              className="grid gap-1 text-[13px] text-muted-foreground"
+            >
+              {rules.map((rule) => {
+                const met = rule.met?.(password);
+                return (
+                  <li
+                    key={rule.label}
                     className={cn(
-                      'flex size-4 items-center justify-center rounded-full border',
-                      met && 'border-transparent bg-success text-white',
+                      'flex items-center gap-2',
+                      met && 'text-success-subtle-foreground',
                     )}
                   >
-                    {met ? <Icon icon={Tick02Icon} className="size-3" strokeWidth={3} /> : null}
-                  </span>
-                  {rule.label}
-                  {rule.met ? (
-                    <span className="sr-only">
-                      {' '}
-                      {msgStr(met ? 'adiliRuleMet' : 'adiliRuleNotMet')}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'flex size-4 items-center justify-center rounded-full border',
+                        met && 'border-transparent bg-success text-white',
+                      )}
+                    >
+                      {met ? <Icon icon={Tick02Icon} className="size-3" strokeWidth={3} /> : null}
                     </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+                    {rule.label}
+                    {rule.met ? (
+                      <span className="sr-only">
+                        {' '}
+                        {msgStr(met ? 'adiliRuleMet' : 'adiliRuleNotMet')}
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
 
         <div className="grid gap-2">

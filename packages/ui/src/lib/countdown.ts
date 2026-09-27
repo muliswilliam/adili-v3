@@ -6,15 +6,16 @@ export function useCountdown(initialSeconds = 0): [number, (seconds: number) => 
     initialSeconds > 0 ? Date.now() + initialSeconds * 1000 : null,
   );
   const [now, setNow] = useState(() => Date.now());
+  const done = until === null || until <= now;
   useEffect(() => {
-    if (until === null) return;
+    if (done) return;
     const timer = setInterval(() => {
       setNow(Date.now());
     }, 1000);
     return () => {
       clearInterval(timer);
     };
-  }, [until]);
+  }, [done]);
   function start(seconds: number) {
     const started = Date.now();
     setNow(started);
@@ -24,24 +25,28 @@ export function useCountdown(initialSeconds = 0): [number, (seconds: number) => 
   return [left, start];
 }
 
-/** Whole seconds from now until an ISO time, never negative. */
-export function secondsUntil(iso: string | null, now = Date.now()): number {
-  if (iso === null) return 0;
-  return Math.max(0, Math.ceil((Date.parse(iso) - now) / 1000));
+/** Whole seconds from now until an ISO time; 0 when it is absent, unreadable or past. */
+export function secondsUntil(iso: string | null | undefined, now = Date.now()): number {
+  if (!iso) return 0;
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return 0;
+  return Math.max(0, Math.ceil((time - now) / 1000));
 }
 
+/** `75` → `1:15`. */
 export function formatClock(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-/** The coarse steps a screen reader hears; every other tick stays silent. */
-const ANNOUNCED_AT = [120, 60, 30, 10, 0];
+/** Screen readers hear the countdown every 10 seconds; the ticks in between stay silent. */
+const ANNOUNCE_EVERY = 10;
 
 /**
  * What to announce when a countdown moves from `previous` to `current` seconds left, or null.
- * Compares ranges rather than exact values, so a tick skipped by a throttled background tab
- * still announces the step it passed.
+ * Announces when the countdown reaches or passes a 10-second step (50, 40, ... 0). Compares
+ * ranges rather than exact values, so a tick skipped by a throttled background tab still
+ * announces the step it passed.
  */
 export function countdownAnnouncement(
   previous: number,
@@ -49,6 +54,7 @@ export function countdownAnnouncement(
   describe: (seconds: number) => string,
 ): string | null {
   if (current >= previous) return null;
-  const step = ANNOUNCED_AT.find((mark) => previous > mark && current <= mark);
-  return step === undefined ? null : describe(current);
+  // The highest step below `previous`.
+  const step = Math.floor((previous - 1) / ANNOUNCE_EVERY) * ANNOUNCE_EVERY;
+  return step >= current ? describe(current) : null;
 }
