@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiAcceptedResponse,
   ApiBody,
@@ -9,6 +19,8 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -19,12 +31,20 @@ import {
 import { z } from 'zod';
 
 import { REPORTING_OFFICER_ROLE } from '../../commissions/access.js';
+import { RECORD_READ_ROLES } from '../records/access.js';
+import { RosterImportRowsService } from './import-rows.service.js';
 import { RosterImportsService } from './imports.service.js';
 import {
+  type ListRosterImportRowsQuery,
+  listRosterImportRowsQuery,
+  type ListRosterImportsQuery,
+  listRosterImportsQuery,
   type PreviewRosterImportBody,
   previewRosterImportBody,
   type RosterImport,
+  type RosterImportPage,
   type RosterImportPreview,
+  type RosterImportRowPage,
   type StartFileImportBody,
   startFileImportBody,
 } from './representation.js';
@@ -46,11 +66,37 @@ const UPLOAD_PROBLEMS = {
     'Problem type `documents-unavailable`: the file cannot be read right now; safe to retry',
 };
 
+const ROWS_PURGED =
+  'Problem type `import-rows-purged`: the import ended over 30 days ago and its rows were purged; its counts remain';
+
 @ApiTags('roster')
 @Controller('v1/commissions/:slug/roster/imports')
 @ApiParam({ name: 'slug', schema: schemaRef('Slug') })
 export class RosterImportsController {
-  constructor(private readonly imports: RosterImportsService) {}
+  constructor(
+    private readonly imports: RosterImportsService,
+    private readonly rows: RosterImportRowsService,
+  ) {}
+
+  @Get()
+  @Roles(...IMPORT_READ_ROLES)
+  @ApiOperation({
+    operationId: 'listRosterImports',
+    summary: 'Import history, newest first',
+    description:
+      "The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.",
+  })
+  @ApiQueryParameters(listRosterImportsQuery)
+  @ApiOkResponse({ description: 'Page of imports', schema: schemaRef('RosterImportPage') })
+  @ApiProblemResponse(400, 'Query failed validation, or the cursor is unknown')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Param('slug') slug: string,
+    @Query(new ZodValidationPipe(listRosterImportsQuery)) query: ListRosterImportsQuery,
+  ): Promise<RosterImportPage> {
+    return this.imports.list(principal, slug, query);
+  }
 
   @Post()
   @Roles(REPORTING_OFFICER_ROLE)
@@ -68,7 +114,8 @@ export class RosterImportsController {
   @ApiProblemResponse(404, `${NOT_VISIBLE}. ${UPLOAD_PROBLEMS.notFound}`)
   @ApiProblemResponse(
     409,
-    `Problem type \`import-in-progress\`: another import of the Commission is still running. ${UPLOAD_PROBLEMS.notClean}`,
+    `Problem type \`import-in-progress\`: another import of the Commission is still running; \`importId\` names it. ${UPLOAD_PROBLEMS.notClean}`,
+    'ImportConflictProblem',
   )
   @ApiProblemResponse(502, UPLOAD_PROBLEMS.unavailable)
   @ApiProblemResponse(
@@ -128,5 +175,61 @@ export class RosterImportsController {
     @Param('importId', new ZodValidationPipe(z.uuid())) id: string,
   ): Promise<RosterImport> {
     return this.imports.get(principal, slug, id);
+  }
+
+  @Get(':importId/rows')
+  @Roles(...RECORD_READ_ROLES)
+  @AuditedRead({ action: 'roster.import-rows.listed', resource: 'roster-import' })
+  @ApiParam({ name: 'importId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'listRosterImportRows',
+    summary: "An import's rows with their status, errors and outcome, by row number",
+    description:
+      "Read like roster records, as rows hold personal data: the Commission's reporting officer and commission admin, and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`).",
+  })
+  @ApiQueryParameters(listRosterImportRowsQuery)
+  @ApiOkResponse({ description: 'Page of rows', schema: schemaRef('RosterImportRowPage') })
+  @ApiProblemResponse(
+    400,
+    'Query failed validation, the cursor is unknown, or importId is not a UUID',
+  )
+  @ApiProblemResponse(404, `${NOT_VISIBLE}, or no such import`)
+  @ApiProblemResponse(410, ROWS_PURGED)
+  listRows(
+    @CurrentPrincipal() principal: Principal,
+    @Param('slug') slug: string,
+    @Param('importId', new ZodValidationPipe(z.uuid())) id: string,
+    @Query(new ZodValidationPipe(listRosterImportRowsQuery)) query: ListRosterImportRowsQuery,
+  ): Promise<RosterImportRowPage> {
+    return this.rows.list(principal, slug, id, query);
+  }
+
+  @Get(':importId/report.csv')
+  @Roles(...RECORD_READ_ROLES)
+  @AuditedRead({ action: 'roster.import-report.downloaded', resource: 'roster-import' })
+  @ApiParam({ name: 'importId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'getRosterImportReportCsv',
+    summary: 'Rejected rows as CSV with reason columns appended',
+    description:
+      "Same callers as `listRosterImportRows`. One line per rejected row, in row order: the nine template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`).",
+  })
+  @ApiOkResponse({
+    description: 'The rejected rows',
+    content: { 'text/csv': { schema: { type: 'string' } } },
+  })
+  @ApiProblemResponse(400, 'importId is not a UUID')
+  @ApiProblemResponse(404, `${NOT_VISIBLE}, or no such import`)
+  @ApiProblemResponse(410, ROWS_PURGED)
+  async report(
+    @CurrentPrincipal() principal: Principal,
+    @Param('slug') slug: string,
+    @Param('importId', new ZodValidationPipe(z.uuid())) id: string,
+  ): Promise<StreamableFile> {
+    const report = await this.rows.report(principal, slug, id);
+    return new StreamableFile(report.body, {
+      type: 'text/csv; charset=utf-8',
+      disposition: `attachment; filename="${report.fileName}"`,
+    });
   }
 }

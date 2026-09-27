@@ -50,6 +50,7 @@ export { idempotencyKeys, idempotencySchema } from './idempotency/schema.js';
 export {
   PROBLEM_CONTENT_TYPE,
   type ProblemDetails,
+  type ProblemExtensions,
   ProblemDetailsFilter,
   ProblemException,
   toProblemDetails,

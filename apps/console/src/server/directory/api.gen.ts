@@ -203,7 +203,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Import history, newest first */
+        /**
+         * Import history, newest first
+         * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
+         */
         get: operations["listRosterImports"];
         put?: never;
         /**
@@ -249,6 +252,46 @@ export interface paths {
          * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
          */
         get: operations["getRosterImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/imports/{importId}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An import's rows with their status, errors and outcome, by row number
+         * @description Read like roster records, as rows hold personal data: the Commission's reporting officer and commission admin, and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`).
+         */
+        get: operations["listRosterImportRows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/imports/{importId}/report.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rejected rows as CSV with reason columns appended
+         * @description Same callers as `listRosterImportRows`. One line per rejected row, in row order: the nine template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`).
+         */
+        get: operations["getRosterImportReportCsv"];
         put?: never;
         post?: never;
         delete?: never;
@@ -309,46 +352,6 @@ export interface paths {
          * @description The Commission's reporting officer and commission admin; platform admins for every Commission, audited. EACC may not read records (403). The national ID in full.
          */
         get: operations["getRosterRecord"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/imports/{importId}/rows": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        /** Staged rows of an import, filterable by status */
-        get: operations["listRosterImportRows"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/imports/{importId}/report.csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        /** Rejected rows as CSV with reason columns appended */
-        get: operations["getRosterImportReportCsv"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1068,6 +1071,8 @@ export interface components {
             /** Format: date-time */
             startedAt: string;
             completedAt: string | null;
+            /** @description When the rows (and the rejected rows report) are purged, 30 days after the import ended; null until it ends. The import itself and its counts are kept. */
+            rowsRetainedUntil: string | null;
         };
         StartFileImport: {
             /** @constant */
@@ -1079,6 +1084,23 @@ export interface components {
             uploadId: string;
             /** @description True when the file is the complete roster; absent officers get flagged */
             declaredComplete: boolean;
+        };
+        ImportConflictProblem: {
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
+            /**
+             * Format: uuid
+             * @description For `import-in-progress`: the import still running, to follow with `getRosterImport`. Absent if it ended in the meantime; start again.
+             */
+            importId?: string;
         };
         PreviewRosterImport: {
             /**
@@ -1098,6 +1120,53 @@ export interface components {
             missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
             /** @description Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files */
             estimatedRows: number | null;
+        };
+        RosterImportPage: {
+            /** @description Newest first */
+            items: components["schemas"]["RosterImport"][];
+            /** @description Pass as `cursor` for the next page; null on the last page */
+            nextCursor: string | null;
+        };
+        RowError: {
+            /**
+             * @description The roster field at fault
+             * @enum {string}
+             */
+            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+            /** @enum {string} */
+            code: "required" | "format" | "too-long" | "future-date" | "duplicate-in-file" | "identity-locked";
+            /** @description What to fix, in English */
+            message: string;
+        };
+        RosterImportRow: {
+            /** @description Row in the file (the header is row 1), or the 1-based index in an API batch */
+            rowNumber: number;
+            /** @enum {string} */
+            status: "accepted" | "rejected";
+            /** @description The values as sent, by field; only the columns the file had */
+            raw: {
+                personnelFileNumber?: string | null;
+                fullName?: string | null;
+                nationalId?: string | null;
+                designation?: string | null;
+                jobGroup?: string | null;
+                reportingEntity?: string | null;
+                appointmentDate?: string | null;
+                email?: string | null;
+                phone?: string | null;
+            };
+            /** @description Why the row was rejected; empty if not */
+            errors: components["schemas"]["RowError"][];
+            /** @description What applying the row did to its record; null until applied, and for rejected rows */
+            outcome: ("created" | "updated" | "unchanged") | null;
+            /** @description The record the row applied to, or whose identity lock rejected it */
+            recordId: string | null;
+        };
+        RosterImportRowPage: {
+            /** @description In row-number order */
+            items: components["schemas"]["RosterImportRow"][];
+            /** @description Pass as `cursor` for the next page; null on the last page */
+            nextCursor: string | null;
         };
         /**
          * @description `not_onboarded` until the declarant onboards against the record (slice 03); `exited` once an exit is recorded
@@ -1222,25 +1291,6 @@ export interface components {
             /** @constant */
             channel: "api";
             rows: components["schemas"]["RosterRowInput"][];
-        };
-        RowError: {
-            field: string;
-            /** @enum {string} */
-            code: "required" | "format" | "too-long" | "future-date" | "duplicate-in-file" | "identity-locked";
-            message: string;
-        };
-        RosterImportRow: {
-            rowNumber: number;
-            /** @enum {string} */
-            status: "accepted" | "rejected";
-            raw: {
-                [key: string]: string;
-            };
-            errors: components["schemas"]["RowError"][];
-            /** @enum {string|null} */
-            outcome: "created" | "updated" | "unchanged" | null;
-            /** Format: uuid */
-            recordId: string | null;
         };
         ConfirmExits: {
             records: {
@@ -1494,7 +1544,6 @@ export interface components {
         Slug: components["schemas"]["Slug"];
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
-        ImportId: string;
         SessionId: string;
         /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
         OnboardingSecret: string;
@@ -2105,12 +2154,13 @@ export interface operations {
     listRosterImports: {
         parameters: {
             query?: {
+                /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
                 limit?: number;
             };
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
@@ -2122,13 +2172,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: components["schemas"]["RosterImport"][];
-                        nextCursor: string | null;
-                    };
+                    "application/json": components["schemas"]["RosterImportPage"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     startRosterImport: {
@@ -2185,13 +2258,13 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `import-in-progress`: another import of the Commission is still running. Problem type `upload-not-clean`: the upload has not passed its checks */
+            /** @description Problem type `import-in-progress`: another import of the Commission is still running; `importId` names it. Problem type `upload-not-clean`: the upload has not passed its checks */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ImportConflictProblem"];
                 };
             };
             /** @description Idempotency-Key reused with a different request body */
@@ -2353,6 +2426,130 @@ export interface operations {
             };
         };
     };
+    listRosterImportRows: {
+        parameters: {
+            query?: {
+                /** @description Only rows with this status */
+                status?: "accepted" | "rejected";
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+                importId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterImportRowPage"];
+                };
+            };
+            /** @description Query failed validation, the cursor is unknown, or importId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist, or no such import */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `import-rows-purged`: the import ended over 30 days ago and its rows were purged; its counts remain */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getRosterImportReportCsv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+                importId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rejected rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description importId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist, or no such import */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `import-rows-purged`: the import ended over 30 days ago and its rows were purged; its counts remain */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getRosterSummary: {
         parameters: {
             query?: never;
@@ -2500,61 +2697,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    listRosterImportRows: {
-        parameters: {
-            query?: {
-                status?: "accepted" | "rejected";
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of rows in row-number order */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["RosterImportRow"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getRosterImportReportCsv: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description CSV stream */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-            404: components["responses"]["NotFound"];
         };
     };
     confirmRosterExits: {

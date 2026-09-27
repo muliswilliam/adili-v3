@@ -1306,6 +1306,26 @@
       "realmRoles": ["default-roles-adili", "reporting-officer"]
     },
     {
+      "username": "tsc-reporting-officer",
+      "email": "tsc-reporting-officer@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Jepkosgei",
+      "lastName": "Chelimo",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["tsc"],
+        "phone": ["+254700000014"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "reporting-officer"]
+    },
+    {
       "username": "reviewer",
       "email": "reviewer@demo.adili.go.ke",
       "emailVerified": true,

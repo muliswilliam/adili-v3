@@ -4,100 +4,6 @@
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/commissions/{slug}/roster/imports:
-    get:
-      tags: [roster]
-      operationId: listRosterImports
-      summary: Import history, newest first
-      parameters:
-        - $ref: '#/components/parameters/Slug'
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-      responses:
-        '200':
-          description: Page of imports
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items, nextCursor]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/RosterImport'
-                  nextCursor:
-                    type: [string, 'null']
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/imports/{importId}/rows:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - $ref: '#/components/parameters/ImportId'
-    get:
-      tags: [roster]
-      operationId: listRosterImportRows
-      summary: Staged rows of an import, filterable by status
-      parameters:
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [accepted, rejected]
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-      responses:
-        '200':
-          description: Page of rows in row-number order
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items, nextCursor]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/RosterImportRow'
-                  nextCursor:
-                    type: [string, 'null']
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/imports/{importId}/report.csv:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - $ref: '#/components/parameters/ImportId'
-    get:
-      tags: [roster]
-      operationId: getRosterImportReportCsv
-      summary: Rejected rows as CSV with reason columns appended
-      responses:
-        '200':
-          description: CSV stream
-          content:
-            text/csv:
-              schema:
-                type: string
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/exits:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -847,13 +753,6 @@ components:
       schema:
         type: string
         format: uuid
-    ImportId:
-      name: importId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
     SessionId:
       name: sessionId
       in: path
@@ -956,40 +855,6 @@ components:
           maxItems: 1000
           items:
             $ref: '#/components/schemas/RosterRowInput'
-    RowError:
-      type: object
-      required: [field, code, message]
-      properties:
-        field:
-          type: string
-        code:
-          type: string
-          enum: [required, format, too-long, future-date, duplicate-in-file, identity-locked]
-        message:
-          type: string
-    RosterImportRow:
-      type: object
-      required: [rowNumber, status, raw, errors, outcome, recordId]
-      properties:
-        rowNumber:
-          type: integer
-        status:
-          type: string
-          enum: [accepted, rejected]
-        raw:
-          type: object
-          additionalProperties:
-            type: string
-        errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/RowError'
-        outcome:
-          type: [string, 'null']
-          enum: [created, updated, unchanged, null]
-        recordId:
-          type: [string, 'null']
-          format: uuid
     ConfirmExits:
       type: object
       required: [records]

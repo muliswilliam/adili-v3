@@ -5,6 +5,8 @@ import { TemporalWorkerModule } from '@adili/temporal';
 
 import { config } from '../../config.js';
 import { RosterImportActivities } from './activities.js';
+import { ImportRowsJanitor } from './import-rows-purge.js';
+import { RosterImportRowsService } from './import-rows.service.js';
 import { RosterImportsController } from './imports.controller.js';
 import { RosterImportsService } from './imports.service.js';
 import { RosterUploadsModule } from './roster-uploads.module.js';
@@ -18,7 +20,8 @@ const workflowsPath = fileURLToPath(
 );
 
 /**
- * Roster imports (spec #27): the start, preview and read endpoints, and the directory's Temporal
+ * Roster imports (spec #27): the start, preview and read endpoints (history, rows, rejected rows
+ * report) with the 30-day purge of rows, and the directory's Temporal
  * worker hosting `RosterImportWorkflow` and its activities.
  */
 @Module({
@@ -34,6 +37,6 @@ const workflowsPath = fileURLToPath(
     }),
   ],
   controllers: [RosterImportsController],
-  providers: [RosterImportsService],
+  providers: [RosterImportsService, RosterImportRowsService, ImportRowsJanitor],
 })
 export class RosterImportModule {}

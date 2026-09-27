@@ -216,7 +216,8 @@ export const rosterImports = pgTable(
 /**
  * The staged rows of an import: its report and the restart-safe work queue of the workflow.
  * Accepted rows are numbered into chunks of 1,000 when staged; applying a chunk marks its rows
- * applied in the same transaction, so a re-run skips them. Purged after 30 days.
+ * applied in the same transaction, so a re-run skips them. Purged 30 days after the import ends
+ * (`ImportRowsJanitor`).
  */
 export const rosterImportRows = pgTable(
   'roster_import_rows',
@@ -240,7 +241,12 @@ export const rosterImportRows = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.importId, table.rowNumber] }),
-    index('roster_import_rows_import_id_status_idx').on(table.importId, table.status),
+    // Pages of rows by status in row order (the report), without sorting all the import's rows.
+    index('roster_import_rows_import_id_status_row_number_idx').on(
+      table.importId,
+      table.status,
+      table.rowNumber,
+    ),
     index('roster_import_rows_import_id_chunk_index_idx').on(table.importId, table.chunkIndex),
     /** A record's import history. */
     index('roster_import_rows_record_id_idx').on(table.recordId),

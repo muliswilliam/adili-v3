@@ -4,8 +4,15 @@ import { z } from 'zod';
 import type { RosterField } from './columns.js';
 
 /** `RowError.code` in the contract; `identity-locked` is raised later, when rows are applied. */
-export type RowErrorCode =
-  'required' | 'format' | 'too-long' | 'future-date' | 'duplicate-in-file' | 'identity-locked';
+export const ROW_ERROR_CODES = [
+  'required',
+  'format',
+  'too-long',
+  'future-date',
+  'duplicate-in-file',
+  'identity-locked',
+] as const;
+export type RowErrorCode = (typeof ROW_ERROR_CODES)[number];
 
 export interface RowError {
   field: RosterField;
