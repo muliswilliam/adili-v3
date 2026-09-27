@@ -127,50 +127,9 @@ export class RosterRecordsService {
   /** One record in full, with the imports that had a row for it. */
   async get(principal: Principal, slug: string, recordId: string): Promise<RosterRecord> {
     const context = recordsReadContext(principal, slug);
-    return withTenant(this.db, context, async (tx) => {
-      const [row] = await tx
-        .select(recordColumns)
-        .from(rosterRecords)
-        .leftJoin(reportingEntities, eq(reportingEntities.id, rosterRecords.reportingEntityId))
-        .where(and(eq(rosterRecords.id, recordId), eq(rosterRecords.tenant, slug)));
-      const record = notFoundIfInvisible(row);
-      const imports = await tx
-        .select({
-          importId: rosterImports.id,
-          startedAt: rosterImports.startedAt,
-          status: rosterImportRows.status,
-          outcome: rosterImportRows.outcome,
-        })
-        .from(rosterImportRows)
-        .innerJoin(rosterImports, eq(rosterImports.id, rosterImportRows.importId))
-        .where(
-          and(
-            eq(rosterImportRows.recordId, recordId),
-            or(isNotNull(rosterImportRows.outcome), eq(rosterImportRows.status, 'rejected')),
-          ),
-        )
-        .orderBy(desc(rosterImports.startedAt), desc(rosterImports.id))
-        .limit(RECORD_HISTORY_LIMIT);
-
-      return {
-        ...toListItem(record),
-        nationalId: record.nationalId,
-        appointmentDate: record.appointmentDate,
-        email: record.email,
-        phone: record.phone,
-        exitDate: record.exitDate,
-        source: record.source,
-        firstSeenImportId: record.firstSeenImportId,
-        lastSeenImportId: record.lastSeenImportId,
-        imports: imports.map((entry): RosterRecordImport => ({
-          importId: entry.importId,
-          startedAt: entry.startedAt.toISOString(),
-          outcome: entry.status === 'rejected' ? 'rejected' : (entry.outcome ?? 'unchanged'),
-        })),
-        createdAt: record.createdAt.toISOString(),
-        updatedAt: record.updatedAt.toISOString(),
-      };
-    });
+    return notFoundIfInvisible(
+      await withTenant(this.db, context, (tx) => readRosterRecord(tx, slug, recordId)),
+    );
   }
 
   /** The Commission's roster summary, for its own staff and HR system and national readers. */
@@ -185,6 +144,59 @@ export class RosterRecordsService {
     );
     return toRosterSummary(notFoundIfInvisible(row).roster);
   }
+}
+
+/**
+ * A record of the tenant in full, with the imports that had a row for it (newest first), read
+ * in the caller's transaction; undefined when the tenant has no such record.
+ */
+export async function readRosterRecord(
+  tx: Transaction,
+  slug: string,
+  recordId: string,
+): Promise<RosterRecord | undefined> {
+  const [record] = await tx
+    .select(recordColumns)
+    .from(rosterRecords)
+    .leftJoin(reportingEntities, eq(reportingEntities.id, rosterRecords.reportingEntityId))
+    .where(and(eq(rosterRecords.id, recordId), eq(rosterRecords.tenant, slug)));
+  if (!record) return undefined;
+  const imports = await tx
+    .select({
+      importId: rosterImports.id,
+      startedAt: rosterImports.startedAt,
+      status: rosterImportRows.status,
+      outcome: rosterImportRows.outcome,
+    })
+    .from(rosterImportRows)
+    .innerJoin(rosterImports, eq(rosterImports.id, rosterImportRows.importId))
+    .where(
+      and(
+        eq(rosterImportRows.recordId, recordId),
+        or(isNotNull(rosterImportRows.outcome), eq(rosterImportRows.status, 'rejected')),
+      ),
+    )
+    .orderBy(desc(rosterImports.startedAt), desc(rosterImports.id))
+    .limit(RECORD_HISTORY_LIMIT);
+
+  return {
+    ...toListItem(record),
+    nationalId: record.nationalId,
+    appointmentDate: record.appointmentDate,
+    email: record.email,
+    phone: record.phone,
+    exitDate: record.exitDate,
+    source: record.source,
+    firstSeenImportId: record.firstSeenImportId,
+    lastSeenImportId: record.lastSeenImportId,
+    imports: imports.map((entry): RosterRecordImport => ({
+      importId: entry.importId,
+      startedAt: entry.startedAt.toISOString(),
+      outcome: entry.status === 'rejected' ? 'rejected' : (entry.outcome ?? 'unchanged'),
+    })),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  };
 }
 
 /** Search (file number prefix, name fragment or full national ID), state and flag filters. */

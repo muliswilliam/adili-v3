@@ -10,7 +10,7 @@ import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/re
 import { refreshRosterSummary } from '../../src/roster/summary.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
-import { givenCommissions } from '../support/fixtures.js';
+import { givenApiCredential, givenCommissions } from '../support/fixtures.js';
 import type { Problem } from '../support/reporting-officers.js';
 
 /**
@@ -120,6 +120,8 @@ beforeAll(async () => {
     { slug: 'tsc', name: 'Teachers Service Commission' },
     { slug: 'kdf', name: 'Defence Council', type: 'federated' },
   ]);
+  await givenApiCredential(api.db, { tenant: 'psc', clientId: PSC_HR_SYSTEM.azp ?? '' });
+  await givenApiCredential(api.db, { tenant: 'tsc', clientId: TSC_HR_SYSTEM.azp ?? '' });
   pscImport = await importRoster('psc', PSC_OFFICER, PSC_ROWS, true);
   tscImport = await importRoster('tsc', TSC_OFFICER, TSC_ROWS, false);
 

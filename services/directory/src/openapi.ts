@@ -21,6 +21,7 @@ import {
   exitsResultSchema,
   keepResultSchema,
   keepRosterRecordsBody,
+  recordRosterExitBody,
 } from './roster/exits/representation.js';
 import {
   columnMappingSchema,
@@ -35,8 +36,12 @@ import {
   rosterImportRowPageSchema,
   rosterImportRowSchema,
   rosterImportSchema,
+  rosterBatchProblemSchema,
+  rosterRowInputSchema,
   rowErrorSchema,
+  startBatchImportBody,
   startFileImportBody,
+  startRosterImportBody,
 } from './roster/import/representation.js';
 import {
   reportingEntityRefSchema,
@@ -77,6 +82,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   ImportCounts: importCountsSchema,
   RosterImport: rosterImportSchema,
   StartFileImport: startFileImportBody,
+  RosterRowInput: rosterRowInputSchema,
+  StartBatchImport: startBatchImportBody,
+  StartRosterImport: startRosterImportBody,
+  RosterBatchProblem: rosterBatchProblemSchema,
   ImportConflictProblem: importConflictProblemSchema,
   PreviewRosterImport: previewRosterImportBody,
   RosterImportPreview: rosterImportPreviewSchema,
@@ -94,4 +103,5 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   ExitsResult: exitsResultSchema,
   KeepRosterRecords: keepRosterRecordsBody,
   KeepResult: keepResultSchema,
+  RecordRosterExit: recordRosterExitBody,
 };

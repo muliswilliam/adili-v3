@@ -6,6 +6,7 @@ import { type Database, InjectDatabase, type TenantContext, withTenant } from '@
 import { and, asc, eq, gt } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../../db/schema.js';
+import { isHrSystem } from '../api-credential/hr-system-access.js';
 import { recordsReadContext } from '../records/access.js';
 import { type ImportRowStatus, rosterImportRows, rosterImports } from '../schema.js';
 import { decodeRowCursor, encodeRowCursor } from './cursors.js';
@@ -32,7 +33,7 @@ type StagedRow = typeof rosterImportRows.$inferSelect;
  * The staged rows of an import (spec #27): the report's rejected rows, and the rejected rows CSV
  * the officer fixes and uploads again. Rows hold the roster's personal data, so they are read
  * like roster records (`recordsReadContext`): the Commission's own staff and platform admins,
- * never EACC.
+ * never EACC. The Commission's HR system reads them too.
  */
 @Injectable()
 export class RosterImportRowsService {
@@ -90,7 +91,7 @@ export class RosterImportRowsService {
     slug: string,
     importId: string,
   ): Promise<TenantContext & { fileName: string | null }> {
-    const context = recordsReadContext(principal, slug);
+    const context = rowsReadContext(principal, slug);
     const [found] = await withTenant(this.db, context, (tx) =>
       tx
         .select({ fileName: rosterImports.fileName, completedAt: rosterImports.completedAt })
@@ -132,6 +133,18 @@ export class RosterImportRowsService {
         .limit(limit),
     );
   }
+}
+
+/**
+ * Rows are read like roster records (`recordsReadContext`), and also by the Commission's own HR
+ * system, which reads the reports of the batches it sent (user story 36) but not the records.
+ */
+function rowsReadContext(principal: Principal, slug: string): TenantContext {
+  if (isHrSystem(principal)) {
+    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    return { tenant: slug, subject: principal.subject };
+  }
+  return recordsReadContext(principal, slug);
 }
 
 function toRosterImportRow(row: StagedRow): RosterImportRow {

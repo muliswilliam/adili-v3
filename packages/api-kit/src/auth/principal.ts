@@ -16,6 +16,11 @@ export interface Principal {
    * (a service account's is `service-account-<client id>`). Never used for access decisions.
    */
   name: string | null;
+  /**
+   * When the token was issued (`iat`), in seconds since the epoch; null when it has none. Lets a
+   * service refuse tokens issued before a credential was rotated or revoked.
+   */
+  issuedAt: number | null;
 }
 
 /** `Principal` for API documentation, e.g. a service's `/v1/me`. */
@@ -34,5 +39,8 @@ export const principalSchema = z.object({
     .meta({ description: 'OAuth client that obtained the token (`azp`)' }),
   name: z.string().nullable().meta({
     description: 'Display name: the `name` claim, else `preferred_username`',
+  }),
+  issuedAt: z.int().nullable().meta({
+    description: 'When the token was issued (`iat`), in seconds since the epoch',
   }),
 }) satisfies z.ZodType<Principal>;

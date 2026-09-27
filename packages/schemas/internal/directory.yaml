@@ -513,7 +513,7 @@ paths:
       tags:
         - roster
       summary: Import history, newest first
-      description: The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
+      description: The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission.
       operationId: listRosterImports
       parameters:
         - name: slug
@@ -539,6 +539,19 @@ paths:
       responses:
         '200':
           description: Page of imports
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -549,8 +562,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor'
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write'
           content:
             application/problem+json:
               schema:
@@ -561,11 +580,39 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+      x-rate-limit:
+        group: roster-read
+        limit: 600
+        windowSeconds: 60
+        description: 'Per client: up to 600 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
     post:
       tags:
         - roster
-      summary: Start importing a clean roster upload
-      description: Reporting officer of the Commission. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason. Idempotent per Idempotency-Key.
+      summary: Start importing a clean roster upload, or a batch of rows
+      description: "Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`). At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key."
       operationId: startRosterImport
       parameters:
         - name: slug
@@ -585,22 +632,41 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StartFileImport'
+              $ref: '#/components/schemas/StartRosterImport'
       responses:
         '202':
           description: Import accepted
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RosterImport'
         '400':
-          description: Request failed validation
+          description: Request failed validation; for a batch, `rowIndex` names the row of each error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/RosterBatchProblem'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the roles: reporting-officer'
+          description: 'Requires one of the roles: reporting-officer, or one of the scopes: roster:write'
           content:
             application/problem+json:
               schema:
@@ -623,6 +689,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
         '502':
           description: 'Problem type `documents-unavailable`: the file cannot be read right now; safe to retry'
           content:
@@ -635,6 +724,11 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-rate-limit:
+        group: roster-write
+        limit: 120
+        windowSeconds: 60
+        description: 'Per client: up to 120 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
   /v1/commissions/{slug}/roster/imports/preview:
     post:
       tags:
@@ -702,7 +796,7 @@ paths:
       tags:
         - roster
       summary: One import with progress, mapping, counts and failure reason
-      description: The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
+      description: The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission.
       operationId: getRosterImport
       parameters:
         - name: slug
@@ -719,6 +813,19 @@ paths:
       responses:
         '200':
           description: The import
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -729,8 +836,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor'
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write'
           content:
             application/problem+json:
               schema:
@@ -741,12 +854,40 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+      x-rate-limit:
+        group: roster-read
+        limit: 600
+        windowSeconds: 60
+        description: 'Per client: up to 600 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
   /v1/commissions/{slug}/roster/imports/{importId}/rows:
     get:
       tags:
         - roster
       summary: An import's rows with their status, errors and outcome, by row number
-      description: "Read like roster records, as rows hold personal data: the Commission's reporting officer and commission admin, and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`)."
+      description: "Read like roster records, as rows hold personal data: the Commission's reporting officer, commission admin and HR system (`roster:write`), and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`)."
       operationId: listRosterImportRows
       parameters:
         - name: slug
@@ -787,6 +928,19 @@ paths:
       responses:
         '200':
           description: Page of rows
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -797,8 +951,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin'
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, or one of the scopes: roster:write'
           content:
             application/problem+json:
               schema:
@@ -815,9 +975,37 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
       x-audited-read:
         action: roster.import-rows.listed
         resource: roster-import
+      x-rate-limit:
+        group: roster-read
+        limit: 600
+        windowSeconds: 60
+        description: 'Per client: up to 600 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
   /v1/commissions/{slug}/roster/imports/{importId}/report.csv:
     get:
       tags:
@@ -844,14 +1032,33 @@ paths:
             text/csv:
               schema:
                 type: string
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
         '400':
           description: importId is not a UUID
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin'
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, or one of the scopes: roster:write'
           content:
             application/problem+json:
               schema:
@@ -868,9 +1075,37 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
       x-audited-read:
         action: roster.import-report.downloaded
         resource: roster-import
+      x-rate-limit:
+        group: roster-read
+        limit: 600
+        windowSeconds: 60
+        description: 'Per client: up to 600 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
   /v1/commissions/{slug}/roster/summary:
     get:
       tags:
@@ -887,10 +1122,29 @@ paths:
       responses:
         '200':
           description: The summary
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RosterSummary'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write'
           content:
@@ -903,6 +1157,34 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+      x-rate-limit:
+        group: roster-read
+        limit: 600
+        windowSeconds: 60
+        description: 'Per client: up to 600 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
   /v1/commissions/{slug}/roster/records:
     get:
       tags:
@@ -1095,6 +1377,124 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/records/{fileNumber}/exit:
+    post:
+      tags:
+        - roster
+      summary: Record one officer's exit by personnel file number (HR systems)
+      description: "The Commission's HR system (`roster:write`), or its reporting officer. Like confirming the exit of one record: `exited` with the exit date and the absent flag cleared; the officer stays on the roster for their final declaration and no longer counts as expected. Records `roster.exits.confirmed.v1` (source `api` for HR systems). Idempotent per Idempotency-Key."
+      operationId: recordRosterExit
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: fileNumber
+          required: true
+          in: path
+          description: Personnel file number, URL-encoded (`/` as `%2F`, e.g. `PSC%2F2019%2F0888`); matched ignoring case and surrounding spaces
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 30
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordRosterExit'
+      responses:
+        '200':
+          description: The exited record
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterRecord'
+        '400':
+          description: 'Request failed validation: an exit date in the future or missing, or a file number longer than 30 characters'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: "Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, or one of the scopes: roster:write'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist. Problem type `record-not-found`: no officer on the roster has that personnel file number'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `record-exited`: the officer has exited already'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+      x-rate-limit:
+        group: roster-write
+        limit: 120
+        windowSeconds: 60
+        description: 'Per client: up to 120 requests per 60 seconds by default (a token bucket shared by the routes of the group). Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset; past the limit, 429 with Retry-After.'
   /v1/commissions/{slug}/roster/keep:
     post:
       tags:
@@ -1148,53 +1548,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '422':
           description: Idempotency-Key reused with a different request body
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/commissions/{slug}/roster/records/{fileNumber}/exit:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: fileNumber
-        in: path
-        required: true
-        description: Personnel file number (HR systems address records by it)
-        schema:
-          type: string
-          maxLength: 30
-    post:
-      tags:
-        - roster
-      summary: Record one officer's exit by personnel file number (HR systems)
-      operationId: recordRosterExit
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - exitDate
-              properties:
-                exitDate:
-                  type: string
-                  format: date
-      responses:
-        '200':
-          description: The exited record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterRecord'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already exited
           content:
             application/problem+json:
               schema:
@@ -1930,6 +2283,11 @@ components:
           type:
             - string
             - 'null'
+        issuedAt:
+          description: When the token was issued (`iat`), in seconds since the epoch
+          type:
+            - integer
+            - 'null'
       required:
         - subject
         - tenant
@@ -1937,6 +2295,7 @@ components:
         - scopes
         - clientId
         - name
+        - issuedAt
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
@@ -2404,7 +2763,7 @@ components:
           description: Records flagged as absent from this complete import
         exitsRecorded:
           type: integer
-          description: Exits recorded by this import
+          description: Exits confirmed so far (by the reporting officer or the HR system) for records this complete import flagged absent; grows after the import ended
       required:
         - accepted
         - created
@@ -2540,6 +2899,127 @@ components:
         - channel
         - uploadId
         - declaredComplete
+    RosterRowInput:
+      type: object
+      properties:
+        personnelFileNumber:
+          description: 'Up to 30 letters, digits, /, - or .; unique in the file. Required: a row without it is rejected in the report.'
+          examples:
+            - TSC/004512
+          type:
+            - string
+            - 'null'
+        fullName:
+          description: '2 to 200 characters. Required: a row without it is rejected in the report.'
+          examples:
+            - Achieng Mary Otieno
+          type:
+            - string
+            - 'null'
+        nationalId:
+          description: '5 to 10 digits; unique in the file. Required: a row without it is rejected in the report.'
+          examples:
+            - '23456789'
+          type:
+            - string
+            - 'null'
+        designation:
+          description: Up to 100 characters.
+          examples:
+            - Senior Teacher
+          type:
+            - string
+            - 'null'
+        jobGroup:
+          description: Up to 10 characters.
+          examples:
+            - C3
+          type:
+            - string
+            - 'null'
+        reportingEntity:
+          description: Up to 200 characters.
+          examples:
+            - Moi Girls High School, Eldoret
+          type:
+            - string
+            - 'null'
+        appointmentDate:
+          description: YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future.
+          examples:
+            - 2019-01-07
+          type:
+            - string
+            - 'null'
+        email:
+          description: Email address, up to 254 characters.
+          examples:
+            - mary.otieno@example.go.ke
+          type:
+            - string
+            - 'null'
+        phone:
+          description: Kenyan mobile (07…, 01…) or international (+…).
+          examples:
+            - '0712345678'
+          type:
+            - string
+            - 'null'
+      description: "One officer, by template field. Values are checked like a roster file's cells when the import runs: a row breaking a rule is rejected in the report with its errors, and the others are applied. Unknown properties are ignored."
+    StartBatchImport:
+      type: object
+      properties:
+        channel:
+          type: string
+          const: api
+        rows:
+          minItems: 1
+          maxItems: 1000
+          type: array
+          items:
+            $ref: '#/components/schemas/RosterRowInput'
+          description: 'Up to 1,000 rows, upserted by personnel file number. `rowNumber` in the report is the 1-based position here. A batch is never the complete roster: officers not in it are not flagged.'
+      required:
+        - channel
+        - rows
+    StartRosterImport:
+      oneOf:
+        - $ref: '#/components/schemas/StartFileImport'
+        - $ref: '#/components/schemas/StartBatchImport'
+    RosterBatchProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          description: Field-level errors
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                description: The dotted request field, e.g. `rows.3.nationalId`
+              message:
+                type: string
+              rowIndex:
+                description: 'For errors in a row of a batch: its 0-based index in `rows` (its `rowNumber` in the report is one more)'
+                type: integer
+            required:
+              - path
+              - message
+      required:
+        - type
+        - title
+        - status
     ImportConflictProblem:
       type: object
       properties:
@@ -3050,6 +3530,15 @@ components:
           description: Records whose flag was cleared; records that were not flagged are left as they are
       required:
         - count
+    RecordRosterExit:
+      type: object
+      properties:
+        exitDate:
+          type: string
+          format: date
+          description: Last day of employment; not in the future (Africa/Nairobi)
+      required:
+        - exitDate
     ProblemDetails:
       type: object
       properties:
@@ -3080,73 +3569,6 @@ components:
         - type
         - title
         - status
-    RosterRowInput:
-      type: object
-      description: One roster row as accepted from the template or an API batch (pre-normalisation)
-      required:
-        - personnelFileNumber
-        - fullName
-        - nationalId
-      properties:
-        personnelFileNumber:
-          type: string
-          minLength: 1
-          maxLength: 30
-          pattern: ^[A-Za-z0-9/.\-]+$
-        fullName:
-          type: string
-          minLength: 2
-          maxLength: 200
-        nationalId:
-          type: string
-          description: Digits after stripping spaces, 5 to 10
-          pattern: ^[0-9 ]{5,12}$
-        designation:
-          type:
-            - string
-            - 'null'
-          maxLength: 100
-        jobGroup:
-          type:
-            - string
-            - 'null'
-          maxLength: 10
-        reportingEntity:
-          type:
-            - string
-            - 'null'
-          maxLength: 200
-        appointmentDate:
-          type:
-            - string
-            - 'null'
-          description: ISO date preferred; DD/MM/YYYY and DD-MM-YYYY accepted
-        email:
-          type:
-            - string
-            - 'null'
-          format: email
-          maxLength: 254
-        phone:
-          type:
-            - string
-            - 'null'
-          description: Local (07…, 01…) or international; normalised to E.164
-          maxLength: 20
-    StartBatchImport:
-      type: object
-      required:
-        - channel
-        - rows
-      properties:
-        channel:
-          const: api
-        rows:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/RosterRowInput'
     Ofr:
       type: string
       description: Officer reference (ADR-011), permanent and person-level

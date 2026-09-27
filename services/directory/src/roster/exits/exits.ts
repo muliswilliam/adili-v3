@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto';
 
 import type { EventPublisher } from '@adili/events';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { RosterActor } from '../actor.js';
-import { rosterRecords } from '../schema.js';
+import { rosterImports, rosterRecords } from '../schema.js';
 import { refreshRosterSummary } from '../summary.js';
 import { type ExitSource, rosterExitsConfirmed, rosterRecordsKept } from './events.js';
 
 /**
  * Exits and keeps on a Commission's roster (spec #27): the domain operations behind the console's
- * confirm-exits and keep endpoints and the HR systems' explicit exit (#56). Each runs in the
+ * confirm-exits and keep endpoints and the HR systems' explicit exit. Each runs in the
  * caller's transaction, in the tenant's RLS context, and changes the records, the summary and
  * the event together.
  */
@@ -22,6 +22,27 @@ export class RosterRecordsNotFound extends Error {
     super(`Roster records not found: ${recordIds.join(', ')}`);
     this.name = 'RosterRecordsNotFound';
   }
+}
+
+/**
+ * The id of the tenant's record with this personnel file number, matched trimmed and
+ * case-insensitively (file numbers are unique per tenant that way); undefined when none.
+ */
+export async function recordIdByFileNumber(
+  tx: Transaction,
+  tenant: string,
+  fileNumber: string,
+): Promise<string | undefined> {
+  const [record] = await tx
+    .select({ id: rosterRecords.id })
+    .from(rosterRecords)
+    .where(
+      and(
+        eq(rosterRecords.tenant, tenant),
+        sql`lower(${rosterRecords.personnelFileNumber}) = ${fileNumber.trim().toLowerCase()}`,
+      ),
+    );
+  return record?.id;
 }
 
 /** Some records have exited already. */
@@ -57,6 +78,7 @@ export async function confirmExits(
   const exited = recordIds.filter((id) => found.get(id) === 'exited');
   if (exited.length > 0) throw new RosterRecordsExited(exited);
 
+  await countExitsOnFlaggingImports(tx, command.tenant, recordIds);
   const source = command.exits.map((exit) => ({ id: exit.recordId, exit_date: exit.exitDate }));
   await tx.execute(sql`
     update roster_records as target set
@@ -135,6 +157,35 @@ export async function keepRecords(
     }),
   );
   return { count: kept.length };
+}
+
+/**
+ * Counts the exits of flagged records on the complete import that flagged each (its report's
+ * "exits recorded", decision 12), before the exit clears the flag.
+ */
+async function countExitsOnFlaggingImports(
+  tx: Transaction,
+  tenant: string,
+  recordIds: readonly string[],
+): Promise<void> {
+  const flaggedBy = await tx
+    .select({ importId: rosterRecords.flaggedByImportId, exits: count() })
+    .from(rosterRecords)
+    .where(
+      and(
+        eq(rosterRecords.tenant, tenant),
+        inArray(rosterRecords.id, [...recordIds]),
+        isNotNull(rosterRecords.flaggedByImportId),
+      ),
+    )
+    .groupBy(rosterRecords.flaggedByImportId);
+  for (const { importId, exits } of flaggedBy) {
+    if (importId === null) continue;
+    await tx
+      .update(rosterImports)
+      .set({ exitsRecorded: sql`${rosterImports.exitsRecorded} + ${exits}` })
+      .where(eq(rosterImports.id, importId));
+  }
 }
 
 /**

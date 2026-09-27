@@ -5,7 +5,8 @@ import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import type { ColumnMapping } from '../header-mapping.js';
 import { type ParsedRosterRow, parseRosterFile } from '../roster-file.js';
-import { rosterImportRows, rosterImports } from '../schema.js';
+import { createRowValidator } from '../row-validation.js';
+import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
 import { RosterFileError } from '../sheet.js';
 import { type RosterUploads, UploadNotClean, UploadNotFound } from './roster-uploads.js';
 import type { ImportFailure, ImportRef, StageResult } from './workflow-contract.js';
@@ -29,7 +30,11 @@ export class ImportNotFound extends Error {
 
 /** Rows to stage: from a file or (spec #27 API channel) an inline batch, already validated. */
 export type StagingSource =
-  | { ok: true; mapping: ColumnMapping | null; rows: AsyncIterable<ParsedRosterRow> }
+  | {
+      ok: true;
+      mapping: ColumnMapping | null;
+      rows: AsyncIterable<ParsedRosterRow> | Iterable<ParsedRosterRow>;
+    }
   | { ok: false; mapping: ColumnMapping | null; failure: ImportFailure };
 
 export interface StageOptions {
@@ -82,7 +87,7 @@ export async function stageImport(
     };
   }
 
-  const source = await openSource(uploads, current);
+  const source = await openSource(db, uploads, current);
   if (!source.ok) {
     await recordUnimportable(db, ref, source.mapping);
     return { outcome: 'failed', failure: source.failure };
@@ -110,6 +115,8 @@ export async function stageImport(
       })
       .where(eq(rosterImports.id, ref.importId));
     await markRejectedRowsSeen(tx, ref);
+    // An API batch's rows are now the import's rows.
+    await tx.delete(rosterImportBatches).where(eq(rosterImportBatches.importId, ref.importId));
   });
   return { outcome: 'staged', chunkCount, declaredComplete: current.declaredComplete };
 }
@@ -142,12 +149,17 @@ async function markRejectedRowsSeen(tx: Transaction, ref: ImportRef): Promise<vo
   `);
 }
 
-async function openSource(uploads: RosterUploads, row: ImportRow): Promise<StagingSource> {
-  if (row.channel !== 'file' || row.uploadId === null) {
+async function openSource(
+  db: Database<DirectorySchema>,
+  uploads: RosterUploads,
+  row: ImportRow,
+): Promise<StagingSource> {
+  if (row.channel === 'api') return openBatch(db, row);
+  if (row.uploadId === null) {
     return {
       ok: false,
       mapping: null,
-      failure: { code: 'internal', detail: 'API batches are not supported yet.' },
+      failure: { code: 'internal', detail: 'The import names no upload.' },
     };
   }
   try {
@@ -180,6 +192,34 @@ async function openSource(uploads: RosterUploads, row: ImportRow): Promise<Stagi
     }
     throw error;
   }
+}
+
+/**
+ * The rows of an API batch, as stored when the import started, validated in order like a file's
+ * rows (numbered from 1). No column mapping: the fields are named.
+ */
+async function openBatch(db: Database<DirectorySchema>, row: ImportRow): Promise<StagingSource> {
+  const [batch] = await withTenant(db, { tenant: row.tenant, subject: IMPORT_SUBJECT }, (tx) =>
+    tx
+      .select({ rows: rosterImportBatches.rows })
+      .from(rosterImportBatches)
+      .where(eq(rosterImportBatches.importId, row.id)),
+  );
+  if (!batch) {
+    return {
+      ok: false,
+      mapping: null,
+      failure: { code: 'internal', detail: "The batch's rows are missing." },
+    };
+  }
+  const stored = batch.rows;
+  const validate = createRowValidator();
+  function* rows(): Generator<ParsedRosterRow> {
+    for (const [index, raw] of stored.entries()) {
+      yield { rowNumber: index + 1, raw, ...validate(raw, index + 1) };
+    }
+  }
+  return { ok: true, mapping: null, rows: rows() };
 }
 
 /** Leaves an import that cannot be imported with its mapping (if read) and no staged rows. */

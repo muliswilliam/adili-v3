@@ -178,7 +178,13 @@ export const rosterImports = pgTable(
     processedRows: integer().notNull().default(0),
     /** Chunks of accepted rows to apply; null until staging finishes. */
     chunkCount: integer(),
+    /** Set when the import ends. Its `exitsRecorded` is as at the end; the column is current. */
     counts: jsonb().$type<ImportCounts>(),
+    /**
+     * Exits confirmed for records this import flagged absent, counted as they are confirmed,
+     * mostly after the import ended.
+     */
+    exitsRecorded: integer().notNull().default(0),
     mapping: jsonb().$type<ColumnMapping>(),
     failureCode: text().$type<ImportFailureCode>(),
     failureDetail: text(),
@@ -262,6 +268,19 @@ export const rosterImportRows = pgTable(
 );
 
 /**
+ * The rows of an API batch (spec #27, channel `api`) as the HR system sent them, from the start
+ * of the import until staging has copied them into `roster_import_rows`, which deletes them.
+ */
+export const rosterImportBatches = pgTable('roster_import_batches', {
+  importId: uuid()
+    .primaryKey()
+    .references(() => rosterImports.id, { onDelete: 'cascade' }),
+  /** Denormalised from the import for RLS. */
+  tenant: text().notNull(),
+  rows: jsonb().$type<RawRosterRow[]>().notNull(),
+});
+
+/**
  * Counts per tenant, recomputed in the transaction of each change to the roster, so the
  * Commission list reads them without counting. Authoritative for the Commission read model.
  */
@@ -287,5 +306,6 @@ export const rosterSchema = {
   rosterRecords,
   rosterImports,
   rosterImportRows,
+  rosterImportBatches,
   rosterSummaries,
 };

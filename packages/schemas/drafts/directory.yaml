@@ -4,50 +4,6 @@
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/commissions/{slug}/roster/records/{fileNumber}/exit:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: fileNumber
-        in: path
-        required: true
-        description: Personnel file number (HR systems address records by it)
-        schema:
-          type: string
-          maxLength: 30
-    post:
-      tags: [roster]
-      operationId: recordRosterExit
-      summary: Record one officer's exit by personnel file number (HR systems)
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [exitDate]
-              properties:
-                exitDate:
-                  type: string
-                  format: date
-      responses:
-        '200':
-          description: The exited record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterRecord'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already exited
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/onboarding/commissions:
     get:
       tags: [onboarding]
@@ -740,56 +696,6 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
-    RosterRowInput:
-      type: object
-      description: One roster row as accepted from the template or an API batch (pre-normalisation)
-      required: [personnelFileNumber, fullName, nationalId]
-      properties:
-        personnelFileNumber:
-          type: string
-          minLength: 1
-          maxLength: 30
-          pattern: '^[A-Za-z0-9/.\-]+$'
-        fullName:
-          type: string
-          minLength: 2
-          maxLength: 200
-        nationalId:
-          type: string
-          description: Digits after stripping spaces, 5 to 10
-          pattern: '^[0-9 ]{5,12}$'
-        designation:
-          type: [string, 'null']
-          maxLength: 100
-        jobGroup:
-          type: [string, 'null']
-          maxLength: 10
-        reportingEntity:
-          type: [string, 'null']
-          maxLength: 200
-        appointmentDate:
-          type: [string, 'null']
-          description: ISO date preferred; DD/MM/YYYY and DD-MM-YYYY accepted
-        email:
-          type: [string, 'null']
-          format: email
-          maxLength: 254
-        phone:
-          type: [string, 'null']
-          description: Local (07…, 01…) or international; normalised to E.164
-          maxLength: 20
-    StartBatchImport:
-      type: object
-      required: [channel, rows]
-      properties:
-        channel:
-          const: api
-        rows:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            $ref: '#/components/schemas/RosterRowInput'
     Ofr:
       type: string
       description: Officer reference (ADR-011), permanent and person-level

@@ -23,6 +23,7 @@ import {
   AuditedRead,
   CurrentPrincipal,
   type Principal,
+  RATE_LIMIT_HEADERS,
   RequireIdempotencyKey,
   Roles,
   schemaRef,
@@ -31,9 +32,11 @@ import {
 import { z } from 'zod';
 
 import { REPORTING_OFFICER_ROLE } from '../../commissions/access.js';
+import { HrSystemAccess } from '../api-credential/hr-system-access.js';
 import { RECORD_READ_ROLES } from '../records/access.js';
 import { RosterImportRowsService } from './import-rows.service.js';
 import { RosterImportsService } from './imports.service.js';
+import { StartImportValidationPipe } from './start-import.pipe.js';
 import {
   type ListRosterImportRowsQuery,
   listRosterImportRowsQuery,
@@ -45,8 +48,7 @@ import {
   type RosterImportPage,
   type RosterImportPreview,
   type RosterImportRowPage,
-  type StartFileImportBody,
-  startFileImportBody,
+  type StartRosterImportBody,
 } from './representation.js';
 
 /** Roles that read a Commission's imports (spec #27 authorisation matrix). */
@@ -66,6 +68,9 @@ const UPLOAD_PROBLEMS = {
     'Problem type `documents-unavailable`: the file cannot be read right now; safe to retry',
 };
 
+const IMPORT_READERS =
+  "The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission.";
+
 const ROWS_PURGED =
   'Problem type `import-rows-purged`: the import ended over 30 days ago and its rows were purged; its counts remain';
 
@@ -80,14 +85,18 @@ export class RosterImportsController {
 
   @Get()
   @Roles(...IMPORT_READ_ROLES)
+  @HrSystemAccess('roster-read')
   @ApiOperation({
     operationId: 'listRosterImports',
     summary: 'Import history, newest first',
-    description:
-      "The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.",
+    description: IMPORT_READERS,
   })
   @ApiQueryParameters(listRosterImportsQuery)
-  @ApiOkResponse({ description: 'Page of imports', schema: schemaRef('RosterImportPage') })
+  @ApiOkResponse({
+    description: 'Page of imports',
+    schema: schemaRef('RosterImportPage'),
+    headers: RATE_LIMIT_HEADERS,
+  })
   @ApiProblemResponse(400, 'Query failed validation, or the cursor is unknown')
   @ApiProblemResponse(404, NOT_VISIBLE)
   list(
@@ -100,17 +109,26 @@ export class RosterImportsController {
 
   @Post()
   @Roles(REPORTING_OFFICER_ROLE)
+  @HrSystemAccess('roster-write')
   @RequireIdempotencyKey()
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     operationId: 'startRosterImport',
-    summary: 'Start importing a clean roster upload',
+    summary: 'Start importing a clean roster upload, or a batch of rows',
     description:
-      'Reporting officer of the Commission. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason. Idempotent per Idempotency-Key.',
+      "Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`). At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key.",
   })
-  @ApiBody({ required: true, schema: schemaRef('StartFileImport') })
-  @ApiAcceptedResponse({ description: 'Import accepted', schema: schemaRef('RosterImport') })
-  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiBody({ required: true, schema: schemaRef('StartRosterImport') })
+  @ApiAcceptedResponse({
+    description: 'Import accepted',
+    schema: schemaRef('RosterImport'),
+    headers: RATE_LIMIT_HEADERS,
+  })
+  @ApiProblemResponse(
+    400,
+    'Request failed validation; for a batch, `rowIndex` names the row of each error',
+    'RosterBatchProblem',
+  )
   @ApiProblemResponse(404, `${NOT_VISIBLE}. ${UPLOAD_PROBLEMS.notFound}`)
   @ApiProblemResponse(
     409,
@@ -125,9 +143,11 @@ export class RosterImportsController {
   start(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
-    @Body(new ZodValidationPipe(startFileImportBody)) body: StartFileImportBody,
+    @Body(new StartImportValidationPipe()) body: StartRosterImportBody,
   ): Promise<RosterImport> {
-    return this.imports.startFile(principal, slug, body);
+    return body.channel === 'api'
+      ? this.imports.startBatch(principal, slug, body)
+      : this.imports.startFile(principal, slug, body);
   }
 
   @Post('preview')
@@ -159,14 +179,18 @@ export class RosterImportsController {
 
   @Get(':importId')
   @Roles(...IMPORT_READ_ROLES)
+  @HrSystemAccess('roster-read')
   @ApiParam({ name: 'importId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'getRosterImport',
     summary: 'One import with progress, mapping, counts and failure reason',
-    description:
-      "The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.",
+    description: IMPORT_READERS,
   })
-  @ApiOkResponse({ description: 'The import', schema: schemaRef('RosterImport') })
+  @ApiOkResponse({
+    description: 'The import',
+    schema: schemaRef('RosterImport'),
+    headers: RATE_LIMIT_HEADERS,
+  })
   @ApiProblemResponse(400, 'importId is not a UUID')
   @ApiProblemResponse(404, `${NOT_VISIBLE}, or no such import`)
   get(
@@ -179,16 +203,21 @@ export class RosterImportsController {
 
   @Get(':importId/rows')
   @Roles(...RECORD_READ_ROLES)
+  @HrSystemAccess('roster-read')
   @AuditedRead({ action: 'roster.import-rows.listed', resource: 'roster-import' })
   @ApiParam({ name: 'importId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'listRosterImportRows',
     summary: "An import's rows with their status, errors and outcome, by row number",
     description:
-      "Read like roster records, as rows hold personal data: the Commission's reporting officer and commission admin, and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`).",
+      "Read like roster records, as rows hold personal data: the Commission's reporting officer, commission admin and HR system (`roster:write`), and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`).",
   })
   @ApiQueryParameters(listRosterImportRowsQuery)
-  @ApiOkResponse({ description: 'Page of rows', schema: schemaRef('RosterImportRowPage') })
+  @ApiOkResponse({
+    description: 'Page of rows',
+    schema: schemaRef('RosterImportRowPage'),
+    headers: RATE_LIMIT_HEADERS,
+  })
   @ApiProblemResponse(
     400,
     'Query failed validation, the cursor is unknown, or importId is not a UUID',
@@ -206,6 +235,7 @@ export class RosterImportsController {
 
   @Get(':importId/report.csv')
   @Roles(...RECORD_READ_ROLES)
+  @HrSystemAccess('roster-read')
   @AuditedRead({ action: 'roster.import-report.downloaded', resource: 'roster-import' })
   @ApiParam({ name: 'importId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
@@ -217,6 +247,7 @@ export class RosterImportsController {
   @ApiOkResponse({
     description: 'The rejected rows',
     content: { 'text/csv': { schema: { type: 'string' } } },
+    headers: RATE_LIMIT_HEADERS,
   })
   @ApiProblemResponse(400, 'importId is not a UUID')
   @ApiProblemResponse(404, `${NOT_VISIBLE}, or no such import`)
