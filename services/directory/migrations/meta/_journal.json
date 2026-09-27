@@ -15,6 +15,20 @@
       "when": 1790465160312,
       "tag": "0001_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790465897023,
+      "tag": "0002_commissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790465897536,
+      "tag": "0003_commissions_seed_rls",
+      "breakpoints": true
     }
   ]
 }

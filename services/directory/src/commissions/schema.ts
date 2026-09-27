@@ -1,0 +1,142 @@
+import { sql } from 'drizzle-orm';
+import {
+  type AnyPgColumn,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+
+import type { TenantPolicy } from './policy.js';
+
+const timestamps = {
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+};
+
+/**
+ * Responsible Commissions. The table that defines tenants, so it is platform-level data and not
+ * tenant-scoped under RLS; the service applies the visibility rule (spec 01).
+ */
+export const commissions = pgTable(
+  'commissions',
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    /** Tenant key: token `tenant` claim, RLS context, events `tenant`, issuer code upper-cased. */
+    slug: text().notNull().unique(),
+    name: text().notNull(),
+    type: text({ enum: ['hosted', 'federated'] }).notNull(),
+    status: text({ enum: ['active'] })
+      .notNull()
+      .default('active'),
+    /** `sub` of the caller who created it (`system` for seeds). */
+    createdBy: text().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('commissions_name_lower_key').on(sql`lower(${table.name})`),
+    check('commissions_slug_pattern', sql`${table.slug} ~ '^[a-z][a-z0-9]{1,19}$'`),
+    check('commissions_type_check', sql`${table.type} in ('hosted', 'federated')`),
+    check('commissions_status_check', sql`${table.status} in ('active')`),
+  ],
+);
+
+/** Statutory categories of public officers, one per paragraph of Act s.32 and Regs r.5. Seeded. */
+export const officerCategories = pgTable('officer_categories', {
+  code: text().primaryKey(),
+  citation: text().notNull(),
+  description: text().notNull(),
+  sortOrder: integer().notNull().unique('officer_categories_sort_order_unique'),
+});
+
+export const commissionCategories = pgTable(
+  'commission_categories',
+  {
+    commissionId: uuid()
+      .notNull()
+      .references(() => commissions.id, { onDelete: 'cascade' }),
+    categoryCode: text()
+      .notNull()
+      .references(() => officerCategories.code),
+  },
+  (table) => [primaryKey({ columns: [table.commissionId, table.categoryCode] })],
+);
+
+/** Versioned tenant policy; version 1 is provisioned from platform defaults with the Commission. */
+export const tenantPolicyVersions = pgTable(
+  'tenant_policy_versions',
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    tenant: text()
+      .notNull()
+      .references(() => commissions.slug),
+    version: integer().notNull(),
+    effectiveFrom: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    policy: jsonb().$type<TenantPolicy>().notNull(),
+    createdBy: text().notNull(),
+    ...timestamps,
+  },
+  (table) => [unique().on(table.tenant, table.version)],
+);
+
+/**
+ * Reporting officer assignments, tenant-scoped under RLS (FORCE ROW LEVEL SECURITY, policy in
+ * migration 0003). At most one assignment per Commission is not `replaced`.
+ */
+export const reportingOfficerAssignments = pgTable(
+  'reporting_officer_assignments',
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    commissionId: uuid()
+      .notNull()
+      .references(() => commissions.id),
+    tenant: text().notNull(),
+    name: text().notNull(),
+    email: text().notNull(),
+    /** E.164. */
+    phone: text().notNull(),
+    keycloakUserId: text().notNull(),
+    state: text({ enum: ['invited', 'activated', 'replaced'] }).notNull(),
+    invitedAt: timestamp({ withTimezone: true }).notNull(),
+    activatedAt: timestamp({ withTimezone: true }),
+    replacedAt: timestamp({ withTimezone: true }),
+    /** The assignment that replaced this one. */
+    replacedBy: uuid().references((): AnyPgColumn => reportingOfficerAssignments.id),
+    createdBy: text().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('reporting_officer_assignments_current_key')
+      .on(table.commissionId)
+      .where(sql`${table.state} <> 'replaced'`),
+    index('reporting_officer_assignments_keycloak_user_id_idx').on(table.keycloakUserId),
+    check(
+      'reporting_officer_assignments_state_check',
+      sql`${table.state} in ('invited', 'activated', 'replaced')`,
+    ),
+  ],
+);
+
+export const commissionsSchema = {
+  commissions,
+  officerCategories,
+  commissionCategories,
+  tenantPolicyVersions,
+  reportingOfficerAssignments,
+};
