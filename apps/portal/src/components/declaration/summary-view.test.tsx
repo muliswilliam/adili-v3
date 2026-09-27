@@ -191,8 +191,7 @@ beforeEach(() => {
   navigate.mockReset();
 });
 
-// The summary is a large tree; role queries over it are slow in jsdom.
-describe('SummaryView', { timeout: 20_000 }, () => {
+describe('SummaryView', () => {
   it('renders a complete draft by paragraph, ready to check', () => {
     renderSummary();
 

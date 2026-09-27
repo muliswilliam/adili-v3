@@ -102,8 +102,7 @@ beforeEach(() => {
 });
 
 describe('HouseholdSection', () => {
-  // Many role queries over a large tree: slow on a loaded machine.
-  it('lists spouses and children with who needs a statement (S5)', { timeout: 20_000 }, () => {
+  it('lists spouses and children with who needs a statement (S5)', () => {
     renderHousehold({
       spouses: { none: false, items: [mary, grace] },
       children: { none: false, items: [tom, lucy, ann] },
