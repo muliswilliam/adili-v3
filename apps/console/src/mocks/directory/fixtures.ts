@@ -1,9 +1,13 @@
 /**
- * In-memory stand-in for the directory's Commission endpoints (contract draft, spec 01), used
- * when DIRECTORY_MOCK is set until the directory implements them (#13). It answers every caller
- * as if they could see every Commission; visibility rules are the directory's job.
+ * Fixtures for the fake directory (MSW handlers in `./handlers.ts`): the prototype's Commissions
+ * and the statutory officer categories. Dev and test only; never imported by the server bundle.
  */
-import type { Commission, OfficerCategory, ReportingOfficer, RosterSummary } from './types';
+import type {
+  Commission,
+  OfficerCategory,
+  ReportingOfficer,
+  RosterSummary,
+} from '../../server/directory/types';
 
 export const OFFICER_CATEGORIES: OfficerCategory[] = [
   {
@@ -122,25 +126,15 @@ function officer(
   };
 }
 
-function roster(expected = 0, onboarded = 0, flagged = 0, lastImportAt?: string): RosterSummary {
-  return lastImportAt
-    ? {
-        status: 'imported',
-        expectedDeclarants: expected,
-        onboardedDeclarants: onboarded,
-        flagged,
-        lastImportAt: eat(lastImportAt),
-        lastImportId: crypto.randomUUID(),
-      }
-    : {
-        status: 'none',
-        expectedDeclarants: 0,
-        onboardedDeclarants: 0,
-        flagged: 0,
-        lastImportAt: null,
-        lastImportId: null,
-      };
-}
+/** Slice 01 has no rosters yet: every Commission reads "No roster yet" until slice 02. */
+const NO_ROSTER: RosterSummary = {
+  status: 'none',
+  expectedDeclarants: 0,
+  onboardedDeclarants: 0,
+  flagged: 0,
+  lastImportAt: null,
+  lastImportId: null,
+};
 
 function commission(
   slug: string,
@@ -149,7 +143,6 @@ function commission(
   categoryCodes: OfficerCategory['code'][],
   createdAt: string,
   reportingOfficer: ReportingOfficer | null,
-  rosterSummary: RosterSummary = roster(),
 ): Commission {
   return {
     id: crypto.randomUUID(),
@@ -161,7 +154,7 @@ function commission(
     status: 'active',
     policyVersion: 1,
     reportingOfficer,
-    roster: rosterSummary,
+    roster: NO_ROSTER,
     createdAt: eat(createdAt),
   };
 }
@@ -181,7 +174,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-20T09:48:00',
       '2026-08-21T10:31:00',
     ),
-    roster(1210, 944, 0, '2026-09-24T07:00:00'),
   ),
   commission(
     'cue',
@@ -204,7 +196,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-25T16:10:00',
       '2026-08-26T08:30:00',
     ),
-    roster(412, 388, 2, '2026-09-05T12:00:00'),
   ),
   commission('kdf', 'Defence Council', 'federated', ['act-s32-11'], '2026-09-10T08:20:00', null),
   commission(
@@ -220,7 +211,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-03T10:02:00',
       '2026-08-03T15:47:00',
     ),
-    roster(1484, 1102, 4, '2026-09-02T11:20:00'),
   ),
   commission(
     'jsc',
@@ -297,7 +287,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-12T10:20:00',
       '2026-08-13T07:58:00',
     ),
-    roster(101240, 12384, 212, '2026-09-11T09:45:00'),
   ),
   commission(
     'parlsc',
@@ -312,7 +301,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-01T14:30:00',
       '2026-08-03T09:02:00',
     ),
-    roster(3310, 1402, 37, '2026-08-14T11:00:00'),
   ),
   commission(
     'psc',
@@ -327,7 +315,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-03T09:40:00',
       '2026-08-04T08:12:00',
     ),
-    roster(48312, 6904, 14, '2026-09-26T06:00:04'),
   ),
   commission(
     'senate',
@@ -350,7 +337,6 @@ export const MOCK_COMMISSIONS: Commission[] = [
       '2026-08-05T10:20:00',
       '2026-08-06T09:15:00',
     ),
-    roster(436118, 81220, 0, '2026-09-23T08:10:00'),
   ),
   commission(
     'wpab',
@@ -361,48 +347,3 @@ export const MOCK_COMMISSIONS: Commission[] = [
     null,
   ),
 ];
-
-const DEFAULT_LIMIT = 50;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': status < 400 ? 'application/json' : 'application/problem+json' },
-  });
-}
-
-function notFound(instance: string): Response {
-  return json(
-    { type: 'about:blank', title: 'Not Found', status: 404, detail: 'No such resource.', instance },
-    404,
-  );
-}
-
-function listCommissions(params: URLSearchParams): Response {
-  const search = params.get('search')?.trim().toLowerCase();
-  const type = params.get('type');
-  const reportingOfficer = params.get('reportingOfficer');
-  const matches = MOCK_COMMISSIONS.filter(
-    (item) =>
-      (!search || item.name.toLowerCase().includes(search) || item.slug.includes(search)) &&
-      (!type || item.type === type) &&
-      (!reportingOfficer || (item.reportingOfficer?.state ?? 'none') === reportingOfficer),
-  );
-  const offset = Number(params.get('cursor') ?? 0);
-  const limit = Number(params.get('limit') ?? DEFAULT_LIMIT);
-  const items = matches.slice(offset, offset + limit);
-  const next = offset + limit;
-  return json({ items, nextCursor: next < matches.length ? String(next) : null });
-}
-
-/** A `fetch` that answers the Commission read endpoints from fixtures. */
-export function mockDirectoryFetch(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-  const path = url.pathname;
-  if (request.method !== 'GET') return Promise.resolve(notFound(path));
-  if (path === '/v1/commissions') return Promise.resolve(listCommissions(url.searchParams));
-  if (path === '/v1/reference/officer-categories') return Promise.resolve(json(OFFICER_CATEGORIES));
-  const slug = /^\/v1\/commissions\/([^/]+)$/.exec(path)?.[1];
-  const found = slug ? MOCK_COMMISSIONS.find((item) => item.slug === slug) : undefined;
-  return Promise.resolve(found ? json(found) : notFound(path));
-}

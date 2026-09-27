@@ -2,13 +2,13 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { commissionFiltersSchema } from '../components/commissions/filters';
+import { commissionListSearchSchema } from '../lib/commission-filters';
 import { getBff } from './bff.server';
 import { type DirectoryClient, directoryClient } from './directory/client.server';
 import { callDirectory, type DirectoryResult } from './directory/result';
 import type { Commission, CommissionPage, OfficerCategory } from './directory/types';
 
-/** Page size for the Commissions list; "Load more" fetches the next page. */
+/** Page size for the Commissions list; Next and Previous move a page at a time by cursor. */
 export const COMMISSIONS_PAGE_SIZE = 50;
 
 async function withDirectory<T>(
@@ -21,7 +21,7 @@ async function withDirectory<T>(
 
 /** `GET /v1/commissions`: one page, ordered by name. */
 export const listCommissions = createServerFn({ method: 'GET' })
-  .validator(commissionFiltersSchema.extend({ cursor: z.string().optional() }))
+  .validator(commissionListSearchSchema)
   .handler(({ data }): Promise<DirectoryResult<CommissionPage>> =>
     withDirectory((client) =>
       callDirectory(() =>

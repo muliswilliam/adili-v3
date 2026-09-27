@@ -4,7 +4,6 @@ import { getRequest } from '@tanstack/react-start/server';
 
 import { getBff } from './bff.server';
 import { fetchPrincipal, type PrincipalResult } from './directory.server';
-import { env } from './env.server';
 
 export interface Viewer {
   user: SessionUser;
@@ -19,7 +18,7 @@ export const getViewer = createServerFn({ method: 'GET' }).handler(
     if (!session) return null;
     return {
       user: session.user,
-      directory: await fetchPrincipal(env().DIRECTORY_API_URL, session.accessToken),
+      directory: await fetchPrincipal(session.accessToken),
     };
   },
 );
