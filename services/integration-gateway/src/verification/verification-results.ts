@@ -25,15 +25,13 @@ export interface VerificationResult {
 export class VerificationResults {
   constructor(@InjectDatabase() private readonly db: Database<typeof schema>) {}
 
-  async record(result: VerificationResult, caller: Principal): Promise<string> {
-    const id = uuidv7();
+  async record(result: VerificationResult, caller: Principal): Promise<void> {
     await this.db.insert(verificationResults).values({
-      id,
+      id: uuidv7(),
       ...result,
       latencyMs: Math.round(result.latencyMs),
       // Services are identified by OAuth client; tokens without one fall back to the subject.
       caller: caller.clientId ?? caller.subject,
     });
-    return id;
   }
 }

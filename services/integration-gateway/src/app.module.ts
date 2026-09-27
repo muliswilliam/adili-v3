@@ -8,7 +8,6 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { IprsModule } from './iprs/iprs.module.js';
-import { ResilienceModule } from './resilience/resilience.module.js';
 
 @Module({
   imports: [
@@ -34,7 +33,6 @@ import { ResilienceModule } from './resilience/resilience.module.js';
       namespace: config.TEMPORAL_NAMESPACE,
     }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
-    ResilienceModule,
     IprsModule,
   ],
 })

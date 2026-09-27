@@ -41,9 +41,8 @@ export class IprsController {
         detail: 'IPRS is not responding. Try again in a few minutes.',
       });
     }
-    const { answer, cached } = result;
-    void reply.header('x-cache', cached ? 'hit' : 'miss');
-    if (!answer.found) {
+    void reply.header('x-cache', result.cached ? 'hit' : 'miss');
+    if (result.outcome === 'not-found') {
       throw new ProblemException({
         type: 'not-found',
         title: 'No IPRS record',
@@ -51,6 +50,6 @@ export class IprsController {
         detail: 'IPRS has no person with this national ID.',
       });
     }
-    return answer.person;
+    return result.person;
   }
 }

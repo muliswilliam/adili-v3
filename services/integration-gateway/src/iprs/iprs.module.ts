@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
+import { circuitBreaker, ConsecutiveBreaker, handleAll } from 'cockatiel';
 
 import { config } from '../config.js';
-import { CircuitBreaker } from '../resilience/circuit-breaker.js';
-import { CLOCK, type Clock } from '../resilience/clock.js';
 import { VerificationResults } from '../verification/verification-results.js';
 import { IPRS_CACHE_TTL_SECONDS, IprsCache } from './iprs-cache.js';
 import { IPRS_CLIENT_OPTIONS, IprsClient, type IprsClientOptions } from './iprs-client.js';
@@ -29,16 +28,13 @@ import { SUBJECT_HASH_KEY, SubjectHasher } from './subject-hasher.js';
     { provide: IPRS_CACHE_TTL_SECONDS, useValue: config.IPRS_CACHE_TTL_SECONDS },
     { provide: SUBJECT_HASH_KEY, useValue: config.SUBJECT_HASH_KEY },
     {
+      // Per process: each instance learns about an outage from its own failures (ADR-013).
       provide: IPRS_BREAKER,
-      inject: [CLOCK],
-      useFactory: (clock: Clock) =>
-        new CircuitBreaker(
-          {
-            failureThreshold: config.BREAKER_FAILURE_THRESHOLD,
-            cooldownMs: config.BREAKER_COOLDOWN_MS,
-          },
-          clock,
-        ),
+      useFactory: () =>
+        circuitBreaker(handleAll, {
+          halfOpenAfter: config.BREAKER_COOLDOWN_MS,
+          breaker: new ConsecutiveBreaker(config.BREAKER_FAILURE_THRESHOLD),
+        }),
     },
   ],
 })

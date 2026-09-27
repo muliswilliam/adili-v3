@@ -11,25 +11,29 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import pg from 'pg';
+import { vi } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { schema } from '../../src/db/schema.js';
 import { IPRS_CLIENT_OPTIONS, type IprsClientOptions } from '../../src/iprs/iprs-client.js';
-import { CLOCK, type Clock } from '../../src/resilience/clock.js';
 
 const MIGRATIONS = new URL('../../migrations', import.meta.url).pathname;
 
-/** A clock the test moves by hand. */
-export class FakeClock implements Clock {
-  constructor(private ms = Date.parse('2026-10-01T08:00:00Z')) {}
-
-  now(): number {
-    return this.ms;
-  }
+/**
+ * Holds `Date.now()`, which the circuit breaker (cockatiel) reads for its cool-down, still until
+ * the test moves it. Timers are left alone, so timeouts still run in real time.
+ */
+export class Clock {
+  private now = Date.now();
+  private readonly spy = vi.spyOn(Date, 'now').mockImplementation(() => this.now);
 
   advance(ms: number): void {
-    this.ms += ms;
+    this.now += ms;
+  }
+
+  restore(): void {
+    this.spy.mockRestore();
   }
 }
 
@@ -37,7 +41,7 @@ export interface TestApp {
   app: NestFastifyApplication;
   db: Database<typeof schema>;
   valkey: ReturnType<typeof createValkey>;
-  clock: FakeClock;
+  clock: Clock;
   /** Signs an access token as the given OAuth client with the given scopes. */
   token: (options?: { clientId?: string; scope?: string }) => Promise<string>;
   close: () => Promise<void>;
@@ -45,7 +49,7 @@ export interface TestApp {
 
 /**
  * Boots the service against a fresh Postgres schema and Valkey key prefix, so parallel runs
- * never see each other's rows or cache entries, with IPRS at `iprsBaseUrl`.
+ * never see each other's rows or cache entries, with the IPRS client options overridden by `iprs`.
  */
 export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Promise<TestApp> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
@@ -69,14 +73,12 @@ export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Prom
     url: requireEnv('TEST_VALKEY_URL'),
     keyPrefix: `integration-gateway-test-${randomUUID()}:`,
   });
-  const clock = new FakeClock();
+  const clock = new Clock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
     .overrideProvider(VALKEY)
     .useValue(valkey)
-    .overrideProvider(CLOCK)
-    .useValue(clock)
     .overrideProvider(IPRS_CLIENT_OPTIONS)
     .useValue({
       baseUrl: config.IPRS_BASE_URL,
@@ -108,9 +110,11 @@ export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Prom
         .setIssuer(config.OIDC_ISSUER_URL)
         .setAudience(config.OIDC_AUDIENCE)
         .setSubject(`service-account-${clientId}`)
-        .setExpirationTime('5m')
+        // Outlives the clock moves of a whole run.
+        .setExpirationTime('1h')
         .sign(privateKey),
     close: async () => {
+      clock.restore();
       // Closing the app ends the database pool and the Valkey connection.
       await app.close();
       await admin.query(`drop schema "${schemaName}" cascade`);
