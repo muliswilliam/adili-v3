@@ -16,6 +16,10 @@ import {
   reportingOfficerStateSchema,
   rosterSummarySchema,
 } from './commissions/representation.js';
+import {
+  rosterApiCredentialSchema,
+  rosterApiCredentialWithSecretSchema,
+} from './roster/api-credential/representation.js';
 
 /**
  * Named schemas of the directory's OpenAPI document (`#/components/schemas/<name>`), which is
@@ -34,4 +38,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterSummary: rosterSummarySchema,
   Commission: commissionSchema,
   CommissionPage: commissionPageSchema,
+  RosterApiCredential: rosterApiCredentialSchema,
+  RosterApiCredentialWithSecret: rosterApiCredentialWithSecretSchema,
 };
