@@ -37,6 +37,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "config.registry_control.RegistryControlMiddleware",
+    "config.faults.FaultInjectionMiddleware",
 ]
 
 
@@ -61,6 +62,38 @@ MOCK_REGISTRY_PAUSED = {
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+        "OPTIONS": {"autoescape": True},
+    }
+]
+
+
+def _int_env(name: str, default: int = 0) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return default
+
+
+def _failure_env(name: str) -> str:
+    value = os.environ.get(name, "").strip().lower()
+    return value
+
+
+# 07b adapter kit: env flags plus per-request X-Mock-Latency-Ms / X-Mock-Failure.
+MOCK_LATENCIES_MS = {
+    "iprs": _int_env("MOCK_IPRS_LATENCY_MS"),
+    "sms": _int_env("MOCK_SMS_LATENCY_MS"),
+}
+MOCK_FAILURES = {
+    "iprs": _failure_env("MOCK_IPRS_FAILURE"),
+    "sms": _failure_env("MOCK_SMS_FAILURE"),
+}
 
 DATABASES = {
     "default": dj_database_url.parse(
