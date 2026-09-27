@@ -76,6 +76,7 @@
     0 0 0 1.5px var(--destructive),
     0 0 0 4px color-mix(in oklch, var(--destructive) 12%, transparent);
   --elevation-card: 0 1px 2px rgb(20 20 20 / 0.04), 0 0 0 1px var(--border);
+  --elevation-card-active: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
   --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
   --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
   --elevation-button-destructive:
@@ -129,6 +130,7 @@
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
     --elevation-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
+    --elevation-card-active: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(0 0 0 / 0.6);
     --elevation-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
     --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.3);
     --elevation-button-destructive:
@@ -189,6 +191,7 @@
   --shadow-control-error: var(--elevation-control-error);
   --shadow-control-error-focus: var(--elevation-control-error-focus);
   --shadow-card: var(--elevation-card);
+  --shadow-card-active: var(--elevation-card-active);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
   --shadow-button-destructive: var(--elevation-button-destructive);

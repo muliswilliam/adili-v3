@@ -168,7 +168,7 @@ function InterestCard({
     <li
       id={idFor(path)}
       onBlur={onLeave}
-      className="grid gap-4 rounded-[14px] bg-card p-4 shadow-card"
+      className="grid gap-4 rounded-2xl bg-card p-4 shadow-card"
     >
       <div className="flex items-center justify-between gap-3">
         <h4 className="text-[15px] font-medium">{title}</h4>

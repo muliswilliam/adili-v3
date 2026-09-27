@@ -148,11 +148,11 @@ export function Repeater<T>({
               <li
                 key={key}
                 data-editing={editing || undefined}
-                className="rounded-[14px] bg-card shadow-card data-editing:shadow-[0_0_0_1.5px_var(--ring),0_8px_24px_-12px_rgb(0_0_0/0.2)]"
+                className="rounded-2xl bg-card shadow-card data-editing:shadow-card-active"
               >
                 <div className="flex items-center gap-3 px-4 py-3.5">
                   {icon ? (
-                    <span className="grid size-[38px] shrink-0 place-items-center rounded-[10px] bg-muted text-secondary-foreground max-sm:self-start">
+                    <span className="grid size-[38px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground max-sm:self-start">
                       <Icon icon={icon} className="size-[17px]" />
                     </span>
                   ) : null}
@@ -247,7 +247,7 @@ export function Repeater<T>({
         type="button"
         disabled={disabled}
         onClick={onAdd}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-input text-sm font-medium text-secondary-foreground outline-none hover:border-foreground hover:bg-brand-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-input disabled:hover:bg-transparent"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input text-sm font-medium text-secondary-foreground outline-none hover:border-foreground hover:bg-brand-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-input disabled:hover:bg-transparent"
       >
         <Icon icon={PlusSignIcon} />
         {addLabel}
