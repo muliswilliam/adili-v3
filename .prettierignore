@@ -12,4 +12,4 @@ apps/keycloak-theme/src/kc.gen.tsx
 docs
 *.md
 packages/schemas/external
-**/server/directory/schema.gen.ts
+**/server/*/schema.gen.ts

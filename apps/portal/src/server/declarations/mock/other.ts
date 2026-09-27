@@ -1,0 +1,112 @@
+import type {
+  Draft,
+  MaterialChangeEntry,
+  OtherInformation,
+} from '../../../components/declaration/contents';
+import type { CompletenessIssue } from '../types';
+import { issue, type RuleContext } from './context';
+
+/** Paragraph 9's material changes, composed from flagged items and the marital status change. */
+export function composeMaterialChanges(context: RuleContext): MaterialChangeEntry[] {
+  const entries: MaterialChangeEntry[] = [];
+  const marital = context.officer.maritalStatusChange;
+  if (marital?.changed && marital.explanation) {
+    entries.push({
+      personKey: 'officer',
+      kind: 'marital-status',
+      explanation: marital.explanation,
+    });
+  }
+  for (const statement of context.statements.values()) {
+    for (const items of [statement.income, statement.assets, statement.liabilities]) {
+      for (const item of items ?? []) {
+        if (item.change?.changed && item.change.kind && item.change.explanation) {
+          entries.push({
+            ...(statement.personKey ? { personKey: statement.personKey } : {}),
+            ...(item.id ? { itemId: item.id } : {}),
+            ...(item.description ? { itemDescription: item.description } : {}),
+            kind: item.change.kind,
+            explanation: item.change.explanation,
+          });
+        }
+      }
+    }
+  }
+  return entries;
+}
+
+/** Paragraph 9 (S11). Refined by the other information screen (#128). */
+export function otherCompleteness(
+  other: Draft<OtherInformation>,
+  context: RuleContext,
+): CompletenessIssue[] {
+  const issues: CompletenessIssue[] = [];
+  const interests = other.registrableInterests;
+  interests?.directorships?.forEach((entry, index) => {
+    if (!entry.company?.trim() || !entry.role?.trim() || entry.remunerated === undefined) {
+      issues.push(
+        issue(
+          context,
+          `/registrableInterests/directorships/${String(index)}`,
+          'required',
+          `Directorship ${String(index + 1)}: enter the company, your role and whether it is paid.`,
+        ),
+      );
+    }
+  });
+  interests?.memberships?.forEach((entry, index) => {
+    if (!entry.entity?.trim() || !entry.kind) {
+      issues.push(
+        issue(
+          context,
+          `/registrableInterests/memberships/${String(index)}`,
+          'required',
+          `Membership ${String(index + 1)}: enter the name and the kind of body.`,
+        ),
+      );
+    }
+  });
+  const dual = interests?.dualCitizenship;
+  if (dual?.holds === undefined) {
+    issues.push(
+      issue(
+        context,
+        '/registrableInterests/dualCitizenship/holds',
+        'required',
+        'Say whether you hold another citizenship.',
+      ),
+    );
+  } else if (dual.holds && !dual.country) {
+    issues.push(
+      issue(
+        context,
+        '/registrableInterests/dualCitizenship/country',
+        'required',
+        'Choose the other country of citizenship.',
+      ),
+    );
+  }
+  if (dual?.pendingApplication === undefined) {
+    issues.push(
+      issue(
+        context,
+        '/registrableInterests/dualCitizenship/pendingApplication',
+        'required',
+        'Say whether you have a pending citizenship application.',
+      ),
+    );
+  }
+  interests?.pendingCases?.forEach((entry, index) => {
+    if (!entry.forum?.trim() || !entry.reference?.trim() || !entry.nature?.trim()) {
+      issues.push(
+        issue(
+          context,
+          `/registrableInterests/pendingCases/${String(index)}`,
+          'required',
+          `Pending case ${String(index + 1)}: enter the court or body, case reference and nature.`,
+        ),
+      );
+    }
+  });
+  return issues;
+}
