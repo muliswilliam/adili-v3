@@ -22,7 +22,7 @@ The kit is throwaway: plain CSS with hex values so the prototypes open by double
 | Font | Inter | `font-sans` (Inter Variable, bundled via `@fontsource-variable/inter`), features `cv11` and `ss01` |
 | Body text | 15px, line height 1.5 | set on `body`; components set their own sizes (labels and table text 14px, hints 13px) |
 | Icons | stroke icons, 16 to 18px | `Icon` from `@adili/ui` with icons from `@hugeicons/core-free-icons`, 16px by default |
-| Focus | 2px ink outline, 2px offset | `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring` on buttons, tabs, steppers and drop zones; controls use `shadow-control-focus` |
+| Focus | 2px ink outline, 2px offset | `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring` on buttons, links, tabs, steppers and drop zones; controls use `shadow-control-focus` |
 
 ## Colour tokens
 
@@ -47,7 +47,7 @@ Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `
 | `glow` / `glow-soft` | | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `logo` | | `#f06225` | the Dials logo only |
 
-Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`).
+Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`). The info and brand solids miss 4.5:1 on their light soft fills, so their badges use `-subtle-foreground`, as the kit's `.badge-info` and `.badge-brand` do.
 
 | Family | Kit | Solid | `-subtle` | `-subtle-foreground` |
 |---|---|---|---|---|
@@ -71,7 +71,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-control` | `--shadow-input` | inputs, textareas, selects, secondary buttons |
 | `shadow-control-hover` | *derived* | hovered controls (the ring darkens to `input`) |
 | `shadow-control-focus` | `.input:focus` | focused controls: 1px ink ring and a 4px 8% halo |
-| `shadow-control-error`, `-error-focus` | `.is-invalid` | invalid controls (`aria-invalid`): 1.5px red ring |
+| `shadow-control-error`, `-error-focus` | `[aria-invalid]` | invalid controls (`aria-invalid`): 1.5px red ring |
 | `shadow-card` | `--shadow-card` | cards |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
@@ -101,14 +101,14 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | Component | Kit | Notes |
 |---|---|---|
 | `Button` | `.btn` | Variants `default` (primary), `secondary`, `ghost`, `destructive`, `destructive-ghost`, `link`. Sizes `default` 44px, `sm` 34px, `xs` 28px, `icon` 36px square. Presses down 1px; disabled is 50% opacity, except primary, which turns `primary-disabled`. Full width is `className="w-full"`. |
-| `Input`, `Textarea` | `.input`, `.textarea` | 44px high (textarea 110px minimum), 12px padding, 15px text. Read-only and disabled fill with `muted`. Error comes from `aria-invalid`, set by `FormField`. |
+| `Input`, `Textarea` | `.input`, `.textarea` | 44px high (textarea 110px minimum), 12px padding, 15px text. Read-only (the `readonly` attribute) and disabled fill with `muted`; disabled text is dimmer. `controlClassName` carries these for other text controls. Error comes from `aria-invalid`, set by `FormField`. |
 | `Label` | `.label` | 14px medium in `secondary-foreground` |
 | `FormField` | `.field` | label, hint, control and error 6px apart. The hint sits under the label so it is read before the control; the error sits under the control with an icon and `role="alert"`. |
 | `Card` | `.card.card-pad` | white, 16px radius, `shadow-card`, 20px padding (24px from `sm`). `CardHeader` (optional `CardIcon`: 34px `muted` tile; title 16px semibold; description 14px muted), 20px to `CardContent` (fields 16px apart), 20px to `CardFooter` (actions 12px apart; `flex-1` for an equal-width pair). |
 | `Badge` | `.badge` | 24px pill, 12.5px medium. `default` (sunken), `success`, `warning`, `destructive`, `info`, `brand`, `ai`. Put an icon or clear text in it; never rely on colour alone. |
-| `Alert` | `.callout` | 14px on a soft fill, 18px icon 12px from the text. `neutral` (default, the kit's `.callout-info`), `info` (blue, the portal's `.alert-info`), `success`, `warning`, `destructive`. |
+| `Alert` | `.callout` | 14px on a soft fill, 18px icon 12px from the text. `neutral` (default, the kit's `.callout-info`), `info` (blue, the portal's `.alert-info`), `success`, `warning`, `destructive`, `ai` (`.callout-ai`), `brand` (`.callout-brand`; its text is `brand-subtle-foreground`, lighter than the kit's `#7a2f0c`). |
 | `DescriptionList` | `.dl` | term on the left in muted, value right-aligned in medium weight, rows split by hairlines |
-| `SiteHeader` | `.topbar` | 60px, translucent page colour with blur, hairline below |
+| `SiteHeader` | `.topbar` | 60px, translucent page colour with blur, hairline below; 16px side padding, 28px from `sm` |
 | `Dialog` | `.dialog` | bottom sheet with a grabber on phones, centred 560px panel from `sm`. `DialogHeader` (19px title), `DialogBody` (scrolls; fields 18px apart), `DialogFooter` (hairline above; equal-width buttons on phones, right-aligned from `sm`) |
 | `Toast` | `.toast` | dark pill at the bottom centre with a tick; assertive toasts show a warning icon in `brand` |
 | `Table` | `.table` | 12.5px muted headers on a faint fill, 12px cells with 16px at the row ends, hairlines between rows |
@@ -123,7 +123,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Tabs` | `.tabs` | 40px underlined tabs, 14px medium, the active one ink with a 2px ink rule; `TabsCount` adds the kit's 18px count pill |
 | `Tooltip` | `.tip-t`, `#kit-tipbox` | ink panel, 12.5px medium text up to 280px wide, `shadow-pop` |
 | `Combobox` | `.combo-list`, `.combo-opt` | `Input` with a search icon; the list is a pop-shadow menu whose options show the description as a `brand-subtle` mono code chip before the label, and a tick on the chosen one |
-| `OtpInput` | `.otp` | 54 × 58px boxes, 24px semibold digits, 8px apart with a 10px gap between the halves; 1.5px ring on focus and on error; disabled boxes fill `muted` |
+| `OtpInput` | `.otp` | 54 × 58px boxes, 24px semibold digits, 8px apart with a 10px gap between the halves; the shared `shadow-control-focus` and `shadow-control-error` rings (the kit's 1.5px focus ring is not a separate token); disabled boxes fill `muted` |
 | `MaskedContact` | `.masked`, `.vbadge-ok` | semibold tabular value; the optional verified badge is `success` with a tick |
 | `CopyButton` | copy button in the portal gallery | 36px ghost icon button, or `sm` with its label shown; confirms with a polite toast |
 | `OfficerReference` | `.mono` officer reference in the portal dashboard | the officer reference in semibold mono with a `CopyButton` after it |
@@ -135,7 +135,7 @@ Shared helpers live next to the components: `formatDate` and `formatDateTime` pr
 
 ## Dark theme
 
-*Derived.* The prototypes are light only. `prefers-color-scheme: dark` maps the same tokens onto a dark warm-neutral scale (page `#141413`, cards `#1c1c1a`), lightens the status and brand hues so their text stays legible on the dark fills, and keeps the hairline rings on `border`.
+*Derived.* The prototypes are light only. `prefers-color-scheme: dark` maps the same tokens onto a dark warm-neutral scale (page `#141413`, cards `#1c1c1a`), lightens the status and brand hues so their text stays legible on the dark fills, and keeps the hairline rings on `border`. White fails AA on the lighter red, so solid destructive buttons take dark text in the dark theme.
 
 ## Open questions
 

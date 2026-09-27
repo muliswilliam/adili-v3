@@ -1,10 +1,21 @@
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
-import type { ComponentProps, ReactNode } from 'react';
+import { type ComponentProps, createContext, type ReactNode, useContext } from 'react';
 
 import { cn } from '../lib/cn';
 
-/** Mount once near the app root so tooltips share one open delay. */
-export const TooltipProvider = TooltipPrimitive.Provider;
+const HasProvider = createContext(false);
+
+/**
+ * Optional. Mount near the app root so tooltips share one open delay and skip the delay when
+ * moving between triggers. Without it each Tooltip mounts its own provider with the defaults.
+ */
+export function TooltipProvider(props: ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return (
+    <HasProvider value={true}>
+      <TooltipPrimitive.Provider {...props} />
+    </HasProvider>
+  );
+}
 
 export type TooltipProps = Omit<ComponentProps<typeof TooltipPrimitive.Root>, 'children'> & {
   /** Supplementary text. Never put information here that the user needs to complete a task. */
@@ -20,10 +31,12 @@ export type TooltipProps = Omit<ComponentProps<typeof TooltipPrimitive.Root>, 'c
 
 /**
  * Shows short text on hover and keyboard focus, dismissed with Esc. The trigger is described
- * by the tooltip text while it is open.
+ * by the tooltip text while it is open. Works on its own; inside a TooltipProvider it uses
+ * that provider's delays.
  */
 export function Tooltip({ content, children, side = 'top', className, ...props }: TooltipProps) {
-  return (
+  const hasProvider = useContext(HasProvider);
+  const root = (
     <TooltipPrimitive.Root {...props}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
@@ -40,4 +53,6 @@ export function Tooltip({ content, children, side = 'top', className, ...props }
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
   );
+  // Radix throws when Root has no provider above it.
+  return hasProvider ? root : <TooltipPrimitive.Provider>{root}</TooltipPrimitive.Provider>;
 }

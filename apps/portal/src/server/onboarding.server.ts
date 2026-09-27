@@ -10,7 +10,7 @@ import type { IdentifyInput } from '../components/onboarding/identify';
 import { identifySchema } from '../components/onboarding/identify';
 import { routeForSession, type StepRoute } from '../components/onboarding/steps';
 import type { OnboardingClient } from './directory/client.server';
-import type { OnboardingCredentials } from './onboarding-cookie';
+import type { OnboardingCookie, OnboardingCredentials } from './onboarding-cookie';
 import type {
   OnboardingCommission,
   OnboardingProblemCode,
@@ -29,9 +29,27 @@ const problemSchema = z.object({
     .optional(),
 });
 
+/**
+ * The problem codes the contract gives Identify (404, 409 and 429). Any other code, e.g. one
+ * added to the contract later, is read as `unavailable` so the page shows the generic error
+ * rather than looking up copy it does not have.
+ */
+const IDENTIFY_PROBLEM_CODES = [
+  'no-match',
+  'no-roster',
+  'already-onboarded',
+  'rate-limited',
+] as const satisfies readonly OnboardingProblemCode[];
+
+type IdentifyProblemCode = (typeof IDENTIFY_PROBLEM_CODES)[number];
+
+function isIdentifyProblemCode(code: string): code is IdentifyProblemCode {
+  return (IDENTIFY_PROBLEM_CODES as readonly string[]).includes(code);
+}
+
 export interface IdentifyProblem {
   /** A contract problem code, `invalid` for a rejected request or `unavailable` for anything else. */
-  code: OnboardingProblemCode | 'invalid' | 'unavailable';
+  code: IdentifyProblemCode | 'invalid' | 'unavailable';
   retryAfterSeconds?: number;
   links?: { signIn?: string; recoverAccess?: string };
 }
@@ -80,12 +98,17 @@ export async function identify(
     }
     if (response.status === 400) return { result: { ok: false, code: 'invalid' } };
     const problem = problemSchema.safeParse(error);
-    const known = [404, 409, 429].includes(response.status) && problem.success;
-    if (!known) return { result: { ok: false, code: 'unavailable' } };
+    if (
+      !problem.success ||
+      ![404, 409, 429].includes(response.status) ||
+      !isIdentifyProblemCode(problem.data.code)
+    ) {
+      return { result: { ok: false, code: 'unavailable' } };
+    }
     return {
       result: {
         ok: false,
-        code: problem.data.code as OnboardingProblemCode,
+        code: problem.data.code,
         retryAfterSeconds: retryAfter(response, problem.data.retryAfterSeconds),
         links: problem.data.links,
       },
@@ -93,6 +116,17 @@ export async function identify(
   } catch {
     return { result: { ok: false, code: 'unavailable' } };
   }
+}
+
+/** Identify, putting a new session's credentials in the cookie. */
+export async function startSession(
+  client: OnboardingClient,
+  cookie: OnboardingCookie,
+  input: IdentifyInput,
+): Promise<IdentifyResult> {
+  const { result, created } = await identify(client, input);
+  if (created) cookie.save(created, created.expiresAt);
+  return result;
 }
 
 export type SessionLookup =
@@ -110,12 +144,47 @@ export async function lookupSession(
     const { data, response } = await client.GET('/v1/onboarding/sessions/{sessionId}', {
       params: sessionParams({ sessionId, secret }),
     });
-    if (data) return { status: 'active', session: data };
+    // An expired session is as good as gone: nothing can move it on.
+    if (data)
+      return data.state === 'expired' ? { status: 'ended' } : { status: 'active', session: data };
     if (response.status === 404 || response.status === 410) return { status: 'ended' };
     return { status: 'unavailable' };
   } catch {
     return { status: 'unavailable' };
   }
+}
+
+/**
+ * The session in the cookie. A live session's cookie is written again with its current expiry;
+ * an ended or expired one's is cleared.
+ */
+export async function readSession(
+  client: OnboardingClient,
+  cookie: OnboardingCookie,
+): Promise<SessionLookup> {
+  const credentials = cookie.read();
+  if (!credentials) return { status: 'none' };
+  const lookup = await lookupSession(client, credentials);
+  if (lookup.status === 'ended') cookie.clear();
+  if (lookup.status === 'active') cookie.save(credentials, lookup.session.expiresAt);
+  return lookup;
+}
+
+/**
+ * Runs a step on the session in the cookie. The secret stays on the server. Each step that
+ * returns the session moves the cookie's expiry with it; one that finds the session ended
+ * clears the cookie.
+ */
+export async function runStep(
+  cookie: OnboardingCookie,
+  step: (credentials: OnboardingCredentials) => Promise<StepResult>,
+): Promise<StepResult> {
+  const credentials = cookie.read();
+  if (!credentials) return { ok: false, code: 'ended' };
+  const result = await step(credentials);
+  if (result.ok) cookie.save(credentials, result.session.expiresAt);
+  else if (result.code === 'ended' || result.code === 'too-many') cookie.clear();
+  return result;
 }
 
 /**
@@ -174,46 +243,33 @@ function channelParams({ sessionId, secret }: OnboardingCredentials, channel: Ot
   return { path: { sessionId, channel }, header: { 'X-Onboarding-Secret': secret } };
 }
 
-export async function verifyCode(
-  client: OnboardingClient,
-  credentials: OnboardingCredentials,
-  input: z.input<typeof codeSchema>,
-): Promise<StepResult> {
-  const parsed = codeSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: 'invalid' };
-  const { channel, code } = parsed.data;
-  try {
-    const { data, error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify',
-      { params: channelParams(credentials, channel), body: { code } },
-    );
-    if (data) return { ok: true, session: data };
-    return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
+/** What an openapi-fetch call on a session answers. */
+interface SessionCallResult {
+  data?: OnboardingSession;
+  error?: unknown;
+  response: Response;
 }
 
-/** Sends a new code, then reads the session back for the new cooldown and resends left. */
-export async function resendCode(
+/**
+ * One call on the session, read the same way for every step: the session it returns; for a
+ * 202 without a body, the session read back (for the new cooldown and resends left); otherwise
+ * the step's problem. A call that throws is the directory being unavailable.
+ */
+async function sessionCall(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
-  input: z.input<typeof channelSchema>,
+  call: () => Promise<SessionCallResult>,
 ): Promise<StepResult> {
-  const parsed = channelSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: 'invalid' };
+  let result: SessionCallResult;
   try {
-    const { error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend',
-      {
-        params: channelParams(credentials, parsed.data.channel),
-      },
-    );
-    if (response.status !== 202) return { ok: false, ...stepProblem(response, error) };
+    result = await call();
   } catch {
     return { ok: false, code: 'unavailable' };
   }
-  return readBack(client, credentials);
+  const { data, error, response } = result;
+  if (data) return { ok: true, session: data };
+  if (response.status === 202) return readBack(client, credentials);
+  return { ok: false, ...stepProblem(response, error) };
 }
 
 /** The session after a call that answers 202 without it. */
@@ -226,6 +282,37 @@ async function readBack(
   return { ok: false, code: lookup.status === 'unavailable' ? 'unavailable' : 'ended' };
 }
 
+export async function verifyCode(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: z.input<typeof codeSchema>,
+): Promise<StepResult> {
+  const parsed = codeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  const { channel, code } = parsed.data;
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify', {
+      params: channelParams(credentials, channel),
+      body: { code },
+    }),
+  );
+}
+
+/** Sends a new code, then reads the session back for the new cooldown and resends left. */
+export async function resendCode(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: z.input<typeof channelSchema>,
+): Promise<StepResult> {
+  const parsed = channelSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend', {
+      params: channelParams(credentials, parsed.data.channel),
+    }),
+  );
+}
+
 /** Supplies the email or phone the roster record lacks; the directory sends a code to it. */
 export async function provideContact(
   client: OnboardingClient,
@@ -234,16 +321,12 @@ export async function provideContact(
 ): Promise<StepResult> {
   const parsed = contactSchema.safeParse(input);
   if (!parsed.success) return { ok: false, code: 'invalid' };
-  try {
-    const { data, error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/contacts',
-      { params: sessionParams(credentials), body: parsed.data },
-    );
-    if (data) return { ok: true, session: data };
-    return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/contacts', {
+      params: sessionParams(credentials),
+      body: parsed.data,
+    }),
+  );
 }
 
 /**
@@ -251,35 +334,26 @@ export async function provideContact(
  * creates the account or links the record to the declarant's existing one; the session's state
  * and outcome say which.
  */
-export async function confirm(
+export function confirm(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
 ): Promise<StepResult> {
-  try {
-    const { data, error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/confirm',
-      { params: sessionParams(credentials) },
-    );
-    if (data) return { ok: true, session: data.session };
-    return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
+  return sessionCall(client, credentials, async () => {
+    const result = await client.POST('/v1/onboarding/sessions/{sessionId}/confirm', {
+      params: sessionParams(credentials),
+    });
+    return { ...result, data: result.data?.session };
+  });
 }
 
 /** Sends the set-password email again, then reads the session back for the new wait. */
-export async function resendPasswordEmail(
+export function resendPasswordEmail(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
 ): Promise<StepResult> {
-  try {
-    const { error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/resend-password-email',
-      { params: sessionParams(credentials) },
-    );
-    if (response.status !== 202) return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
-  return readBack(client, credentials);
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/resend-password-email', {
+      params: sessionParams(credentials),
+    }),
+  );
 }

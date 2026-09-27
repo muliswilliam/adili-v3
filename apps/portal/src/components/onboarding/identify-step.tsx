@@ -19,6 +19,7 @@ import { identifyDeclarant } from '../../server/onboarding';
 import type { IdentifyProblem } from '../../server/onboarding.server';
 import { CommissionChip } from './commission-picker';
 import { type IdentifyFieldErrors, identifyErrors } from './identify';
+import { RECOVER_ACCESS, SIGN_IN } from './links';
 import { StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from './problems';
 
@@ -169,10 +170,10 @@ function ProblemAlert({
         <AlertTitle>{problemMessage('already-onboarded')}</AlertTitle>
         <div className="mt-2.5 flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <a href={problem.links?.signIn ?? '/auth/login'}>Sign in</a>
+            <a href={problem.links?.signIn ?? SIGN_IN}>Sign in</a>
           </Button>
           <Button asChild size="sm" variant="secondary">
-            <a href={problem.links?.recoverAccess ?? '/auth/login'}>Recover access</a>
+            <a href={problem.links?.recoverAccess ?? RECOVER_ACCESS}>Recover access</a>
           </Button>
         </div>
       </Alert>

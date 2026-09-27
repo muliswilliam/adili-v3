@@ -73,4 +73,22 @@ describe('IdentifyStep', () => {
     expect(document.activeElement).toBe(alert);
     expect(field('Personnel file number').value).toBe('TSC/1');
   });
+
+  it('sends someone already onboarded to sign in or Keycloak reset password', async () => {
+    // No links in the problem: the portal's own routes stand in.
+    identifyMock.mockResolvedValue({ ok: false, code: 'already-onboarded' });
+    render(<IdentifyStep commission={TSC} />);
+
+    fireEvent.change(field('Personnel file number'), { target: { value: 'TSC/999999' } });
+    fireEvent.change(field('National ID number'), { target: { value: '11111111' } });
+    submit();
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'You already have an Adili account.',
+    );
+    expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/auth/login');
+    expect(screen.getByRole('link', { name: 'Recover access' }).getAttribute('href')).toBe(
+      '/auth/recover',
+    );
+  });
 });

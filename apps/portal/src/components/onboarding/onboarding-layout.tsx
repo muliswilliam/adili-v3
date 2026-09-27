@@ -15,6 +15,9 @@ export function OnboardingFrame({ children }: { children: ReactNode }) {
   const back = useMatches({ select: (matches) => matches.at(-1)?.staticData.onboardingBack });
   // The Commission picked on step 1 comes back preselected.
   const commission = useSearch({ strict: false, select: (search) => search.commission });
+  const commissionName = useMatches({
+    select: (matches) => commissionNameFrom(matches.at(-1)?.loaderData, commission),
+  });
 
   return (
     <>
@@ -28,7 +31,7 @@ export function OnboardingFrame({ children }: { children: ReactNode }) {
       ) : null}
       {step ? <OnboardingStepper step={step} /> : null}
       {children}
-      <HelpLine />
+      <HelpLine commissionName={commissionName} />
     </>
   );
 }
@@ -57,11 +60,36 @@ export function OnboardingStepper({ step }: { step: StepNumber }) {
   );
 }
 
-export function HelpLine() {
+/**
+ * The Commission the page is about, when its loader knows it: the session's, the one being
+ * identified against, or the one chosen on step 1.
+ */
+export function commissionNameFrom(loaderData: unknown, slug?: string): string | null {
+  if (typeof loaderData !== 'object' || loaderData === null) return null;
+  const data = loaderData as {
+    session?: { commission?: { name?: string } };
+    commission?: { name?: string } | null;
+    commissions?: { slug: string; name: string }[] | null;
+  };
+  return (
+    data.session?.commission?.name ??
+    data.commission?.name ??
+    data.commissions?.find((entry) => entry.slug === slug)?.name ??
+    null
+  );
+}
+
+/**
+ * Who to ask for help. The contract gives the Commission but not its reporting officer's name,
+ * so the Commission is named when known.
+ */
+export function HelpLine({ commissionName }: { commissionName?: string | null }) {
   return (
     <p className="mt-7 flex items-start gap-2 border-t pt-4 text-[13.5px] text-muted-foreground">
       <Icon icon={HelpCircleIcon} className="mt-0.5" />
-      Need help? Ask your reporting officer.
+      {commissionName
+        ? `Need help? Contact ${commissionName}'s reporting officer.`
+        : "Need help? Contact your Commission's reporting officer."}
     </p>
   );
 }

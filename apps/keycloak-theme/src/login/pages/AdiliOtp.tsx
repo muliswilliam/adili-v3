@@ -1,6 +1,5 @@
 import {
   Button,
-  countdownAnnouncement,
   formatClock,
   Icon,
   MaskedContact,
@@ -8,6 +7,7 @@ import {
   secondsUntil,
   Spinner,
   useCountdown,
+  useCountdownAnnouncement,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -16,7 +16,7 @@ import {
   WifiDisconnected01Icon,
 } from '@hugeicons/core-free-icons';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type OtpAction, OTP_ACTIONS, OTP_FIELDS, type OtpChannel } from '../adili-otp';
 import { Callout, PageAlert } from '../components/PageAlert';
@@ -223,16 +223,12 @@ function ResendButton({
 }) {
   const { msg, msgStr } = i18n;
   const [secondsLeft] = useCountdown(secondsUntil(resendAvailableAt));
-  const [announcement, setAnnouncement] = useState('');
-  const previous = useRef(secondsLeft);
-
-  useEffect(() => {
-    const message = countdownAnnouncement(previous.current, secondsLeft, (seconds) =>
+  const describeWait = useCallback(
+    (seconds: number) =>
       seconds === 0 ? msgStr('adiliOtpResendReady') : msgStr('adiliOtpResendWait', String(seconds)),
-    );
-    previous.current = secondsLeft;
-    if (message) setAnnouncement(message);
-  }, [secondsLeft, msgStr]);
+    [msgStr],
+  );
+  const announcement = useCountdownAnnouncement(secondsLeft, describeWait);
 
   const waiting = secondsLeft > 0;
   return (

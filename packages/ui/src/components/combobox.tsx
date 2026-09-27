@@ -32,6 +32,11 @@ export type ComboboxProps = Omit<
   emptyText?: ReactNode;
   /** Decides whether an option matches the typed text. Defaults to a case-insensitive substring match on label and description. */
   filter?: (option: ComboboxOption, query: string) => boolean;
+  /**
+   * The chosen option, shown when `value` is not (yet) among `options`, e.g. while they load.
+   * Ignored when its value is not `value`.
+   */
+  selectedOption?: ComboboxOption;
 };
 
 function defaultFilter(option: ComboboxOption, query: string) {
@@ -54,6 +59,7 @@ export function Combobox({
   onValueChange,
   emptyText = 'No matches',
   filter = defaultFilter,
+  selectedOption,
   id,
   className,
   disabled,
@@ -64,8 +70,13 @@ export function Combobox({
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const listId = `${inputId}-listbox`;
-  const selected = options.find((option) => option.value === value) ?? null;
+  const selected =
+    options.find((option) => option.value === value) ??
+    (value !== null && selectedOption?.value === value ? selectedOption : null);
   const [query, setQuery] = useState(selected?.label ?? '');
+  // Whether the text was typed since the last choice. Only text the user emptied clears the
+  // choice on blur, not text that is empty because the chosen option has not loaded.
+  const [edited, setEdited] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
 
@@ -81,6 +92,7 @@ export function Combobox({
   if (shownLabel !== selectedLabel) {
     setShownLabel(selectedLabel);
     setQuery(selectedLabel);
+    setEdited(false);
   }
 
   useEffect(() => {
@@ -88,16 +100,16 @@ export function Combobox({
     document.getElementById(optionId(active))?.scrollIntoView({ block: 'nearest' });
   });
 
-  function choose(option: ComboboxOption) {
-    setQuery(option.label);
-    setOpen(false);
-    setActive(-1);
-    if (option.value !== value) onValueChange(option.value);
-  }
-
   function close() {
     setOpen(false);
     setActive(-1);
+  }
+
+  function choose(option: ComboboxOption) {
+    setQuery(option.label);
+    setEdited(false);
+    close();
+    if (option.value !== value) onValueChange(option.value);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -151,6 +163,7 @@ export function Combobox({
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
+          setEdited(true);
           setOpen(true);
           setActive(-1);
         }}
@@ -160,8 +173,9 @@ export function Combobox({
         onBlur={(event) => {
           onBlur?.(event);
           close();
+          setEdited(false);
           // Clearing the text clears the choice; any other half-typed text reverts to it.
-          if (query.trim() === '') {
+          if (edited && query.trim() === '') {
             if (value !== null) onValueChange(null);
           } else {
             setQuery(selected?.label ?? '');
