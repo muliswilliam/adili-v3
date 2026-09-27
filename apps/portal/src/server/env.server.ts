@@ -15,7 +15,11 @@ export const envSchema = bffEnvSchema.extend({
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   DECLARATIONS_API_URL: z.url().default('http://localhost:4002'),
   DOCUMENTS_API_URL: z.url().default('http://localhost:4006'),
-  /** Serve declaration drafts and uploads from in-memory fixtures until the services implement spec 05 (#115). */
+  /**
+   * Serve declaration drafts and uploads from in-memory fixtures until the services implement
+   * spec 05 (#115). Honoured in `vite dev` and tests only; production builds do not contain the
+   * mocks.
+   */
   DECLARATIONS_MOCK: z.stringbool().default(false),
 });
 
