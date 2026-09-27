@@ -1,0 +1,9 @@
+# Redocly lint for the contracts generated from the services (`pnpm --filter @adili/schemas lint`).
+extends:
+  - recommended
+rules:
+  # Internal APIs of the platform; no licence applies.
+  info-license: off
+apis:
+  directory:
+    root: internal/directory.yaml

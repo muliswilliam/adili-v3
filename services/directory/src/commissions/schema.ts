@@ -14,6 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import type { OfficerCategoryCode } from './create-commission.js';
 import type { TenantPolicy } from './policy.js';
 
 const timestamps = {
@@ -55,7 +56,7 @@ export const commissions = pgTable(
 
 /** Statutory categories of public officers, one per paragraph of Act s.32 and Regs r.5. Seeded. */
 export const officerCategories = pgTable('officer_categories', {
-  code: text().primaryKey(),
+  code: text().$type<OfficerCategoryCode>().primaryKey(),
   citation: text().notNull(),
   description: text().notNull(),
   sortOrder: integer().notNull().unique('officer_categories_sort_order_unique'),

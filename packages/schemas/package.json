@@ -7,5 +7,8 @@
     "external",
     "internal",
     "forms"
-  ]
+  ],
+  "scripts": {
+    "lint": "pnpm --package=@redocly/cli@2.54.3 dlx redocly lint"
+  }
 }

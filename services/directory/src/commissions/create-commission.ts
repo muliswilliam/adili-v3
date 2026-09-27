@@ -31,20 +31,39 @@ export const OFFICER_CATEGORY_CODES = [
   'regs-r5-f',
 ] as const;
 
+export type OfficerCategoryCode = (typeof OFFICER_CATEGORY_CODES)[number];
+
+/** `Slug` in the contract: the tenant key. */
+export const slugSchema = z
+  .string()
+  .regex(/^[a-z][a-z0-9]{1,19}$/, 'Use 2 to 20 lowercase letters or digits, starting with a letter')
+  .refine((slug) => !RESERVED_SLUGS.includes(slug), 'This key is reserved')
+  .meta({
+    description: `Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. ${RESERVED_SLUGS.map((slug) => `\`${slug}\``).join(' and ')} are reserved.`,
+    not: { enum: RESERVED_SLUGS },
+    examples: ['psc', 'tsc', 'cpsb047', 'naeth'],
+  });
+
+export const commissionTypeSchema = z.enum(['hosted', 'federated']);
+
+export const officerCategoryCodeSchema = z
+  .enum(OFFICER_CATEGORY_CODES)
+  .meta({ description: 'One paragraph of Act s.32 or Regs r.5' });
+
 /** Body of `POST /v1/commissions` (`CreateCommission` in the contract). */
 export const createCommissionBody = z.strictObject({
-  slug: z
+  slug: slugSchema,
+  name: z
     .string()
-    .regex(
-      /^[a-z][a-z0-9]{1,19}$/,
-      'Use 2 to 20 lowercase letters or digits, starting with a letter',
-    )
-    .refine((slug) => !RESERVED_SLUGS.includes(slug), 'This key is reserved'),
-  name: z.string().trim().min(3, 'Enter 3 to 120 characters').max(120, 'Enter 3 to 120 characters'),
-  type: z.enum(['hosted', 'federated']),
+    .trim()
+    .min(3, 'Enter 3 to 120 characters')
+    .max(120, 'Enter 3 to 120 characters')
+    .meta({ examples: ['Teachers Service Commission'] }),
+  type: commissionTypeSchema,
   categories: z
-    .array(z.enum(OFFICER_CATEGORY_CODES))
-    .refine((codes) => new Set(codes).size === codes.length, 'Categories must not repeat'),
+    .array(officerCategoryCodeSchema)
+    .refine((codes) => new Set(codes).size === codes.length, 'Categories must not repeat')
+    .meta({ uniqueItems: true }),
 });
 
 export type CreateCommissionBody = z.infer<typeof createCommissionBody>;

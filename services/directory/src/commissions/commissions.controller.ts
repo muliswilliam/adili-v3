@@ -11,24 +11,21 @@ import {
 } from '@nestjs/common';
 import {
   ApiAcceptedResponse,
-  ApiBadGatewayResponse,
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiConflictResponse,
+  ApiBody,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiQuery,
+  ApiParam,
   ApiTags,
-  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import {
+  ApiProblemResponse,
+  ApiQueryParameters,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
   Roles,
+  schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 
@@ -43,8 +40,10 @@ import { type ListCommissionsQuery, listCommissionsQuery } from './list-query.js
 import { ReportingOfficersService } from './reporting-officers.service.js';
 import type { Commission, CommissionPage, OfficerCategory } from './representation.js';
 
+/** The `slug` path parameter, documented as the contract's `Slug`. */
+const ApiSlugParam = () => ApiParam({ name: 'slug', schema: schemaRef('Slug') });
+
 @ApiTags('commissions')
-@ApiBearerAuth()
 @Controller('v1/commissions')
 @Roles(...STAFF_ROLES)
 export class CommissionsController {
@@ -52,6 +51,26 @@ export class CommissionsController {
     private readonly commissions: CommissionsService,
     private readonly reportingOfficers: ReportingOfficersService,
   ) {}
+
+  @Get()
+  @ApiOperation({
+    operationId: 'listCommissions',
+    summary: 'List Responsible Commissions',
+    description:
+      "platform-admin, eacc-analyst and eacc-supervisor see every Commission. Other staff see only their own tenant's Commission.",
+  })
+  @ApiQueryParameters(listCommissionsQuery)
+  @ApiOkResponse({
+    description: 'Page of Commissions ordered by name',
+    schema: schemaRef('CommissionPage'),
+  })
+  @ApiProblemResponse(400, 'Query failed validation, or the cursor is unknown')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query(new ZodValidationPipe(listCommissionsQuery)) query: ListCommissionsQuery,
+  ): Promise<CommissionPage> {
+    return this.commissions.list(principal, query);
+  }
 
   @Post()
   @Roles('platform-admin')
@@ -61,13 +80,16 @@ export class CommissionsController {
     summary: 'Create a Responsible Commission and provision its workspace',
     description: 'platform-admin only. Idempotent per Idempotency-Key.',
   })
-  @ApiCreatedResponse({ description: 'Commission created with policy version 1' })
-  @ApiBadRequestResponse({ description: 'Request failed validation' })
-  @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
-  @ApiConflictResponse({ description: 'Tenant key or name already exists' })
-  @ApiUnprocessableEntityResponse({
-    description: 'Idempotency-Key reused with a different request body',
+  @ApiBody({ required: true, schema: schemaRef('CreateCommission') })
+  @ApiCreatedResponse({
+    description: 'Commission created with policy version 1',
+    schema: schemaRef('Commission'),
   })
+  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(
+    409,
+    'Problem type `commission-exists`: the tenant key or name is taken; `errors[].path` names `slug` and/or `name`.',
+  )
   create(
     @CurrentPrincipal() principal: Principal,
     @Body(new ZodValidationPipe(createCommissionBody)) body: CreateCommissionBody,
@@ -75,26 +97,43 @@ export class CommissionsController {
     return this.commissions.create(principal, body);
   }
 
+  @Get(':slug')
+  @ApiSlugParam()
+  @ApiOperation({
+    operationId: 'getCommission',
+    summary: 'One Commission with its reporting officer and roster summary',
+  })
+  @ApiOkResponse({ description: 'The Commission', schema: schemaRef('Commission') })
+  @ApiProblemResponse(404, 'Not found, or not visible to the caller')
+  get(@CurrentPrincipal() principal: Principal, @Param('slug') slug: string): Promise<Commission> {
+    return this.commissions.get(principal, slug);
+  }
+
   @Put(':slug/reporting-officer')
+  @ApiSlugParam()
   @Roles('platform-admin')
   @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'assignReportingOfficer',
     summary: "Assign or replace the Commission's reporting officer",
     description:
-      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role and sends exactly one activation email. A current officer is replaced: their assignment becomes `replaced` and their account loses the role and is disabled. Idempotent per Idempotency-Key.',
+      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role and is disabled. Idempotent per Idempotency-Key.',
   })
-  @ApiOkResponse({ description: 'Commission with the new assignment in state `invited`' })
-  @ApiBadRequestResponse({ description: 'Request failed validation' })
-  @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
-  @ApiNotFoundResponse({ description: 'Commission not found' })
-  @ApiConflictResponse({
-    description: 'The email belongs to an account in another tenant (or in none)',
+  @ApiBody({ required: true, schema: schemaRef('AssignReportingOfficer') })
+  @ApiOkResponse({
+    description: 'Commission with the new assignment in state `invited`',
+    schema: schemaRef('Commission'),
   })
-  @ApiUnprocessableEntityResponse({
-    description: 'Idempotency-Key reused with a different request body',
-  })
-  @ApiBadGatewayResponse({ description: 'The identity provider failed; nothing was assigned' })
+  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(404, 'Commission not found')
+  @ApiProblemResponse(
+    409,
+    'Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account in another tenant (or in none). Nothing changed and the current officer keeps access.',
+  )
+  @ApiProblemResponse(
+    502,
+    'Problem type `identity-unavailable`: the identity provider failed, nothing was assigned. Safe to retry with the same Idempotency-Key.',
+  )
   assignReportingOfficer(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
@@ -104,64 +143,37 @@ export class CommissionsController {
   }
 
   @Post(':slug/reporting-officer/resend-invitation')
+  @ApiSlugParam()
   @Roles('platform-admin')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     operationId: 'resendReportingOfficerInvitation',
     summary: 'Send the activation email again',
     description:
-      'platform-admin only. Allowed while the assignment is `invited`; the new link is valid for 72 hours.',
+      'platform-admin only. Allowed while the current assignment is `invited`; Keycloak sends a new activation link valid for 72 hours. No Idempotency-Key: a repeated request only sends another email.',
   })
   @ApiAcceptedResponse({ description: 'Email requested' })
-  @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
-  @ApiNotFoundResponse({ description: 'Commission not found or no reporting officer' })
-  @ApiConflictResponse({ description: 'The reporting officer has already activated' })
-  @ApiBadGatewayResponse({ description: 'The identity provider failed; no email was sent' })
+  @ApiProblemResponse(
+    404,
+    'Commission not found, or problem type `reporting-officer-not-assigned`: it has no reporting officer.',
+  )
+  @ApiProblemResponse(
+    409,
+    "Problem type `reporting-officer-activated`: the officer has already activated, so there is nothing to resend. Problem type `reporting-officer-account-missing`: the officer's account no longer exists in the identity provider; replace the officer.",
+  )
+  @ApiProblemResponse(
+    502,
+    'Problem type `identity-unavailable`: the identity provider failed, no email was sent. Safe to retry.',
+  )
   resendReportingOfficerInvitation(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
   ): Promise<void> {
     return this.reportingOfficers.resendInvitation(principal, slug);
   }
-
-  @Get()
-  @ApiOperation({
-    operationId: 'listCommissions',
-    summary: 'List Responsible Commissions',
-    description:
-      "platform-admin, eacc-analyst and eacc-supervisor see every Commission. Other staff see only their own tenant's Commission.",
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: 'Case-insensitive match on name or slug',
-  })
-  @ApiQuery({ name: 'type', required: false, enum: ['hosted', 'federated'] })
-  @ApiQuery({ name: 'reportingOfficer', required: false, enum: ['none', 'invited', 'activated'] })
-  @ApiQuery({ name: 'cursor', required: false })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiOkResponse({ description: 'Page of Commissions ordered by name' })
-  list(
-    @CurrentPrincipal() principal: Principal,
-    @Query(new ZodValidationPipe(listCommissionsQuery)) query: ListCommissionsQuery,
-  ): Promise<CommissionPage> {
-    return this.commissions.list(principal, query);
-  }
-
-  @Get(':slug')
-  @ApiOperation({
-    operationId: 'getCommission',
-    summary: 'One Commission with its reporting officer and roster summary',
-  })
-  @ApiOkResponse({ description: 'The Commission' })
-  @ApiNotFoundResponse({ description: 'Not found, or not visible to the caller' })
-  get(@CurrentPrincipal() principal: Principal, @Param('slug') slug: string): Promise<Commission> {
-    return this.commissions.get(principal, slug);
-  }
 }
 
 @ApiTags('reference')
-@ApiBearerAuth()
 @Controller('v1/reference')
 @Roles(...STAFF_ROLES)
 export class ReferenceController {
@@ -172,7 +184,10 @@ export class ReferenceController {
     operationId: 'listOfficerCategories',
     summary: 'Statutory categories of public officers (Act s.32, Regs r.5)',
   })
-  @ApiOkResponse({ description: 'Seeded list, stable order' })
+  @ApiOkResponse({
+    description: 'Seeded list, stable order',
+    schema: { type: 'array', items: schemaRef('OfficerCategory') },
+  })
   listOfficerCategories(): Promise<OfficerCategory[]> {
     return this.commissions.listOfficerCategories();
   }

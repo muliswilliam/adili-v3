@@ -18,10 +18,12 @@ export const assignReportingOfficerBody = z.strictObject({
     .trim()
     .max(254, 'Enter a valid email address')
     .pipe(z.email('Enter a valid email address'))
-    .transform((email) => email.toLowerCase()),
+    .transform((email) => email.toLowerCase())
+    .meta({ format: 'email', maxLength: 254 }),
   phone: z
     .string()
-    .regex(E164_PATTERN, 'Enter the phone number in E.164 format, e.g. +254712345678'),
+    .regex(E164_PATTERN, 'Enter the phone number in E.164 format, e.g. +254712345678')
+    .meta({ description: 'E.164', examples: ['+254712345678'] }),
 });
 
 export type AssignReportingOfficerBody = z.infer<typeof assignReportingOfficerBody>;
