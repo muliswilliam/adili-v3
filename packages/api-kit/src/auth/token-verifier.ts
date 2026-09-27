@@ -39,6 +39,7 @@ export class TokenVerifier {
       scopes: payload.scope?.split(' ').filter(Boolean) ?? [],
       clientId: payload.azp ?? null,
       name: payload.name ?? payload.preferred_username ?? null,
+      issuedAt: payload.iat ?? null,
     };
   }
 }

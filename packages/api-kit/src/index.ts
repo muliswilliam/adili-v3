@@ -61,6 +61,7 @@ export {
 } from './rate-limit/in-memory-rate-limit.store.js';
 export { rateLimitsSchema } from './rate-limit/rate-limit.config.js';
 export {
+  RATE_LIMIT_HEADERS,
   RATE_LIMIT_LIMIT_HEADER,
   RATE_LIMIT_REMAINING_HEADER,
   RATE_LIMIT_RESET_HEADER,

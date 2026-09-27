@@ -165,6 +165,7 @@ describe('CoreModule', () => {
       scopes: [],
       clientId: 'console',
       name: null,
+      issuedAt: null,
     });
   });
 
@@ -182,6 +183,17 @@ describe('CoreModule', () => {
 
     expect(await me(named)).toBe('Fatuma Wanjiru');
     expect(await me(unnamed)).toBe('service-account-roster-psc');
+  });
+
+  it('reads when the token was issued from the iat claim', async () => {
+    const token = await signToken({ iat: 1_790_000_000 });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.json()).toMatchObject({ issuedAt: 1_790_000_000 });
   });
 
   it('parses scopes from the space-separated scope claim', async () => {

@@ -10,11 +10,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ApiResponse, type HeadersObject } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 
 import type { AuthenticatedRequest } from '../auth/jwt-auth.guard.js';
-import { ApiProblemResponse } from '../openapi.js';
-import { ProblemException } from '../problem-details.filter.js';
+import { schemaRef } from '../openapi.js';
+import { PROBLEM_CONTENT_TYPE, ProblemException } from '../problem-details.filter.js';
 import { type RateLimitPolicy, RateLimitStore } from './rate-limit.store.js';
 
 export const RATE_LIMIT_GROUP = Symbol('RATE_LIMIT_GROUP');
@@ -24,6 +25,25 @@ export const RATE_LIMIT_POLICIES = Symbol('RATE_LIMIT_POLICIES');
 export const RATE_LIMIT_LIMIT_HEADER = 'ratelimit-limit';
 export const RATE_LIMIT_REMAINING_HEADER = 'ratelimit-remaining';
 export const RATE_LIMIT_RESET_HEADER = 'ratelimit-reset';
+
+/**
+ * The headers every response of a `@RateLimit` route carries, for its documented responses:
+ * `@ApiOkResponse({ ..., headers: RATE_LIMIT_HEADERS })`. The 429 documents them itself.
+ */
+export const RATE_LIMIT_HEADERS: HeadersObject = {
+  'RateLimit-Limit': {
+    description: "Requests the caller's budget holds when full",
+    schema: { type: 'integer' },
+  },
+  'RateLimit-Remaining': {
+    description: 'Requests left in the budget after this one',
+    schema: { type: 'integer' },
+  },
+  'RateLimit-Reset': {
+    description: 'Seconds until the budget is full again',
+    schema: { type: 'integer' },
+  },
+};
 
 /**
  * Limits how often each caller may use a controller or route (ADR-009 per-client rate limits).
@@ -52,10 +72,19 @@ export const RateLimit = (group: string) =>
   applyDecorators(
     SetMetadata(RATE_LIMIT_GROUP, group),
     UseGuards(RateLimitGuard),
-    ApiProblemResponse(
-      HttpStatus.TOO_MANY_REQUESTS,
-      'Rate limit exceeded; retry after the seconds in Retry-After',
-    ),
+    ApiResponse({
+      status: HttpStatus.TOO_MANY_REQUESTS,
+      description:
+        'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After',
+      content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef('ProblemDetails') } },
+      headers: {
+        ...RATE_LIMIT_HEADERS,
+        'Retry-After': {
+          description: 'Seconds until the next request would be allowed',
+          schema: { type: 'integer' },
+        },
+      },
+    }),
   );
 
 @Injectable()
