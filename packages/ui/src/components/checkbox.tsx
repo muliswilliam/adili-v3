@@ -37,7 +37,7 @@ export function CheckboxItem({
   'aria-describedby': ownDescribedBy,
   ...props
 }: CheckboxItemProps) {
-  const fieldIds = useFieldIds({ id, hint, describedBy: ownDescribedBy });
+  const fieldIds = useFieldIds({ id, hint, ownDescribedBy });
 
   return (
     <div className={cn('flex gap-3', className)}>
@@ -82,7 +82,7 @@ export function CheckboxGroup({
   'aria-describedby': ownDescribedBy,
   ...props
 }: CheckboxGroupProps) {
-  const fieldIds = useFieldIds({ id, hint, error, describedBy: ownDescribedBy });
+  const fieldIds = useFieldIds({ id, hint, error, ownDescribedBy });
 
   return (
     <fieldset
