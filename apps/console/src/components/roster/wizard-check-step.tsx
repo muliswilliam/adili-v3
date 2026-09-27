@@ -1,5 +1,5 @@
 import { Button, Icon } from '@adili/ui';
-import { ArrowLeft02Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 
 import { FileBox } from './file-box';
 import { messages as m } from './messages';
@@ -26,7 +26,7 @@ export function WizardCheckStep({ upload, onBack }: { upload: CleanUpload; onBac
       </WizardSection>
       <WizardFoot>
         <Button variant="secondary" onClick={onBack}>
-          <Icon icon={ArrowLeft02Icon} />
+          <Icon icon={ArrowLeft01Icon} />
           {m.back}
         </Button>
       </WizardFoot>

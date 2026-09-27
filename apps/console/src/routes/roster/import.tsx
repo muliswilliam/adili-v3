@@ -99,14 +99,16 @@ function ImportWizard() {
   // Leaving the page stops the PUT; an upload left behind expires on the documents side.
   useEffect(() => stopUpload, []);
 
-  // A new step's heading takes focus, so keyboard and screen reader users start at its top.
+  // A new step starts at the top of the page, with its heading focused so keyboard and screen
+  // reader users start there too. Focusing alone would scroll the heading under the sticky bar.
   const firstStep = useRef(true);
   useEffect(() => {
     if (firstStep.current) {
       firstStep.current = false;
       return;
     }
-    document.getElementById(WIZARD_TITLE_ID)?.focus();
+    window.scrollTo({ top: 0 });
+    document.getElementById(WIZARD_TITLE_ID)?.focus({ preventScroll: true });
   }, [state.step]);
 
   const start = (file: File) => {

@@ -58,7 +58,8 @@ export const en = {
   haveFile: 'I have a file',
   // Step 2: upload
   uploadTitle: 'Upload your file',
-  dropLabel: 'Drop your roster file here or browse.',
+  dropLabelBefore: 'Drop your roster file here or',
+  dropLabelBrowse: 'browse',
   dropHint: 'CSV (UTF-8) or Excel. Up to 50 MB and 1,000,000 rows.',
   tooLarge: (size: string) => `This file is ${size}. The limit is 50 MB.`,
   wrongType: 'Use a .csv or .xlsx file.',

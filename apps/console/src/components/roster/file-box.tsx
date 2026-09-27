@@ -23,17 +23,17 @@ export function FileBox({
 }) {
   const format = rosterFileFormat(name);
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-card px-4 py-3.5 shadow-control">
+    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-card px-4 py-3.5 shadow-control">
       <span
         aria-hidden="true"
         className={cn(
-          'grid size-10 shrink-0 place-items-center rounded-[10px] text-[11px] font-bold tracking-[0.02em] uppercase',
+          'grid size-10 shrink-0 place-items-center rounded-[10px] text-[11px] font-bold tracking-[0.02em]',
           format === 'csv'
             ? 'bg-info-subtle text-info-subtle-foreground'
             : 'bg-success-subtle text-success',
         )}
       >
-        {format ?? 'file'}
+        {(format ?? 'file').toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14.5px] font-medium">{name}</p>

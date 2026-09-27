@@ -11,7 +11,7 @@ import {
 } from '@adili/ui';
 import {
   AlertCircleIcon,
-  ArrowLeft02Icon,
+  ArrowLeft01Icon,
   RefreshIcon,
   Shield01Icon,
   Upload04Icon,
@@ -74,7 +74,15 @@ export function WizardUploadStep({
         {upload.phase === 'idle' ? (
           <FileDropZone
             ref={dropZone}
-            label={m.dropLabel}
+            label={
+              <>
+                {m.dropLabelBefore}{' '}
+                <span className="underline decoration-input underline-offset-3">
+                  {m.dropLabelBrowse}
+                </span>
+                .
+              </>
+            }
             hint={m.dropHint}
             accept={ROSTER_FILE_ACCEPT}
             maxSize={ROSTER_FILE_MAX_BYTES}
@@ -93,7 +101,7 @@ export function WizardUploadStep({
       </WizardSection>
       <WizardFoot>
         <Button variant="secondary" onClick={onBack}>
-          <Icon icon={ArrowLeft02Icon} />
+          <Icon icon={ArrowLeft01Icon} />
           {m.back}
         </Button>
       </WizardFoot>

@@ -123,7 +123,7 @@ function ColumnsTable() {
               <RequiredBadge column={column} />
             </TableCell>
             <TableCell className="max-w-[320px] text-[14px]">{column.format}</TableCell>
-            <TableCell className="text-[14px]">
+            <TableCell className="text-[14px] whitespace-nowrap">
               <Example value={column.example} />
             </TableCell>
           </TableRow>
