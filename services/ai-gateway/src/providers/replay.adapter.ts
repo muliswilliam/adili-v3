@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { hashJson } from '../hashing.js';
 import type {
   BatchItem,
   BatchItemOutcome,
@@ -24,27 +24,9 @@ interface Fixture<TResponse> {
   response: TResponse;
 }
 
-/** Canonical JSON: sorted keys, `undefined` dropped, so equal requests hash equally. */
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(canonical);
-  }
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, v]) => v !== undefined)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([k, v]) => [k, canonical(v)]),
-    );
-  }
-  return value;
-}
-
 /** Identifies a recorded response: SHA-256 over the operation and the canonical neutral request. */
 export function requestHash(operation: Operation, request: GenerateRequest): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonical({ operation, request })))
-    .digest('hex');
+  return hashJson({ operation, request });
 }
 
 export class ReplayFixtureMissingError extends Error {
@@ -138,10 +120,7 @@ export class ReplayAdapter implements ModelProvider {
     }
     // Fail at submission, like a provider rejecting a bad batch, rather than on a later poll.
     await Promise.all(items.map((item) => this.read('generateStructured', item.request)));
-    const batchId = `replay-${createHash('sha256')
-      .update(JSON.stringify(canonical(items)))
-      .digest('hex')
-      .slice(0, 24)}`;
+    const batchId = `replay-${hashJson(items).slice(0, 24)}`;
     this.replayBatches.set(batchId, items);
     return { batchId };
   }

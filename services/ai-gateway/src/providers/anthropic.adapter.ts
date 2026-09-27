@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { transformJSONSchema } from '@anthropic-ai/sdk/lib/transform-json-schema';
 
 import {
   type Attachment,
@@ -107,7 +108,9 @@ function toParams(
 ): Anthropic.MessageCreateParamsNonStreaming {
   const outputConfig: Anthropic.OutputConfig = {};
   if ('schema' in request) {
-    outputConfig.format = { type: 'json_schema', schema: request.schema };
+    // Structured outputs enforce a subset of JSON Schema; the SDK moves the rest (length and
+    // count limits, unsupported formats) into descriptions. The job validates them afterwards.
+    outputConfig.format = { type: 'json_schema', schema: transformJSONSchema(request.schema) };
   }
   if (request.effort) {
     outputConfig.effort = request.effort;
