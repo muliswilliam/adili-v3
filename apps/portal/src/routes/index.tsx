@@ -15,18 +15,37 @@ import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
 import { DashboardCards } from '../components/dashboard/dashboard-cards';
 import { SignOutButton } from '../components/sign-out-button';
+import type { DashboardWork } from '../components/dashboard/obligations-card';
+import { getMyDeclarations, getMyObligations } from '../server/declarations';
 import { getViewer, type Viewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
   validateSearch: z.object({ auth_error: z.string().optional() }),
-  loader: () => getViewer(),
+  loader: async () => {
+    const viewer = await getViewer();
+    return { viewer, work: viewer?.declarant.status === 'onboarded' ? await loadWork() : null };
+  },
   component: Home,
 });
 
+/** The declarant's obligations and declarations; an ended session reads as unavailable. */
+async function loadWork(): Promise<DashboardWork> {
+  const [obligations, declarations] = await Promise.all([getMyObligations(), getMyDeclarations()]);
+  return {
+    obligations: obligations.status === 'unauthenticated' ? { status: 'unavailable' } : obligations,
+    declarations:
+      declarations.status === 'unauthenticated' ? { status: 'unavailable' } : declarations,
+  };
+}
+
 function Home() {
-  const viewer = Route.useLoaderData();
+  const { viewer, work } = Route.useLoaderData();
   const { auth_error } = Route.useSearch();
-  return viewer ? <Dashboard viewer={viewer} /> : <Landing error={authErrorMessage(auth_error)} />;
+  return viewer ? (
+    <Dashboard viewer={viewer} work={work} />
+  ) : (
+    <Landing error={authErrorMessage(auth_error)} />
+  );
 }
 
 function Landing({ error }: { error: string | null }) {
@@ -60,7 +79,7 @@ function Landing({ error }: { error: string | null }) {
   );
 }
 
-function Dashboard({ viewer }: { viewer: Viewer }) {
+function Dashboard({ viewer, work }: { viewer: Viewer; work: DashboardWork | null }) {
   const firstName = viewer.user.name.split(' ')[0];
   return (
     <ToastProvider>
@@ -82,7 +101,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
           </p>
         </div>
         <div className="mt-8">
-          <DashboardCards viewer={viewer} />
+          <DashboardCards viewer={viewer} work={work} />
         </div>
       </main>
       <SiteFooter />

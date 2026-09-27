@@ -1,16 +1,14 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Icon } from '@adili/ui';
-import { Calendar03Icon } from '@hugeicons/core-free-icons';
-
 import type { Viewer } from '../../server/viewer';
 import { IdentityCard } from '../identity-card';
 import { DeclarantCard, DeclarantUnavailableCard, NotDeclarantCard } from './account-card';
+import { type DashboardWork, ObligationsCard } from './obligations-card';
 
 /**
- * The dashboard's cards. An onboarded declarant sees their obligations (none until slice 04)
+ * The dashboard's cards. An onboarded declarant sees their obligations, with Start declaration,
  * next to their account; someone who is not a declarant sees why, next to their sign-in
  * identity.
  */
-export function DashboardCards({ viewer }: { viewer: Viewer }) {
+export function DashboardCards({ viewer, work }: { viewer: Viewer; work?: DashboardWork | null }) {
   const { declarant } = viewer;
   return (
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
@@ -21,7 +19,7 @@ export function DashboardCards({ viewer }: { viewer: Viewer }) {
         </>
       ) : (
         <>
-          <ObligationsCard />
+          <ObligationsCard work={work} />
           {declarant.status === 'onboarded' ? (
             <DeclarantCard account={declarant.account} />
           ) : (
@@ -30,26 +28,5 @@ export function DashboardCards({ viewer }: { viewer: Viewer }) {
         </>
       )}
     </div>
-  );
-}
-
-/** Spec 01's placeholder; obligations arrive in slice 04. */
-function ObligationsCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Filing obligations</CardTitle>
-        <CardDescription>Declarations you are required to file.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-          <Icon icon={Calendar03Icon} className="size-6 text-muted-foreground" />
-          <p className="text-sm font-medium">No obligations yet</p>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            Obligations appear here when a declaration falls due under your Commission's roster.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
