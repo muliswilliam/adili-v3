@@ -26,6 +26,21 @@ export async function flagAbsent(db: Database<DirectorySchema>, ref: ImportRef):
       .for('update');
     if (current?.state !== 'processing' || !current.declaredComplete) return 0;
 
+    // The records both updates change, locked in id order first, as everywhere records are locked.
+    await tx.execute(sql`
+      select count(*) from (
+        select id from roster_records
+        where tenant = ${ref.tenant}
+          and (
+            (state <> 'exited'
+              and last_seen_import_id <> ${ref.importId}
+              and flagged_by_import_id is distinct from ${ref.importId})
+            or (last_seen_import_id = ${ref.importId} and absent_from_latest_import)
+          )
+        order by id
+        for update
+      ) as locked
+    `);
     await tx.execute(sql`
       update roster_records set
         absent_from_latest_import = true,

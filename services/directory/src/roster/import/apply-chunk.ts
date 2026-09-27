@@ -281,7 +281,11 @@ async function reportingEntityIds(
   return new Map(rows.map((row) => [row.normalisedName, row.id]));
 }
 
-/** The tenant's records with these file numbers, locked until the commit, by file number key. */
+/**
+ * The tenant's records with these file numbers, locked until the commit, by file number key.
+ * Locked in id order, as everywhere records are locked (exits, flag absent), so two transactions
+ * locking overlapping records never deadlock.
+ */
 async function recordsByFileNumber(
   tx: Transaction,
   tenant: string,
@@ -308,6 +312,7 @@ async function recordsByFileNumber(
         inArray(sql`lower(${rosterRecords.personnelFileNumber})`, fileNumbers.map(fileNumberKey)),
       ),
     )
+    .orderBy(rosterRecords.id)
     .for('update');
   return new Map(rows.map((row) => [fileNumberKey(row.personnelFileNumber), row]));
 }
