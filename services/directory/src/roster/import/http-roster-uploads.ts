@@ -31,8 +31,14 @@ export interface HttpRosterUploadsOptions {
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per call to documents. Default 5 s. */
   timeoutMs?: number;
-  /** Reading the whole file from storage. Default 2 minutes. */
-  downloadTimeoutMs?: number;
+  /** Until object storage answers with headers. Default 30 s. */
+  headersTimeoutMs?: number;
+  /**
+   * Longest wait for the next chunk of the file. Only time spent waiting on the network counts,
+   * never time the reader spends on a chunk, so a large file read slowly (staging applies
+   * backpressure) takes as long as it needs. Default 60 s.
+   */
+  idleTimeoutMs?: number;
   /** For tests. */
   fetch?: typeof fetch;
 }
@@ -59,18 +65,26 @@ export class HttpRosterUploads extends RosterUploads {
 
   async open(tenant: string, uploadId: string): Promise<OpenedRosterUpload> {
     const { upload, downloadUrl } = await this.download(tenant, uploadId);
+    const abort = new AbortController();
+    const headersTimer = setTimeout(() => {
+      abort.abort(new Error('Object storage sent no headers in time'));
+    }, this.options.headersTimeoutMs ?? 30_000);
     let response: Response;
     try {
-      response = await this.fetch(downloadUrl, {
-        signal: AbortSignal.timeout(this.options.downloadTimeoutMs ?? 120_000),
-      });
+      response = await this.fetch(downloadUrl, { signal: abort.signal });
     } catch (error) {
       throw new DocumentsUnavailable('Object storage is unreachable', { cause: error });
+    } finally {
+      clearTimeout(headersTimer);
     }
     if (!response.ok || !response.body) {
+      abort.abort();
       throw new DocumentsUnavailable(`Object storage answered ${response.status}`);
     }
-    return { ...upload, body: failingAsUnavailable(response.body) };
+    return {
+      ...upload,
+      body: streamed(response.body, abort, this.options.idleTimeoutMs ?? 60_000),
+    };
   }
 
   /** Asks documents for a download URL, retrying once with a fresh token after a 401. */
@@ -129,13 +143,36 @@ export class HttpRosterUploads extends RosterUploads {
   }
 }
 
-/** The body's chunks; a connection lost part way surfaces as `DocumentsUnavailable`. */
-async function* failingAsUnavailable(body: AsyncIterable<Uint8Array>): AsyncGenerator<Uint8Array> {
+/**
+ * The body's chunks. A connection lost part way, or no next chunk within `idleTimeoutMs` of
+ * asking for it, surfaces as `DocumentsUnavailable`. The download is aborted however the reader
+ * stops.
+ */
+async function* streamed(
+  body: AsyncIterable<Uint8Array>,
+  abort: AbortController,
+  idleTimeoutMs: number,
+): AsyncGenerator<Uint8Array> {
+  const chunks = body[Symbol.asyncIterator]();
   try {
-    for await (const chunk of body) yield chunk;
+    for (;;) {
+      const idleTimer = setTimeout(() => {
+        abort.abort(new Error(`Object storage sent nothing for ${idleTimeoutMs} ms`));
+      }, idleTimeoutMs);
+      let next: IteratorResult<Uint8Array>;
+      try {
+        next = await chunks.next();
+      } finally {
+        clearTimeout(idleTimer);
+      }
+      if (next.done) return;
+      yield next.value;
+    }
   } catch (error) {
     throw new DocumentsUnavailable('The download from object storage broke off', {
       cause: error,
     });
+  } finally {
+    abort.abort();
   }
 }

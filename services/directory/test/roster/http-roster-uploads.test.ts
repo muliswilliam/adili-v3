@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -18,7 +18,13 @@ const UPLOAD_ID = '0199a000-0000-7000-8000-00000000abcd';
 const CSV = 'text/csv';
 const FILE = 'personnel_file_number,full_name,national_id\nPSC/1,Jane Doe,12345678\n';
 
-type Handler = (request: IncomingMessage) => { status: number; body?: unknown; raw?: string };
+type Handler = (request: IncomingMessage) => {
+  status: number;
+  body?: unknown;
+  raw?: string;
+  /** Writes the response itself, e.g. slowly. */
+  stream?: (response: ServerResponse) => void;
+};
 
 let server: Server;
 let baseUrl: string;
@@ -30,7 +36,8 @@ beforeAll(async () => {
     requests.push(request);
     const answer = handler(request);
     response.statusCode = answer.status;
-    if (answer.raw !== undefined) response.end(answer.raw);
+    if (answer.stream) answer.stream(response);
+    else if (answer.raw !== undefined) response.end(answer.raw);
     else response.end(answer.body === undefined ? '' : JSON.stringify(answer.body));
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -38,6 +45,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
 });
 
@@ -67,10 +75,14 @@ function documents(download: Partial<{ status: number; body: unknown }> = {}): H
   };
 }
 
-function adapter(tokens = ['token-1', 'token-2']) {
+function adapter(
+  tokens = ['token-1', 'token-2'],
+  timeouts: { headersTimeoutMs?: number; idleTimeoutMs?: number } = {},
+) {
   let issued = 0;
   let invalidated = 0;
   const uploads = new HttpRosterUploads({
+    ...timeouts,
     documentsUrl: `${baseUrl}/`,
     tokens: {
       token: () => Promise.resolve(tokens[Math.min(issued++, tokens.length - 1)] ?? ''),
@@ -170,6 +182,81 @@ describe('HttpRosterUploads', () => {
     handler = documents(download);
 
     await expect(adapter().uploads.describe('psc', UPLOAD_ID)).rejects.toBeInstanceOf(error);
+  });
+
+  describe('reading a large file', () => {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    /** Storage sending `count` chunks, `gapMs` apart. */
+    function slowStorage(count: number, gapMs: number): void {
+      const ok = documents();
+      handler = (request) =>
+        request.url?.startsWith('/files/')
+          ? {
+              status: 200,
+              stream: (response) => {
+                response.flushHeaders();
+                let sent = 0;
+                const timer = setInterval(() => {
+                  response.write(`row ${sent}\n`);
+                  if (++sent === count) {
+                    clearInterval(timer);
+                    response.end();
+                  }
+                }, gapMs);
+                response.on('close', () => {
+                  clearInterval(timer);
+                });
+              },
+            }
+          : ok(request);
+    }
+
+    it('takes as long as the file needs while chunks keep coming', async () => {
+      slowStorage(8, 25);
+      const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 100 });
+
+      const upload = await uploads.open('psc', UPLOAD_ID);
+
+      // 8 chunks x 25 ms is well past both timeouts in total.
+      expect(await text(upload.body)).toContain('row 7');
+    });
+
+    it('does not count time the reader spends on a chunk', async () => {
+      slowStorage(3, 5);
+      const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 50 });
+
+      const upload = await uploads.open('psc', UPLOAD_ID);
+      let read = '';
+      for await (const chunk of upload.body) {
+        read += Buffer.from(chunk).toString('utf8');
+        await sleep(120); // backpressure: staging writing a batch
+      }
+
+      expect(read).toContain('row 2');
+    });
+
+    it('gives up on storage that stalls part way', async () => {
+      const ok = documents();
+      handler = (request) =>
+        request.url?.startsWith('/files/')
+          ? { status: 200, stream: (response) => response.write('row 0\n') }
+          : ok(request);
+      const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 50 });
+
+      const upload = await uploads.open('psc', UPLOAD_ID);
+
+      await expect(text(upload.body)).rejects.toBeInstanceOf(DocumentsUnavailable);
+    });
+
+    it('gives up on storage that never answers', async () => {
+      const ok = documents();
+      handler = (request) =>
+        request.url?.startsWith('/files/') ? { status: 200, stream: () => undefined } : ok(request);
+      const { uploads } = adapter(undefined, { headersTimeoutMs: 50 });
+
+      await expect(uploads.open('psc', UPLOAD_ID)).rejects.toBeInstanceOf(DocumentsUnavailable);
+    });
   });
 
   it('reports storage refusing the download as unavailable', async () => {
