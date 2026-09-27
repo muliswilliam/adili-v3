@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@adili/ui';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OnboardingSession } from '../../server/directory/types';
 import {
   leaveOnboarding,
+  provideOnboardingContact,
   resendOnboardingCode,
   verifyOnboardingCode,
 } from '../../server/onboarding';
@@ -13,9 +14,10 @@ import type { StepResult } from '../../server/onboarding.server';
 import { VerifyStep } from './verify-step';
 
 const navigate = vi.fn();
+const invalidate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
-  useRouter: () => ({ invalidate: vi.fn() }),
+  useRouter: () => ({ invalidate }),
 }));
 vi.mock('../../server/onboarding', () => ({
   leaveOnboarding: vi.fn(),
@@ -92,6 +94,8 @@ function pendingVerify() {
 
 beforeEach(() => {
   navigate.mockReset();
+  invalidate.mockReset();
+  vi.mocked(provideOnboardingContact).mockReset();
   verifyMock.mockReset();
   resendMock.mockReset();
   vi.mocked(leaveOnboarding).mockReset();
@@ -196,5 +200,50 @@ describe('VerifyStep', () => {
 
     expect(screen.getByRole('button', { name: 'Start again' })).toBeDefined();
     expect(screen.queryByText(/Ask your reporting officer/)).toBeNull();
+  });
+
+  it('shows the session the loaders bring back after another tab moved it on', async () => {
+    // The declarant enters an email here while another tab already did: the directory answers
+    // 409 and the loaders rerun, bringing a session now waiting on the code sent to it.
+    const contactRequired: OnboardingSession = {
+      ...session(),
+      state: 'email-contact-required',
+      contacts: { email: null, phone: null },
+    };
+    const pending: OnboardingSession = {
+      ...session(),
+      contacts: {
+        email: { masked: 'k***@devolution.go.ke', source: 'declarant', verified: false },
+        phone: null,
+      },
+    };
+    vi.mocked(provideOnboardingContact).mockResolvedValue({ ok: false, code: 'moved' });
+    const step = (current: OnboardingSession) => (
+      <ToastProvider>
+        <VerifyStep
+          channel="email"
+          route="/get-started/verify-email"
+          guard={{ status: 'active', session: current }}
+        />
+      </ToastProvider>
+    );
+    const { rerender } = render(step(contactRequired));
+    invalidate.mockImplementation(() => {
+      rerender(step(pending));
+      return Promise.resolve();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email address' }), {
+      target: { value: 'kamau@devolution.go.ke' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+      await Promise.resolve();
+    });
+
+    expect(invalidate).toHaveBeenCalled();
+    expect(await screen.findByLabelText('Digit 1 of 6')).toBeDefined();
+    expect(screen.queryByRole('textbox', { name: 'Email address' })).toBeNull();
+    expect(screen.getByText('k***@devolution.go.ke')).toBeDefined();
   });
 });

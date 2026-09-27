@@ -73,7 +73,18 @@ export function VerifyStep({
   guard: StepGuard;
 }) {
   if (guard.status === 'unavailable') return <SessionUnavailable />;
-  return <VerifyChannel channel={channel} route={route} initial={guard.session} />;
+  // The step keeps the session it is given and updates it as the declarant goes. When the
+  // loaders rerun (router.invalidate() after a 409 from another tab) and bring a different
+  // session that still belongs on this route, e.g. a contact entered elsewhere, start over from
+  // it rather than keep showing the old one.
+  return (
+    <VerifyChannel
+      key={JSON.stringify(guard.session)}
+      channel={channel}
+      route={route}
+      initial={guard.session}
+    />
+  );
 }
 
 function VerifyChannel({
