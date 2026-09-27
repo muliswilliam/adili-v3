@@ -3,7 +3,7 @@
  * when DIRECTORY_MOCK is set until the directory implements them (#13). It answers every caller
  * as if they could see every Commission; visibility rules are the directory's job.
  */
-import type { Commission, OfficerCategory, ReportingOfficer } from './types';
+import type { Commission, OfficerCategory, ReportingOfficer, RosterSummary } from './types';
 
 export const OFFICER_CATEGORIES: OfficerCategory[] = [
   {
@@ -101,21 +101,45 @@ function categories(...codes: OfficerCategory['code'][]): OfficerCategory[] {
   return OFFICER_CATEGORIES.filter((category) => codes.includes(category.code));
 }
 
+/** Times are Kenyan local time, as in the prototype. */
+const eat = (local: string) => `${local}+03:00`;
+
 function officer(
   name: string,
   email: string,
-  state: 'invited' | 'activated',
+  phone: string,
   invitedAt: string,
+  activatedAt: string | null = null,
 ): ReportingOfficer {
   return {
     id: crypto.randomUUID(),
     name,
     email,
-    phone: '+254712345678',
-    state,
-    invitedAt,
-    activatedAt: state === 'activated' ? invitedAt.replace('T09', 'T15') : null,
+    phone,
+    state: activatedAt ? 'activated' : 'invited',
+    invitedAt: eat(invitedAt),
+    activatedAt: activatedAt ? eat(activatedAt) : null,
   };
+}
+
+function roster(expected = 0, onboarded = 0, flagged = 0, lastImportAt?: string): RosterSummary {
+  return lastImportAt
+    ? {
+        status: 'imported',
+        expectedDeclarants: expected,
+        onboardedDeclarants: onboarded,
+        flagged,
+        lastImportAt: eat(lastImportAt),
+        lastImportId: crypto.randomUUID(),
+      }
+    : {
+        status: 'none',
+        expectedDeclarants: 0,
+        onboardedDeclarants: 0,
+        flagged: 0,
+        lastImportAt: null,
+        lastImportId: null,
+      };
 }
 
 function commission(
@@ -123,8 +147,9 @@ function commission(
   name: string,
   type: Commission['type'],
   categoryCodes: OfficerCategory['code'][],
-  reportingOfficer: ReportingOfficer | null,
   createdAt: string,
+  reportingOfficer: ReportingOfficer | null,
+  rosterSummary: RosterSummary = roster(),
 ): Commission {
   return {
     id: crypto.randomUUID(),
@@ -136,67 +161,204 @@ function commission(
     status: 'active',
     policyVersion: 1,
     reportingOfficer,
-    roster: {
-      status: 'none',
-      expectedDeclarants: 0,
-      onboardedDeclarants: 0,
-      flagged: 0,
-      lastImportAt: null,
-      lastImportId: null,
-    },
-    createdAt,
+    roster: rosterSummary,
+    createdAt: eat(createdAt),
   };
 }
 
-/** Ordered by name, as the directory returns them. */
+/** The prototype's Commissions, ordered by name as the directory returns them. */
 export const MOCK_COMMISSIONS: Commission[] = [
+  commission(
+    'cbk',
+    'Central Bank of Kenya Board of Directors',
+    'federated',
+    ['regs-r5-c'],
+    '2026-08-20T09:30:00',
+    officer(
+      'Lucy Njeri',
+      'l.njeri@centralbank.go.ke',
+      '+254722007731',
+      '2026-08-20T09:48:00',
+      '2026-08-21T10:31:00',
+    ),
+    roster(1210, 944, 0, '2026-09-24T07:00:00'),
+  ),
   commission(
     'cue',
     'Commission for University Education',
     'federated',
     ['regs-r5-b'],
-    null,
-    '2026-09-18T08:10:00Z',
+    '2026-08-27T13:00:00',
+    officer('Dr. Paul Odhiambo', 'p.odhiambo@cue.or.ke', '+254735114209', '2026-08-27T13:15:00'),
   ),
+  commission(
+    'caj',
+    'Commission on Administrative Justice',
+    'hosted',
+    ['regs-r5-d'],
+    '2026-08-25T16:00:00',
+    officer(
+      'Ann Kerubo',
+      'a.kerubo@ombudsman.go.ke',
+      '+254710448290',
+      '2026-08-25T16:10:00',
+      '2026-08-26T08:30:00',
+    ),
+    roster(412, 388, 2, '2026-09-05T12:00:00'),
+  ),
+  commission('kdf', 'Defence Council', 'federated', ['act-s32-11'], '2026-09-10T08:20:00', null),
   commission(
     'eacc',
     'Ethics and Anti-Corruption Commission',
     'hosted',
     ['act-s32-2', 'regs-r5-a'],
-    officer('Amina Wanjiru', 'amina.wanjiru@eacc.go.ke', 'invited', '2026-09-22T09:30:00Z'),
-    '2026-09-01T07:00:00Z',
+    '2026-08-03T09:16:00',
+    officer(
+      'Kevin Mutua',
+      'k.mutua@eacc.go.ke',
+      '+254733902114',
+      '2026-08-03T10:02:00',
+      '2026-08-03T15:47:00',
+    ),
+    roster(1484, 1102, 4, '2026-09-02T11:20:00'),
   ),
   commission(
     'jsc',
     'Judicial Service Commission',
     'hosted',
     ['act-s32-7'],
+    '2026-09-18T11:30:00',
+    officer('Peter Wekesa', 'peter.wekesa@jsc.go.ke', '+254711508226', '2026-09-24T16:22:00'),
+  ),
+  commission(
+    'cpsb042',
+    'Kisumu County Public Service Board',
+    'hosted',
+    ['act-s32-6'],
+    '2026-09-22T10:12:00',
     null,
-    '2026-09-15T11:45:00Z',
+  ),
+  commission(
+    'cpsb001',
+    'Mombasa County Public Service Board',
+    'hosted',
+    ['act-s32-6'],
+    '2026-09-21T12:40:00',
+    null,
+  ),
+  commission(
+    'casb047',
+    'Nairobi City County Assembly Service Board',
+    'hosted',
+    ['act-s32-9', 'act-s32-4'],
+    '2026-09-15T15:25:00',
+    officer('Halima Abdi', 'h.abdi@nairobiassembly.go.ke', '+254724901356', '2026-09-25T09:10:00'),
+  ),
+  commission(
+    'cpsb047',
+    'Nairobi City County Public Service Board',
+    'hosted',
+    ['act-s32-6'],
+    '2026-09-08T09:00:00',
+    officer('Joseph Kamau', 'joseph.kamau@nairobi.go.ke', '+254701223914', '2026-09-19T08:45:00'),
+  ),
+  commission(
+    'nassembly',
+    'National Assembly Committee on Ethics',
+    'hosted',
+    ['act-s32-2'],
+    '2026-09-04T11:00:00',
+    officer(
+      'Collins Barasa',
+      'c.barasa@parliament.go.ke',
+      '+254718220463',
+      '2026-09-04T11:15:00',
+      '2026-09-07T10:04:00',
+    ),
+  ),
+  commission(
+    'nis',
+    'National Intelligence Service Council',
+    'federated',
+    ['act-s32-12'],
+    '2026-09-10T08:25:00',
+    null,
   ),
   commission(
     'npsc',
     'National Police Service Commission',
     'hosted',
     ['act-s32-13'],
-    officer('Peter Otieno', 'p.otieno@npsc.go.ke', 'invited', '2026-09-24T09:05:00Z'),
-    '2026-09-12T10:20:00Z',
+    '2026-08-12T10:05:00',
+    officer(
+      'Mary Chebet',
+      'mary.chebet@npsc.go.ke',
+      '+254720334871',
+      '2026-08-12T10:20:00',
+      '2026-08-13T07:58:00',
+    ),
+    roster(101240, 12384, 212, '2026-09-11T09:45:00'),
+  ),
+  commission(
+    'parlsc',
+    'Parliamentary Service Commission',
+    'federated',
+    ['act-s32-8'],
+    '2026-08-01T14:10:00',
+    officer(
+      'Esther Wambui',
+      'e.wambui@parliament.go.ke',
+      '+254712660415',
+      '2026-08-01T14:30:00',
+      '2026-08-03T09:02:00',
+    ),
+    roster(3310, 1402, 37, '2026-08-14T11:00:00'),
   ),
   commission(
     'psc',
     'Public Service Commission',
     'hosted',
     ['act-s32-5', 'regs-r5-e', 'regs-r5-f'],
-    officer('Grace Muthoni', 'grace.muthoni@psc.go.ke', 'activated', '2026-09-03T09:00:00Z'),
-    '2026-09-01T07:05:00Z',
+    '2026-08-03T09:14:00',
+    officer(
+      'Grace Muthoni',
+      'grace.muthoni@publicservice.go.ke',
+      '+254722418305',
+      '2026-08-03T09:40:00',
+      '2026-08-04T08:12:00',
+    ),
+    roster(48312, 6904, 14, '2026-09-26T06:00:04'),
+  ),
+  commission(
+    'senate',
+    'Senate Committee on Ethics',
+    'hosted',
+    ['act-s32-3'],
+    '2026-09-04T11:05:00',
+    null,
   ),
   commission(
     'tsc',
     'Teachers Service Commission',
     'hosted',
     ['act-s32-10'],
-    officer('John Kamau', 'john.kamau@tsc.go.ke', 'activated', '2026-09-10T09:15:00Z'),
-    '2026-09-08T13:30:00Z',
+    '2026-08-05T10:00:00',
+    officer(
+      'Nancy Macharia',
+      'n.macharia@tsc.go.ke',
+      '+254722555010',
+      '2026-08-05T10:20:00',
+      '2026-08-06T09:15:00',
+    ),
+    roster(436118, 81220, 0, '2026-09-23T08:10:00'),
+  ),
+  commission(
+    'wpab',
+    'Witness Protection Advisory Board',
+    'hosted',
+    ['act-s32-14'],
+    '2026-09-23T09:50:00',
+    null,
   ),
 ];
 

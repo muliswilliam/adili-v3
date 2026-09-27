@@ -1,8 +1,8 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 
-import { ConsoleHeader } from '../../components/console-header';
+import { messages } from '../../components/commissions/messages';
 import { loginRedirect } from '../../components/login-redirect';
-import { NoStaffRoles } from '../../components/no-staff-roles';
+import { ConsoleShell } from '../../components/shell/console-shell';
 import { workspaceAccess } from '../../components/workspaces';
 import { getViewer } from '../../server/viewer';
 
@@ -11,20 +11,23 @@ export const Route = createFileRoute('/commissions')({
     const viewer = await getViewer();
     if (!viewer) throw loginRedirect(location.href);
     const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
-    return { viewer, access: workspaceAccess('commissions', roles) };
+    return { viewer, roles, access: workspaceAccess('commissions', roles) };
   },
   head: () => ({ meta: [{ title: 'Commissions · Adili Online Console' }] }),
+  staticData: {
+    // Staff without the workspace get "Not found" on a Commission, with no trail back to a list
+    // they cannot open.
+    crumb: ({ context, isLeaf }) =>
+      isLeaf || (context as { access?: unknown } | undefined)?.access ? messages.title : null,
+  },
   component: CommissionsLayout,
 });
 
 function CommissionsLayout() {
-  const { viewer, access } = Route.useRouteContext();
+  const { viewer, roles } = Route.useRouteContext();
   return (
-    <>
-      <ConsoleHeader userName={viewer.user.name} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        {access ? <Outlet /> : <NoStaffRoles />}
-      </main>
-    </>
+    <ConsoleShell userName={viewer.user.name} roles={roles}>
+      <Outlet />
+    </ConsoleShell>
   );
 }

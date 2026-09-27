@@ -1,4 +1,3 @@
-import { SiteFooter } from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -39,10 +38,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        <div className="flex min-h-dvh flex-col">
-          {children}
-          <SiteFooter />
-        </div>
+        <div className="flex min-h-dvh flex-col">{children}</div>
         <Scripts />
       </body>
     </html>

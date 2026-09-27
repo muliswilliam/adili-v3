@@ -7,6 +7,7 @@ export type CommissionType = Schemas['CommissionType'];
 export type OfficerCategory = Schemas['OfficerCategory'];
 export type ProblemDetails = Schemas['ProblemDetails'];
 export type ReportingOfficer = Schemas['ReportingOfficer'];
+export type RosterSummary = Schemas['RosterSummary'];
 
 export interface CommissionPage {
   items: Commission[];

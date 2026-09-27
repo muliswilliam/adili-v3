@@ -9,35 +9,51 @@ const absolute = new Intl.DateTimeFormat('en-KE', {
   timeZone: TIME_ZONE,
 });
 
-const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+const dateOnly = new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeZone: TIME_ZONE });
 
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 60 * 60],
-  ['month', 30 * 24 * 60 * 60],
-  ['week', 7 * 24 * 60 * 60],
-  ['day', 24 * 60 * 60],
-  ['hour', 60 * 60],
-  ['minute', 60],
-];
+/** The calendar day in Kenya, as `YYYY-MM-DD`. */
+const calendarDay = new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE });
+
+const numbers = new Intl.NumberFormat('en-KE');
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function formatNumber(value: number): string {
+  return numbers.format(value);
+}
 
 export function formatDateTime(iso: string): string {
   return absolute.format(new Date(iso));
 }
 
-/** "3 days ago", "last week"; anything under a minute is "just now". */
-export function formatRelative(iso: string, now: Date = new Date()): string {
-  const seconds = (new Date(iso).getTime() - now.getTime()) / 1000;
-  for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
-  }
-  return 'just now';
+export function formatDate(iso: string): string {
+  return dateOnly.format(new Date(iso));
 }
 
-/** The first citations to show inline, and the rest for a "+N" summary. */
+/**
+ * How long ago, in whole Kenyan calendar days as the prototype words it: "today", "yesterday",
+ * "12 days ago", then months of 30 days from day 31.
+ */
+export function formatAgo(iso: string, now: Date = new Date()): string {
+  const days = Math.round(
+    (Date.parse(calendarDay.format(now)) - Date.parse(calendarDay.format(new Date(iso)))) / DAY_MS,
+  );
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 31) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  return months <= 1 ? '1 month ago' : `${months} months ago`;
+}
+
+/** The first citations to show inline, and the rest for a "+N" chip. */
 export function summariseCategories(
   categories: readonly OfficerCategory[],
   shown = 2,
-): { visible: string[]; hidden: string[] } {
-  const citations = categories.map((category) => category.citation);
-  return { visible: citations.slice(0, shown), hidden: citations.slice(shown) };
+): { visible: OfficerCategory[]; hidden: OfficerCategory[] } {
+  return { visible: categories.slice(0, shown), hidden: categories.slice(shown) };
+}
+
+/** Share onboarded as a whole percentage; 0 when nothing is expected. */
+export function onboardedPercent(onboarded: number, expected: number): number {
+  return expected > 0 ? Math.round((onboarded / expected) * 100) : 0;
 }

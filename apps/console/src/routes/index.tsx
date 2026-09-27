@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   Icon,
+  SiteFooter,
   SiteHeader,
 } from '@adili/ui';
 import {
@@ -23,15 +24,17 @@ import type { ReactNode } from 'react';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
-import { ConsoleHeader } from '../components/console-header';
 import { IdentityCard } from '../components/identity-card';
 import { NoStaffRoles } from '../components/no-staff-roles';
+import { Page } from '../components/page';
+import { ConsoleShell } from '../components/shell/console-shell';
 import { type Workspace, workspacesFor } from '../components/workspaces';
 import { getViewer, type Viewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
   validateSearch: z.object({ auth_error: z.string().optional() }),
   loader: () => getViewer(),
+  staticData: { crumb: 'Home' },
   component: Home,
 });
 
@@ -95,6 +98,7 @@ function Landing({ error }: { error: string | null }) {
           </ul>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }
@@ -114,11 +118,11 @@ function Capability({ icon, title, text }: { icon: ReactNode; title: string; tex
 }
 
 function Dashboard({ viewer }: { viewer: Viewer }) {
-  const workspaces = viewer.directory.ok ? workspacesFor(viewer.directory.principal.roles) : [];
+  const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
+  const workspaces = workspacesFor(roles);
   return (
-    <>
-      <ConsoleHeader userName={viewer.user.name} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
+    <ConsoleShell userName={viewer.user.name} roles={roles}>
+      <Page>
         <div className="grid gap-1.5">
           <h1 className="text-lg font-semibold tracking-tight">Overview</h1>
           <p className="text-muted-foreground">Signed in as {viewer.user.name}.</p>
@@ -143,8 +147,8 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </>
+      </Page>
+    </ConsoleShell>
   );
 }
 

@@ -13,6 +13,8 @@ const client = createClient<paths>({
 describe('mock directory', () => {
   it('lists Commissions by name and filters them', async () => {
     const all = await client.GET('/v1/commissions');
+    const names = MOCK_COMMISSIONS.map((item) => item.name);
+    expect(names).toEqual(names.toSorted((a, b) => a.localeCompare(b)));
     expect(all.data?.items.map((item) => item.slug)).toEqual(
       MOCK_COMMISSIONS.map((item) => item.slug),
     );
@@ -20,15 +22,17 @@ describe('mock directory', () => {
     const filtered = await client.GET('/v1/commissions', {
       params: { query: { search: 'service', reportingOfficer: 'none' } },
     });
-    expect(filtered.data?.items.map((item) => item.slug)).toEqual(['jsc']);
+    expect(filtered.data?.items.map((item) => item.slug)).toEqual(['cpsb042', 'cpsb001', 'nis']);
   });
 
   it('pages with distinct cursors', async () => {
-    const first = await client.GET('/v1/commissions', { params: { query: { limit: 4 } } });
+    const first = await client.GET('/v1/commissions', { params: { query: { limit: 10 } } });
     const cursor = first.data?.nextCursor ?? undefined;
     expect(cursor).toBeDefined();
 
-    const second = await client.GET('/v1/commissions', { params: { query: { limit: 4, cursor } } });
+    const second = await client.GET('/v1/commissions', {
+      params: { query: { limit: 10, cursor } },
+    });
     expect(second.data?.nextCursor).toBeNull();
     const slugs = [...(first.data?.items ?? []), ...(second.data?.items ?? [])].map((c) => c.slug);
     expect(new Set(slugs).size).toBe(MOCK_COMMISSIONS.length);
