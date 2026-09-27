@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { PageAlert } from '../components/PageAlert';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { audienceOf } from '../shared';
+import { audienceCopy, audienceOf } from '../shared';
 import Template from '../Template';
 
 type ResetPasswordProps = PageProps<
@@ -25,7 +25,8 @@ export default function ResetPassword({
   const { url, auth, messagesPerField } = kcContext;
   const { msg, msgStr } = i18n;
   const [sending, setSending] = useState(false);
-  const staff = audienceOf(kcContext) === 'staff';
+  const audience = audienceOf(kcContext);
+  const copy = audienceCopy(audience, i18n);
   const error = messagesPerField.existsError('username')
     ? messagesPerField.get('username')
     : undefined;
@@ -55,13 +56,11 @@ export default function ResetPassword({
         }}
       >
         <div className="grid gap-2">
-          <Label htmlFor="username">
-            {msg(staff ? 'adiliIdentifierStaff' : 'adiliIdentifierDeclarant')}
-          </Label>
+          <Label htmlFor="username">{copy.msg('identifier')}</Label>
           <Input
             id="username"
             name="username"
-            type={staff ? 'email' : 'text'}
+            type={audience === 'staff' ? 'email' : 'text'}
             autoComplete="username"
             autoCapitalize="off"
             spellCheck={false}
@@ -73,9 +72,7 @@ export default function ResetPassword({
         <Button type="submit" className="w-full" disabled={sending}>
           {msgStr('adiliResetButton')}
         </Button>
-        <p className="text-[13px] text-muted-foreground">
-          {msg(staff ? 'adiliResetHelpStaff' : 'adiliResetHelp')}
-        </p>
+        <p className="text-[13px] text-muted-foreground">{copy.msg('resetHelp')}</p>
       </form>
       <a
         href={url.loginUrl}

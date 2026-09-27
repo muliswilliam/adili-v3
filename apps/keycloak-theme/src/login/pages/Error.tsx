@@ -8,11 +8,12 @@ import {
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { MessageKey_defaultSet } from 'keycloakify/login';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
+import type { ReactNode } from 'react';
 
 import { Callout } from '../components/PageAlert';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { audienceOf, clientUrl, messageIsOneOf } from '../shared';
+import { audienceCopy, audienceOf, clientUrl, messageIsOneOf } from '../shared';
 import Template, { type PageMark } from '../Template';
 
 type ErrorKcContext = Extract<KcContext, { pageId: 'error.ftl' }>;
@@ -45,12 +46,14 @@ export function errorState(kcContext: ErrorKcContext, i18n: I18n): ErrorState {
   return 'other';
 }
 
-const MARKS: Record<ErrorState, PageMark> = {
-  'link-expired': { icon: Clock01Icon, tone: 'warning' },
-  'link-invalid': { icon: Unlink01Icon, tone: 'destructive' },
-  'account-disabled': { icon: UnavailableIcon, tone: 'destructive' },
-  other: { icon: Alert01Icon, tone: 'neutral' },
-};
+/** How each error page reads: its mark, copy, help callout and sign-in button. */
+interface ErrorPageCopy {
+  mark: PageMark;
+  title: ReactNode;
+  text: ReactNode;
+  help?: ReactNode;
+  signIn: { label: 'adiliGoToSignIn' | 'adiliBackToSignIn'; primary: boolean };
+}
 
 /**
  * error.ftl: an expired or unusable set-password link, a disabled account, or anything else
@@ -58,36 +61,44 @@ const MARKS: Record<ErrorState, PageMark> = {
  */
 export default function ErrorPage({ kcContext, i18n, doUseDefaultCss, classes }: ErrorProps) {
   const { client, url, message } = kcContext;
-  const { msg, msgStr } = i18n;
+  const { msg } = i18n;
   const state = errorState(kcContext, i18n);
-  const staff = audienceOf(kcContext) === 'staff';
+  const audience = audienceOf(kcContext);
+  const copy = audienceCopy(audience, i18n);
   const signInUrl = client.baseUrl ?? url.loginUrl;
   const newLinkUrl = clientUrl(client.baseUrl, PORTAL_NEW_LINK_PATH);
 
-  const copy = {
+  const pages: Record<ErrorState, ErrorPageCopy> = {
     'link-expired': {
+      mark: { icon: Clock01Icon, tone: 'warning' },
       title: msg('adiliLinkExpiredTitle'),
-      text: msg(staff ? 'adiliLinkExpiredTextStaff' : 'adiliLinkExpiredText'),
+      text: copy.msg('linkExpiredText'),
+      signIn: { label: 'adiliBackToSignIn', primary: false },
     },
-    'link-invalid': { title: msg('adiliLinkInvalidTitle'), text: msg('adiliLinkInvalidText') },
+    'link-invalid': {
+      mark: { icon: Unlink01Icon, tone: 'destructive' },
+      title: msg('adiliLinkInvalidTitle'),
+      text: msg('adiliLinkInvalidText'),
+      help: copy.msg('linkInvalidHelp'),
+      signIn: { label: 'adiliGoToSignIn', primary: true },
+    },
     'account-disabled': {
-      title: msg(staff ? 'adiliDisabledTitleStaff' : 'adiliDisabledTitle'),
-      text: msg(staff ? 'adiliDisabledTextStaff' : 'adiliDisabledText'),
+      mark: { icon: UnavailableIcon, tone: 'destructive' },
+      title: copy.msg('disabledTitle'),
+      text: copy.msg('disabledText'),
+      help: copy.msg('disabledHelp'),
+      signIn: { label: 'adiliBackToSignIn', primary: false },
     },
-    other: { title: msg('adiliErrorTitle'), text: msg('adiliErrorText') },
-  }[state];
-
-  const signIn = (
-    <Button
-      asChild
-      variant={state === 'link-invalid' || state === 'other' ? 'default' : 'secondary'}
-      className="w-full"
-    >
-      <a href={signInUrl}>
-        {msg(state === 'link-invalid' ? 'adiliGoToSignIn' : 'adiliBackToSignIn')}
-      </a>
-    </Button>
-  );
+    other: {
+      mark: { icon: Alert01Icon, tone: 'neutral' },
+      title: msg('adiliErrorTitle'),
+      text: msg('adiliErrorText'),
+      signIn: { label: 'adiliBackToSignIn', primary: true },
+    },
+  };
+  const page = pages[state];
+  // A declarant with an expired link gets a new one from the portal instead of signing in.
+  const offerNewLink = state === 'link-expired' && audience === 'declarant' && newLinkUrl;
 
   return (
     <Template
@@ -96,43 +107,35 @@ export default function ErrorPage({ kcContext, i18n, doUseDefaultCss, classes }:
       doUseDefaultCss={doUseDefaultCss}
       classes={classes}
       displayMessage={false}
-      mark={MARKS[state]}
-      headerNode={copy.title}
-      subtitleNode={copy.text}
+      mark={page.mark}
+      headerNode={page.title}
+      subtitleNode={page.text}
     >
       <div className="grid gap-3">
-        {state === 'link-expired' ? (
-          staff || !newLinkUrl ? (
-            signIn
-          ) : (
-            <>
-              <Button asChild className="w-full">
-                <a href={newLinkUrl}>{msg('adiliGetNewLink')}</a>
-              </Button>
-              <Callout>{msg('adiliLinkExpiredOtherDevice')}</Callout>
-            </>
-          )
-        ) : null}
-
-        {state === 'link-invalid' ? (
+        {offerNewLink ? (
           <>
-            <Callout>{msg(staff ? 'adiliLinkInvalidHelpStaff' : 'adiliLinkInvalidHelp')}</Callout>
-            {signIn}
+            <Button asChild className="w-full">
+              <a href={newLinkUrl}>{msg('adiliGetNewLink')}</a>
+            </Button>
+            <Callout>{msg('adiliLinkExpiredOtherDevice')}</Callout>
           </>
-        ) : null}
-
-        {state === 'account-disabled' ? (
+        ) : (
           <>
-            <Callout>{msg(staff ? 'adiliDisabledHelpStaff' : 'adiliDisabledHelp')}</Callout>
-            {signIn}
+            {page.help ? <Callout>{page.help}</Callout> : null}
+            <Button
+              asChild
+              variant={page.signIn.primary ? 'default' : 'secondary'}
+              className="w-full"
+            >
+              <a href={signInUrl}>{msg(page.signIn.label)}</a>
+            </Button>
           </>
-        ) : null}
+        )}
 
         {state === 'other' ? (
           <>
-            {signIn}
             <p className="text-[13px] text-muted-foreground">
-              {msg('adiliErrorHelp', msgStr(staff ? 'adiliHelpStaff' : 'adiliHelpDeclarant'))}
+              {msg('adiliErrorHelp', copy.msgStr('helpContact'))}
             </p>
             {/* Keycloak's own wording, for whoever helps them. */}
             <p

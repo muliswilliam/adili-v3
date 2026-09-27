@@ -1,6 +1,6 @@
 import type { MessageKey_defaultSet } from 'keycloakify/login';
 
-import type { I18n } from './i18n';
+import type { en, I18n } from './i18n';
 import type { KcContext } from './KcContext';
 
 /** Declarants sign in through the portal client; staff through the console client. */
@@ -10,6 +10,42 @@ export const CONSOLE_CLIENT_ID = 'console';
 
 export function audienceOf(kcContext: Pick<KcContext, 'client'>): Audience {
   return kcContext.client.clientId === CONSOLE_CLIENT_ID ? 'staff' : 'declarant';
+}
+
+/** A key of the theme's own copy (i18n.ts). */
+export type MessageKey = keyof typeof en;
+
+/** Copy that differs by audience: the message key each one reads. */
+const AUDIENCE_COPY = {
+  activateTitle: { declarant: 'adiliActivateTitle', staff: 'adiliStaffActivateTitle' },
+  activateText: { declarant: 'adiliActivateText', staff: 'adiliStaffActivateText' },
+  activateButton: { declarant: 'adiliActivateButton', staff: 'adiliStaffActivateButton' },
+  activeTitle: { declarant: 'adiliPasswordSetTitle', staff: 'adiliStaffActiveTitle' },
+  activeText: { declarant: 'adiliPasswordSetText', staff: 'adiliStaffActiveText' },
+  goToApp: { declarant: 'adiliSignIn', staff: 'adiliGoToConsole' },
+  logoutText: { declarant: 'adiliLogoutText', staff: 'adiliLogoutTextStaff' },
+  identifier: { declarant: 'adiliIdentifierDeclarant', staff: 'adiliIdentifierStaff' },
+  resetHelp: { declarant: 'adiliResetHelp', staff: 'adiliResetHelpStaff' },
+  linkExpiredText: { declarant: 'adiliLinkExpiredText', staff: 'adiliLinkExpiredTextStaff' },
+  linkInvalidHelp: { declarant: 'adiliLinkInvalidHelp', staff: 'adiliLinkInvalidHelpStaff' },
+  disabledTitle: { declarant: 'adiliDisabledTitle', staff: 'adiliDisabledTitleStaff' },
+  disabledText: { declarant: 'adiliDisabledText', staff: 'adiliDisabledTextStaff' },
+  disabledHelp: { declarant: 'adiliDisabledHelp', staff: 'adiliDisabledHelpStaff' },
+  helpContact: { declarant: 'adiliHelpDeclarant', staff: 'adiliHelpStaff' },
+  ruleNotIdentifier: {
+    declarant: 'adiliRuleNotIdentifierDeclarant',
+    staff: 'adiliRuleNotIdentifierStaff',
+  },
+} as const satisfies Record<string, Record<Audience, MessageKey>>;
+
+export type AudienceCopyName = keyof typeof AUDIENCE_COPY;
+
+/** Reads audience-specific copy by name, e.g. `copy.msg('logoutText')`. */
+export function audienceCopy(audience: Audience, i18n: I18n) {
+  return {
+    msg: (name: AudienceCopyName) => i18n.msg(AUDIENCE_COPY[name][audience]),
+    msgStr: (name: AudienceCopyName) => i18n.msgStr(AUDIENCE_COPY[name][audience]),
+  };
 }
 
 /**

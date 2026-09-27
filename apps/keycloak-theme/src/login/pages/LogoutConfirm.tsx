@@ -4,7 +4,7 @@ import type { PageProps } from 'keycloakify/login/pages/PageProps';
 
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { audienceOf } from '../shared';
+import { audienceCopy, audienceOf } from '../shared';
 import Template from '../Template';
 
 type LogoutConfirmProps = PageProps<Extract<KcContext, { pageId: 'logout-confirm.ftl' }>, I18n>;
@@ -18,7 +18,7 @@ export default function LogoutConfirm({
 }: LogoutConfirmProps) {
   const { url, client, logoutConfirm } = kcContext;
   const { msg, msgStr } = i18n;
-  const staff = audienceOf(kcContext) === 'staff';
+  const copy = audienceCopy(audienceOf(kcContext), i18n);
 
   return (
     <Template
@@ -28,7 +28,7 @@ export default function LogoutConfirm({
       classes={classes}
       mark={{ icon: Logout03Icon, tone: 'neutral' }}
       headerNode={msg('adiliLogoutTitle')}
-      subtitleNode={msg(staff ? 'adiliLogoutTextStaff' : 'adiliLogoutText')}
+      subtitleNode={copy.msg('logoutText')}
     >
       <form
         action={url.logoutConfirmAction}

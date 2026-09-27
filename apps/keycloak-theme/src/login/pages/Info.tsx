@@ -5,7 +5,7 @@ import type { PageProps } from 'keycloakify/login/pages/PageProps';
 
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { audienceOf, messageIsOneOf } from '../shared';
+import { audienceCopy, audienceOf, messageIsOneOf } from '../shared';
 import Template from '../Template';
 
 type InfoKcContext = Extract<KcContext, { pageId: 'info.ftl' }>;
@@ -38,7 +38,8 @@ export default function Info(props: InfoProps) {
 function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
   const { requiredActions = [], actionUri } = kcContext;
   const { msg, advancedMsgStr } = i18n;
-  const staff = audienceOf(kcContext) === 'staff';
+  const audience = audienceOf(kcContext);
+  const copy = audienceCopy(audience, i18n);
 
   return (
     <Template
@@ -47,10 +48,10 @@ function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps
       doUseDefaultCss={doUseDefaultCss}
       classes={classes}
       displayMessage={false}
-      headerNode={msg(staff ? 'adiliStaffActivateTitle' : 'adiliActivateTitle')}
-      subtitleNode={msg(staff ? 'adiliStaffActivateText' : 'adiliActivateText')}
+      headerNode={copy.msg('activateTitle')}
+      subtitleNode={copy.msg('activateText')}
     >
-      {staff ? (
+      {audience === 'staff' ? (
         <ol className="grid list-inside list-decimal gap-2 rounded-lg border p-4 text-sm">
           {requiredActions.map((action) => (
             <li key={action}>{advancedMsgStr(`requiredAction.${action}`)}</li>
@@ -59,7 +60,7 @@ function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps
       ) : null}
       <div className="grid gap-3">
         <Button asChild className="w-full">
-          <a href={actionUri}>{msg(staff ? 'adiliStaffActivateButton' : 'adiliActivateButton')}</a>
+          <a href={actionUri}>{copy.msg('activateButton')}</a>
         </Button>
         <p className="text-[13px] text-muted-foreground">{msg('adiliLinkWorksOnce')}</p>
       </div>
@@ -69,8 +70,7 @@ function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps
 
 function ActionsDone({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
   const { pageRedirectUri, client, skipLink } = kcContext;
-  const { msg } = i18n;
-  const staff = audienceOf(kcContext) === 'staff';
+  const copy = audienceCopy(audienceOf(kcContext), i18n);
   const next = pageRedirectUri ?? client.baseUrl;
 
   return (
@@ -81,12 +81,12 @@ function ActionsDone({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
       classes={classes}
       displayMessage={false}
       mark={{ icon: CheckmarkCircle02Icon, tone: 'success' }}
-      headerNode={msg(staff ? 'adiliStaffActiveTitle' : 'adiliPasswordSetTitle')}
-      subtitleNode={msg(staff ? 'adiliStaffActiveText' : 'adiliPasswordSetText')}
+      headerNode={copy.msg('activeTitle')}
+      subtitleNode={copy.msg('activeText')}
     >
       {!skipLink && next ? (
         <Button asChild className="w-full">
-          <a href={next}>{msg(staff ? 'adiliGoToConsole' : 'adiliSignIn')}</a>
+          <a href={next}>{copy.msg('goToApp')}</a>
         </Button>
       ) : null}
     </Template>
