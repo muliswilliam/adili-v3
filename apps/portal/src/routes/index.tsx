@@ -62,7 +62,7 @@ function Landing({ error }: { error: string | null }) {
         }
       />
       <main className="flex-1">
-        <section className="border-b bg-gradient-to-b from-primary-subtle/60 to-background">
+        <section className="border-b bg-gradient-to-b from-muted/60 to-background">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div className="grid gap-6">
               {error ? (
@@ -81,7 +81,7 @@ function Landing({ error }: { error: string | null }) {
                 Commission and receive an acknowledgement anyone can verify.
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <Button asChild size="lg">
+                <Button asChild>
                   <a href="/auth/login">Sign in to file</a>
                 </Button>
                 <p className="text-sm text-muted-foreground">Use your Adili Online account.</p>
@@ -99,7 +99,7 @@ function Landing({ error }: { error: string | null }) {
                 <ol className="grid gap-4">
                   {deadlines.map((deadline, index) => (
                     <li key={deadline.title} className="flex gap-3">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-xs font-semibold text-primary-subtle-foreground">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-secondary-foreground">
                         {index + 1}
                       </span>
                       <div className="grid gap-0.5">
@@ -133,7 +133,7 @@ function Landing({ error }: { error: string | null }) {
 function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return (
     <div className="flex gap-4">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-subtle-foreground [&_svg]:size-5">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-secondary-foreground [&_svg]:size-5">
         {icon}
       </div>
       <div className="grid gap-1">

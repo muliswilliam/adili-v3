@@ -4,18 +4,19 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 
 const alertVariants = cva(
-  'relative grid w-full gap-1 rounded-lg border px-4 py-3 text-sm [&>svg]:absolute [&>svg]:top-3.5 [&>svg]:left-4 [&>svg]:size-4 [&>svg~*]:pl-7',
+  'relative grid w-full gap-0.5 rounded-lg px-4 py-3.5 text-sm leading-normal [&>svg]:absolute [&>svg]:top-4 [&>svg]:left-4 [&>svg]:size-[18px] [&>svg~*]:pl-[30px]',
   {
     variants: {
+      // The prototype kit's .callout-info (neutral) and the portal's info, ok, warn and danger alerts.
       variant: {
-        info: 'bg-card text-card-foreground',
-        warning:
-          'border-transparent bg-warning-subtle text-warning-subtle-foreground [&>svg]:text-current',
-        destructive:
-          'border-transparent bg-destructive-subtle text-destructive-subtle-foreground [&>svg]:text-current',
+        neutral: 'bg-muted text-secondary-foreground',
+        info: 'bg-info-subtle text-info-subtle-foreground',
+        success: 'bg-success-subtle text-success-subtle-foreground',
+        warning: 'bg-warning-subtle text-warning-subtle-foreground',
+        destructive: 'bg-destructive-subtle text-destructive-subtle-foreground',
       },
     },
-    defaultVariants: { variant: 'info' },
+    defaultVariants: { variant: 'neutral' },
   },
 );
 
@@ -26,9 +27,9 @@ export function Alert({ className, variant, ...props }: AlertProps) {
 }
 
 export function AlertTitle({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('leading-5 font-medium', className)} {...props} />;
+  return <div className={cn('font-semibold', className)} {...props} />;
 }
 
 export function AlertDescription({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('leading-5 opacity-90', className)} {...props} />;
+  return <div className={cn(className)} {...props} />;
 }

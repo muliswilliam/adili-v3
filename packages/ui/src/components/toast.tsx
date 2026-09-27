@@ -102,7 +102,7 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
   }, [duration, entry.id, onDismiss]);
 
   return (
-    <div className="pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl bg-foreground py-[11px] pr-2 pl-4 text-sm text-background shadow-2xl">
+    <div className="pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl bg-foreground py-[11px] pr-2 pl-4 text-sm text-background shadow-pop">
       <Icon
         icon={assertive ? Alert02Icon : Tick02Icon}
         className={cn('mt-0.5', assertive && 'text-brand')}

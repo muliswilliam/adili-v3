@@ -5,7 +5,7 @@ import { Logout01Icon } from '@hugeicons/core-free-icons';
 export function SignOutButton() {
   return (
     <form method="post" action="/auth/logout">
-      <Button type="submit" variant="outline" size="sm">
+      <Button type="submit" variant="secondary" size="sm">
         <Icon icon={Logout01Icon} />
         Sign out
       </Button>

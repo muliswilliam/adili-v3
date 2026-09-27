@@ -25,7 +25,7 @@ export function LogoMark({ className, ...props }: ComponentProps<'svg'>) {
     <svg
       viewBox="4 4 172 172"
       aria-hidden="true"
-      className={cn('size-8 shrink-0 fill-brand', className)}
+      className={cn('size-8 shrink-0 fill-logo', className)}
       {...props}
     >
       <g transform="matrix(0 -1 -1 0 180 180)">
@@ -50,7 +50,7 @@ export function LogoWordmark({ className, ...props }: ComponentProps<'svg'>) {
       viewBox="8 8 487 194"
       role="img"
       aria-label="Dials"
-      className={cn('h-6 w-auto shrink-0 fill-brand', className)}
+      className={cn('h-6 w-auto shrink-0 fill-logo', className)}
       {...props}
     >
       <defs>

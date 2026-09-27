@@ -65,7 +65,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               <span className="h-px flex-1 bg-border" />
             </div>
             {social.providers.map((provider) => (
-              <Button key={provider.alias} asChild variant="outline">
+              <Button key={provider.alias} asChild variant="secondary">
                 <a
                   id={`social-${provider.alias}`}
                   href={provider.loginUrl}
@@ -144,14 +144,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
             name="credentialId"
             value={auth.selectedCredential}
           />
-          <Button
-            type="submit"
-            name="login"
-            id="kc-login"
-            size="lg"
-            className="w-full"
-            disabled={submitting}
-          >
+          <Button type="submit" name="login" id="kc-login" className="w-full" disabled={submitting}>
             {msgStr('doLogIn')}
           </Button>
         </form>
@@ -180,13 +173,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               ))}
             </form>
           ) : null}
-          <Button
-            id={WEBAUTHN_BUTTON_ID}
-            type="button"
-            variant="outline"
-            size="lg"
-            className="w-full"
-          >
+          <Button id={WEBAUTHN_BUTTON_ID} type="button" variant="secondary" className="w-full">
             <Icon icon={Key01Icon} />
             {msgStr('passkey-doAuthenticate')}
           </Button>

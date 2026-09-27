@@ -59,9 +59,7 @@ export function IdentityCard({
               <DescriptionItem term="Roles">
                 <span className="flex flex-wrap gap-1.5">
                   {platformRoles(directory.principal.roles).map((role) => (
-                    <Badge key={role} variant="neutral">
-                      {role}
-                    </Badge>
+                    <Badge key={role}>{role}</Badge>
                   ))}
                 </span>
               </DescriptionItem>

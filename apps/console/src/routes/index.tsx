@@ -69,7 +69,7 @@ function Landing({ error }: { error: string | null }) {
               non-compliance and report to the Ethics and Anti-Corruption Commission.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <Button asChild size="lg">
+              <Button asChild>
                 <a href="/auth/login">Sign in to the console</a>
               </Button>
               <p className="text-sm text-muted-foreground">Use your staff account.</p>
@@ -101,7 +101,7 @@ function Landing({ error }: { error: string | null }) {
 function Capability({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
     <li className="flex gap-4 rounded-xl border bg-card p-5">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-subtle-foreground [&_svg]:size-5">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-secondary-foreground [&_svg]:size-5">
         {icon}
       </div>
       <div className="grid gap-1">
@@ -150,9 +150,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <h2 className="text-sm font-semibold">{workspace.title}</h2>
-                        <Badge variant="neutral" className="shrink-0">
-                          Not yet available
-                        </Badge>
+                        <Badge className="shrink-0">Not yet available</Badge>
                       </div>
                       <p className="text-sm leading-relaxed text-muted-foreground">
                         {workspace.description}

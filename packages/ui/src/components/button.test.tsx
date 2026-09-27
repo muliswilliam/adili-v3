@@ -13,7 +13,7 @@ describe('Button', () => {
 
   it('renders its child with button styles when asChild is set', () => {
     render(
-      <Button asChild variant="outline">
+      <Button asChild variant="secondary">
         <a href="/auth/login">Sign in</a>
       </Button>,
     );

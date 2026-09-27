@@ -30,7 +30,7 @@ function VerifyHome() {
   return (
     <div className="grid gap-8">
       <div className="grid gap-3 text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary-subtle text-primary-subtle-foreground">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
           <Icon icon={QrCodeIcon} className="size-6" />
         </div>
         <h1 className="text-3xl font-semibold tracking-tight text-balance">Verify a document</h1>
