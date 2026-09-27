@@ -9,6 +9,8 @@ import Template from './Template';
 
 const Login = lazy(() => import('./pages/Login'));
 const AdiliOtp = lazy(() => import('./pages/AdiliOtp'));
+const LoginConfigTotp = lazy(() => import('./pages/LoginConfigTotp'));
+const LoginOtp = lazy(() => import('./pages/LoginOtp'));
 const UpdatePassword = lazy(() => import('./pages/UpdatePassword'));
 const Info = lazy(() => import('./pages/Info'));
 const ErrorPage = lazy(() => import('./pages/Error'));
@@ -29,6 +31,10 @@ export default function KcPage({ kcContext }: { kcContext: KcContext }) {
             return <Login kcContext={kcContext} {...common} />;
           case 'login-adili-otp.ftl':
             return <AdiliOtp kcContext={kcContext} {...common} />;
+          case 'login-otp.ftl':
+            return <LoginOtp kcContext={kcContext} {...common} />;
+          case 'login-config-totp.ftl':
+            return <LoginConfigTotp kcContext={kcContext} {...common} />;
           case 'login-update-password.ftl':
             return <UpdatePassword kcContext={kcContext} {...common} />;
           case 'info.ftl':

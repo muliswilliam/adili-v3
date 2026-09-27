@@ -29,7 +29,10 @@
         "TEST_OPENBAO_URL",
         "TEST_OPENBAO_TOKEN",
         "TEST_TEMPORAL_ADDRESS",
-        "TEST_TEMPORAL_NAMESPACE"
+        "TEST_TEMPORAL_NAMESPACE",
+        "TEST_VALKEY_URL",
+        "TEST_KEYCLOAK_ISSUER_URL",
+        "TEST_MAILPIT_URL"
       ]
     },
     "db:generate": {

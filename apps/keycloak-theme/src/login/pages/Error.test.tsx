@@ -26,7 +26,7 @@ describe('error.ftl', () => {
     expect(screen.queryByRole('link', { name: 'Back to sign in' })).toBeNull();
   });
 
-  it('falls back to sign in when Keycloak gives no portal address', async () => {
+  it('takes the portal address from the theme environment when Keycloak gives none', async () => {
     render(
       <KcPage
         kcContext={getKcContextMock({
@@ -40,8 +40,9 @@ describe('error.ftl', () => {
     );
 
     expect(await heading('This link has expired')).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Get a new link' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Back to sign in' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Get a new link' }).getAttribute('href')).toBe(
+      'http://localhost:3010/get-started/check-email',
+    );
   });
 
   it('tells staff to ask EACC for a new invitation', async () => {

@@ -10,8 +10,8 @@ import tseslint from 'typescript-eslint';
  */
 export function reactConfig(tsconfigRootDir) {
   return tseslint.config(
-    // prototype/ holds throwaway clickable HTML prototypes, not production code.
-    { ignores: ['dist/**', '.output/**', '.tanstack/**', '**/routeTree.gen.ts', 'prototype/**'] },
+    // `prototype/` holds throwaway clickable HTML designs, not product code.
+    { ignores: ['dist/**', '.output/**', '.tanstack/**', '**/*.gen.ts', 'prototype/**'] },
     js.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     ...tseslint.configs.stylisticTypeChecked,
