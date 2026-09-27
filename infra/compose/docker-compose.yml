@@ -106,6 +106,8 @@ services:
       dockerfile: infra/docker/keycloak.Dockerfile
     depends_on:
       postgres: { condition: service_healthy }
+    # Import is skip-if-exists, so infra:up stays idempotent. Recreate the
+    # realm (infra:reset, or delete adili in the admin console) after edits.
     command: ['start-dev', '--import-realm']
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin

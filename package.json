@@ -28,7 +28,8 @@
     "contracts:lint": "pnpm --filter @adili/schemas lint:openapi && pnpm --filter @adili/schemas lint:forms",
     "contracts:drift": "pnpm --filter @adili/schemas check:drift",
     "check": "pnpm format:check && pnpm contracts:lint && pnpm contracts:drift && turbo run lint typecheck test && pnpm deps:check",
-    "health": "node scripts/health.mjs"
+    "health": "node scripts/health.mjs",
+    "keycloak:check": "node scripts/check-keycloak-realm.mjs"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",
