@@ -48,6 +48,7 @@ Tailwind's neutral and red scales. Use the semantic utility (`bg-primary`, `text
 | `border` | neutral-200 | card borders, dividers, table rows |
 | `input` | neutral-300 | unused since controls moved to shadows; kept for third-party widgets |
 | `control` | `card` on the page, `background` inside a card | fill of inputs, textareas and selects |
+| `brand` | `#f06225` | the Dials logo only; not for UI chrome |
 
 ## Elevation
 
@@ -62,6 +63,16 @@ Inside a `Card`, `shadow-control` becomes a flat 1px ring (8% black) and `bg-con
 | `shadow-button-primary`, `-hover`, `-focus` | primary buttons |
 | `shadow-button-secondary`, `-focus` | secondary buttons; ghost focus |
 | `shadow-button-destructive`, `-focus` | destructive buttons |
+
+## Logo
+
+From the `Dials-logo` frame (node `21:9`) of the Figma file, in `packages/ui/src/components/logo.tsx`.
+
+- `Logo`: the wordmark, plus an optional product name (`Console`) after a divider. Used by `SiteHeader`.
+- `LogoWordmark`: the "Dials" lockup on its own, 24px high by default.
+- `LogoMark`: the "D" mark on its own, for square slots such as the login page. The favicons in each app's `public/favicon.svg` are the same mark.
+
+The lockup and mark are always `brand` orange. In Figma the mark carries an 8px stroke in the page colour that cuts gaps into the "i"; code masks those gaps out so the logo sits on any background.
 
 ## Components
 

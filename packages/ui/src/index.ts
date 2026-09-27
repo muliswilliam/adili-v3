@@ -40,7 +40,7 @@ export { FieldError, FieldHint, FormField, type FormFieldProps } from './compone
 export { Icon, type IconProps } from './components/icon';
 export { Input } from './components/input';
 export { Label } from './components/label';
-export { Logo, LogoMark, type LogoProps } from './components/logo';
+export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
