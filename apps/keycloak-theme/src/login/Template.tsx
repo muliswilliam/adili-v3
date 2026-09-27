@@ -58,23 +58,24 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
           </div>
 
           <div className="grid gap-6 rounded-xl border bg-card p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:p-8">
-            <header className="grid gap-2">
+            <header className="grid gap-5">
               {showAttemptedUsername ? (
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
-                  <span className="truncate text-sm font-medium">{auth.attemptedUsername}</span>
+                  <span className="min-w-0 truncate text-sm font-medium">
+                    {auth.attemptedUsername}
+                  </span>
                   <a
                     href={url.loginRestartFlowUrl}
-                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-sm text-sm font-medium whitespace-nowrap text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <RotateCcw className="size-3.5" aria-hidden="true" />
                     {msg('restartLoginTooltip')}
                   </a>
                 </div>
-              ) : (
-                <h1 id="kc-page-title" className="text-xl font-semibold tracking-tight">
-                  {headerNode}
-                </h1>
-              )}
+              ) : null}
+              <h1 id="kc-page-title" className="text-xl font-semibold tracking-tight">
+                {headerNode}
+              </h1>
             </header>
 
             <div id="kc-content" className="grid gap-5">
