@@ -3,24 +3,23 @@ import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import { jobs, type schema } from '../db/schema.js';
+import { type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import type { ModelProvider, StructuredResult, Usage } from '../providers/port.js';
 import { InjectModelProvider } from '../providers/providers.module.js';
-import type { Language } from '../tasks/common.js';
+import { inputLanguage } from '../tasks/common.js';
 import { buildProviderRequest } from '../tasks/provider-request.js';
 import { findTask } from '../tasks/registry.js';
 import { aiLabel, type TaskDefinition } from '../tasks/task.js';
 import { jobFinished } from './events.js';
-import type { JobReason } from './job-states.js';
-
-type Job = typeof jobs.$inferSelect;
+import { type JobReason, LIVE_STATUSES } from './job-states.js';
 
 type Outcome =
   | { status: 'succeeded'; output: Record<string, unknown> }
   | { status: 'failed'; reason: JobReason };
 
-interface Measured {
+/** What one provider call cost; absent when the job ends without a call. */
+interface AttemptMetrics {
   usage: Usage | null;
   latencyMs: number;
 }
@@ -48,14 +47,11 @@ export class JobExecutor {
       // Unreachable: jobs are created for registered tasks and keep their input until they end.
       throw new Error(`Job ${jobId} cannot run: unknown task or missing input`);
     }
-    const request = buildProviderRequest(task, job.promptVersion, job.input, {
-      model: job.model,
-      maxOutputTokens: task.maxOutputTokens,
-    });
+    const request = buildProviderRequest(task, job.promptVersion, job.input, job.model);
     const startedAt = performance.now();
     const result = await this.provider.generateStructured(request);
-    const measured = { usage: result.usage, latencyMs: Math.round(performance.now() - startedAt) };
-    await this.finish(job, this.outcome(job, task, result), measured);
+    const metrics = { usage: result.usage, latencyMs: Math.round(performance.now() - startedAt) };
+    await this.finish(job, this.outcome(job, task, result), metrics);
   }
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */
@@ -69,7 +65,7 @@ export class JobExecutor {
     const [job] = await this.db
       .update(jobs)
       .set({ status: 'running', startedAt: sql`coalesce(${jobs.startedAt}, now())` })
-      .where(and(eq(jobs.id, jobId), inArray(jobs.status, ['queued', 'running'])))
+      .where(and(eq(jobs.id, jobId), inArray(jobs.status, LIVE_STATUSES)))
       .returning();
     return job;
   }
@@ -91,7 +87,7 @@ export class JobExecutor {
       );
       return { status: 'failed', reason: 'validation' };
     }
-    const language = (job.input as { language: Language }).language;
+    const language = inputLanguage(job.input);
     const label = aiLabel(
       {
         task: task.name,
@@ -106,7 +102,7 @@ export class JobExecutor {
   }
 
   /** Moves a live job to its final state and announces it; a job that already ended is left. */
-  private async finish(job: Job, outcome: Outcome, measured: Measured): Promise<void> {
+  private async finish(job: Job, outcome: Outcome, metrics: AttemptMetrics): Promise<void> {
     const output = outcome.status === 'succeeded' ? outcome.output : null;
     await this.db.transaction(async (tx) => {
       const [finished] = await tx
@@ -117,14 +113,14 @@ export class JobExecutor {
           output,
           outputHash: output && hashJson(output),
           input: null,
-          ...(measured.usage && {
-            tokensIn: measured.usage.inputTokens,
-            tokensOut: measured.usage.outputTokens,
+          ...(metrics.usage && {
+            tokensIn: metrics.usage.inputTokens,
+            tokensOut: metrics.usage.outputTokens,
           }),
-          latencyMs: measured.latencyMs,
+          latencyMs: metrics.latencyMs,
           finishedAt: sql`now()`,
         })
-        .where(and(eq(jobs.id, job.id), inArray(jobs.status, ['queued', 'running'])))
+        .where(and(eq(jobs.id, job.id), inArray(jobs.status, LIVE_STATUSES)))
         .returning();
       if (finished) await this.events.record(tx, jobFinished(finished));
     });

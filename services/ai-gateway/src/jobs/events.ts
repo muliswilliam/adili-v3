@@ -1,7 +1,7 @@
 import type { NewEvent } from '@adili/events';
 
-import type { jobs } from '../db/schema.js';
-import type { JobReason } from './job-states.js';
+import type { Job } from '../db/schema.js';
+import type { JobReason, JobStatus } from './job-states.js';
 
 /**
  * Events announcing a finished job (spec 07c). Hashes and counts only: never the input, the
@@ -11,6 +11,13 @@ import type { JobReason } from './job-states.js';
 
 export const AI_JOB_COMPLETED = 'ai.job.completed.v1';
 export const AI_JOB_FAILED = 'ai.job.failed.v1';
+export const AI_JOB_BLOCKED = 'ai.job.blocked.v1';
+
+const FINISHED_EVENTS: Record<Exclude<JobStatus, 'queued' | 'running'>, string> = {
+  succeeded: AI_JOB_COMPLETED,
+  failed: AI_JOB_FAILED,
+  blocked: AI_JOB_BLOCKED,
+};
 
 export interface AiJobFinishedData extends Record<string, unknown> {
   jobId: string;
@@ -31,10 +38,13 @@ export interface AiJobFinishedData extends Record<string, unknown> {
   reason: JobReason | null;
 }
 
-/** `ai.job.completed.v1` or `ai.job.failed.v1` for a job that has just ended. */
-export function jobFinished(job: typeof jobs.$inferSelect): NewEvent<AiJobFinishedData> {
+/** `ai.job.completed.v1`, `failed.v1` or `blocked.v1` for a job that has just ended. */
+export function jobFinished(job: Job): NewEvent<AiJobFinishedData> {
+  if (job.status === 'queued' || job.status === 'running') {
+    throw new Error(`Job ${job.id} has not finished`);
+  }
   return {
-    type: job.status === 'succeeded' ? AI_JOB_COMPLETED : AI_JOB_FAILED,
+    type: FINISHED_EVENTS[job.status],
     subject: job.id,
     tenant: job.tenant,
     data: {

@@ -37,7 +37,11 @@ import { JobsService } from './jobs.service.js';
 const MAX_KEY_LENGTH = 255;
 
 /**
- * Internal: not routed by the public entrypoint. Callers are domain services with the `ai`
+ * Internal: not routed by the public entrypoint.
+ *
+ * Idempotency is the job's, not `@RequireIdempotencyKey()`'s: the job row holds the key, so a
+ * replay returns the job as it is now (finished, perhaps) rather than the first response.
+ * Keys are scoped per calling service, like the jobs. Callers are domain services with the `ai`
  * scope; each sees only its own jobs.
  */
 @ApiTags('internal')

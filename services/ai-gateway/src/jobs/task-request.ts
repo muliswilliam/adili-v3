@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
 import type { TaskDefinition } from '../tasks/task.js';
-import { DATA_CLASSES } from './job-states.js';
 
 export const MAX_WAIT_SECONDS = 30;
+
+/** How sensitive the input is; the classification gate decides which providers may see it. */
+export const DATA_CLASSES = ['synthetic', 'restricted', 'highly-confidential'] as const;
+export type DataClass = (typeof DATA_CLASSES)[number];
 
 /** Contract `TaskRequest`, with `input` narrowed to the task's own input schema. */
 export function taskRequestSchema(task: TaskDefinition) {

@@ -98,7 +98,7 @@ export async function createTestApp(): Promise<TestApp> {
         task,
         task.currentPromptVersion,
         task.input.parse(input),
-        { model: config.AI_MODEL, maxOutputTokens: task.maxOutputTokens },
+        config.AI_MODEL,
       );
       const recorder = new ReplayAdapter({
         fixturesDir,

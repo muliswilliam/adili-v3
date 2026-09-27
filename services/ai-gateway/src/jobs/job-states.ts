@@ -3,6 +3,12 @@
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'blocked'] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
+/** Statuses of a job still to finish. */
+export const LIVE_STATUSES = ['queued', 'running'] as const;
+
+/** Statuses of a job that answers an equal request (the cache): live, or succeeded. */
+export const CACHEABLE_STATUSES = [...LIVE_STATUSES, 'succeeded'] as const;
+
 /** Statuses a job never leaves. */
 export const TERMINAL_STATUSES: ReadonlySet<JobStatus> = new Set([
   'succeeded',
@@ -28,6 +34,3 @@ export const JOB_REASONS = [
   'timeout',
 ] as const;
 export type JobReason = (typeof JOB_REASONS)[number];
-
-export const DATA_CLASSES = ['synthetic', 'restricted', 'highly-confidential'] as const;
-export type DataClass = (typeof DATA_CLASSES)[number];

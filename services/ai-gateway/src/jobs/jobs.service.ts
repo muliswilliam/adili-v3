@@ -6,16 +6,14 @@ import { type Database, InjectDatabase } from '@adili/data-access';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { jobs, type schema } from '../db/schema.js';
+import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { findTask } from '../tasks/registry.js';
 import { JobStarter } from './job-starter.js';
-import { TERMINAL_STATUSES } from './job-states.js';
+import { CACHEABLE_STATUSES, TERMINAL_STATUSES } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
 import { Routing } from './routing.js';
 import { taskRequestSchema } from './task-request.js';
-
-type Job = typeof jobs.$inferSelect;
 
 export interface RunTaskResult {
   job: JobView;
@@ -40,6 +38,10 @@ export class JobsService {
    * Creates a job for a task call and starts it, unless the caller's Idempotency-Key names an
    * earlier job, or an equal request already has a live or succeeded job (the cache): then that
    * job is returned. Waits up to `waitSeconds` for the job to end.
+   *
+   * A request served from the cache does not record its key. Should the cached job fail, a
+   * retry with that key runs a new job rather than returning the failed one: the retry of a
+   * request whose outcome the caller never saw gets a fresh attempt instead of a failure.
    */
   async run(
     taskName: string,
@@ -66,8 +68,8 @@ export class JobsService {
         detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
       });
     }
-    const route = this.routing.route(request.tenant, task);
-    const fields = {
+    const route = this.routing.route();
+    const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
       tenant: request.tenant,
       caller: callerOf(principal),
       subjectRef: request.subjectRef,
@@ -102,7 +104,7 @@ export class JobsService {
             detail: 'This Idempotency-Key was already used for a different request.',
           });
         }
-        return { job: await this.settle(previous, request.waitSeconds), replayed: true };
+        return { job: await this.startAndWait(previous, request.waitSeconds), replayed: true };
       }
 
       const [cached] = await this.db
@@ -110,15 +112,13 @@ export class JobsService {
         .from(jobs)
         .where(
           and(
-            ...Object.entries(fields).map(([column, value]) =>
-              eq(jobs[column as keyof typeof fields], value),
-            ),
-            inArray(jobs.status, ['queued', 'running', 'succeeded']),
+            ...CACHE_KEY.map((column) => eq(jobs[column], fields[column])),
+            inArray(jobs.status, CACHEABLE_STATUSES),
             isNull(jobs.outputPurgedAt),
           ),
         );
       if (cached) {
-        return { job: await this.settle(cached, request.waitSeconds), replayed: false };
+        return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
       }
 
       const [created] = await this.db
@@ -135,7 +135,7 @@ export class JobsService {
         .onConflictDoNothing()
         .returning();
       if (created) {
-        return { job: await this.settle(created, request.waitSeconds), replayed: false };
+        return { job: await this.startAndWait(created, request.waitSeconds), replayed: false };
       }
     }
     throw new Error('Could not create or find the job under contention');
@@ -151,7 +151,7 @@ export class JobsService {
    * Makes sure a queued job has its workflow (starting is idempotent, so this also heals a
    * start lost to a crash), then waits up to `waitSeconds` for it to end.
    */
-  private async settle(job: Job, waitSeconds: number): Promise<JobView> {
+  private async startAndWait(job: Job, waitSeconds: number): Promise<JobView> {
     if (job.status === 'queued') {
       await this.starter.start(job.id);
     }

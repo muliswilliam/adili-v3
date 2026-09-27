@@ -2,11 +2,6 @@ import { canonical } from '../hashing.js';
 import type { StructuredRequest } from '../providers/port.js';
 import type { TaskDefinition } from './task.js';
 
-export interface RequestRoute {
-  model: string;
-  maxOutputTokens: number;
-}
-
 /**
  * The neutral provider request for one job: the version's prompt as the (cached) system
  * prompt, the task input as the user message, and the output schema for structured output.
@@ -17,10 +12,11 @@ export function buildProviderRequest(
   task: TaskDefinition,
   promptVersion: number,
   input: unknown,
-  route: RequestRoute,
+  /** Decided by the routing table. */
+  model: string,
 ): StructuredRequest {
   return {
-    model: route.model,
+    model,
     system: task.prompt(promptVersion),
     messages: [
       {
@@ -28,7 +24,7 @@ export function buildProviderRequest(
         content: `Task input (JSON):\n<input>\n${JSON.stringify(canonical(input))}\n</input>`,
       },
     ],
-    maxOutputTokens: route.maxOutputTokens,
+    maxOutputTokens: task.maxOutputTokens,
     schema: task.outputJsonSchema,
   };
 }

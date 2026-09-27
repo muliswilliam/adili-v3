@@ -6,6 +6,11 @@ export const LANGUAGES = ['en', 'sw'] as const;
 export const language = z.enum(LANGUAGES);
 export type Language = z.infer<typeof language>;
 
+/** Every task input names the language to answer in. */
+export function inputLanguage(input: unknown): Language {
+  return z.object({ language }).parse(input).language;
+}
+
 /** A pointer into the declaration the UI turns into a link; unknown parts are null. */
 export const sourceRef = z.object({
   sectionKey: z.string().nullable(),

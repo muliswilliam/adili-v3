@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import type { ModelProvider } from '../providers/port.js';
 import { InjectModelProvider } from '../providers/providers.module.js';
-import type { TaskDefinition } from '../tasks/task.js';
 
 export const ROUTING_OPTIONS = Symbol('ROUTING_OPTIONS');
 
@@ -14,12 +13,12 @@ export interface RoutingOptions {
 export interface Route {
   provider: string;
   model: string;
-  maxOutputTokens: number;
 }
 
 /**
  * Decides provider and model for a job; callers never do. For now one route for every tenant
- * and task: the configured provider with the configured model and the task's output limit.
+ * and task (the routing table of spec 07c BE-3 will key it by both): the configured provider
+ * with the configured model.
  */
 @Injectable()
 export class Routing {
@@ -28,11 +27,10 @@ export class Routing {
     @Inject(ROUTING_OPTIONS) private readonly options: RoutingOptions,
   ) {}
 
-  route(_tenant: string, task: TaskDefinition): Route {
+  route(): Route {
     return {
       provider: this.provider.name,
       model: this.options.model,
-      maxOutputTokens: task.maxOutputTokens,
     };
   }
 }

@@ -21,7 +21,7 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   output: TOutput;
   /** Prompt versions with a file `prompts/<task>/v<N>.md`; the last one is current. */
   promptVersions: readonly [number, ...number[]];
-  /** Default output limit; the routing table may override it. */
+  /** Output limit of every call for this task. */
   maxOutputTokens: number;
 }
 

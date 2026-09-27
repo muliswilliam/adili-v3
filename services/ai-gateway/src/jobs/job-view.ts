@@ -1,4 +1,4 @@
-import type { jobs } from '../db/schema.js';
+import type { Job } from '../db/schema.js';
 import type { JobReason, JobStatus } from './job-states.js';
 
 /** Contract `Job`. `output` is the validated output, present only once the job succeeded. */
@@ -20,7 +20,7 @@ export interface JobView {
   finishedAt: string | null;
 }
 
-export function toJobView(row: typeof jobs.$inferSelect): JobView {
+export function toJobView(row: Job): JobView {
   return {
     id: row.id,
     task: row.task,
