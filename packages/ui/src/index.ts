@@ -96,5 +96,11 @@ export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export { cn } from './lib/cn';
-export { countdownAnnouncement, formatClock, secondsUntil, useCountdown } from './lib/countdown';
+export {
+  countdownAnnouncement,
+  formatClock,
+  secondsUntil,
+  useCountdown,
+  useCountdownAnnouncement,
+} from './lib/countdown';
 export { formatDate, formatDateTime } from './lib/format-date';

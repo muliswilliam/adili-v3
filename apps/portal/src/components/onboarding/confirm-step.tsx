@@ -9,8 +9,7 @@ import {
   MaskedContact,
   Spinner,
 } from '@adili/ui';
-import { AlertCircleIcon, Clock01Icon } from '@hugeicons/core-free-icons';
-import { useNavigate, useRouter } from '@tanstack/react-router';
+import { Clock01Icon } from '@hugeicons/core-free-icons';
 import { type Ref, type SubmitEvent, useEffect, useRef, useState } from 'react';
 
 import type { OnboardingSession, OtpChannel } from '../../server/directory/types';
@@ -18,8 +17,8 @@ import { confirmOnboarding } from '../../server/onboarding';
 import type { StepGuard } from './guard';
 import { StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from './problems';
-import { SessionUnavailable } from './step-alerts';
-import { routeForSession } from './steps';
+import { useSettle } from './settle';
+import { SessionUnavailable, StepFailureAlert } from './step-alerts';
 
 /** Why confirming failed. The register being down is a wait; the rest are errors. */
 type Failure = 'iprs-unavailable' | 'identity-unavailable' | 'unavailable';
@@ -40,8 +39,7 @@ function ConfirmDetails({
   session: OnboardingSession;
   details: NonNullable<OnboardingSession['details']>;
 }) {
-  const navigate = useNavigate();
-  const router = useRouter();
+  const settle = useSettle({ route: '/get-started/confirm', commission: session.commission.slug });
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -56,20 +54,12 @@ function ConfirmDetails({
     setSubmitting(true);
     setFailure(null);
     try {
-      const result = await confirmOnboarding();
-      if (result.ok) {
-        await navigate({ to: routeForSession(result.session) });
-      } else if (result.code === 'ended') {
-        await navigate({
-          to: '/get-started',
-          search: { commission: session.commission.slug, notice: 'ended' },
-        });
-      } else if (result.code === 'moved') {
-        // Another tab confirmed first; the loader guard sends this one to the outcome.
-        await router.invalidate();
-      } else if (result.code === 'iprs-unavailable' || result.code === 'identity-unavailable') {
-        setFailure(result.code);
-      } else {
+      // A confirmed session moves on to its outcome; if another tab confirmed first, the
+      // loader guard sends this one after it.
+      const problem = await settle(await confirmOnboarding());
+      if (problem?.code === 'iprs-unavailable' || problem?.code === 'identity-unavailable') {
+        setFailure(problem.code);
+      } else if (problem) {
         setFailure('unavailable');
       }
     } catch {
@@ -110,7 +100,7 @@ function ConfirmDetails({
             <ContactItem channel="phone" term="Phone" session={session} />
           </DescriptionList>
         </div>
-        {failure ? <FailureAlert ref={alertRef} failure={failure} /> : null}
+        {failure ? <ConfirmFailureAlert ref={alertRef} failure={failure} /> : null}
         <CheckboxItem
           label="I confirm these are my details."
           checked={checked}
@@ -138,12 +128,12 @@ function ConfirmDetails({
   );
 }
 
-function FailureAlert({ ref, failure }: { ref: Ref<HTMLDivElement>; failure: Failure }) {
-  const shared = { ref, tabIndex: -1, className: 'mt-4 outline-none' };
+/** Why confirming failed: the register being down is a wait, with a retry; the rest are errors. */
+function ConfirmFailureAlert({ ref, failure }: { ref: Ref<HTMLDivElement>; failure: Failure }) {
   if (failure === 'iprs-unavailable') {
     // A wait, not a mistake: the session is kept and the same check can run again.
     return (
-      <Alert {...shared} variant="warning">
+      <Alert ref={ref} tabIndex={-1} className="mt-4 outline-none" variant="warning">
         <Icon icon={Clock01Icon} />
         <AlertDescription>{problemMessage('iprs-unavailable')}</AlertDescription>
         <Button type="submit" variant="secondary" size="sm" className="mt-2.5 w-fit">
@@ -153,14 +143,13 @@ function FailureAlert({ ref, failure }: { ref: Ref<HTMLDivElement>; failure: Fai
     );
   }
   return (
-    <Alert {...shared} variant="destructive">
-      <Icon icon={AlertCircleIcon} />
-      <AlertDescription>
-        {failure === 'identity-unavailable'
-          ? problemMessage('identity-unavailable')
-          : GENERIC_ERROR}
-      </AlertDescription>
-    </Alert>
+    <StepFailureAlert
+      ref={ref}
+      className="mt-4"
+      message={
+        failure === 'identity-unavailable' ? problemMessage('identity-unavailable') : GENERIC_ERROR
+      }
+    />
   );
 }
 

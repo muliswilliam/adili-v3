@@ -1,6 +1,5 @@
 import {
   Button,
-  countdownAnnouncement,
   FormField,
   Input,
   MaskedContact,
@@ -8,25 +7,25 @@ import {
   secondsUntil,
   Spinner,
   useCountdown,
+  useCountdownAnnouncement,
   useToast,
 } from '@adili/ui';
-import { useNavigate, useRouter } from '@tanstack/react-router';
 import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 
 import type { OnboardingSession, OtpChannel } from '../../server/directory/types';
 import {
-  leaveOnboarding,
   provideOnboardingContact,
   resendOnboardingCode,
   verifyOnboardingCode,
 } from '../../server/onboarding';
-import type { StepProblem, StepResult } from '../../server/onboarding.server';
+import type { StepProblem } from '../../server/onboarding.server';
 import { CONTACT_ERRORS, contactError } from './contact';
 import type { StepGuard } from './guard';
 import { StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage, SEND_FAILED } from './problems';
-import { FailureAlert, SessionUnavailable } from './step-alerts';
-import { routeForSession, type StepRoute } from './steps';
+import { useSettle, useStartAgain } from './settle';
+import { StepFailureAlert, SessionUnavailable } from './step-alerts';
+import type { StepRoute } from './steps';
 
 const COPY = {
   email: {
@@ -53,10 +52,10 @@ const COPY = {
 const MAX_RESENDS = 3;
 
 /** Handles a step's result: moves on, starts again or hands back a problem to show. */
-type Settle = (result: StepResult) => Promise<StepProblem | null>;
+type Settle = ReturnType<typeof useSettle>;
 
 /** Forgets the session in this browser and goes back to step 1, optionally saying why. */
-type StartAgain = (notice?: 'too-many') => Promise<void>;
+type StartAgain = ReturnType<typeof useStartAgain>;
 
 /**
  * Verify email and Verify phone (steps 3 and 4). The session decides the view: the declarant
@@ -84,41 +83,11 @@ function VerifyChannel({
   route: StepRoute;
   initial: OnboardingSession;
 }) {
-  const navigate = useNavigate();
-  const router = useRouter();
   const [session, setSession] = useState(initial);
   // Step 1 keeps the Commission chosen when the declarant has to start again.
   const commission = session.commission.slug;
-
-  const settle: Settle = async (result) => {
-    if (result.ok) {
-      const target = routeForSession(result.session);
-      if (target === route) {
-        setSession(result.session);
-        return null;
-      }
-      await navigate({ to: target });
-      return null;
-    }
-    if (result.code === 'ended' || result.code === 'too-many') {
-      await navigate({
-        to: '/get-started',
-        search: { commission, notice: result.code === 'ended' ? 'ended' : 'too-many' },
-      });
-      return null;
-    }
-    if (result.code === 'moved') {
-      // Another tab moved the session on; the loader guard sends this one after it.
-      await router.invalidate();
-      return null;
-    }
-    return result;
-  };
-
-  const startAgain: StartAgain = async (notice) => {
-    await leaveOnboarding();
-    await navigate({ to: '/get-started', search: { commission, notice } });
-  };
+  const settle = useSettle({ route, commission, onStay: setSession });
+  const startAgain = useStartAgain(commission);
 
   if (session.state === `${channel}-contact-required`) {
     return <ContactForm channel={channel} settle={settle} />;
@@ -283,17 +252,8 @@ function ResendCode({
   const { toast } = useToast();
   const [secondsLeft, startCountdown] = useCountdown(secondsUntil(session.otp.resendAvailableAt));
   const [sending, setSending] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
-  const previous = useRef(secondsLeft);
+  const announcement = useCountdownAnnouncement(secondsLeft, describeWait);
   const { resendsLeft } = session.otp;
-
-  useEffect(() => {
-    const message = countdownAnnouncement(previous.current, secondsLeft, describeWait);
-    // A new countdown clears the last announcement rather than leaving it stale.
-    if (secondsLeft > previous.current) setAnnouncement('');
-    previous.current = secondsLeft;
-    if (message) setAnnouncement(message);
-  }, [secondsLeft]);
 
   function failed(message: string) {
     toast({ title: message, urgency: 'assertive' });
@@ -403,7 +363,7 @@ function ContactForm({ channel, settle }: { channel: OtpChannel; settle: Settle 
         onSubmit={(event) => void submit(event)}
         className="mt-[22px] grid gap-4"
       >
-        {failure ? <FailureAlert ref={alertRef} message={failure} /> : null}
+        {failure ? <StepFailureAlert ref={alertRef} message={failure} /> : null}
         <FormField label={copy.label} error={error}>
           <Input
             ref={inputRef}

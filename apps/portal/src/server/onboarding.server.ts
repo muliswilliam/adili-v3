@@ -220,46 +220,33 @@ function channelParams({ sessionId, secret }: OnboardingCredentials, channel: Ot
   return { path: { sessionId, channel }, header: { 'X-Onboarding-Secret': secret } };
 }
 
-export async function verifyCode(
-  client: OnboardingClient,
-  credentials: OnboardingCredentials,
-  input: z.input<typeof codeSchema>,
-): Promise<StepResult> {
-  const parsed = codeSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: 'invalid' };
-  const { channel, code } = parsed.data;
-  try {
-    const { data, error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify',
-      { params: channelParams(credentials, channel), body: { code } },
-    );
-    if (data) return { ok: true, session: data };
-    return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
+/** What an openapi-fetch call on a session answers. */
+interface SessionCallResult {
+  data?: OnboardingSession;
+  error?: unknown;
+  response: Response;
 }
 
-/** Sends a new code, then reads the session back for the new cooldown and resends left. */
-export async function resendCode(
+/**
+ * One call on the session, read the same way for every step: the session it returns; for a
+ * 202 without a body, the session read back (for the new cooldown and resends left); otherwise
+ * the step's problem. A call that throws is the directory being unavailable.
+ */
+async function sessionCall(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
-  input: z.input<typeof channelSchema>,
+  call: () => Promise<SessionCallResult>,
 ): Promise<StepResult> {
-  const parsed = channelSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: 'invalid' };
+  let result: SessionCallResult;
   try {
-    const { error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend',
-      {
-        params: channelParams(credentials, parsed.data.channel),
-      },
-    );
-    if (response.status !== 202) return { ok: false, ...stepProblem(response, error) };
+    result = await call();
   } catch {
     return { ok: false, code: 'unavailable' };
   }
-  return readBack(client, credentials);
+  const { data, error, response } = result;
+  if (data) return { ok: true, session: data };
+  if (response.status === 202) return readBack(client, credentials);
+  return { ok: false, ...stepProblem(response, error) };
 }
 
 /** The session after a call that answers 202 without it. */
@@ -272,6 +259,37 @@ async function readBack(
   return { ok: false, code: lookup.status === 'unavailable' ? 'unavailable' : 'ended' };
 }
 
+export async function verifyCode(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: z.input<typeof codeSchema>,
+): Promise<StepResult> {
+  const parsed = codeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  const { channel, code } = parsed.data;
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify', {
+      params: channelParams(credentials, channel),
+      body: { code },
+    }),
+  );
+}
+
+/** Sends a new code, then reads the session back for the new cooldown and resends left. */
+export async function resendCode(
+  client: OnboardingClient,
+  credentials: OnboardingCredentials,
+  input: z.input<typeof channelSchema>,
+): Promise<StepResult> {
+  const parsed = channelSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: 'invalid' };
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend', {
+      params: channelParams(credentials, parsed.data.channel),
+    }),
+  );
+}
+
 /** Supplies the email or phone the roster record lacks; the directory sends a code to it. */
 export async function provideContact(
   client: OnboardingClient,
@@ -280,16 +298,12 @@ export async function provideContact(
 ): Promise<StepResult> {
   const parsed = contactSchema.safeParse(input);
   if (!parsed.success) return { ok: false, code: 'invalid' };
-  try {
-    const { data, error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/contacts',
-      { params: sessionParams(credentials), body: parsed.data },
-    );
-    if (data) return { ok: true, session: data };
-    return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/contacts', {
+      params: sessionParams(credentials),
+      body: parsed.data,
+    }),
+  );
 }
 
 /**
@@ -297,35 +311,26 @@ export async function provideContact(
  * creates the account or links the record to the declarant's existing one; the session's state
  * and outcome say which.
  */
-export async function confirm(
+export function confirm(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
 ): Promise<StepResult> {
-  try {
-    const { data, error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/confirm',
-      { params: sessionParams(credentials) },
-    );
-    if (data) return { ok: true, session: data.session };
-    return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
+  return sessionCall(client, credentials, async () => {
+    const result = await client.POST('/v1/onboarding/sessions/{sessionId}/confirm', {
+      params: sessionParams(credentials),
+    });
+    return { ...result, data: result.data?.session };
+  });
 }
 
 /** Sends the set-password email again, then reads the session back for the new wait. */
-export async function resendPasswordEmail(
+export function resendPasswordEmail(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
 ): Promise<StepResult> {
-  try {
-    const { error, response } = await client.POST(
-      '/v1/onboarding/sessions/{sessionId}/resend-password-email',
-      { params: sessionParams(credentials) },
-    );
-    if (response.status !== 202) return { ok: false, ...stepProblem(response, error) };
-  } catch {
-    return { ok: false, code: 'unavailable' };
-  }
-  return readBack(client, credentials);
+  return sessionCall(client, credentials, () =>
+    client.POST('/v1/onboarding/sessions/{sessionId}/resend-password-email', {
+      params: sessionParams(credentials),
+    }),
+  );
 }

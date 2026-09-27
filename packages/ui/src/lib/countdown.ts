@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** Seconds left on a countdown, ticking once a second, and a function to start one. */
 export function useCountdown(initialSeconds = 0): [number, (seconds: number) => void] {
@@ -57,4 +57,24 @@ export function countdownAnnouncement(
   // The highest step below `previous`.
   const step = Math.floor((previous - 1) / ANNOUNCE_EVERY) * ANNOUNCE_EVERY;
   return step >= current ? describe(current) : null;
+}
+
+/**
+ * The text for a countdown's polite live region: it changes only at 10-second steps (see
+ * `countdownAnnouncement`), so the wait can tick every second on screen without talking over
+ * the user. A new, longer countdown clears the last announcement rather than leaving it stale.
+ */
+export function useCountdownAnnouncement(
+  secondsLeft: number,
+  describe: (seconds: number) => string,
+): string {
+  const [announcement, setAnnouncement] = useState('');
+  const previous = useRef(secondsLeft);
+  useEffect(() => {
+    const message = countdownAnnouncement(previous.current, secondsLeft, describe);
+    if (secondsLeft > previous.current) setAnnouncement('');
+    previous.current = secondsLeft;
+    if (message) setAnnouncement(message);
+  }, [secondsLeft, describe]);
+  return announcement;
 }

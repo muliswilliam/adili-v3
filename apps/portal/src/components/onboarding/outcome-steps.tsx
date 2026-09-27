@@ -1,23 +1,23 @@
 import {
   Alert,
   Button,
-  CopyButton,
-  countdownAnnouncement,
   Icon,
   MaskedContact,
+  OfficerReference,
   secondsUntil,
   useCountdown,
+  useCountdownAnnouncement,
   useToast,
 } from '@adili/ui';
 import { AlertCircleIcon, Mail01Icon, SentIcon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { useNavigate, useRouter } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 import type { OnboardingSession } from '../../server/directory/types';
-import { leaveOnboarding, resendSetPasswordEmail } from '../../server/onboarding';
+import { resendSetPasswordEmail } from '../../server/onboarding';
 import type { StepGuard } from './guard';
 import { StepHeading, SuccessMark } from './onboarding-layout';
 import { GENERIC_ERROR } from './problems';
+import { useSettle, useStartAgain } from './settle';
 import { SessionUnavailable } from './step-alerts';
 
 const SIGN_IN = '/auth/login';
@@ -51,7 +51,7 @@ function CheckEmail({ session }: { session: OnboardingSession }) {
           </>
         }
       />
-      {session.ofr ? <OfficerReference ofr={session.ofr} /> : null}
+      {session.ofr ? <OfficerReferencePanel ofr={session.ofr} /> : null}
       <div className="mt-[22px] grid gap-2.5">
         <ResendEmail session={session} />
         <Button asChild variant="ghost" className="w-full">
@@ -62,24 +62,16 @@ function CheckEmail({ session }: { session: OnboardingSession }) {
   );
 }
 
-function OfficerReference({ ofr }: { ofr: string }) {
+/** The new officer reference, set apart so the declarant notes it down. */
+function OfficerReferencePanel({ ofr }: { ofr: string }) {
   return (
     <>
-      <div className="mt-[22px] flex items-center gap-3 rounded-2xl bg-brand-faint px-4 py-3.5 ring-1 ring-brand-subtle-foreground/15">
-        <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-medium text-muted-foreground">Officer reference</p>
-          <p className="font-mono text-lg font-semibold tracking-[0.02em]">{ofr}</p>
-        </div>
-        <CopyButton
-          value={ofr}
-          label="Copy"
-          aria-label="Copy officer reference"
-          copiedMessage="Officer reference copied"
-          showLabel
-        />
+      <div className="mt-[22px] rounded-2xl bg-brand-faint px-4 py-3.5 ring-1 ring-brand-subtle-foreground/15">
+        <p className="text-[13.5px] font-medium text-muted-foreground">Officer reference</p>
+        <OfficerReference value={ofr} className="text-lg" />
       </div>
       <p className="mt-2 text-[13.5px] text-muted-foreground">
-        Quote it when you contact the helpdesk.
+        Your officer reference. Quote it when you contact the helpdesk.
       </p>
     </>
   );
@@ -95,20 +87,14 @@ function describeWait(seconds: number): string {
  * hear it only at 10-second steps.
  */
 function ResendEmail({ session }: { session: OnboardingSession }) {
-  const navigate = useNavigate();
-  const router = useRouter();
+  const settle = useSettle({
+    route: '/get-started/check-email',
+    commission: session.commission.slug,
+  });
   const { toast } = useToast();
   const [secondsLeft, startCountdown] = useCountdown(secondsUntil(session.otp.resendAvailableAt));
   const [sending, setSending] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
-  const previous = useRef(secondsLeft);
-
-  useEffect(() => {
-    const message = countdownAnnouncement(previous.current, secondsLeft, describeWait);
-    if (secondsLeft > previous.current) setAnnouncement('');
-    previous.current = secondsLeft;
-    if (message) setAnnouncement(message);
-  }, [secondsLeft]);
+  const announcement = useCountdownAnnouncement(secondsLeft, describeWait);
 
   async function resend() {
     if (sending) return;
@@ -122,11 +108,7 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
         toast({ title: 'Email sent again' });
       } else if (result.code === 'resend-cooldown') {
         startCountdown(result.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);
-      } else if (result.code === 'ended') {
-        await navigate({ to: '/get-started', search: { notice: 'ended' } });
-      } else if (result.code === 'moved') {
-        await router.invalidate();
-      } else {
+      } else if (await settle(result)) {
         failed();
       }
     } catch {
@@ -202,14 +184,14 @@ export function DoneStep({ guard }: { guard: StepGuard }) {
 
 /** Not verified: the roster's name or ID does not match the national register. No stepper. */
 export function NotVerifiedStep({ guard }: { guard: StepGuard }) {
-  const navigate = useNavigate();
   if (guard.status === 'unavailable') return <SessionUnavailable />;
-  const { commission } = guard.session;
+  return <NotVerified session={guard.session} />;
+}
 
-  async function startAgain() {
-    await leaveOnboarding();
-    await navigate({ to: '/get-started', search: { commission: commission.slug } });
-  }
+function NotVerified({ session }: { session: OnboardingSession }) {
+  const { commission } = session;
+  // Starting again is the declarant's choice here, not a session that ended, so no notice.
+  const startAgain = useStartAgain(commission.slug);
 
   return (
     <>
