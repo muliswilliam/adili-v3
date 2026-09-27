@@ -23,6 +23,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Principal'
+        '401':
+          description: Missing, expired or invalid access token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions:
     get:
       tags:
@@ -830,6 +836,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OnboardingCommission'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
       security: []
   /v1/onboarding/sessions:
     post:
@@ -1169,6 +1177,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Agency'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/law-enforcement/agencies/{code}/officers:
     parameters:
       - name: code

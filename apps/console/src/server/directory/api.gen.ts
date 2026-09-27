@@ -1352,6 +1352,15 @@ export interface operations {
                     "application/json": components["schemas"]["Principal"];
                 };
             };
+            /** @description Missing, expired or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listCommissions: {
@@ -2176,6 +2185,7 @@ export interface operations {
                     "application/json": components["schemas"]["OnboardingCommission"][];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
         };
     };
     identifyDeclarant: {
@@ -2553,6 +2563,7 @@ export interface operations {
                     "application/json": components["schemas"]["Agency"][];
                 };
             };
+            403: components["responses"]["Forbidden"];
         };
     };
     listAgencyOfficers: {

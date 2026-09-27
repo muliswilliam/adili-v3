@@ -480,6 +480,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OnboardingCommission'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
   /v1/onboarding/sessions:
     post:
       tags: [onboarding]
@@ -788,6 +790,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Agency'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/law-enforcement/agencies/{code}/officers:
     parameters:
       - name: code

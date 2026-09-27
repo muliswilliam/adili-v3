@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, type Principal, schemaRef } from '@adili/api-kit';
+import { ApiProblemResponse, CurrentPrincipal, type Principal, schemaRef } from '@adili/api-kit';
 
 @ApiTags('me')
 @Controller('v1/me')
@@ -14,6 +14,7 @@ export class MeController {
     description: 'Verified identity from the access token',
     schema: schemaRef('Principal'),
   })
+  @ApiProblemResponse(401, 'Missing, expired or invalid access token')
   me(@CurrentPrincipal() principal: Principal): Principal {
     return principal;
   }
