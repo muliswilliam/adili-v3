@@ -28,7 +28,7 @@ const base: RosterImport = {
   counts: null,
   mapping: null,
   failure: null,
-  startedBy: { kind: 'user', id: 'user-1' },
+  startedBy: { kind: 'user', id: 'user-1', name: 'Grace Muthoni' },
   startedAt: '2026-09-26T07:40:00Z',
   completedAt: null,
 };
@@ -97,7 +97,10 @@ describe('WizardImportStep', () => {
           state: 'failed',
           totalRows: null,
           processedRows: 0,
-          failure: { code: 'missing-columns', detail: 'national_id' },
+          failure: {
+            code: 'missing-columns',
+            detail: 'The file has no national_id column. Add it and upload the file again.',
+          },
         })}
         reconnecting={false}
         onImportAnother={vi.fn()}
@@ -105,8 +108,9 @@ describe('WizardImportStep', () => {
     );
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toContain(
-      'The import stopped before any rows were applied: the file has no national_id column.',
+      'The import stopped before any rows were applied: a required column is missing.',
     );
+    expect(alert.textContent).toContain('The file has no national_id column.');
     expect(alert.textContent).toContain('Nothing on the roster changed.');
   });
 
@@ -124,6 +128,7 @@ describe('WizardReportStep', () => {
     unchanged: 2,
     rejected: 0,
     flaggedAbsent: 0,
+    exitsRecorded: 0,
   };
   const completed = imp({
     state: 'completed',

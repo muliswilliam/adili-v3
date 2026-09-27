@@ -1,5 +1,9 @@
-import type { ColumnMapping, DirectoryError, RosterSummary } from '../../server/directory/client';
-import { REQUIRED_COLUMNS, TEMPLATE_COLUMNS } from './template-columns';
+import type {
+  DirectoryError,
+  RosterImportPreview,
+  RosterSummary,
+} from '../../server/directory/client';
+import type { RosterColumnName } from './template-columns';
 
 /**
  * The column check of wizard step 3, pure: how the file's header lines up with the template,
@@ -9,43 +13,26 @@ import { REQUIRED_COLUMNS, TEMPLATE_COLUMNS } from './template-columns';
 /** One line of the mapping table, in the order the table shows them. */
 export type MappingRow =
   /** A required template column the file does not have: the import cannot start. */
-  | { status: 'missing'; field: string }
-  | { status: 'matched'; source: string; field: string }
+  | { status: 'missing'; field: RosterColumnName }
+  | { status: 'matched'; source: string; field: RosterColumnName }
   /** An optional template column the file does not have. */
-  | { status: 'not-in-file'; field: string }
+  | { status: 'not-in-file'; field: RosterColumnName }
   /** A file column that matches no template column; it is not imported. */
   | { status: 'ignored'; source: string };
 
-/** Header matching as the directory does it: case, whitespace, `_` and `-` do not count. */
-const columnKey = (name: string) => name.toLowerCase().replace(/[\s_-]+/g, '');
-
-/** The template's name for a mapped field, whichever spelling the directory reports. */
-const templateName = (field: string) =>
-  TEMPLATE_COLUMNS.find((column) => columnKey(column.name) === columnKey(field))?.name ?? field;
-
 /**
- * Required template columns the file lacks. The mapping lists only optional columns as missing,
- * so the required ones are those the file did not match.
+ * The mapping table: required columns the file lacks first (they block the import), then the
+ * matched columns in file order, optional columns not in the file, and ignored file columns.
  */
-export function missingRequired(mapping: ColumnMapping): string[] {
-  const matched = new Set(mapping.matched.map((match) => columnKey(match.field)));
-  return REQUIRED_COLUMNS.filter((name) => !matched.has(columnKey(name)));
-}
-
-/** The mapping table: missing required columns first, then matched, not in file, ignored. */
-export function mappingRows(mapping: ColumnMapping): MappingRow[] {
-  const required = missingRequired(mapping);
-  const requiredKeys = new Set(required.map(columnKey));
+export function mappingRows({ mapping, missingRequired }: RosterImportPreview): MappingRow[] {
   return [
-    ...required.map((field): MappingRow => ({ status: 'missing', field })),
-    ...mapping.matched.map((match): MappingRow => ({
+    ...missingRequired.map((field): MappingRow => ({ status: 'missing', field })),
+    ...mapping.matched.map(({ source, field }): MappingRow => ({
       status: 'matched',
-      source: match.source,
-      field: templateName(match.field),
+      source,
+      field,
     })),
-    ...mapping.missing
-      .filter((field) => !requiredKeys.has(columnKey(field)))
-      .map((field): MappingRow => ({ status: 'not-in-file', field: templateName(field) })),
+    ...mapping.missing.map((field): MappingRow => ({ status: 'not-in-file', field })),
     ...mapping.ignored.map((source): MappingRow => ({ status: 'ignored', source })),
   ];
 }
@@ -71,6 +58,7 @@ export type CheckFailure =
 export function checkFailure(error: DirectoryError): CheckFailure {
   if (error.kind !== 'problem') return 'failed';
   const { status } = error.problem;
+  // 404 `upload-not-found`, 409 `upload-not-clean`; 422 `unreadable-file`.
   if (status === 404 || status === 409) return 'upload-gone';
   if (status === 422) return 'unreadable';
   return 'failed';

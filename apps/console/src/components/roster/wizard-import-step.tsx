@@ -20,7 +20,7 @@ import { Link } from '@tanstack/react-router';
 import type { RosterImport } from '../../server/directory/client';
 import { formatNumber } from '../format';
 import { FileBox } from './file-box';
-import { failureReason, importProgress } from './import-progress';
+import { failureDetail, failureReason, importProgress } from './import-progress';
 import { messages as m } from './messages';
 import { WizardCard, WizardFoot, WizardSection, WizardTitle } from './wizard-card';
 import { Busy } from './wizard-upload-step';
@@ -129,9 +129,9 @@ function CompletenessBadge({ declaredComplete }: { declaredComplete: boolean }) 
 }
 
 function FailureAlert({ imp }: { imp: RosterImport }) {
-  const reason = imp.failure
-    ? failureReason(imp.failure)
-    : failureReason({ code: 'internal', detail: '' });
+  const failure = imp.failure ?? { code: 'internal', detail: '' };
+  const reason = failureReason(failure);
+  const detail = failureDetail(failure);
   const applied = imp.processedRows > 0;
   return (
     <Alert variant="destructive">
@@ -139,6 +139,7 @@ function FailureAlert({ imp }: { imp: RosterImport }) {
       <AlertTitle>
         {applied ? m.stoppedAfter(imp.processedRows, reason) : m.stoppedBefore(reason)}
       </AlertTitle>
+      {detail ? <AlertDescription>{detail}</AlertDescription> : null}
       <AlertDescription>{applied ? m.stoppedKept : m.stoppedNothing}</AlertDescription>
     </Alert>
   );

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ColumnMapping, DirectoryError, RosterSummary } from '../../server/directory/client';
+import type {
+  DirectoryError,
+  RosterImportPreview,
+  RosterSummary,
+} from '../../server/directory/client';
 import {
   checkFailure,
   defaultDeclaredComplete,
   mappingRows,
-  missingRequired,
   needsNewIdempotencyKey,
   startFailure,
 } from './column-check';
@@ -26,16 +29,32 @@ const summary = (overrides: Partial<RosterSummary> = {}): RosterSummary => ({
 });
 
 describe('mappingRows (S24 header mapping preview)', () => {
+  const preview = (overrides: Partial<RosterImportPreview>): RosterImportPreview => ({
+    uploadId: '0199a0b4-0000-7000-8000-000000000001',
+    fileName: 'roster.csv',
+    format: 'csv',
+    mapping: { matched: [], ignored: [], missing: [] },
+    missingRequired: [],
+    estimatedRows: 3,
+    ...overrides,
+  });
+
   it('lists missing required columns, then matched, not in file, ignored', () => {
-    const mapping: ColumnMapping = {
-      matched: [
-        { source: 'File No', field: 'personnel_file_number' },
-        { source: 'Full Name', field: 'full_name' },
-      ],
-      ignored: ['ID Number (old)'],
-      missing: ['designation', 'phone'],
-    };
-    expect(mappingRows(mapping)).toEqual([
+    expect(
+      mappingRows(
+        preview({
+          mapping: {
+            matched: [
+              { source: 'File No', field: 'personnel_file_number' },
+              { source: 'Full Name', field: 'full_name' },
+            ],
+            ignored: ['ID Number (old)'],
+            missing: ['designation', 'phone'],
+          },
+          missingRequired: ['national_id'],
+        }),
+      ),
+    ).toEqual([
       { status: 'missing', field: 'national_id' },
       { status: 'matched', source: 'File No', field: 'personnel_file_number' },
       { status: 'matched', source: 'Full Name', field: 'full_name' },
@@ -45,51 +64,25 @@ describe('mappingRows (S24 header mapping preview)', () => {
     ]);
   });
 
-  it('reads fields in any spelling the directory reports as the template names', () => {
-    const mapping: ColumnMapping = {
-      matched: [
-        { source: 'personnelFileNumber', field: 'personnelFileNumber' },
-        { source: 'fullName', field: 'fullName' },
-        { source: 'nationalId', field: 'nationalId' },
-      ],
-      ignored: [],
-      missing: ['jobGroup'],
-    };
-    expect(missingRequired(mapping)).toEqual([]);
-    expect(mappingRows(mapping).map((row) => ('field' in row ? row.field : null))).toEqual([
+  it('keeps the file order of matched columns', () => {
+    const rows = mappingRows(
+      preview({
+        mapping: {
+          matched: [
+            { source: 'national id', field: 'national_id' },
+            { source: 'personnelFileNumber', field: 'personnel_file_number' },
+            { source: 'FULL_NAME', field: 'full_name' },
+          ],
+          ignored: [],
+          missing: [],
+        },
+      }),
+    );
+    expect(rows.map((row) => (row.status === 'ignored' ? row.source : row.field))).toEqual([
+      'national_id',
       'personnel_file_number',
       'full_name',
-      'national_id',
-      'job_group',
     ]);
-  });
-
-  it('shows a required column once even when the directory also lists it as missing', () => {
-    const mapping: ColumnMapping = {
-      matched: [{ source: 'full_name', field: 'full_name' }],
-      ignored: [],
-      missing: ['personnel_file_number', 'national_id', 'email'],
-    };
-    expect(mappingRows(mapping)).toEqual([
-      { status: 'missing', field: 'personnel_file_number' },
-      { status: 'missing', field: 'national_id' },
-      { status: 'matched', source: 'full_name', field: 'full_name' },
-      { status: 'not-in-file', field: 'email' },
-    ]);
-  });
-
-  it('finds nothing missing when every required column matched', () => {
-    expect(
-      missingRequired({
-        matched: [
-          { source: 'a', field: 'personnel_file_number' },
-          { source: 'b', field: 'full_name' },
-          { source: 'c', field: 'national_id' },
-        ],
-        ignored: [],
-        missing: [],
-      }),
-    ).toEqual([]);
   });
 });
 

@@ -73,7 +73,14 @@ export function useColumnCheck(upload: CleanUpload | null, deps: ColumnCheckDeps
         } else if (result.error.kind === 'unauthenticated') {
           unauthenticated();
         } else {
-          setChecked({ key, view: { phase: 'failed', failure: checkFailure(result.error) } });
+          setChecked({
+            key,
+            view: {
+              phase: 'failed',
+              failure: checkFailure(result.error),
+              detail: result.error.kind === 'problem' ? result.error.problem.detail : undefined,
+            },
+          });
         }
       });
     return () => {

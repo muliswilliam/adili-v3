@@ -30,13 +30,7 @@ import {
 import { Fragment, type ReactNode } from 'react';
 
 import type { RosterImportPreview } from '../../server/directory/client';
-import {
-  type CheckFailure,
-  type MappingRow,
-  mappingRows,
-  missingRequired,
-  type StartFailure,
-} from './column-check';
+import { type CheckFailure, type MappingRow, mappingRows, type StartFailure } from './column-check';
 import { FileBox } from './file-box';
 import { messages as m } from './messages';
 import type { CleanUpload } from './upload';
@@ -47,7 +41,8 @@ import { Busy, PassedScan } from './wizard-upload-step';
 /** What the column check has to show. */
 export type ColumnCheckView =
   | { phase: 'loading' }
-  | { phase: 'failed'; failure: CheckFailure }
+  /** `detail`: the directory's reason, for a file it cannot read. */
+  | { phase: 'failed'; failure: CheckFailure; detail?: string }
   /** `defaulted`: the "complete roster" box was ticked because the roster is empty. */
   | { phase: 'ready'; preview: RosterImportPreview; defaulted: boolean };
 
@@ -96,7 +91,12 @@ export function WizardCheckStep(props: WizardCheckStepProps) {
         <MappingSkeleton />
       ) : check.phase === 'failed' ? (
         <WizardSection className="border-t">
-          <CheckFailed failure={check.failure} onRetry={props.onRetryCheck} onBack={onBack} />
+          <CheckFailed
+            failure={check.failure}
+            detail={check.detail}
+            onRetry={props.onRetryCheck}
+            onBack={onBack}
+          />
         </WizardSection>
       ) : (
         <Ready {...props} preview={check.preview} defaulted={check.defaulted} />
@@ -130,8 +130,8 @@ function Ready({
   onViewRunning,
   onBack,
 }: WizardCheckStepProps & { preview: RosterImportPreview; defaulted: boolean }) {
-  const rows = mappingRows(preview.mapping);
-  const missing = missingRequired(preview.mapping);
+  const rows = mappingRows(preview);
+  const missing = preview.missingRequired;
   const blocked = missing.length > 0;
   const start = (
     <Button onClick={onStart} disabled={blocked || starting}>
@@ -367,10 +367,12 @@ function UploadAgain({ onClick }: { onClick: () => void }) {
 
 function CheckFailed({
   failure,
+  detail,
   onRetry,
   onBack,
 }: {
   failure: CheckFailure;
+  detail?: string;
   onRetry: () => void;
   onBack: () => void;
 }) {
@@ -383,7 +385,7 @@ function CheckFailed({
       );
     case 'unreadable':
       return (
-        <Problem title={m.unreadableTitle} text={m.unreadableText}>
+        <Problem title={m.unreadableTitle} text={detail ?? m.unreadableText}>
           <UploadAgain onClick={onBack} />
         </Problem>
       );

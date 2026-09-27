@@ -1,5 +1,4 @@
 import type { RosterImport } from '../../server/directory/client';
-import { formatNumber } from '../format';
 
 /** How often step 4 asks for the import's progress (spec 02). */
 export const IMPORT_POLL_MS = 2_000;
@@ -28,28 +27,15 @@ export function importEnded(imp: Pick<RosterImport, 'state'>): boolean {
   return imp.state === 'completed' || imp.state === 'failed';
 }
 
-/** Missing-columns detail as the directory writes it: the column names, comma-separated. */
-const columnList = (detail: string) =>
-  detail
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean)
-    .join(', ');
+type ImportFailure = NonNullable<RosterImport['failure']>;
 
-/**
- * Why an import stopped, completing "The import stopped after {n} rows: …". The detail is
- * shown only where its shape is known (column names, a row number); otherwise a plain reason.
- */
-export function failureReason(failure: NonNullable<RosterImport['failure']>): string {
+/** Why an import stopped, completing "The import stopped after {n} rows: …". */
+export function failureReason(failure: Pick<ImportFailure, 'code'>): string {
   switch (failure.code) {
-    case 'missing-columns': {
-      const columns = columnList(failure.detail);
-      return columns ? `the file has no ${columns} column` : 'a required column is missing';
-    }
+    case 'missing-columns':
+      return 'a required column is missing';
     case 'parse-error':
-      return /^\d+$/.test(failure.detail.trim())
-        ? `row ${formatNumber(Number(failure.detail.trim()))} could not be read`
-        : 'the file could not be read';
+      return 'the file could not be read';
     case 'storage-error':
       return 'the file could not be read from storage';
     case 'upload-not-clean':
@@ -57,4 +43,14 @@ export function failureReason(failure: NonNullable<RosterImport['failure']>): st
     case 'internal':
       return 'a system error interrupted it';
   }
+}
+
+/**
+ * The directory's own words on what to fix, shown under the reason where they add to it: the
+ * columns a file lacks, or where it could not be read. Other codes say all there is to say.
+ */
+export function failureDetail(failure: ImportFailure): string | null {
+  const detail = failure.detail.trim();
+  if (!detail) return null;
+  return failure.code === 'missing-columns' || failure.code === 'parse-error' ? detail : null;
 }

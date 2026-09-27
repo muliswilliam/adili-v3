@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { failureReason, importEnded, importProgress } from './import-progress';
+import { failureDetail, failureReason, importEnded, importProgress } from './import-progress';
 
 describe('importProgress', () => {
   it('reads the file until the rows are known', () => {
@@ -50,36 +50,35 @@ describe('importEnded', () => {
 });
 
 describe('failureReason', () => {
-  it('names the missing columns', () => {
-    expect(failureReason({ code: 'missing-columns', detail: 'national_id' })).toBe(
-      'the file has no national_id column',
-    );
-    expect(failureReason({ code: 'missing-columns', detail: 'national_id, full_name' })).toBe(
-      'the file has no national_id, full_name column',
-    );
-    expect(failureReason({ code: 'missing-columns', detail: '' })).toBe(
-      'a required column is missing',
-    );
-  });
-
-  it('names the row that could not be read when the detail is one', () => {
-    expect(failureReason({ code: 'parse-error', detail: '8214' })).toBe(
-      'row 8,214 could not be read',
-    );
-    expect(failureReason({ code: 'parse-error', detail: 'Unexpected end of zip' })).toBe(
-      'the file could not be read',
-    );
-  });
-
-  it('gives a plain reason for the other codes', () => {
-    expect(failureReason({ code: 'internal', detail: 'boom' })).toBe(
-      'a system error interrupted it',
-    );
-    expect(failureReason({ code: 'storage-error', detail: '' })).toBe(
+  it('gives a plain reason for each code', () => {
+    expect(failureReason({ code: 'missing-columns' })).toBe('a required column is missing');
+    expect(failureReason({ code: 'parse-error' })).toBe('the file could not be read');
+    expect(failureReason({ code: 'internal' })).toBe('a system error interrupted it');
+    expect(failureReason({ code: 'storage-error' })).toBe(
       'the file could not be read from storage',
     );
-    expect(failureReason({ code: 'upload-not-clean', detail: '' })).toBe(
+    expect(failureReason({ code: 'upload-not-clean' })).toBe(
       'the file had not passed the security scan',
     );
+  });
+});
+
+describe('failureDetail', () => {
+  it('passes on what to fix in the file', () => {
+    const detail = 'The file has no national_id column. Add it and upload the file again.';
+    expect(failureDetail({ code: 'missing-columns', detail })).toBe(detail);
+    expect(failureDetail({ code: 'parse-error', detail: ' Row 8214: unclosed quote. ' })).toBe(
+      'Row 8214: unclosed quote.',
+    );
+  });
+
+  it('leaves out details that add nothing', () => {
+    expect(failureDetail({ code: 'missing-columns', detail: '  ' })).toBeNull();
+    expect(
+      failureDetail({
+        code: 'internal',
+        detail: 'Rows could not be applied. Rows already applied are kept.',
+      }),
+    ).toBeNull();
   });
 });

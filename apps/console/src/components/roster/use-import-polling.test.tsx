@@ -19,7 +19,7 @@ const snapshot = (overrides: Partial<RosterImport>): RosterImport => ({
   counts: null,
   mapping: null,
   failure: null,
-  startedBy: { kind: 'user', id: 'user-1' },
+  startedBy: { kind: 'user', id: 'user-1', name: 'Grace Muthoni' },
   startedAt: '2026-09-26T07:40:00Z',
   completedAt: null,
   ...overrides,

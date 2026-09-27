@@ -16,6 +16,10 @@ const upload = {
 };
 
 const allMatched: RosterImportPreview = {
+  uploadId: upload.id,
+  fileName: upload.fileName,
+  format: 'xlsx',
+  missingRequired: [],
   mapping: {
     matched: [
       { source: 'Personnel File Number', field: 'personnel_file_number' },
@@ -29,6 +33,10 @@ const allMatched: RosterImportPreview = {
 };
 
 const noNationalId: RosterImportPreview = {
+  uploadId: upload.id,
+  fileName: 'psc-roster-hr-extract.csv',
+  format: 'csv',
+  missingRequired: ['national_id'],
   mapping: {
     matched: [
       { source: 'File No', field: 'personnel_file_number' },
@@ -154,9 +162,14 @@ describe('WizardCheckStep', () => {
     expect(onRetryCheck).toHaveBeenCalled();
   });
 
-  it('asks for the file again when it cannot be read', () => {
-    const { onBack } = renderStep({ phase: 'failed', failure: 'unreadable' });
+  it('asks for the file again when it cannot be read, saying why', () => {
+    const { onBack } = renderStep({
+      phase: 'failed',
+      failure: 'unreadable',
+      detail: 'The file is empty.',
+    });
     expect(screen.getByRole('alert').textContent).toContain('This file could not be read.');
+    expect(screen.getByRole('alert').textContent).toContain('The file is empty.');
     fireEvent.click(screen.getByRole('button', { name: 'Upload again' }));
     expect(onBack).toHaveBeenCalled();
   });
