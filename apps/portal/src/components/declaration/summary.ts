@@ -16,10 +16,10 @@ import type {
   MaritalStatus,
   Officer,
   OtherInformation,
-  PersonName,
   Spouse,
   Statement,
 } from './contents';
+import { ageOn } from './format';
 import { CHANGE_KIND_WORDS, OCCUPATION_SECTOR_LABELS } from './labels';
 import { liveSections, sectionKind, stepTitle } from './steps';
 
@@ -113,19 +113,6 @@ export interface SummaryDocument {
 
 export function readSummaryDocument(document: JsonObject): SummaryDocument {
   return document;
-}
-
-export function fullName(name: Draft<PersonName> | undefined): string {
-  return [name?.firstName, name?.otherNames, name?.surname]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(' ');
-}
-
-/** Whole years from a date of birth to a date. */
-export function ageOn(dateOfBirth: string, on: string): number {
-  const years = Number(on.slice(0, 4)) - Number(dateOfBirth.slice(0, 4));
-  return on.slice(5) < dateOfBirth.slice(5) ? years - 1 : years;
 }
 
 /** "ID {nid} · KRA PIN {pin} · {Sector} sector · Separated since {date}". */

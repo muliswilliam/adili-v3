@@ -1,4 +1,5 @@
 import type { Draft, Officer } from './contents';
+import { ageOn, blank } from './format';
 
 /** The fields the declarant fills in on Your details (paragraphs 2-5). */
 export type BioField =
@@ -55,17 +56,6 @@ export const BIO_MESSAGES = {
   nature: 'Choose the nature of your employment.',
   natureOther: 'Describe the nature of your employment.',
 } as const;
-
-/** Whole years between an ISO birth date and an ISO date. */
-export function ageOn(birthDate: string, on: string): number {
-  const [by = 0, bm = 0, bd = 0] = birthDate.split('-').map(Number);
-  const [y = 0, m = 0, d = 0] = on.split('-').map(Number);
-  return y - by - (m < bm || (m === bm && d < bd) ? 1 : 0);
-}
-
-function blank(value: string | undefined) {
-  return value === undefined || value.trim() === '';
-}
 
 /**
  * What stops Your details from being complete, keyed by field. The rules follow

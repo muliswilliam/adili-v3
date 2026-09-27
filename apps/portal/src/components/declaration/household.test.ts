@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { Draft, Household } from './contents';
 import {
   childInclusion,
-  fullName,
   HOUSEHOLD_MESSAGES,
   householdIssues,
   householdPersons,
@@ -211,14 +210,6 @@ describe('child inclusion (S5, S18)', () => {
 });
 
 describe('people and statements', () => {
-  it('names a person first, other, surname', () => {
-    expect(fullName({ surname: 'Kennedy', firstName: 'Mary', otherNames: 'Wanjiru' })).toBe(
-      'Mary Wanjiru Kennedy',
-    );
-    expect(fullName({ surname: ' ', firstName: 'Mary' })).toBe('Mary');
-    expect(fullName(undefined)).toBe('');
-  });
-
   it('lists the statements the household needs, excluding adult children (S5)', () => {
     expect(householdPersons(s5, STATEMENT_DATE).map((person) => person.key)).toEqual([
       `statement:spouse:${SPOUSE}`,

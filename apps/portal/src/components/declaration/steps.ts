@@ -132,7 +132,8 @@ export function relationship(key: SectionKey): 'Spouse' | 'Child' | null {
   return null;
 }
 
-const TITLES = {
+/** Section and screen titles; every screen, the overview and the summary use these. */
+export const STEP_TITLES = {
   overview: 'Your declaration',
   bio: 'Your details',
   household: 'Spouses and children',
@@ -142,9 +143,16 @@ const TITLES = {
 
 /** The screen's heading. */
 export function stepTitle(sections: DeclarationSection[], step: Step): string {
-  if (step in TITLES) return TITLES[step as keyof typeof TITLES];
-  if (step === 'statement:officer') return 'Your financial statement';
-  const name = firstName(section(sections, step)?.personName);
+  if (step in STEP_TITLES) return STEP_TITLES[step as keyof typeof STEP_TITLES];
+  return statementTitle(step, firstName(section(sections, step)?.personName));
+}
+
+/** Paragraph 8 as a whole: the navigation group and the summary card. */
+export const STATEMENTS_TITLE = 'Financial statements';
+
+/** "Your financial statement", "{name}'s financial statement", or "Financial statement". */
+export function statementTitle(key: SectionKey, name: string): string {
+  if (key === 'statement:officer') return 'Your financial statement';
   return name ? `${name}'s financial statement` : 'Financial statement';
 }
 
@@ -156,7 +164,7 @@ function backLabel(sections: DeclarationSection[], step: Step): string {
     const name = firstName(section(sections, step)?.personName);
     return name ? `${name}'s statement` : 'Financial statement';
   }
-  return TITLES[step as keyof typeof TITLES];
+  return STEP_TITLES[step as keyof typeof STEP_TITLES];
 }
 
 /** Label for a next button, e.g. "Next: spouses and children". */
@@ -167,7 +175,7 @@ function nextLabel(sections: DeclarationSection[], from: Step, step: Step): stri
     return name ? `Next: ${name}'s statement` : 'Next: financial statement';
   }
   if (step === 'overview') return 'Overview';
-  const title = TITLES[step as keyof typeof TITLES];
+  const title = STEP_TITLES[step as keyof typeof STEP_TITLES];
   return from === 'overview' ? title : `Next: ${title.toLowerCase()}`;
 }
 
@@ -223,7 +231,7 @@ export function navEntries(sections: DeclarationSection[]): NavEntry[] {
       : 'not-started';
   const plain = (key: 'bio' | 'household' | 'other'): NavEntry => ({
     id: key,
-    label: TITLES[key],
+    label: STEP_TITLES[key],
     status: statusOf(section(sections, key)?.completeness ?? 'not-started'),
   });
   return [
@@ -231,7 +239,7 @@ export function navEntries(sections: DeclarationSection[]): NavEntry[] {
     plain('household'),
     {
       id: STATEMENTS_GROUP,
-      label: 'Financial statements',
+      label: STATEMENTS_TITLE,
       status: groupStatus,
       persons: statements.map((entry) => ({
         id: entry.key,
@@ -240,7 +248,7 @@ export function navEntries(sections: DeclarationSection[]): NavEntry[] {
       })),
     },
     plain('other'),
-    { id: 'summary', label: TITLES.summary, hint: 'Check and submit' },
+    { id: 'summary', label: STEP_TITLES.summary, hint: 'Check and submit' },
   ];
 }
 

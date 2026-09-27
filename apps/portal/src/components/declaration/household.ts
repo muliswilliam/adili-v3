@@ -1,5 +1,5 @@
-import { ageOn } from './bio';
 import type { Child, Draft, Household, MaritalStatus, PersonName, Spouse } from './contents';
+import { ageOn, blank, fullName } from './format';
 
 /**
  * Rules for Spouses and children (paragraphs 6-7), shared by the household screen and the
@@ -40,18 +40,6 @@ export interface HouseholdIssue {
 const NATIONAL_ID = /^[0-9]{5,10}$/;
 const KRA_PIN = /^[AP][0-9]{9}[A-Z]$/;
 const NO_SPOUSE_EXPECTED: readonly MaritalStatus[] = ['single', 'divorced', 'widowed'];
-
-function blank(value: string | undefined) {
-  return value === undefined || value.trim() === '';
-}
-
-/** "First Other Surname", skipping empty parts. */
-export function fullName(name: Draft<PersonName> | undefined): string {
-  return [name?.firstName, name?.otherNames, name?.surname]
-    .filter((part): part is string => part !== undefined && part.trim() !== '')
-    .map((part) => part.trim())
-    .join(' ');
-}
 
 /** The card's heading: the person's name once it has a first name, else "Spouse 2". */
 export function personTitle(name: Draft<PersonName> | undefined, fallback: string): string {

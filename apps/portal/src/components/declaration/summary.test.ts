@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { CompletenessIssue } from '../../server/declarations/types';
 import {
-  ageOn,
   blockingGroups,
   blockingTitle,
   childDetails,
@@ -121,8 +120,6 @@ describe('household lines', () => {
     expect(
       childDetails({ dateOfBirth: '2008-01-10', includedAtStatementDate: false }, '2027-11-01'),
     ).toBe('Born 10 Jan 2008 · Not included: 19 on the statement date');
-    expect(ageOn('2009-11-02', '2027-11-01')).toBe(17);
-    expect(ageOn('2009-11-01', '2027-11-01')).toBe(18);
   });
 
   it('says why there is no spouse or child listed', () => {

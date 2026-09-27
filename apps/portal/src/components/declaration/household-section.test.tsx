@@ -8,7 +8,14 @@ import type { DeclarationSection } from '../../server/declarations/types';
 import type { MaritalStatus } from './contents';
 import { HOUSEHOLD_MESSAGES } from './household';
 import { HOUSEHOLD_COPY, HouseholdSection } from './household-section';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  cardOf,
+  DECLARATION_ID,
+  region,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+} from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -75,15 +82,8 @@ function renderHousehold(
   );
 }
 
-function region(name: string) {
-  return screen.getByRole('region', { name });
-}
-
 function card(name: string) {
-  const heading = screen.getByRole('heading', { name, level: 3 });
-  const item = heading.closest('li');
-  if (!item) throw new Error(`No card for ${name}`);
-  return item;
+  return cardOf(name, { level: 3 });
 }
 
 function statement(key: string, personName: string, completeness = 'not-started') {

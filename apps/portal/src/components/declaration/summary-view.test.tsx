@@ -9,7 +9,13 @@ import type { CompletenessIssue } from '../../server/declarations/types';
 import { DISCARD_BODY, DISCARD_TITLE } from './discard-dialog';
 import { SUBMIT_NEXT_RELEASE } from './summary';
 import { SummaryView } from './summary-view';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  DECLARATION_ID,
+  region as card,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+} from './testing';
 import { navigate } from './testing-mocks';
 
 vi.mock('@tanstack/react-router', async () => {
@@ -171,10 +177,6 @@ function renderSummary(summary = summaryOf(), today = '2026-09-27') {
     step: 'summary',
     declaration: summary.declaration,
   });
-}
-
-function card(title: string) {
-  return screen.getByRole('region', { name: title });
 }
 
 function valueOf(scope: HTMLElement, term: string) {

@@ -13,7 +13,7 @@ import {
   StatementSection,
   type StatementSectionProps,
 } from './statement-section';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import { cardOf, DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -123,10 +123,7 @@ function panel() {
 }
 
 function card(title: string) {
-  const heading = within(panel()).getByRole('heading', { name: title });
-  const item = heading.closest('li');
-  if (!item) throw new Error(`no card for ${title}`);
-  return item;
+  return cardOf(title, { scope: panel() });
 }
 
 function precedes(a: Element, b: Element) {

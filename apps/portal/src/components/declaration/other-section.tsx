@@ -19,6 +19,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import type { Draft, MaterialChangeEntry, MembershipKind, OtherInformation } from './contents';
+import { blank } from './format';
 import { MEMBERSHIP_KIND_LABELS, optionsOf } from './labels';
 import {
   type DraftDirectorship,
@@ -52,7 +53,6 @@ const PENDING = `${BASE}/dualCitizenship/pendingApplication`;
 const idFor = (path: string) => `other${path.replaceAll('/', '-')}`;
 
 const yesNo = (value: boolean | undefined) => (value === undefined ? null : value ? 'yes' : 'no');
-const blank = (value: string | undefined) => !value?.trim();
 
 /** Focuses the field at a path, or in a card the first invalid field, else its first field. */
 function focusPath(path: string) {

@@ -43,7 +43,7 @@ import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import { getDeclarationSection } from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
-import type { AssetItem, Draft, PersonName, Statement } from './contents';
+import type { AssetItem, Draft, Statement } from './contents';
 import {
   AMOUNT_KEY,
   type AnyItem,
@@ -68,6 +68,7 @@ import {
   tabState,
   TYPE_LABELS,
 } from './statement';
+import { fullName } from './format';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { liveSections, personKeyOf, relationship } from './steps';
 import { useSectionAutosave, useWorkspace } from './workspace';
@@ -88,13 +89,6 @@ const NEW_TITLES = {
 
 function dateText(iso: string | undefined) {
   return iso ? formatDate(iso) : '-';
-}
-
-function fullName(name: Draft<PersonName> | undefined) {
-  return [name?.firstName, name?.otherNames, name?.surname]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(' ');
 }
 
 function typeLabel(category: Category, item: Item) {

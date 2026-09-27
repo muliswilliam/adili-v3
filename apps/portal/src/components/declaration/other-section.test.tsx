@@ -7,7 +7,7 @@ import type { CompletenessIssue } from '../../server/declarations/types';
 import { saveDeclarationSection } from '../../server/declarations';
 import { NO_MATERIAL_CHANGES } from './other';
 import { OtherSection } from './other-section';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import { DECLARATION_ID, region, renderWorkspace, sampleDeclaration, sections } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -77,10 +77,6 @@ const COMPLETE = {
   },
   freeText: 'The Kapsabet farm is being transferred to me.',
 };
-
-function region(name: string) {
-  return screen.getByRole('region', { name });
-}
 
 beforeEach(() => {
   saveMock.mockReset();

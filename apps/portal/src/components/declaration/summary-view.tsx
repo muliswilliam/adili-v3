@@ -1,7 +1,6 @@
 import {
   Alert,
   AlertDescription,
-  Badge,
   Button,
   Card,
   formatDate,
@@ -16,7 +15,6 @@ import {
   TableRow,
 } from '@adili/ui';
 import {
-  AlertCircleIcon,
   Alert02Icon,
   CloudSavingDone01Icon,
   PencilEdit02Icon,
@@ -30,11 +28,12 @@ import { getDeclarationSummary } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { hasUnsavedWork } from './autosave';
+import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from './contents';
 import { DiscardDraftButton } from './discard-dialog';
+import { fullName } from './format';
 import {
   ASSET_TYPE_LABELS,
-  COMPLETENESS_LABELS,
   EMPLOYMENT_NATURE_LABELS,
   INCOME_TYPE_LABELS,
   LIABILITY_TYPE_LABELS,
@@ -47,14 +46,20 @@ import {
   membershipLine,
   pendingCaseLine,
 } from './other';
-import { relationship, stepLink, type Step } from './steps';
+import {
+  relationship,
+  STATEMENTS_TITLE,
+  STEP_TITLES,
+  statementTitle,
+  stepLink,
+  type Step,
+} from './steps';
 import {
   type AnyItem,
   blockingGroups,
   blockingTitle,
   childDetails,
   childrenEmptyText,
-  fullName,
   itemAmount,
   itemFlags,
   NOT_ANSWERED,
@@ -71,27 +76,6 @@ import {
 import { useWorkspace } from './workspace';
 
 type Sections = DeclarationSection[];
-
-function CompletenessBadge({ completeness }: { completeness: ParagraphCompleteness }) {
-  const label = COMPLETENESS_LABELS[completeness];
-  if (completeness === 'complete') {
-    return (
-      <Badge variant="success">
-        <Icon icon={Tick02Icon} />
-        {label}
-      </Badge>
-    );
-  }
-  if (completeness === 'incomplete') {
-    return (
-      <Badge variant="warning">
-        <Icon icon={AlertCircleIcon} />
-        {label}
-      </Badge>
-    );
-  }
-  return <Badge>{label}</Badge>;
-}
 
 function EditLink({
   declarationId,
@@ -246,9 +230,9 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
   return (
     <ParagraphCard
       paragraphs="Paragraphs 1-5"
-      title="Your details"
+      title={STEP_TITLES.bio}
       completeness={paragraphCompleteness(declaration.sections, 'bio')}
-      edit={<EditLink declarationId={declaration.id} step="bio" name="Your details" />}
+      edit={<EditLink declarationId={declaration.id} step="bio" name={STEP_TITLES.bio} />}
     >
       <Rows
         rows={[
@@ -481,7 +465,7 @@ function StatementsCard({
   return (
     <ParagraphCard
       paragraphs="Paragraph 8"
-      title="Financial statements"
+      title={STATEMENTS_TITLE}
       completeness={paragraphCompleteness(declaration.sections, 'statements')}
     >
       <div className="grid gap-1.5">
@@ -517,10 +501,7 @@ function StatementsCard({
       </div>
       <div className="grid gap-3">
         {persons.map((person, index) => {
-          const title =
-            person.key === 'statement:officer'
-              ? 'Your financial statement'
-              : `${person.name}'s financial statement`;
+          const title = statementTitle(person.key, person.name);
           return (
             <details
               key={person.key}
@@ -578,9 +559,9 @@ function OtherCard({ summary, document }: { summary: LoadedSummary; document: Su
   return (
     <ParagraphCard
       paragraphs="Paragraph 9"
-      title="Other information"
+      title={STEP_TITLES.other}
       completeness={paragraphCompleteness(declaration.sections, 'other')}
-      edit={<EditLink declarationId={declaration.id} step="other" name="Other information" />}
+      edit={<EditLink declarationId={declaration.id} step="other" name={STEP_TITLES.other} />}
     >
       <Rows
         rows={[

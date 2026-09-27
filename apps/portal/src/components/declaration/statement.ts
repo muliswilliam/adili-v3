@@ -1,5 +1,3 @@
-import { COUNTIES, COUNTRIES } from '@adili/ui';
-
 import type {
   AssetItem,
   AssetType,
@@ -12,6 +10,7 @@ import type {
   Money,
   Statement,
 } from './contents';
+import { blank, countryName, countyName } from './format';
 import { ASSET_TYPE_LABELS, INCOME_TYPE_LABELS, LIABILITY_TYPE_LABELS } from './labels';
 
 /**
@@ -180,10 +179,6 @@ export const ITEM_MESSAGES = {
 
 export type ItemIssues = Partial<Record<ItemField, string>>;
 
-function blank(value: string | undefined) {
-  return value === undefined || value.trim() === '';
-}
-
 function moneyOf(category: Category, item: Item): Draft<Money> | undefined {
   return (item as AnyItem)[AMOUNT_KEY[category]];
 }
@@ -324,14 +319,6 @@ export function originalCents(money: Draft<Money> | undefined): number | null {
   const original = money?.original;
   if (original?.minorUnits === undefined) return null;
   return minorUnitsToCents(original.minorUnits, original.currency ?? 'USD');
-}
-
-export function countyName(code: string | undefined): string | undefined {
-  return COUNTIES.find((county) => county.code === code)?.name;
-}
-
-export function countryName(code: string | undefined): string | undefined {
-  return COUNTRIES.find((country) => country.code === code)?.name;
 }
 
 /** The line under an item's heading: its description, details and where it is. */

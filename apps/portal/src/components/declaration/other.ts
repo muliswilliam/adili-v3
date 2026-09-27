@@ -1,6 +1,5 @@
-import { COUNTRIES } from '@adili/ui';
-
 import type { Draft, MaterialChangeEntry, OtherInformation } from './contents';
+import { countryName } from './format';
 import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
 
 /**
@@ -94,15 +93,14 @@ export function pendingCaseLine(entry: DraftPendingCase): string {
   return `${text(entry.forum)}, ${text(entry.reference)}: ${text(entry.nature)}`;
 }
 
-export function countryName(code: string | undefined): string {
-  if (!code) return '-';
-  return COUNTRIES.find((country) => country.code === code)?.name ?? code;
-}
-
 /** "Yes, Uganda · pending application: no", "No · pending application: yes", "- · ...". */
 export function dualCitizenshipLine(dual: DraftDualCitizenship | undefined): string {
   const holds =
-    dual?.holds === undefined ? '-' : dual.holds ? `Yes, ${countryName(dual.country)}` : 'No';
+    dual?.holds === undefined
+      ? '-'
+      : dual.holds
+        ? `Yes, ${countryName(dual.country) ?? '-'}`
+        : 'No';
   return `${holds} · pending application: ${yesNo(dual?.pendingApplication)}`;
 }
 
