@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
@@ -10,15 +10,17 @@ import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.j
 import { givenCommissions } from '../support/fixtures.js';
 
 /**
- * The database's own guarantees on reporting officer assignments, below the API: at most one
- * assignment per Commission is not `replaced`, and timestamps and `replaced_by` agree with the
- * state. The API never reaches these (it locks the Commission and replaces before inserting), so
- * they are exercised with direct writes.
+ * The database's own guarantees on reporting officer assignments, below the API: rows are
+ * isolated by tenant (row-level security), at most one assignment per Commission is not
+ * `replaced`, and timestamps and `replaced_by` agree with the state. The API never reaches these
+ * (it scopes by tenant, locks the Commission and replaces before inserting), so they are
+ * exercised with direct writes.
  */
 type NewAssignment = typeof reportingOfficerAssignments.$inferInsert;
 
 let api: DirectoryApi;
 let commissionId: string;
+let otherCommissionId: string;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
@@ -30,12 +32,17 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await api.reset();
-  await givenCommissions(api.db, [{ slug: 'tsc', name: 'Teachers Service Commission' }]);
-  const [commission] = await api.db
-    .select({ id: commissions.id })
-    .from(commissions)
-    .where(eq(commissions.slug, 'tsc'));
-  commissionId = commission?.id ?? '';
+  await givenCommissions(api.db, [
+    { slug: 'tsc', name: 'Teachers Service Commission' },
+    { slug: 'psc', name: 'Public Service Commission' },
+  ]);
+  const ids = new Map(
+    (await api.db.select({ id: commissions.id, slug: commissions.slug }).from(commissions)).map(
+      ({ id, slug }) => [slug, id],
+    ),
+  );
+  commissionId = ids.get('tsc') ?? '';
+  otherCommissionId = ids.get('psc') ?? '';
 });
 
 const assignment = (overrides: Partial<NewAssignment> = {}): NewAssignment => ({
@@ -64,17 +71,112 @@ const insert = (...rows: NewAssignment[]) =>
     return ids;
   });
 
-/** The constraint a failed write violated, looking through Drizzle's error wrapper. */
-async function violatedConstraint(write: Promise<unknown>): Promise<string | undefined> {
+/** A Postgres error field of a failed write, looking through Drizzle's error wrapper. */
+async function pgErrorField(
+  write: Promise<unknown>,
+  field: 'constraint' | 'code',
+): Promise<string | undefined> {
   const error = await write.then(
     () => undefined,
     (reason: unknown) => reason,
   );
   for (let cause = error; cause instanceof Error; cause = cause.cause) {
-    if ('constraint' in cause && typeof cause.constraint === 'string') return cause.constraint;
+    const value: unknown = (cause as unknown as Record<string, unknown>)[field];
+    if (typeof value === 'string') return value;
   }
   return undefined;
 }
+
+/** The constraint a failed write violated. */
+const violatedConstraint = (write: Promise<unknown>) => pgErrorField(write, 'constraint');
+
+/** SQLSTATE of a write refused by a row-level security policy. */
+const RLS_VIOLATION = '42501';
+
+describe('tenant isolation (row-level security)', () => {
+  const asTsc = { tenant: 'tsc', subject: 'test' };
+  let tscId: string;
+  let pscId: string;
+
+  beforeEach(async () => {
+    [tscId = '', pscId = ''] = await insert(
+      assignment(),
+      assignment({ commissionId: otherCommissionId, tenant: 'psc', email: 'officer@psc.go.ke' }),
+    );
+  });
+
+  // Superusers and BYPASSRLS roles skip every policy, even under FORCE, so the tests below would
+  // pass vacuously. Services connect as their database's owning role, which FORCE binds.
+  it('runs as a role that row-level security applies to', async () => {
+    const { rows } = await api.db.execute<{ rolsuper: boolean; rolbypassrls: boolean }>(
+      sql`select rolsuper, rolbypassrls from pg_roles where rolname = current_user`,
+    );
+
+    expect(rows).toEqual([{ rolsuper: false, rolbypassrls: false }]);
+  });
+
+  it("reads only the tenant's own assignments", async () => {
+    const rows = await withTenant(api.db, asTsc, (tx) =>
+      tx.select({ id: reportingOfficerAssignments.id }).from(reportingOfficerAssignments),
+    );
+
+    expect(rows).toEqual([{ id: tscId }]);
+  });
+
+  it('reads no assignments without a tenant context', async () => {
+    const rows = await api.db
+      .select({ id: reportingOfficerAssignments.id })
+      .from(reportingOfficerAssignments);
+
+    expect(rows).toEqual([]);
+  });
+
+  it("refuses to insert another tenant's assignment", async () => {
+    const write = withTenant(api.db, asTsc, (tx) =>
+      tx.insert(reportingOfficerAssignments).values(
+        assignment({
+          commissionId: otherCommissionId,
+          tenant: 'psc',
+          state: 'replaced',
+          replacedAt: new Date(),
+        }),
+      ),
+    );
+
+    expect(await pgErrorField(write, 'code')).toBe(RLS_VIOLATION);
+  });
+
+  it("refuses to move the tenant's assignment to another tenant", async () => {
+    const write = withTenant(api.db, asTsc, (tx) =>
+      tx
+        .update(reportingOfficerAssignments)
+        .set({ tenant: 'psc' })
+        .where(eq(reportingOfficerAssignments.id, tscId)),
+    );
+
+    expect(await pgErrorField(write, 'code')).toBe(RLS_VIOLATION);
+  });
+
+  it("cannot update or delete another tenant's assignment", async () => {
+    const touched = await withTenant(api.db, asTsc, async (tx) => ({
+      updated: await tx
+        .update(reportingOfficerAssignments)
+        .set({ name: 'Mallory' })
+        .where(eq(reportingOfficerAssignments.id, pscId))
+        .returning({ id: reportingOfficerAssignments.id }),
+      deleted: await tx
+        .delete(reportingOfficerAssignments)
+        .where(eq(reportingOfficerAssignments.id, pscId))
+        .returning({ id: reportingOfficerAssignments.id }),
+    }));
+
+    expect(touched).toEqual({ updated: [], deleted: [] });
+    const pscRows = await withTenant(api.db, { tenant: 'psc', subject: 'test' }, (tx) =>
+      tx.select({ name: reportingOfficerAssignments.name }).from(reportingOfficerAssignments),
+    );
+    expect(pscRows).toEqual([{ name: 'Fatuma Wanjiru' }]);
+  });
+});
 
 describe('at most one current assignment per Commission', () => {
   it.each([

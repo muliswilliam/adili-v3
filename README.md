@@ -30,7 +30,7 @@ pnpm dev            # all services, apps and mocks in watch mode
 pnpm health         # readiness of everything
 ```
 
-`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm test:integration` runs the tests that need the infrastructure (Postgres, RabbitMQ, Keycloak, Mailpit). `pnpm infra:down` stops the infrastructure; `pnpm infra:reset` also deletes its data.
+`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm test:integration` runs the tests that need the infrastructure (Postgres, RabbitMQ, Keycloak, Mailpit). They connect as `adili_test`, which like the services' roles owns its database but is not a superuser, so row-level security applies to them; CI creates it with the same `infra/compose/postgres/init-databases.sh`. `pnpm infra:down` stops the infrastructure; `pnpm infra:reset` also deletes its data.
 
 Keycloak imports the realm (`infra/compose/keycloak/adili-realm.json`) only when it does not exist yet, so after a realm change run `pnpm infra:reset` before `pnpm infra:up`.
 
