@@ -1,8 +1,15 @@
 import { createServerFn } from '@tanstack/react-start';
-import { deleteCookie, getCookie, getRequestIP, setCookie } from '@tanstack/react-start/server';
+import {
+  deleteCookie,
+  getCookie,
+  getRequestHeaders,
+  getRequestIP,
+  setCookie,
+} from '@tanstack/react-start/server';
 
 import { channelSchema, codeSchema, contactSchema } from '../components/onboarding/contact';
 import { identifySchema } from '../components/onboarding/identify';
+import { clientIp } from './client-ip';
 import { onboardingClient } from './directory/client.server';
 import type { OnboardingCommission } from './directory/types';
 import { env } from './env.server';
@@ -27,8 +34,9 @@ import {
   verifyCode,
 } from './onboarding.server';
 
+/** A directory client carrying the browser's address, derived without trusting spoofable hops. */
 function client() {
-  return onboardingClient(getRequestIP({ xForwardedFor: true }));
+  return onboardingClient(clientIp(getRequestHeaders(), getRequestIP(), env().TRUSTED_PROXY_HOPS));
 }
 
 function cookieOptions() {

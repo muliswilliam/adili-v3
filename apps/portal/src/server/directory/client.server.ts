@@ -11,8 +11,9 @@ const TIMEOUT_MS = 5_000;
  * `packages/schemas/internal/directory.yaml`. These calls carry no access token; calls on a
  * session pass its secret in the X-Onboarding-Secret header.
  *
- * `clientIp` is the browser's address, so the directory's per-IP rate limits apply to the
- * declarant rather than to the portal.
+ * `clientIp` is the browser's address from `clientIp()` (./client-ip.ts), sent as the only
+ * X-Forwarded-For entry, so the directory's per-IP rate limits apply to the declarant rather
+ * than to the portal. Never pass a client-supplied header through.
  */
 export function onboardingClient(clientIp?: string) {
   const config = env();
