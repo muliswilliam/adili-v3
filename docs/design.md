@@ -73,6 +73,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-control-focus` | `.input:focus` | focused controls: 1px ink ring and a 4px 8% halo |
 | `shadow-control-error`, `-error-focus` | `[aria-invalid]` | invalid controls (`aria-invalid`): 1.5px red ring |
 | `shadow-card` | `--shadow-card` | cards |
+| `shadow-card-editing` | *derived* | the item card open for editing in a `Repeater`: 1.5px ink ring and a soft lift |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
 
@@ -82,6 +83,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
 | `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
+| `rounded-item` | 14px | | `Repeater` item cards and their add button |
 | `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
 
 Dialogs use 20px (22px at the top of the phone sheet), as in the kit.

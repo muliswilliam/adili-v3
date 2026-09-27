@@ -148,7 +148,7 @@ export function Repeater<T>({
               <li
                 key={key}
                 data-editing={editing || undefined}
-                className="rounded-[14px] bg-card shadow-card data-editing:shadow-[0_0_0_1.5px_var(--ring),0_8px_24px_-12px_rgb(0_0_0/0.2)]"
+                className="rounded-item bg-card shadow-card data-editing:shadow-card-editing"
               >
                 <div className="flex items-center gap-3 px-4 py-3.5">
                   {icon ? (
@@ -247,7 +247,7 @@ export function Repeater<T>({
         type="button"
         disabled={disabled}
         onClick={onAdd}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-input text-sm font-medium text-secondary-foreground outline-none hover:border-foreground hover:bg-brand-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-input disabled:hover:bg-transparent"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-item border-[1.5px] border-dashed border-input text-sm font-medium text-secondary-foreground outline-none hover:border-foreground hover:bg-brand-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-input disabled:hover:bg-transparent"
       >
         <Icon icon={PlusSignIcon} />
         {addLabel}
