@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { OFFICER_CATEGORIES } from '../../server/directory/mock.server';
-import {
-  formatAgo,
-  formatDate,
-  formatDateTime,
-  formatNumber,
-  onboardedPercent,
-  summariseCategories,
-} from './format';
+import { OFFICER_CATEGORIES } from '../../mocks/directory/fixtures';
+import { formatAgo, formatDate, formatDateTime, formatNumber, summariseCategories } from './format';
 import { messages } from './messages';
 
 describe('formatAgo', () => {
@@ -38,14 +31,6 @@ describe('formatDateTime', () => {
 describe('formatNumber', () => {
   it('groups thousands', () => {
     expect(formatNumber(48312)).toBe('48,312');
-    expect(messages.rosterOnboarded(6904, 48312)).toBe('6,904 of 48,312 onboarded');
-  });
-});
-
-describe('onboardedPercent', () => {
-  it('rounds and copes with an empty roster', () => {
-    expect(onboardedPercent(6904, 48312)).toBe(14);
-    expect(onboardedPercent(0, 0)).toBe(0);
   });
 });
 
@@ -65,11 +50,10 @@ describe('summariseCategories', () => {
 });
 
 describe('count line', () => {
-  it('counts Commissions or matches, with a "+" while more pages remain', () => {
-    expect(messages.count(1, { filtered: false, more: false })).toBe('1 Commission');
-    expect(messages.count(1250, { filtered: false, more: false })).toBe('1,250 Commissions');
-    expect(messages.count(0, { filtered: true, more: false })).toBe('0 matches');
-    expect(messages.count(1, { filtered: true, more: false })).toBe('1 match');
-    expect(messages.count(50, { filtered: false, more: true })).toBe('50+ Commissions');
+  it('reads "N Commissions", with a "+" while more pages remain', () => {
+    expect(messages.count(1, { more: false })).toBe('1 Commission');
+    expect(messages.count(1250, { more: false })).toBe('1,250 Commissions');
+    expect(messages.count(0, { more: false })).toBe('0 Commissions');
+    expect(messages.count(50, { more: true })).toBe('50+ Commissions');
   });
 });

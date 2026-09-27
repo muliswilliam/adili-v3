@@ -4,23 +4,21 @@ import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { messages } from './messages';
 
 export interface CommissionsPagerProps {
-  from: number;
-  to: number;
+  /** Rows on show, numbered from the first page when that is known. */
+  range: { from: number; to: number } | null;
+  rows: number;
   hasPrevious: boolean;
   hasNext: boolean;
-  /** While the next page is on its way. */
-  busy?: boolean;
   onPrevious: () => void;
   onNext: () => void;
 }
 
 /** The kit's cursor pager: the rows shown, then Previous and Next (no page numbers or total). */
 export function CommissionsPager({
-  from,
-  to,
+  range,
+  rows,
   hasPrevious,
   hasNext,
-  busy = false,
   onPrevious,
   onNext,
 }: CommissionsPagerProps) {
@@ -30,14 +28,14 @@ export function CommissionsPager({
       className="flex items-center gap-1.5 border-t px-4 py-2.5 text-[13.5px] text-muted-foreground"
     >
       <span aria-live="polite" className="mr-auto">
-        {messages.pager.range(from, to)}
+        {range ? messages.pager.range(range.from, range.to) : messages.pager.rows(rows)}
       </span>
       <Button
         variant="ghost"
         size="icon"
         className="size-8 [&_svg]:size-4"
         aria-label={messages.pager.previous}
-        disabled={!hasPrevious || busy}
+        disabled={!hasPrevious}
         onClick={onPrevious}
       >
         <Icon icon={ArrowLeft01Icon} />
@@ -47,8 +45,7 @@ export function CommissionsPager({
         size="icon"
         className="size-8 [&_svg]:size-4"
         aria-label={messages.pager.next}
-        aria-busy={busy || undefined}
-        disabled={!hasNext || busy}
+        disabled={!hasNext}
         onClick={onNext}
       >
         <Icon icon={ArrowRight01Icon} />

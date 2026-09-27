@@ -1,3 +1,5 @@
+import type { DirectoryFailure } from '../../server/directory/result';
+import type { CommissionType, ReportingOfficerFilter } from '../../server/directory/types';
 import { formatNumber } from './format';
 
 const plural = (count: number, one: string, many: string) =>
@@ -11,13 +13,11 @@ const plural = (count: number, one: string, many: string) =>
 export const messages = {
   title: 'Commissions',
   /**
-   * The count line. The directory returns no total, so while more pages remain it counts the rows
-   * seen so far with a "+".
+   * The count line, "N Commissions", filtered or not. The directory returns no total, so while
+   * more pages remain it counts the rows up to this page with a "+".
    */
-  count: (count: number, { filtered, more }: { filtered: boolean; more: boolean }) => {
-    const text = filtered
-      ? plural(count, 'match', 'matches')
-      : plural(count, 'Commission', 'Commissions');
+  count: (count: number, { more }: { more: boolean }) => {
+    const text = plural(count, 'Commission', 'Commissions');
     return more ? text.replace(' ', '+ ') : text;
   },
   readOnly: 'Read only',
@@ -42,28 +42,33 @@ export const messages = {
     reportingOfficer: 'Reporting officer',
     roster: 'Roster',
     created: 'Created',
-    pageFailed: 'This page of Commissions could not be loaded. Try again.',
   },
 
   pager: {
     label: 'Pagination',
     range: (from: number, to: number) =>
       `Showing ${formatNumber(from)}-${formatNumber(to)} Commissions`,
+    /** A page opened from a shared link, whose place in the list is unknown. */
+    rows: (count: number) => `Showing ${plural(count, 'Commission', 'Commissions')}`,
     previous: 'Previous page',
     next: 'Next page',
   },
 
-  type: { hosted: 'Hosted', federated: 'Federated' },
-  typeLong: { hosted: 'Hosted on Adili', federated: 'Federated (runs its own system)' },
-  officerState: { none: 'Not assigned', invited: 'Invited', activated: 'Activated' },
+  type: { hosted: 'Hosted', federated: 'Federated' } satisfies Record<CommissionType, string>,
+  typeLong: {
+    hosted: 'Hosted on Adili',
+    federated: 'Federated (runs its own system)',
+  } satisfies Record<CommissionType, string>,
+  officerState: {
+    none: 'Not assigned',
+    invited: 'Invited',
+    activated: 'Activated',
+  } satisfies Record<ReportingOfficerFilter, string>,
   officerNone: 'Reporting officer not assigned',
   categoriesNone: 'None recorded',
   categoriesMore: (citations: readonly string[]) =>
     `${formatNumber(citations.length)} more: ${citations.join(', ')}`,
   rosterNone: 'No roster yet',
-  rosterOnboarded: (onboarded: number, expected: number) =>
-    `${formatNumber(onboarded)} of ${formatNumber(expected)} onboarded`,
-  rosterFlagged: (flagged: number) => `${formatNumber(flagged)} flagged`,
 
   empty: {
     title: 'No Commissions yet',
@@ -75,14 +80,15 @@ export const messages = {
   },
   error: {
     title: 'Commissions could not be loaded',
-    text: 'The directory service did not respond.',
     retry: 'Try again',
   },
+  /** For a 403 from the directory; users without the workspace get "No staff roles" instead. */
   forbidden: 'You do not have access to Commissions.',
 
   detail: {
     loading: 'Loading…',
     loadError: 'This Commission could not be loaded',
+    name: 'Name',
     notFoundCrumb: 'Not found',
     notFoundTitle: 'Commission not found',
     notFoundText: 'It does not exist or you do not have access to it.',
@@ -95,16 +101,26 @@ export const messages = {
     categories: 'Categories',
     policyVersion: 'Policy version',
     policyVersionValue: (version: number) =>
-      version === 1
-        ? 'Version 1, platform defaults'
-        : `Version ${formatNumber(version)}, obligations start date changed`,
+      version === 1 ? 'Version 1, platform defaults' : `Version ${formatNumber(version)}`,
     created: 'Created',
     roster: 'Roster',
     rosterEmptyTitle: 'No roster yet',
     rosterEmptyText: 'The reporting officer imports the roster after activating their account.',
-    expected: 'Expected declarants',
-    onboarded: 'Onboarded',
-    flagged: 'Flagged',
-    lastImport: 'Last import',
   },
 } as const;
+
+const FAILURE_TEXT = {
+  unavailable: 'The directory service did not respond.',
+  invalid: 'The directory service could not handle the request.',
+  conflict: 'The directory service reported a conflict with the current data.',
+  forbidden: messages.forbidden,
+  'not-found': 'The directory service could not find what was asked for.',
+  unauthenticated: 'Your session has ended. Sign in again.',
+} satisfies Record<DirectoryFailure['kind'], string>;
+
+/** What went wrong: the directory's own explanation when it gave one, else a generic line. */
+export function failureText(failure: DirectoryFailure): string {
+  const detail = 'problem' in failure ? failure.problem?.detail?.trim() : undefined;
+  if (detail) return detail;
+  return FAILURE_TEXT[failure.kind];
+}

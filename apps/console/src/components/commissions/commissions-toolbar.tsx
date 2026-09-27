@@ -2,8 +2,13 @@ import { Button, Icon, Input } from '@adili/ui';
 import { Cancel01Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import {
+  COMMISSION_TYPES,
+  type CommissionFilters,
+  hasFilters,
+  REPORTING_OFFICER_FILTERS,
+} from '../../lib/commission-filters';
 import { NativeSelect } from '../native-select';
-import { type CommissionFilters, hasFilters } from './filters';
 import { messages } from './messages';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -13,6 +18,11 @@ export interface CommissionsToolbarProps {
   onChange: (next: CommissionFilters) => void;
   /** While the directory refuses the list (403) there is nothing to filter. */
   disabled?: boolean;
+}
+
+/** The option matching a select's value, or undefined for "any". */
+function pick<T extends string>(options: readonly T[], value: string): T | undefined {
+  return options.find((option) => option === value);
 }
 
 /**
@@ -28,6 +38,12 @@ export function CommissionsToolbar({
   const [search, setSearch] = useState(filters.search ?? '');
   const [urlSearch, setUrlSearch] = useState(filters.search);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The debounce fires after later renders; it must build on the filters as they are then, not
+  // as they were when the user typed.
+  const latest = useRef(filters);
+  useEffect(() => {
+    latest.current = filters;
+  }, [filters]);
 
   // Follow the URL when it changes elsewhere ("Clear", back/forward), but keep what the user is
   // typing when the URL only caught up with it.
@@ -43,10 +59,17 @@ export function CommissionsToolbar({
     [],
   );
 
+  /** Applies a change, with whatever is typed in the search box committed alongside it. */
+  function commit(change: Partial<CommissionFilters>, typed = search) {
+    clearTimeout(timer.current);
+    const next = { ...latest.current, search: typed.trim() || undefined, ...change };
+    latest.current = next;
+    onChange(next);
+  }
+
   function submitSearch(value: string) {
     clearTimeout(timer.current);
-    const next = value.trim() || undefined;
-    if (next !== filters.search) onChange({ ...filters, search: next });
+    if ((value.trim() || undefined) !== latest.current.search) commit({}, value);
   }
 
   return (
@@ -92,16 +115,15 @@ export function CommissionsToolbar({
         disabled={disabled}
         value={filters.type ?? ''}
         onChange={(event) => {
-          const value = event.target.value;
-          onChange({
-            ...filters,
-            type: value === 'hosted' || value === 'federated' ? value : undefined,
-          });
+          commit({ type: pick(COMMISSION_TYPES, event.target.value) });
         }}
       >
         <option value="">{messages.filters.anyType}</option>
-        <option value="hosted">{messages.type.hosted}</option>
-        <option value="federated">{messages.type.federated}</option>
+        {COMMISSION_TYPES.map((type) => (
+          <option key={type} value={type}>
+            {messages.type[type]}
+          </option>
+        ))}
       </NativeSelect>
       <label htmlFor={`${id}-officer`} className="sr-only">
         {messages.filters.reportingOfficer}
@@ -112,18 +134,15 @@ export function CommissionsToolbar({
         disabled={disabled}
         value={filters.reportingOfficer ?? ''}
         onChange={(event) => {
-          const value = event.target.value;
-          onChange({
-            ...filters,
-            reportingOfficer:
-              value === 'none' || value === 'invited' || value === 'activated' ? value : undefined,
-          });
+          commit({ reportingOfficer: pick(REPORTING_OFFICER_FILTERS, event.target.value) });
         }}
       >
         <option value="">{messages.filters.anyReportingOfficer}</option>
-        <option value="none">{messages.officerState.none}</option>
-        <option value="invited">{messages.officerState.invited}</option>
-        <option value="activated">{messages.officerState.activated}</option>
+        {REPORTING_OFFICER_FILTERS.map((state) => (
+          <option key={state} value={state}>
+            {messages.officerState[state]}
+          </option>
+        ))}
       </NativeSelect>
       {hasFilters(filters) ? (
         <Button
@@ -131,6 +150,8 @@ export function CommissionsToolbar({
           size="sm"
           onClick={() => {
             clearTimeout(timer.current);
+            setSearch('');
+            latest.current = {};
             onChange({});
           }}
         >

@@ -52,8 +52,3 @@ export function summariseCategories(
 ): { visible: OfficerCategory[]; hidden: OfficerCategory[] } {
   return { visible: categories.slice(0, shown), hidden: categories.slice(shown) };
 }
-
-/** Share onboarded as a whole percentage; 0 when nothing is expected. */
-export function onboardedPercent(onboarded: number, expected: number): number {
-  return expected > 0 ? Math.round((onboarded / expected) * 100) : 0;
-}

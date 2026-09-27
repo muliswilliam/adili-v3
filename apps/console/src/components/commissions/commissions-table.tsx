@@ -45,9 +45,9 @@ function Muted({ children }: { children: string }) {
 }
 
 /**
- * The first two citations, then a "+N" chip whose tooltip lists the rest with their
- * descriptions. The chip is focusable so keyboard users get the tooltip too, and sits above the
- * row link.
+ * The first two citations, then a "+N" badge whose tooltip lists the rest with their
+ * descriptions. The badge is focusable so keyboard users get the tooltip too, and sits above the
+ * row link. The tooltip is hand-rolled until `@adili/ui` has a Tooltip.
  */
 export function CategoriesCell({ categories }: { categories: Commission['categories'] }) {
   const tooltipId = useId();
@@ -75,9 +75,7 @@ export function CategoriesCell({ categories }: { categories: Commission['categor
             if (event.key === 'Escape') event.currentTarget.blur();
           }}
         >
-          <span className="inline-flex h-[22px] items-center rounded-sm bg-muted px-[7px] text-xs font-semibold text-secondary-foreground">
-            +{hidden.length}
-          </span>
+          <Badge className="rounded-sm font-semibold">+{hidden.length}</Badge>
           <span
             id={tooltipId}
             role="tooltip"
@@ -105,18 +103,12 @@ function OfficerCell({ officer }: { officer: Commission['reportingOfficer'] }) {
   );
 }
 
-export function RosterCell({ roster }: { roster: Commission['roster'] }) {
-  if (roster.status === 'none') return <Muted>{messages.rosterNone}</Muted>;
-  return (
-    <span className="flex flex-wrap items-center gap-1.5">
-      <span className="font-medium tabular-nums">
-        {messages.rosterOnboarded(roster.onboardedDeclarants, roster.expectedDeclarants)}
-      </span>
-      {roster.flagged > 0 ? (
-        <Badge variant="warning">{messages.rosterFlagged(roster.flagged)}</Badge>
-      ) : null}
-    </span>
-  );
+/**
+ * Slice 01 shows every roster in its no-roster state; slice 02 replaces this with coverage
+ * ("X of Y onboarded").
+ */
+function RosterCell() {
+  return <Muted>{messages.rosterNone}</Muted>;
 }
 
 function CommissionLink({ commission }: { commission: Commission }) {
@@ -152,7 +144,7 @@ function CommissionsTable({ commissions }: { commissions: readonly Commission[] 
               <OfficerCell officer={commission.reportingOfficer} />
             </TableCell>
             <TableCell>
-              <RosterCell roster={commission.roster} />
+              <RosterCell />
             </TableCell>
             <TableCell className="whitespace-nowrap">
               <time
@@ -196,14 +188,7 @@ function CommissionsCards({ commissions }: { commissions: readonly Commission[] 
               messages.officerNone
             )}
           </p>
-          <p className="text-[13px] text-muted-foreground">
-            {commission.roster.status === 'none'
-              ? messages.rosterNone
-              : messages.rosterOnboarded(
-                  commission.roster.onboardedDeclarants,
-                  commission.roster.expectedDeclarants,
-                )}
-          </p>
+          <p className="text-[13px] text-muted-foreground">{messages.rosterNone}</p>
         </li>
       ))}
     </ul>

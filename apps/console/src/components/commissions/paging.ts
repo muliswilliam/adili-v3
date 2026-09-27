@@ -1,35 +1,89 @@
+import { z } from 'zod';
+
+import type { CommissionListSearch } from '../../lib/commission-filters';
 import type { CommissionPage } from '../../server/directory/types';
 
 /**
- * Previous and Next over a forward-only cursor list. The directory only hands out a cursor to the
- * next page, so the pages fetched so far are kept (in order) and Previous steps back through them.
+ * Previous and Next over the directory's forward-only cursors. The page on show is the `cursor`
+ * search param, so Back, reload and shared links open the same page. The way back (the cursors
+ * of the pages before it) and the row offset live in history state: they survive Back and
+ * reload but not a shared link, which then offers Previous to the first page.
  */
-export interface PagingView {
-  page: CommissionPage;
-  /** 1-based position of the first and last row on this page. */
-  from: number;
-  to: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-  /** Rows across every page fetched so far, and whether the directory has more after them. */
-  seen: number;
-  more: boolean;
+const pagingStateSchema = z.object({
+  /** The pages before this one, oldest first; `null` is the first page. */
+  trail: z.array(z.object({ cursor: z.string().nullable(), offset: z.number().int().min(0) })),
+  /** Rows before this page. */
+  offset: z.number().int().min(0),
+});
+
+export type PagingState = z.infer<typeof pagingStateSchema>;
+
+const firstPage: PagingState = { trail: [], offset: 0 };
+
+/** Where the page on show sits; `offset` is null when a shared link opened a later page. */
+export interface Paging {
+  trail: PagingState['trail'];
+  offset: number | null;
 }
 
-export function pagingView(pages: readonly CommissionPage[], index: number): PagingView {
-  const current = Math.min(Math.max(index, 0), pages.length - 1);
-  const page = pages[current];
-  if (!page) throw new Error('pagingView needs at least one page');
-  const count = (list: readonly CommissionPage[]) =>
-    list.reduce((total, item) => total + item.items.length, 0);
-  const offset = count(pages.slice(0, current));
+/** Reads the paging for the page on show from its cursor and whatever history state holds. */
+export function pagingFor(cursor: string | undefined, state: unknown): Paging {
+  if (!cursor) return { trail: [], offset: 0 };
+  const parsed = pagingStateSchema.safeParse(state);
+  return parsed.success ? parsed.data : { trail: [], offset: null };
+}
+
+export interface PagingView {
+  /** 1-based position of the first and last row on the page, when known. */
+  range: { from: number; to: number } | null;
+  /** Rows up to the end of this page, and whether there may be more than that. */
+  count: number;
+  more: boolean;
+  hasPrevious: boolean;
+  hasNext: boolean;
+}
+
+export function pagingView(page: CommissionPage, paging: Paging): PagingView {
+  const rows = page.items.length;
+  const known = paging.offset !== null;
+  const offset = paging.offset ?? 0;
   return {
-    page,
-    from: page.items.length > 0 ? offset + 1 : 0,
-    to: offset + page.items.length,
-    hasPrevious: current > 0,
+    range: known && rows > 0 ? { from: offset + 1, to: offset + rows } : null,
+    count: offset + rows,
+    // Rows before a page opened from a shared link are unknown, so there are more than we see.
+    more: page.nextCursor !== null || !known,
+    hasPrevious: paging.offset !== 0,
     hasNext: page.nextCursor !== null,
-    seen: count(pages),
-    more: pages.at(-1)?.nextCursor != null,
+  };
+}
+
+export interface PageLocation {
+  search: CommissionListSearch;
+  state: PagingState;
+}
+
+/** The location of the page after this one. */
+export function nextPage(
+  search: CommissionListSearch,
+  page: CommissionPage,
+  paging: Paging,
+): PageLocation | null {
+  if (!page.nextCursor) return null;
+  const offset = paging.offset ?? 0;
+  return {
+    search: { ...search, cursor: page.nextCursor },
+    state: {
+      trail: [...paging.trail, { cursor: search.cursor ?? null, offset }],
+      offset: offset + page.items.length,
+    },
+  };
+}
+
+/** The location of the page before this one; the first page when the way back is unknown. */
+export function previousPage(search: CommissionListSearch, paging: Paging): PageLocation {
+  const before = paging.trail.at(-1);
+  return {
+    search: { ...search, cursor: before?.cursor ?? undefined },
+    state: before ? { trail: paging.trail.slice(0, -1), offset: before.offset } : firstPage,
   };
 }

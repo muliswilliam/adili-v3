@@ -1,4 +1,4 @@
-import { cn, Icon, type IconProps } from '@adili/ui';
+import { Card, CardHeader, CardIcon, CardTitle, cn, Icon, type IconProps } from '@adili/ui';
 import type { ComponentProps, ReactNode } from 'react';
 
 /** A console page under the top bar (the kit's `.cpage`): up to 1280px, or 880px when narrow. */
@@ -43,8 +43,8 @@ export function PageHead({
 }
 
 /**
- * A card with an icon tile and title on a hairline header (the kit's `.cardx` with `.sec-h`),
- * labelled by its title for assistive technology.
+ * A kit Card with an icon tile and title on a hairline header (the kit's `.cardx` with `.sec-h`),
+ * labelled by its title for assistive technology. The body brings its own padding.
  */
 export function SectionCard({
   id,
@@ -61,22 +61,14 @@ export function SectionCard({
 }) {
   const headingId = `${id}-title`;
   return (
-    <section
-      aria-labelledby={headingId}
-      className={cn('min-w-0 rounded-2xl bg-card text-card-foreground shadow-card', className)}
-    >
-      <div className="flex items-center gap-2.5 border-b px-5 py-4">
-        <span
-          aria-hidden="true"
-          className="grid size-[30px] shrink-0 place-items-center rounded-md bg-muted text-secondary-foreground"
-        >
+    <Card role="region" aria-labelledby={headingId} className={cn('min-w-0 p-0 sm:p-0', className)}>
+      <CardHeader className="flex-row items-center gap-2.5 border-b px-5 py-4">
+        <CardIcon className="mb-0 size-[30px]">
           <Icon icon={icon} />
-        </span>
-        <h2 id={headingId} className="text-[15.5px] font-semibold tracking-[-0.01em]">
-          {title}
-        </h2>
-      </div>
+        </CardIcon>
+        <CardTitle id={headingId}>{title}</CardTitle>
+      </CardHeader>
       {children}
-    </section>
+    </Card>
   );
 }
