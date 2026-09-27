@@ -2,7 +2,7 @@
   "name": "@adili/keycloak-theme",
   "version": "0.0.0",
   "private": true,
-  "description": "Keycloak login theme (Keycloakify) built on the Adili design system.",
+  "description": "Keycloak login theme (Keycloakify, built on the Adili design system) and email theme (FreeMarker, src/email).",
   "type": "module",
   "scripts": {
     "dev": "vite",

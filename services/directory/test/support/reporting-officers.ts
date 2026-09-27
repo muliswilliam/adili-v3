@@ -19,6 +19,8 @@ export const ACTIVATION = {
   lifespanSeconds: 259_200,
   redirectUri: 'http://localhost:3020/',
   clientId: 'console',
+  commissionName: 'Teachers Service Commission',
+  role: 'reporting-officer',
 };
 
 export interface Officer {

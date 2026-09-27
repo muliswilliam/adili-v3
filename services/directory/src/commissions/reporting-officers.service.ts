@@ -31,15 +31,21 @@ export const REPORTING_OFFICER_ROLE = 'reporting-officer';
 export const ACTIVATION_LIFESPAN_SECONDS = 72 * 60 * 60;
 
 /**
- * The activation email every reporting officer receives (on assignment, and on resend): verify
- * the email, set a password, enrol OTP, then land on the console.
+ * The activation email every reporting officer receives (on assignment, and on resend): it names
+ * the Commission and the role, then the link verifies the email, enrols OTP, sets a password and
+ * lands on the console.
  */
-export function activationEmail(consoleUrl: string = config.CONSOLE_URL): ActivationEmailOptions {
+export function activationEmail(
+  commissionName: string,
+  consoleUrl: string = config.CONSOLE_URL,
+): ActivationEmailOptions {
   return {
     actions: STAFF_REQUIRED_ACTIONS,
     lifespanSeconds: ACTIVATION_LIFESPAN_SECONDS,
     redirectUri: new URL('/', consoleUrl).toString(),
     clientId: 'console',
+    commissionName,
+    role: REPORTING_OFFICER_ROLE,
   };
 }
 
@@ -115,7 +121,7 @@ export class ReportingOfficersService {
     body: AssignReportingOfficerBody,
     changes: IdentityChanges,
   ): Promise<{ keycloakUserId: string; commission: Commission }> {
-    const commissionId = await this.lockCommission(tx, slug);
+    const { id: commissionId, name: commissionName } = await this.lockCommission(tx, slug);
     const previous = await this.currentAssignment(tx, commissionId);
     const keycloakUserId = await this.provisionAccount(slug, body, changes);
     const now = new Date();
@@ -156,7 +162,7 @@ export class ReportingOfficersService {
         replacedAssignmentId: previous?.id ?? null,
       }),
     );
-    await this.identity.sendActivationEmail(keycloakUserId, activationEmail());
+    await this.identity.sendActivationEmail(keycloakUserId, activationEmail(commissionName));
     // Re-assigning the same person (to correct their details) keeps their account.
     if (previous && previous.keycloakUserId !== keycloakUserId) {
       await this.retire(previous.keycloakUserId, changes);
@@ -171,11 +177,14 @@ export class ReportingOfficersService {
   async resendInvitation(principal: Principal, slug: string): Promise<void> {
     try {
       await this.inPlatformContext(principal, async (tx) => {
-        const commissionId = await this.lockCommission(tx, slug);
-        const current = await this.currentAssignment(tx, commissionId);
+        const commission = await this.lockCommission(tx, slug);
+        const current = await this.currentAssignment(tx, commission.id);
         if (!current) throw noReportingOfficer();
         if (current.state !== 'invited') throw officerAlreadyActivated();
-        await this.identity.sendActivationEmail(current.keycloakUserId, activationEmail());
+        await this.identity.sendActivationEmail(
+          current.keycloakUserId,
+          activationEmail(commission.name),
+        );
       });
     } catch (error) {
       throw asProblem(
@@ -190,16 +199,20 @@ export class ReportingOfficersService {
   }
 
   /**
-   * The Commission's id, locked for the rest of the transaction so that assignments,
-   * replacements and resends of one Commission run one at a time. 404 when it does not exist.
+   * The Commission's id and display name, locked for the rest of the transaction so that
+   * assignments, replacements and resends of one Commission run one at a time. 404 when it does
+   * not exist.
    */
-  private async lockCommission(tx: Transaction, slug: string): Promise<string> {
+  private async lockCommission(
+    tx: Transaction,
+    slug: string,
+  ): Promise<{ id: string; name: string }> {
     const [commission] = await tx
-      .select({ id: commissions.id })
+      .select({ id: commissions.id, name: commissions.name })
       .from(commissions)
       .where(eq(commissions.slug, slug))
       .for('update');
-    return notFoundIfInvisible(commission).id;
+    return notFoundIfInvisible(commission);
   }
 
   /** The Commission's assignment that is not `replaced`, if any (at most one, by constraint). */

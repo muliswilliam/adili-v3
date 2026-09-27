@@ -33,6 +33,9 @@ export interface InMemoryUser {
   roles: string[];
   requiredActions: RequiredAction[];
   enabled: boolean;
+  /** Commission and role named by the latest activation email, as Keycloak records them. */
+  commissionName: string | null;
+  invitedRole: string | null;
 }
 
 export interface SeedUser {
@@ -66,6 +69,8 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       roles: [...(seed.roles ?? [])],
       requiredActions: [],
       enabled: seed.enabled ?? true,
+      commissionName: null,
+      invitedRole: null,
     });
     return userId;
   }
@@ -137,6 +142,8 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       roles: [input.role],
       requiredActions: [...input.requiredActions],
       enabled: true,
+      commissionName: null,
+      invitedRole: null,
     });
     return Promise.resolve(userId);
   }
@@ -182,7 +189,10 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     this.log.push({ operation: 'sendActivationEmail', userId, options: structuredClone(options) });
     const failure = this.takeFailure('sendActivationEmail');
     if (failure) return Promise.reject(failure);
-    return this.update(userId, () => undefined);
+    return this.update(userId, (user) => {
+      user.commissionName = options.commissionName;
+      user.invitedRole = options.role;
+    });
   }
 
   private takeFailure(operation: IdentityOperation): Error | undefined {

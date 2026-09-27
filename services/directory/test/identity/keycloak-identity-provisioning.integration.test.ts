@@ -11,8 +11,9 @@ import {
 } from './identity-provisioning.contract.js';
 
 /**
- * S17 against a real Keycloak with the committed realm import (`pnpm infra:up`), and
- * delivery of the activation email to Mailpit. Uses the `directory` service client.
+ * S17 against a real Keycloak with the committed realm import and the Adili theme (the
+ * `adili/keycloak` image, as in `pnpm infra:up`), and delivery of the activation email to
+ * Mailpit, rendered by the theme's email templates. Uses the `directory` service client.
  */
 const ISSUER_URL = requireEnv('TEST_KEYCLOAK_ISSUER_URL');
 const MAILPIT_URL = requireEnv('TEST_MAILPIT_URL');
@@ -44,20 +45,30 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
       name: [user.firstName, user.lastName].filter(Boolean).join(' '),
       tenant: user.attributes?.tenant?.[0] ?? null,
       phone: user.attributes?.phone?.[0] ?? null,
+      commissionName: user.attributes?.commissionName?.[0] ?? null,
+      invitedRole: user.attributes?.invitedRole?.[0] ?? null,
       realmRoles: roles.map((role) => role.name),
       requiredActions: user.requiredActions,
       enabled: user.enabled,
     };
   },
-  expectActivationDelivered: async (email) => {
+  expectActivationDelivered: async (email, _userId, options = ACTIVATION) => {
     const message = await activationMessage(email);
-    expect(message.subject).toMatch(/update your account/i);
+    expect(message.subject).toBe('Activate your Adili Online account');
+    // Rendered by apps/keycloak-theme src/email from the account's invitation attributes.
+    // HTML without its tags (the Commission and the lifespan are in bold), and the text variant.
+    for (const body of [message.text, message.html.replace(/<[^>]+>/g, '')]) {
+      expect(body).toContain(options.commissionName);
+      expect(body).toContain('reporting officer');
+      expect(body).toContain('This link expires in 72 hours.');
+      expect(body).toContain('ask EACC to send you a new invitation');
+    }
     // The link carries Keycloak's action token; its claims hold the lifespan and redirect.
     const claims = actionTokenClaims(message.text);
-    expect(claims.exp - claims.iat).toBe(ACTIVATION.lifespanSeconds);
-    expect(claims.reduri).toBe(ACTIVATION.redirectUri);
-    expect(claims.azp).toBe(ACTIVATION.clientId);
-    expect(claims.rqac).toEqual([...ACTIVATION.actions]);
+    expect(claims.exp - claims.iat).toBe(options.lifespanSeconds);
+    expect(claims.reduri).toBe(options.redirectUri);
+    expect(claims.azp).toBe(options.clientId);
+    expect(claims.rqac).toEqual([...options.actions]);
     await deleteMessages([message.id]);
   },
   cleanup: async (userIds) => {
@@ -125,6 +136,7 @@ interface MailpitMessage {
   id: string;
   subject: string;
   text: string;
+  html: string;
 }
 
 /** Waits for exactly one message to `email` and returns it. */
@@ -143,8 +155,9 @@ async function activationMessage(email: string): Promise<MailpitMessage> {
         await fetch(`${MAILPIT_URL}/api/v1/message/${summary.ID}`)
       ).json()) as {
         Text: string;
+        HTML: string;
       };
-      return { id: summary.ID, subject: summary.Subject, text: message.Text };
+      return { id: summary.ID, subject: summary.Subject, text: message.Text, html: message.HTML };
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }

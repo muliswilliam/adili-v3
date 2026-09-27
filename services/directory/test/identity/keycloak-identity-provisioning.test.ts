@@ -54,6 +54,17 @@ const TOKEN = 'POST /realms/adili/protocol/openid-connect/token';
 const ADMIN = '/admin/realms/adili';
 const tokenOk: Handler = () => Response.json({ access_token: 'token', expires_in: 300 });
 const available: Handler = () => Response.json([{ id: 'role-id', name: 'reporting-officer' }]);
+/** An account that already records the invitation of ACTIVATION. */
+const INVITED = {
+  id: 'user-1',
+  username: 'a@tsc.go.ke',
+  enabled: true,
+  attributes: {
+    tenant: ['tsc'],
+    commissionName: ['Teachers Service Commission'],
+    invitedRole: ['reporting-officer'],
+  },
+};
 
 describe('KeycloakIdentityProvisioning', () => {
   it('creates the user with the Keycloak representation, then maps the realm role', async () => {
@@ -179,7 +190,7 @@ describe('KeycloakIdentityProvisioning', () => {
   it('maps 404 on a user resource to IdentityUserNotFound', async () => {
     const { adapter } = keycloak({
       [TOKEN]: tokenOk,
-      [`PUT ${ADMIN}/users/missing/execute-actions-email`]: () =>
+      [`GET ${ADMIN}/users/missing`]: () =>
         Response.json({ error: 'User not found' }, { status: 404 }),
     });
 
@@ -269,10 +280,13 @@ describe('KeycloakIdentityProvisioning', () => {
       clientId: 'directory',
       clientSecret: 'secret',
       timeoutMs: 20,
-      // Every admin call takes 100 ms, unless its timeout aborts it first.
+      // Every admin call but reading the invited user takes 100 ms, unless its timeout aborts
+      // it first.
       fetch: (input: string | URL | Request, init: RequestInit = {}) => {
         const url = new URL(input instanceof Request ? input.url : input);
         if (url.pathname.endsWith('/token')) return Promise.resolve(tokenOk(url, init));
+        if (url.pathname === `${ADMIN}/users/user-1`)
+          return Promise.resolve(Response.json(INVITED));
         return new Promise((resolve, reject) => {
           const timer = setTimeout(() => {
             resolve(new Response(null, { status: 204 }));
@@ -286,12 +300,13 @@ describe('KeycloakIdentityProvisioning', () => {
     });
 
     await expect(adapter.sendActivationEmail('user-1', ACTIVATION)).resolves.toBeUndefined();
-    await expect(adapter.findById('user-1')).rejects.toBeInstanceOf(IdentityUnavailable);
+    await expect(adapter.findByEmail('a@tsc.go.ke')).rejects.toBeInstanceOf(IdentityUnavailable);
   });
 
   it('sends execute-actions-email with lifespan, redirect and client', async () => {
     const { adapter, requests } = keycloak({
       [TOKEN]: tokenOk,
+      [`GET ${ADMIN}/users/user-1`]: () => Response.json(INVITED),
       [`PUT ${ADMIN}/users/user-1/execute-actions-email`]: () =>
         new Response(null, { status: 204 }),
     });
@@ -306,6 +321,49 @@ describe('KeycloakIdentityProvisioning', () => {
     });
     expect(request?.body).toEqual(['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP']);
   });
+
+  it.each([
+    ['no invitation yet', {}],
+    ['another Commission', { commissionName: ['Public Service Commission'] }],
+    ['another role', { invitedRole: ['reviewer'] }],
+  ])(
+    'records the Commission and role on the account (%s) before the email, keeping its other attributes',
+    async (_case, earlier) => {
+      const user = {
+        ...INVITED,
+        attributes: { tenant: ['tsc'], phone: ['+254712345678'], ...earlier },
+      };
+      const { adapter, requests } = keycloak({
+        [TOKEN]: tokenOk,
+        [`GET ${ADMIN}/users/user-1`]: () => Response.json(user),
+        [`PUT ${ADMIN}/users/user-1`]: () => new Response(null, { status: 204 }),
+        [`PUT ${ADMIN}/users/user-1/execute-actions-email`]: () =>
+          new Response(null, { status: 204 }),
+      });
+
+      await adapter.sendActivationEmail('user-1', ACTIVATION);
+
+      const calls = requests
+        .filter((request) => request.url.pathname.startsWith(ADMIN))
+        .map(
+          (request) => `${request.method} ${request.url.pathname.replace(`${ADMIN}/users/`, '')}`,
+        );
+      expect(calls).toEqual(['GET user-1', 'PUT user-1', 'PUT user-1/execute-actions-email']);
+      expect(
+        requests.find(
+          (request) => request.url.pathname === `${ADMIN}/users/user-1` && request.method === 'PUT',
+        )?.body,
+      ).toEqual({
+        ...user,
+        attributes: {
+          tenant: ['tsc'],
+          phone: ['+254712345678'],
+          commissionName: ['Teachers Service Commission'],
+          invitedRole: ['reporting-officer'],
+        },
+      });
+    },
+  );
 
   it('rejects an issuer URL that is not a Keycloak realm', () => {
     expect(

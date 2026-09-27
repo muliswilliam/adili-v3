@@ -99,7 +99,7 @@ services:
     ports: ['8233:8080']
 
   keycloak:
-    # Keycloak plus the Adili login theme from apps/keycloak-theme.
+    # Keycloak plus the Adili login and email themes from apps/keycloak-theme.
     image: adili/keycloak:dev
     build:
       context: ../..
