@@ -13,8 +13,15 @@ describe('navFor', () => {
     expect(navFor(['platform-admin'])[0]?.items[0]?.to).toBe('/commissions');
   });
 
+  it('shows the Roster under Commission to reporting officers and commission admins', () => {
+    for (const role of ['reporting-officer', 'commission-admin']) {
+      expect(labels([role])).toEqual([['Commission', ['Roster']]]);
+    }
+    expect(navFor(['reporting-officer'])[0]?.items[0]?.to).toBe('/roster');
+  });
+
   it('leaves out destinations that are not built yet', () => {
-    expect(navFor(['reviewer', 'supervisor', 'reporting-officer'])).toEqual([]);
+    expect(navFor(['reviewer', 'supervisor', 'access-officer'])).toEqual([]);
   });
 });
 

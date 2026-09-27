@@ -4,31 +4,6 @@
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/roster/template:
-    get:
-      tags: [roster]
-      operationId: getRosterTemplate
-      summary: Roster template with column notes and a sample row
-      parameters:
-        - name: format
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [csv, xlsx]
-      responses:
-        '200':
-          description: The template file
-          content:
-            text/csv:
-              schema:
-                type: string
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
-              schema:
-                type: string
-                format: binary
-        '403':
-          $ref: '#/components/responses/Forbidden'
   /v1/commissions/{slug}/roster/summary:
     parameters:
       - $ref: '#/components/parameters/Slug'
