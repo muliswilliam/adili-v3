@@ -142,7 +142,15 @@ export function FailureAlert({
         {applied ? m.stoppedAfter(imp.processedRows, reason) : m.stoppedBefore(reason)}
       </AlertTitle>
       {detail ? <AlertDescription>{detail}</AlertDescription> : null}
-      <AlertDescription>{applied ? m.stoppedKept : m.stoppedNothing}</AlertDescription>
+      <AlertDescription>
+        {imp.channel === 'api'
+          ? applied
+            ? m.stoppedKeptApi
+            : m.stoppedNothingApi
+          : applied
+            ? m.stoppedKept
+            : m.stoppedNothing}
+      </AlertDescription>
       {viewReport ? (
         <div className="mt-2.5">
           <Button asChild variant="secondary" size="sm">

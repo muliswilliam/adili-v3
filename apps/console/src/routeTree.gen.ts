@@ -19,7 +19,7 @@ import { Route as CommissionsIndexRouteImport } from './routes/commissions/index
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
-import { Route as RosterApiAccessRouteImport } from './routes/roster/api-access'
+import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
 import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
@@ -27,6 +27,8 @@ import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
+import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index'
+import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-access/docs'
 import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index'
 import { Route as RosterRecordsIndexRouteImport } from './routes/roster/records/index'
 import { Route as RosterRecordsRecordIdRouteImport } from './routes/roster/records/$recordId'
@@ -85,7 +87,7 @@ const RosterIndexRoute = RosterIndexRouteImport.update({
   path: '/',
   getParentRoute: () => RosterRouteRoute,
 } as any)
-const RosterApiAccessRoute = RosterApiAccessRouteImport.update({
+const RosterApiAccessRouteRoute = RosterApiAccessRouteRouteImport.update({
   id: '/api-access',
   path: '/api-access',
   getParentRoute: () => RosterRouteRoute,
@@ -126,6 +128,16 @@ const CommissionsSlugRecordsRouteRoute =
     path: '/records',
     getParentRoute: () => CommissionsSlugRouteRoute,
   } as any)
+const RosterApiAccessIndexRoute = RosterApiAccessIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RosterApiAccessRouteRoute,
+} as any)
+const RosterApiAccessDocsRoute = RosterApiAccessDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => RosterApiAccessRouteRoute,
+} as any)
 const RosterImportsIndexRoute = RosterImportsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -171,21 +183,23 @@ export interface FileRoutesByFullPath {
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
-  '/roster/api-access': typeof RosterApiAccessRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
@@ -199,14 +213,15 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
-  '/roster/api-access': typeof RosterApiAccessRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions': typeof CommissionsIndexRoute
   '/roster': typeof RosterIndexRoute
+  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug': typeof CommissionsSlugIndexRoute
+  '/roster/api-access': typeof RosterApiAccessIndexRoute
   '/roster/imports': typeof RosterImportsIndexRoute
   '/roster/records': typeof RosterRecordsIndexRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
@@ -220,21 +235,23 @@ export interface FileRoutesById {
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
-  '/roster/api-access': typeof RosterApiAccessRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
@@ -249,21 +266,23 @@ export interface FileRouteTypes {
     | '/commissions'
     | '/roster'
     | '/commissions/$slug'
+    | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/new'
-    | '/roster/api-access'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions/'
     | '/roster/'
     | '/commissions/$slug/records'
+    | '/roster/api-access/docs'
     | '/roster/records/$recordId'
     | '/commissions/$slug/'
+    | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
     | '/commissions/$slug/records/$recordId'
@@ -277,14 +296,15 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/new'
-    | '/roster/api-access'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions'
     | '/roster'
+    | '/roster/api-access/docs'
     | '/roster/records/$recordId'
     | '/commissions/$slug'
+    | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
     | '/commissions/$slug/records/$recordId'
@@ -297,21 +317,23 @@ export interface FileRouteTypes {
     | '/commissions'
     | '/roster'
     | '/commissions/$slug'
+    | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/new'
-    | '/roster/api-access'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions/'
     | '/roster/'
     | '/commissions/$slug/records'
+    | '/roster/api-access/docs'
     | '/roster/records/$recordId'
     | '/commissions/$slug/'
+    | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
     | '/commissions/$slug/records/$recordId'
@@ -405,7 +427,7 @@ declare module '@tanstack/react-router' {
       id: '/roster/api-access'
       path: '/api-access'
       fullPath: '/roster/api-access'
-      preLoaderRoute: typeof RosterApiAccessRouteImport
+      preLoaderRoute: typeof RosterApiAccessRouteRouteImport
       parentRoute: typeof RosterRouteRoute
     }
     '/roster/flagged': {
@@ -456,6 +478,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/$slug/records'
       preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport
       parentRoute: typeof CommissionsSlugRouteRoute
+    }
+    '/roster/api-access/': {
+      id: '/roster/api-access/'
+      path: '/'
+      fullPath: '/roster/api-access/'
+      preLoaderRoute: typeof RosterApiAccessIndexRouteImport
+      parentRoute: typeof RosterApiAccessRouteRoute
+    }
+    '/roster/api-access/docs': {
+      id: '/roster/api-access/docs'
+      path: '/docs'
+      fullPath: '/roster/api-access/docs'
+      preLoaderRoute: typeof RosterApiAccessDocsRouteImport
+      parentRoute: typeof RosterApiAccessRouteRoute
     }
     '/roster/imports/': {
       id: '/roster/imports/'
@@ -554,6 +590,19 @@ const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
 const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
 
+interface RosterApiAccessRouteRouteChildren {
+  RosterApiAccessDocsRoute: typeof RosterApiAccessDocsRoute
+  RosterApiAccessIndexRoute: typeof RosterApiAccessIndexRoute
+}
+
+const RosterApiAccessRouteRouteChildren: RosterApiAccessRouteRouteChildren = {
+  RosterApiAccessDocsRoute: RosterApiAccessDocsRoute,
+  RosterApiAccessIndexRoute: RosterApiAccessIndexRoute,
+}
+
+const RosterApiAccessRouteRouteWithChildren =
+  RosterApiAccessRouteRoute._addFileChildren(RosterApiAccessRouteRouteChildren)
+
 interface RosterImportsRouteRouteChildren {
   RosterImportsIndexRoute: typeof RosterImportsIndexRoute
   RosterImportsImportIdReportDotcsvRoute: typeof RosterImportsImportIdReportDotcsvRoute
@@ -584,9 +633,9 @@ const RosterRecordsRouteRouteWithChildren =
   RosterRecordsRouteRoute._addFileChildren(RosterRecordsRouteRouteChildren)
 
 interface RosterRouteRouteChildren {
+  RosterApiAccessRouteRoute: typeof RosterApiAccessRouteRouteWithChildren
   RosterImportsRouteRoute: typeof RosterImportsRouteRouteWithChildren
   RosterRecordsRouteRoute: typeof RosterRecordsRouteRouteWithChildren
-  RosterApiAccessRoute: typeof RosterApiAccessRoute
   RosterFlaggedRoute: typeof RosterFlaggedRoute
   RosterImportRoute: typeof RosterImportRoute
   RosterTemplateRoute: typeof RosterTemplateRoute
@@ -594,9 +643,9 @@ interface RosterRouteRouteChildren {
 }
 
 const RosterRouteRouteChildren: RosterRouteRouteChildren = {
+  RosterApiAccessRouteRoute: RosterApiAccessRouteRouteWithChildren,
   RosterImportsRouteRoute: RosterImportsRouteRouteWithChildren,
   RosterRecordsRouteRoute: RosterRecordsRouteRouteWithChildren,
-  RosterApiAccessRoute: RosterApiAccessRoute,
   RosterFlaggedRoute: RosterFlaggedRoute,
   RosterImportRoute: RosterImportRoute,
   RosterTemplateRoute: RosterTemplateRoute,

@@ -18,6 +18,13 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export {
+  CodeBlock,
+  type CodeBlockProps,
+  CodeComment,
+  CodeKeyword,
+  CodeString,
+} from './components/code-block';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export {
