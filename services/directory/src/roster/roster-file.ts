@@ -136,7 +136,11 @@ function isBlank(row: SheetRow): boolean {
   return row.cells.every((cell) => cell.text.trim() === '');
 }
 
-async function toBuffer(source: AsyncIterable<Uint8Array> | Uint8Array): Promise<Buffer> {
+/**
+ * The whole of a roster file's bytes, read into memory. Throws `RosterFileError` (`too-large`)
+ * past `ROSTER_FILE_MAX_BYTES`, without reading further.
+ */
+export async function toBuffer(source: AsyncIterable<Uint8Array> | Uint8Array): Promise<Buffer> {
   if (source instanceof Uint8Array) return Buffer.from(source);
   const chunks: Uint8Array[] = [];
   let size = 0;
