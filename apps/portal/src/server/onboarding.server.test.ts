@@ -8,13 +8,22 @@ import {
 } from './directory/mock.server';
 import type { paths } from './directory/schema.gen';
 import {
+  cookieMaxAge,
+  type CookieJar,
+  ONBOARDING_COOKIE,
+  onboardingCookie,
+} from './onboarding-cookie';
+import {
   confirm,
   identify,
   listCommissions,
   lookupSession,
   provideContact,
+  readSession,
   resendCode,
   resendPasswordEmail,
+  runStep,
+  startSession,
   verifyCode,
 } from './onboarding.server';
 
@@ -486,5 +495,118 @@ describe('confirm and the set-password email', () => {
     expect(await confirm(client(), wrong)).toEqual({ ok: false, code: 'ended' });
     expect(await confirm(down, session)).toEqual({ ok: false, code: 'unavailable' });
     expect(await resendPasswordEmail(down, session)).toEqual({ ok: false, code: 'unavailable' });
+  });
+});
+
+describe('the session cookie', () => {
+  /** A cookie jar that records what the server functions would send in Set-Cookie. */
+  function fakeJar() {
+    const values = new Map<string, string>();
+    const sets: { value: string; maxAge?: number }[] = [];
+    let deletes = 0;
+    const jar: CookieJar = {
+      get: (name) => values.get(name),
+      set: (name, value, options) => {
+        values.set(name, value);
+        sets.push({ value, maxAge: options.maxAge });
+      },
+      delete: (name) => {
+        values.delete(name);
+        deletes += 1;
+      },
+    };
+    return { jar, sets, deleted: () => deletes, has: () => values.has(ONBOARDING_COOKIE) };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('is set on identify with the session lifetime', async () => {
+    const { jar, sets } = fakeJar();
+    const cookie = onboardingCookie(jar, { secure: false });
+
+    const result = await startSession(client(), cookie, teacher);
+
+    expect(result).toEqual({ ok: true, route: '/get-started/verify-email' });
+    expect(sets).toHaveLength(1);
+    // The mock's sessions open for 30 minutes.
+    expect(sets[0]?.maxAge).toBeGreaterThan(29 * 60);
+    expect(sets[0]?.maxAge).toBeLessThanOrEqual(30 * 60);
+  });
+
+  it('is written again with the later expiry after every step', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const { jar, sets } = fakeJar();
+    const cookie = onboardingCookie(jar, { secure: false });
+    await startSession(client(), cookie, teacher);
+    const first = sets[0]?.maxAge ?? 0;
+
+    // Twenty minutes in, the code is right and the directory moves the expiry on.
+    vi.setSystemTime(Date.now() + 20 * 60 * 1000);
+    const result = await runStep(cookie, (credentials) =>
+      verifyCode(client(), credentials, { channel: 'email', code: '123456' }),
+    );
+
+    expect(result.ok).toBe(true);
+    const expiresAt = result.ok ? result.session.expiresAt : '';
+    expect(sets).toHaveLength(2);
+    expect(sets[1]?.maxAge).toBe(cookieMaxAge(expiresAt));
+    // Without the rewrite the cookie would lapse in about ten minutes, before the session.
+    expect(sets[1]?.maxAge).toBeGreaterThan(first - 20 * 60);
+  });
+
+  it('is cleared when a step finds the session ended', async () => {
+    const { jar, deleted, has } = fakeJar();
+    const cookie = onboardingCookie(jar, { secure: false });
+    await startSession(client(), cookie, teacher);
+
+    const result = await runStep(cookie, () => Promise.resolve({ ok: false, code: 'ended' }));
+
+    expect(result).toEqual({ ok: false, code: 'ended' });
+    expect(deleted()).toBe(1);
+    expect(has()).toBe(false);
+  });
+
+  it('reports a step without a cookie as ended, without calling the directory', async () => {
+    const { jar } = fakeJar();
+    const step = vi.fn();
+
+    expect(await runStep(onboardingCookie(jar, { secure: false }), step)).toEqual({
+      ok: false,
+      code: 'ended',
+    });
+    expect(step).not.toHaveBeenCalled();
+  });
+
+  it('is cleared when the directory reports the session expired', async () => {
+    const { jar, deleted } = fakeJar();
+    const cookie = onboardingCookie(jar, { secure: false });
+    await startSession(client(), cookie, teacher);
+    const expired = client(async (request) => {
+      const body = (await (await mockDirectoryFetch(request)).json()) as Record<string, unknown>;
+      return Response.json({ ...body, state: 'expired' });
+    });
+
+    expect(await readSession(expired, cookie)).toEqual({ status: 'ended' });
+    expect(deleted()).toBe(1);
+  });
+
+  it('keeps a live session and refreshes its lifetime on read', async () => {
+    const { jar, sets, deleted } = fakeJar();
+    const cookie = onboardingCookie(jar, { secure: false });
+    await startSession(client(), cookie, teacher);
+
+    const lookup = await readSession(client(), cookie);
+
+    expect(lookup.status).toBe('active');
+    expect(sets).toHaveLength(2);
+    expect(deleted()).toBe(0);
+  });
+
+  it('is cleared on leave', () => {
+    const { jar, deleted } = fakeJar();
+    onboardingCookie(jar, { secure: true }).clear();
+    expect(deleted()).toBe(1);
   });
 });

@@ -13,23 +13,18 @@ import { clientIp } from './client-ip';
 import { onboardingClient } from './directory/client.server';
 import type { OnboardingCommission } from './directory/types';
 import { env } from './env.server';
-import {
-  cookieMaxAge,
-  decodeOnboardingCookie,
-  encodeOnboardingCookie,
-  ONBOARDING_COOKIE,
-  type OnboardingCredentials,
-} from './onboarding-cookie';
+import { onboardingCookie, type OnboardingCredentials } from './onboarding-cookie';
 import {
   confirm,
-  identify,
   type IdentifyResult,
   listCommissions,
-  lookupSession,
   provideContact,
+  readSession,
   resendCode,
   resendPasswordEmail,
+  runStep,
   type SessionLookup,
+  startSession,
   type StepResult,
   verifyCode,
 } from './onboarding.server';
@@ -39,13 +34,19 @@ function client() {
   return onboardingClient(clientIp(getRequestHeaders(), getRequestIP(), env().TRUSTED_PROXY_HOPS));
 }
 
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: env().APP_URL.startsWith('https:'),
-    path: '/',
-  };
+/** The onboarding cookie on this request. */
+function cookie() {
+  return onboardingCookie(
+    { get: getCookie, set: setCookie, delete: deleteCookie },
+    { secure: env().APP_URL.startsWith('https:') },
+  );
+}
+
+/** Runs a step on the session in the cookie; see `runStep`. */
+function onSession(
+  step: (credentials: OnboardingCredentials) => Promise<StepResult>,
+): Promise<StepResult> {
+  return runStep(cookie(), step);
 }
 
 /** `GET /v1/onboarding/commissions`: the Commissions a declarant can pick, or null when unreachable. */
@@ -59,44 +60,12 @@ export const getOnboardingCommissions = createServerFn({ method: 'GET' }).handle
  */
 export const identifyDeclarant = createServerFn({ method: 'POST' })
   .validator(identifySchema)
-  .handler(async ({ data }): Promise<IdentifyResult> => {
-    const { result, created } = await identify(client(), data);
-    if (created) {
-      setCookie(ONBOARDING_COOKIE, encodeOnboardingCookie(created), {
-        ...cookieOptions(),
-        maxAge: cookieMaxAge(created.expiresAt),
-      });
-    }
-    return result;
-  });
+  .handler(({ data }): Promise<IdentifyResult> => startSession(client(), cookie(), data));
 
 /** The declarant's onboarding session from the cookie. Clears the cookie once it has ended. */
 export const getOnboardingSession = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<SessionLookup> => {
-    const credentials = decodeOnboardingCookie(getCookie(ONBOARDING_COOKIE));
-    if (!credentials) return { status: 'none' };
-    const lookup = await lookupSession(client(), credentials);
-    if (lookup.status === 'ended') deleteCookie(ONBOARDING_COOKIE, cookieOptions());
-    return lookup;
-  },
+  (): Promise<SessionLookup> => readSession(client(), cookie()),
 );
-
-/**
- * Runs a step on the session in the cookie. The secret stays on the server; the
- * cookie is cleared once the directory says the session has ended.
- */
-async function onSession(
-  step: (credentials: OnboardingCredentials) => Promise<StepResult>,
-): Promise<StepResult> {
-  const credentials = decodeOnboardingCookie(getCookie(ONBOARDING_COOKIE));
-  const result = credentials
-    ? await step(credentials)
-    : { ok: false as const, code: 'ended' as const };
-  if (!result.ok && (result.code === 'ended' || result.code === 'too-many')) {
-    deleteCookie(ONBOARDING_COOKIE, cookieOptions());
-  }
-  return result;
-}
 
 /** `POST …/otp/{channel}/verify`. */
 export const verifyOnboardingCode = createServerFn({ method: 'POST' })
@@ -128,5 +97,5 @@ export const resendSetPasswordEmail = createServerFn({ method: 'POST' }).handler
  * call to end a session, so the directory's copy lapses at its expiry.
  */
 export const leaveOnboarding = createServerFn({ method: 'POST' }).handler(() => {
-  deleteCookie(ONBOARDING_COOKIE, cookieOptions());
+  cookie().clear();
 });

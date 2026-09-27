@@ -10,7 +10,7 @@ import type { IdentifyInput } from '../components/onboarding/identify';
 import { identifySchema } from '../components/onboarding/identify';
 import { routeForSession, type StepRoute } from '../components/onboarding/steps';
 import type { OnboardingClient } from './directory/client.server';
-import type { OnboardingCredentials } from './onboarding-cookie';
+import type { OnboardingCookie, OnboardingCredentials } from './onboarding-cookie';
 import type {
   OnboardingCommission,
   OnboardingProblemCode,
@@ -95,6 +95,17 @@ export async function identify(
   }
 }
 
+/** Identify, putting a new session's credentials in the cookie. */
+export async function startSession(
+  client: OnboardingClient,
+  cookie: OnboardingCookie,
+  input: IdentifyInput,
+): Promise<IdentifyResult> {
+  const { result, created } = await identify(client, input);
+  if (created) cookie.save(created, created.expiresAt);
+  return result;
+}
+
 export type SessionLookup =
   | { status: 'none' }
   /** The session expired or is gone; the cookie should be cleared. */
@@ -110,12 +121,47 @@ export async function lookupSession(
     const { data, response } = await client.GET('/v1/onboarding/sessions/{sessionId}', {
       params: sessionParams({ sessionId, secret }),
     });
-    if (data) return { status: 'active', session: data };
+    // An expired session is as good as gone: nothing can move it on.
+    if (data)
+      return data.state === 'expired' ? { status: 'ended' } : { status: 'active', session: data };
     if (response.status === 404 || response.status === 410) return { status: 'ended' };
     return { status: 'unavailable' };
   } catch {
     return { status: 'unavailable' };
   }
+}
+
+/**
+ * The session in the cookie. A live session's cookie is written again with its current expiry;
+ * an ended or expired one's is cleared.
+ */
+export async function readSession(
+  client: OnboardingClient,
+  cookie: OnboardingCookie,
+): Promise<SessionLookup> {
+  const credentials = cookie.read();
+  if (!credentials) return { status: 'none' };
+  const lookup = await lookupSession(client, credentials);
+  if (lookup.status === 'ended') cookie.clear();
+  if (lookup.status === 'active') cookie.save(credentials, lookup.session.expiresAt);
+  return lookup;
+}
+
+/**
+ * Runs a step on the session in the cookie. The secret stays on the server. Each step that
+ * returns the session moves the cookie's expiry with it; one that finds the session ended
+ * clears the cookie.
+ */
+export async function runStep(
+  cookie: OnboardingCookie,
+  step: (credentials: OnboardingCredentials) => Promise<StepResult>,
+): Promise<StepResult> {
+  const credentials = cookie.read();
+  if (!credentials) return { ok: false, code: 'ended' };
+  const result = await step(credentials);
+  if (result.ok) cookie.save(credentials, result.session.expiresAt);
+  else if (result.code === 'ended' || result.code === 'too-many') cookie.clear();
+  return result;
 }
 
 /**
