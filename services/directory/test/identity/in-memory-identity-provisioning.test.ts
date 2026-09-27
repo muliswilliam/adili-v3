@@ -38,10 +38,18 @@ identityProvisioningContract('InMemoryIdentityProvisioning', () => ({
     });
     return Promise.resolve();
   },
+  clientCredentials: (clientId, secret) => {
+    const client = fake.apiClient(clientId);
+    const admitted = client?.enabled && client.secret === secret && client.audience === 'adili-api';
+    return Promise.resolve(
+      admitted ? { tenant: client.tenant, scopes: client.scopes, clientId: client.clientId } : null,
+    );
+  },
   cleanup: () => {
     fake.reset();
     return Promise.resolve();
   },
+  cleanupApiClients: () => Promise.resolve(),
 }));
 
 describe('InMemoryIdentityProvisioning', () => {
@@ -69,6 +77,30 @@ describe('InMemoryIdentityProvisioning', () => {
       { operation: 'deleteUser', userId },
     ]);
     expect(identity.calls('createStaffUser')).toEqual([{ operation: 'createStaffUser', input }]);
+  });
+
+  it('records API client calls and holds what their tokens would carry', async () => {
+    const identity = new InMemoryIdentityProvisioning('adili-test-api');
+    const input = { tenant: 'psc', clientId: 'roster-psc-1', scopes: ['roster:write'] };
+
+    const created = await identity.createApiClient(input);
+    const rotated = await identity.rotateApiClientSecret('roster-psc-1');
+    await identity.disableApiClient('roster-psc-1');
+
+    expect(identity.calls()).toEqual([
+      { operation: 'createApiClient', input },
+      { operation: 'rotateApiClientSecret', clientId: 'roster-psc-1' },
+      { operation: 'disableApiClient', clientId: 'roster-psc-1' },
+    ]);
+    expect(created.secret).not.toBe(rotated.secret);
+    expect(identity.apiClient('roster-psc-1')).toEqual({
+      clientId: 'roster-psc-1',
+      tenant: 'psc',
+      scopes: ['roster:write'],
+      audience: 'adili-test-api',
+      enabled: false,
+      secret: rotated.secret,
+    });
   });
 
   it('records calls that fail', async () => {

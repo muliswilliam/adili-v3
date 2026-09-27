@@ -18,6 +18,7 @@ import { KeycloakIdentityProvisioning } from './keycloak-identity-provisioning.j
           issuerUrl: config.OIDC_ISSUER_URL,
           clientId: config.KEYCLOAK_CLIENT_ID,
           clientSecret: config.KEYCLOAK_CLIENT_SECRET,
+          audience: config.OIDC_AUDIENCE,
         }),
     },
   ],
