@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Checks that the Adili realm file still has the roles, BFF clients,
-// authentication flows and staff provisioning setup (directory service client,
-// SMTP, email theme, user profile attributes) specs 03, 04 and 06 require.
-// Demo users are optional (#371 seeds them).
+// authentication flows, staff provisioning setup (directory service client,
+// SMTP, email theme, user profile attributes) and API client setup (roster:write
+// client scope) specs 03, 04, 06 and 27 require. Demo users are optional (#371
+// seeds them).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -143,8 +144,48 @@ if (!directory) {
   }
   const account = (realm.users ?? []).find((user) => user.serviceAccountClientId === 'directory');
   const granted = new Set(account?.clientRoles?.['realm-management'] ?? []);
-  for (const role of ['manage-users', 'view-users', 'query-users']) {
+  // Users for staff provisioning (spec 06), clients for HR-system credentials (spec 27).
+  for (const role of [
+    'manage-users',
+    'view-users',
+    'query-users',
+    'manage-clients',
+    'view-clients',
+    'query-clients',
+  ]) {
     if (!granted.has(role)) fail(`directory service account needs realm-management ${role}`);
+  }
+}
+
+// Client scopes. A realm file that lists clientScopes gets none of Keycloak's
+// built-in ones, so every scope a client (or the realm default) names must be
+// listed here too.
+const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
+const rosterWrite = scopes.get('roster:write');
+if (!rosterWrite) {
+  fail('missing client scope roster:write (HR-system API clients, spec 27)');
+} else {
+  if (rosterWrite.protocol !== 'openid-connect') fail('roster:write must be an OIDC scope');
+  if (rosterWrite.attributes?.['include.in.token.scope'] !== 'true') {
+    fail('roster:write must be included in the token scope claim');
+  }
+}
+// API clients the directory creates get `basic` (the `sub` claim) with their own scope.
+if (!scopes.has('basic')) fail('missing client scope basic (API client tokens need sub)');
+const referenced = [
+  ...(realm.defaultDefaultClientScopes ?? []).map((name) => ['realm default', name]),
+  ...(realm.defaultOptionalClientScopes ?? []).map((name) => ['realm optional', name]),
+  ...(realm.clients ?? []).flatMap((client) =>
+    [...(client.defaultClientScopes ?? []), ...(client.optionalClientScopes ?? [])].map((name) => [
+      client.clientId,
+      name,
+    ]),
+  ),
+];
+if (realm.clientScopes) {
+  for (const [owner, name] of referenced) {
+    if (!scopes.has(name))
+      fail(`${owner} names client scope ${name}, which is not in clientScopes`);
   }
 }
 

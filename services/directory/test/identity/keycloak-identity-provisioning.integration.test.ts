@@ -1,3 +1,4 @@
+import { TokenVerifier } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
 import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
@@ -13,7 +14,9 @@ import {
 /**
  * S17 against a real Keycloak with the committed realm import and the Adili theme (the
  * `adili/keycloak` image, as in `pnpm infra:up`), and delivery of the activation email to
- * Mailpit, rendered by the theme's email templates. Uses the `directory` service client.
+ * Mailpit, rendered by the theme's email templates. S19 (spec #27): API clients obtain tokens
+ * that services accept, verified against the realm's published keys. Uses the `directory`
+ * service client.
  */
 const ISSUER_URL = requireEnv('TEST_KEYCLOAK_ISSUER_URL');
 const MAILPIT_URL = requireEnv('TEST_MAILPIT_URL');
@@ -25,6 +28,9 @@ const adapter = new KeycloakIdentityProvisioning({
   clientId: CLIENT_ID,
   clientSecret: CLIENT_SECRET,
 });
+
+/** Verifies tokens as every service does (api-kit JwtAuthGuard). */
+const verifier = new TokenVerifier(ISSUER_URL, 'adili-api');
 
 identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
   adapter,
@@ -71,8 +77,34 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     expect(claims.rqac).toEqual([...options.actions]);
     await deleteMessages([message.id]);
   },
+  clientCredentials: async (clientId, secret) => {
+    const response = await fetch(`${ISSUER_URL}/protocol/openid-connect/token`, {
+      method: 'POST',
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: secret,
+      }),
+    });
+    if (response.status === 400 || response.status === 401) return null;
+    if (!response.ok) {
+      throw new Error(`token endpoint answered ${response.status}: ${await response.text()}`);
+    }
+    const { access_token: token } = (await response.json()) as { access_token: string };
+    const principal = await verifier.verify(token);
+    return { tenant: principal.tenant, scopes: principal.scopes, clientId: principal.clientId };
+  },
   cleanup: async (userIds) => {
     await Promise.all(userIds.map((userId) => admin('DELETE', `/users/${userId}`)));
+  },
+  cleanupApiClients: async (clientIds) => {
+    for (const clientId of clientIds) {
+      const [client] = await admin<{ id: string }[]>(
+        'GET',
+        `/clients?clientId=${encodeURIComponent(clientId)}`,
+      );
+      if (client) await admin('DELETE', `/clients/${client.id}`);
+    }
   },
 }));
 

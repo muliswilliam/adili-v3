@@ -27,6 +27,8 @@ export interface Caller {
   sub?: string;
   tenant?: string | null;
   roles?: string[];
+  /** The `name` claim; absent by default. */
+  name?: string;
 }
 
 export interface WriteOptions {
@@ -57,6 +59,8 @@ export interface DirectoryApi {
     caller: Caller,
     options?: WriteOptions,
   ): ReturnType<NestFastifyApplication['inject']>;
+  /** `DELETE` as the given caller. */
+  delete(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every directory table except seeded reference data. */
   reset(): Promise<void>;
   close(): Promise<void>;
@@ -137,9 +141,17 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     put(path, body, caller, options) {
       return write('PUT', path, body, caller, options);
     },
+    async delete(path, caller) {
+      const token = await signer(caller);
+      return app.inject({
+        method: 'DELETE',
+        url: path,
+        headers: { authorization: `Bearer ${token}` },
+      });
+    },
     async reset() {
       await db.execute(
-        sql`truncate reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
+        sql`truncate roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
       activationLookups.expireAll();
@@ -172,8 +184,8 @@ async function applyMigrations(db: Database<DirectorySchema>): Promise<void> {
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
-  const signer = ({ sub = randomUUID(), tenant = null, roles = [] }: Caller) =>
-    new SignJWT({ azp: 'console', tenant, realm_access: { roles } })
+  const signer = ({ sub = randomUUID(), tenant = null, roles = [], name }: Caller) =>
+    new SignJWT({ azp: 'console', tenant, realm_access: { roles }, name })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
