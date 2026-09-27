@@ -1,12 +1,20 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, HttpReadinessCheck } from '@adili/api-kit';
+import { CoreModule } from '@adili/api-kit';
 import { CacheModule, ValkeyReadinessCheck } from '@adili/cache';
-import { DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
+import {
+  DatabaseModule,
+  DatabaseReadinessCheck,
+  FieldCipher,
+  OpenBaoReadinessCheck,
+  OpenBaoTransitCipher,
+} from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+
+const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
 
 @Module({
   imports: [
@@ -18,7 +26,7 @@ import { schema } from './db/schema.js';
         RabbitMqReadinessCheck,
         TemporalReadinessCheck,
         ValkeyReadinessCheck,
-        new HttpReadinessCheck('openbao', `${config.OPENBAO_ADDR}/v1/sys/health`),
+        new OpenBaoReadinessCheck(openbao),
       ],
     }),
     DatabaseModule.forRoot({
@@ -33,5 +41,6 @@ import { schema } from './db/schema.js';
     }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
   ],
+  providers: [{ provide: FieldCipher, useValue: new OpenBaoTransitCipher(openbao) }],
 })
 export class AppModule {}

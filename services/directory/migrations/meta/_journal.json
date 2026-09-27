@@ -8,6 +8,41 @@
       "when": 1790325258916,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790465160312,
+      "tag": "0001_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790465897023,
+      "tag": "0002_commissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790465897536,
+      "tag": "0003_commissions_seed_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790469766504,
+      "tag": "0004_reporting_officer_replacement",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790539953477,
+      "tag": "0005_idempotency_claim_token",
+      "breakpoints": true
     }
   ]
 }

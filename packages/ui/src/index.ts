@@ -78,6 +78,12 @@ export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
+export {
+  RadioCard,
+  type RadioCardProps,
+  RadioGroup,
+  type RadioGroupProps,
+} from './components/radio';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,

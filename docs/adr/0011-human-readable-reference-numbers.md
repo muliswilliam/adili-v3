@@ -47,7 +47,7 @@ Reference numbers are sequential and so guessable. They are **never used as publ
 | `RFL` | Referral to EACC / ICMS (Reg 20) | `RFL-PSC-2028-0000031-7` |
 | `CRT` | Compliance certificate (ADR-009) | `CRT-TSC-2027-0098765-D` |
 | `DLG` | Delegation record (s.33, s.7(c)) | `DLG-PSC-2026-0000003-2` |
-| `OFR` | **Officer reference**: permanent, person-level, not tied to a tenant (follows the person across transfers; used by helpdesk instead of the national ID) | `OFR-0482913-H` (no issuer or period) |
+| `OFR` | **Officer reference**: permanent, person-level, not tied to a tenant (follows the person across transfers; used by helpdesk instead of the national ID) | `OFR-0482913-L` (no issuer or period) |
 
 The code list and formats live in a versioned **numbering scheme registry** (configuration data), so EACC can add record types or adjust formats without code changes. **Issued numbers are never changed, renumbered or reused.**
 

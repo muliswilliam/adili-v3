@@ -1,19 +1,13 @@
 name: Keycloak
 
+# Called by ci.yml, so the integration job there runs against this exact image (one build per
+# run). Compose builds the same image as adili/keycloak:dev from infra/docker/keycloak.Dockerfile.
 on:
-  push:
-    branches: [main]
-  pull_request:
-
-concurrency:
-  group: keycloak-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
-
-# Own workflow so this does not fight #380's ci.yml edits. Compose already
-# builds and uses image adili/keycloak:dev from infra/docker/keycloak.Dockerfile.
 
 jobs:
   realm:
@@ -40,7 +34,13 @@ jobs:
         with:
           context: .
           file: infra/docker/keycloak.Dockerfile
-          push: false
           tags: adili/keycloak:dev
+          outputs: type=docker,dest=${{ runner.temp }}/keycloak-image.tar
           cache-from: type=gha,scope=keycloak
           cache-to: type=gha,mode=max,scope=keycloak
+      # For the integration job in ci.yml (identity contract suite against real Keycloak).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: keycloak-image
+          path: ${{ runner.temp }}/keycloak-image.tar
+          retention-days: 1

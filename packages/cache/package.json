@@ -20,14 +20,17 @@
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
-    "@nestjs/common": "^12.1.0",
     "iovalkey": "^0.4.0"
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@nestjs/common": "^12.1.0",
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
     "typescript": "~6.0.3"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.1.0"
   }
 }
