@@ -194,10 +194,17 @@ export class AutosaveQueue {
   private readonly debounces = new Map<string, ReturnType<typeof setTimeout>>();
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly options: AutosaveQueueOptions;
+  private savedHandler: AutosaveQueueOptions['onSaved'];
 
   constructor(options: AutosaveQueueOptions) {
     this.options = options;
+    this.savedHandler = options.onSaved;
     this.state = initialAutosave(options.etag, options.version);
+  }
+
+  /** Replaces the handler called after each successful save. */
+  setOnSaved(handler: AutosaveQueueOptions['onSaved']) {
+    this.savedHandler = handler;
   }
 
   getState = (): AutosaveState => this.state;
@@ -288,7 +295,7 @@ export class AutosaveQueue {
     switch (outcome.status) {
       case 'saved':
         this.dispatch({ type: 'saved', etag: outcome.etag, version: outcome.result.draftVersion });
-        this.options.onSaved?.(key, outcome.result);
+        this.savedHandler?.(key, outcome.result);
         break;
       case 'conflict':
         this.dispatch({ type: 'conflict' });
