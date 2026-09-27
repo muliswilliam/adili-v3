@@ -81,6 +81,17 @@ export const stories = {
     resendAvailableAt: inSeconds(60),
   })),
 
+  // Staff authenticator (login-config-totp.ftl, login-otp.ftl)
+  'configure-totp': story('login-config-totp.ftl', () => ({
+    ...staff,
+    message: {
+      type: 'warning',
+      summary: 'You need to set up Mobile Authenticator to activate your account.',
+    },
+  })),
+  'configure-totp-manual': story('login-config-totp.ftl', () => ({ ...staff, mode: 'manual' })),
+  'sign-in-code': story('login-otp.ftl', () => staff),
+
   // Set your password
   'update-password': story('login-update-password.ftl'),
   'update-password-policy': story('login-update-password.ftl', () => ({
@@ -125,6 +136,12 @@ export const stories = {
     ...staffWithUrl,
     message: { type: 'error', summary: 'Action expired.' },
   })),
+  // As Keycloak renders an expired emailed link: without a client. The link's token is in the
+  // address bar (see EXPIRED_STAFF_LINK_SEARCH).
+  'link-expired-emailed': story('error.ftl', () => ({
+    client: undefined,
+    message: { type: 'error', summary: 'Action expired.' },
+  })),
   'link-invalid': story('error.ftl', () => ({
     message: {
       type: 'error',
@@ -152,3 +169,32 @@ export const stories = {
 } satisfies Record<string, () => KcContext>;
 
 export type StoryName = keyof typeof stories;
+
+/** The query string of an emailed link (unsigned token; only its claims matter here). */
+export function emailedLinkSearch(claims: Record<string, unknown>): string {
+  const payload = btoa(JSON.stringify(claims)).replace(/=+$/, '');
+  return `?key=eyJhbGciOiJub25lIn0.${payload}.sig`;
+}
+
+const issuedAt = (epochSeconds: number) => ({ iat: epochSeconds, exp: epochSeconds + 72 * 3600 });
+
+/** A staff activation link that expired in September 2026. */
+export const EXPIRED_STAFF_LINK_SEARCH = emailedLinkSearch({
+  typ: 'execute-actions',
+  azp: 'console',
+  reduri: 'http://localhost:3020/auth/login',
+  ...issuedAt(1_790_000_000),
+});
+/** A staff activation link that expires in 2100: Keycloak refusing it means it was used. */
+export const USED_STAFF_LINK_SEARCH = emailedLinkSearch({
+  typ: 'execute-actions',
+  azp: 'console',
+  reduri: 'http://localhost:3020/auth/login',
+  ...issuedAt(4_102_444_800),
+});
+/** A declarant's set-password link that expired in September 2026. */
+export const EXPIRED_DECLARANT_LINK_SEARCH = emailedLinkSearch({
+  typ: 'execute-actions',
+  azp: 'portal',
+  ...issuedAt(1_790_000_000),
+});

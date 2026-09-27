@@ -9,7 +9,23 @@ export type Audience = 'declarant' | 'staff';
 export const CONSOLE_CLIENT_ID = 'console';
 
 export function audienceOf(kcContext: Pick<KcContext, 'client'>): Audience {
-  return kcContext.client.clientId === CONSOLE_CLIENT_ID ? 'staff' : 'declarant';
+  return audienceOfClient(kcContext.client.clientId);
+}
+
+export function audienceOfClient(clientId: string | undefined): Audience {
+  return clientId === CONSOLE_CLIENT_ID ? 'staff' : 'declarant';
+}
+
+/**
+ * Where each audience signs in, from the theme's environment (vite.config.ts). For pages that
+ * Keycloak renders without a client, such as an expired emailed link.
+ */
+export function signInUrlOf(
+  audience: Audience,
+  properties: Pick<KcContext['properties'], 'ADILI_CONSOLE_URL' | 'ADILI_PORTAL_URL'>,
+): string | undefined {
+  const base = audience === 'staff' ? properties.ADILI_CONSOLE_URL : properties.ADILI_PORTAL_URL;
+  return clientUrl(base, 'auth/login');
 }
 
 /** A key of the theme's own copy (i18n.ts). */

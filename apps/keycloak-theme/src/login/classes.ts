@@ -6,8 +6,8 @@ import { buttonVariants, cn, controlClassName } from '@adili/ui';
 const input = cn(controlClassName, 'flex h-11 px-3');
 
 /**
- * Tailwind classes for the pages rendered by Keycloakify's DefaultPage (everything except the
- * custom login page), so rarely seen flows (OTP, password update, errors) match the design system.
+ * Tailwind classes for the pages rendered by Keycloakify's DefaultPage (everything this theme does
+ * not render itself in pages/), so rarely seen flows match the design system.
  */
 export const classes = {
   kcFormClass: 'grid gap-5',

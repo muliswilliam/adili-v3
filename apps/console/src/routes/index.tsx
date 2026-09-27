@@ -4,34 +4,43 @@ import {
   Badge,
   Button,
   Card,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardIcon,
-  CardTitle,
   Icon,
+  type IconProps,
   SiteHeader,
 } from '@adili/ui';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   AlertCircleIcon,
+  ArrowRight02Icon,
   Building03Icon,
+  CheckmarkBadge01Icon,
   ClipboardCheckIcon,
+  CustomerSupportIcon,
   FileChartColumnIcon,
-  SquareLock02Icon,
+  FileLockedIcon,
+  Home01Icon,
+  Search01Icon,
+  Settings01Icon,
+  TaskDone01Icon,
+  UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
 import { IdentityCard } from '../components/identity-card';
-import { SignOutButton } from '../components/sign-out-button';
-import { workspacesFor } from '../components/workspaces';
-import { getViewer, type Viewer } from '../server/viewer';
+import { NoStaffRoles } from '../components/load-error';
+import { Page, PageHead } from '../components/page';
+import { ConsoleShell } from '../components/shell/console-shell';
+import { type Workspace, workspacesFor } from '../components/workspaces';
+import { type DashboardViewer, getDashboardViewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
   validateSearch: z.object({ auth_error: z.string().optional() }),
-  loader: () => getViewer(),
+  loader: () => getDashboardViewer(),
+  staticData: { crumb: 'Home' },
   component: Home,
 });
 
@@ -69,11 +78,16 @@ function Landing({ error }: { error: string | null }) {
               Responsible Commissions review and verify the declarations filed with them, act on
               non-compliance and report to the Ethics and Anti-Corruption Commission.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button asChild>
-                <a href="/auth/login">Sign in to the console</a>
-              </Button>
-              <p className="text-sm text-muted-foreground">Use your staff account.</p>
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button asChild>
+                  <a href="/auth/login">Sign in to the console</a>
+                </Button>
+                <p className="text-sm text-muted-foreground">Use your staff account.</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Activation link expired? Ask EACC to resend your invitation.
+              </p>
             </div>
           </div>
           <ul className="grid gap-4">
@@ -113,65 +127,95 @@ function Capability({ icon, title, text }: { icon: ReactNode; title: string; tex
   );
 }
 
-function Dashboard({ viewer }: { viewer: Viewer }) {
-  const workspaces = viewer.directory.ok ? workspacesFor(viewer.directory.principal.roles) : [];
+function Dashboard({ viewer }: { viewer: DashboardViewer }) {
+  const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
+  const workspaces = workspacesFor(roles);
   return (
-    <>
-      <SiteHeader
-        product="Console"
-        actions={
-          <>
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {viewer.user.name}
-            </span>
-            <SignOutButton />
-          </>
-        }
-      />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        <div className="grid gap-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="text-muted-foreground">Signed in as {viewer.user.name}.</p>
+    <ConsoleShell userName={viewer.user.name} roles={roles}>
+      <Page>
+        <PageHead title="Overview">
+          <p className="mt-1 text-sm text-muted-foreground">Signed in as {viewer.user.name}.</p>
+        </PageHead>
+        <div className="grid items-start gap-4 min-[1180px]:grid-cols-[minmax(0,1fr)_400px]">
+          <section aria-labelledby="workspaces-title" className="grid gap-3">
+            <h2 id="workspaces-title" className="sr-only">
+              Your workspaces
+            </h2>
+            {workspaces.length > 0 ? (
+              <ul className="grid gap-3.5 min-[760px]:grid-cols-2">
+                {workspaces.map((workspace) => (
+                  <WorkspaceCard key={workspace.id} workspace={workspace} />
+                ))}
+              </ul>
+            ) : (
+              <NoStaffRoles />
+            )}
+          </section>
+          <IdentityCard
+            user={viewer.user}
+            directory={viewer.directory}
+            organisation={viewer.organisation}
+          />
         </div>
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-          <IdentityCard user={viewer.user} directory={viewer.directory} />
-          <Card>
-            <CardHeader>
-              <CardTitle>Your workspaces</CardTitle>
-              <CardDescription>Areas of the console your roles give you access to.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {workspaces.length > 0 ? (
-                <ul className="grid gap-3 sm:grid-cols-2">
-                  {workspaces.map((workspace) => (
-                    <li
-                      key={workspace.id}
-                      className="grid content-start gap-2 rounded-lg border p-4"
-                      aria-disabled="true"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="text-sm font-semibold">{workspace.title}</h2>
-                        <Badge className="shrink-0">Not yet available</Badge>
-                      </div>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {workspace.description}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                  <Icon icon={SquareLock02Icon} className="size-6 text-muted-foreground" />
-                  <p className="text-sm font-medium">No staff roles</p>
-                  <p className="max-w-xs text-sm text-muted-foreground">
-                    Your account has no console access. Declarants file through the portal.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      </Page>
+    </ConsoleShell>
+  );
+}
+
+const WORKSPACE_ICONS: Record<string, IconProps['icon']> = {
+  commissions: Building03Icon,
+  review: TaskDone01Icon,
+  approvals: CheckmarkBadge01Icon,
+  access: FileLockedIcon,
+  roster: UserGroupIcon,
+  commission: Home01Icon,
+  compliance: FileChartColumnIcon,
+  audit: Search01Icon,
+  support: CustomerSupportIcon,
+  platform: Settings01Icon,
+};
+
+/** A workspace as the prototype's `.ws` card: icon tile, title, description and "Open". */
+function WorkspaceCard({ workspace }: { workspace: Workspace }) {
+  const icon = WORKSPACE_ICONS[workspace.id] ?? Building03Icon;
+  if (!workspace.href) {
+    return (
+      <li className="flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card">
+        <CardIcon className="mb-0 size-[38px] rounded-[10px] text-muted-foreground [&_svg]:size-[19px]">
+          <Icon icon={icon} />
+        </CardIcon>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-semibold tracking-[-0.01em]">{workspace.title}</h3>
+          <Badge>Not yet available</Badge>
         </div>
-      </main>
-    </>
+        <p className="text-sm leading-[1.45] text-muted-foreground">{workspace.description}</p>
+      </li>
+    );
+  }
+  return (
+    <li className="relative flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--input),0_6px_20px_-8px_rgb(0_0_0/0.15)]">
+      <CardIcon className="mb-0 size-[38px] rounded-[10px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">
+        <Icon icon={icon} />
+      </CardIcon>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-base font-semibold tracking-[-0.01em]">
+          <Link
+            to={workspace.href}
+            className="rounded-sm outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
+          >
+            {workspace.title}
+          </Link>
+        </h3>
+        {workspace.readOnly ? <Badge>Read only</Badge> : null}
+      </div>
+      <p className="text-sm leading-[1.45] text-muted-foreground">{workspace.description}</p>
+      <span
+        aria-hidden="true"
+        className="mt-auto flex items-center gap-1 text-[13.5px] font-medium"
+      >
+        Open
+        <Icon icon={ArrowRight02Icon} className="size-[15px]" />
+      </span>
+    </li>
   );
 }

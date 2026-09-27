@@ -13,7 +13,7 @@ import { type InputHTMLAttributes, type Ref, useRef, useState } from 'react';
 import { PageAlert } from '../components/PageAlert';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { type Audience, audienceCopy, audienceOf } from '../shared';
+import { type Audience, audienceCopy, audienceOf, messageIsOneOf } from '../shared';
 import Template from '../Template';
 
 type UpdatePasswordProps = PageProps<
@@ -111,7 +111,10 @@ export default function UpdatePassword({
       i18n={i18n}
       doUseDefaultCss={doUseDefaultCss}
       classes={classes}
-      displayMessage={serverError === undefined}
+      // Keycloak's "You need to change your password" warning repeats the title.
+      displayMessage={
+        serverError === undefined && !messageIsOneOf(kcContext, i18n, ['updatePasswordMessage'])
+      }
       headerNode={msg('adiliSetPasswordTitle')}
     >
       {serverError ? (

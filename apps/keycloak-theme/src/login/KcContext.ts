@@ -6,8 +6,7 @@ import type { AdiliOtpAttributes } from './adili-otp';
 
 export interface KcContextExtension {
   themeName: ThemeName;
-  // Empty until the theme declares environment variables in vite.config.ts.
-  // eslint-disable-next-line @typescript-eslint/no-generated-empty-object-type
+  /** The environment variables declared in vite.config.ts, as Keycloak's environment sets them. */
   properties: Record<KcEnvName, string>;
 }
 

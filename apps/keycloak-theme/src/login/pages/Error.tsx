@@ -8,12 +8,13 @@ import {
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { MessageKey_defaultSet } from 'keycloakify/login';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 
+import { type ActionToken, actionTokenOf } from '../action-token';
 import { Callout } from '../components/PageAlert';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
-import { audienceCopy, audienceOf, clientUrl, messageIsOneOf } from '../shared';
+import { audienceCopy, audienceOfClient, clientUrl, messageIsOneOf, signInUrlOf } from '../shared';
 import Template, { type PageMark } from '../Template';
 
 type ErrorKcContext = Extract<KcContext, { pageId: 'error.ftl' }>;
@@ -39,9 +40,16 @@ const ERROR_MESSAGES: Record<Exclude<ErrorState, 'other'>, readonly MessageKey_d
   'account-disabled': ['accountDisabledMessage'],
 };
 
-export function errorState(kcContext: ErrorKcContext, i18n: I18n): ErrorState {
+export function errorState(
+  kcContext: ErrorKcContext,
+  i18n: I18n,
+  token: ActionToken | null = null,
+): ErrorState {
   for (const [state, keys] of Object.entries(ERROR_MESSAGES)) {
-    if (messageIsOneOf(kcContext, i18n, keys)) return state as ErrorState;
+    if (!messageIsOneOf(kcContext, i18n, keys)) continue;
+    // Keycloak says "expired" for a link already used too; one whose token has not expired was.
+    if (state === 'link-expired' && token && !token.expired) return 'link-invalid';
+    return state as ErrorState;
   }
   return 'other';
 }
@@ -60,13 +68,21 @@ interface ErrorPageCopy {
  * Keycloak could not complete. Declarant and staff copy differ by client (portal or console).
  */
 export default function ErrorPage({ kcContext, i18n, doUseDefaultCss, classes }: ErrorProps) {
-  const { client, url, message } = kcContext;
+  const { url, message, properties } = kcContext;
+  // Absent at runtime when an emailed link expired, whatever the type says.
+  const client = kcContext.client as Partial<ErrorKcContext['client']> | undefined;
   const { msg } = i18n;
-  const state = errorState(kcContext, i18n);
-  const audience = audienceOf(kcContext);
+  // An emailed link's token is still in the address bar. Read for display only: anyone can
+  // craft one, so it picks the copy (whose link it was, whether it was used), never a URL.
+  const [token] = useState(() => actionTokenOf(window.location.search, Date.now()));
+  const state = errorState(kcContext, i18n, token);
+  const audience = audienceOfClient(client?.clientId ?? token?.azp);
   const copy = audienceCopy(audience, i18n);
-  const signInUrl = client.baseUrl ?? url.loginUrl;
-  const newLinkUrl = clientUrl(client.baseUrl, PORTAL_NEW_LINK_PATH);
+  const signInUrl = client?.baseUrl ?? signInUrlOf(audience, properties) ?? url.loginUrl;
+  const newLinkUrl = clientUrl(
+    client?.baseUrl ?? properties.ADILI_PORTAL_URL,
+    PORTAL_NEW_LINK_PATH,
+  );
 
   const pages: Record<ErrorState, ErrorPageCopy> = {
     'link-expired': {
