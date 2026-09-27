@@ -1,15 +1,31 @@
 import createClient from 'openapi-fetch';
 
 import { env } from '../env.server';
-import { mockDirectoryFetch } from './mock.server';
 import type { paths } from './schema.gen';
 
 const TIMEOUT_MS = 5_000;
 
-/** A typed directory client with these headers, served by the mock when DIRECTORY_MOCK is set. */
+/**
+ * The in-memory directory (./mock.server.ts), loaded on first use. It trusts bearer tokens
+ * without checking their signatures, so it must never ship: see `createDirectoryClient`.
+ */
+async function mockFetch(request: Request): Promise<Response> {
+  const { mockDirectoryFetch } = await import('./mock.server');
+  return mockDirectoryFetch(request);
+}
+
+/** A typed directory client with these headers. */
 function createDirectoryClient(headers: Record<string, string>) {
   const config = env();
-  const send = config.DIRECTORY_MOCK ? mockDirectoryFetch : fetch;
+  // Local development and tests only: DIRECTORY_MOCK=true serves the directory from the mock
+  // until it implements spec 03 (#67). `import.meta.env.DEV` is `false` in production builds,
+  // so the bundler drops this branch and the mock's chunk with it; keep the check inline here
+  // for that to work. The NODE_ENV check keeps the mock off even if a dev build were started
+  // with production settings.
+  const send =
+    import.meta.env.DEV && process.env.NODE_ENV !== 'production' && config.DIRECTORY_MOCK
+      ? mockFetch
+      : fetch;
   return createClient<paths>({
     baseUrl: config.DIRECTORY_API_URL,
     headers: { accept: 'application/json', ...headers },
