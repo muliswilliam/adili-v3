@@ -107,7 +107,7 @@ export const en = {
   officerReplace: 'Replace',
   replaceTitle: 'Replace reporting officer',
   replaceWarning: (name: string) =>
-    `${name} will lose access to this Commission immediately. Their account will be disabled.`,
+    `${name} will lose reporting officer access to this Commission immediately. If that is their only role, their account will be disabled.`,
   officerResend: 'Resend invitation',
   officerResending: 'Resending…',
   invitationResentToast: (email: string) => `Invitation sent again to ${email}`,

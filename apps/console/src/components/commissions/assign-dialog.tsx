@@ -53,7 +53,7 @@ interface DialogState {
 export interface AssignDialogProps {
   commission: Pick<Commission, 'slug' | 'name' | 'reportingOfficer'>;
   /**
-   * `replace` when the Commission has an officer: the dialog warns that they lose access. The
+   * `replace` when the Commission has an officer: the dialog warns that they lose reporting officer access. The
    * request is the same either way; the directory replaces a current officer.
    */
   mode?: 'assign' | 'replace';
