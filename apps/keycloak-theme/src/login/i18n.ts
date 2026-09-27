@@ -121,6 +121,36 @@ export const en = {
   adiliErrorText: 'Nothing has changed on your account. Try signing in again.',
   adiliErrorHelp: 'If it keeps happening, contact {0}.',
 
+  // Staff activation steps, listed on the execute-actions landing page (info.ftl)
+  adiliStepVerifyEmail: 'Confirm your email address',
+  adiliStepVerifyEmailDetail: 'Done when you continue from this page.',
+  adiliStepTotp: 'Set up an authenticator app',
+  adiliStepTotpDetail: 'You scan a QR code with an app on your phone.',
+  adiliStepPassword: 'Choose a password',
+  adiliStepPasswordDetail: 'You sign in with it and a code from the app.',
+
+  // Authenticator enrolment (login-config-totp.ftl)
+  adiliTotpTitle: 'Set up your authenticator app',
+  adiliTotpInstall: 'Install an app on your phone',
+  adiliTotpInstallApps: 'For example {0}.',
+  adiliTotpScan: 'Scan this QR code with the app',
+  adiliTotpCantScan: 'Cannot scan? Enter a key',
+  adiliTotpEnterKey: 'Enter this key in the app',
+  adiliTotpKeyDetails: 'Time-based, {0} digits, a new code every {1} seconds.',
+  adiliTotpScanInstead: 'Scan a QR code instead',
+  adiliTotpEnterCode: 'Enter the 6-digit code the app shows',
+  adiliTotpDeviceLabel: 'Name this device',
+  adiliTotpDeviceHint: 'For example, Work phone. Helps if you add another device later.',
+  adiliOptional: 'optional',
+  adiliTotpSubmit: 'Verify and continue',
+
+  // Authenticator code at staff sign-in (login-otp.ftl)
+  adiliTotpCodeTitle: 'Enter your authenticator code',
+  adiliTotpCodeLead: 'The 6-digit code from the app you set up for Adili Online.',
+  adiliTotpNewCode: 'A new code appears every 30 seconds.',
+  adiliTotpLostPhone: 'Lost your phone? Ask EACC to reset your authenticator.',
+  adiliTotpDevice: 'Device',
+
   // Page expired (login-page-expired.ftl)
   adiliPageExpiredTitle: 'This page has expired',
   adiliPageExpiredText: 'You may have waited too long, or opened sign-in in another tab.',
@@ -148,6 +178,9 @@ export const en = {
   accountDisabledMessage:
     "Your account is disabled. Contact your Commission's reporting officer and quote your officer reference.",
   accountUpdatedMessage: 'Your password is set.',
+  // In the sentence case of the rest of the copy.
+  doLogIn: 'Sign in',
+  restartLoginTooltip: 'Not you?',
 } as const;
 
 /** @see https://docs.keycloakify.dev/features/i18n */

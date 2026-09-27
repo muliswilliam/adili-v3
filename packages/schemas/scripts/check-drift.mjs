@@ -1,8 +1,14 @@
 #!/usr/bin/env node
-// Hook for contract-convergence tickets. A service that exports its live OpenAPI
-// writes services/<name>/openapi.export.yaml; this compares it to the draft in
-// packages/schemas/internal/<name>.yaml. Until those exports exist, skip.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+// Internal contract drift. A service that serves an internal API has a `contracts` script that
+// writes its OpenAPI document to packages/schemas/internal/<service>.yaml, the one committed
+// contract per service (clients such as the console are generated from it). This runs each
+// export into a temporary file with `--out` and fails when it differs from the committed file.
+//
+// Run through `pnpm contracts:drift` at the repo root, which builds the services' workspace
+// dependencies first. SKIP_CONTRACT_DRIFT=1 skips the check.
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,42 +22,56 @@ if (process.env.SKIP_CONTRACT_DRIFT === '1') {
   process.exit(0);
 }
 
+function hasContractsScript(dir) {
+  const manifest = join(dir, 'package.json');
+  if (!existsSync(manifest)) return false;
+  return Boolean(JSON.parse(readFileSync(manifest, 'utf8')).scripts?.contracts);
+}
+
 const services = existsSync(servicesDir)
   ? readdirSync(servicesDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
+      .filter((entry) => entry.isDirectory() && hasContractsScript(join(servicesDir, entry.name)))
       .map((entry) => entry.name)
   : [];
 
-const exports = [];
-for (const name of services) {
-  const exported = join(servicesDir, name, 'openapi.export.yaml');
-  if (existsSync(exported)) {
-    exports.push({ name, exported, expected: join(internalDir, `${name}.yaml`) });
-  }
-}
-
-if (exports.length === 0) {
-  console.log(
-    'No services/*/openapi.export.yaml yet; skipping internal contract drift. Convergence tickets add that file.',
-  );
+if (services.length === 0) {
+  console.log('No service has a `contracts` script yet; skipping internal contract drift.');
   process.exit(0);
 }
 
+const scratch = mkdtempSync(join(tmpdir(), 'adili-contracts-'));
 let failed = 0;
-for (const { name, exported, expected } of exports) {
-  if (!existsSync(expected)) {
-    failed += 1;
-    console.error(`fail  ${name}: export exists but ${expected} is missing`);
-    continue;
+try {
+  for (const name of services) {
+    const expected = join(internalDir, `${name}.yaml`);
+    const exported = join(scratch, `${name}.yaml`);
+    const run = spawnSync('pnpm', ['run', '--silent', 'contracts', '--out', exported], {
+      cwd: join(servicesDir, name),
+      stdio: ['ignore', 'ignore', 'inherit'],
+    });
+    if (run.status !== 0 || !existsSync(exported)) {
+      failed += 1;
+      console.error(`fail  ${name}: the contracts export did not run (exit ${run.status})`);
+      continue;
+    }
+    if (!existsSync(expected)) {
+      failed += 1;
+      console.error(
+        `fail  ${name}: ${expected} is missing; run pnpm --filter @adili/${name} contracts`,
+      );
+      continue;
+    }
+    if (readFileSync(exported, 'utf8') === readFileSync(expected, 'utf8')) {
+      console.log(`ok    ${name}`);
+    } else {
+      failed += 1;
+      console.error(
+        `fail  ${name}: the service's OpenAPI differs from packages/schemas/internal/${name}.yaml; run pnpm --filter @adili/${name} contracts and commit the result`,
+      );
+    }
   }
-  const left = readFileSync(exported, 'utf8');
-  const right = readFileSync(expected, 'utf8');
-  if (left === right) {
-    console.log(`ok    ${name}`);
-  } else {
-    failed += 1;
-    console.error(`fail  ${name}: ${exported} differs from ${expected}`);
-  }
+} finally {
+  rmSync(scratch, { recursive: true, force: true });
 }
 
 process.exit(failed === 0 ? 0 : 1);

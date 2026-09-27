@@ -5,13 +5,9 @@ import type { MicroserviceOptions } from '@nestjs/microservices';
 import { Payload } from '@nestjs/microservices';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import {
-  createDatabase,
-  type Database,
-  DATABASE,
-  DatabaseModule,
-  runMigrations,
-} from '@adili/data-access';
+import { createDatabase, type Database, DATABASE, DatabaseModule } from '@adili/data-access';
+import { readFileSync } from 'node:fs';
+
 import amqp from 'amqplib';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -32,22 +28,32 @@ import {
  * Exercises the real path against Postgres and RabbitMQ (`pnpm infra:up`):
  * outbox row -> relay -> topic exchange -> service queue -> @OnEvent handler, and
  * a failing handler -> one redelivery -> dead-letter queue.
+ *
+ * Runs can overlap (other suites, other checkouts) on the shared test database and broker, so
+ * each run has a private Postgres schema and its own event types: another run's relay or
+ * events never reach this one.
  */
-const DATABASE_URL = requireEnv('TEST_DATABASE_URL');
+const RUN = Array.from({ length: 8 }, () =>
+  String.fromCharCode(97 + Math.floor(Math.random() * 26)),
+).join('');
+const SCHEMA = `events_test_${RUN}`;
+const DATABASE_URL = withSearchPath(requireEnv('TEST_DATABASE_URL'), SCHEMA);
 const RABBITMQ_URL = requireEnv('TEST_RABBITMQ_URL');
-const SERVICE = `events-test-${process.pid}`;
+const SERVICE = `events-test-${RUN}`;
+const HAPPENED = `test.happened-${RUN}.v1`;
+const BROKEN = `test.broken-${RUN}.v1`;
 
 const received: EventEnvelope[] = [];
 let failures = 0;
 
 @Controller()
 class TestConsumer {
-  @OnEvent('test.happened.v1')
+  @OnEvent(HAPPENED)
   happened(@Payload() event: EventEnvelope) {
     received.push(event);
   }
 
-  @OnEvent('test.broken.v1')
+  @OnEvent(BROKEN)
   broken() {
     failures++;
     throw new Error('handler bug');
@@ -88,12 +94,13 @@ describe('outbox to consumer over RabbitMQ', () => {
     await channel.deleteQueue(eventsQueue(SERVICE));
     await channel.deleteQueue(deadLetterQueue(SERVICE));
     await connection.close();
+    await dropSchema();
   });
 
   it('delivers an event recorded in a committed transaction', async () => {
     const envelope = await db.transaction((tx) =>
       publisher.record(tx, {
-        type: 'test.happened.v1',
+        type: HAPPENED,
         subject: 'DCB-TSC-2027-0012345-K',
         tenant: 'tsc',
         data: { declarationId: 'd-1' },
@@ -101,17 +108,20 @@ describe('outbox to consumer over RabbitMQ', () => {
     );
 
     await waitFor(() => received.some((event) => event.id === envelope.id));
-
     expect(received.find((event) => event.id === envelope.id)).toEqual(envelope);
-    const [row] = await db.select().from(outbox).where(eq(outbox.id, envelope.id));
-    expect(row?.publishedAt).toBeInstanceOf(Date);
+
+    // The relay marks the row after the broker confirms, so the consumer can see the event first.
+    await waitFor(async () => {
+      const [row] = await db.select().from(outbox).where(eq(outbox.id, envelope.id));
+      return row?.publishedAt instanceof Date;
+    });
   });
 
   it('does not publish events from a rolled-back transaction', async () => {
     let recordedId = '';
     await expect(
       db.transaction(async (tx) => {
-        recordedId = (await publisher.record(tx, { type: 'test.happened.v1', data: {} })).id;
+        recordedId = (await publisher.record(tx, { type: HAPPENED, data: {} })).id;
         throw new Error('business rule failed');
       }),
     ).rejects.toThrow('business rule failed');
@@ -121,9 +131,7 @@ describe('outbox to consumer over RabbitMQ', () => {
   });
 
   it('retries a failing handler once, then dead-letters the message', async () => {
-    const envelope = await db.transaction((tx) =>
-      publisher.record(tx, { type: 'test.broken.v1', data: {} }),
-    );
+    const envelope = await db.transaction((tx) => publisher.record(tx, { type: BROKEN, data: {} }));
 
     const connection = await amqp.connect(RABBITMQ_URL);
     const channel = await connection.createChannel();
@@ -141,12 +149,33 @@ describe('outbox to consumer over RabbitMQ', () => {
   });
 });
 
+/** Creates the run's private schema with the events tables (migrations applied directly). */
 async function resetTables(): Promise<void> {
   const setup = createDatabase({ url: DATABASE_URL, schema: {}, applicationName: SERVICE });
-  await setup.execute(sql`drop table if exists outbox, inbox`);
-  await setup.execute(sql`drop schema if exists drizzle cascade`);
+  await setup.execute(sql.raw(`drop schema if exists ${SCHEMA} cascade; create schema ${SCHEMA}`));
+  const migrations = new URL('migrations/', import.meta.url);
+  const journal = JSON.parse(readFileSync(new URL('meta/_journal.json', migrations), 'utf8')) as {
+    entries: { tag: string }[];
+  };
+  for (const { tag } of journal.entries) {
+    const migration = readFileSync(new URL(`${tag}.sql`, migrations), 'utf8');
+    for (const statement of migration.split('--> statement-breakpoint')) {
+      if (statement.trim()) await setup.execute(sql.raw(statement));
+    }
+  }
   await setup.$client.end();
-  await runMigrations(DATABASE_URL, new URL('migrations', import.meta.url).pathname);
+}
+
+async function dropSchema(): Promise<void> {
+  const setup = createDatabase({ url: DATABASE_URL, schema: {}, applicationName: SERVICE });
+  await setup.execute(sql.raw(`drop schema if exists ${SCHEMA} cascade`));
+  await setup.$client.end();
+}
+
+function withSearchPath(databaseUrl: string, schema: string): string {
+  const url = new URL(databaseUrl);
+  url.searchParams.set('options', `-c search_path=${schema}`);
+  return url.toString();
 }
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 10_000) {

@@ -3,6 +3,7 @@ import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 
+import { type Step, Steps } from '../components/Steps';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
 import { audienceCopy, audienceOf, messageIsOneOf } from '../shared';
@@ -12,6 +13,9 @@ type InfoKcContext = Extract<KcContext, { pageId: 'info.ftl' }>;
 type InfoProps = PageProps<InfoKcContext, I18n>;
 
 export type InfoState = 'actions-landing' | 'actions-done' | 'other';
+
+/** The order Keycloak runs the staff required actions in (by their realm priority). */
+const STAFF_ACTION_ORDER = ['VERIFY_EMAIL', 'CONFIGURE_TOTP', 'UPDATE_PASSWORD'];
 
 /** Which of the designed info pages this is. */
 export function infoState(kcContext: InfoKcContext, i18n: I18n): InfoState {
@@ -37,7 +41,7 @@ export default function Info(props: InfoProps) {
 
 function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
   const { requiredActions = [], actionUri } = kcContext;
-  const { msg, advancedMsgStr } = i18n;
+  const { msg } = i18n;
   const audience = audienceOf(kcContext);
   const copy = audienceCopy(audience, i18n);
 
@@ -52,11 +56,12 @@ function ActionsLanding({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps
       subtitleNode={copy.msg('activateText')}
     >
       {audience === 'staff' ? (
-        <ol className="grid list-inside list-decimal gap-2 rounded-lg border p-4 text-sm">
-          {requiredActions.map((action) => (
-            <li key={action}>{advancedMsgStr(`requiredAction.${action}`)}</li>
-          ))}
-        </ol>
+        <Steps
+          steps={[
+            ...STAFF_ACTION_ORDER.filter((action) => requiredActions.includes(action)),
+            ...requiredActions.filter((action) => !STAFF_ACTION_ORDER.includes(action)),
+          ].map((action) => stepFor(action, i18n))}
+        />
       ) : null}
       <div className="grid gap-3">
         <Button asChild className="w-full">
@@ -126,4 +131,19 @@ function OtherInfo({ kcContext, i18n, doUseDefaultCss, classes }: InfoProps) {
       ) : null}
     </Template>
   );
+}
+
+/** A staff required action as a step: what it is and what it asks of them. */
+function stepFor(action: string, i18n: I18n): Step {
+  const { msg, advancedMsgStr } = i18n;
+  switch (action) {
+    case 'VERIFY_EMAIL':
+      return { title: msg('adiliStepVerifyEmail'), detail: msg('adiliStepVerifyEmailDetail') };
+    case 'CONFIGURE_TOTP':
+      return { title: msg('adiliStepTotp'), detail: msg('adiliStepTotpDetail') };
+    case 'UPDATE_PASSWORD':
+      return { title: msg('adiliStepPassword'), detail: msg('adiliStepPasswordDetail') };
+    default:
+      return { title: advancedMsgStr(`requiredAction.${action}`) };
+  }
 }
