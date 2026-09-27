@@ -62,7 +62,7 @@ export function FormField({
     id: controlId ?? children.props.id,
     hint,
     error,
-    describedBy: children.props['aria-describedby'],
+    ownDescribedBy: children.props['aria-describedby'],
   });
 
   return (

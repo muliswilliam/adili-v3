@@ -1,4 +1,4 @@
-import { Button, Icon, Input, Label } from '@adili/ui';
+import { Button, cn, focusRing, Icon, Input, Label } from '@adili/ui';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useScript } from 'keycloakify/login/pages/Login.useScript';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
@@ -108,7 +108,10 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               {realm.resetPasswordAllowed ? (
                 <a
                   href={url.loginResetCredentialsUrl}
-                  className="rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className={cn(
+                    focusRing,
+                    'rounded-sm text-sm font-medium text-primary hover:underline',
+                  )}
                 >
                   {msg('doForgotPassword')}
                 </a>
@@ -203,7 +206,11 @@ function PasswordInput({ i18n, hasError }: { i18n: I18n; hasError: boolean }) {
       />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className={cn(
+          focusRing,
+          // Inset, so the ring stays inside the password field.
+          'absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:-outline-offset-2',
+        )}
         aria-label={msgStr(isPasswordRevealed ? 'hidePassword' : 'showPassword')}
         aria-controls="password"
         onClick={toggleIsPasswordRevealed}

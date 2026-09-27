@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { type ComponentProps, createContext, useContext } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 import { isInToastViewport } from './toast';
 
@@ -13,7 +14,26 @@ const DialogBusyContext = createContext(false);
 
 /** Set on the built-in close button (as data-dialog-dismiss) so initial focus can skip it. */
 const DISMISS_ATTRIBUTE = 'data-dialog-dismiss';
-const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
+const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea, [tabindex]';
+
+/**
+ * Whether an element can take focus from a user: not disabled, not taken out of the tab order,
+ * not inside a hidden or inert subtree and not hidden by CSS. Walks up the tree with
+ * getComputedStyle rather than using getClientRects, which is empty for everything in jsdom.
+ */
+function isFocusable(element: HTMLElement, container: HTMLElement): boolean {
+  if (element.tabIndex < 0 || element.matches(':disabled')) return false;
+  if (element.hasAttribute(DISMISS_ATTRIBUTE)) return false;
+  if (element.closest('[hidden], [inert]')) return false;
+  const view = element.ownerDocument.defaultView;
+  if (!view) return false;
+  if (view.getComputedStyle(element).visibility === 'hidden') return false;
+  for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    if (view.getComputedStyle(node).display === 'none') return false;
+    if (node === container) break;
+  }
+  return true;
+}
 
 /** Closes the dialog. Disabled, and does nothing, while the DialogContent is busy. */
 export function DialogClose({
@@ -45,9 +65,10 @@ export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> 
 
 /**
  * Modal content: a bottom sheet on phones, a centred 560px panel from `sm`. Compose it from
- * DialogHeader, DialogBody (which scrolls) and DialogFooter. Focus moves to the first field
- * (or the close button when there is none) on open, is trapped while open and returns to the
- * trigger on close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there
+ * DialogHeader, DialogBody (which scrolls) and DialogFooter. On open, focus moves to the first
+ * visible field, or to the first footer button when there are no fields, and only to the close
+ * button when nothing else can take focus. It is trapped while open and returns to the trigger
+ * on close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there
  * is no DialogDescription.
  */
 export function DialogContent({
@@ -68,17 +89,15 @@ export function DialogContent({
           onOpenAutoFocus?.(event);
           if (event.defaultPrevented || !(event.target instanceof HTMLElement)) return;
           // The close button comes first in the DOM so it is first in focus order; start on
-          // the content instead, as Radix would if the button were last.
-          const first = Array.from(event.target.querySelectorAll<HTMLElement>(FOCUSABLE)).find(
-            (element) =>
-              element.tabIndex >= 0 &&
-              !element.matches(':disabled') &&
-              !element.hasAttribute(DISMISS_ATTRIBUTE),
+          // the content instead, as Radix would if the button were last. If nothing else can
+          // take focus, Radix's default (the close button) runs.
+          const container = event.target;
+          const first = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).find(
+            (element) => isFocusable(element, container),
           );
-          if (first) {
-            event.preventDefault();
-            first.focus();
-          }
+          if (!first) return;
+          first.focus();
+          if (document.activeElement === first) event.preventDefault();
         }}
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
@@ -102,8 +121,11 @@ export function DialogContent({
           />
           {/* Before the content in the DOM, so focus order matches its top-right position. */}
           <DialogClose
-            data-dialog-dismiss=""
-            className="absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6"
+            {...{ [DISMISS_ATTRIBUTE]: '' }}
+            className={cn(
+              focusRing,
+              'absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6',
+            )}
           >
             <Icon icon={Cancel01Icon} className="size-[18px]" />
             <span className="sr-only">Close</span>

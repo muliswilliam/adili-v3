@@ -22,7 +22,7 @@ The kit is throwaway: plain CSS with hex values so the prototypes open by double
 | Font | Inter | `font-sans` (Inter Variable, bundled via `@fontsource-variable/inter`), features `cv11` and `ss01` |
 | Body text | 15px, line height 1.5 | set on `body`; components set their own sizes (labels and table text 14px, hints 13px) |
 | Icons | stroke icons, 16 to 18px | `Icon` from `@adili/ui` with icons from `@hugeicons/core-free-icons`, 16px by default |
-| Focus | 2px ink outline, 2px offset | `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring` on buttons, links, tabs, steppers and drop zones; controls use `shadow-control-focus` |
+| Focus | 2px ink outline, 2px offset | `focusRing` from `@adili/ui` (`outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring`) on buttons, links, tabs, steppers and drop zones; compose it with `cn` to change the colour or offset. Use `outline-hidden`, never `outline-none`, and keep `focus-visible:outline-solid`: in Tailwind 4 both hiding utilities set the outline style to none and `outline-2` inherits it, so without it the ring never draws. Controls use `shadow-control-focus` |
 
 ## Colour tokens
 
@@ -110,7 +110,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `DescriptionList` | `.dl` | term on the left in muted, value right-aligned in medium weight, rows split by hairlines |
 | `SiteHeader` | `.topbar` | 60px, translucent page colour with blur, hairline below; 16px side padding, 28px from `sm` |
 | `Dialog` | `.dialog` | bottom sheet with a grabber on phones, centred 560px panel from `sm`. `DialogHeader` (19px title), `DialogBody` (scrolls; fields 18px apart), `DialogFooter` (hairline above; equal-width buttons on phones, right-aligned from `sm`) |
-| `Toast` | `.toast` | dark pill at the bottom centre with a tick; assertive toasts show a warning icon in `brand` |
+| `Toast` | `.toast` | pill at the bottom centre, portalled to the body so it sits above dialogs. Polite: dark `foreground` pill with `background` text and a tick. Assertive: red `bg-destructive` pill with `text-destructive-foreground` and an alert icon, and no auto-dismiss. The countdown pauses on hover and focus; the dismiss button's ring takes the pill's text colour |
 | `Table` | `.table` | 12.5px muted headers on a faint fill, 12px cells with 16px at the row ends, hairlines between rows |
 | `EmptyState` | `.empty` | 30px icon tile, 15px title, 14px text up to 340px wide; no border, since it sits inside a card |
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
@@ -141,7 +141,7 @@ Shared helpers live next to the components: `formatDate` and `formatDateTime` pr
 
 For the designer; each is built as described until decided.
 
-1. **Placeholder contrast.** `#8f8d89` on white is about 3.3:1, below the 4.5:1 WCAG 2.2 AA asks of text.
+1. **Placeholder contrast.** `#8f8d89` on white is about 3.3:1 (3.0:1 on `muted`, which read-only controls use), below the 4.5:1 WCAG 2.2 AA asks of text. The dark theme uses the same grey, which reaches 4.6:1 on `muted` and 5.2:1 on `card`.
 2. **Brand buttons.** White on `#e95a24` is about 3.5:1, so there is no solid brand button; the kit's `.btn-brand` is unused by the prototypes.
 3. **Hint placement.** The kit's `field()` puts the hint under the control; the portal's onboarding screens put it under the label. Code keeps it under the label so it is read before the control.
 4. **Dark theme**: not yet designed.

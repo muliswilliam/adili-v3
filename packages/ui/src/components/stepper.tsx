@@ -2,6 +2,7 @@ import { Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { type ComponentProps, type ReactNode, useEffect } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 
 export interface StepperStep {
@@ -116,7 +117,10 @@ export function Stepper({
                   onClick={() => {
                     onSelect(step.id);
                   }}
-                  className="group flex items-center gap-2 rounded-md py-0.5 pr-1 pl-0.5 outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className={cn(
+                    focusRing,
+                    'group flex items-center gap-2 rounded-md py-0.5 pr-1 pl-0.5',
+                  )}
                 >
                   {content}
                 </button>
