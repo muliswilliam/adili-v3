@@ -548,7 +548,17 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
-  packages/schemas: {}
+  packages/schemas:
+    devDependencies:
+      '@redocly/cli':
+        specifier: ^2.54.3
+        version: 2.54.3
+      ajv:
+        specifier: ^8.18.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.20.0)
 
   packages/telemetry:
     dependencies:
@@ -3253,6 +3263,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@redocly/cli@2.54.3':
+    resolution: {integrity: sha512-tgjCjKm9NjcbN0N04dylwUw8eZzematq07JHm+dVyPkAfA/eZEN57En7jpUYrPvwOb53MJLfDB/0qJ5iz/4eHQ==}
+    engines: {node: '>=22.12.0 || >=20.19.0 <21.0.0', npm: '>=10'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.10':
     resolution: {integrity: sha512-bp9svZb+QurZeh+8H4BhrZkifEB0YBNvTVzNSJnJQkj4NrRwmQoDUCGP0vSN7PbvLeM7l1tK6GXL8mrTiH2myg==}
@@ -7636,6 +7651,8 @@ snapshots:
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.3.0
+
+  '@redocly/cli@2.54.3': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.10':
     optional: true
