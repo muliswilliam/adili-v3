@@ -32,17 +32,17 @@ pnpm health         # readiness of everything
 
 `pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm infra:down` stops the infrastructure; `pnpm infra:reset` also deletes its data.
 
-| Component                        | URL                                                                   |
-| -------------------------------- | --------------------------------------------------------------------- |
-| portal (declarants)              | http://localhost:3010                                                 |
-| console (Commissions, EACC)      | http://localhost:3020                                                 |
-| verify (public)                  | http://localhost:3030                                                 |
-| services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) |
-| government-system mocks          | http://localhost:8000 (payroll `/payroll/status`, ICMS `/icms/status`) |
-| Keycloak (admin / admin_dev)     | http://localhost:8080                                                 |
-| Temporal UI                      | http://localhost:8233                                                 |
-| RabbitMQ (adili / adili_dev)     | http://localhost:15672                                                |
-| Mailpit                          | http://localhost:8025                                                 |
+| Component                        | URL                                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| portal (declarants)              | http://localhost:3010                                                                          |
+| console (Commissions, EACC)      | http://localhost:3020                                                                          |
+| verify (public)                  | http://localhost:3030                                                                          |
+| services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`)                          |
+| government-system mocks          | http://localhost:8000 (SMS inbox `/sms/inbox`, payroll `/payroll/status`, ICMS `/icms/status`) |
+| Keycloak (admin / admin_dev)     | http://localhost:8080                                                                          |
+| Temporal UI                      | http://localhost:8233                                                                          |
+| RabbitMQ (adili / adili_dev)     | http://localhost:15672                                                                         |
+| Mailpit                          | http://localhost:8025                                                                          |
 
 Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.
 
