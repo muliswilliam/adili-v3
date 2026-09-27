@@ -17,9 +17,10 @@ export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> 
 };
 
 /**
- * Modal content. Focus moves in on open, is trapped while open and returns to the trigger on
- * close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there is no
- * DialogDescription.
+ * Modal content: a bottom sheet on phones, a centred 560px panel from `sm`. Compose it from
+ * DialogHeader, DialogBody (which scrolls) and DialogFooter. Focus moves in on open, is trapped
+ * while open and returns to the trigger on close. Always render a DialogTitle; pass
+ * `aria-describedby={undefined}` if there is no DialogDescription.
  */
 export function DialogContent({
   busy = false,
@@ -31,7 +32,7 @@ export function DialogContent({
 }: DialogContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
       <DialogPrimitive.Content
         aria-busy={busy || undefined}
         onEscapeKeyDown={(event) => {
@@ -43,17 +44,21 @@ export function DialogContent({
           onInteractOutside?.(event);
         }}
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl border bg-card p-6 text-card-foreground shadow-lg outline-none',
+          'fixed inset-x-0 bottom-0 z-50 flex max-h-[94dvh] flex-col overflow-hidden rounded-t-[22px] bg-card text-card-foreground shadow-2xl outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-3rem)] sm:max-w-[560px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px]',
           className,
         )}
         {...props}
       >
+        <div
+          aria-hidden="true"
+          className="mx-auto mt-2 h-[5px] w-10 shrink-0 rounded-full bg-input sm:hidden"
+        />
         {children}
         <DialogPrimitive.Close
           disabled={busy}
-          className="absolute top-4 right-4 rounded-sm p-1 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          className="absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6"
         >
-          <XIcon className="size-4" aria-hidden="true" />
+          <XIcon className="size-[18px]" aria-hidden="true" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -62,13 +67,38 @@ export function DialogContent({
 }
 
 export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col gap-1.5 pr-6', className)} {...props} />;
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 flex-col gap-[3px] px-5 pt-5 pr-16 pb-3 sm:px-6 sm:pt-6 sm:pr-[72px]',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
+/** The dialog's content, with fields 18px apart. Scrolls when the dialog is taller than the screen. */
+export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-5 pt-2 pb-5 sm:px-6 sm:pb-6',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** Actions under a hairline: equal width on phones, right-aligned from `sm`. Put the main action last. */
 export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
-      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
+      className={cn(
+        'flex shrink-0 gap-2.5 border-t px-5 pt-3.5 pb-5 *:flex-1 sm:justify-end sm:px-6 sm:pt-4 sm:pb-6 sm:*:flex-none',
+        className,
+      )}
       {...props}
     />
   );
@@ -77,7 +107,7 @@ export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
 export function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn('text-base leading-6 font-semibold tracking-tight', className)}
+      className={cn('text-[19px] leading-7 font-semibold tracking-[-0.015em]', className)}
       {...props}
     />
   );

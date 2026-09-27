@@ -24,6 +24,7 @@ export {
 } from './components/description-list';
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   type DialogContentProps,

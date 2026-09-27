@@ -11,7 +11,7 @@ export function Checkbox({ className, ...props }: CheckboxProps) {
     <input
       type="checkbox"
       className={cn(
-        'peer size-4 shrink-0 cursor-pointer rounded-sm accent-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50',
+        'peer size-[18px] shrink-0 cursor-pointer rounded-sm accent-primary outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}
@@ -32,11 +32,11 @@ export function CheckboxItem({ label, hint, id, className, ...props }: CheckboxI
 
   return (
     <div className={cn('flex gap-3', className)}>
-      <Checkbox id={checkboxId} aria-describedby={hintId} className="mt-0.5" {...props} />
-      <div className="grid gap-1">
+      <Checkbox id={checkboxId} aria-describedby={hintId} className="mt-px" {...props} />
+      <div className="grid gap-0.5">
         <label
           htmlFor={checkboxId}
-          className="text-sm leading-5 select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
+          className="cursor-pointer text-sm leading-5 select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
         >
           {label}
         </label>
@@ -74,7 +74,9 @@ export function CheckboxGroup({
       className={cn('grid gap-3', className)}
       {...props}
     >
-      <legend className="mb-1 text-sm leading-none font-medium">{legend}</legend>
+      <legend className="mb-1 text-sm leading-5 font-medium text-secondary-foreground">
+        {legend}
+      </legend>
       {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
       <div className="grid gap-3">{children}</div>
       {error ? <FieldError id={errorId}>{error}</FieldError> : null}

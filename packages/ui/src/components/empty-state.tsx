@@ -11,28 +11,21 @@ export type EmptyStateProps = Omit<ComponentProps<'div'>, 'title'> & {
   action?: ReactNode;
 };
 
+/** Centred message for an empty list or panel, usually inside a Card. */
 export function EmptyState({ icon, title, text, action, className, ...props }: EmptyStateProps) {
   return (
-    <div
-      className={cn(
-        'flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-12 text-center',
-        className,
-      )}
-      {...props}
-    >
+    <div className={cn('flex flex-col items-center px-5 py-10 text-center', className)} {...props}>
       {icon ? (
         <div
           aria-hidden="true"
-          className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground [&_svg]:size-5"
+          className="mb-3.5 flex size-[30px] items-center justify-center rounded-[9px] bg-muted text-muted-foreground [&_svg]:size-4"
         >
           {icon}
         </div>
       ) : null}
-      <div className="grid max-w-sm gap-1">
-        <h3 className="text-base leading-6 font-semibold tracking-tight">{title}</h3>
-        {text ? <p className="text-sm text-muted-foreground">{text}</p> : null}
-      </div>
-      {action ? <div className="mt-2">{action}</div> : null}
+      <h3 className="text-[15px] leading-snug font-semibold">{title}</h3>
+      {text ? <p className="mt-1 max-w-[340px] text-sm text-muted-foreground">{text}</p> : null}
+      {action ? <div className="mt-3.5">{action}</div> : null}
     </div>
   );
 }

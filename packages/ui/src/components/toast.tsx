@@ -1,4 +1,4 @@
-import { XIcon } from 'lucide-react';
+import { CheckIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import {
   createContext,
   type ReactNode,
@@ -10,8 +10,6 @@ import {
   useState,
 } from 'react';
 
-import { cn } from '../lib/cn';
-
 /**
  * `polite` waits for the screen reader to finish (confirmations); `assertive` interrupts
  * (failures the user must act on).
@@ -21,7 +19,7 @@ export type ToastUrgency = 'polite' | 'assertive';
 export interface ToastOptions {
   title: ReactNode;
   description?: ReactNode;
-  /** Defaults to polite. Assertive toasts are styled as errors. */
+  /** Defaults to polite. Assertive toasts show a warning icon instead of a tick. */
   urgency?: ToastUrgency;
   /**
    * Milliseconds before the toast dismisses itself. Polite toasts default to 6000; assertive
@@ -70,13 +68,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext value={api}>
       {children}
-      <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[60] flex flex-col items-end gap-2 sm:left-auto sm:w-96">
-        <div role="alert" aria-live="assertive" className="flex w-full flex-col gap-2">
+      <div className="pointer-events-none fixed inset-x-4 bottom-6 z-[60] flex flex-col items-center gap-2">
+        <div role="alert" aria-live="assertive" className="flex flex-col items-center gap-2">
           {assertive.map((entry) => (
             <ToastItem key={entry.id} entry={entry} onDismiss={dismiss} />
           ))}
         </div>
-        <div role="status" aria-live="polite" className="flex w-full flex-col gap-2">
+        <div role="status" aria-live="polite" className="flex flex-col items-center gap-2">
           {polite.map((entry) => (
             <ToastItem key={entry.id} entry={entry} onDismiss={dismiss} />
           ))}
@@ -101,22 +99,22 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
   }, [duration, entry.id, onDismiss]);
 
   return (
-    <div
-      className={cn(
-        'pointer-events-auto relative grid gap-1 rounded-lg border py-3 pr-10 pl-4 text-sm shadow-lg',
-        assertive
-          ? 'border-transparent bg-destructive-subtle text-destructive-subtle-foreground'
-          : 'bg-card text-card-foreground',
+    <div className="pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl bg-foreground py-[11px] pr-2 pl-4 text-sm text-background shadow-2xl">
+      {assertive ? (
+        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <CheckIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       )}
-    >
-      <div className="leading-5 font-medium">{entry.title}</div>
-      {entry.description ? <div className="leading-5 opacity-90">{entry.description}</div> : null}
+      <div className="grid min-w-0 gap-0.5">
+        <div className="font-medium">{entry.title}</div>
+        {entry.description ? <div className="opacity-80">{entry.description}</div> : null}
+      </div>
       <button
         type="button"
         onClick={() => {
           onDismiss(entry.id);
         }}
-        className="absolute top-3 right-3 rounded-sm p-0.5 opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+        className="-my-0.5 flex size-6 shrink-0 items-center justify-center rounded-md opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-background"
       >
         <XIcon className="size-4" aria-hidden="true" />
         <span className="sr-only">Dismiss notification</span>

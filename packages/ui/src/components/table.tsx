@@ -11,7 +11,7 @@ export type TableProps = ComponentProps<'table'> & {
 export function Table({ caption, className, children, ...props }: TableProps) {
   return (
     <div className="relative w-full overflow-x-auto">
-      <table className={cn('w-full caption-bottom text-sm', className)} {...props}>
+      <table className={cn('w-full caption-bottom border-collapse text-sm', className)} {...props}>
         <caption className="sr-only">{caption}</caption>
         {children}
       </table>
@@ -32,7 +32,7 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
     <tr
       className={cn(
         // Relative so a TableRowLink can stretch over the whole row.
-        'relative border-b transition-colors has-[[data-row-link]]:hover:bg-muted/60',
+        'relative border-b transition-colors has-[[data-row-link]]:hover:bg-muted/50',
         className,
       )}
       {...props}
@@ -50,8 +50,10 @@ export function TableHead({ scope = 'col', className, ...props }: TableHeadProps
     <th
       scope={scope}
       className={cn(
-        'h-10 px-3 text-left align-middle font-medium whitespace-nowrap',
-        scope === 'col' ? 'text-[13px] text-muted-foreground' : 'text-foreground',
+        'text-left align-middle font-medium first:pl-4 last:pr-4',
+        scope === 'col'
+          ? 'bg-background/60 px-3 py-2.5 text-[12.5px] whitespace-nowrap text-muted-foreground'
+          : 'p-3 text-foreground',
         className,
       )}
       {...props}
@@ -60,7 +62,7 @@ export function TableHead({ scope = 'col', className, ...props }: TableHeadProps
 }
 
 export function TableCell({ className, ...props }: ComponentProps<'td'>) {
-  return <td className={cn('px-3 py-3 align-middle', className)} {...props} />;
+  return <td className={cn('p-3 align-middle first:pl-4 last:pr-4', className)} {...props} />;
 }
 
 export type TableRowLinkProps = ComponentProps<'a'> & {

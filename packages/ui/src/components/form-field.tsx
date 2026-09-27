@@ -1,4 +1,5 @@
 import { Slot } from '@radix-ui/react-slot';
+import { CircleAlertIcon } from 'lucide-react';
 import { type ComponentProps, type ReactElement, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
@@ -8,14 +9,20 @@ export function FieldHint({ className, ...props }: ComponentProps<'p'>) {
   return <p className={cn('text-[13px] text-muted-foreground', className)} {...props} />;
 }
 
-/** Announced as soon as it appears, so screen reader users hear new validation errors. */
-export function FieldError({ className, ...props }: ComponentProps<'p'>) {
+/**
+ * Announced as soon as it appears, so screen reader users hear new validation errors. The icon
+ * means the error does not rely on colour alone.
+ */
+export function FieldError({ className, children, ...props }: ComponentProps<'p'>) {
   return (
     <p
       role="alert"
-      className={cn('text-[13px] font-medium text-destructive', className)}
+      className={cn('flex items-start gap-1.5 text-[13px] font-medium text-destructive', className)}
       {...props}
-    />
+    >
+      <CircleAlertIcon className="mt-px size-[15px] shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -51,7 +58,7 @@ export function FormField({
   const errorId = error ? `${id}-error` : undefined;
 
   return (
-    <div className={cn('grid gap-2', className)} {...props}>
+    <div className={cn('grid content-start gap-1.5', className)} {...props}>
       <Label htmlFor={id}>{label}</Label>
       {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
       <Slot
