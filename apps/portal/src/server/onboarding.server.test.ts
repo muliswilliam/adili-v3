@@ -112,6 +112,26 @@ describe('identify', () => {
       code: 'unavailable',
     });
   });
+
+  it('treats a problem code Identify does not expect as unavailable', async () => {
+    const problem = (status: number, code: string) =>
+      client(() =>
+        Promise.resolve(
+          Response.json({ type: 'about:blank', title: 'Problem', status, code }, { status }),
+        ),
+      );
+
+    for (const [status, code] of [
+      [404, 'something-new'],
+      [409, 'otp-invalid'],
+      [429, 'resend-cooldown'],
+    ] as const) {
+      expect((await identify(problem(status, code), teacher)).result).toEqual({
+        ok: false,
+        code: 'unavailable',
+      });
+    }
+  });
 });
 
 describe('lookupSession', () => {

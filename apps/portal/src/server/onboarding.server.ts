@@ -29,9 +29,27 @@ const problemSchema = z.object({
     .optional(),
 });
 
+/**
+ * The problem codes the contract gives Identify (404, 409 and 429). Any other code, e.g. one
+ * added to the contract later, is read as `unavailable` so the page shows the generic error
+ * rather than looking up copy it does not have.
+ */
+const IDENTIFY_PROBLEM_CODES = [
+  'no-match',
+  'no-roster',
+  'already-onboarded',
+  'rate-limited',
+] as const satisfies readonly OnboardingProblemCode[];
+
+type IdentifyProblemCode = (typeof IDENTIFY_PROBLEM_CODES)[number];
+
+function isIdentifyProblemCode(code: string): code is IdentifyProblemCode {
+  return (IDENTIFY_PROBLEM_CODES as readonly string[]).includes(code);
+}
+
 export interface IdentifyProblem {
   /** A contract problem code, `invalid` for a rejected request or `unavailable` for anything else. */
-  code: OnboardingProblemCode | 'invalid' | 'unavailable';
+  code: IdentifyProblemCode | 'invalid' | 'unavailable';
   retryAfterSeconds?: number;
   links?: { signIn?: string; recoverAccess?: string };
 }
@@ -80,12 +98,17 @@ export async function identify(
     }
     if (response.status === 400) return { result: { ok: false, code: 'invalid' } };
     const problem = problemSchema.safeParse(error);
-    const known = [404, 409, 429].includes(response.status) && problem.success;
-    if (!known) return { result: { ok: false, code: 'unavailable' } };
+    if (
+      !problem.success ||
+      ![404, 409, 429].includes(response.status) ||
+      !isIdentifyProblemCode(problem.data.code)
+    ) {
+      return { result: { ok: false, code: 'unavailable' } };
+    }
     return {
       result: {
         ok: false,
-        code: problem.data.code as OnboardingProblemCode,
+        code: problem.data.code,
         retryAfterSeconds: retryAfter(response, problem.data.retryAfterSeconds),
         links: problem.data.links,
       },
