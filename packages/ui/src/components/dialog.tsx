@@ -1,26 +1,52 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { XIcon } from 'lucide-react';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, createContext, useContext } from 'react';
 
 import { cn } from '../lib/cn';
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
-export const DialogClose = DialogPrimitive.Close;
+
+const DialogBusyContext = createContext(false);
+
+/** Set on the built-in close button (as data-dialog-dismiss) so initial focus can skip it. */
+const DISMISS_ATTRIBUTE = 'data-dialog-dismiss';
+const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
+
+/** Closes the dialog. Disabled, and does nothing, while the DialogContent is busy. */
+export function DialogClose({
+  disabled,
+  onClick,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Close>) {
+  const busy = useContext(DialogBusyContext);
+  return (
+    <DialogPrimitive.Close
+      {...props}
+      disabled={busy || disabled}
+      onClick={(event) => {
+        onClick?.(event);
+        if (busy) event.preventDefault();
+      }}
+    />
+  );
+}
 
 export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
   /**
-   * Set while a submit is in flight. Esc, outside clicks and the close button are ignored so
-   * the dialog cannot disappear under a pending request.
+   * Set while a submit is in flight. Esc and outside clicks are ignored and every DialogClose
+   * (including the built-in close button) is disabled, so the dialog cannot disappear under a
+   * pending request. A controlled `open` can still be set to false by the caller.
    */
   busy?: boolean;
 };
 
 /**
  * Modal content: a bottom sheet on phones, a centred 560px panel from `sm`. Compose it from
- * DialogHeader, DialogBody (which scrolls) and DialogFooter. Focus moves in on open, is trapped
- * while open and returns to the trigger on close. Always render a DialogTitle; pass
- * `aria-describedby={undefined}` if there is no DialogDescription.
+ * DialogHeader, DialogBody (which scrolls) and DialogFooter. Focus moves to the first field
+ * (or the close button when there is none) on open, is trapped while open and returns to the
+ * trigger on close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there
+ * is no DialogDescription.
  */
 export function DialogContent({
   busy = false,
@@ -28,6 +54,7 @@ export function DialogContent({
   children,
   onEscapeKeyDown,
   onInteractOutside,
+  onOpenAutoFocus,
   ...props
 }: DialogContentProps) {
   return (
@@ -35,6 +62,22 @@ export function DialogContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
       <DialogPrimitive.Content
         aria-busy={busy || undefined}
+        onOpenAutoFocus={(event) => {
+          onOpenAutoFocus?.(event);
+          if (event.defaultPrevented || !(event.target instanceof HTMLElement)) return;
+          // The close button comes first in the DOM so it is first in focus order; start on
+          // the content instead, as Radix would if the button were last.
+          const first = Array.from(event.target.querySelectorAll<HTMLElement>(FOCUSABLE)).find(
+            (element) =>
+              element.tabIndex >= 0 &&
+              !element.matches(':disabled') &&
+              !element.hasAttribute(DISMISS_ATTRIBUTE),
+          );
+          if (first) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
           onEscapeKeyDown?.(event);
@@ -49,18 +92,21 @@ export function DialogContent({
         )}
         {...props}
       >
-        <div
-          aria-hidden="true"
-          className="mx-auto mt-2 h-[5px] w-10 shrink-0 rounded-full bg-input sm:hidden"
-        />
-        {children}
-        <DialogPrimitive.Close
-          disabled={busy}
-          className="absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6"
-        >
-          <XIcon className="size-[18px]" aria-hidden="true" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
+        <DialogBusyContext value={busy}>
+          <div
+            aria-hidden="true"
+            className="mx-auto mt-2 h-[5px] w-10 shrink-0 rounded-full bg-input sm:hidden"
+          />
+          {/* Before the content in the DOM, so focus order matches its top-right position. */}
+          <DialogClose
+            data-dialog-dismiss=""
+            className="absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6"
+          >
+            <XIcon className="size-[18px]" aria-hidden="true" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
+          {children}
+        </DialogBusyContext>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
