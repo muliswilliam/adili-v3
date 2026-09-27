@@ -1,6 +1,6 @@
-import { Button, Card, CardContent, Input, Label } from '@adili/ui';
+import { Button, Card, CardContent, Icon, Input, Label } from '@adili/ui';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { QrCode } from 'lucide-react';
+import { QrCodeIcon } from '@hugeicons/core-free-icons';
 import { type SubmitEvent, useId, useState } from 'react';
 
 import { isVerificationId, normalizeVerificationId } from '../lib/verification-id';
@@ -30,8 +30,8 @@ function VerifyHome() {
   return (
     <div className="grid gap-8">
       <div className="grid gap-3 text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary-subtle text-primary-subtle-foreground">
-          <QrCode className="size-6" aria-hidden="true" />
+        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
+          <Icon icon={QrCodeIcon} className="size-6" />
         </div>
         <h1 className="text-3xl font-semibold tracking-tight text-balance">Verify a document</h1>
         <p className="text-pretty text-muted-foreground">
@@ -40,7 +40,7 @@ function VerifyHome() {
         </p>
       </div>
       <Card>
-        <CardContent className="pt-6">
+        <CardContent>
           <form className="grid gap-4" onSubmit={submit} noValidate>
             <div className="grid gap-2">
               <Label htmlFor={inputId}>Verification code</Label>

@@ -7,10 +7,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Icon,
   SiteHeader,
 } from '@adili/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { CalendarClock, CircleAlert, FileCheck2, UserRoundCheck } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  Calendar03Icon,
+  FileValidationIcon,
+  UserCheck01Icon,
+} from '@hugeicons/core-free-icons';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
@@ -56,12 +62,12 @@ function Landing({ error }: { error: string | null }) {
         }
       />
       <main className="flex-1">
-        <section className="border-b bg-gradient-to-b from-primary-subtle/60 to-background">
+        <section className="border-b bg-gradient-to-b from-muted/60 to-background">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div className="grid gap-6">
               {error ? (
                 <Alert variant="destructive" className="max-w-xl">
-                  <CircleAlert aria-hidden="true" />
+                  <Icon icon={AlertCircleIcon} />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               ) : null}
@@ -75,7 +81,7 @@ function Landing({ error }: { error: string | null }) {
                 Commission and receive an acknowledgement anyone can verify.
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <Button asChild size="lg">
+                <Button asChild>
                   <a href="/auth/login">Sign in to file</a>
                 </Button>
                 <p className="text-sm text-muted-foreground">Use your Adili Online account.</p>
@@ -84,7 +90,7 @@ function Landing({ error }: { error: string | null }) {
             <Card className="lg:justify-self-end lg:w-full lg:max-w-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CalendarClock className="size-4 text-primary" aria-hidden="true" />
+                  <Icon icon={Calendar03Icon} className="size-4 text-primary" />
                   When to declare
                 </CardTitle>
                 <CardDescription>Conflict of Interest Act, 2025</CardDescription>
@@ -93,7 +99,7 @@ function Landing({ error }: { error: string | null }) {
                 <ol className="grid gap-4">
                   {deadlines.map((deadline, index) => (
                     <li key={deadline.title} className="flex gap-3">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-xs font-semibold text-primary-subtle-foreground">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-secondary-foreground">
                         {index + 1}
                       </span>
                       <div className="grid gap-0.5">
@@ -109,12 +115,12 @@ function Landing({ error }: { error: string | null }) {
         </section>
         <section className="mx-auto grid max-w-6xl gap-6 px-4 py-14 sm:grid-cols-2 sm:px-6">
           <Feature
-            icon={<UserRoundCheck aria-hidden="true" />}
+            icon={<Icon icon={UserCheck01Icon} />}
             title="Verified identity"
             text="Your account is checked against the national population register before you file, so nobody can file in your name."
           />
           <Feature
-            icon={<FileCheck2 aria-hidden="true" />}
+            icon={<Icon icon={FileValidationIcon} />}
             title="Verifiable acknowledgement"
             text="Every submission receives a reference number and a QR code that confirms the acknowledgement is genuine."
           />
@@ -127,7 +133,7 @@ function Landing({ error }: { error: string | null }) {
 function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return (
     <div className="flex gap-4">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-subtle-foreground [&_svg]:size-5">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-secondary-foreground [&_svg]:size-5">
         {icon}
       </div>
       <div className="grid gap-1">
@@ -168,7 +174,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                <CalendarClock className="size-6 text-muted-foreground" aria-hidden="true" />
+                <Icon icon={Calendar03Icon} className="size-6 text-muted-foreground" />
                 <p className="text-sm font-medium">No obligations yet</p>
                 <p className="max-w-xs text-sm text-muted-foreground">
                   Obligations appear here when a declaration falls due under your Commission's
