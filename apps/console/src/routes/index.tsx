@@ -33,6 +33,7 @@ import { authErrorMessage } from '../components/auth-error';
 import { IdentityCard } from '../components/identity-card';
 import { NoStaffRoles } from '../components/load-error';
 import { Page, PageHead } from '../components/page';
+import { rosterNavCounts } from '../components/roster/nav-counts';
 import { ConsoleShell } from '../components/shell/console-shell';
 import { type Workspace, workspacesFor } from '../components/workspaces';
 import { type DashboardViewer, getDashboardViewer } from '../server/viewer';
@@ -131,7 +132,11 @@ function Dashboard({ viewer }: { viewer: DashboardViewer }) {
   const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
   const workspaces = workspacesFor(roles);
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
+    <ConsoleShell
+      userName={viewer.user.name}
+      roles={roles}
+      navCounts={rosterNavCounts(viewer.roster)}
+    >
       <Page>
         <PageHead title="Overview">
           <p className="mt-1 text-sm text-muted-foreground">Signed in as {viewer.user.name}.</p>

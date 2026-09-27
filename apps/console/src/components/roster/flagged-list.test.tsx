@@ -59,7 +59,8 @@ function renderList(overrides: Partial<FlaggedListProps> = {}) {
 }
 
 const table = () => screen.getByRole('table', { name: 'Flagged officers ordered by name' });
-const selectAll = () => screen.getByRole('checkbox', { name: 'Select all on page' });
+const selectAll = () => within(table()).getByRole('checkbox', { name: 'Select all on page' });
+const cards = () => screen.getByRole('list', { name: 'Flagged officers ordered by name' });
 const bulkBar = () => screen.queryByRole('region', { name: 'Bulk actions' });
 const bar = () => screen.getByRole('region', { name: 'Bulk actions' });
 
@@ -92,7 +93,7 @@ describe('FlaggedList', () => {
     renderList({ result: page([record(0), record(1)], 'next'), loadPage });
     fireEvent.click(selectAll());
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-    await screen.findByText('Daniel Mwangi');
+    await within(table()).findByText('Daniel Mwangi');
     expect(loadPage).toHaveBeenCalledWith('next');
     expect((selectAll() as HTMLInputElement).indeterminate).toBe(true);
     fireEvent.click(selectAll());
@@ -102,8 +103,8 @@ describe('FlaggedList', () => {
   it('marks the selected officers as still employed and reloads', async () => {
     keepRosterRecords.mockResolvedValue({ ok: true, data: { count: 2 } });
     renderList();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Achieng Otieno' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Chebet Wanjiru' }));
+    fireEvent.click(within(table()).getByRole('checkbox', { name: 'Select Achieng Otieno' }));
+    fireEvent.click(within(table()).getByRole('checkbox', { name: 'Select Chebet Wanjiru' }));
     fireEvent.click(within(bar()).getByRole('button', { name: 'Still employed' }));
     await screen.findByText('2 officers marked as still employed');
     expect(keepRosterRecords).toHaveBeenCalledWith({
@@ -123,7 +124,7 @@ describe('FlaggedList', () => {
       error: { kind: 'unavailable', detail: null },
     });
     renderList();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Brian Kiprono' }));
+    fireEvent.click(within(table()).getByRole('checkbox', { name: 'Select Brian Kiprono' }));
     fireEvent.click(within(bar()).getByRole('button', { name: 'Still employed' }));
     await screen.findByText('Nobody was marked as still employed. Try again.');
     expect(within(bar()).getByText('1 officer selected')).toBeTruthy();
@@ -133,8 +134,8 @@ describe('FlaggedList', () => {
   it('confirms exits for the selection with one date', async () => {
     confirmRosterExits.mockResolvedValue({ ok: true, data: { batchId: 'b', count: 2 } });
     renderList();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Achieng Otieno' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Brian Kiprono' }));
+    fireEvent.click(within(table()).getByRole('checkbox', { name: 'Select Achieng Otieno' }));
+    fireEvent.click(within(table()).getByRole('checkbox', { name: 'Select Brian Kiprono' }));
     fireEvent.click(within(bar()).getByRole('button', { name: 'Confirm exits' }));
     const dialog = await screen.findByRole('dialog', { name: 'Confirm 2 exits' });
     fireEvent.change(within(dialog).getByLabelText('Exit date'), {
@@ -188,7 +189,22 @@ describe('FlaggedList', () => {
 
   it('has no checkboxes or bulk bar for commission admins', () => {
     renderList({ readOnly: true });
-    expect(within(table()).queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+  });
+
+  it('lists officers as cards on phones, selectable one by one or all on the page', () => {
+    renderList();
+    const card = within(cards()).getByText('Brian Kiprono').closest('li') as HTMLElement;
+    expect(within(card).getByText('PSC/2019/0001')).toBeTruthy();
+    expect(within(card).getByText('Flagged 21 Sep 2026')).toBeTruthy();
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Select Brian Kiprono' }));
+    expect(within(bar()).getByText('1 officer selected')).toBeTruthy();
+    const all = screen.getByLabelText('Select all on page', { selector: 'label input' });
+    expect((all as HTMLInputElement).indeterminate).toBe(true);
+    fireEvent.click(all);
+    expect(within(bar()).getByText('3 officers selected')).toBeTruthy();
+    // The table shows the same selection.
+    expect((selectAll() as HTMLInputElement).checked).toBe(true);
   });
 
   it('says when nobody is flagged', () => {

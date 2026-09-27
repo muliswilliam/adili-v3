@@ -39,8 +39,6 @@ import { type NextStep, nextSteps } from '../../components/roster/next-steps';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
 import { Tile, TileValue } from '../../components/roster/tile';
 import { useTemplateDownload } from '../../components/roster/use-template-download';
-import { signInRedirect } from '../../components/sign-in-redirect';
-import { getCommission } from '../../server/commissions';
 import type {
   Commission,
   DirectoryResult,
@@ -59,20 +57,19 @@ interface OverviewData {
 }
 
 export const Route = createFileRoute('/roster/')({
-  loader: async ({ location, context }): Promise<OverviewData | null> => {
+  loader: async ({ context, parentMatchPromise }): Promise<OverviewData | null> => {
     // The layout shows no overview without the workspace; do not fetch one.
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
     if (!slug) return { commission: noCommission, lastImport: null, credential: null };
-    const [commission, credential] = await Promise.all([
-      getCommission({ data: { slug } }),
+    const [layout, credential] = await Promise.all([
+      // The layout loads the Commission (and signs in again when the session ended).
+      parentMatchPromise,
       // Credentials are the reporting officer's alone; the directory refuses anyone else.
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
     ]);
-    if (!commission.ok && commission.error.kind === 'unauthenticated') {
-      throw signInRedirect(location.href);
-    }
+    const commission = layout.loaderData?.commission ?? noCommission;
     const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
     const lastImport = lastImportId
       ? await getRosterImport({ data: { slug, importId: lastImportId } })

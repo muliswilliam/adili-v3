@@ -11,21 +11,15 @@ import {
   type RecordsSearch,
   recordsSearchSchema,
 } from '../../../components/roster/records-query';
+import { useRosterCommission } from '../../../components/roster/use-roster-commission';
 import { signInRedirect } from '../../../components/sign-in-redirect';
-import { getCommission } from '../../../server/commissions';
-import type {
-  Commission,
-  DirectoryResult,
-  RosterRecordPage,
-} from '../../../server/directory/client';
+import type { DirectoryResult, RosterRecordPage } from '../../../server/directory/client';
 import { listRosterRecords } from '../../../server/roster-records';
 
 const PATH = '/roster/records';
 
 interface RecordsData {
   records: DirectoryResult<RosterRecordPage>;
-  /** For the expected count and the flagged chip; the list stands without it. */
-  commission: DirectoryResult<Commission>;
 }
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
@@ -42,15 +36,12 @@ export const Route = createFileRoute('/roster/records/')({
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
-    if (!slug) return { records: noCommission, commission: noCommission };
-    const [records, commission] = await Promise.all([
-      listRosterRecords({ data: { slug, ...deps, limit: RECORDS_PAGE_SIZE } }),
-      getCommission({ data: { slug } }),
-    ]);
+    if (!slug) return { records: noCommission };
+    const records = await listRosterRecords({ data: { slug, ...deps, limit: RECORDS_PAGE_SIZE } });
     if (!records.ok && records.error.kind === 'unauthenticated') {
       throw signInRedirect(location.href);
     }
-    return { records, commission };
+    return { records };
   },
   head: () => ({ meta: [{ title: `${m.recordsTitle} · Adili Online Console` }] }),
   pendingComponent: RecordsLoading,
@@ -81,7 +72,8 @@ function RecordsPage({ data }: { data: RecordsData | null }) {
       state.status === 'pending' && state.location.pathname === PATH ? state.location.search : null,
   });
   const search = pending ? recordsSearchSchema.parse(pending) : committed;
-  const roster = data?.commission.ok ? data.commission.data.roster : null;
+  const commission = useRosterCommission();
+  const roster = commission?.ok ? commission.data.roster : null;
 
   const changeSearch = (next: RecordsSearch, options?: { replace?: boolean }) => {
     void navigate({ search: next, replace: options?.replace });
@@ -90,7 +82,7 @@ function RecordsPage({ data }: { data: RecordsData | null }) {
   return (
     <Page>
       <PageHead title={m.recordsTitle} actions={readOnly ? <ReadOnlyBadge /> : <ImportButton />}>
-        {data && !data.commission.ok ? null : (
+        {commission && !commission.ok ? null : (
           <RecordsSubtitle expected={roster?.expectedDeclarants ?? null} />
         )}
       </PageHead>

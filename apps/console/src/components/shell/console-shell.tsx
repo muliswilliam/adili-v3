@@ -5,11 +5,23 @@ import { type ReactNode, useEffect, useRef } from 'react';
 
 import { Breadcrumbs } from './breadcrumbs';
 import { seniorRoleLabel } from '../roles';
-import { activeNavHref, initials, navFor } from './nav';
+import { formatNumber } from '../format';
+import { activeNavHref, initials, type NavHref, navFor } from './nav';
+
+/** A count on a sidebar entry, e.g. flagged officers on Roster; `label` reads it out. */
+export interface NavCount {
+  count: number;
+  /** For screen readers, e.g. "3 flagged". */
+  label: string;
+}
+
+export type NavCounts = Partial<Record<NavHref, NavCount>>;
 
 export interface ConsoleShellProps {
   userName: string;
   roles: readonly string[];
+  /** Counts shown on sidebar entries (the kit's `.cnav .count`); none are shown for 0. */
+  navCounts?: NavCounts;
   children: ReactNode;
 }
 
@@ -17,7 +29,7 @@ export interface ConsoleShellProps {
  * Signed-in console layout (the kit's `consoleShell`): a 248px sidebar from 1024px, and below
  * that a menu button in the top bar that opens the same sidebar as a drawer.
  */
-export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
+export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleShellProps) {
   const drawer = useRef<HTMLDialogElement>(null);
   const pathname = useLocation({ select: (location) => location.pathname });
 
@@ -26,7 +38,9 @@ export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
     drawer.current?.close();
   }, [pathname]);
 
-  const sidebar = <Sidebar userName={userName} roles={roles} pathname={pathname} />;
+  const sidebar = (
+    <Sidebar userName={userName} roles={roles} pathname={pathname} navCounts={navCounts} />
+  );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r bg-muted/60 px-3 py-4 lg:flex">
@@ -75,10 +89,12 @@ function Sidebar({
   userName,
   roles,
   pathname,
+  navCounts,
 }: {
   userName: string;
   roles: readonly string[];
   pathname: string;
+  navCounts?: NavCounts;
 }) {
   const groups = navFor(roles);
   const active = activeNavHref(groups, pathname);
@@ -111,12 +127,13 @@ function Sidebar({
                     activeOptions={{ exact: true }}
                     aria-current={item.to === active ? 'page' : undefined}
                     className={cn(
-                      'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                       'aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-card',
                     )}
                   >
                     <Icon icon={item.icon} className="size-[17px]" />
                     {item.label}
+                    <Count value={navCounts?.[item.to]} />
                   </Link>
                 </li>
               ))}
@@ -142,6 +159,22 @@ function Sidebar({
           </Button>
         </form>
       </div>
+    </>
+  );
+}
+
+/** The kit's nav count: a muted pill, brand on the current entry. Hidden for none. */
+function Count({ value }: { value: NavCount | undefined }) {
+  if (!value || value.count <= 0) return null;
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-foreground/10 px-1.5 text-[11.5px] font-medium text-secondary-foreground tabular-nums group-aria-[current=page]:bg-brand group-aria-[current=page]:text-primary-foreground"
+      >
+        {formatNumber(value.count)}
+      </span>
+      <span className="sr-only">{`, ${value.label}`}</span>
     </>
   );
 }

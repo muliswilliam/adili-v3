@@ -386,8 +386,11 @@ export const en = {
   flaggedAllShown: (count: number) =>
     count === 1 ? '1 flagged officer' : `All ${formatNumber(count)} flagged officers shown`,
   rosterOverview: 'Roster overview',
+  navFlagged: (count: number) => `${formatNumber(count)} flagged`,
   reviewFlaggedButton: 'Review flagged',
   selectOfficer: (name: string) => `Select ${name}`,
+  selectAllOnPage: 'Select all on page',
+  flaggedOn: (date: string) => `Flagged ${date}`,
   selectedCount: (count: number) =>
     `${formatNumber(count)} ${count === 1 ? 'officer' : 'officers'} selected`,
   bulkActions: 'Bulk actions',

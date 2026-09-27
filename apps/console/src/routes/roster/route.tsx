@@ -5,10 +5,24 @@ import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
 import { LoadError, NoAccess, NoStaffRoles } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { messages as m } from '../../components/roster/messages';
+import { rosterNavCounts } from '../../components/roster/nav-counts';
 import { ConsoleShell } from '../../components/shell/console-shell';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { workspaceFor, workspacesFor } from '../../components/workspaces';
+import { getCommission } from '../../server/commissions';
+import type { Commission, DirectoryResult } from '../../server/directory/client';
 import { getViewer } from '../../server/viewer';
+
+/** What every roster page shares: the viewer's own Commission with its roster summary. */
+export interface RosterLayoutData {
+  commission: DirectoryResult<Commission>;
+}
+
+/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
+const noCommission: DirectoryResult<never> = {
+  ok: false,
+  error: { kind: 'unavailable', detail: null },
+};
 
 /** Whether a match's route context opens the Roster workspace. */
 function opensWorkspace(context: unknown): boolean {
@@ -34,6 +48,21 @@ export const Route = createFileRoute('/roster')({
       workspace: workspaceFor(roles, 'roster') ?? null,
     };
   },
+  // The Commission and its roster summary, loaded once for the layout (the sidebar's flagged
+  // count) and the pages under it, which read it rather than fetching it again. Blocking on
+  // reload, so a page reading it after an import or an exit sees the new summary.
+  loader: {
+    staleReloadMode: 'blocking',
+    handler: async ({ context, location }): Promise<RosterLayoutData | null> => {
+      if (!context.workspace) return null;
+      if (!context.tenant) return { commission: noCommission };
+      const commission = await getCommission({ data: { slug: context.tenant } });
+      if (!commission.ok && commission.error.kind === 'unauthenticated') {
+        throw signInRedirect(location.href);
+      }
+      return { commission };
+    },
+  },
   staticData: {
     // Staff without the workspace get no trail back to a page they cannot open.
     crumb: ({ context, isLeaf }) => (isLeaf || opensWorkspace(context) ? m.title : null),
@@ -43,8 +72,10 @@ export const Route = createFileRoute('/roster')({
 
 function RosterLayout() {
   const { viewer, roles, workspace } = Route.useRouteContext();
+  const data = Route.useLoaderData();
+  const roster = data?.commission.ok ? data.commission.data.roster : null;
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
+    <ConsoleShell userName={viewer.user.name} roles={roles} navCounts={rosterNavCounts(roster)}>
       {!viewer.directory.ok ? (
         <Page narrow>
           <PageHead title={m.title} />

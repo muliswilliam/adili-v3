@@ -1,6 +1,7 @@
 import {
   Button,
   Card,
+  Checkbox,
   DataTable,
   type DataTableColumn,
   Dialog,
@@ -17,7 +18,7 @@ import {
 } from '@adili/ui';
 import { Loading03Icon, Logout03Icon, UserCheck01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useReducer, useRef, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useReducer, useRef, useState } from 'react';
 
 import type {
   DirectoryResult,
@@ -28,7 +29,7 @@ import { keepRosterRecords } from '../../server/roster-exits';
 import { formatDate } from '../format';
 import { LoadError, NoAccess } from '../load-error';
 import { ConfirmExitsDialogContent } from './confirm-exits-dialog';
-import { type ExitingOfficer, keepFailure, selectionReducer } from './exits';
+import { type ExitingOfficer, keepFailure, type Selection, selectionReducer } from './exits';
 import { messages as m } from './messages';
 import { appendPage, type LoadedPages } from './records-query';
 import { MaskedNationalId, RecordStateBadge } from './roster-badges';
@@ -201,24 +202,36 @@ export function FlaggedList({
             }}
           />
         )}
-        <DataTable
-          caption={m.flaggedCaption}
-          columns={columns(recordLink)}
-          rows={loaded.items}
-          getRowId={(item) => item.id}
-          selection={
-            readOnly
-              ? undefined
-              : {
-                  selected: new Set(selection),
-                  onChange: (ids) => {
-                    dispatch({ type: 'set', ids });
-                  },
-                  rowLabel: (id) => m.selectOfficer(names.get(id) ?? id),
-                  summary: m.selectedCount,
-                }
-          }
-        />
+        <div className="hidden min-[760px]:block">
+          <DataTable
+            caption={m.flaggedCaption}
+            columns={columns(recordLink)}
+            rows={loaded.items}
+            getRowId={(item) => item.id}
+            selection={
+              readOnly
+                ? undefined
+                : {
+                    selected: new Set(selection),
+                    onChange: (ids) => {
+                      dispatch({ type: 'set', ids });
+                    },
+                    rowLabel: (id) => m.selectOfficer(names.get(id) ?? id),
+                    summary: m.selectedCount,
+                  }
+            }
+          />
+        </div>
+        <div className="min-[760px]:hidden">
+          <FlaggedCards
+            items={loaded.items}
+            recordLink={recordLink}
+            selection={readOnly ? null : selection}
+            onSelectionChange={(ids) => {
+              dispatch({ type: 'set', ids });
+            }}
+          />
+        </div>
         <div className="flex flex-wrap items-center gap-3 border-t px-4 py-2.5 text-[13.5px] text-muted-foreground">
           <span aria-live="polite" className="mr-auto">
             {loaded.nextCursor
@@ -353,6 +366,129 @@ function BulkBar({
   );
 }
 
+/**
+ * Below 760px the table becomes a list of cards (the prototype's `.table.cards`), each with its
+ * checkbox, and "Select all on page" above them.
+ */
+function FlaggedCards({
+  items,
+  recordLink,
+  selection,
+  onSelectionChange,
+}: {
+  items: readonly RosterRecordListItem[];
+  recordLink: FlaggedListProps['recordLink'];
+  /** The selected ids; null for commission admins, who cannot select. */
+  selection: Selection | null;
+  onSelectionChange: (ids: Set<string>) => void;
+}) {
+  const ids = items.map((item) => item.id);
+  const selected = new Set(selection ?? []);
+  const onPage = ids.filter((id) => selected.has(id)).length;
+  const toggle = (targets: readonly string[], checked: boolean) => {
+    const next = new Set(selected);
+    for (const id of targets) {
+      if (checked) next.add(id);
+      else next.delete(id);
+    }
+    onSelectionChange(next);
+  };
+  return (
+    <>
+      {selection ? (
+        <label className="flex cursor-pointer items-center gap-3 border-b px-4 py-2.5 text-[13px] font-medium text-muted-foreground">
+          <SelectAllOnPage
+            checked={onPage > 0 && onPage === ids.length}
+            indeterminate={onPage > 0 && onPage < ids.length}
+            onChange={(checked) => {
+              toggle(ids, checked);
+            }}
+          />
+          {m.selectAllOnPage}
+        </label>
+      ) : null}
+      <ul aria-label={m.flaggedCaption}>
+        {items.map((record) => {
+          const isSelected = selected.has(record.id);
+          return (
+            <li
+              key={record.id}
+              data-state={isSelected ? 'selected' : undefined}
+              className="flex gap-3 border-b px-4 py-3.5 last:border-b-0 data-[state=selected]:bg-brand-faint"
+            >
+              {selection ? (
+                <Checkbox
+                  aria-label={m.selectOfficer(record.fullName)}
+                  checked={isSelected}
+                  onChange={(event) => {
+                    toggle([record.id], event.target.checked);
+                  }}
+                  className="mt-0.5"
+                />
+              ) : null}
+              <div className="grid min-w-0 flex-1 gap-1.5">
+                <p className="leading-snug">{nameLink(recordLink, record)}</p>
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                  <span className="font-mono text-[13px] whitespace-nowrap">
+                    {record.personnelFileNumber}
+                  </span>
+                  <span>
+                    <MaskedNationalId value={record.nationalIdMasked} />
+                  </span>
+                  {record.flaggedAt ? (
+                    <span>{m.flaggedOn(formatDate(record.flaggedAt))}</span>
+                  ) : null}
+                </p>
+                <span>
+                  <RecordStateBadge state={record.state} />
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {selection ? (
+        <div role="status" className="sr-only">
+          {m.selectedCount(selected.size)}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function SelectAllOnPage({
+  checked,
+  indeterminate,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  // Mixed has no HTML attribute; set the DOM property after every render, as clicking clears it.
+  useLayoutEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  });
+  return (
+    <Checkbox
+      ref={ref}
+      checked={checked}
+      onChange={(event) => {
+        onChange(event.target.checked);
+      }}
+    />
+  );
+}
+
+/** The record's name as a link, styled like the kit's `.link`. */
+function nameLink(recordLink: FlaggedListProps['recordLink'], record: RosterRecordListItem) {
+  return <span className={NAME_LINK}>{recordLink(record)}</span>;
+}
+
+const NAME_LINK =
+  'font-medium underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-none [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
+
 function Optional({ value }: { value: string | null | undefined }) {
   return value ? <>{value}</> : <span className="text-muted-foreground">{m.noValue}</span>;
 }
@@ -375,11 +511,7 @@ function columns(
       header: m.columnFullName,
       rowHeader: true,
       className: 'min-w-[180px] font-normal',
-      cell: (record) => (
-        <span className="font-medium underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-none [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring">
-          {recordLink(record)}
-        </span>
-      ),
+      cell: (record) => nameLink(recordLink, record),
     },
     {
       id: 'national-id',

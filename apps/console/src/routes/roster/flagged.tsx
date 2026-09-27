@@ -8,15 +8,13 @@ import { Page, PageHead } from '../../components/page';
 import { FlaggedList } from '../../components/roster/flagged-list';
 import { messages as m } from '../../components/roster/messages';
 import { RECORDS_PAGE_SIZE } from '../../components/roster/records-query';
+import { useRosterCommission } from '../../components/roster/use-roster-commission';
 import { signInRedirect } from '../../components/sign-in-redirect';
-import { getCommission } from '../../server/commissions';
-import type { Commission, DirectoryResult, RosterRecordPage } from '../../server/directory/client';
+import type { DirectoryResult, RosterRecordPage } from '../../server/directory/client';
 import { listRosterRecords } from '../../server/roster-records';
 
 interface FlaggedData {
   records: DirectoryResult<RosterRecordPage>;
-  /** For the date of the latest complete import; the list stands without it. */
-  commission: DirectoryResult<Commission>;
 }
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
@@ -30,15 +28,14 @@ export const Route = createFileRoute('/roster/flagged')({
     // The layout shows no list without the workspace; do not fetch one.
     if (!context.workspace) return null;
     const slug = context.tenant;
-    if (!slug) return { records: noCommission, commission: noCommission };
-    const [records, commission] = await Promise.all([
-      listRosterRecords({ data: { slug, flagged: true, limit: RECORDS_PAGE_SIZE } }),
-      getCommission({ data: { slug } }),
-    ]);
+    if (!slug) return { records: noCommission };
+    const records = await listRosterRecords({
+      data: { slug, flagged: true, limit: RECORDS_PAGE_SIZE },
+    });
     if (!records.ok && records.error.kind === 'unauthenticated') {
       throw signInRedirect(location.href);
     }
-    return { records, commission };
+    return { records };
   },
   head: () => ({ meta: [{ title: `${m.flaggedTitlePage} · Adili Online Console` }] }),
   staticData: { crumb: m.flaggedTitlePage },
@@ -61,7 +58,8 @@ function FlaggedLoaded() {
 function FlaggedPage({ data }: { data: FlaggedData | null }) {
   const { workspace, tenant } = Route.useRouteContext();
   const readOnly = workspace?.readOnly ?? true;
-  const roster = data?.commission.ok ? data.commission.data.roster : null;
+  const commission = useRosterCommission();
+  const roster = commission?.ok ? commission.data.roster : null;
   const nobody = data?.records.ok === true && data.records.data.items.length === 0;
   const lastComplete = roster?.lastCompleteImportAt
     ? formatDate(roster.lastCompleteImportAt)
