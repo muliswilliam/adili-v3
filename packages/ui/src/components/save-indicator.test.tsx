@@ -8,6 +8,7 @@ describe('SaveIndicator', () => {
     ['saved', 'Saved'],
     ['saving', 'Saving…'],
     ['retrying', 'Could not save, retrying'],
+    ['rejected', 'Could not save'],
     ['conflict', 'Edited elsewhere: reload to continue'],
   ])('says %s in text through a live region', (status, text) => {
     render(<SaveIndicator status={status} />);
@@ -34,6 +35,15 @@ describe('SaveIndicator', () => {
 
     fireEvent.click(button);
     expect(onReload).toHaveBeenCalledOnce();
+  });
+
+  it('shows a refused save as a problem, apart from retrying', () => {
+    render(<SaveIndicator status="rejected" />);
+
+    const status = screen.getByRole('status');
+    expect(status.closest('[data-status]')?.getAttribute('data-status')).toBe('rejected');
+    expect(status.className).toContain('text-destructive');
+    expect(status.querySelector('svg')).toBeTruthy();
   });
 
   it('takes custom messages', () => {

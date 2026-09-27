@@ -163,19 +163,19 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
   );
 
   const autosave = useSyncExternalStore(queue.subscribe, queue.getState, queue.getState);
-  const busy = hasUnsavedWork(autosave);
 
-  // Warn before the tab closes only while a save is in flight or waiting to go.
+  // Before the tab closes, send waiting edits at once, then ask to confirm only if a save is
+  // still in flight or waiting (or was refused). Never while the page shows Saved.
   useEffect(() => {
-    if (!busy) return;
     function warn(event: BeforeUnloadEvent) {
-      event.preventDefault();
+      queue.flush();
+      if (hasUnsavedWork(queue.getState())) event.preventDefault();
     }
     window.addEventListener('beforeunload', warn);
     return () => {
       window.removeEventListener('beforeunload', warn);
     };
-  }, [busy]);
+  }, [queue]);
 
   const reload = useCallback(async () => {
     const result = await getDeclaration({ data: { declarationId } });

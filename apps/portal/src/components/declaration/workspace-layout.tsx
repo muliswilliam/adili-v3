@@ -10,7 +10,6 @@ import {
   DialogTitle,
   Icon,
   SaveIndicator,
-  type SaveStatus,
   SectionNav,
   type SectionNavSection,
   useToast,
@@ -26,7 +25,6 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
-import type { AutosaveStatus } from './autosave';
 import { OBLIGATION_TYPE_LABELS } from './labels';
 import { navEntries, neighbours, type Step, stepForNavEntry, stepLink, stepTitle } from './steps';
 import { useWorkspace } from './workspace';
@@ -35,16 +33,6 @@ import { WorkspaceHeader } from './workspace-header';
 export const CONFLICT_COPY =
   'This declaration was changed on another device or tab. Reload to continue; your last saved work is kept.';
 export const RELOADED_COPY = 'Reloaded the latest saved version';
-
-function indicator(status: AutosaveStatus): {
-  status: SaveStatus;
-  messages?: Partial<Record<SaveStatus, string>>;
-} {
-  // A refused save is not retried; say so instead of "retrying".
-  if (status === 'rejected')
-    return { status: 'retrying', messages: { retrying: 'Could not save' } };
-  return { status };
-}
 
 function navSections(sections: ReturnType<typeof navEntries>): SectionNavSection[] {
   return sections.map((entry) => ({
@@ -72,7 +60,6 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
   const [reloading, setReloading] = useState(false);
   const { sections } = declaration;
   const entries = navSections(navEntries(sections));
-  const save = indicator(autosave.status);
   const { back, next } = neighbours(sections, step);
   const typeLabel = `${OBLIGATION_TYPE_LABELS[declaration.type]} declaration`;
 
@@ -91,9 +78,7 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
     }
   }
 
-  const saveIndicator = (
-    <SaveIndicator status={save.status} {...(save.messages ? { messages: save.messages } : {})} />
-  );
+  const saveIndicator = <SaveIndicator status={autosave.status} />;
 
   const nav = (
     <SectionNav

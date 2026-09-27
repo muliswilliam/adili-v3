@@ -20,6 +20,7 @@ export const MAX_RETRY_MS = 30_000;
  * - `retrying`: the last PUT failed on the network or the service; it will be tried again.
  * - `conflict`: 412, the draft changed elsewhere. Editing stops until a reload.
  * - `rejected`: 400, the service refused a section. Retrying won't help; the next edit will.
+ *   The refused contents are kept and count as unsaved work until that section saves.
  */
 export type AutosaveStatus = 'saved' | 'saving' | 'retrying' | 'conflict' | 'rejected';
 
@@ -39,8 +40,8 @@ export interface AutosaveState {
   inFlight: { key: string; contents: unknown } | null;
   /** Failed attempts in a row, for the backoff. */
   failures: number;
-  /** The section and code of the last 400, while status is `rejected`. */
-  rejection: { key: string; code: string | null } | null;
+  /** The section, code and refused contents of the last 400, while status is `rejected`. */
+  rejection: { key: string; code: string | null; contents: unknown } | null;
 }
 
 export type AutosaveEvent =
@@ -82,9 +83,17 @@ function idle(state: AutosaveState) {
   return state.inFlight === null && Object.keys(state.pending).length === 0;
 }
 
-/** True while a save is in flight or waiting, e.g. to warn before the tab closes. */
-export function hasUnsavedWork(state: AutosaveState): boolean {
+/** True while a save is in flight or waiting to go. */
+export function isSaving(state: AutosaveState): boolean {
   return !idle(state);
+}
+
+/**
+ * True while a save is in flight or waiting, or a refused one has not been replaced, e.g. to
+ * warn before the tab closes.
+ */
+export function hasUnsavedWork(state: AutosaveState): boolean {
+  return !idle(state) || state.rejection !== null;
 }
 
 function settledStatus(state: AutosaveState): AutosaveStatus {
@@ -160,7 +169,7 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
         ...state,
         inFlight: null,
         failures: 0,
-        rejection: { key: state.inFlight.key, code: event.code },
+        rejection: { key: state.inFlight.key, code: event.code, contents: state.inFlight.contents },
       };
       return { ...next, status: 'rejected' };
     }

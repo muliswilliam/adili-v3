@@ -27,7 +27,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { getDeclarationSummary } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
-import { hasUnsavedWork } from './autosave';
+import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from './contents';
 import { DiscardDraftButton } from './discard-dialog';
@@ -599,7 +599,7 @@ function useFreshSummary(loaded: LoadedSummary): LoadedSummary {
     setSeen(loaded);
     setSummary(loaded);
   }
-  const busy = hasUnsavedWork(autosave);
+  const busy = isSaving(autosave);
   const waited = useRef(busy);
   useEffect(() => {
     if (busy) {

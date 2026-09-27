@@ -10,12 +10,17 @@ import { Button } from './button';
 import { Icon } from './icon';
 import { Spinner } from './spinner';
 
-export type SaveStatus = 'saved' | 'saving' | 'retrying' | 'conflict';
+/**
+ * `retrying`: a save failed and will be tried again. `rejected`: the service refused the change,
+ * so it is not retried; the next edit is sent. `conflict`: edited elsewhere, reload to continue.
+ */
+export type SaveStatus = 'saved' | 'saving' | 'retrying' | 'rejected' | 'conflict';
 
 const DEFAULT_MESSAGES: Record<SaveStatus, string> = {
   saved: 'Saved',
   saving: 'Saving…',
   retrying: 'Could not save, retrying',
+  rejected: 'Could not save',
   conflict: 'Edited elsewhere: reload to continue',
 };
 
@@ -44,6 +49,7 @@ export function SaveIndicator({
 }: SaveIndicatorProps) {
   const text = messages?.[status] ?? DEFAULT_MESSAGES[status];
   const conflict = status === 'conflict';
+  const problem = conflict || status === 'rejected';
 
   return (
     <div
@@ -60,7 +66,7 @@ export function SaveIndicator({
         className={cn(
           'inline-flex items-center gap-1.5 whitespace-nowrap',
           status === 'retrying' && 'text-warning',
-          conflict && 'font-medium text-destructive',
+          problem && 'font-medium text-destructive',
         )}
       >
         {status === 'saving' ? <Spinner className="size-3.5" /> : null}
@@ -68,7 +74,7 @@ export function SaveIndicator({
           <Icon icon={CloudSavingDone01Icon} className="size-[15px] text-success" />
         ) : null}
         {status === 'retrying' ? <Icon icon={WifiDisconnected01Icon} className="size-3.5" /> : null}
-        {conflict ? <Icon icon={AlertCircleIcon} className="size-3.5" /> : null}
+        {problem ? <Icon icon={AlertCircleIcon} className="size-3.5" /> : null}
         {text}
       </span>
       {conflict && onReload ? (
