@@ -38,7 +38,7 @@ pnpm health         # readiness of everything
 | console (Commissions, EACC)      | http://localhost:3020                                                 |
 | verify (public)                  | http://localhost:3030                                                 |
 | services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) |
-| government-system mocks          | http://localhost:8000                                                 |
+| government-system mocks          | http://localhost:8000 (SMS inbox `/sms/inbox`)                        |
 | Keycloak (admin / admin_dev)     | http://localhost:8080                                                 |
 | Temporal UI                      | http://localhost:8233                                                 |
 | RabbitMQ (adili / adili_dev)     | http://localhost:15672                                                |
