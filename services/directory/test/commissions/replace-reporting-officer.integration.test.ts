@@ -2,10 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  IdentityUnavailable,
-  IdentityUserNotFound,
-} from '../../src/identity/identity-provisioning.js';
+import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import {
@@ -79,8 +76,11 @@ describe('S11 replace', () => {
 
     await assign(api, SECOND);
 
-    expect(api.identity.calls('revokeRoleAndDisable')).toEqual([
-      { operation: 'revokeRoleAndDisable', userId: previous.userId, role: 'reporting-officer' },
+    expect(api.identity.calls('revokeRole')).toEqual([
+      { operation: 'revokeRole', userId: previous.userId, role: 'reporting-officer' },
+    ]);
+    expect(api.identity.calls('setEnabled')).toEqual([
+      { operation: 'setEnabled', userId: previous.userId, enabled: false },
     ]);
     expect(api.identity.user(previous.userId)).toMatchObject({ enabled: false, roles: [] });
     const created = api.identity.calls('createStaffUser');
@@ -133,6 +133,20 @@ describe('S11 replace', () => {
     expect(api.identity.user(previous.userId)?.enabled).toBe(false);
   });
 
+  it('only takes the role from a previous officer whose account holds other roles', async () => {
+    const reviewer = api.identity.seedUser({
+      email: FIRST.email,
+      tenant: 'tsc',
+      roles: ['reviewer'],
+    });
+    await givenOfficer(api, FIRST);
+
+    const response = await assign(api, SECOND);
+
+    expect(response.statusCode).toBe(200);
+    expect(api.identity.user(reviewer)).toMatchObject({ enabled: true, roles: ['reviewer'] });
+  });
+
   it('keeps the account when the same person is assigned again with corrected details', async () => {
     const previous = await givenOfficer(api, FIRST);
 
@@ -143,7 +157,7 @@ describe('S11 replace', () => {
       phone: '+254733444555',
       state: 'invited',
     });
-    expect(api.identity.calls('revokeRoleAndDisable')).toEqual([]);
+    expect(api.identity.calls('revokeRole')).toEqual([]);
     expect(api.identity.user(previous.userId)).toMatchObject({
       enabled: true,
       roles: ['reporting-officer'],
@@ -175,7 +189,7 @@ describe('S11 replace', () => {
 
   it('still replaces an officer whose account was deleted in Keycloak by hand', async () => {
     const previous = await givenOfficer(api, FIRST);
-    api.identity.failNext('revokeRoleAndDisable', new IdentityUserNotFound(previous.userId));
+    await api.identity.deleteUser(previous.userId);
 
     const response = await assign(api, SECOND);
 
@@ -193,7 +207,7 @@ describe('S11 replace', () => {
     expect(replay.headers['idempotent-replayed']).toBe('true');
     expect(replay.json()).toEqual(first.json());
     expect(await assignmentRows(api)).toHaveLength(2);
-    expect(api.identity.calls('revokeRoleAndDisable')).toHaveLength(1);
+    expect(api.identity.calls('revokeRole')).toHaveLength(1);
     expect(api.identity.calls('sendActivationEmail')).toHaveLength(2);
   });
 
@@ -222,14 +236,20 @@ describe('S11 refusals and failures leave the current officer in place', () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json<Problem>().type).toBe('email-belongs-to-other-tenant');
-    expect(api.identity.calls('revokeRoleAndDisable')).toEqual([]);
+    expect(api.identity.calls('revokeRole')).toEqual([]);
     expect(api.identity.user(previous.userId)?.enabled).toBe(true);
     expect((await officerOf(api))?.id).toBe(previous.assignmentId);
     expect(await assignedEvents(api)).toHaveLength(1);
   });
 
-  it.each(['revokeRoleAndDisable', 'createStaffUser', 'sendActivationEmail'] as const)(
-    'answers 502 and records nothing when %s fails',
+  it.each([
+    'findById',
+    'revokeRole',
+    'setEnabled',
+    'createStaffUser',
+    'sendActivationEmail',
+  ] as const)(
+    'answers 502, records nothing and leaves both accounts as they were when %s fails',
     async (operation) => {
       const previous = await givenOfficer(api, FIRST);
       api.identity.failNext(operation, new IdentityUnavailable('Keycloak is unreachable'));
@@ -243,8 +263,31 @@ describe('S11 refusals and failures leave the current officer in place', () => {
       expect((await officerOf(api))?.id).toBe(previous.assignmentId);
       expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['invited']);
       expect(await assignedEvents(api)).toHaveLength(1);
+      expect(api.identity.user(previous.userId)).toMatchObject({
+        enabled: true,
+        roles: ['reporting-officer'],
+      });
+      expect(api.identity.userByEmail(SECOND.email)).toBeUndefined();
     },
   );
+
+  it('returns a reused account of the tenant to how it was when the email fails', async () => {
+    const previous = await givenOfficer(api, FIRST);
+    const reviewer = api.identity.seedUser({
+      email: SECOND.email,
+      tenant: 'tsc',
+      roles: ['reviewer'],
+    });
+    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
+
+    expect((await assign(api, SECOND)).statusCode).toBe(502);
+
+    expect(api.identity.user(reviewer)).toMatchObject({ enabled: true, roles: ['reviewer'] });
+    expect(api.identity.user(previous.userId)).toMatchObject({
+      enabled: true,
+      roles: ['reporting-officer'],
+    });
+  });
 
   it('completes the replacement when retried with the same key after a 502', async () => {
     const previous = await givenOfficer(api, FIRST);
@@ -255,7 +298,7 @@ describe('S11 refusals and failures leave the current officer in place', () => {
     const retry = await assign(api, SECOND, { key });
 
     expect(retry.statusCode).toBe(200);
-    expect(api.identity.calls('createStaffUser')).toHaveLength(2);
+    expect(api.identity.calls('createStaffUser')).toHaveLength(3);
     expect(api.identity.user(previous.userId)?.enabled).toBe(false);
     expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['replaced', 'invited']);
     expect(await assignedEvents(api)).toHaveLength(2);

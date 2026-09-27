@@ -90,7 +90,7 @@ export class CommissionsService {
    */
   async create(principal: Principal, body: CreateCommissionBody): Promise<Commission> {
     try {
-      await this.db.transaction(async (tx) => {
+      return await this.db.transaction(async (tx) => {
         await this.refuseTaken(tx, body);
         const [created] = await tx
           .insert(commissions)
@@ -120,6 +120,9 @@ export class CommissionsService {
           tx,
           commissionCreated({ commissionId: created.id, slug: body.slug, type: body.type }),
         );
+        // Read before the commit: nothing that can fail runs after it, so a committed create
+        // always answers 201 and a retry with the same Idempotency-Key replays it.
+        return this.read(tx, body.slug);
       });
     } catch (error) {
       // A concurrent create can pass `refuseTaken` and lose at the unique constraint instead.
@@ -127,7 +130,6 @@ export class CommissionsService {
       if (field) throw taken([field], body);
       throw error;
     }
-    return this.get(principal, body.slug);
   }
 
   /** One page ordered by name, plus the number of Commissions matching the filters. */
@@ -172,13 +174,17 @@ export class CommissionsService {
   }
 
   async get(principal: Principal, slug: string): Promise<Commission> {
-    const row = canSeeCommission(principal, slug)
-      ? await withTenant(this.db, tenantContextOf(principal), async (tx) => {
-          const [found] = await this.select(tx).where(eq(commissions.slug, slug)).limit(1);
-          return found;
-        })
-      : undefined;
-    return toCommission(notFoundIfInvisible(row));
+    notFoundIfInvisible(slug, (visible) => canSeeCommission(principal, visible));
+    return withTenant(this.db, tenantContextOf(principal), (tx) => this.read(tx, slug));
+  }
+
+  /**
+   * The Commission as the given transaction sees it, for writes that answer with it before
+   * they commit. The caller has decided visibility. 404 when it does not exist.
+   */
+  async read(tx: Transaction, slug: string): Promise<Commission> {
+    const [found] = await this.select(tx).where(eq(commissions.slug, slug)).limit(1);
+    return toCommission(notFoundIfInvisible(found));
   }
 
   async listOfficerCategories(): Promise<OfficerCategory[]> {

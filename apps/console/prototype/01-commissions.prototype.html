@@ -1987,7 +1987,7 @@
         const replace = f.mode === 'replace';
         const norm = normPhone(f.phone);
         const body = `
-    ${replace && c.reportingOfficer ? alertBox('warn', `${esc(c.reportingOfficer.name)} will lose access to this Commission immediately. Their account will be disabled.`, '', '', { role: 'status' }) : ''}
+    ${replace && c.reportingOfficer ? alertBox('warn', `${esc(c.reportingOfficer.name)} will lose reporting officer access to this Commission immediately. If that is their only role, their account will be disabled.`, '', '', { role: 'status' }) : ''}
     ${f.alert || ''}
     ${ff('Full name', `<input id="f-af-name" class="input" data-bind="af.name" value="${esc(f.name)}" autocomplete="off" maxlength="130" ${described('f-af-name', e.name, false)} ${dis}/>`, { id: 'f-af-name', error: e.name })}
     ${ff('Official email', `<input id="f-af-email" class="input" type="email" data-bind="af.email" value="${esc(f.email)}" autocomplete="off" maxlength="260" placeholder="name@commission.go.ke" ${described('f-af-email', e.email)} ${dis}/>`, { id: 'f-af-email', error: e.email, hint: 'Becomes their console username.' })}

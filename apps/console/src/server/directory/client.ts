@@ -35,7 +35,21 @@ export type DirectoryError =
 
 export type DirectoryResult<T> = { ok: true; data: T } | { ok: false; error: DirectoryError };
 
-const TIMEOUT_MS = 5_000;
+/**
+ * How long the console waits for the directory, by kind of call. Reads and plain writes are
+ * quick. Assigning and resending wait on Keycloak, which sends the activation email over SMTP
+ * before answering (the directory allows it 25 s) around several other admin calls; giving up
+ * sooner would report a failure for an invitation that is still sent. A write that does time out
+ * keeps its Idempotency-Key, so the retry replays the directory's outcome.
+ */
+export const DIRECTORY_TIMEOUTS_MS = { read: 5_000, write: 10_000, identity: 45_000 } as const;
+
+/** The timeout of one directory call, from its method and path. */
+export function directoryTimeoutMs(method: string, path: string): number {
+  if (method === 'GET' || method === 'HEAD') return DIRECTORY_TIMEOUTS_MS.read;
+  if (/\/reporting-officer(\/|$)/.test(path)) return DIRECTORY_TIMEOUTS_MS.identity;
+  return DIRECTORY_TIMEOUTS_MS.write;
+}
 
 export function createDirectoryClient(options: {
   baseUrl: string;
@@ -46,8 +60,10 @@ export function createDirectoryClient(options: {
   return createClient<paths>({
     baseUrl: options.baseUrl,
     headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
-    fetch: (request) =>
-      fetchImpl(new Request(request, { signal: AbortSignal.timeout(TIMEOUT_MS) })),
+    fetch: (request) => {
+      const timeoutMs = directoryTimeoutMs(request.method, new URL(request.url).pathname);
+      return fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) }));
+    },
   });
 }
 

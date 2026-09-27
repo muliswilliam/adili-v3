@@ -20,16 +20,19 @@
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
-    "@nestjs/common": "^12.1.0",
     "drizzle-orm": "^0.45.3",
     "pg": "^8.23.0"
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@nestjs/common": "^12.1.0",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",
     "eslint": "^10.11.0",
     "typescript": "~6.0.3"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.1.0"
   }
 }

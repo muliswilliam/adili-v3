@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -17,6 +17,7 @@ import {
 } from '../identity/identity-provisioning.js';
 import { PLATFORM_TENANT } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
+import { IdentityChanges } from './identity-changes.js';
 import type { AssignReportingOfficerBody } from './assign-reporting-officer.js';
 import { CommissionsService, type Transaction } from './commissions.service.js';
 import { reportingOfficerAssigned } from './events.js';
@@ -45,12 +46,17 @@ export function activationEmail(consoleUrl: string = config.CONSOLE_URL): Activa
 /**
  * The reporting officer of a Commission (spec 01): who is accountable for its roster, and the
  * staff account they sign in with. Assignments are tenant data under RLS, so every write runs in
- * the platform context. Identity calls run inside the same unit of work, the activation email
- * last: when Keycloak refuses or fails, nothing is recorded and the request can be retried with
- * the same Idempotency-Key (the account it may have created is reused, being in this tenant).
+ * the platform context.
+ *
+ * Identity calls run inside the same unit of work but cannot roll back with it, so an assignment
+ * records each identity change it makes and undoes them when a later step (or the commit) fails:
+ * Keycloak then looks as it did before, like the database, and the request can be retried with
+ * the same Idempotency-Key.
  */
 @Injectable()
 export class ReportingOfficersService {
+  private readonly logger = new Logger(ReportingOfficersService.name);
+
   constructor(
     @InjectDatabase() private readonly db: Database<DirectorySchema>,
     private readonly events: EventPublisher,
@@ -63,76 +69,99 @@ export class ReportingOfficersService {
    * Assigns the Commission's reporting officer: creates (or reuses, same tenant) their account
    * with the reporting-officer role and the staff required actions, records the assignment as
    * `invited` with `commission.reporting-officer.assigned.v1`, and has Keycloak send exactly one
-   * activation email. A current officer is replaced: their account loses the role and is
-   * disabled, and their assignment becomes `replaced` with `replacedBy` naming the new one.
+   * activation email. A current officer is replaced: their account loses the role (and is
+   * disabled when that was its only role), and their assignment becomes `replaced` with
+   * `replacedBy` naming the new one.
+   *
+   * Order: the new account first (an email of another tenant is refused before anything
+   * changes), then the records and the activation email, and the previous officer's access
+   * last, so that the current officer keeps access whenever the new one could not be invited.
    */
   async assign(
     principal: Principal,
     slug: string,
     body: AssignReportingOfficerBody,
   ): Promise<Commission> {
-    let invitedUserId: string;
+    const changes = new IdentityChanges(this.logger);
+    let assigned: { keycloakUserId: string; commission: Commission };
     try {
-      invitedUserId = await this.inPlatformContext(principal, async (tx) => {
-        const commissionId = await this.lockCommission(tx, slug);
-        const previous = await this.currentAssignment(tx, commissionId);
-
-        // Provisioning first: an email of another tenant is refused before anyone loses access.
-        const keycloakUserId = await this.provisionAccount(slug, body);
-        const now = new Date();
-        if (previous) {
-          // Re-assigning the same person (to correct their details) keeps their account.
-          if (previous.keycloakUserId !== keycloakUserId) {
-            await this.retire(previous.keycloakUserId);
-          }
-          // Replaced before the insert: the current key admits one non-replaced assignment.
-          await tx
-            .update(reportingOfficerAssignments)
-            .set({ state: 'replaced', replacedAt: now })
-            .where(eq(reportingOfficerAssignments.id, previous.id));
-        }
-        const [assignment] = await tx
-          .insert(reportingOfficerAssignments)
-          .values({
-            commissionId,
-            tenant: slug,
-            name: body.name,
-            email: body.email,
-            phone: body.phone,
-            keycloakUserId,
-            state: 'invited',
-            invitedAt: now,
-            createdBy: principal.subject,
-          })
-          .returning({ id: reportingOfficerAssignments.id });
-        if (!assignment) throw new Error('Assignment insert returned no row');
-        if (previous) {
-          await tx
-            .update(reportingOfficerAssignments)
-            .set({ replacedBy: assignment.id })
-            .where(eq(reportingOfficerAssignments.id, previous.id));
-        }
-        await this.events.record(
-          tx,
-          reportingOfficerAssigned(slug, {
-            commissionId,
-            assignmentId: assignment.id,
-            keycloakUserId,
-            replacedAssignmentId: previous?.id ?? null,
-          }),
-        );
-        await this.identity.sendActivationEmail(keycloakUserId, activationEmail());
-        return keycloakUserId;
-      });
+      assigned = await this.inPlatformContext(principal, (tx) =>
+        this.assignWithin(tx, principal, slug, body, changes).catch(async (error: unknown) => {
+          // Undone while the Commission is still locked, so that a concurrent assignment
+          // cannot build on an account that is being put back.
+          await changes.undo();
+          throw error;
+        }),
+      );
     } catch (error) {
+      // Changes are still recorded here only when the commit itself failed.
+      await changes.undo();
       throw asProblem(
         error,
         'The identity provider did not respond, so the officer was not assigned. Try again.',
       );
     }
     // A reused account may be remembered as having no invitation; look it up again next time.
-    await this.activationLookups.forget(invitedUserId);
-    return this.commissions.get(principal, slug);
+    // Never throws: nothing after the commit may fail, or a retry would assign again.
+    await this.activationLookups.forget(assigned.keycloakUserId);
+    return assigned.commission;
+  }
+
+  /** The unit of work of `assign`: the invited account id and the Commission to answer with. */
+  private async assignWithin(
+    tx: Transaction,
+    principal: Principal,
+    slug: string,
+    body: AssignReportingOfficerBody,
+    changes: IdentityChanges,
+  ): Promise<{ keycloakUserId: string; commission: Commission }> {
+    const commissionId = await this.lockCommission(tx, slug);
+    const previous = await this.currentAssignment(tx, commissionId);
+    const keycloakUserId = await this.provisionAccount(slug, body, changes);
+    const now = new Date();
+    if (previous) {
+      // Replaced before the insert: the current key admits one non-replaced assignment.
+      await tx
+        .update(reportingOfficerAssignments)
+        .set({ state: 'replaced', replacedAt: now })
+        .where(eq(reportingOfficerAssignments.id, previous.id));
+    }
+    const [assignment] = await tx
+      .insert(reportingOfficerAssignments)
+      .values({
+        commissionId,
+        tenant: slug,
+        name: body.name,
+        email: body.email,
+        phone: body.phone,
+        keycloakUserId,
+        state: 'invited',
+        invitedAt: now,
+        createdBy: principal.subject,
+      })
+      .returning({ id: reportingOfficerAssignments.id });
+    if (!assignment) throw new Error('Assignment insert returned no row');
+    if (previous) {
+      await tx
+        .update(reportingOfficerAssignments)
+        .set({ replacedBy: assignment.id })
+        .where(eq(reportingOfficerAssignments.id, previous.id));
+    }
+    await this.events.record(
+      tx,
+      reportingOfficerAssigned(slug, {
+        commissionId,
+        assignmentId: assignment.id,
+        keycloakUserId,
+        replacedAssignmentId: previous?.id ?? null,
+      }),
+    );
+    await this.identity.sendActivationEmail(keycloakUserId, activationEmail());
+    // Re-assigning the same person (to correct their details) keeps their account.
+    if (previous && previous.keycloakUserId !== keycloakUserId) {
+      await this.retire(previous.keycloakUserId, changes);
+    }
+    return { keycloakUserId, commission: await this.commissions.read(tx, slug) };
   }
 
   /**
@@ -196,16 +225,30 @@ export class ReportingOfficersService {
    * The officer's account id: an existing account of this tenant gets the role (and is enabled
    * again, in case it was replaced earlier), otherwise a new staff account is created. An account
    * of another tenant (or of none) is refused: a user belongs to one tenant until Keycloak
-   * Organizations are adopted.
+   * Organizations are adopted. Every change is recorded in `changes` with its undo.
    */
-  private async provisionAccount(slug: string, body: AssignReportingOfficerBody): Promise<string> {
+  private async provisionAccount(
+    slug: string,
+    body: AssignReportingOfficerBody,
+    changes: IdentityChanges,
+  ): Promise<string> {
     const existing = await this.identity.findByEmail(body.email);
     if (existing) {
       if (existing.tenant !== slug) throw emailInOtherTenant();
-      await this.identity.grantRoleAndEnable(existing.userId, REPORTING_OFFICER_ROLE);
-      return existing.userId;
+      const { userId } = existing;
+      if (!existing.roles.includes(REPORTING_OFFICER_ROLE)) {
+        await this.identity.grantRole(userId, REPORTING_OFFICER_ROLE);
+        changes.made(`granted ${REPORTING_OFFICER_ROLE} to ${userId}`, () =>
+          this.identity.revokeRole(userId, REPORTING_OFFICER_ROLE),
+        );
+      }
+      if (!existing.enabled) {
+        await this.identity.setEnabled(userId, true);
+        changes.made(`enabled ${userId}`, () => this.identity.setEnabled(userId, false));
+      }
+      return userId;
     }
-    return this.identity.createStaffUser({
+    const userId = await this.identity.createStaffUser({
       email: body.email,
       name: body.name,
       phone: body.phone,
@@ -213,18 +256,29 @@ export class ReportingOfficersService {
       role: REPORTING_OFFICER_ROLE,
       requiredActions: STAFF_REQUIRED_ACTIONS,
     });
+    changes.made(`created ${userId}`, () => this.identity.deleteUser(userId));
+    return userId;
   }
 
   /**
-   * Takes the reporting-officer role from a replaced officer's account and disables it.
-   * Reporting officer accounts exist only for this purpose, so disabling is safe. An account
-   * already deleted in Keycloak has no access left to remove.
+   * Takes the reporting-officer role from a replaced officer's account, and disables the account
+   * when that was its only role. An account with other roles (a reviewer of the Commission who
+   * was also its reporting officer, say) keeps them and stays enabled. An account already
+   * deleted in Keycloak has no access left to remove.
    */
-  private async retire(keycloakUserId: string): Promise<void> {
-    try {
-      await this.identity.revokeRoleAndDisable(keycloakUserId, REPORTING_OFFICER_ROLE);
-    } catch (error) {
-      if (!(error instanceof IdentityUserNotFound)) throw error;
+  private async retire(userId: string, changes: IdentityChanges): Promise<void> {
+    const account = await this.identity.findById(userId);
+    if (!account) return;
+    if (account.roles.includes(REPORTING_OFFICER_ROLE)) {
+      await this.identity.revokeRole(userId, REPORTING_OFFICER_ROLE);
+      changes.made(`revoked ${REPORTING_OFFICER_ROLE} from ${userId}`, () =>
+        this.identity.grantRole(userId, REPORTING_OFFICER_ROLE),
+      );
+    }
+    const otherRoles = account.roles.filter((role) => role !== REPORTING_OFFICER_ROLE);
+    if (account.enabled && otherRoles.length === 0) {
+      await this.identity.setEnabled(userId, false);
+      changes.made(`disabled ${userId}`, () => this.identity.setEnabled(userId, true));
     }
   }
 }

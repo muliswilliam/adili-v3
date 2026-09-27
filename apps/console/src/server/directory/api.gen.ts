@@ -72,7 +72,7 @@ export interface paths {
         get?: never;
         /**
          * Assign or replace the Commission's reporting officer
-         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role and is disabled. Idempotent per Idempotency-Key.
+         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role (and is disabled when it holds no other role). Idempotent per Idempotency-Key.
          */
         put: operations["assignReportingOfficer"];
         post?: never;
@@ -1352,6 +1352,15 @@ export interface operations {
                     "application/json": components["schemas"]["Principal"];
                 };
             };
+            /** @description Missing, expired or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listCommissions: {
@@ -1576,7 +1585,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned. Safe to retry with the same Idempotency-Key. */
+            /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned and identity changes already made were undone, so the current officer keeps access. Safe to retry with the same Idempotency-Key. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -2176,6 +2185,7 @@ export interface operations {
                     "application/json": components["schemas"]["OnboardingCommission"][];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
         };
     };
     identifyDeclarant: {
@@ -2553,6 +2563,7 @@ export interface operations {
                     "application/json": components["schemas"]["Agency"][];
                 };
             };
+            403: components["responses"]["Forbidden"];
         };
     };
     listAgencyOfficers: {

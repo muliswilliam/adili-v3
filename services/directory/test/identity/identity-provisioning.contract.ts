@@ -100,8 +100,22 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       await expect(harness().adapter.findByEmail(email.toUpperCase())).resolves.toEqual({
         userId,
         tenant: 'tsc',
+        enabled: true,
+        roles: ['reporting-officer'],
       });
       await expect(harness().adapter.findByEmail(uniqueEmail('nobody'))).resolves.toBeNull();
+    });
+
+    it('finds a user by id with its state and directly granted roles, or null', async () => {
+      const userId = await create(reportingOfficer(uniqueEmail('byid')));
+      await harness().adapter.grantRole(userId, 'reviewer');
+      await harness().adapter.setEnabled(userId, false);
+
+      const found = await harness().adapter.findById(userId);
+
+      expect(found).toMatchObject({ userId, tenant: 'tsc', enabled: false });
+      expect([...(found?.roles ?? [])].sort()).toEqual(['reporting-officer', 'reviewer']);
+      await expect(harness().adapter.findById(UNKNOWN_USER_ID)).resolves.toBeNull();
     });
 
     it('reports a duplicate email as EmailTaken and keeps the original account', async () => {
@@ -114,7 +128,7 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       });
 
       await expect(duplicate).rejects.toBeInstanceOf(EmailTaken);
-      await expect(harness().adapter.findByEmail(email)).resolves.toEqual({
+      await expect(harness().adapter.findByEmail(email)).resolves.toMatchObject({
         userId,
         tenant: 'tsc',
       });
@@ -123,36 +137,53 @@ export function identityProvisioningContract(name: string, harness: () => Contra
     it('grants a role idempotently', async () => {
       const userId = await create(reportingOfficer(uniqueEmail('grant')));
 
-      await harness().adapter.grantRoleAndEnable(userId, 'reviewer');
-      await harness().adapter.grantRoleAndEnable(userId, 'reviewer');
+      await harness().adapter.grantRole(userId, 'reviewer');
+      await harness().adapter.grantRole(userId, 'reviewer');
 
       const { realmRoles } = await harness().inspect(userId);
       expect(realmRoles).toEqual(expect.arrayContaining(['reporting-officer', 'reviewer']));
     });
 
-    it('grants a role back to a disabled user and enables it again', async () => {
-      const userId = await create(reportingOfficer(uniqueEmail('reenable')));
-      await harness().adapter.revokeRoleAndDisable(userId, 'reporting-officer');
+    it('revokes a role idempotently, keeping the account enabled and its attributes', async () => {
+      const userId = await create(reportingOfficer(uniqueEmail('revoke')));
 
-      await harness().adapter.grantRoleAndEnable(userId, 'reporting-officer');
+      await harness().adapter.revokeRole(userId, 'reporting-officer');
+      await harness().adapter.revokeRole(userId, 'reporting-officer');
 
       const user = await harness().inspect(userId);
-      expect(user.realmRoles).toContain('reporting-officer');
+      expect(user.realmRoles).not.toContain('reporting-officer');
       expect(user.enabled).toBe(true);
       expect(user.tenant).toBe('tsc');
       expect(user.phone).toBe('+254712345678');
     });
 
-    it('revokes a role and disables the user, keeping the tenant attribute', async () => {
-      const userId = await create(reportingOfficer(uniqueEmail('revoke')));
+    it('disables and enables an account, keeping its roles and attributes', async () => {
+      const userId = await create(reportingOfficer(uniqueEmail('enable')));
 
-      await harness().adapter.revokeRoleAndDisable(userId, 'reporting-officer');
+      await harness().adapter.setEnabled(userId, false);
+      await harness().adapter.setEnabled(userId, false);
+      const disabled = await harness().inspect(userId);
+      await harness().adapter.setEnabled(userId, true);
 
-      const user = await harness().inspect(userId);
-      expect(user.realmRoles).not.toContain('reporting-officer');
-      expect(user.enabled).toBe(false);
-      expect(user.tenant).toBe('tsc');
-      expect(user.phone).toBe('+254712345678');
+      expect(disabled.enabled).toBe(false);
+      const enabled = await harness().inspect(userId);
+      expect(enabled.enabled).toBe(true);
+      for (const user of [disabled, enabled]) {
+        expect(user.realmRoles).toContain('reporting-officer');
+        expect(user.tenant).toBe('tsc');
+        expect(user.phone).toBe('+254712345678');
+      }
+    });
+
+    it('deletes an account idempotently', async () => {
+      const email = uniqueEmail('delete');
+      const userId = await harness().adapter.createStaffUser(reportingOfficer(email));
+
+      await harness().adapter.deleteUser(userId);
+      await harness().adapter.deleteUser(userId);
+
+      await expect(harness().adapter.findByEmail(email)).resolves.toBeNull();
+      await expect(harness().adapter.findById(userId)).resolves.toBeNull();
     });
 
     it('sends the activation email', async () => {
@@ -167,12 +198,15 @@ export function identityProvisioningContract(name: string, harness: () => Contra
     it('reports an unknown user id as IdentityUserNotFound', async () => {
       const { adapter } = harness();
 
-      await expect(adapter.grantRoleAndEnable(UNKNOWN_USER_ID, 'reviewer')).rejects.toBeInstanceOf(
+      await expect(adapter.grantRole(UNKNOWN_USER_ID, 'reviewer')).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );
-      await expect(
-        adapter.revokeRoleAndDisable(UNKNOWN_USER_ID, 'reporting-officer'),
-      ).rejects.toBeInstanceOf(IdentityUserNotFound);
+      await expect(adapter.revokeRole(UNKNOWN_USER_ID, 'reviewer')).rejects.toBeInstanceOf(
+        IdentityUserNotFound,
+      );
+      await expect(adapter.setEnabled(UNKNOWN_USER_ID, false)).rejects.toBeInstanceOf(
+        IdentityUserNotFound,
+      );
       await expect(adapter.sendActivationEmail(UNKNOWN_USER_ID, ACTIVATION)).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );

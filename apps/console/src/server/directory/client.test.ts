@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { callDirectory, createDirectoryClient } from './client';
+import {
+  callDirectory,
+  createDirectoryClient,
+  DIRECTORY_TIMEOUTS_MS,
+  directoryTimeoutMs,
+} from './client';
 
 function clientAnswering(respond: (request: Request) => Response | Promise<Response>) {
   const requests: Request[] = [];
@@ -87,5 +92,21 @@ describe('callDirectory', () => {
       ok: false,
       error: { kind: 'unavailable', detail: null },
     });
+  });
+});
+
+describe('directoryTimeoutMs', () => {
+  it.each([
+    ['GET', '/v1/commissions', DIRECTORY_TIMEOUTS_MS.read],
+    ['GET', '/v1/commissions/tsc', DIRECTORY_TIMEOUTS_MS.read],
+    ['POST', '/v1/commissions', DIRECTORY_TIMEOUTS_MS.write],
+    ['PUT', '/v1/commissions/tsc/reporting-officer', DIRECTORY_TIMEOUTS_MS.identity],
+    [
+      'POST',
+      '/v1/commissions/tsc/reporting-officer/resend-invitation',
+      DIRECTORY_TIMEOUTS_MS.identity,
+    ],
+  ])('%s %s waits %i ms', (method, path, expected) => {
+    expect(directoryTimeoutMs(method, path)).toBe(expected);
   });
 });

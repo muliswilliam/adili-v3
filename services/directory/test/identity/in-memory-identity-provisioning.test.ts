@@ -49,16 +49,22 @@ describe('InMemoryIdentityProvisioning', () => {
 
     await identity.findByEmail('officer@tsc.go.ke');
     const userId = await identity.createStaffUser(input);
-    await identity.grantRoleAndEnable(userId, 'reviewer');
+    await identity.grantRole(userId, 'reviewer');
     await identity.sendActivationEmail(userId, ACTIVATION);
-    await identity.revokeRoleAndDisable(userId, 'reporting-officer');
+    await identity.revokeRole(userId, 'reporting-officer');
+    await identity.setEnabled(userId, false);
+    await identity.findById(userId);
+    await identity.deleteUser(userId);
 
     expect(identity.calls()).toEqual([
       { operation: 'findByEmail', email: 'officer@tsc.go.ke' },
       { operation: 'createStaffUser', input },
-      { operation: 'grantRoleAndEnable', userId, role: 'reviewer' },
+      { operation: 'grantRole', userId, role: 'reviewer' },
       { operation: 'sendActivationEmail', userId, options: ACTIVATION },
-      { operation: 'revokeRoleAndDisable', userId, role: 'reporting-officer' },
+      { operation: 'revokeRole', userId, role: 'reporting-officer' },
+      { operation: 'setEnabled', userId, enabled: false },
+      { operation: 'findById', userId },
+      { operation: 'deleteUser', userId },
     ]);
     expect(identity.calls('createStaffUser')).toEqual([{ operation: 'createStaffUser', input }]);
   });
@@ -102,12 +108,16 @@ describe('InMemoryIdentityProvisioning', () => {
     await expect(identity.findByEmail('officer@psc.go.ke')).resolves.toEqual({
       userId: pscOfficer,
       tenant: 'psc',
+      enabled: true,
+      roles: ['reporting-officer'],
     });
     await expect(identity.findByEmail('officer@tsc.go.ke')).resolves.toEqual({
       userId: tscOfficer,
       tenant: 'tsc',
+      enabled: true,
+      roles: [],
     });
-    await expect(identity.findByEmail('someone@example.com')).resolves.toEqual({
+    await expect(identity.findByEmail('someone@example.com')).resolves.toMatchObject({
       userId: 'fixed-id',
       tenant: null,
     });
@@ -120,7 +130,7 @@ describe('InMemoryIdentityProvisioning', () => {
     const userId = identity.seedUser({ email: 'a@psc.go.ke', tenant: 'psc' });
 
     const before = identity.user(userId);
-    await identity.grantRoleAndEnable(userId, 'reviewer');
+    await identity.grantRole(userId, 'reviewer');
 
     expect(before?.roles).toEqual([]);
     expect(identity.user(userId)?.roles).toEqual(['reviewer']);
