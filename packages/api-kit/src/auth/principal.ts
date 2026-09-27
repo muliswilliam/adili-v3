@@ -5,6 +5,8 @@ export interface Principal {
   /** Responsible Commission (or `eacc` / `platform`) the caller acts for. */
   tenant: string | null;
   roles: readonly string[];
+  /** OAuth scopes granted to the token (`scope`), e.g. `messages` for service clients. */
+  scopes: readonly string[];
   /** OAuth client that obtained the token (`azp`). */
   clientId: string | null;
 }

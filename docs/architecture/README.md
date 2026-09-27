@@ -199,10 +199,11 @@ flowchart TB
 **Service runtime.** Every service is a NestJS **hybrid application** (NestJS microservices guideline): one process serves Fastify HTTP (`/v1`, `/internal/v1`, `/health/*`, `/docs`) and consumes its RabbitMQ queue through the Nest RMQ transport. Each service has one durable quorum queue, `<service>.events`, bound to the `adili.events` topic exchange once per `@OnEvent('<type>')` handler, with a per-service dead-letter queue. Publishing goes through the transactional outbox, relayed with the Nest RMQ `ClientProxy`.
 
 **Common shared libraries** (`packages/`, used by every service):
-- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth, RFC 9457 problem details, health endpoints
-- `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security
+- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth with scopes (`@RequireScopes`), RFC 9457 problem details, health endpoints
+- `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security, field cipher (AES-256-GCM envelope encryption with per-tenant OpenBao Transit keys, fake for tests)
 - `events`: CloudEvents envelope, outbox relay, inbox (idempotent consumers), RMQ topology, `@OnEvent`
-- `temporal`: Temporal client and readiness
+- `temporal`: Temporal client, worker module (workflows + Nest-provided activities on a task queue, readiness, drain on shutdown), time-skipping test helper
+- `numbering`: reference numbers (ADR-011): gapless counters allocated in the caller's transaction, ISO 7064 MOD 37-36 check characters, format and parse per scheme
 - `cache`: Valkey client and readiness
 - `telemetry`: OpenTelemetry preload
 - `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
@@ -766,7 +767,7 @@ adili-v3/
 │   ├── integration-gateway/  notifications/  audit/
 ├── packages/
 │   ├── ui/                  # design system (shared by apps + Keycloak theme)
-│   ├── api-kit/  data-access/  events/  temporal/  cache/  telemetry/  bff-auth/
+│   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms

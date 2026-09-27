@@ -13,6 +13,7 @@ import {
   type Principal,
   Public,
   ReadinessCheck,
+  RequireScopes,
   TokenVerifier,
 } from '../src/index.js';
 
@@ -48,6 +49,12 @@ class TestController {
   @Get('v1/me')
   me(@CurrentPrincipal() principal: Principal) {
     return principal;
+  }
+
+  @RequireScopes('messages')
+  @Get('v1/messages')
+  messages() {
+    return { ok: true };
   }
 
   @Public()
@@ -155,8 +162,44 @@ describe('CoreModule', () => {
       subject: 'user-1',
       tenant: 'psc',
       roles: ['reviewer'],
+      scopes: [],
       clientId: 'console',
     });
+  });
+
+  it('parses scopes from the space-separated scope claim', async () => {
+    const token = await signToken({ azp: 'directory', scope: 'profile messages  email' });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.json()).toMatchObject({ scopes: ['profile', 'messages', 'email'] });
+  });
+
+  it('admits a token carrying the required scope', async () => {
+    const token = await signToken({ azp: 'directory', scope: 'profile messages' });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/messages',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('rejects a token without the required scope as 403 problem details', async () => {
+    const token = await signToken({ azp: 'console', scope: 'profile email' });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/messages',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.json()).toMatchObject({ status: 403, instance: '/v1/messages' });
   });
 
   it('serves public routes without a token', async () => {

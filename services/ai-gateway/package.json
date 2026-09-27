@@ -24,6 +24,7 @@
     "@adili/events": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
+    "@anthropic-ai/sdk": "^0.128.0",
     "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^12.1.0",
     "@nestjs/microservices": "^12.1.0",
