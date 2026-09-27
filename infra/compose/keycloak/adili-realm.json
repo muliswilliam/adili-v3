@@ -252,8 +252,21 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "defaultClientScopes": ["basic", "roles"],
-      "optionalClientScopes": []
+      "defaultClientScopes": ["basic", "roles", "documents:internal"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "clientScopes": [
@@ -905,6 +918,15 @@
     {
       "name": "roster:write",
       "description": "Upsert a Commission's declarant roster and record exits (HR-system API clients, spec #27)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "documents:internal",
+      "description": "Service tokens for the documents service's internal API: download clean uploads acting for a tenant (spec #27)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
