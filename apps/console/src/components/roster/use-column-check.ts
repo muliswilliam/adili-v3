@@ -9,6 +9,7 @@ import {
   type StartFailure,
   startFailure,
 } from './column-check';
+import { runningImportId } from './import-report';
 import type { CleanUpload } from './upload';
 import type { ColumnCheckView } from './wizard-check-step';
 
@@ -44,7 +45,12 @@ export function useColumnCheck(upload: CleanUpload | null, deps: ColumnCheckDeps
   // anything else is stale (a check still loading), so a new upload or a retry needs no reset.
   const key = upload ? `${upload.id}:${String(round)}` : null;
   const [checked, setChecked] = useState<{ key: string; view: ColumnCheckView } | null>(null);
-  const [refused, setRefused] = useState<{ key: string; failure: StartFailure } | null>(null);
+  // `running`: the import a 409 `import-in-progress` named, for "View progress".
+  const [refused, setRefused] = useState<{
+    key: string;
+    failure: StartFailure;
+    running: string | null;
+  } | null>(null);
   const check: ColumnCheckView = checked?.key === key ? checked.view : { phase: 'loading' };
   const failure = refused?.key === key ? refused.failure : null;
   const [declaredComplete, setDeclaredComplete] = useState(false);
@@ -110,10 +116,20 @@ export function useColumnCheck(upload: CleanUpload | null, deps: ColumnCheckDeps
       return;
     }
     if (needsNewIdempotencyKey(result.error)) setIdempotency(null);
-    setRefused({ key, failure: startFailure(result.error) });
+    setRefused({
+      key,
+      failure: startFailure(result.error),
+      running: runningImportId(result.error),
+    });
   };
 
   const viewRunning = async () => {
+    const named = refused?.key === key ? refused.running : null;
+    if (named) {
+      deps.onViewRunning(named);
+      return;
+    }
+    // An answer without the import's id: look it up among the newest imports.
     const result = await deps.findRunning().catch(() => unavailable);
     if (result.ok && result.data) {
       deps.onViewRunning(result.data.id);
