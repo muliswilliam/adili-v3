@@ -88,6 +88,16 @@ describe('requireStep', () => {
     },
   );
 
+  it('shows Done again for a linked session, e.g. on a refresh', async () => {
+    const active = {
+      status: 'active',
+      session: session('confirmed', 'linked-existing-account'),
+    } as const;
+    givenLookup(active);
+
+    expect(await requireStep('/get-started/done')).toEqual(active);
+  });
+
   it('shows the step with a retry when the session cannot be read', async () => {
     givenLookup({ status: 'unavailable' });
 

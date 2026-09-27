@@ -200,10 +200,10 @@ describe('DoneStep', () => {
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/auth/login');
   });
 
-  it('forgets the finished session once shown, so Get started starts afresh', () => {
+  it('keeps the session, so a refresh or Back comes back to Done', () => {
     render(<DoneStep guard={{ status: 'active', session: linked }} />);
 
-    expect(leaveOnboarding).toHaveBeenCalledTimes(1);
+    expect(leaveOnboarding).not.toHaveBeenCalled();
   });
 
   it('offers to start again for another Commission', async () => {
