@@ -24,7 +24,7 @@ export interface DeclarantAccount {
 
 export type DeclarantAccountResult =
   | { status: 'onboarded'; account: DeclarantAccount }
-  /** `GET /v1/me/declarant` answered 404: the user has no onboarded roster record. */
+  /** `GET /v1/me/declarant` answered 404: the signed-in person has no onboarded roster record. */
   | { status: 'not-declarant' }
   | { status: 'unavailable' };
 

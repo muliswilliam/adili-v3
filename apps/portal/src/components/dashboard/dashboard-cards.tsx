@@ -12,21 +12,22 @@ import { DeclarantCard, DeclarantUnavailableCard, NotDeclarantCard } from './acc
  */
 export function DashboardCards({ viewer }: { viewer: Viewer }) {
   const { declarant } = viewer;
-  if (declarant.status === 'not-declarant') {
-    return (
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <NotDeclarantCard />
-        <IdentityCard user={viewer.user} directory={viewer.directory} />
-      </div>
-    );
-  }
   return (
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-      <ObligationsCard />
-      {declarant.status === 'onboarded' ? (
-        <DeclarantCard account={declarant.account} />
+      {declarant.status === 'not-declarant' ? (
+        <>
+          <NotDeclarantCard />
+          <IdentityCard user={viewer.user} directory={viewer.directory} />
+        </>
       ) : (
-        <DeclarantUnavailableCard />
+        <>
+          <ObligationsCard />
+          {declarant.status === 'onboarded' ? (
+            <DeclarantCard account={declarant.account} />
+          ) : (
+            <DeclarantUnavailableCard />
+          )}
+        </>
       )}
     </div>
   );
