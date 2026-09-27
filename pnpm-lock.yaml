@@ -5,6 +5,9 @@ settings:
   dedupePeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@temporalio/worker@1.24.0': c21c340269f5f7d17a4a3114afb1a35b42f401e6c7e9b44ed67abbaecbb9e268
+
 importers:
 
   .:
@@ -714,7 +717,7 @@ importers:
         version: 1.24.0
       '@temporalio/worker':
         specifier: ^1.24.0
-        version: 1.24.0(esbuild@0.28.2)
+        version: 1.24.0(patch_hash=c21c340269f5f7d17a4a3114afb1a35b42f401e6c7e9b44ed67abbaecbb9e268)(esbuild@0.28.2)
       '@temporalio/workflow':
         specifier: ^1.24.0
         version: 1.24.0
@@ -10091,7 +10094,7 @@ snapshots:
       '@temporalio/common': 1.24.0
       '@temporalio/core-bridge': 1.24.0
       '@temporalio/proto': 1.24.0
-      '@temporalio/worker': 1.24.0(esbuild@0.28.2)
+      '@temporalio/worker': 1.24.0(patch_hash=c21c340269f5f7d17a4a3114afb1a35b42f401e6c7e9b44ed67abbaecbb9e268)(esbuild@0.28.2)
       '@temporalio/workflow': 1.24.0
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -10112,7 +10115,7 @@ snapshots:
       - uglify-js
       - webpack-cli
 
-  '@temporalio/worker@1.24.0(esbuild@0.28.2)':
+  '@temporalio/worker@1.24.0(patch_hash=c21c340269f5f7d17a4a3114afb1a35b42f401e6c7e9b44ed67abbaecbb9e268)(esbuild@0.28.2)':
     dependencies:
       '@grpc/grpc-js': 1.14.5
       '@swc/core': 1.16.2
