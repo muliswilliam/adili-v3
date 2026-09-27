@@ -43,7 +43,7 @@ export interface ContractHarness {
 export const ACTIVATION: ActivationEmailOptions = {
   actions: STAFF_REQUIRED_ACTIONS,
   lifespanSeconds: 72 * 60 * 60,
-  redirectUri: 'http://localhost:3020/',
+  redirectUri: 'http://localhost:3020/auth/login',
   clientId: 'console',
   commissionName: 'Teachers Service Commission',
   role: 'reporting-officer',

@@ -32,8 +32,9 @@ export const ACTIVATION_LIFESPAN_SECONDS = 72 * 60 * 60;
 
 /**
  * The activation email every reporting officer receives (on assignment, and on resend): it names
- * the Commission and the role, then the link verifies the email, enrols OTP, sets a password and
- * lands on the console.
+ * the Commission and the role, then the link verifies the email, enrols OTP and sets a password.
+ * Keycloak ends that flow without a session, so its "account ready" page leads to the console's
+ * `/auth/login`, which starts sign-in at once instead of showing the signed-out landing page.
  */
 export function activationEmail(
   commissionName: string,
@@ -42,7 +43,7 @@ export function activationEmail(
   return {
     actions: STAFF_REQUIRED_ACTIONS,
     lifespanSeconds: ACTIVATION_LIFESPAN_SECONDS,
-    redirectUri: new URL('/', consoleUrl).toString(),
+    redirectUri: new URL('/auth/login', consoleUrl).toString(),
     clientId: 'console',
     commissionName,
     role: REPORTING_OFFICER_ROLE,

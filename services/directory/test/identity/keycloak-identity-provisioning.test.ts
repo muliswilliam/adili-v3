@@ -316,7 +316,7 @@ describe('KeycloakIdentityProvisioning', () => {
     const request = requests.at(-1);
     expect(Object.fromEntries(request?.url.searchParams ?? [])).toEqual({
       lifespan: '259200',
-      redirect_uri: 'http://localhost:3020/',
+      redirect_uri: 'http://localhost:3020/auth/login',
       client_id: 'console',
     });
     expect(request?.body).toEqual(['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP']);
