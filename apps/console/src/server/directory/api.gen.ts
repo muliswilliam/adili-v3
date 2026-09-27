@@ -240,6 +240,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/roster/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Column mapping and row estimate of a clean upload, before starting the import
+         * @description reporting-officer of the tenant. Reads only the header row of the clean upload (and a
+         *     cheap row estimate where the format allows) so the officer can check the columns and
+         *     choose `declaredComplete` before starting. Nothing is staged or changed. Required template
+         *     columns absent from the file are the ones neither matched nor listed in `missing`.
+         */
+        post: operations["previewRosterImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/roster/imports/{importId}": {
         parameters: {
             query?: never;
@@ -1029,6 +1054,18 @@ export interface components {
             ignored: string[];
             /** @description Optional template columns not present */
             missing: string[];
+        };
+        PreviewRosterImport: {
+            /**
+             * Format: uuid
+             * @description A clean upload with purpose roster-import (documents service)
+             */
+            uploadId: string;
+        };
+        RosterImportPreview: {
+            mapping: components["schemas"]["ColumnMapping"];
+            /** @description Data rows detected, when the format allows a cheap count */
+            estimatedRows: number | null;
         };
         ImportCounts: {
             accepted: number;
@@ -2095,6 +2132,53 @@ export interface operations {
             };
             /** @description Rate limit exceeded (RateLimit-* headers present) */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    previewRosterImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewRosterImport"];
+            };
+        };
+        responses: {
+            /** @description The mapping */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterImportPreview"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The upload is not clean */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The file cannot be read as CSV or XLSX (`parse-error`) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

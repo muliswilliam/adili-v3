@@ -105,6 +105,49 @@ paths:
                     type: [string, 'null']
         '404':
           $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/imports/preview:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [roster]
+      operationId: previewRosterImport
+      summary: Column mapping and row estimate of a clean upload, before starting the import
+      description: |
+        reporting-officer of the tenant. Reads only the header row of the clean upload (and a
+        cheap row estimate where the format allows) so the officer can check the columns and
+        choose `declaredComplete` before starting. Nothing is staged or changed. Required template
+        columns absent from the file are the ones neither matched nor listed in `missing`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewRosterImport'
+      responses:
+        '200':
+          description: The mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterImportPreview'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The upload is not clean
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: The file cannot be read as CSV or XLSX (`parse-error`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/roster/imports/{importId}:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -1163,6 +1206,24 @@ components:
           description: Optional template columns not present
           items:
             type: string
+    PreviewRosterImport:
+      type: object
+      required: [uploadId]
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+          description: A clean upload with purpose roster-import (documents service)
+    RosterImportPreview:
+      type: object
+      required: [mapping, estimatedRows]
+      properties:
+        mapping:
+          $ref: '#/components/schemas/ColumnMapping'
+        estimatedRows:
+          type: [integer, 'null']
+          minimum: 0
+          description: Data rows detected, when the format allows a cheap count
     ImportCounts:
       type: object
       required: [accepted, created, updated, unchanged, rejected, flaggedAbsent]
