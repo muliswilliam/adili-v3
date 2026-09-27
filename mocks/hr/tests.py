@@ -1,6 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
+from demo.fixtures import load_roster_rows
 from hr.push import (
     EXIT_FILE_NUMBER,
     HttpResult,
@@ -33,6 +34,8 @@ def test_demo_batch_matches_directory_roster_rows() -> None:
     wanjiku = next(row for row in rows if row["nationalId"] == "27451863")
     assert wanjiku["personnelFileNumber"] == "KEMSA/2011/0457"
     assert wanjiku["fullName"] == "Wanjiku Njoki Kamau"
+    assert wanjiku["phone"] == "+254712000001"
+    assert wanjiku["email"] == "wanjiku.kamau@kemsa.go.ke"
     assert batch_payload()["channel"] == "api"
     assert any(row["personnelFileNumber"] == EXIT_FILE_NUMBER for row in rows)
     assert exit_payload() == {"exitDate": "2026-08-31"}
@@ -70,3 +73,19 @@ def test_push_roster_dry_run_does_not_call_directory(monkeypatch: pytest.MonkeyP
     results = push_demo_roster(dry_run=True)
     assert [result.status for result in results] == [0, 0]
     assert results[0].body["body"]["channel"] == "api"
+
+
+def test_demo_batch_uses_roster_fixture_contacts() -> None:
+    fixture = {row.national_id: (row.email, row.phone) for row in load_roster_rows("psc")}
+    batch = {
+        row["nationalId"]: (row["email"], row["phone"])
+        for row in demo_batch_rows()
+        if row["personnelFileNumber"] != EXIT_FILE_NUMBER
+    }
+    assert batch == fixture
+
+
+def test_unknown_commission_has_no_demo_roster(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DIRECTORY_COMMISSION", "nope")
+    with pytest.raises(FileNotFoundError):
+        demo_batch_rows()

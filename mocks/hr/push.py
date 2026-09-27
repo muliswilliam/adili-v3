@@ -11,7 +11,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from demo.seed import EMPLOYMENTS, PEOPLE, full_name
+from demo.fixtures import load_roster_rows
 
 DEFAULT_DIRECTORY_URL = "http://localhost:4001"
 DEFAULT_TOKEN = "demo-psc-roster-write"
@@ -20,7 +20,8 @@ BATCH_IDEMPOTENCY_KEY = "hr-demo-psc-batch-1"
 EXIT_IDEMPOTENCY_KEY = "hr-demo-psc-exit-1"
 
 # Planted exit so the demo can show an HR-confirmed departure without
-# taking Wanjiku or the other onboardable officers off the roster.
+# taking Wanjiku or the other onboardable officers off the roster. Not in the
+# roster fixtures on purpose: seeding would make her an active IPRS/HR officer.
 EXIT_FILE_NUMBER = "PSC/2019/0888"
 EXIT_DATE = date(2026, 8, 31)
 EXIT_ROW = {
@@ -31,8 +32,8 @@ EXIT_ROW = {
     "jobGroup": "H",
     "reportingEntity": "Public Service Commission",
     "appointmentDate": "2019-06-01",
-    "email": "grace.muthoni@psc.go.ke",
-    "phone": "+254712339001",
+    "email": "grace.muthoni@publicservice.go.ke",
+    "phone": "+254712000099",
 }
 
 
@@ -56,26 +57,25 @@ def commission_slug() -> str:
 
 
 def demo_batch_rows() -> list[dict[str, str]]:
-    people = {person.id_number: person for person in PEOPLE}
-    rows: list[dict[str, str]] = []
-    for id_number, personal, employer, employer_name, title, group, appointed in EMPLOYMENTS:
-        person = people[id_number]
-        rows.append(
-            {
-                "personnelFileNumber": personal,
-                "fullName": full_name(person),
-                "nationalId": id_number,
-                "designation": title,
-                "jobGroup": group,
-                "reportingEntity": employer_name,
-                "appointmentDate": appointed.isoformat(),
-                "email": (
-                    f"{person.first_name.lower()}.{person.last_name.lower()}"
-                    f"@{employer.lower()}.go.ke"
-                ),
-                "phone": f"+254712{id_number[-6:]}",
-            }
-        )
+    """The Commission's roster fixture as directory RosterRowInput rows, plus the planted exit.
+
+    Contact details come straight from the fixture so onboarding OTPs land in the SMS
+    inbox under the same numbers IPRS and HR were seeded with.
+    """
+    rows = [
+        {
+            "personnelFileNumber": row.personnel_file_number,
+            "fullName": row.full_name,
+            "nationalId": row.national_id,
+            "designation": row.designation,
+            "jobGroup": row.job_group,
+            "reportingEntity": row.reporting_entity,
+            "appointmentDate": row.appointment_date.isoformat(),
+            "email": row.email,
+            "phone": row.phone,
+        }
+        for row in load_roster_rows(commission_slug())
+    ]
     rows.append(dict(EXIT_ROW))
     return rows
 

@@ -21,7 +21,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         try:
             results = push_demo_roster(dry_run=options["dry_run"])
-        except ConnectionError as error:
+        except (ConnectionError, FileNotFoundError) as error:
             raise CommandError(str(error)) from error
         for result in results:
             self.stdout.write(f"{result.status or 'dry-run'} {result.url}")
