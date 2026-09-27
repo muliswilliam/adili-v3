@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RosterImport, RosterImportRowPage } from '../../server/directory/client';
-import { WizardImportStep } from './wizard-import-step';
+import { FailureAlert, WizardImportStep } from './wizard-import-step';
 import { WizardReportStep } from './wizard-report-step';
 
 // The steps link to the roster; a plain anchor stands in for the router's Link.
@@ -137,6 +137,36 @@ describe('WizardImportStep', () => {
   it('shows a placeholder until the first answer', () => {
     render(<WizardImportStep imp={null} reconnecting={false} onImportAnother={vi.fn()} />);
     expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+});
+
+describe('FailureAlert', () => {
+  const apiBatch = (processedRows: number) =>
+    imp({
+      channel: 'api',
+      fileName: null,
+      format: null,
+      state: 'failed',
+      totalRows: 2,
+      processedRows,
+      failure: { code: 'internal', detail: '' },
+      startedBy: { kind: 'client', id: 'roster-psc-3f9a2c1d', name: 'roster-psc-3f9a2c1d' },
+    });
+
+  it('tells an HR system batch to be sent again, not a file to be fixed', () => {
+    const { unmount } = render(<FailureAlert imp={apiBatch(1)} />);
+    let alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain(
+      'Rows already applied are kept. Your HR system can send the batch again.',
+    );
+    expect(alert.textContent).not.toContain('file');
+    unmount();
+
+    render(<FailureAlert imp={apiBatch(0)} />);
+    alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain(
+      'Nothing on the roster changed. Your HR system can send the batch again.',
+    );
   });
 });
 

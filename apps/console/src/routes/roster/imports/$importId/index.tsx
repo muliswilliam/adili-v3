@@ -162,7 +162,8 @@ function Report({
       <PageHead
         title={<span className="break-words">{reportTitle(imp)}</span>}
         actions={
-          failed && workspace && !workspace.readOnly ? (
+          // An HR system resends its batch itself; only a file is corrected here.
+          failed && imp.channel === 'file' && workspace && !workspace.readOnly ? (
             <Button asChild>
               <Link to="/roster/import">
                 <Icon icon={Upload04Icon} />

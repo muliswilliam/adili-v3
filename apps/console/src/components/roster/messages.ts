@@ -262,6 +262,8 @@ export const en = {
   stoppedKept: 'Rows already applied are kept. Fix the file and import again.',
   stoppedBefore: (reason: string) => `The import stopped before any rows were applied: ${reason}.`,
   stoppedNothing: 'Nothing on the roster changed. Fix the file and import again.',
+  stoppedKeptApi: 'Rows already applied are kept. Your HR system can send the batch again.',
+  stoppedNothingApi: 'Nothing on the roster changed. Your HR system can send the batch again.',
   importCorrected: 'Import a corrected file',
   goToRoster: 'Go to roster',
   importLoadFailedTitle: 'The import could not be loaded.',
@@ -435,6 +437,54 @@ export const en = {
     'These credentials no longer exist in the sign-in service. Revoke them and create new ones.',
   apiNoAccess: 'Only the reporting officer can manage API credentials.',
   apiErrorTitle: 'API access could not be loaded',
+  apiDocsLink: 'API documentation',
+  apiSendWith: 'Send these with the',
+  apiHistory: 'Import history',
+  // API documentation
+  docsTitle: 'Roster API',
+  docsCrumb: 'API documentation',
+  docsIntro: 'For your IT team.',
+  docsErrorTitle: 'API documentation could not be loaded',
+  docsCredentials: 'Your credentials',
+  docsBaseUrl: 'Base URL',
+  docsScope: 'Scope',
+  docsBatchSize: 'Batch size',
+  docsBatchSizeValue: (max: number) => `1 to ${formatNumber(max)} rows`,
+  docsIdempotency: 'Idempotency-Key',
+  docsIdempotencyValue: 'Required on batches and exits',
+  docsRateLimit: 'Rate limit',
+  docsRateLimitValue: (write: number, read: number) =>
+    `${formatNumber(write)} writes and ${formatNumber(read)} reads per minute per client`,
+  docsFormats: 'Formats',
+  docsFormatsValue: 'JSON, dates as YYYY-MM-DD',
+  docsExample: (section: string) => `${section} example`,
+  docsTokenTitle: 'Get a token',
+  docsTokenText:
+    'Exchange your client ID and secret for a short-lived token. Get a new one when it expires, or after the secret is rotated.',
+  docsBatchTitle: 'Send a batch of roster rows',
+  docsBatchText: (max: number) =>
+    `Send 1 to ${formatNumber(max)} rows. Rows match on personnel file number, so resending updates them; officers not in a batch are left as they are. Use a new Idempotency-Key per batch, and retry a timeout with the same key and body. One import runs at a time.`,
+  docsReportTitle: 'Fetch the import report',
+  docsReportText:
+    'Poll until the state is completed or failed. Rows that break a rule are rejected in the report, not refused; list them with status=rejected. A row number is the position in the batch, from 1.',
+  docsExitTitle: 'Record an exit',
+  docsExitText:
+    'Record an exit by personnel file number, URL-encoded (/ as %2F). The exit date is the last day of employment and cannot be in the future.',
+  docsErrorsTitle: 'Errors',
+  docsErrorsText: 'Errors are RFC 9457 problem details, as application/problem+json.',
+  docsError400: (max: number) =>
+    `The request is malformed: no rows, more than ${formatNumber(max)}, or a value of the wrong type. Each error names its field, and rowIndex its row, from 0.`,
+  docsError401:
+    'The token is missing or expired, or the secret was rotated or access revoked after it was issued. Get a new token.',
+  docsError403: 'The token lacks the roster:write scope.',
+  docsError404: 'Another Commission, or no officer has that personnel file number.',
+  docsError409:
+    'Another import is still running (importId names it; wait for it to end), or the officer has already exited.',
+  docsError422: 'The Idempotency-Key was used before with a different body.',
+  docsError429: 'Too many requests; see Rate limits.',
+  docsLimitsTitle: 'Rate limits',
+  docsLimitsText:
+    'Each client has its own budget: writes (batches and exits) and reads (imports and their rows) are counted apart. Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset (seconds until the budget is full again); on 429, wait the seconds in Retry-After.',
 } as const;
 
 /** Swahili translations, key by key; empty until reviewed. */

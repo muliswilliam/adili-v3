@@ -20,46 +20,46 @@ import {
   Loading03Icon,
   PlusSignIcon,
   ArrowReloadHorizontalIcon,
+  Clock01Icon,
+  File01Icon,
   UnavailableIcon,
 } from '@hugeicons/core-free-icons';
-import { createFileRoute, useBlocker, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker, useRouter } from '@tanstack/react-router';
 import { type ReactNode, useRef, useState } from 'react';
 
-import { formatDate, formatDateTime, formatRelativeTime } from '../../components/format';
-import { LoadError, NoAccess } from '../../components/load-error';
-import { DetailItem, DetailList, Page, PageHead, SectionCard } from '../../components/page';
+import { formatDate, formatDateTime, formatRelativeTime } from '../../../components/format';
+import { LoadError, NoAccess } from '../../../components/load-error';
+import { DetailItem, DetailList, Page, PageHead, SectionCard } from '../../../components/page';
 import {
   type CredentialAction,
   credentialFailure,
   credentialState,
-} from '../../components/roster/api-credential';
+} from '../../../components/roster/api-credential';
 import {
   RevokeDialogContent,
   RotateDialogContent,
   SavedDialogContent,
-} from '../../components/roster/credential-dialogs';
-import { CredentialField } from '../../components/roster/credential-field';
-import { messages as m } from '../../components/roster/messages';
-import { signInRedirect } from '../../components/sign-in-redirect';
+} from '../../../components/roster/credential-dialogs';
+import { ROSTER_WRITE_SCOPE } from '../../../components/roster/api-docs';
+import { CredentialField } from '../../../components/roster/credential-field';
+import { messages as m } from '../../../components/roster/messages';
+import { signInRedirect } from '../../../components/sign-in-redirect';
 import type {
   DirectoryError,
   DirectoryResult,
   RosterApiCredential,
   RosterApiCredentialWithSecret,
-} from '../../server/directory/client';
+} from '../../../server/directory/client';
 import {
   createRosterApiCredential,
   getRosterApiCredential,
   revokeRosterApiCredential,
   rotateRosterApiCredential,
-} from '../../server/roster-api-credential';
-
-/** The scope every HR-system credential carries. */
-const ROSTER_WRITE_SCOPE = 'roster:write';
+} from '../../../server/roster-api-credential';
 
 const PAGE_PATH = '/roster/api-access';
 
-export const Route = createFileRoute('/roster/api-access')({
+export const Route = createFileRoute('/roster/api-access/')({
   loader: async ({ location, context }) => {
     // The layout shows no page without the workspace, and read-only users are told credentials
     // are not theirs (the directory refuses them); fetch nothing for either.
@@ -70,7 +70,6 @@ export const Route = createFileRoute('/roster/api-access')({
     return result;
   },
   head: () => ({ meta: [{ title: `${m.apiTitle} · Adili Online Console` }] }),
-  staticData: { crumb: m.apiTitle },
   pendingComponent: ApiAccessSkeleton,
   component: ApiAccess,
 });
@@ -255,6 +254,7 @@ function Credentials({
             {title}
           </span>
         }
+        actions={issued ? null : <DocsButton />}
       />
       {issued ? (
         <IssuedCard
@@ -346,6 +346,18 @@ function Credentials({
   );
 }
 
+/** The way to the API documentation, for the IT team (not while a secret is on screen). */
+function DocsButton() {
+  return (
+    <Button asChild variant="ghost">
+      <Link to="/roster/api-access/docs">
+        <Icon icon={File01Icon} />
+        {m.apiDocsLink}
+      </Link>
+    </Button>
+  );
+}
+
 function CreateButton({ creating, onCreate }: { creating: boolean; onCreate: () => void }) {
   return (
     <Button size="sm" disabled={creating} aria-busy={creating || undefined} onClick={onCreate}>
@@ -387,6 +399,19 @@ function IssuedCard({
           <span className="text-sm font-medium">{m.apiScope}</span>
           <ScopeCode scope={credential.scope} />
         </div>
+        <p className="flex items-center gap-1.5 text-[13.5px] text-muted-foreground">
+          <Icon icon={InformationCircleIcon} className="size-3.5 shrink-0" />
+          <span>
+            {m.apiSendWith}{' '}
+            <Link
+              to="/roster/api-access/docs"
+              className="rounded-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {m.apiDocsLink}
+            </Link>
+            .
+          </span>
+        </p>
       </div>
       <div className="flex justify-end border-t px-5 py-4 sm:px-6">
         <Button onClick={onDone}>{m.apiDone}</Button>
@@ -472,7 +497,17 @@ function ActiveCredential({
         <div className="flex flex-wrap gap-2 border-t px-5 py-3.5">{children}</div>
       </SectionCard>
       <div className="grid gap-4">
-        <Card className="text-sm text-secondary-foreground">{m.apiBatchesText}</Card>
+        <Card className="gap-2.5">
+          <p className="text-sm text-secondary-foreground">{m.apiBatchesText}</p>
+          <div>
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/roster/imports">
+                <Icon icon={Clock01Icon} />
+                {m.apiHistory}
+              </Link>
+            </Button>
+          </div>
+        </Card>
         {credential.lastUsedAt ? null : (
           <Alert variant="info" role="status">
             <Icon icon={InformationCircleIcon} />

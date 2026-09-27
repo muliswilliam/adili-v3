@@ -8,6 +8,13 @@ import {
   type RosterApiCredential,
   type RosterApiCredentialWithSecret,
 } from './directory/client';
+import { env } from './env.server';
+import { type RosterApiEndpoints, rosterApiEndpoints } from './roster-api-endpoints';
+
+/** Where HR systems connect (API documentation): configuration only, nothing secret. */
+export const getRosterApiEndpoints = createServerFn({ method: 'GET' }).handler(
+  (): RosterApiEndpoints => rosterApiEndpoints(env()),
+);
 
 /** The viewer's own Commission: roster routes carry no slug, the session's tenant names it. */
 const commissionInput = z.object({ slug: z.string().min(1).max(40) });
