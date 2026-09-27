@@ -3,7 +3,7 @@ import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/ap
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { InjectTemporalClient } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import {
   canSeeCommission,
@@ -16,12 +16,16 @@ import { violatedUniqueConstraint } from '../../db/errors.js';
 import { commissions, type DirectorySchema } from '../../db/schema.js';
 import { rosterImports } from '../schema.js';
 import { RosterFileError } from '../sheet.js';
+import { decodeImportCursor, encodeImportCursor } from './cursors.js';
+import { rowsRetainedUntil } from './import-rows-purge.js';
 import { previewRosterFile } from './preview.js';
 import {
   columnMappingSchema,
   importCountsSchema,
+  type ListRosterImportsQuery,
   type PreviewRosterImportBody,
   type RosterImport,
+  type RosterImportPage,
   type RosterImportPreview,
   type StartFileImportBody,
 } from './representation.js';
@@ -90,13 +94,17 @@ export class RosterImportsService {
       });
     } catch (error) {
       if (violatedUniqueConstraint(error) === 'roster_imports_one_in_progress_key') {
-        throw new ProblemException({
-          type: 'import-in-progress',
-          title: 'Import in progress',
-          status: HttpStatus.CONFLICT,
-          detail:
-            'Another roster import for this Commission is still running. Start this one when it has finished.',
-        });
+        const running = await this.runningImportId(slug, principal);
+        throw new ProblemException(
+          {
+            type: 'import-in-progress',
+            title: 'Import in progress',
+            status: HttpStatus.CONFLICT,
+            detail:
+              'Another roster import for this Commission is still running. Start this one when it has finished.',
+          },
+          running === null ? {} : { importId: running },
+        );
       }
       throw error;
     }
@@ -115,6 +123,44 @@ export class RosterImportsService {
   }
 
   /**
+   * The Commission's import history, newest first, for its own staff and the national readers;
+   * 404 otherwise. Keyset-paged on (started at, id).
+   */
+  async list(
+    principal: Principal,
+    slug: string,
+    query: ListRosterImportsQuery,
+  ): Promise<RosterImportPage> {
+    notFoundIfInvisible(slug, () => canSeeCommission(principal, slug));
+    const after = query.cursor === undefined ? undefined : decodeImportCursor(query.cursor);
+    // Microsecond precision, so the cursor sits exactly after the page's last import.
+    const startedAtText = sql<string>`to_char(${rosterImports.startedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+    const rows = await withTenant(this.db, tenantContextOf(principal), (tx) =>
+      tx
+        .select({ row: rosterImports, startedAtText })
+        .from(rosterImports)
+        .where(
+          and(
+            eq(rosterImports.tenant, slug),
+            after &&
+              sql`(${rosterImports.startedAt}, ${rosterImports.id}) < (${after.startedAt}::timestamptz, ${after.id}::uuid)`,
+          ),
+        )
+        .orderBy(desc(rosterImports.startedAt), desc(rosterImports.id))
+        .limit(query.limit + 1),
+    );
+    const page = rows.slice(0, query.limit);
+    const last = page.at(-1);
+    return {
+      items: page.map(({ row }) => toRosterImport(row)),
+      nextCursor:
+        rows.length > query.limit && last
+          ? encodeImportCursor({ startedAt: last.startedAtText, id: last.row.id })
+          : null,
+    };
+  }
+
+  /**
    * How a clean roster upload's header lines up with the template, and roughly how many rows it
    * has, before the officer starts the import (decision 1). Reads the file; writes nothing.
    */
@@ -130,6 +176,25 @@ export class RosterImportsService {
     } catch (error) {
       throw this.asProblem(error);
     }
+  }
+
+  /** The tenant's pending or processing import, if it has not ended in the meantime. */
+  private async runningImportId(slug: string, principal: Principal): Promise<string | null> {
+    const [running] = await withTenant(
+      this.db,
+      { tenant: slug, subject: principal.subject },
+      (tx) =>
+        tx
+          .select({ id: rosterImports.id })
+          .from(rosterImports)
+          .where(
+            and(
+              eq(rosterImports.tenant, slug),
+              inArray(rosterImports.state, ['pending', 'processing']),
+            ),
+          ),
+    );
+    return running?.id ?? null;
   }
 
   private async startWorkflow(row: ImportRow): Promise<void> {
@@ -232,5 +297,6 @@ export function toRosterImport(row: ImportRow): RosterImport {
     startedBy: { kind: row.startedByKind, id: row.startedBy, name: row.startedByName },
     startedAt: row.startedAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,
+    rowsRetainedUntil: rowsRetainedUntil(row.completedAt)?.toISOString() ?? null,
   };
 }

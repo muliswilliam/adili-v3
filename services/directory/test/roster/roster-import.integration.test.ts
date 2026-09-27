@@ -121,6 +121,7 @@ const events = () =>
     .orderBy(outbox.id);
 
 const IMPORT_PATH = '/v1/commissions/{slug}/roster/imports/{importId}';
+const IMPORTS_POINTER = '~1v1~1commissions~1{slug}~1roster~1imports';
 
 describe('S4 file import', () => {
   it('accepts the import, then creates the records, reporting entities, summary and event', async () => {
@@ -385,24 +386,34 @@ describe('S10 identity lock', () => {
 });
 
 describe('starting an import', () => {
-  it('refuses a second import while one is in progress', async () => {
-    await asPlatform((tx) =>
-      tx.insert(rosterImports).values({
-        tenant: 'psc',
-        channel: 'file',
-        declaredComplete: false,
-        format: 'csv',
-        state: 'processing',
-        startedByKind: 'user',
-        startedBy: 'someone-else',
-      }),
+  it('refuses a second import while one is in progress, naming the running one', async () => {
+    const [running] = await asPlatform((tx) =>
+      tx
+        .insert(rosterImports)
+        .values({
+          tenant: 'psc',
+          channel: 'file',
+          declaredComplete: false,
+          format: 'csv',
+          state: 'processing',
+          startedByKind: 'user',
+          startedBy: 'someone-else',
+        })
+        .returning(),
     );
     const uploadId = api.uploads.add('psc', { bytes: csv(ROWS) });
 
     const response = await start({ channel: 'file', uploadId, declaredComplete: true });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json<Problem>().type).toBe('import-in-progress');
+    const problem = response.json<Problem & { importId?: string }>();
+    expect(problem).toMatchObject({ type: 'import-in-progress', importId: running?.id });
+    expect(
+      contractErrors(
+        `/paths/${IMPORTS_POINTER}/post/responses/409/content/application~1problem+json/schema`,
+        problem,
+      ),
+    ).toEqual([]);
   });
 
   it('replays the same import for the same Idempotency-Key', async () => {

@@ -31,6 +31,7 @@ const base: RosterImport = {
   startedBy: { kind: 'user', id: 'user-1', name: 'Grace Muthoni' },
   startedAt: '2026-09-26T07:40:00Z',
   completedAt: null,
+  rowsRetainedUntil: null,
 };
 
 const imp = (overrides: Partial<RosterImport>): RosterImport => ({ ...base, ...overrides });
