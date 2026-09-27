@@ -1,3 +1,5 @@
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
 from rest_framework.request import Request
@@ -33,3 +35,13 @@ class InstructionDetail(generics.RetrieveAPIView[Instruction]):
     queryset = Instruction.objects.all()
     serializer_class = InstructionSerializer
     lookup_field = "instruction_reference"
+
+
+@extend_schema(exclude=True)
+def status_page(request: HttpRequest) -> HttpResponse:
+    """Demo page: acknowledgements for stop/resume instructions (spec 08)."""
+    return render(
+        request,
+        "payroll/status.html",
+        {"instructions": Instruction.objects.all()[:100]},
+    )

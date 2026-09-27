@@ -1,6 +1,6 @@
-import { Alert, AlertDescription, AlertTitle, Button } from '@adili/ui';
+import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowLeft, CircleAlert, Construction } from 'lucide-react';
+import { AlertCircleIcon, ArrowLeft01Icon, ConstructionIcon } from '@hugeicons/core-free-icons';
 
 import { isVerificationId, normalizeVerificationId } from '../lib/verification-id';
 
@@ -22,7 +22,7 @@ function VerificationResult() {
       </div>
       {valid ? (
         <Alert variant="warning">
-          <Construction aria-hidden="true" />
+          <Icon icon={ConstructionIcon} />
           <AlertTitle>Verification is not available yet</AlertTitle>
           <AlertDescription>
             The verification service is not connected to this page yet, so this document cannot be
@@ -31,7 +31,7 @@ function VerificationResult() {
         </Alert>
       ) : (
         <Alert variant="destructive">
-          <CircleAlert aria-hidden="true" />
+          <Icon icon={AlertCircleIcon} />
           <AlertTitle>This is not a valid verification code</AlertTitle>
           <AlertDescription>
             Check the code printed under the QR code and try again.
@@ -40,7 +40,7 @@ function VerificationResult() {
       )}
       <Button asChild variant="link" className="justify-self-start">
         <Link to="/">
-          <ArrowLeft aria-hidden="true" />
+          <Icon icon={ArrowLeft01Icon} />
           Verify another document
         </Link>
       </Button>

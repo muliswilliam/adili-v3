@@ -68,9 +68,17 @@ def _date(value: str) -> date:
     return date.fromisoformat(value)
 
 
-def load_roster_rows() -> list[RosterRow]:
+def load_roster_rows(commission: str | None = None) -> list[RosterRow]:
+    """Rows from every roster file, or only `rosters/<commission>.csv` when given."""
+    if commission is None:
+        paths = sorted(ROSTER_DIR.glob("*.csv"))
+    else:
+        path = ROSTER_DIR / f"{commission}.csv"
+        if not path.is_file():
+            raise FileNotFoundError(f"No demo roster for commission {commission!r} at {path}")
+        paths = [path]
     rows: list[RosterRow] = []
-    for path in sorted(ROSTER_DIR.glob("*.csv")):
+    for path in paths:
         with path.open(newline="", encoding="utf-8") as handle:
             for raw in csv.DictReader(handle):
                 rows.append(

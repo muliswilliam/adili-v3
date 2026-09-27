@@ -7,11 +7,19 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardIcon,
   CardTitle,
+  Icon,
   SiteHeader,
 } from '@adili/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { Building2, CircleAlert, ClipboardCheck, FileBarChart2, Lock } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  Building03Icon,
+  ClipboardCheckIcon,
+  FileChartColumnIcon,
+  SquareLock02Icon,
+} from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
 
@@ -49,7 +57,7 @@ function Landing({ error }: { error: string | null }) {
           <div className="grid gap-6">
             {error ? (
               <Alert variant="destructive" className="max-w-xl">
-                <CircleAlert aria-hidden="true" />
+                <Icon icon={AlertCircleIcon} />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
@@ -62,7 +70,7 @@ function Landing({ error }: { error: string | null }) {
               non-compliance and report to the Ethics and Anti-Corruption Commission.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <Button asChild size="lg">
+              <Button asChild>
                 <a href="/auth/login">Sign in to the console</a>
               </Button>
               <p className="text-sm text-muted-foreground">Use your staff account.</p>
@@ -70,17 +78,17 @@ function Landing({ error }: { error: string | null }) {
           </div>
           <ul className="grid gap-4">
             <Capability
-              icon={<ClipboardCheck aria-hidden="true" />}
+              icon={<Icon icon={ClipboardCheckIcon} />}
               title="Review and verify"
               text="Analyse declarations, request clarifications and record determinations, with a second officer approving every decision."
             />
             <Capability
-              icon={<Building2 aria-hidden="true" />}
+              icon={<Icon icon={Building03Icon} />}
               title="Your organisation only"
               text="You see the declarants of your Commission and nothing else. Every read is recorded in the audit trail."
             />
             <Capability
-              icon={<FileBarChart2 aria-hidden="true" />}
+              icon={<Icon icon={FileChartColumnIcon} />}
               title="Report to EACC"
               text="Compliance reports (Form M) are compiled from the data your Commission already holds."
             />
@@ -93,14 +101,14 @@ function Landing({ error }: { error: string | null }) {
 
 function Capability({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
-    <li className="flex gap-4 rounded-xl border bg-card p-5">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-subtle-foreground [&_svg]:size-5">
-        {icon}
-      </div>
-      <div className="grid gap-1">
-        <h2 className="font-semibold">{title}</h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
-      </div>
+    <li>
+      <Card className="flex-row gap-4">
+        <CardIcon className="mb-0 shrink-0">{icon}</CardIcon>
+        <div className="grid gap-1">
+          <h2 className="font-semibold">{title}</h2>
+          <CardDescription className="leading-relaxed">{text}</CardDescription>
+        </div>
+      </Card>
     </li>
   );
 }
@@ -143,9 +151,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <h2 className="text-sm font-semibold">{workspace.title}</h2>
-                        <Badge variant="neutral" className="shrink-0">
-                          Not yet available
-                        </Badge>
+                        <Badge className="shrink-0">Not yet available</Badge>
                       </div>
                       <p className="text-sm leading-relaxed text-muted-foreground">
                         {workspace.description}
@@ -155,7 +161,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
                 </ul>
               ) : (
                 <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                  <Lock className="size-6 text-muted-foreground" aria-hidden="true" />
+                  <Icon icon={SquareLock02Icon} className="size-6 text-muted-foreground" />
                   <p className="text-sm font-medium">No staff roles</p>
                   <p className="max-w-xs text-sm text-muted-foreground">
                     Your account has no console access. Declarants file through the portal.
