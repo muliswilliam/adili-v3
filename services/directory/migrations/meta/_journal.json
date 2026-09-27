@@ -43,6 +43,20 @@
       "when": 1790539953477,
       "tag": "0005_idempotency_claim_token",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790544208211,
+      "tag": "0006_roster_api_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790544213444,
+      "tag": "0007_roster_api_credentials_rls",
+      "breakpoints": true
     }
   ]
 }

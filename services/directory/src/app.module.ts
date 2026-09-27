@@ -9,6 +9,7 @@ import { schema } from './db/schema.js';
 import { CommissionsModule } from './commissions/commissions.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { MeController } from './me/me.controller.js';
+import { ApiCredentialModule } from './roster/api-credential/api-credential.module.js';
 import { RosterModule } from './roster/roster.module.js';
 
 @Module({
@@ -35,6 +36,7 @@ import { RosterModule } from './roster/roster.module.js';
     IdentityModule,
     CommissionsModule,
     RosterModule,
+    ApiCredentialModule,
   ],
   controllers: [MeController],
 })

@@ -148,6 +148,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/roster/api-credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Metadata of the Commission's HR-system credential (never the secret)
+         * @description Reporting officer of the Commission. Revoked credentials are returned too.
+         */
+        get: operations["getRosterApiCredential"];
+        put?: never;
+        /**
+         * Create the credential; the secret is returned once
+         * @description Reporting officer of the Commission. Creates an API client whose tokens (client credentials grant) carry the `roster:write` scope and the Commission as `tenant`. Allowed when there is no credential or it was revoked; a new credential gets a new client id.
+         */
+        post: operations["createRosterApiCredential"];
+        /**
+         * Revoke the credential; the HR system loses access immediately
+         * @description Reporting officer of the Commission. The client obtains no more tokens; tokens already issued expire within their lifespan (minutes).
+         */
+        delete: operations["revokeRosterApiCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/api-credential/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a new secret; the previous one stops working immediately
+         * @description Reporting officer of the Commission. The client id stays the same.
+         */
+        post: operations["rotateRosterApiCredential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/roster/summary": {
         parameters: {
             query?: never;
@@ -344,46 +392,6 @@ export interface paths {
         put?: never;
         /** Clear the absent flag: these officers are still employed */
         post: operations["keepRosterRecords"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/api-credential": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Metadata of the Commission's HR-system credential (never the secret) */
-        get: operations["getRosterApiCredential"];
-        put?: never;
-        /** Create the credential; the secret is returned once */
-        post: operations["createRosterApiCredential"];
-        /** Revoke the credential; the HR system loses access immediately */
-        delete: operations["revokeRosterApiCredential"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/api-credential/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Issue a new secret; the previous one stops working immediately */
-        post: operations["rotateRosterApiCredential"];
         delete?: never;
         options?: never;
         head?: never;
@@ -803,6 +811,8 @@ export interface components {
             scopes: string[];
             /** @description OAuth client that obtained the token (`azp`) */
             clientId: string | null;
+            /** @description Display name: the `name` claim, else `preferred_username` */
+            name: string | null;
         };
         /**
          * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
@@ -898,6 +908,66 @@ export interface components {
             nextCursor: string | null;
             /** @description Commissions matching the filters across all pages */
             total: number;
+        };
+        RosterApiCredential: {
+            /**
+             * @description OAuth client id the HR system authenticates with
+             * @example roster-psc-3f9a2c1d
+             */
+            clientId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The reporting officer who created the credential */
+            createdBy: {
+                /** @description Creator's account (`sub`) */
+                id: string;
+                /**
+                 * @description Their display name when they created it; null when the token had none
+                 * @example Fatuma Wanjiru
+                 */
+                name: string | null;
+            };
+            /** @description Latest secret rotation; null if never rotated */
+            rotatedAt: string | null;
+            /** @description When access was revoked; a revoked credential obtains no tokens */
+            revokedAt: string | null;
+            /** @description Latest request made with one of its tokens (at most once a minute); null if never */
+            lastUsedAt: string | null;
+        };
+        RosterApiCredentialWithSecret: {
+            /**
+             * @description OAuth client id the HR system authenticates with
+             * @example roster-psc-3f9a2c1d
+             */
+            clientId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The reporting officer who created the credential */
+            createdBy: {
+                /** @description Creator's account (`sub`) */
+                id: string;
+                /**
+                 * @description Their display name when they created it; null when the token had none
+                 * @example Fatuma Wanjiru
+                 */
+                name: string | null;
+            };
+            /** @description Latest secret rotation; null if never rotated */
+            rotatedAt: string | null;
+            /** @description When access was revoked; a revoked credential obtains no tokens */
+            revokedAt: string | null;
+            /** @description Latest request made with one of its tokens (at most once a minute); null if never */
+            lastUsedAt: string | null;
+            /** @description Shown once; the platform does not store it */
+            secret: string;
+            /**
+             * Format: uri
+             * @description Where the HR system exchanges the client id and secret for a token
+             * @example https://auth.adili.go.ke/realms/adili/protocol/openid-connect/token
+             */
+            tokenEndpoint: string;
+            /** @constant */
+            scope: "roster:write";
         };
         ProblemDetails: {
             type: string;
@@ -1083,27 +1153,6 @@ export interface components {
             /** Format: uuid */
             batchId: string;
             count: number;
-        };
-        RosterApiCredential: {
-            /** @example roster-psc */
-            clientId: string;
-            /** Format: date-time */
-            createdAt: string;
-            createdBy: string;
-            /** Format: date-time */
-            rotatedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
-            /** Format: date-time */
-            lastUsedAt: string | null;
-        };
-        RosterApiCredentialWithSecret: components["schemas"]["RosterApiCredential"] & {
-            /** @description Shown once; the platform does not store it */
-            secret: string;
-            /** Format: uri */
-            tokenEndpoint: string;
-            /** @constant */
-            scope: "roster:write";
         };
         /**
          * @description Officer reference (ADR-011), permanent and person-level
@@ -1741,6 +1790,209 @@ export interface operations {
             };
         };
     };
+    getRosterApiCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metadata, or null when none was created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterApiCredential"] | null;
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission's credential, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    createRosterApiCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential with secret */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterApiCredentialWithSecret"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission's credential, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `api-credential-exists`: a credential exists; rotate or revoke it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and nothing changed. Safe to retry. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    revokeRosterApiCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission's credential, or the Commission does not exist, or there is no credential that is not revoked */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and nothing changed. Safe to retry. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    rotateRosterApiCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential with the new secret */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterApiCredentialWithSecret"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission's credential, or the Commission does not exist, or there is no credential that is not revoked */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `api-credential-client-missing`: the credential's client no longer exists in the identity provider; revoke and create new credentials */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and nothing changed. Safe to retry. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getRosterSummary: {
         parameters: {
             query?: never;
@@ -2093,108 +2345,6 @@ export interface operations {
                     "application/json": {
                         count: number;
                     };
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Metadata, or null when none was created */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterApiCredential"] | null;
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Credential with secret */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterApiCredentialWithSecret"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description A credential already exists; rotate or revoke it */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    revokeRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Revoked */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    rotateRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Credential with the new secret */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterApiCredentialWithSecret"];
                 };
             };
             403: components["responses"]["Forbidden"];
