@@ -46,6 +46,10 @@ describe('S20: the disabled Submit button says why', () => {
     expect(submitNote(summary('incomplete', '2026-09-10'), '2026-09-27')).toBe(SUBMIT_NEXT_RELEASE);
     expect(submitNote(summary(null, '2026-09-27'), '2026-09-27')).toBe(SUBMIT_NEXT_RELEASE);
   });
+
+  it('takes the service at its word when it says submission is not available', () => {
+    expect(submitNote(summary('submission-not-available'), '2026-09-27')).toBe(SUBMIT_NEXT_RELEASE);
+  });
 });
 
 describe('blocking issues', () => {

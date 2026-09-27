@@ -36,6 +36,8 @@ export const BLOCKING_LIMIT = 12;
 /**
  * S20: submission is never open in spec 05. Before the statement date the declarant is told
  * when it will be ("Available from 1 Nov 2027"); otherwise that it opens in the next release.
+ * The service gives one reason, and `incomplete` hides `before-statement-date`, so only then is
+ * the date checked here; any other reason from the service stands.
  */
 export function submitNote(
   summary: Pick<LoadedSummary, 'cannotSubmitReason'> & {
@@ -44,7 +46,11 @@ export function submitNote(
   today: string,
 ): string {
   const { statementDate } = summary.declaration;
-  if (summary.cannotSubmitReason === 'before-statement-date' || today < statementDate) {
+  const { cannotSubmitReason } = summary;
+  const upcoming =
+    cannotSubmitReason === 'before-statement-date' ||
+    (cannotSubmitReason === 'incomplete' && today < statementDate);
+  if (upcoming) {
     return `Available from ${formatDate(statementDate)}`;
   }
   return SUBMIT_NEXT_RELEASE;
