@@ -7,6 +7,10 @@ import {
   SectionUnavailable,
   statementKey,
 } from '../../../../components/declaration/route-helpers';
+import {
+  AttachmentUploadsProvider,
+  renderItemAttachments,
+} from '../../../../components/declaration/item-attachments';
 import { StatementSection } from '../../../../components/declaration/statement-section';
 import { getDeclarationSection } from '../../../../server/declarations';
 
@@ -40,12 +44,14 @@ function StatementRoute() {
   if (load.status === 'unavailable') return <SectionUnavailable />;
   return (
     // One screen per person: switching person starts from that statement's contents.
-    <StatementSection
-      key={load.section.key}
-      section={load.section}
-      etag={load.etag}
-      separated={separated}
-      showErrors={errors === true}
-    />
+    <AttachmentUploadsProvider key={load.section.key}>
+      <StatementSection
+        section={load.section}
+        etag={load.etag}
+        separated={separated}
+        showErrors={errors === true}
+        renderAttachments={renderItemAttachments}
+      />
+    </AttachmentUploadsProvider>
   );
 }
