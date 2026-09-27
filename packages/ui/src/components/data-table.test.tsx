@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DataTable, type DataTableColumn } from './data-table';
 
@@ -83,5 +83,50 @@ describe('DataTable', () => {
     const selectAll = screen.getByRole('checkbox', { name: 'Select all on page' });
     expect((selectAll as HTMLInputElement).indeterminate).toBe(true);
     expect((selectAll as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('stays mixed when a controlled parent ignores the change', () => {
+    render(
+      <DataTable
+        caption="Flagged officers"
+        columns={columns}
+        rows={officers}
+        getRowId={(row) => row.id}
+        selection={{
+          selected: new Set(['a']),
+          onChange: vi.fn(),
+          rowLabel: (id) => `Select ${id}`,
+        }}
+      />,
+    );
+    const selectAll = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: 'Select all on page',
+    });
+
+    fireEvent.click(selectAll);
+
+    expect(selectAll.indeterminate).toBe(true);
+    expect(selectAll.checked).toBe(false);
+  });
+
+  it('takes the select-all label from the selection', () => {
+    render(
+      <DataTable
+        caption="Flagged officers"
+        columns={columns}
+        rows={officers}
+        getRowId={(row) => row.id}
+        selection={{
+          selected: new Set(),
+          onChange: vi.fn(),
+          rowLabel: (id) => `Select ${id}`,
+          selectAllLabel: 'Select every officer on this page',
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole('checkbox', { name: 'Select every officer on this page' }),
+    ).toBeDefined();
   });
 });

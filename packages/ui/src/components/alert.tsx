@@ -7,13 +7,16 @@ const alertVariants = cva(
   'relative grid w-full gap-0.5 rounded-lg px-4 py-3.5 text-sm leading-normal [&>svg]:absolute [&>svg]:top-4 [&>svg]:left-4 [&>svg]:size-[18px] [&>svg~*]:pl-[30px]',
   {
     variants: {
-      // The prototype kit's .callout-info (neutral) and the portal's info, ok, warn and danger alerts.
+      // The prototype kit's .callout-info (neutral), -ok, -warn, -danger, -ai and -brand, and the
+      // portal's blue info alert.
       variant: {
         neutral: 'bg-muted text-secondary-foreground',
         info: 'bg-info-subtle text-info-subtle-foreground',
         success: 'bg-success-subtle text-success-subtle-foreground',
         warning: 'bg-warning-subtle text-warning-subtle-foreground',
         destructive: 'bg-destructive-subtle text-destructive-subtle-foreground',
+        ai: 'bg-ai-subtle text-ai-subtle-foreground',
+        brand: 'bg-brand-subtle text-brand-subtle-foreground',
       },
     },
     defaultVariants: { variant: 'neutral' },

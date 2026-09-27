@@ -38,4 +38,17 @@ describe('Tooltip', () => {
 
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
+
+  it('works without a TooltipProvider', () => {
+    render(
+      <Tooltip content="Only admins can export">
+        <button type="button">Export</button>
+      </Tooltip>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Export' });
+
+    fireEvent.focus(trigger);
+
+    expect(screen.getByRole('tooltip').textContent).toBe('Only admins can export');
+  });
 });
