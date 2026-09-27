@@ -12,6 +12,7 @@ import {
   Skeleton,
 } from '@adili/ui';
 import {
+  AlertCircleIcon,
   ArrowDown01Icon,
   ArrowRight01Icon,
   Clock01Icon,
@@ -161,7 +162,12 @@ function RosterOverview() {
       <div className="mt-5 grid items-start gap-5 min-[1000px]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <LastImportCard result={data.lastImport} />
         <NextStepsCard
-          steps={nextSteps({ flagged: roster.flagged, readOnly, credential: data.credential })}
+          steps={nextSteps({
+            flagged: roster.flagged,
+            readOnly,
+            credential: data.credential,
+            lastImport: data.lastImport?.ok ? data.lastImport.data : null,
+          })}
         />
       </div>
     </Page>
@@ -385,6 +391,7 @@ function Count({ value, label }: { value: number; label: string }) {
 
 const STEP_ICONS: Record<NextStep['kind'], IconProps['icon']> = {
   'review-flagged': Flag02Icon,
+  'fix-rejected': AlertCircleIcon,
   'connect-hr': Key01Icon,
   'find-someone': Search01Icon,
 };
@@ -427,6 +434,17 @@ function StepLink({ step }: { step: NextStep }) {
     return (
       <Link to="/roster/flagged" className={STEP_LINK}>
         <StepBody step={step} label={m.nextReviewFlagged(step.count)} />
+      </Link>
+    );
+  }
+  if (step.kind === 'fix-rejected') {
+    return (
+      <Link
+        to="/roster/imports/$importId"
+        params={{ importId: step.importId }}
+        className={STEP_LINK}
+      >
+        <StepBody step={step} label={m.nextFixRejected(step.count, step.startedAt)} />
       </Link>
     );
   }

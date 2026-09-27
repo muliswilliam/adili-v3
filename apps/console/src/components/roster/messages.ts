@@ -1,4 +1,4 @@
-import { formatNumber } from '../format';
+import { formatDate, formatNumber } from '../format';
 
 /**
  * Copy of the Roster workspace (spec 02 frontend). One English string per key; the Swahili slot
@@ -40,6 +40,8 @@ export const en = {
   nextSteps: 'Next steps',
   nextReviewFlagged: (count: number) =>
     `Review ${formatNumber(count)} flagged ${count === 1 ? 'officer' : 'officers'}`,
+  nextFixRejected: (count: number, startedAt: string) =>
+    `Fix ${formatNumber(count)} rejected ${count === 1 ? 'row' : 'rows'} from ${formatDate(startedAt)}`,
   nextConnectHr: 'Connect your HR system',
   nextFindSomeone: 'Find someone on the roster',
   // Import badges and counts
