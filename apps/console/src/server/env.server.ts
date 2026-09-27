@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 export const envSchema = bffEnvSchema.extend({
   DIRECTORY_API_URL: z.url(),
+  DOCUMENTS_API_URL: z.url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

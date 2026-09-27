@@ -19,6 +19,7 @@ import { Route as CommissionsIndexRouteImport } from './routes/commissions/index
 import { Route as CommissionsSlugRouteImport } from './routes/commissions/$slug'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
+import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,11 @@ const RosterIndexRoute = RosterIndexRouteImport.update({
   path: '/',
   getParentRoute: () => RosterRouteRoute,
 } as any)
+const RosterImportRoute = RosterImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => RosterRouteRoute,
+} as any)
 const RosterTemplateRoute = RosterTemplateRouteImport.update({
   id: '/template',
   path: '/template',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
   '/commissions/new': typeof CommissionsNewRoute
+  '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/roster/': typeof RosterIndexRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
   '/commissions/new': typeof CommissionsNewRoute
+  '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions': typeof CommissionsIndexRoute
   '/roster': typeof RosterIndexRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
   '/commissions/new': typeof CommissionsNewRoute
+  '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/roster/': typeof RosterIndexRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/$slug'
     | '/commissions/new'
+    | '/roster/import'
     | '/roster/template'
     | '/commissions/'
     | '/roster/'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/$slug'
     | '/commissions/new'
+    | '/roster/import'
     | '/roster/template'
     | '/commissions'
     | '/roster'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/$slug'
     | '/commissions/new'
+    | '/roster/import'
     | '/roster/template'
     | '/commissions/'
     | '/roster/'
@@ -236,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterIndexRouteImport
       parentRoute: typeof RosterRouteRoute
     }
+    '/roster/import': {
+      id: '/roster/import'
+      path: '/import'
+      fullPath: '/roster/import'
+      preLoaderRoute: typeof RosterImportRouteImport
+      parentRoute: typeof RosterRouteRoute
+    }
     '/roster/template': {
       id: '/roster/template'
       path: '/template'
@@ -262,11 +281,13 @@ const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
 
 interface RosterRouteRouteChildren {
+  RosterImportRoute: typeof RosterImportRoute
   RosterTemplateRoute: typeof RosterTemplateRoute
   RosterIndexRoute: typeof RosterIndexRoute
 }
 
 const RosterRouteRouteChildren: RosterRouteRouteChildren = {
+  RosterImportRoute: RosterImportRoute,
   RosterTemplateRoute: RosterTemplateRoute,
   RosterIndexRoute: RosterIndexRoute,
 }
