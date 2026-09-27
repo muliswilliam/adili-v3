@@ -37,18 +37,18 @@ describe('CheckboxGroup', () => {
     expect(screen.getByRole('checkbox', { name: 'State officers' })).toBeDefined();
   });
 
-  it('marks the group invalid and links the error to it', () => {
+  it('announces the error, marks the group invalid and links the error to it', () => {
     render(
       <CheckboxGroup legend="Officer categories" error="Select at least one category">
         <CheckboxItem label="State officers" />
       </CheckboxGroup>,
     );
 
-    const error = screen.getByText('Select at least one category').closest('p');
+    const error = screen.getByRole('alert');
+    expect(error.textContent).toBe('Select at least one category');
     const group = screen.getByRole('group', { name: 'Officer categories' });
-    expect(group.getAttribute('aria-describedby')).toBe(error?.id);
+    expect(group.getAttribute('aria-describedby')).toBe(error.id);
     expect(group.getAttribute('aria-invalid')).toBe('true');
-    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('is not marked invalid without an error', () => {

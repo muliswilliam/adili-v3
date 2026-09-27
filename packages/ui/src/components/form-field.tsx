@@ -12,13 +12,13 @@ export function FieldHint({ className, ...props }: ComponentProps<'p'>) {
 }
 
 /**
- * Not a live region: a form with several errors would otherwise fire one interrupting
- * announcement per field. Link it to the control with aria-describedby and mark the control
- * aria-invalid (FormField does both). The icon means the error does not rely on colour alone.
+ * Announced as soon as it appears, so screen reader users hear new validation errors. The icon
+ * means the error does not rely on colour alone.
  */
 export function FieldError({ className, children, ...props }: ComponentProps<'p'>) {
   return (
     <p
+      role="alert"
       className={cn('flex items-start gap-1.5 text-[13px] font-medium text-destructive', className)}
       {...props}
     >

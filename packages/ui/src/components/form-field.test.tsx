@@ -75,21 +75,17 @@ describe('FormField', () => {
     expect(textarea.getAttribute('aria-invalid')).toBe('true');
   });
 
-  it('does not interrupt with an alert for each field error', () => {
+  it('announces the error with role alert and links it to the control', () => {
     render(
-      <>
-        <FormField label="Name" error="Enter a name">
-          <Input />
-        </FormField>
-        <FormField label="Email" error="Enter an email">
-          <Input />
-        </FormField>
-      </>,
+      <FormField label="Email" error="Enter an email">
+        <Input />
+      </FormField>,
     );
 
-    expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    expect(screen.getByRole('textbox', { name: 'Email' }).getAttribute('aria-invalid')).toBe(
-      'true',
-    );
+    const error = screen.getByRole('alert');
+    expect(error.textContent).toBe('Enter an email');
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    expect(input.getAttribute('aria-describedby')).toBe(error.id);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
   });
 });
