@@ -212,7 +212,7 @@ export function FileDropZone({
           if (!disabled) take(event.dataTransfer.files[0]);
         }}
         // Children ignore the pointer so moving over them does not fire dragleave on the zone.
-        className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input bg-card px-5 py-7 text-center transition-colors outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring enabled:hover:border-foreground enabled:hover:bg-brand-faint disabled:pointer-events-none disabled:opacity-55 aria-invalid:border-destructive/45 data-dragging:border-foreground data-dragging:bg-brand-faint [&>*]:pointer-events-none"
+        className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input bg-card px-5 py-7 text-center transition-colors outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring enabled:hover:border-foreground enabled:hover:bg-brand-faint disabled:pointer-events-none disabled:opacity-55 aria-invalid:border-destructive/45 data-dragging:border-foreground data-dragging:bg-brand-faint [&>*]:pointer-events-none"
       >
         <span className="mb-0.5 flex size-11 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
           <Icon icon={Upload04Icon} className="size-[18px]" />

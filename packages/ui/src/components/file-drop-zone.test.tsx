@@ -65,7 +65,7 @@ describe('FileDropZone', () => {
 
     expect(button.className).not.toContain('outline-none');
     expect(button.className).toContain('outline-hidden');
-    expect(button.className).toContain('focus-visible:outline-2');
+    expect(button.className).toContain('focus-visible:outline-solid');
   });
 
   it('accepts a dropped file of the right type and size', () => {

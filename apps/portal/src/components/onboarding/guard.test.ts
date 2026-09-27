@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OnboardingSession } from '../../server/directory/types';
-import { getOnboardingSession, leaveOnboarding } from '../../server/onboarding';
+import { getOnboardingSession } from '../../server/onboarding';
 import type { SessionLookup } from '../../server/onboarding.server';
-import { requireCheckEmail, requireStep } from './guard';
+import { requireCheckEmail, requireStep, resumeInProgress } from './guard';
 
 vi.mock('../../server/onboarding', () => ({
   getOnboardingSession: vi.fn(),
-  leaveOnboarding: vi.fn(),
 }));
 
 const lookupMock = vi.mocked(getOnboardingSession);
@@ -50,7 +49,6 @@ async function redirectFrom(guard: Promise<unknown>) {
 
 beforeEach(() => {
   lookupMock.mockReset();
-  vi.mocked(leaveOnboarding).mockReset();
 });
 
 // S24
@@ -90,14 +88,14 @@ describe('requireStep', () => {
     },
   );
 
-  it('clears the cookie of an expired session and starts again with a notice', async () => {
-    givenLookup({ status: 'active', session: session('expired') });
+  it('shows Done again for a linked session, e.g. on a refresh', async () => {
+    const active = {
+      status: 'active',
+      session: session('confirmed', 'linked-existing-account'),
+    } as const;
+    givenLookup(active);
 
-    expect(await redirectFrom(requireStep('/get-started/verify-phone'))).toMatchObject({
-      to: '/get-started',
-      search: { commission: 'tsc', notice: 'ended' },
-    });
-    expect(leaveOnboarding).toHaveBeenCalled();
+    expect(await requireStep('/get-started/done')).toEqual(active);
   });
 
   it('shows the step with a retry when the session cannot be read', async () => {
@@ -115,14 +113,20 @@ describe('requireCheckEmail', () => {
     expect(await requireCheckEmail()).toEqual(active);
   });
 
-  it.each([{ status: 'none' }, { status: 'ended' }] as const)(
-    'explains how to get a new link when the session is $status, instead of "session ended"',
-    async (lookup) => {
-      givenLookup(lookup);
+  it('explains how to get a new link when there is no session cookie', async () => {
+    givenLookup({ status: 'none' });
 
-      expect(await requireCheckEmail()).toEqual({ status: 'none' });
-    },
-  );
+    expect(await requireCheckEmail()).toEqual({ status: 'none' });
+  });
+
+  it('starts again with a notice when the session ended', async () => {
+    givenLookup({ status: 'ended' });
+
+    expect(await redirectFrom(requireCheckEmail())).toMatchObject({
+      to: '/get-started',
+      search: { notice: 'ended' },
+    });
+  });
 
   it('sends a session still in progress to its step', async () => {
     givenLookup({ status: 'active', session: session('email-pending') });
@@ -130,5 +134,32 @@ describe('requireCheckEmail', () => {
     expect(await redirectFrom(requireCheckEmail())).toMatchObject({
       to: '/get-started/verify-email',
     });
+  });
+});
+
+describe('resumeInProgress', () => {
+  it('sends a session in progress back to its step', () => {
+    let thrown: unknown;
+    try {
+      resumeInProgress({ status: 'active', session: session('phone-pending') });
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as { options: unknown }).options).toMatchObject({
+      to: '/get-started/verify-phone',
+    });
+  });
+
+  it.each([
+    { status: 'active', session: session('confirmed', 'linked-existing-account') },
+    { status: 'active', session: session('confirmed', 'account-created') },
+    { status: 'active', session: session('identity-mismatch', 'identity-mismatch') },
+    { status: 'none' },
+    { status: 'ended' },
+    { status: 'unavailable' },
+  ] as const)('starts fresh for a $status $session.state session', (lookup) => {
+    expect(() => {
+      resumeInProgress(lookup);
+    }).not.toThrow();
   });
 });

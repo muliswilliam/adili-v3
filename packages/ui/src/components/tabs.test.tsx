@@ -47,7 +47,7 @@ describe('Tabs', () => {
     ]) {
       expect(element.className).not.toContain('outline-none');
       expect(element.className).toContain('outline-hidden');
-      expect(element.className).toContain('focus-visible:outline-2');
+      expect(element.className).toContain('focus-visible:outline-solid');
     }
   });
 });

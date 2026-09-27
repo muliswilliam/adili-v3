@@ -35,7 +35,7 @@ export function FilterChip({
         onPressedChange(!pressed);
       }}
       className={cn(
-        'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13.5px] font-medium whitespace-nowrap outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5',
+        'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13.5px] font-medium whitespace-nowrap outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5',
         pressed
           ? 'bg-foreground text-background'
           : 'bg-card text-secondary-foreground shadow-control hover:text-foreground',

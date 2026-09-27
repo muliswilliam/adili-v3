@@ -11,6 +11,7 @@ import {
   verifyOnboardingCode,
 } from '../../server/onboarding';
 import type { StepResult } from '../../server/onboarding.server';
+import { GENERIC_ERROR } from './problems';
 import { VerifyStep } from './verify-step';
 
 const navigate = vi.fn();
@@ -130,6 +131,30 @@ describe('VerifyStep', () => {
     expect(box(1).value).toBe('');
     expect(box(1).getAttribute('aria-invalid')).toBe('true');
     expect(document.activeElement).toBe(box(1));
+  });
+
+  it.each([
+    [
+      'the directory is unavailable',
+      () => verifyMock.mockResolvedValue({ ok: false, code: 'unavailable' }),
+    ],
+    ['the request fails', () => verifyMock.mockRejectedValue(new Error('network'))],
+  ])('keeps the code for a retry when %s', async (_, arrange) => {
+    arrange();
+    renderStep();
+
+    typeCode('123456');
+
+    expect(await screen.findByText(GENERIC_ERROR)).toBeDefined();
+    expect([1, 2, 3, 4, 5, 6].map((position) => box(position).value).join('')).toBe('123456');
+
+    // Pasting it again sends it again.
+    verifyMock.mockResolvedValue({ ok: true, session: { ...session(), state: 'email-verified' } });
+    typeCode('123456');
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith({ to: '/get-started/verify-phone' });
+    });
+    expect(verifyMock).toHaveBeenCalledTimes(2);
   });
 
   it('starts again with "too many attempts" when the last code was wrong', async () => {
