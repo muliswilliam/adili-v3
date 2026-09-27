@@ -1,6 +1,43 @@
 import { sql } from 'drizzle-orm';
 
 import type { Transaction } from '../commissions/commissions.service.js';
+import type { RosterSummary } from '../commissions/representation.js';
+import { rosterSummaries } from './schema.js';
+
+/** Columns of a `roster_summaries` row that `toRosterSummary` reads; select them in any query. */
+export const rosterSummaryColumns = {
+  expected: rosterSummaries.expected,
+  onboarded: rosterSummaries.onboarded,
+  flagged: rosterSummaries.flagged,
+  lastImportId: rosterSummaries.lastImportId,
+  lastImportAt: rosterSummaries.lastImportAt,
+  lastCompleteImportAt: rosterSummaries.lastCompleteImportAt,
+};
+
+interface SummaryRow {
+  expected: number | null;
+  onboarded: number | null;
+  flagged: number | null;
+  lastImportId: string | null;
+  lastImportAt: Date | null;
+  lastCompleteImportAt: Date | null;
+}
+
+/**
+ * The roster summary of a Commission from its summary row, left-joined, so absent when nothing
+ * changed its roster yet. `imported` once an import has completed.
+ */
+export function toRosterSummary(row: SummaryRow | null): RosterSummary {
+  return {
+    status: row?.lastImportId ? 'imported' : 'none',
+    expectedDeclarants: row?.expected ?? 0,
+    onboardedDeclarants: row?.onboarded ?? 0,
+    flagged: row?.flagged ?? 0,
+    lastImportAt: row?.lastImportAt?.toISOString() ?? null,
+    lastImportId: row?.lastImportId ?? null,
+    lastCompleteImportAt: row?.lastCompleteImportAt?.toISOString() ?? null,
+  };
+}
 
 export interface CompletedImport {
   id: string;

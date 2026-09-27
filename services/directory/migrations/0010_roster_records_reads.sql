@@ -1,0 +1,2 @@
+CREATE INDEX "roster_import_rows_record_id_idx" ON "roster_import_rows" USING btree ("record_id");--> statement-breakpoint
+CREATE INDEX "roster_records_tenant_full_name_id_idx" ON "roster_records" USING btree ("tenant","full_name","id");

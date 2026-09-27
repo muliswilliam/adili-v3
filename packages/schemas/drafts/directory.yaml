@@ -4,22 +4,6 @@
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/commissions/{slug}/roster/summary:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags: [roster]
-      operationId: getRosterSummary
-      summary: Expected, onboarded and flagged counts and the last import
-      responses:
-        '200':
-          description: The summary
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterSummary'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/imports:
     get:
       tags: [roster]
@@ -112,82 +96,6 @@ paths:
             text/csv:
               schema:
                 type: string
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/records:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags: [roster]
-      operationId: listRosterRecords
-      summary: Roster records with masked national IDs
-      parameters:
-        - name: search
-          in: query
-          description: File number prefix, name fragment, or a full national ID
-          schema:
-            type: string
-            maxLength: 200
-        - name: state
-          in: query
-          schema:
-            $ref: '#/components/schemas/RosterRecordState'
-        - name: flagged
-          in: query
-          schema:
-            type: boolean
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-      responses:
-        '200':
-          description: Page of records ordered by full name
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items, nextCursor]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/RosterRecordListItem'
-                  nextCursor:
-                    type: [string, 'null']
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/records/{recordId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: recordId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    get:
-      tags: [roster]
-      operationId: getRosterRecord
-      summary: One roster record in full, with its import history
-      responses:
-        '200':
-          description: The record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterRecord'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/exits:
@@ -998,9 +906,6 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
-    RosterRecordState:
-      type: string
-      enum: [not_onboarded, onboarded, exited]
     RosterRowInput:
       type: object
       description: One roster row as accepted from the template or an API batch (pre-normalisation)
@@ -1085,114 +990,6 @@ components:
         recordId:
           type: [string, 'null']
           format: uuid
-    ReportingEntityRef:
-      type: object
-      required: [id, name]
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-    RosterRecordListItem:
-      type: object
-      required:
-        - id
-        - personnelFileNumber
-        - fullName
-        - nationalIdMasked
-        - designation
-        - jobGroup
-        - reportingEntity
-        - state
-        - absentFromLatestImport
-      properties:
-        id:
-          type: string
-          format: uuid
-        personnelFileNumber:
-          type: string
-        fullName:
-          type: string
-        nationalIdMasked:
-          type: string
-          description: All but the last three digits replaced, e.g. •••••123
-        designation:
-          type: [string, 'null']
-        jobGroup:
-          type: [string, 'null']
-        reportingEntity:
-          oneOf:
-            - $ref: '#/components/schemas/ReportingEntityRef'
-            - type: 'null'
-        state:
-          $ref: '#/components/schemas/RosterRecordState'
-        absentFromLatestImport:
-          type: boolean
-    RosterRecord:
-      allOf:
-        - $ref: '#/components/schemas/RosterRecordListItem'
-        - type: object
-          required:
-            - nationalId
-            - appointmentDate
-            - email
-            - phone
-            - exitDate
-            - source
-            - flaggedByImportId
-            - firstSeenImportId
-            - lastSeenImportId
-            - imports
-            - createdAt
-            - updatedAt
-          properties:
-            nationalId:
-              type: string
-              description: Full value; reads are audited
-            appointmentDate:
-              type: [string, 'null']
-              format: date
-            email:
-              type: [string, 'null']
-            phone:
-              type: [string, 'null']
-            exitDate:
-              type: [string, 'null']
-              format: date
-            source:
-              $ref: '#/components/schemas/ImportChannel'
-            flaggedByImportId:
-              type: [string, 'null']
-              format: uuid
-            firstSeenImportId:
-              type: [string, 'null']
-              format: uuid
-            lastSeenImportId:
-              type: [string, 'null']
-              format: uuid
-            imports:
-              type: array
-              description: Imports that touched this record, newest first
-              items:
-                type: object
-                required: [importId, startedAt, outcome]
-                properties:
-                  importId:
-                    type: string
-                    format: uuid
-                  startedAt:
-                    type: string
-                    format: date-time
-                  outcome:
-                    type: string
-                    enum: [created, updated, unchanged]
-            createdAt:
-              type: string
-              format: date-time
-            updatedAt:
-              type: string
-              format: date-time
     ConfirmExits:
       type: object
       required: [records]

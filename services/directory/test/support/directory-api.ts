@@ -31,6 +31,10 @@ export interface Caller {
   roles?: string[];
   /** The `name` claim; absent by default. */
   name?: string;
+  /** The `scope` claim (space-separated), as client-credentials tokens carry; absent by default. */
+  scope?: string;
+  /** The `azp` claim: `console` by default, an HR system's client id for machine callers. */
+  azp?: string;
 }
 
 export interface WriteOptions {
@@ -195,8 +199,15 @@ async function applyMigrations(db: Database<DirectorySchema>): Promise<void> {
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
-  const signer = ({ sub = randomUUID(), tenant = null, roles = [], name }: Caller) =>
-    new SignJWT({ azp: 'console', tenant, realm_access: { roles }, name })
+  const signer = ({
+    sub = randomUUID(),
+    tenant = null,
+    roles = [],
+    name,
+    scope,
+    azp = 'console',
+  }: Caller) =>
+    new SignJWT({ azp, tenant, realm_access: { roles }, name, scope })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
