@@ -48,3 +48,14 @@ def test_returns_case_by_number(api: APIClient) -> None:
 @pytest.mark.django_db
 def test_unknown_case_is_not_found(api: APIClient) -> None:
     assert api.get("/icms/v1/referrals/EACC/ICMS/1999/000001").status_code == 404
+
+
+@pytest.mark.django_db
+def test_status_page_shows_case_number(api: APIClient) -> None:
+    created = api.post("/icms/v1/referrals", REFERRAL, format="json")
+    page = api.get("/icms/status")
+
+    assert page.status_code == 200
+    assert b"ICMS referrals" in page.content
+    assert REFERRAL["referral_reference"].encode() in page.content
+    assert created.json()["case_number"].encode() in page.content
