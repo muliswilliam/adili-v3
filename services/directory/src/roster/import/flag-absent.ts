@@ -3,16 +3,16 @@ import { and, count, eq, ne, sql } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../../db/schema.js';
 import { rosterImports, rosterRecords } from '../schema.js';
-import { refreshRosterSummary } from '../summary.js';
 import { IMPORT_SUBJECT } from './staging.js';
 import type { ImportRef } from './workflow-contract.js';
 
 /**
  * The flag-absent step of a declared-complete import (spec #27), in one transaction: flags the
  * tenant's records that are not exited and that the import did not see (no row in the file,
- * accepted or rejected), as flagged by this import; clears the flag of records it saw; refreshes
- * the summary. Records flagged by an earlier import and still absent move to this one, so the
- * flag always names the latest complete import. Returns how many records this import flagged.
+ * accepted or rejected), as flagged by this import; clears the flag of records it saw. Records
+ * flagged by an earlier import and still absent move to this one, so the flag always names the
+ * latest complete import. Returns how many records this import flagged. The summary is counted
+ * once, when the import is finalised.
  *
  * Idempotent: a re-run flags and clears nothing more and returns the same count. An import that
  * is not processing, or not declared complete, is left alone and flags nobody.
@@ -64,7 +64,6 @@ export async function flagAbsent(db: Database<DirectorySchema>, ref: ImportRef):
         and last_seen_import_id = ${ref.importId}
         and absent_from_latest_import
     `);
-    await refreshRosterSummary(tx, ref.tenant);
 
     const [flagged] = await tx
       .select({ records: count() })
