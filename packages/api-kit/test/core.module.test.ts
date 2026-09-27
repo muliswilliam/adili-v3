@@ -13,7 +13,7 @@ import {
   type Principal,
   Public,
   ReadinessCheck,
-  RequireScopes,
+  Scopes,
   TokenVerifier,
 } from '../src/index.js';
 
@@ -51,7 +51,7 @@ class TestController {
     return principal;
   }
 
-  @RequireScopes('messages')
+  @Scopes('messages')
   @Get('v1/messages')
   messages() {
     return { ok: true };
