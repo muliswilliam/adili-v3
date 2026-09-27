@@ -28,22 +28,37 @@ export const PROBLEM_COPY: Record<OnboardingProblemCode, (context: ProblemContex
   'otp-invalid': ({ attemptsLeft }) =>
     attemptsLeft === undefined
       ? 'That code is not right. Check it and try again.'
-      : `That code is not right. You have ${plural(attemptsLeft, 'attempt', 'attempts')} left.`,
-  'otp-expired': () => 'That code has expired. Ask for a new one.',
+      : `That code is not right. ${plural(attemptsLeft, 'attempt', 'attempts')} left.`,
+  'otp-expired': () => 'That code has expired. Resend to get a new one.',
+  // Not shown as a message: the resend link counts down instead.
   'resend-cooldown': ({ retryAfterSeconds }) =>
     retryAfterSeconds === undefined
       ? 'Wait a moment before asking for another code.'
       : `Wait ${plural(retryAfterSeconds, 'second', 'seconds')} before asking for another code.`,
   'session-expired': () => 'Your session ended. Start again.',
   'iprs-unavailable': () =>
-    'We cannot reach the national register right now. Your details are saved. Try again in a few minutes.',
-  'identity-unavailable': () =>
-    'We could not create your account. Nothing was changed. Try again in a few minutes.',
+    'The national register is not responding. Wait a few minutes and try again.',
+  'identity-unavailable': () => 'Your account could not be created. Try again.',
   'rate-limited': ({ retryAfterSeconds }) =>
     `Too many attempts. Try again in ${plural(minutesFrom(retryAfterSeconds ?? 60), 'minute', 'minutes')}.`,
 };
 
 export const GENERIC_ERROR = 'Something went wrong. Try again.';
+
+/**
+ * Why the declarant is back on the Commission step. The contract's 410 cannot say whether the
+ * session lapsed or ran out of attempts; the portal knows the second only when it saw the last
+ * wrong code or had no resends left.
+ */
+export const START_AGAIN_NOTICES = {
+  ended: 'Your session ended. Start again.',
+  'too-many': 'Too many attempts. Start again.',
+} as const;
+
+export type StartAgainNotice = keyof typeof START_AGAIN_NOTICES;
+
+/** A code could not be sent (the directory's 502, which has no problem code in the contract). */
+export const SEND_FAILED = 'We could not send the code. Try again in a minute.';
 
 export function problemMessage(code: OnboardingProblemCode, context: ProblemContext = {}): string {
   return PROBLEM_COPY[code](context);

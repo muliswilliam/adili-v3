@@ -120,7 +120,8 @@ export async function lookupSession(
 
 /**
  * Why a step failed. `ended` means the session is gone and the cookie should be cleared;
- * `moved` means it is waiting on another step, e.g. after a second tab moved it on.
+ * `too-many` is the same after the last wrong code; `moved` means it is waiting on another
+ * step, e.g. after a second tab moved it on.
  */
 export type StepProblem =
   | { code: 'otp-invalid'; attemptsLeft?: number }
@@ -132,7 +133,10 @@ export type StepProblem =
   | { code: 'identity-unavailable' }
   | { code: 'invalid' }
   | { code: 'ended' }
+  | { code: 'too-many' }
   | { code: 'moved' }
+  /** The directory could not send a code (502, which the contract gives no problem code). */
+  | { code: 'send-failed' }
   | { code: 'unavailable' };
 
 /** What the browser gets back from a step: the session (never its secret). */
@@ -145,7 +149,7 @@ function stepProblem(response: Response, error: unknown): StepProblem {
   const code = problem.success ? problem.data.code : undefined;
   if (response.status === 400 && code === 'otp-invalid') {
     // The last wrong code ends the session.
-    if (problem.data?.attemptsLeft === 0) return { code: 'ended' };
+    if (problem.data?.attemptsLeft === 0) return { code: 'too-many' };
     return { code: 'otp-invalid', attemptsLeft: problem.data?.attemptsLeft };
   }
   if (response.status === 400 && code === 'otp-expired') return { code: 'otp-expired' };
@@ -157,6 +161,7 @@ function stepProblem(response: Response, error: unknown): StepProblem {
     };
   }
   if (response.status === 502 && code === 'identity-unavailable') return { code };
+  if (response.status === 502) return { code: 'send-failed' };
   if (response.status === 503 && code === 'iprs-unavailable') return { code };
   return { code: 'unavailable' };
 }

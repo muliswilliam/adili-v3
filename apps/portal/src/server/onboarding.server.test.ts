@@ -184,6 +184,29 @@ describe('verification steps', () => {
     expect(await lookupSession(client(), session)).toEqual({ status: 'ended' });
   });
 
+  it('reads a last wrong code with no attempts left as too many attempts', async () => {
+    const lastAttempt = client(() =>
+      Promise.resolve(
+        Response.json(
+          {
+            type: 'about:blank',
+            title: 'Wrong code',
+            status: 400,
+            code: 'otp-invalid',
+            attemptsLeft: 0,
+          },
+          { status: 400, headers: { 'content-type': 'application/problem+json' } },
+        ),
+      ),
+    );
+    const session = { sessionId: 'id', secret: 'secret' };
+
+    expect(await verifyCode(lastAttempt, session, { channel: 'email', code: '999999' })).toEqual({
+      ok: false,
+      code: 'too-many',
+    });
+  });
+
   it('reports an expired code', async () => {
     const session = await openSession();
 
@@ -300,6 +323,26 @@ describe('verification steps', () => {
       ok: false,
       code: 'unavailable',
     });
+  });
+
+  it('reports a code the directory could not send', async () => {
+    const notSent = client(() =>
+      Promise.resolve(
+        Response.json(
+          { type: 'about:blank', title: 'Bad Gateway', status: 502 },
+          { status: 502, headers: { 'content-type': 'application/problem+json' } },
+        ),
+      ),
+    );
+    const session = { sessionId: 'id', secret: 'secret' };
+
+    expect(await resendCode(notSent, session, { channel: 'email' })).toEqual({
+      ok: false,
+      code: 'send-failed',
+    });
+    expect(
+      await provideContact(notSent, session, { channel: 'email', value: 'jane@tsc.go.ke' }),
+    ).toEqual({ ok: false, code: 'send-failed' });
   });
 });
 

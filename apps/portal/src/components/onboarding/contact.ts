@@ -4,20 +4,18 @@ import type { OtpChannel } from '../../server/directory/types';
 
 export const CONTACT_ERRORS = {
   email: 'Enter an email address in the format name@example.com.',
-  phone: 'Enter a mobile number, like 0712 345 678.',
+  phone: 'Enter a Kenyan mobile number, e.g. 0712 345 678.',
 } as const;
 
 /**
- * A phone number in E.164, or null when it cannot be one. Kenyan numbers may be written
- * locally (`0712 345 678`) or with the country code (`254712345678`, `+254 712 345 678`);
- * other countries need the leading `+`.
+ * A Kenyan mobile number in E.164, or null when it cannot be one. It may be written locally
+ * (`0712 345 678`) or with the country code (`254712345678`, `+254 712 345 678`). SMS codes go
+ * to Kenyan numbers only.
  */
 export function normalisePhone(input: string): string | null {
   const compact = input.trim().replace(/[\s().-]/g, '');
   const kenyan = /^(?:\+?254|0)([17]\d{8})$/.exec(compact);
-  if (kenyan) return `+254${kenyan[1] ?? ''}`;
-  if (compact.startsWith('+254')) return null;
-  return /^\+[1-9]\d{7,14}$/.test(compact) ? compact : null;
+  return kenyan ? `+254${kenyan[1] ?? ''}` : null;
 }
 
 const emailValue = z.string().trim().pipe(z.email(CONTACT_ERRORS.email).max(254));

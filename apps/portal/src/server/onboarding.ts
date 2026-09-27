@@ -84,7 +84,9 @@ async function onSession(
   const result = credentials
     ? await step(credentials)
     : { ok: false as const, code: 'ended' as const };
-  if (!result.ok && result.code === 'ended') deleteCookie(ONBOARDING_COOKIE, cookieOptions());
+  if (!result.ok && (result.code === 'ended' || result.code === 'too-many')) {
+    deleteCookie(ONBOARDING_COOKIE, cookieOptions());
+  }
   return result;
 }
 
