@@ -14,6 +14,12 @@ export const DEMO_COMMISSIONS = [
     categories: ['act-s32-5', 'regs-r5-e', 'regs-r5-f'],
   },
   {
+    slug: 'tsc',
+    name: 'Teachers Service Commission',
+    type: 'hosted',
+    categories: ['act-s32-10'],
+  },
+  {
     slug: 'eacc',
     name: 'Ethics and Anti-Corruption Commission',
     type: 'hosted',
