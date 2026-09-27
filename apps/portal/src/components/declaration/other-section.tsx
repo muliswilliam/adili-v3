@@ -7,12 +7,13 @@ import {
   FormField,
   Icon,
   Input,
+  Repeater,
   SegmentedChoice,
   Select,
   SelectItem,
   Textarea,
 } from '@adili/ui';
-import { Add01Icon, Delete02Icon, RepeatIcon } from '@hugeicons/core-free-icons';
+import { RepeatIcon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
 
@@ -53,6 +54,21 @@ const PENDING = `${BASE}/dualCitizenship/pendingApplication`;
 const idFor = (path: string) => `other${path.replaceAll('/', '-')}`;
 
 const yesNo = (value: boolean | undefined) => (value === undefined ? null : value ? 'yes' : 'no');
+
+const itemPath = (list: ListName, index: number) => `${BASE}/${list}/${String(index)}`;
+
+interface OpenCard {
+  list: ListName;
+  index: number;
+}
+
+/** The interest card a JSON pointer is in, e.g. `/registrableInterests/memberships/0/kind`. */
+function cardAt(path: string | undefined): OpenCard | null {
+  const match = /^\/registrableInterests\/(directorships|memberships|pendingCases)\/(\d+)/.exec(
+    path ?? '',
+  );
+  return match ? { list: match[1] as ListName, index: Number(match[2]) } : null;
+}
 
 /** Focuses the field at a path, or in a card the first invalid field, else its first field. */
 function focusPath(path: string) {
@@ -149,61 +165,85 @@ function InterestGroup({
   );
 }
 
-function InterestCard({
+/** One card list of interests (directorships, memberships or pending cases). */
+function InterestList<T>({
+  label,
+  items,
   path,
-  title,
+  noun,
+  addLabel,
+  titleOf,
+  describe,
   error,
+  editing,
+  onEditing,
+  onAdd,
+  onDuplicate,
   onRemove,
-  children,
-  onLeave,
+  renderFields,
 }: {
-  path: string;
-  title: string;
-  error?: string;
-  onRemove: () => void;
-  children: ReactNode;
-  onLeave: () => void;
+  label: string;
+  items: T[];
+  path: (index: number) => string;
+  /** "Directorship": the card's title until the item has a name. */
+  noun: string;
+  addLabel: string;
+  titleOf: (item: T) => string | undefined;
+  describe: (item: T) => string;
+  error: (path: string) => string | undefined;
+  editing: number | null;
+  onEditing: (index: number | null) => void;
+  onAdd: () => void;
+  onDuplicate: (index: number) => void;
+  onRemove: (index: number) => void;
+  renderFields: (item: T, index: number) => ReactNode;
 }) {
+  // Interests carry no ids, so a card is known by its place in the list.
+  const indexOf = new Map(items.map((item, index) => [item, index]));
+  const at = (item: T) => indexOf.get(item) ?? -1;
   return (
-    <li
-      id={idFor(path)}
-      onBlur={onLeave}
-      className="grid gap-4 rounded-2xl bg-card p-4 shadow-card"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h4 className="text-[15px] font-medium">{title}</h4>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={`Remove ${title.toLowerCase()}`}
-          onClick={onRemove}
-        >
-          <Icon icon={Delete02Icon} />
-        </Button>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
-      {error ? <FieldError>{error}</FieldError> : null}
-    </li>
+    <Repeater
+      label={label}
+      items={items}
+      getKey={(item) => String(at(item))}
+      getTitle={(item, index) => {
+        const title = titleOf(item)?.trim();
+        if (title) return title;
+        return `${noun} ${String(index + 1)}`;
+      }}
+      renderDescription={(item, index) => {
+        const problem = editing === index ? undefined : error(path(index));
+        return (
+          <>
+            {describe(item)}
+            {problem ? <FieldError className="mt-1">{problem}</FieldError> : null}
+          </>
+        );
+      }}
+      renderEditor={(item, index) => (
+        <div id={idFor(path(index))} className="grid gap-4 sm:grid-cols-2">
+          {renderFields(item, index)}
+          {error(path(index)) ? (
+            <FieldError className="sm:col-span-2">{error(path(index))}</FieldError>
+          ) : null}
+        </div>
+      )}
+      editingKey={editing === null ? null : String(editing)}
+      onEditingKeyChange={(key) => {
+        onEditing(key === null ? null : Number(key));
+      }}
+      onAdd={onAdd}
+      addLabel={addLabel}
+      onDuplicate={(_, index) => {
+        onDuplicate(index);
+      }}
+      onRemove={(_, index) => {
+        onRemove(index);
+      }}
+      emptyText="None added."
+      headingLevel={4}
+    />
   );
-}
-
-function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <Button
-      type="button"
-      variant="secondary"
-      className="w-full border border-dashed border-border"
-      onClick={onClick}
-    >
-      <Icon icon={Add01Icon} />
-      {label}
-    </Button>
-  );
-}
-
-function NoneAdded() {
-  return <p className="text-sm text-muted-foreground">None added.</p>;
 }
 
 export interface OtherSectionProps {
@@ -229,6 +269,10 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
   });
   const { value, update, issues } = useSectionAutosave<Other>(editable, etag);
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  // With every issue shown, the first card with one opens so its fields can be fixed.
+  const [editing, setEditing] = useState<OpenCard | null>(() =>
+    showErrors ? cardAt(issues[0]?.path) : null,
+  );
 
   const interests: Interests = value.registrableInterests ?? {};
   const directorships = interests.directorships ?? [];
@@ -289,16 +333,50 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
     );
   }
 
+  /** Opens a card (or closes every card); closing one shows its missing answers. */
+  function openCard(next: OpenCard | null) {
+    if (editing) touch(itemPath(editing.list, editing.index));
+    setEditing(next);
+  }
+
   function removeItem(list: ListName, index: number) {
+    if (editing?.list === list) setEditing(null);
     setList(list, (items) => items.filter((_, at) => at !== index) as typeof items);
   }
 
   function addItem(list: ListName) {
     const index = (interests[list] ?? []).length;
     setList(list, (items) => [...items, {}] as typeof items);
-    requestAnimationFrame(() => {
-      focusPath(`${BASE}/${list}/${String(index)}`);
+    openCard({ list, index });
+  }
+
+  function duplicateItem(list: ListName, index: number) {
+    setList(list, (items) => {
+      const copy = { ...items[index] };
+      return [...items.slice(0, index + 1), copy, ...items.slice(index + 1)] as typeof items;
     });
+    openCard({ list, index: index + 1 });
+  }
+
+  /** The props every interest list shares, for the list named. */
+  function listProps(list: ListName) {
+    return {
+      path: (index: number) => itemPath(list, index),
+      error,
+      editing: editing?.list === list ? editing.index : null,
+      onEditing: (index: number | null) => {
+        openCard(index === null ? null : { list, index });
+      },
+      onAdd: () => {
+        addItem(list);
+      },
+      onDuplicate: (index: number) => {
+        duplicateItem(list, index);
+      },
+      onRemove: (index: number) => {
+        removeItem(list, index);
+      },
+    };
   }
 
   function setDual(patch: DraftDualCitizenship) {
@@ -308,7 +386,6 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
     }));
   }
 
-  const itemPath = (list: ListName, index: number) => `${BASE}/${list}/${String(index)}`;
   const invalid = (path: string, missing: boolean) =>
     missing && error(path) !== undefined ? true : undefined;
 
@@ -320,24 +397,25 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
         <h2 className="text-base font-semibold">Registrable interests</h2>
 
         <InterestGroup title="Directorships">
-          {directorships.length === 0 ? <NoneAdded /> : null}
-          <ul className="grid gap-3" aria-label="Directorships">
-            {directorships.map((entry: DraftDirectorship, index) => {
+          <InterestList<DraftDirectorship>
+            {...listProps('directorships')}
+            label="Directorships"
+            items={directorships}
+            noun="Directorship"
+            addLabel="Add a directorship"
+            titleOf={(entry) => entry.company}
+            describe={(entry) =>
+              [
+                entry.role?.trim(),
+                entry.remunerated === undefined ? undefined : entry.remunerated ? 'paid' : 'unpaid',
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            }
+            renderFields={(entry, index) => {
               const path = itemPath('directorships', index);
-              const title = `Directorship ${String(index + 1)}`;
               return (
-                <InterestCard
-                  key={index}
-                  path={path}
-                  title={title}
-                  error={error(path)}
-                  onLeave={() => {
-                    touch(path);
-                  }}
-                  onRemove={() => {
-                    removeItem('directorships', index);
-                  }}
-                >
+                <>
                   <FormField label="Company">
                     <Input
                       maxLength={200}
@@ -372,14 +450,8 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
                       editItem('directorships', index, { remunerated: choice === 'yes' });
                     }}
                   />
-                </InterestCard>
+                </>
               );
-            })}
-          </ul>
-          <AddButton
-            label="Add a directorship"
-            onClick={() => {
-              addItem('directorships');
             }}
           />
         </InterestGroup>
@@ -388,24 +460,18 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
           title="Memberships"
           sub="Companies, partnerships, societies, clubs or trusts."
         >
-          {memberships.length === 0 ? <NoneAdded /> : null}
-          <ul className="grid gap-3" aria-label="Memberships">
-            {memberships.map((entry: DraftMembership, index) => {
+          <InterestList<DraftMembership>
+            {...listProps('memberships')}
+            label="Memberships"
+            items={memberships}
+            noun="Membership"
+            addLabel="Add a membership"
+            titleOf={(entry) => entry.entity}
+            describe={(entry) => (entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : '')}
+            renderFields={(entry, index) => {
               const path = itemPath('memberships', index);
-              const title = `Membership ${String(index + 1)}`;
               return (
-                <InterestCard
-                  key={index}
-                  path={path}
-                  title={title}
-                  error={error(path)}
-                  onLeave={() => {
-                    touch(path);
-                  }}
-                  onRemove={() => {
-                    removeItem('memberships', index);
-                  }}
-                >
+                <>
                   <FormField label="Entity">
                     <Input
                       maxLength={200}
@@ -433,14 +499,8 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
                       ))}
                     </Select>
                   </FormField>
-                </InterestCard>
+                </>
               );
-            })}
-          </ul>
-          <AddButton
-            label="Add a membership"
-            onClick={() => {
-              addItem('memberships');
             }}
           />
         </InterestGroup>
@@ -498,24 +558,18 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
         </InterestGroup>
 
         <InterestGroup title="Pending cases" sub="Unfinished cases before any court or body.">
-          {pendingCases.length === 0 ? <NoneAdded /> : null}
-          <ul className="grid gap-3" aria-label="Pending cases">
-            {pendingCases.map((entry: DraftPendingCase, index) => {
+          <InterestList<DraftPendingCase>
+            {...listProps('pendingCases')}
+            label="Pending cases"
+            items={pendingCases}
+            noun="Pending case"
+            addLabel="Add a pending case"
+            titleOf={(entry) => entry.reference}
+            describe={(entry) => entry.forum?.trim() ?? ''}
+            renderFields={(entry, index) => {
               const path = itemPath('pendingCases', index);
-              const title = `Pending case ${String(index + 1)}`;
               return (
-                <InterestCard
-                  key={index}
-                  path={path}
-                  title={title}
-                  error={error(path)}
-                  onLeave={() => {
-                    touch(path);
-                  }}
-                  onRemove={() => {
-                    removeItem('pendingCases', index);
-                  }}
-                >
+                <>
                   <FormField label="Court or body">
                     <Input
                       maxLength={200}
@@ -550,14 +604,8 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
                       }}
                     />
                   </FormField>
-                </InterestCard>
+                </>
               );
-            })}
-          </ul>
-          <AddButton
-            label="Add a pending case"
-            onClick={() => {
-              addItem('pendingCases');
             }}
           />
         </InterestGroup>
