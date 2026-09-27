@@ -1,16 +1,32 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { ToastProvider } from '@adili/ui';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { RosterImport } from '../../server/directory/client';
+import type { RosterImport, RosterImportRowPage } from '../../server/directory/client';
 import { WizardImportStep } from './wizard-import-step';
 import { WizardReportStep } from './wizard-report-step';
 
 // The steps link to the roster; a plain anchor stands in for the router's Link.
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
-    <a href={to} {...props}>
+  Link: ({
+    to,
+    params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params?: Record<string, string>;
+    children: ReactNode;
+  }) => (
+    <a
+      href={Object.entries(params ?? {}).reduce(
+        (href, [name, value]) => href.replace(`$${name}`, value),
+        to,
+      )}
+      {...props}
+    >
       {children}
     </a>
   ),
@@ -86,6 +102,9 @@ describe('WizardImportStep', () => {
       'The import stopped after 30,000 rows: a system error interrupted it.',
     );
     expect(alert.textContent).toContain('Rows already applied are kept.');
+    expect(within(alert).getByRole('link', { name: 'View report' }).getAttribute('href')).toBe(
+      `/roster/imports/${base.id}`,
+    );
     expect(screen.queryByText('You can leave this page; the import continues.')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Import a corrected file' }));
     expect(onImportAnother).toHaveBeenCalled();
@@ -142,8 +161,31 @@ describe('WizardReportStep', () => {
     counts,
   });
 
+  const noRows = vi.fn(() => Promise.reject(new Error('no rows to read')));
+
+  const renderReport = (
+    report: RosterImport,
+    {
+      readRows = noRows,
+      onImportAnother = vi.fn(),
+    }: {
+      readRows?: (cursor: string | undefined) => Promise<{ ok: true; data: RosterImportRowPage }>;
+      onImportAnother?: () => void;
+    } = {},
+  ) =>
+    render(
+      <ToastProvider>
+        <WizardReportStep
+          imp={report}
+          readRows={readRows}
+          returnTo={`/roster/import?import=${report.id}`}
+          onImportAnother={onImportAnother}
+        />
+      </ToastProvider>,
+    );
+
   it('shows the five counts and that nothing was rejected', () => {
-    render(<WizardReportStep imp={completed} onImportAnother={vi.fn()} />);
+    renderReport(completed);
     expect(screen.getByRole('heading', { name: 'Import complete' })).toBeTruthy();
     expect(screen.getByText(/psc-new-appointments-sep\.csv · 1,212 rows · finished/)).toBeTruthy();
     const tiles = screen.getByRole('region', { name: 'Import counts' });
@@ -152,23 +194,66 @@ describe('WizardReportStep', () => {
     expect(screen.queryByText(/not in this file/)).toBeNull();
   });
 
-  it('warns about officers flagged as absent', () => {
-    render(
-      <WizardReportStep
-        imp={{
-          ...completed,
-          counts: { ...counts, rejected: 3, flaggedAbsent: 14 },
-        }}
-        onImportAnother={vi.fn()}
-      />,
+  it('warns about officers flagged as absent and lists the rejected rows', async () => {
+    const readRows = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        data: {
+          items: [
+            {
+              rowNumber: 14,
+              status: 'rejected' as const,
+              raw: { personnelFileNumber: 'PSC/2020/0014', nationalId: '12' },
+              errors: [
+                {
+                  field: 'nationalId' as const,
+                  code: 'format' as const,
+                  message: 'National ID must be 5 to 10 digits.',
+                },
+              ],
+              outcome: null,
+              recordId: null,
+            },
+          ],
+          nextCursor: null,
+        },
+      }),
+    );
+    renderReport(
+      { ...completed, counts: { ...counts, rejected: 1, flaggedAbsent: 14 } },
+      { readRows },
     );
     expect(screen.getByText('14 officers were not in this file.')).toBeTruthy();
     expect(screen.queryByText('No rows were rejected.')).toBeNull();
+    const table = await screen.findByRole('table', { name: 'Rejected rows' });
+    expect(within(table).getByRole('rowheader', { name: '14' })).toBeTruthy();
+    expect(within(table).getByText('national_id')).toBeTruthy();
+    expect(within(table).getByText('National ID must be 5 to 10 digits.')).toBeTruthy();
+    expect(readRows).toHaveBeenCalledWith(undefined);
+    expect(screen.getByRole('button', { name: 'Download rejected rows (CSV)' })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('navigation', { name: 'Rejected rows pages' })).toBeNull();
+    });
+  });
+
+  it('says the rows are gone once purged, without asking for them', () => {
+    const readRows = vi.fn(noRows);
+    renderReport(
+      {
+        ...completed,
+        counts: { ...counts, rejected: 4 },
+        rowsRetainedUntil: '2026-01-01T00:00:00Z',
+      },
+      { readRows },
+    );
+    expect(screen.getByText('Row details are kept for 30 days after an import ends.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Download/ })).toBeNull();
+    expect(readRows).not.toHaveBeenCalled();
   });
 
   it('goes on to another file', () => {
     const onImportAnother = vi.fn();
-    render(<WizardReportStep imp={completed} onImportAnother={onImportAnother} />);
+    renderReport(completed, { onImportAnother });
     fireEvent.click(screen.getByRole('button', { name: 'Import another file' }));
     expect(onImportAnother).toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Go to roster' })).toBeTruthy();

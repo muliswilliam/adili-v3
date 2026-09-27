@@ -31,6 +31,7 @@ import {
   checkRosterUpload,
   findRunningRosterImport,
   getRosterImport,
+  listRejectedRows,
   startRosterImport,
 } from '../../server/roster-imports';
 import { completeUpload, createRosterUpload } from '../../server/uploads';
@@ -324,7 +325,12 @@ function ImportWizard({ slug }: { slug: string }) {
           }}
         />
       ) : state.step === 'report' && imp ? (
-        <WizardReportStep imp={imp} onImportAnother={importAnother} />
+        <WizardReportStep
+          imp={imp}
+          readRows={(cursor) => listRejectedRows({ data: { slug, importId: imp.id, cursor } })}
+          returnTo={returnTo(imp.id)}
+          onImportAnother={importAnother}
+        />
       ) : state.step === 'importing' ? (
         <WizardImportStep
           imp={imp}

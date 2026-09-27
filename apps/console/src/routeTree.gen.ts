@@ -8,137 +8,173 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
-import { Route as RosterRouteRouteImport } from './routes/roster/route'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
-import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
-import { Route as CommissionsSlugRouteImport } from './routes/commissions/$slug'
-import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
-import { Route as RosterIndexRouteImport } from './routes/roster/index'
-import { Route as RosterApiAccessRouteImport } from './routes/roster/api-access'
-import { Route as RosterImportRouteImport } from './routes/roster/import'
-import { Route as RosterTemplateRouteImport } from './routes/roster/template'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as CommissionsRouteRouteImport } from './routes/commissions/route';
+import { Route as RosterRouteRouteImport } from './routes/roster/route';
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback';
+import { Route as AuthLoginRouteImport } from './routes/auth/login';
+import { Route as AuthLogoutRouteImport } from './routes/auth/logout';
+import { Route as CommissionsIndexRouteImport } from './routes/commissions/index';
+import { Route as CommissionsSlugRouteImport } from './routes/commissions/$slug';
+import { Route as CommissionsNewRouteImport } from './routes/commissions/new';
+import { Route as RosterIndexRouteImport } from './routes/roster/index';
+import { Route as RosterApiAccessRouteImport } from './routes/roster/api-access';
+import { Route as RosterImportRouteImport } from './routes/roster/import';
+import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route';
+import { Route as RosterTemplateRouteImport } from './routes/roster/template';
+import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index';
+import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/imports/$importId/index';
+import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv';
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const RosterRouteRoute = RosterRouteRouteImport.update({
   id: '/roster',
   path: '/roster',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
   path: '/auth/logout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CommissionsIndexRoute = CommissionsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CommissionsRouteRoute,
-} as any)
+} as any);
 const CommissionsSlugRoute = CommissionsSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => CommissionsRouteRoute,
-} as any)
+} as any);
 const CommissionsNewRoute = CommissionsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
-} as any)
+} as any);
 const RosterIndexRoute = RosterIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterApiAccessRoute = RosterApiAccessRouteImport.update({
   id: '/api-access',
   path: '/api-access',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterImportRoute = RosterImportRouteImport.update({
   id: '/import',
   path: '/import',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
+const RosterImportsRouteRoute = RosterImportsRouteRouteImport.update({
+  id: '/imports',
+  path: '/imports',
+  getParentRoute: () => RosterRouteRoute,
+} as any);
 const RosterTemplateRoute = RosterTemplateRouteImport.update({
   id: '/template',
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
+const RosterImportsIndexRoute = RosterImportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RosterImportsRouteRoute,
+} as any);
+const RosterImportsImportIdIndexRoute = RosterImportsImportIdIndexRouteImport.update({
+  id: '/$importId/',
+  path: '/$importId/',
+  getParentRoute: () => RosterImportsRouteRoute,
+} as any);
+const RosterImportsImportIdReportDotcsvRoute = RosterImportsImportIdReportDotcsvRouteImport.update({
+  id: '/$importId/report.csv',
+  path: '/$importId/report.csv',
+  getParentRoute: () => RosterImportsRouteRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/commissions': typeof CommissionsRouteRouteWithChildren
-  '/roster': typeof RosterRouteRouteWithChildren
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/commissions/$slug': typeof CommissionsSlugRoute
-  '/commissions/new': typeof CommissionsNewRoute
-  '/roster/api-access': typeof RosterApiAccessRoute
-  '/roster/import': typeof RosterImportRoute
-  '/roster/template': typeof RosterTemplateRoute
-  '/commissions/': typeof CommissionsIndexRoute
-  '/roster/': typeof RosterIndexRoute
+  '/': typeof IndexRoute;
+  '/commissions': typeof CommissionsRouteRouteWithChildren;
+  '/roster': typeof RosterRouteRouteWithChildren;
+  '/roster/imports': typeof RosterImportsRouteRouteWithChildren;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/commissions/$slug': typeof CommissionsSlugRoute;
+  '/commissions/new': typeof CommissionsNewRoute;
+  '/roster/api-access': typeof RosterApiAccessRoute;
+  '/roster/import': typeof RosterImportRoute;
+  '/roster/template': typeof RosterTemplateRoute;
+  '/commissions/': typeof CommissionsIndexRoute;
+  '/roster/': typeof RosterIndexRoute;
+  '/roster/imports/': typeof RosterImportsIndexRoute;
+  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute;
+  '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/commissions/$slug': typeof CommissionsSlugRoute
-  '/commissions/new': typeof CommissionsNewRoute
-  '/roster/api-access': typeof RosterApiAccessRoute
-  '/roster/import': typeof RosterImportRoute
-  '/roster/template': typeof RosterTemplateRoute
-  '/commissions': typeof CommissionsIndexRoute
-  '/roster': typeof RosterIndexRoute
+  '/': typeof IndexRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/commissions/$slug': typeof CommissionsSlugRoute;
+  '/commissions/new': typeof CommissionsNewRoute;
+  '/roster/api-access': typeof RosterApiAccessRoute;
+  '/roster/import': typeof RosterImportRoute;
+  '/roster/template': typeof RosterTemplateRoute;
+  '/commissions': typeof CommissionsIndexRoute;
+  '/roster': typeof RosterIndexRoute;
+  '/roster/imports': typeof RosterImportsIndexRoute;
+  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute;
+  '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/commissions': typeof CommissionsRouteRouteWithChildren
-  '/roster': typeof RosterRouteRouteWithChildren
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/commissions/$slug': typeof CommissionsSlugRoute
-  '/commissions/new': typeof CommissionsNewRoute
-  '/roster/api-access': typeof RosterApiAccessRoute
-  '/roster/import': typeof RosterImportRoute
-  '/roster/template': typeof RosterTemplateRoute
-  '/commissions/': typeof CommissionsIndexRoute
-  '/roster/': typeof RosterIndexRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/commissions': typeof CommissionsRouteRouteWithChildren;
+  '/roster': typeof RosterRouteRouteWithChildren;
+  '/roster/imports': typeof RosterImportsRouteRouteWithChildren;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/commissions/$slug': typeof CommissionsSlugRoute;
+  '/commissions/new': typeof CommissionsNewRoute;
+  '/roster/api-access': typeof RosterApiAccessRoute;
+  '/roster/import': typeof RosterImportRoute;
+  '/roster/template': typeof RosterTemplateRoute;
+  '/commissions/': typeof CommissionsIndexRoute;
+  '/roster/': typeof RosterIndexRoute;
+  '/roster/imports/': typeof RosterImportsIndexRoute;
+  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute;
+  '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
     | '/commissions'
     | '/roster'
+    | '/roster/imports'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -149,7 +185,10 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions/'
     | '/roster/'
-  fileRoutesByTo: FileRoutesByTo
+    | '/roster/imports/'
+    | '/roster/imports/$importId/report.csv'
+    | '/roster/imports/$importId/';
+  fileRoutesByTo: FileRoutesByTo;
   to:
     | '/'
     | '/auth/callback'
@@ -162,11 +201,15 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions'
     | '/roster'
+    | '/roster/imports'
+    | '/roster/imports/$importId/report.csv'
+    | '/roster/imports/$importId';
   id:
     | '__root__'
     | '/'
     | '/commissions'
     | '/roster'
+    | '/roster/imports'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -177,145 +220,193 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions/'
     | '/roster/'
-  fileRoutesById: FileRoutesById
+    | '/roster/imports/'
+    | '/roster/imports/$importId/report.csv'
+    | '/roster/imports/$importId/';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
-  RosterRouteRoute: typeof RosterRouteRouteWithChildren
-  AuthCallbackRoute: typeof AuthCallbackRoute
-  AuthLoginRoute: typeof AuthLoginRoute
-  AuthLogoutRoute: typeof AuthLogoutRoute
+  IndexRoute: typeof IndexRoute;
+  CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren;
+  RosterRouteRoute: typeof RosterRouteRouteWithChildren;
+  AuthCallbackRoute: typeof AuthCallbackRoute;
+  AuthLoginRoute: typeof AuthLoginRoute;
+  AuthLogoutRoute: typeof AuthLogoutRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/commissions': {
-      id: '/commissions'
-      path: '/commissions'
-      fullPath: '/commissions'
-      preLoaderRoute: typeof CommissionsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/commissions';
+      path: '/commissions';
+      fullPath: '/commissions';
+      preLoaderRoute: typeof CommissionsRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/roster': {
-      id: '/roster'
-      path: '/roster'
-      fullPath: '/roster'
-      preLoaderRoute: typeof RosterRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/roster';
+      path: '/roster';
+      fullPath: '/roster';
+      preLoaderRoute: typeof RosterRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/callback';
+      path: '/auth/callback';
+      fullPath: '/auth/callback';
+      preLoaderRoute: typeof AuthCallbackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/login': {
-      id: '/auth/login'
-      path: '/auth/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/login';
+      path: '/auth/login';
+      fullPath: '/auth/login';
+      preLoaderRoute: typeof AuthLoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/logout': {
-      id: '/auth/logout'
-      path: '/auth/logout'
-      fullPath: '/auth/logout'
-      preLoaderRoute: typeof AuthLogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/logout';
+      path: '/auth/logout';
+      fullPath: '/auth/logout';
+      preLoaderRoute: typeof AuthLogoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/commissions/': {
-      id: '/commissions/'
-      path: '/'
-      fullPath: '/commissions/'
-      preLoaderRoute: typeof CommissionsIndexRouteImport
-      parentRoute: typeof CommissionsRouteRoute
-    }
+      id: '/commissions/';
+      path: '/';
+      fullPath: '/commissions/';
+      preLoaderRoute: typeof CommissionsIndexRouteImport;
+      parentRoute: typeof CommissionsRouteRoute;
+    };
     '/commissions/$slug': {
-      id: '/commissions/$slug'
-      path: '/$slug'
-      fullPath: '/commissions/$slug'
-      preLoaderRoute: typeof CommissionsSlugRouteImport
-      parentRoute: typeof CommissionsRouteRoute
-    }
+      id: '/commissions/$slug';
+      path: '/$slug';
+      fullPath: '/commissions/$slug';
+      preLoaderRoute: typeof CommissionsSlugRouteImport;
+      parentRoute: typeof CommissionsRouteRoute;
+    };
     '/commissions/new': {
-      id: '/commissions/new'
-      path: '/new'
-      fullPath: '/commissions/new'
-      preLoaderRoute: typeof CommissionsNewRouteImport
-      parentRoute: typeof CommissionsRouteRoute
-    }
+      id: '/commissions/new';
+      path: '/new';
+      fullPath: '/commissions/new';
+      preLoaderRoute: typeof CommissionsNewRouteImport;
+      parentRoute: typeof CommissionsRouteRoute;
+    };
     '/roster/': {
-      id: '/roster/'
-      path: '/'
-      fullPath: '/roster/'
-      preLoaderRoute: typeof RosterIndexRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/';
+      path: '/';
+      fullPath: '/roster/';
+      preLoaderRoute: typeof RosterIndexRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/api-access': {
-      id: '/roster/api-access'
-      path: '/api-access'
-      fullPath: '/roster/api-access'
-      preLoaderRoute: typeof RosterApiAccessRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/api-access';
+      path: '/api-access';
+      fullPath: '/roster/api-access';
+      preLoaderRoute: typeof RosterApiAccessRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/import': {
-      id: '/roster/import'
-      path: '/import'
-      fullPath: '/roster/import'
-      preLoaderRoute: typeof RosterImportRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/import';
+      path: '/import';
+      fullPath: '/roster/import';
+      preLoaderRoute: typeof RosterImportRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
+    '/roster/imports': {
+      id: '/roster/imports';
+      path: '/imports';
+      fullPath: '/roster/imports';
+      preLoaderRoute: typeof RosterImportsRouteRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/template': {
-      id: '/roster/template'
-      path: '/template'
-      fullPath: '/roster/template'
-      preLoaderRoute: typeof RosterTemplateRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/template';
+      path: '/template';
+      fullPath: '/roster/template';
+      preLoaderRoute: typeof RosterTemplateRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
+    '/roster/imports/': {
+      id: '/roster/imports/';
+      path: '/';
+      fullPath: '/roster/imports/';
+      preLoaderRoute: typeof RosterImportsIndexRouteImport;
+      parentRoute: typeof RosterImportsRouteRoute;
+    };
+    '/roster/imports/$importId/': {
+      id: '/roster/imports/$importId/';
+      path: '/$importId';
+      fullPath: '/roster/imports/$importId/';
+      preLoaderRoute: typeof RosterImportsImportIdIndexRouteImport;
+      parentRoute: typeof RosterImportsRouteRoute;
+    };
+    '/roster/imports/$importId/report.csv': {
+      id: '/roster/imports/$importId/report.csv';
+      path: '/$importId/report.csv';
+      fullPath: '/roster/imports/$importId/report.csv';
+      preLoaderRoute: typeof RosterImportsImportIdReportDotcsvRouteImport;
+      parentRoute: typeof RosterImportsRouteRoute;
+    };
   }
 }
 
 interface CommissionsRouteRouteChildren {
-  CommissionsSlugRoute: typeof CommissionsSlugRoute
-  CommissionsNewRoute: typeof CommissionsNewRoute
-  CommissionsIndexRoute: typeof CommissionsIndexRoute
+  CommissionsSlugRoute: typeof CommissionsSlugRoute;
+  CommissionsNewRoute: typeof CommissionsNewRoute;
+  CommissionsIndexRoute: typeof CommissionsIndexRoute;
 }
 
 const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
   CommissionsSlugRoute: CommissionsSlugRoute,
   CommissionsNewRoute: CommissionsNewRoute,
   CommissionsIndexRoute: CommissionsIndexRoute,
+};
+
+const CommissionsRouteRouteWithChildren = CommissionsRouteRoute._addFileChildren(
+  CommissionsRouteRouteChildren,
+);
+
+interface RosterImportsRouteRouteChildren {
+  RosterImportsIndexRoute: typeof RosterImportsIndexRoute;
+  RosterImportsImportIdReportDotcsvRoute: typeof RosterImportsImportIdReportDotcsvRoute;
+  RosterImportsImportIdIndexRoute: typeof RosterImportsImportIdIndexRoute;
 }
 
-const CommissionsRouteRouteWithChildren =
-  CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
+const RosterImportsRouteRouteChildren: RosterImportsRouteRouteChildren = {
+  RosterImportsIndexRoute: RosterImportsIndexRoute,
+  RosterImportsImportIdReportDotcsvRoute: RosterImportsImportIdReportDotcsvRoute,
+  RosterImportsImportIdIndexRoute: RosterImportsImportIdIndexRoute,
+};
+
+const RosterImportsRouteRouteWithChildren = RosterImportsRouteRoute._addFileChildren(
+  RosterImportsRouteRouteChildren,
+);
 
 interface RosterRouteRouteChildren {
-  RosterApiAccessRoute: typeof RosterApiAccessRoute
-  RosterImportRoute: typeof RosterImportRoute
-  RosterTemplateRoute: typeof RosterTemplateRoute
-  RosterIndexRoute: typeof RosterIndexRoute
+  RosterImportsRouteRoute: typeof RosterImportsRouteRouteWithChildren;
+  RosterApiAccessRoute: typeof RosterApiAccessRoute;
+  RosterImportRoute: typeof RosterImportRoute;
+  RosterTemplateRoute: typeof RosterTemplateRoute;
+  RosterIndexRoute: typeof RosterIndexRoute;
 }
 
 const RosterRouteRouteChildren: RosterRouteRouteChildren = {
+  RosterImportsRouteRoute: RosterImportsRouteRouteWithChildren,
   RosterApiAccessRoute: RosterApiAccessRoute,
   RosterImportRoute: RosterImportRoute,
   RosterTemplateRoute: RosterTemplateRoute,
   RosterIndexRoute: RosterIndexRoute,
-}
+};
 
-const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
-  RosterRouteRouteChildren,
-)
+const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(RosterRouteRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -324,16 +415,16 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { getRouter } from './router.tsx';
+import type { createStart } from '@tanstack/react-start';
 declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
   }
 }

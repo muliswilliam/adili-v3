@@ -12,6 +12,7 @@ import {
 } from '@adili/ui';
 import {
   ArrowDown01Icon,
+  Clock01Icon,
   Download04Icon,
   File02Icon,
   Flag02Icon,
@@ -94,6 +95,14 @@ function RosterOverview() {
         }
       />
       <SummaryTiles roster={roster} />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/imports">
+            <Icon icon={Clock01Icon} />
+            {m.historyTitle}
+          </Link>
+        </Button>
+      </div>
     </Page>
   );
 }
