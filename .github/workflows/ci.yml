@@ -148,6 +148,7 @@ jobs:
           docker run -d --name keycloak --network ${{ job.services.mailpit.network }} -p 8080:8080 \
             -e KC_HOSTNAME=http://localhost:8080 -e KC_DB=dev-file \
             -v "$PWD/infra/compose/keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro" \
+            -v "$PWD/infra/compose/keycloak/vault:/opt/keycloak/vault:ro" \
             adili/keycloak:dev start-dev --import-realm
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5

@@ -13,8 +13,8 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 | `adili browser` | Cookie, broker, then forms |
 | `adili password` | Username/password at LoA 1 (stays valid for the SSO session) |
 | `adili otp` | LoA 2, max age 300 seconds. A step-up request with `acr_values=step-up` re-runs only this |
-| `adili declarant otp` | Role `declarant`. Empty of authenticators until #79 |
-| `adili applicant otp` | Role `applicant`. Same plug-in point as declarants |
+| `adili declarant otp` | Role `declarant`. `adili-otp`: a code by SMS, email as fallback |
+| `adili applicant otp` | Role `applicant`. `adili-otp`, as for declarants |
 | `adili staff totp` | Everyone else (staff and law-enforcement). Built-in TOTP form |
 
 ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so login is MFA.
@@ -28,8 +28,17 @@ ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so lo
 - The login theme reads `ADILI_CONSOLE_URL` (default `http://localhost:3020`) and `ADILI_PORTAL_URL` (default `http://localhost:3010`) from Keycloak's environment. Keycloak renders an expired or already used emailed link without a client, so its page offers sign-in (or a new link) there. Set both to the apps' public origins in every deployment.
 - New staff get the required actions `VERIFY_EMAIL`, `UPDATE_PASSWORD` and `CONFIGURE_TOTP`; the activation link completes them in that realm's priority order (TOTP, then password). Their later sign-ins go through `adili staff totp`.
 
-## Plug-in for #79 (Adili OTP authenticator)
+## Adili OTP authenticator (#79)
 
-Add a REQUIRED execution with provider id `adili-otp` to `adili declarant otp` and `adili applicant otp`. Do not add it to the staff TOTP flow. The authenticator must honour LoA so a step-up request re-runs only the OTP (spec 06 S16).
+`adili-otp` comes from `apps/keycloak-extension` (a provider JAR the Keycloak image builds and installs). It is REQUIRED in `adili declarant otp` and `adili applicant otp`, never in the staff TOTP flow. Because it sits in the LoA 2 sub-flow, a step-up request (`acr_values=step-up`) re-runs only the code step (spec 06 S16), and the page says so.
+
+- Rules come from the `adili-otp` authenticator config: code lifetime 600 s, 5 wrong codes, 60 s resend cooldown, 3 new codes. Wrong codes count across new codes. Too many of either returns to the sign-in page with a message.
+- Codes go through notifications (`POST /internal/v1/messages`, templates `login-otp-sms` and `login-otp-email`) with a token for the confidential client `keycloak-extension`, whose default scope `messages` adds the `adili-api` audience. `notificationsUrl` and `tokenUrl` are blank in the realm, so `ADILI_NOTIFICATIONS_URL` (compose: the host's port 4010) and `ADILI_OTP_TOKEN_URL` (default: this realm on `http://localhost:8080`) apply.
+- The client secret is `${vault.keycloak-extension-secret}`, read from Keycloak's file vault. Compose mounts `vault/` (a development secret matching the realm's client) at `/opt/keycloak/vault`; deployments mount their own `adili_keycloak-extension-secret` file there.
+- A send that fails (notifications down, provider refused) shows the send-failed page with the other channel, or "try again" once both have failed. SMS goes to the `phone` attribute, email to the account email.
+
+`messages` and `iprs` are realm client scopes for service-to-service calls; `directory` has both. `attributes.CreateDefaultClientScopes` keeps Keycloak's built-in scopes, which declaring `clientScopes` would otherwise drop.
+
+After pulling a change to the extension or the theme, rebuild the image (`docker compose -f infra/compose/docker-compose.yml build keycloak`) and recreate the realm.
 
 Passkeys are enabled as an optional required action (`webauthn-register`). They are not on the browser flow.

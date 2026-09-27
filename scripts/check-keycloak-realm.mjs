@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Checks that the Adili realm file still has the roles, BFF clients,
-// authentication flows and staff provisioning setup (directory service client,
-// SMTP, email theme, user profile attributes) specs 03, 04 and 06 require.
+// Checks that the Adili realm file still has the roles, BFF clients, authentication flows (with
+// the adili-otp authenticator), service clients and scopes, and staff provisioning setup
+// (directory service client, SMTP, email theme, user profile attributes) specs 03, 04 and 06 require.
 // Demo users are optional (#371 seeds them).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -108,11 +108,22 @@ if (!hasAuthenticator('adili password', 'auth-username-password-form')) {
 if (!hasAuthenticator('adili staff totp', 'auth-otp-form')) {
   fail('adili staff totp must include the TOTP form');
 }
-if (hasAuthenticator('adili declarant otp', 'adili-otp')) {
-  fail('adili-otp belongs to #79; this realm only reserves the flow');
+// Declarants and applicants get the Adili OTP authenticator (#79); staff keep TOTP.
+for (const alias of ['adili declarant otp', 'adili applicant otp']) {
+  const otp = (flows.get(alias)?.authenticationExecutions ?? []).find(
+    (execution) => execution.authenticator === 'adili-otp',
+  );
+  if (otp?.requirement !== 'REQUIRED') fail(`${alias} must require the adili-otp authenticator`);
+  else if (!configs.has(otp.authenticatorConfig)) {
+    fail(`${alias}: adili-otp must name an authenticator config`);
+  }
 }
-if (hasAuthenticator('adili applicant otp', 'adili-otp')) {
-  fail('adili-otp belongs to #79; this realm only reserves the flow');
+if (hasAuthenticator('adili staff totp', 'adili-otp')) {
+  fail('adili staff totp must not use adili-otp; staff keep TOTP');
+}
+const otpConfig = configs.get('adili-otp');
+if (otpConfig && !otpConfig.clientSecret?.startsWith('${vault.')) {
+  fail('adili-otp clientSecret must be a vault expression, not a literal');
 }
 
 if (!hasAuthenticator('adili declarant otp', 'conditional-user-role')) {
@@ -131,6 +142,42 @@ if (!actions.has('VERIFY_EMAIL')) fail('onboarding execute-actions needs VERIFY_
 // Staff provisioning (spec 06): the directory creates accounts and sends the activation email.
 if (realm.emailTheme !== 'adili') fail('emailTheme must be adili (activation email)');
 if (!realm.smtpServer?.host) fail('smtpServer is required for execute-actions emails');
+
+// Service scopes: each puts the adili-api audience on the token and names the internal API.
+if (realm.attributes?.CreateDefaultClientScopes !== 'true') {
+  fail(
+    'attributes.CreateDefaultClientScopes must be true, or declaring clientScopes drops the defaults',
+  );
+}
+const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
+for (const name of ['messages', 'iprs']) {
+  const scope = scopes.get(name);
+  if (!scope) {
+    fail(`missing client scope ${name}`);
+    continue;
+  }
+  const audience = (scope.protocolMappers ?? []).some(
+    (mapper) =>
+      mapper.protocolMapper === 'oidc-audience-mapper' &&
+      mapper.config?.['included.custom.audience'] === 'adili-api',
+  );
+  if (!audience) fail(`client scope ${name} must add the adili-api audience`);
+}
+
+const extension = clients.get('keycloak-extension');
+if (!extension) {
+  fail('missing keycloak-extension client (adili-otp sends codes with it)');
+} else {
+  if (extension.publicClient || !extension.serviceAccountsEnabled) {
+    fail('keycloak-extension must be a confidential client with a service account');
+  }
+  if (extension.standardFlowEnabled || extension.directAccessGrantsEnabled) {
+    fail('keycloak-extension must not sign users in');
+  }
+  if (!extension.defaultClientScopes?.includes('messages')) {
+    fail('keycloak-extension needs the messages scope');
+  }
+}
 
 const directory = clients.get('directory');
 if (!directory) {

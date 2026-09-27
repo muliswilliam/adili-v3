@@ -37,7 +37,8 @@
   "webAuthnPolicyRequireResidentKey": "not specified",
   "webAuthnPolicyUserVerificationRequirement": "preferred",
   "attributes": {
-    "acr.loa.map": "{\"step-up\":2}"
+    "acr.loa.map": "{\"step-up\":2}",
+    "CreateDefaultClientScopes": "true"
   },
   "roles": {
     "realm": [
@@ -242,7 +243,7 @@
     {
       "clientId": "directory",
       "name": "Directory service",
-      "description": "Service account the directory uses to provision staff users (Admin REST API)",
+      "description": "Service account the directory uses to provision users (Admin REST API) and to call notifications and the integration-gateway",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -252,7 +253,23 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "defaultClientScopes": ["basic", "roles"],
+      "defaultClientScopes": ["basic", "roles", "messages", "iprs"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "keycloak-extension",
+      "name": "Keycloak extension",
+      "description": "Service account the adili-otp authenticator uses to send sign-in codes through notifications",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "keycloak-extension-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "messages"],
       "optionalClientScopes": []
     }
   ],
@@ -297,6 +314,20 @@
       "config": {
         "condUserRole": "applicant",
         "negate": "true"
+      }
+    },
+    {
+      "alias": "adili-otp",
+      "config": {
+        "codeLifetimeSeconds": "600",
+        "maxAttempts": "5",
+        "resendCooldownSeconds": "60",
+        "maxResends": "3",
+        "notificationsUrl": "",
+        "tokenUrl": "",
+        "clientId": "keycloak-extension",
+        "clientSecret": "${vault.keycloak-extension-secret}",
+        "requestTimeoutMs": "6000"
       }
     }
   ],
@@ -429,7 +460,7 @@
     },
     {
       "alias": "adili declarant otp",
-      "description": "Declarant SMS/email OTP. #79 adds REQUIRED authenticator adili-otp here",
+      "description": "Declarant sign-in code by SMS, or email as fallback (adili-otp)",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -442,12 +473,21 @@
           "autheticatorFlow": false,
           "authenticator": "conditional-user-role",
           "authenticatorConfig": "adili-role-declarant"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "adili-otp",
+          "authenticatorConfig": "adili-otp"
         }
       ]
     },
     {
       "alias": "adili applicant otp",
-      "description": "Applicant SMS/email OTP. #79 adds REQUIRED authenticator adili-otp here",
+      "description": "Applicant sign-in code by SMS, or email as fallback (adili-otp)",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -460,6 +500,15 @@
           "autheticatorFlow": false,
           "authenticator": "conditional-user-role",
           "authenticatorConfig": "adili-role-applicant"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "adili-otp",
+          "authenticatorConfig": "adili-otp"
         }
       ]
     },
@@ -837,6 +886,52 @@
       "clientRoles": {
         "realm-management": ["manage-users", "view-users", "query-users"]
       }
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "messages",
+      "description": "Send templated email and SMS through notifications (/internal/v1/messages)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "iprs",
+      "description": "Look people up in IPRS through the integration-gateway (/internal/v1/iprs)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ]
 }
