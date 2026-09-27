@@ -10,6 +10,7 @@ export {
   CardIcon,
   CardTitle,
 } from './components/card';
+export { Chart, type ChartDatum, type ChartProps, type ChartSeries } from './components/chart';
 export {
   Checkbox,
   CheckboxGroup,

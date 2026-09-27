@@ -114,6 +114,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `EmptyState` | `.empty` | 30px icon tile, 15px title, 14px text up to 340px wide; no border, since it sits inside a card |
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
 | `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
+| `Chart` | none (derived) | `figure` with a 14px medium caption. `bar` draws one horizontal 8px track per series under each category label, value text on the right; `line` draws a 192px plot with hairline grid, 2px lines and 8px points. Series take `brand`, `info`, `secondary-foreground`, `success` (never `ai`). Suppressed (null) values are never plotted: bars show the label, lines break and the legend explains the gap. The data table is always there for assistive tech; `showTable` puts it on screen. |
 
 ## Dark theme
 
