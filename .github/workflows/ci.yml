@@ -12,6 +12,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_CACHE_DIR: .turbo
+
 jobs:
   typescript:
     name: TypeScript (lint, typecheck, test, build)
@@ -23,10 +28,35 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
-      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks'
+      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks' --cache-dir=.turbo
       - run: pnpm deps:check
+
+  contracts:
+    name: Contracts (Redocly, JSON Schema, drift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint OpenAPI (internal + external)
+        run: pnpm --filter @adili/schemas lint:openapi
+      - name: Meta-validate form JSON Schemas
+        run: pnpm --filter @adili/schemas lint:forms
+      - name: Internal contract drift (skips until services export OpenAPI)
+        run: pnpm --filter @adili/schemas check:drift
 
   integration:
     name: Integration (Postgres, RabbitMQ)
@@ -52,6 +82,9 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://adili_test:adili_test_dev@localhost:5432/adili_test
       TEST_RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
+      # Workflow tests start @temporalio/testing in-process (time-skipping). Set this
+      # to point at a real server only when a ticket needs it.
+      TEST_TEMPORAL_ADDRESS: ''
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -124,3 +157,22 @@ jobs:
           push: false
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [typescript, contracts, integration, python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every gate
+        run: |
+          set -eu
+          echo '${{ toJson(needs) }}'
+          for job in typescript contracts integration python; do
+            result=$(echo '${{ toJson(needs) }}' | jq -r --arg job "$job" '.[$job].result')
+            echo "$job: $result"
+            if [ "$result" != success ]; then
+              echo "Required job $job did not succeed" >&2
+              exit 1
+            fi
+          done

@@ -1,0 +1,149 @@
+# Design
+
+How the designs map to code. The design system lives in [`packages/ui`](../packages/ui/): tokens in [`src/styles.css`](../packages/ui/src/styles.css), components in [`src/components`](../packages/ui/src/components/). Apps compose screens from those components and never define colours, shadows or radii of their own.
+
+## Source
+
+The clickable HTML prototypes are the source of truth. Where they disagree with the Figma style guide, the prototypes win; the Dials logo is the one thing still taken from Figma.
+
+| | |
+|---|---|
+| Prototype kit | [`packages/ui/prototype/kit.css`](../packages/ui/prototype/kit.css) and `kit.js`: tokens, buttons, inputs, cards, badges, callouts, dialogs, tables, tabs. Index: [`packages/ui/prototype/index.html`](../packages/ui/prototype/index.html) |
+| Primitives in use | `apps/portal/prototype/declarant-journey.prototype.html` (screen "UI primitives in portal context"), `apps/console/prototype/02-roster.prototype.html` (screen "UI primitives, round 2"), `apps/console/prototype/01-commissions.prototype.html`, `apps/keycloak-theme/prototype/login.prototype.html` |
+| Figma file | [Dials](https://www.figma.com/design/wr7hrx3jB9cpWdpsvyAD1G/Dials): the logo (`Dials-logo`, node `21:9`) and the older style guide (`81:3824`) |
+| Applied in | PR [#104](https://github.com/muliswilliam/adili-v3/pull/104) (tokens) and the primitive PRs #103, #106 and #107 |
+
+The kit is throwaway: plain CSS with hex values so the prototypes open by double-click. Its values are translated into the semantic tokens below, as oklch with the kit's hex in a comment, rather than copied. To check a component, open the prototype screen that shows it and grep the kit for its class (`.btn`, `.input`, `.card`, `.badge`, `.callout`, `.hstep`, `.drop`, `.pbar`, `.tabs`, `.otp`, …).
+
+## Foundations
+
+| | Kit | Code |
+|---|---|---|
+| Font | Inter | `font-sans` (Inter Variable, bundled via `@fontsource-variable/inter`), features `cv11` and `ss01` |
+| Body text | 15px, line height 1.5 | set on `body`; components set their own sizes (labels and table text 14px, hints 13px) |
+| Icons | stroke icons, 16 to 18px | `Icon` from `@adili/ui` with icons from `@hugeicons/core-free-icons`, 16px by default |
+| Focus | 2px ink outline, 2px offset | `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring` on buttons, links, tabs, steppers and drop zones; controls use `shadow-control-focus` |
+
+## Colour tokens
+
+Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `text-muted-foreground`, …), never a hex value.
+
+| Token | Kit | Light | Used for |
+|---|---|---|---|
+| `background` | `--bg` | `#fafaf9` | page |
+| `foreground` | `--ink` | `#1a1a1a` | body text; the toast pill |
+| `card` | `--surface` | `#ffffff` | cards, inputs, secondary buttons, menus |
+| `muted` | `--sunken` | `#f4f3f1` | hover fills, read-only and disabled inputs, icon tiles, default badges, neutral callouts |
+| `muted-foreground` | `--muted` | `#6f6e6b` | hints, table headers, secondary text |
+| `secondary-foreground` | `--ink-2` | `#4a4a48` | labels, ghost buttons, default badge text |
+| `placeholder` | input placeholder | `#8f8d89` | placeholders, upcoming stepper steps |
+| `primary` / `primary-foreground` | `.btn-primary` | `#1a1a1a` / white | primary buttons (with a slight top-down gradient), current step, progress fill, tooltips |
+| `primary-disabled` / `-foreground` | `.btn-primary[disabled]` | `#c9c7c3` / white | disabled primary buttons |
+| `border` | `--line` | `#e8e6e3` | hairlines, card and control rings, table rows |
+| `input` | `--line-2` | `#d9d7d3` | dashed drop zones, step rings and connectors, dialog grabber, hovered controls |
+| `ring` | `--ink` | `#1a1a1a` | focus outlines and rings |
+| `control` | | `card` | fill of inputs, textareas and selects |
+| `scrim` | `.overlay` | `rgb(24 20 16 / 0.42)` | behind dialogs |
+| `logo` | | `#f06225` | the Dials logo only |
+
+Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`). The info and brand solids miss 4.5:1 on their light soft fills, so their badges use `-subtle-foreground`, as the kit's `.badge-info` and `.badge-brand` do.
+
+| Family | Kit | Solid | `-subtle` | `-subtle-foreground` |
+|---|---|---|---|---|
+| `success` | `--ok` | `#167a3e` | `#e9f6ee` | `#0f5a2d` |
+| `warning` | `--warn` | `#9a5a00` | `#fdf4e2` | `#6b4000` |
+| `destructive` | `--danger` | `#c9291e` (hover `destructive-hover`, `#b3241a`) | `#fdeceb` | `#8a1c14` |
+| `info` | `.badge-info`, `.dot.info` | `#2f6fd1` | `#eaf1fb` | `#1f4f96` |
+| `ai` | `--ai` | `#6d4ae0` | `#f1edfd` | `#43299f` |
+| `brand` | `--brand`, `--brand-soft`, `--brand-ink` | `#e95a24` | `#fdf0e9` | `#b8430f` |
+
+`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it.
+
+**Brand and logo.** The kit's brand orange (`#e95a24`) is for UI accents: the brand badge, eyebrows, icon tiles on `brand-subtle`. The logo keeps the Figma orange (`#f06225`) through its own `logo` token, so the mark does not shift when UI accents are tuned.
+
+## Elevation and radius
+
+Controls and cards get their edges from a hairline ring in the shadow rather than a border. Each is a token so dark mode can swap it.
+
+| Utility | Kit | Where |
+|---|---|---|
+| `shadow-control` | `--shadow-input` | inputs, textareas, selects, secondary buttons |
+| `shadow-control-hover` | *derived* | hovered controls (the ring darkens to `input`) |
+| `shadow-control-focus` | `.input:focus` | focused controls: 1px ink ring and a 4px 8% halo |
+| `shadow-control-error`, `-error-focus` | `[aria-invalid]` | invalid controls (`aria-invalid`): 1.5px red ring |
+| `shadow-card` | `--shadow-card` | cards |
+| `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
+| `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
+
+| Radius | Size | Kit | Where |
+|---|---|---|---|
+| `rounded-sm` | 6px | | checkboxes, skeletons, code chips |
+| `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
+| `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
+| `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
+| `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
+
+Dialogs use 20px (22px at the top of the phone sheet), as in the kit.
+
+## Logo
+
+From the `Dials-logo` frame (node `21:9`) of the Figma file, in `packages/ui/src/components/logo.tsx`. The prototypes draw a simplified placeholder mark; the Figma logo is used instead.
+
+- `Logo`: the wordmark, plus an optional product name (`Console`) after a divider. Used by `SiteHeader`.
+- `LogoWordmark`: the "Dials" lockup on its own, 24px high by default.
+- `LogoMark`: the "D" mark on its own, for square slots such as the login page. The favicons in each app's `public/favicon.svg` are the same mark.
+
+The lockup and mark are always the `logo` orange. In Figma the mark carries an 8px stroke in the page colour that cuts gaps into the "i"; code masks those gaps out so the logo sits on any background.
+
+## Components
+
+| Component | Kit | Notes |
+|---|---|---|
+| `Button` | `.btn` | Variants `default` (primary), `secondary`, `ghost`, `destructive`, `destructive-ghost`, `link`. Sizes `default` 44px, `sm` 34px, `xs` 28px, `icon` 36px square. Presses down 1px; disabled is 50% opacity, except primary, which turns `primary-disabled`. Full width is `className="w-full"`. |
+| `Input`, `Textarea` | `.input`, `.textarea` | 44px high (textarea 110px minimum), 12px padding, 15px text. Read-only (the `readonly` attribute) and disabled fill with `muted`; disabled text is dimmer. `controlClassName` carries these for other text controls. Error comes from `aria-invalid`, set by `FormField`. |
+| `Label` | `.label` | 14px medium in `secondary-foreground` |
+| `FormField` | `.field` | label, hint, control and error 6px apart. The hint sits under the label so it is read before the control; the error sits under the control with an icon and `role="alert"`. |
+| `Card` | `.card.card-pad` | white, 16px radius, `shadow-card`, 20px padding (24px from `sm`). `CardHeader` (optional `CardIcon`: 34px `muted` tile; title 16px semibold; description 14px muted), 20px to `CardContent` (fields 16px apart), 20px to `CardFooter` (actions 12px apart; `flex-1` for an equal-width pair). |
+| `Badge` | `.badge` | 24px pill, 12.5px medium. `default` (sunken), `success`, `warning`, `destructive`, `info`, `brand`, `ai`. Put an icon or clear text in it; never rely on colour alone. |
+| `Alert` | `.callout` | 14px on a soft fill, 18px icon 12px from the text. `neutral` (default, the kit's `.callout-info`), `info` (blue, the portal's `.alert-info`), `success`, `warning`, `destructive`, `ai` (`.callout-ai`), `brand` (`.callout-brand`; its text is `brand-subtle-foreground`, lighter than the kit's `#7a2f0c`). |
+| `DescriptionList` | `.dl` | term on the left in muted, value right-aligned in medium weight, rows split by hairlines |
+| `SiteHeader` | `.topbar` | 60px, translucent page colour with blur, hairline below; 16px side padding, 28px from `sm` |
+| `Dialog` | `.dialog` | bottom sheet with a grabber on phones, centred 560px panel from `sm`. `DialogHeader` (19px title), `DialogBody` (scrolls; fields 18px apart), `DialogFooter` (hairline above; equal-width buttons on phones, right-aligned from `sm`) |
+| `Toast` | `.toast` | dark pill at the bottom centre with a tick; assertive toasts show a warning icon in `brand` |
+| `Table` | `.table` | 12.5px muted headers on a faint fill, 12px cells with 16px at the row ends, hairlines between rows |
+| `EmptyState` | `.empty` | 30px icon tile, 15px title, 14px text up to 340px wide; no border, since it sits inside a card |
+| `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
+| `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
+
+## Dark theme
+
+*Derived.* The prototypes are light only. `prefers-color-scheme: dark` maps the same tokens onto a dark warm-neutral scale (page `#141413`, cards `#1c1c1a`), lightens the status and brand hues so their text stays legible on the dark fills, and keeps the hairline rings on `border`. White fails AA on the lighter red, so solid destructive buttons take dark text in the dark theme.
+
+## Open questions
+
+For the designer; each is built as described until decided.
+
+1. **Placeholder contrast.** `#8f8d89` on white is about 3.3:1, below the 4.5:1 WCAG 2.2 AA asks of text.
+2. **Brand buttons.** White on `#e95a24` is about 3.5:1, so there is no solid brand button; the kit's `.btn-brand` is unused by the prototypes.
+3. **Hint placement.** The kit's `field()` puts the hint under the control; the portal's onboarding screens put it under the label. Code keeps it under the label so it is read before the control.
+4. **Dark theme**: not yet designed.
+5. **Logo.** The prototypes draw a placeholder mark; the Figma logo is used.
+
+## Screens
+
+Every `design-pending` ticket is built on the tokens above. A screen's own design pass replaces structure-only layout with its prototype screen.
+
+| Screen | Ticket | Prototype | Status |
+|---|---|---|---|
+| Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `packages/ui/prototype/kit.css` | applied |
+| Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | `apps/console/prototype/01-commissions.prototype.html` | tokens only |
+
+Add a row when a screen's design pass starts, and flip the status when it merges.
+
+## Working with Figma
+
+Claude Code reads designs through the [Figma MCP server](https://mcp.figma.com/mcp) (`claude mcp add --transport http figma https://mcp.figma.com/mcp`, then authenticate in `/mcp`). Figma is now only needed for the logo and for frames that have no prototype yet.
+
+- Share **frame** links (right-click a frame → Copy link to selection). Page links point at a canvas and fail with "nothing selected".
+- Each read counts against the plan's limit: 20 calls a month on Starter, 200 a day on Professional with a Full or Dev seat. One frame usually costs two or three calls.
+- When a call is not worth spending, export frames as 2× PNGs and share the paths instead; spacing and colours then need checking by eye.
