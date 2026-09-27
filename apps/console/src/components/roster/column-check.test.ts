@@ -120,7 +120,7 @@ describe('startFailure', () => {
     expect(startFailure(problem(409, 'import-in-progress'))).toBe('running');
     expect(startFailure(problem(409, 'upload-not-clean'))).toBe('upload-gone');
     expect(startFailure(problem(404))).toBe('upload-gone');
-    expect(startFailure(problem(429, 'rate-limited'))).toBe('limited');
+    expect(startFailure(problem(429, 'rate-limit-exceeded'))).toBe('limited');
     expect(startFailure(problem(400))).toBe('failed');
     expect(startFailure({ kind: 'unavailable', detail: null })).toBe('failed');
   });
