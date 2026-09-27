@@ -10,7 +10,6 @@ import {
 import { useEffect, useId, useState } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
-import { CommissionsPager } from '../../components/commissions/commissions-pager';
 import {
   CommissionsResults,
   CommissionsTableSkeleton,
@@ -24,6 +23,9 @@ import {
   SEARCH_DEBOUNCE_MS,
 } from '../../components/commissions/list-search';
 import { messages as m } from '../../components/commissions/messages';
+import { CursorPager } from '../../components/cursor-pager';
+import { LoadError, NoAccess } from '../../components/load-error';
+import { Page, PageHead } from '../../components/page';
 import {
   nextPage,
   type PageLocation,
@@ -31,9 +33,7 @@ import {
   pagingFor,
   pagingView,
   previousPage,
-} from '../../components/commissions/paging';
-import { LoadError, NoAccess } from '../../components/load-error';
-import { Page, PageHead } from '../../components/page';
+} from '../../components/paging';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { listCommissions } from '../../server/commissions';
 import type { CommissionPage, DirectoryResult } from '../../server/directory/client';
@@ -341,13 +341,14 @@ function Results({
   const paging = pagingFor(search.cursor, pagingState);
   const view = pagingView(result.data, paging);
   const next = nextPage(search, result.data, paging);
-  const go = ({ search: to, state }: PageLocation) => {
+  const go = ({ search: to, state }: PageLocation<CommissionListSearch>) => {
     void navigate({ search: to, state: { commissionsPaging: state } });
   };
   return (
     <>
       <CommissionsResults items={result.data.items} />
-      <CommissionsPager
+      <CursorPager
+        labels={m}
         range={view.range}
         rows={result.data.items.length}
         hasPrevious={view.hasPrevious}

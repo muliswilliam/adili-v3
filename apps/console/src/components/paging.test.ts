@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Commission } from '../../server/directory/client';
+import type { Commission } from '../server/directory/client';
 import { nextPage, pagingFor, pagingView, previousPage } from './paging';
 
 const commissions = Array.from({ length: 18 }, (_, index) => ({ id: String(index) }) as Commission);
@@ -10,7 +10,7 @@ const page = (from: number, to: number, nextCursor: string | null) => ({
   nextCursor,
 });
 
-describe('commission list paging', () => {
+describe('cursor paging', () => {
   const filters = { type: 'hosted' as const };
 
   it('starts on the first page with only Next', () => {
