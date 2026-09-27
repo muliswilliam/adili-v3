@@ -2,6 +2,7 @@ export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
 export type { Principal } from './auth/principal.js';
 export { Public } from './auth/public.decorator.js';
+export { notFoundIfInvisible, Roles, RolesGuard } from './auth/roles.js';
 export { TokenVerifier } from './auth/token-verifier.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig } from './config.js';

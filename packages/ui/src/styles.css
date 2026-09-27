@@ -29,6 +29,8 @@
   --destructive-subtle-foreground: oklch(0.45 0.16 27);
   --warning-subtle: oklch(0.97 0.04 85);
   --warning-subtle-foreground: oklch(0.42 0.09 70);
+  --success-subtle: oklch(0.95 0.045 150);
+  --success-subtle-foreground: oklch(0.38 0.1 150);
   --border: oklch(0.91 0.008 150);
   --input: oklch(0.87 0.01 150);
   --ring: oklch(0.55 0.13 152);
@@ -56,6 +58,8 @@
     --destructive-subtle-foreground: oklch(0.87 0.08 25);
     --warning-subtle: oklch(0.3 0.05 80);
     --warning-subtle-foreground: oklch(0.88 0.1 85);
+    --success-subtle: oklch(0.3 0.06 150);
+    --success-subtle-foreground: oklch(0.87 0.1 150);
     --border: oklch(0.3 0.014 160);
     --input: oklch(0.36 0.016 160);
     --ring: oklch(0.72 0.14 152);
@@ -83,6 +87,8 @@
   --color-destructive-subtle-foreground: var(--destructive-subtle-foreground);
   --color-warning-subtle: var(--warning-subtle);
   --color-warning-subtle-foreground: var(--warning-subtle-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-subtle-foreground: var(--success-subtle-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

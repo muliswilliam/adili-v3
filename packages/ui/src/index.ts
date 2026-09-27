@@ -37,6 +37,7 @@ export { FormField, type FormFieldProps } from './components/form-field';
 export { Input } from './components/input';
 export { Label } from './components/label';
 export { Logo, LogoMark, type LogoProps } from './components/logo';
+export { Select } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
@@ -61,4 +62,5 @@ export {
   type ToastVariant,
   useToast,
 } from './components/toast';
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/tooltip';
 export { cn } from './lib/cn';

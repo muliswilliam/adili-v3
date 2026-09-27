@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 
 export const badgeVariants = cva(
-  'inline-flex w-fit items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+  'inline-flex w-fit items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -12,6 +12,7 @@ export const badgeVariants = cva(
         neutral: 'border-transparent bg-secondary text-secondary-foreground',
         outline: 'text-foreground',
         warning: 'border-transparent bg-warning-subtle text-warning-subtle-foreground',
+        success: 'border-transparent bg-success-subtle text-success-subtle-foreground',
         destructive: 'border-transparent bg-destructive-subtle text-destructive-subtle-foreground',
       },
     },

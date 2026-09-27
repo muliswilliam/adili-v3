@@ -5,7 +5,7 @@ dist
 .turbo
 coverage
 **/migrations/meta
-**/routeTree.gen.ts
+**/*.gen.ts
 docs/reference
 mocks
 apps/keycloak-theme/src/kc.gen.tsx

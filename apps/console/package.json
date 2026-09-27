@@ -5,11 +5,12 @@
   "description": "Console for Commissions, employers and EACC (TanStack Start BFF).",
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev",
-    "build": "vite build",
+    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/server/directory/api.gen.ts",
+    "dev": "pnpm generate:api && node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev",
+    "build": "pnpm generate:api && vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "pnpm generate:api && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -18,12 +19,14 @@
     "@tanstack/react-router": "^1.170.39",
     "@tanstack/react-start": "^1.168.58",
     "lucide-react": "^1.48.0",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
+    "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.0.0",
@@ -32,6 +35,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^10.11.0",
     "nitro": "3.0.260903-beta",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "vite": "^8.3.1",

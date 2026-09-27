@@ -98,7 +98,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items, nextCursor]
+                required: [items, nextCursor, total]
                 properties:
                   items:
                     type: array
@@ -106,6 +106,11 @@ paths:
                       $ref: '#/components/schemas/Commission'
                   nextCursor:
                     type: [string, 'null']
+                  total:
+                    type: integer
+                    description: Commissions matching the filters across all pages
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
   /v1/commissions/{slug}:

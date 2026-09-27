@@ -10,15 +10,22 @@ import {
   CardTitle,
   SiteHeader,
 } from '@adili/ui';
-import { createFileRoute } from '@tanstack/react-router';
-import { Building2, CircleAlert, ClipboardCheck, FileBarChart2, Lock } from 'lucide-react';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import {
+  ArrowRight,
+  Building2,
+  CircleAlert,
+  ClipboardCheck,
+  FileBarChart2,
+  Lock,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
+import { ConsoleHeader } from '../components/console-header';
 import { IdentityCard } from '../components/identity-card';
-import { SignOutButton } from '../components/sign-out-button';
-import { workspacesFor } from '../components/workspaces';
+import { type Workspace, workspacesFor } from '../components/workspaces';
 import { getViewer, type Viewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
@@ -109,17 +116,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
   const workspaces = viewer.directory.ok ? workspacesFor(viewer.directory.principal.roles) : [];
   return (
     <>
-      <SiteHeader
-        product="Console"
-        actions={
-          <>
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {viewer.user.name}
-            </span>
-            <SignOutButton />
-          </>
-        }
-      />
+      <ConsoleHeader userName={viewer.user.name} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
         <div className="grid gap-1.5">
           <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
@@ -136,20 +133,8 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
               {workspaces.length > 0 ? (
                 <ul className="grid gap-3 sm:grid-cols-2">
                   {workspaces.map((workspace) => (
-                    <li
-                      key={workspace.id}
-                      className="grid content-start gap-2 rounded-lg border p-4"
-                      aria-disabled="true"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="text-sm font-semibold">{workspace.title}</h2>
-                        <Badge variant="neutral" className="shrink-0">
-                          Not yet available
-                        </Badge>
-                      </div>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {workspace.description}
-                      </p>
+                    <li key={workspace.id} className="grid">
+                      <WorkspaceCard workspace={workspace} />
                     </li>
                   ))}
                 </ul>
@@ -167,5 +152,44 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
         </div>
       </main>
     </>
+  );
+}
+
+function WorkspaceCard({ workspace }: { workspace: Workspace }) {
+  if (!workspace.href) {
+    return (
+      <div className="grid content-start gap-2 rounded-lg border p-4" aria-disabled="true">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold">{workspace.title}</h2>
+          <Badge variant="neutral" className="shrink-0">
+            Not yet available
+          </Badge>
+        </div>
+        <p className="text-sm leading-relaxed text-muted-foreground">{workspace.description}</p>
+      </div>
+    );
+  }
+  return (
+    <Link
+      to={workspace.href}
+      className="group grid content-start gap-2 rounded-lg border p-4 transition-colors outline-none hover:border-primary/40 hover:bg-primary-subtle/40 focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold">{workspace.title}</h2>
+        {workspace.readOnly ? (
+          <Badge variant="neutral" className="shrink-0">
+            Read only
+          </Badge>
+        ) : null}
+      </div>
+      <p className="text-sm leading-relaxed text-muted-foreground">{workspace.description}</p>
+      <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary">
+        Open
+        <ArrowRight
+          className="size-4 transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </span>
+    </Link>
   );
 }

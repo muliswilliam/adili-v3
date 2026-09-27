@@ -25,7 +25,7 @@ Service skeletons are running end to end: infrastructure, 11 NestJS services, 3 
 pnpm bootstrap      # copy .env.example -> .env everywhere, install dependencies
 pnpm infra:up       # Postgres, Valkey, RabbitMQ, Temporal, Keycloak, SeaweedFS, OpenBao, ClamAV, Gotenberg, Mailpit, OTel
 pnpm db:migrate     # apply every service's migrations
-pnpm db:seed        # synthetic data for the government-system mocks
+pnpm db:seed        # demo Commissions (psc, eacc) and synthetic data for the government-system mocks
 pnpm dev            # all services, apps and mocks in watch mode
 pnpm health         # readiness of everything
 ```
