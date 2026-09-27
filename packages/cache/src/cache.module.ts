@@ -14,6 +14,19 @@ export interface CacheModuleOptions {
   keyPrefix: string;
 }
 
+/**
+ * A Valkey client as the services use it. Connects on first command and fails commands quickly
+ * while disconnected instead of queueing them.
+ */
+export function createValkey(options: CacheModuleOptions): Redis {
+  return new Redis(options.url, {
+    keyPrefix: options.keyPrefix,
+    lazyConnect: true,
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: true,
+  });
+}
+
 /** Injection token for the Valkey client (drafts, sessions, rate limits, reference data). */
 export const VALKEY = Symbol('VALKEY');
 export const InjectValkey = () => Inject(VALKEY);
@@ -44,14 +57,7 @@ export class CacheModule {
       providers: [
         {
           provide: VALKEY,
-          useFactory: () =>
-            new Redis(options.url, {
-              keyPrefix: options.keyPrefix,
-              lazyConnect: true,
-              // Fail commands quickly while disconnected instead of queueing them.
-              maxRetriesPerRequest: 1,
-              enableOfflineQueue: true,
-            }),
+          useFactory: () => createValkey(options),
         },
         ValkeyReadinessCheck,
       ],

@@ -1,0 +1,79 @@
+/**
+ * Dates as the console shows them, in Kenyan time. Built from numeric parts rather than
+ * locale month names so the server-rendered and hydrated text agree across ICU versions and
+ * machine time zones.
+ */
+const TIME_ZONE = 'Africa/Nairobi';
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const partsFormat = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: TIME_ZONE,
+});
+
+interface KenyanParts {
+  day: number;
+  month: number;
+  year: number;
+  hour: string;
+  minute: string;
+}
+
+function kenyanParts(date: Date): KenyanParts {
+  const parts = Object.fromEntries(
+    partsFormat.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  return {
+    day: Number(parts.day),
+    month: Number(parts.month),
+    year: Number(parts.year),
+    hour: parts.hour ?? '00',
+    minute: parts.minute ?? '00',
+  };
+}
+
+/** `21 Sep 2026` */
+export function formatDate(iso: string): string {
+  const { day, month, year } = kenyanParts(new Date(iso));
+  return `${day} ${MONTHS[month - 1] ?? ''} ${year}`;
+}
+
+/** `21 Sep 2026, 12:40` */
+export function formatDateTime(iso: string): string {
+  const { hour, minute } = kenyanParts(new Date(iso));
+  return `${formatDate(iso)}, ${hour}:${minute}`;
+}
+
+/**
+ * How long ago, in Kenyan calendar days as the prototype words it: `today`, `yesterday`,
+ * `12 days ago`, then months of 30 days from day 31 (`1 month ago`), then years.
+ */
+export function formatRelativeDate(iso: string, now: Date = new Date()): string {
+  const days = Math.round((startOfDay(now) - startOfDay(new Date(iso))) / DAY_MS);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 31) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  if (months < 12) return months <= 1 ? '1 month ago' : `${months} months ago`;
+  const years = Math.round(days / 365.25);
+  return years <= 1 ? '1 year ago' : `${years} years ago`;
+}
+
+const numberFormat = new Intl.NumberFormat('en-KE');
+
+/** `48,312` */
+export function formatNumber(value: number): string {
+  return numberFormat.format(value);
+}
+
+/** Midnight of the Kenyan calendar day, as epoch milliseconds. */
+function startOfDay(date: Date): number {
+  const { day, month, year } = kenyanParts(date);
+  return Date.UTC(year, month - 1, day);
+}

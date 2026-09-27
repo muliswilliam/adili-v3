@@ -29,3 +29,23 @@ class Employment(models.Model):
 
     def __str__(self) -> str:
         return f"{self.personal_number} at {self.employer_code}"
+
+
+class EmployerSupplier(models.Model):
+    """A company on an employer's supplier list (used for the 07b conflict check)."""
+
+    employer_code = models.CharField(max_length=20, db_index=True)
+    registration_number = models.CharField(max_length=20)
+    company_name = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["employer_code", "registration_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["employer_code", "registration_number"],
+                name="hr_unique_employer_supplier",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.registration_number} supplies {self.employer_code}"

@@ -1,3 +1,5 @@
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
 from rest_framework.request import Request
@@ -32,3 +34,13 @@ class ReferralDetail(generics.RetrieveAPIView[Referral]):
     queryset = Referral.objects.all()
     serializer_class = ReferralSerializer
     lookup_field = "case_number"
+
+
+@extend_schema(exclude=True)
+def status_page(request: HttpRequest) -> HttpResponse:
+    """Demo page: ICMS case numbers for submitted referrals (spec 09)."""
+    return render(
+        request,
+        "icms/status.html",
+        {"referrals": Referral.objects.all()[:100]},
+    )

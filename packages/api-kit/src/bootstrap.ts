@@ -5,17 +5,20 @@ import type { Type } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { MicroserviceOptions } from '@nestjs/microservices';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { BaseEnv } from './config.js';
+import { createOpenApiDocument, type OpenApiOptions } from './openapi.js';
 
 export interface ServiceOptions {
   name: string;
   description: string;
   module: Type;
   config: BaseEnv;
+  /** Named schemas of the OpenAPI document (see `createOpenApiDocument`). */
+  openApiSchemas?: OpenApiOptions['schemas'];
   /**
    * Message transports this service consumes, e.g. its RabbitMQ event queue.
    * They run alongside HTTP in one process (Nest hybrid application).
@@ -43,13 +46,12 @@ export async function createService(options: ServiceOptions): Promise<NestFastif
     contentSecurityPolicy: false,
   });
 
-  const openApi = new DocumentBuilder()
-    .setTitle(`${options.name} API`)
-    .setDescription(options.description)
-    .setVersion('1')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, openApi), {
+  const openApi: OpenApiOptions = {
+    name: options.name,
+    description: options.description,
+    ...(options.openApiSchemas ? { schemas: options.openApiSchemas } : {}),
+  };
+  SwaggerModule.setup('docs', app, () => createOpenApiDocument(app, openApi), {
     jsonDocumentUrl: 'docs/openapi.json',
   });
 

@@ -5,11 +5,12 @@
   "description": "Simulated government systems (Django). Thin wrapper so `turbo run` covers Python.",
   "scripts": {
     "dev": "uv run --env-file .env python manage.py runserver 0.0.0.0:8000",
-    "lint": "uv run ruff check . && uv run ruff format --check . && uv run --env-file .env.example mypy .",
+    "lint": "uv run ruff check . && uv run ruff format --check .",
     "typecheck": "uv run --env-file .env.example mypy .",
     "test": "uv run --env-file .env.example pytest",
     "db:migrate": "uv run --env-file .env python manage.py migrate",
     "db:seed": "uv run --env-file .env python manage.py seed_demo",
+    "roster:push": "uv run --env-file .env python manage.py push_roster",
     "contracts": "uv run --env-file .env.example python manage.py export_contracts"
   }
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Checks that the Adili realm file still has the roles, BFF clients and
-// authentication flows specs 03, 04 and 06 require. Demo users are optional
-// (#371 seeds them).
+// Checks that the Adili realm file still has the roles, BFF clients,
+// authentication flows and staff provisioning setup (directory service client,
+// SMTP, email theme, user profile attributes) specs 03, 04 and 06 require.
+// Demo users are optional (#371 seeds them).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -125,6 +126,41 @@ const actions = new Set((realm.requiredActions ?? []).map((action) => action.ali
 if (!actions.has('webauthn-register')) fail('passkeys require webauthn-register');
 if (!actions.has('CONFIGURE_TOTP')) fail('staff TOTP enrolment requires CONFIGURE_TOTP');
 if (!actions.has('UPDATE_PASSWORD')) fail('onboarding execute-actions needs UPDATE_PASSWORD');
+if (!actions.has('VERIFY_EMAIL')) fail('onboarding execute-actions needs VERIFY_EMAIL');
+
+// Staff provisioning (spec 06): the directory creates accounts and sends the activation email.
+if (realm.emailTheme !== 'adili') fail('emailTheme must be adili (activation email)');
+if (!realm.smtpServer?.host) fail('smtpServer is required for execute-actions emails');
+
+const directory = clients.get('directory');
+if (!directory) {
+  fail('missing directory service client');
+} else {
+  if (directory.publicClient) fail('directory must be a confidential client');
+  if (!directory.serviceAccountsEnabled) fail('directory must use a service account');
+  if (directory.standardFlowEnabled || directory.directAccessGrantsEnabled) {
+    fail('directory must not sign users in');
+  }
+  const account = (realm.users ?? []).find((user) => user.serviceAccountClientId === 'directory');
+  const granted = new Set(account?.clientRoles?.['realm-management'] ?? []);
+  for (const role of ['manage-users', 'view-users', 'query-users']) {
+    if (!granted.has(role)) fail(`directory service account needs realm-management ${role}`);
+  }
+}
+
+const profileProvider = realm.components?.['org.keycloak.userprofile.UserProfileProvider']?.[0];
+const profile = JSON.parse(profileProvider?.config?.['kc.user.profile.config']?.[0] ?? '{}');
+const attributes = new Map(
+  (profile.attributes ?? []).map((attribute) => [attribute.name, attribute]),
+);
+for (const name of ['tenant', 'phone', 'commissionName', 'invitedRole']) {
+  const attribute = attributes.get(name);
+  if (!attribute) {
+    fail(`user profile must declare ${name} (unmanaged attributes are read-only)`);
+  } else if (attribute.permissions?.edit?.join() !== 'admin') {
+    fail(`user profile attribute ${name} must be editable by admins only`);
+  }
+}
 
 if (errors.length > 0) {
   console.error(`Keycloak realm check failed (${realmPath}):`);

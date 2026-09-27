@@ -98,7 +98,7 @@ services:
     ports: ['8233:8080']
 
   keycloak:
-    # Keycloak plus the Adili login theme from apps/keycloak-theme.
+    # Keycloak plus the Adili login and email themes from apps/keycloak-theme.
     image: adili/keycloak:dev
     build:
       context: ../..
@@ -118,6 +118,9 @@ services:
       # One issuer for browsers, host processes and containers.
       KC_HOSTNAME: http://localhost:8080
       KC_HEALTH_ENABLED: 'true'
+      # Where the login theme sends staff and declarants to sign in (apps/keycloak-theme).
+      ADILI_CONSOLE_URL: http://localhost:3020
+      ADILI_PORTAL_URL: http://localhost:3010
     ports: ['8080:8080']
     volumes: [./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro]
     healthcheck:
@@ -171,6 +174,17 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8200/v1/sys/health']
+
+  openbao-keys:
+    image: openbao/openbao:2.7.0
+    depends_on:
+      openbao: { condition: service_healthy }
+    environment:
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: adili-dev-root-token
+    volumes: [./openbao/create-transit-keys.sh:/scripts/create-transit-keys.sh:ro]
+    entrypoint: ['/bin/sh', '/scripts/create-transit-keys.sh']
+    restart: on-failure:5
 
   clamav:
     image: clamav/clamav:1.5-debian

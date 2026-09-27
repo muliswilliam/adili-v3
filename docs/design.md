@@ -44,6 +44,7 @@ Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `
 | `ring` | `--ink` | `#1a1a1a` | focus outlines and rings |
 | `control` | | `card` | fill of inputs, textareas and selects |
 | `scrim` | `.overlay` | `rgb(24 20 16 / 0.42)` | behind dialogs |
+| `glow` / `glow-soft` | | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `logo` | | `#f06225` | the Dials logo only |
 
 Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`). The info and brand solids miss 4.5:1 on their light soft fills, so their badges use `-subtle-foreground`, as the kit's `.badge-info` and `.badge-brand` do.
@@ -114,7 +115,24 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `EmptyState` | `.empty` | 30px icon tile, 15px title, 14px text up to 340px wide; no border, since it sits inside a card |
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
 | `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
+| `Select` | `.select`, `.menu` | trigger styled like `Input`; the list is a 12px-radius `shadow-pop` menu with 36px items. The trigger takes the id and aria attributes from `FormField`. |
+| `DataTable` | `.table` with `.cbx` | `Table` with a 36px checkbox column; selected rows tint `brand-faint`; select all covers the current page |
+| `FileDropZone` | `.drop` | 1.5px dashed `input` border, 16px radius, 44px icon tile, 15px semibold label and 13.5px hint inside the zone. Hover and drag-over turn the border ink on `brand-faint`; an error softens it red and shows `FieldError` below; disabled is 55% opacity. |
+| `ProgressBar` | `.pbar`, `.prog-meta` | 10px bar (`sm`: 6px) on `muted` with a hairline; fill `primary`, or `success` / `destructive` via `tone`. Status text and the percentage sit under the bar. `indeterminate` sweeps while the total is unknown. The label names the bar for screen readers only. |
+| `Stepper` | `.hstep` | 24px numbered circles joined by 28px lines (14px on phones, where only the current label shows). Done steps are a green tick on `success-subtle`, the current step is ink (red with a cross when `failed`), upcoming steps are a ring in `placeholder` text. |
+| `Tabs` | `.tabs` | 40px underlined tabs, 14px medium, the active one ink with a 2px ink rule; `TabsCount` adds the kit's 18px count pill |
+| `Tooltip` | `.tip-t`, `#kit-tipbox` | ink panel, 12.5px medium text up to 280px wide, `shadow-pop` |
+| `Combobox` | `.combo-list`, `.combo-opt` | `Input` with a search icon; the list is a pop-shadow menu whose options show the description as a `brand-subtle` mono code chip before the label, and a tick on the chosen one |
+| `OtpInput` | `.otp` | 54 × 58px boxes, 24px semibold digits, 8px apart with a 10px gap between the halves; the shared `shadow-control-focus` and `shadow-control-error` rings (the kit's 1.5px focus ring is not a separate token); disabled boxes fill `muted` |
+| `MaskedContact` | `.masked`, `.vbadge-ok` | semibold tabular value; the optional verified badge is `success` with a tick |
+| `CopyButton` | copy button in the portal gallery | 36px ghost icon button, or `sm` with its label shown; confirms with a polite toast |
+| `OfficerReference` | `.mono` officer reference in the portal dashboard | the officer reference in semibold mono with a `CopyButton` after it |
+| `FilterChip` | `.chip`, `.chip.on` | 32px pill toggle, 13.5px medium, with an optional icon and count; ink when pressed, a control ring when not; state in `aria-pressed` |
+| `Spinner` | `.spinner` | 18px ring in the current text colour, spinning (still when reduced motion is set); decorative |
+| `StatusMark` | state icon on login outcome pages | 56px circle with a 28px icon above an outcome or error title; tones `success`, `warning`, `destructive`, `neutral` on their soft fills |
 | `Chart` | none (derived) | `figure` with a 14px medium caption. `bar` draws one horizontal 8px track per series under each category label, value text on the right; `line` draws a 192px plot with hairline grid, 2px lines and 8px points. Series take `brand`, `info`, `foreground`, `muted-foreground`, never a status colour. Suppressed (`null`) and missing values are never plotted: bars show `suppressedLabel` or `missingLabel`, lines break with a faint dashed bridge that the legend explains, and a long line labels at most four categories (always the latest). The data table is always there for assistive tech; `showTable` puts it on screen. |
+
+Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 
 ## Dark theme
 
@@ -138,6 +156,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 |---|---|---|---|
 | Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `packages/ui/prototype/kit.css` | applied |
 | Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | `apps/console/prototype/01-commissions.prototype.html` | tokens only |
+| Get started (Identify) | [#66](https://github.com/muliswilliam/adili-v3/issues/66) | `apps/portal/prototype/declarant-journey.prototype.html` (`gs-*` screens) | built from the Figma frame `onboarding-step-1` with a national ID field the frame lacks; glow colours sampled; prototype pass pending |
 
 Add a row when a screen's design pass starts, and flip the status when it merges.
 

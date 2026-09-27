@@ -25,12 +25,14 @@ Service skeletons are running end to end: infrastructure, 11 NestJS services, 3 
 pnpm bootstrap      # copy .env.example -> .env everywhere, install dependencies
 pnpm infra:up       # Postgres, Valkey, RabbitMQ, Temporal, Keycloak, SeaweedFS, OpenBao, ClamAV, Gotenberg, Mailpit, OTel
 pnpm db:migrate     # apply every service's migrations
-pnpm db:seed        # synthetic data for the government-system mocks
+pnpm db:seed        # demo Commissions (psc, eacc) and synthetic data for the government-system mocks
 pnpm dev            # all services, apps and mocks in watch mode
 pnpm health         # readiness of everything
 ```
 
-`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm infra:down` stops the infrastructure. `pnpm infra:down -- --volumes` (or `pnpm infra:reset`) also deletes its data. `pnpm infra:health` checks compose health. Docker Compose and Podman Compose are both accepted.
+`pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm test:integration` runs the tests that need the infrastructure (Postgres, Valkey, RabbitMQ, Keycloak, Mailpit). They connect as `adili_test`, which like the services' roles owns its database but is not a superuser, so row-level security applies to them; CI creates it with the same `infra/compose/postgres/init-databases.sh`. `pnpm infra:down` stops the infrastructure. `pnpm infra:down -- --volumes` (or `pnpm infra:reset`) also deletes its data. `pnpm infra:health` checks compose health. Docker Compose and Podman Compose are both accepted.
+
+Keycloak imports the realm (`infra/compose/keycloak/adili-realm.json`) only when it does not exist yet, so after a realm change run `pnpm infra:reset` before `pnpm infra:up`.
 
 Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili/mocks dev`) against the `mocks` database created by `infra:up`.
 
@@ -40,7 +42,7 @@ Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili
 | console (Commissions, EACC)      | http://localhost:3020                                                 | demo accounts below |
 | verify (public)                  | http://localhost:3030                                                 | none |
 | services `directory` ... `audit` | http://localhost:4001 ... 4011 (`/docs` for OpenAPI, `/health/ready`) | service env |
-| government-system mocks          | http://localhost:8000                                                 | none (dev) |
+| government-system mocks          | http://localhost:8000 (SMS inbox `/sms/inbox`, payroll `/payroll/status`, ICMS `/icms/status`, flag map: `mocks/demo/REGISTRY_FLAGS.md`) | none (dev) |
 | Keycloak                         | http://localhost:8080                                                 | `admin` / `admin_dev` |
 | Temporal gRPC / UI               | `localhost:7233` / http://localhost:8233                              | namespace `adili` |
 | Postgres                         | `localhost:55432`                                                     | `postgres` / `postgres_dev` |

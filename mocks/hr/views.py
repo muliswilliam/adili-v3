@@ -4,8 +4,13 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from hr.models import Employment
-from hr.serializers import Employee, EmployeeSerializer
+from hr.models import EmployerSupplier, Employment
+from hr.serializers import (
+    Employee,
+    EmployeeSerializer,
+    EmployerSupplierList,
+    EmployerSupplierListSerializer,
+)
 
 
 class EmployeeDetail(APIView):
@@ -18,4 +23,20 @@ class EmployeeDetail(APIView):
             raise Http404
         employee = Employee(id_number, employments[0].full_name, employments)
         serializer = EmployeeSerializer(employee)
+        return Response(serializer.data)
+
+
+class EmployerSuppliers(APIView):
+    """Companies on an employer's supplier list. Unknown employers return an empty list."""
+
+    @extend_schema(operation_id="listSuppliersByEmployer", responses=EmployerSupplierListSerializer)
+    def get(self, _request: Request, employer_code: str) -> Response:
+        numbers = list(
+            EmployerSupplier.objects.filter(employer_code=employer_code).values_list(
+                "registration_number", flat=True
+            )
+        )
+        serializer = EmployerSupplierListSerializer(
+            EmployerSupplierList(employer_code, list(numbers))
+        )
         return Response(serializer.data)

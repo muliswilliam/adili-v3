@@ -1,0 +1,1915 @@
+# Drafted operations of the directory API for specs not implemented yet: 02 (roster),
+# 03 (onboarding) and 04 (policy versions, internal pulls). `pnpm --filter @adili/directory contracts`
+# merges them into packages/schemas/internal/directory.yaml, where they may reference the
+# implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
+# is implemented, delete it here: the export fails while both define it.
+paths:
+  /v1/roster/template:
+    get:
+      tags: [roster]
+      operationId: getRosterTemplate
+      summary: Roster template with column notes and a sample row
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [csv, xlsx]
+      responses:
+        '200':
+          description: The template file
+          content:
+            text/csv:
+              schema:
+                type: string
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/commissions/{slug}/roster/summary:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [roster]
+      operationId: getRosterSummary
+      summary: Expected, onboarded and flagged counts and the last import
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/imports:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [roster]
+      operationId: startRosterImport
+      summary: Start an import from a clean upload or an inline batch
+      description: |
+        reporting-officer of the tenant (file or batch) or a roster:write client of the tenant
+        (batch only). At most one import may be processing per tenant. Returns 202; poll the
+        import resource for progress and the report. Idempotent per Idempotency-Key.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/StartFileImport'
+                - $ref: '#/components/schemas/StartBatchImport'
+      responses:
+        '202':
+          description: Import accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterImport'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Another import is processing, or the upload is not clean
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Rate limit exceeded (RateLimit-* headers present)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    get:
+      tags: [roster]
+      operationId: listRosterImports
+      summary: Import history, newest first
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Page of imports
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RosterImport'
+                  nextCursor:
+                    type: [string, 'null']
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/imports/{importId}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/ImportId'
+    get:
+      tags: [roster]
+      operationId: getRosterImport
+      summary: One import with progress, mapping and counts
+      responses:
+        '200':
+          description: The import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterImport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/imports/{importId}/rows:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/ImportId'
+    get:
+      tags: [roster]
+      operationId: listRosterImportRows
+      summary: Staged rows of an import, filterable by status
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [accepted, rejected]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Page of rows in row-number order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RosterImportRow'
+                  nextCursor:
+                    type: [string, 'null']
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/imports/{importId}/report.csv:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - $ref: '#/components/parameters/ImportId'
+    get:
+      tags: [roster]
+      operationId: getRosterImportReportCsv
+      summary: Rejected rows as CSV with reason columns appended
+      responses:
+        '200':
+          description: CSV stream
+          content:
+            text/csv:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/records:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [roster]
+      operationId: listRosterRecords
+      summary: Roster records with masked national IDs
+      parameters:
+        - name: search
+          in: query
+          description: File number prefix, name fragment, or a full national ID
+          schema:
+            type: string
+            maxLength: 200
+        - name: state
+          in: query
+          schema:
+            $ref: '#/components/schemas/RosterRecordState'
+        - name: flagged
+          in: query
+          schema:
+            type: boolean
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Page of records ordered by full name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RosterRecordListItem'
+                  nextCursor:
+                    type: [string, 'null']
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/records/{recordId}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [roster]
+      operationId: getRosterRecord
+      summary: One roster record in full, with its import history
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterRecord'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/exits:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [roster]
+      operationId: confirmRosterExits
+      summary: Confirm exits for flagged (or any non-exited) records
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmExits'
+      responses:
+        '200':
+          description: Records now exited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExitsResult'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/records/{fileNumber}/exit:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - name: fileNumber
+        in: path
+        required: true
+        description: Personnel file number (HR systems address records by it)
+        schema:
+          type: string
+          maxLength: 30
+    post:
+      tags: [roster]
+      operationId: recordRosterExit
+      summary: Record one officer's exit by personnel file number (HR systems)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exitDate]
+              properties:
+                exitDate:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: The exited record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterRecord'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already exited
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/keep:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [roster]
+      operationId: keepRosterRecords
+      summary: 'Clear the absent flag: these officers are still employed'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recordIds]
+              properties:
+                recordIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Count of records updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/api-credential:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [roster]
+      operationId: getRosterApiCredential
+      summary: Metadata of the Commission's HR-system credential (never the secret)
+      responses:
+        '200':
+          description: Metadata, or null when none was created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RosterApiCredential'
+                  - type: 'null'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [roster]
+      operationId: createRosterApiCredential
+      summary: Create the credential; the secret is returned once
+      responses:
+        '201':
+          description: Credential with secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: A credential already exists; rotate or revoke it
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags: [roster]
+      operationId: revokeRosterApiCredential
+      summary: Revoke the credential; the HR system loses access immediately
+      responses:
+        '204':
+          description: Revoked
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/api-credential/rotate:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [roster]
+      operationId: rotateRosterApiCredential
+      summary: Issue a new secret; the previous one stops working immediately
+      responses:
+        '200':
+          description: Credential with the new secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterApiCredentialWithSecret'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/onboarding/commissions:
+    get:
+      tags: [onboarding]
+      operationId: listOnboardingCommissions
+      summary: Active Responsible Commissions a declarant can choose from
+      security: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Commissions with roster availability
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OnboardingCommission'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+  /v1/onboarding/sessions:
+    post:
+      tags: [onboarding]
+      operationId: identifyDeclarant
+      summary: Match personnel file number and national ID against a Commission's roster
+      description: |
+        Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
+        same `no-match` problem. On success the response carries the session and, once only,
+        the session secret the BFF stores in an httpOnly cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentifyDeclarant'
+      responses:
+        '201':
+          description: Session created; first OTP sent or a contact is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSessionCreated'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          description: 'Problem code `no-match`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '409':
+          description: 'Problem code `already-onboarded` or `no-roster`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/onboarding/sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    get:
+      tags: [onboarding]
+      operationId: getOnboardingSession
+      summary: Current step, masked contacts and roster details to confirm
+      security: []
+      responses:
+        '200':
+          description: The session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+  /v1/onboarding/sessions/{sessionId}/contacts:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    post:
+      tags: [onboarding]
+      operationId: provideOnboardingContact
+      summary: Supply an email or phone when the roster record has none
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel, value]
+              properties:
+                channel:
+                  $ref: '#/components/schemas/OtpChannel'
+                value:
+                  type: string
+                  maxLength: 254
+      responses:
+        '200':
+          description: Contact accepted and OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not waiting for this contact
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+  /v1/onboarding/sessions/{sessionId}/otp/{channel}/verify:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+      - $ref: '#/components/parameters/OtpChannelParam'
+    post:
+      tags: [onboarding]
+      operationId: verifyOnboardingOtp
+      summary: Verify the 6-digit code for a channel
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+      responses:
+        '200':
+          description: Verified; session advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          description: 'Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not waiting for this channel
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+  /v1/onboarding/sessions/{sessionId}/otp/{channel}/resend:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+      - $ref: '#/components/parameters/OtpChannelParam'
+    post:
+      tags: [onboarding]
+      operationId: resendOnboardingOtp
+      summary: Send a new code (60-second cooldown, at most 3 per channel)
+      security: []
+      responses:
+        '202':
+          description: New code sent
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not waiting for this channel
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+        '429':
+          description: 'Problem code `resend-cooldown` with `retryAfterSeconds`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+  /v1/onboarding/sessions/{sessionId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    post:
+      tags: [onboarding]
+      operationId: confirmOnboarding
+      summary: Confirm roster details, run the IPRS check and create or link the account
+      security: []
+      responses:
+        '200':
+          description: Outcome of the confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingConfirmResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not at the confirm step
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          $ref: '#/components/responses/SessionEnded'
+        '502':
+          description: 'Problem code `identity-unavailable`: account could not be created; nothing changed'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '503':
+          description: 'Problem code `iprs-unavailable`: try again later; session unchanged'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+  /v1/onboarding/sessions/{sessionId}/resend-password-email:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/OnboardingSecret'
+    post:
+      tags: [onboarding]
+      operationId: resendSetPasswordEmail
+      summary: Send the Keycloak set-password email again
+      security: []
+      responses:
+        '202':
+          description: Email requested
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Session is not in the confirmed state with a new account
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `resend-cooldown`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+  /v1/onboarding/applicants:
+    post:
+      tags: [onboarding]
+      operationId: startApplicantOnboarding
+      summary: Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityDocument, names, phone]
+              properties:
+                identityDocument:
+                  type: object
+                  required: [kind, number]
+                  properties:
+                    kind:
+                      type: string
+                      enum: [national-id, passport]
+                    number:
+                      type: string
+                    country:
+                      type: string
+                names:
+                  type: object
+                  required: [surname, firstName]
+                  properties:
+                    surname:
+                      type: string
+                    firstName:
+                      type: string
+                    otherNames:
+                      type: string
+                phone:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: Session created; phone OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSessionCreated'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '409':
+          description: 'Problem code `identity-mismatch` (IPRS) or `already-registered`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/law-enforcement/agencies:
+    get:
+      tags: [law-enforcement]
+      operationId: listAgencies
+      summary: Registered law-enforcement agencies (reference data)
+      responses:
+        '200':
+          description: Agencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agency'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/law-enforcement/agencies/{code}/officers:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [law-enforcement]
+      operationId: listAgencyOfficers
+      summary: Provisioned officer accounts for an agency (platform-admin)
+      responses:
+        '200':
+          description: Officers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaOfficerAccount'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [law-enforcement]
+      operationId: provisionAgencyOfficer
+      summary: Provision a law-enforcement officer account (platform-admin); one activation email
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, phone]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: Provisioned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaOfficerAccount'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Email belongs to an account in another tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/law-enforcement/officers/{officerId}/revoke:
+    parameters:
+      - name: officerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [law-enforcement]
+      operationId: revokeAgencyOfficer
+      summary: Disable a law-enforcement officer account (platform-admin)
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaOfficerAccount'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/declarant:
+    get:
+      tags: [onboarding]
+      operationId: getMyDeclarantProfile
+      summary: The signed-in declarant's person, OFR, Commissions and verified contacts
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantProfile'
+        '404':
+          description: The caller is not an onboarded declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/persons:
+    get:
+      tags: [onboarding]
+      operationId: findPersonByOfr
+      summary: Look up account metadata by officer reference (helpdesk, platform-admin)
+      parameters:
+        - name: ofr
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Ofr'
+      responses:
+        '200':
+          description: Account metadata without roster contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/policy:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [policy]
+      operationId: getTenantPolicy
+      summary: Current policy version and history for a Commission
+      responses:
+        '200':
+          description: Current version and previous versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyHistory'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/policy/versions:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    post:
+      tags: [policy]
+      operationId: createTenantPolicyVersion
+      summary: Create a new policy version (only obligationsStartDate is editable in this slice)
+      description: commission-admin of the tenant or platform-admin. Other fields are copied from the current version.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [obligationsStartDate]
+              properties:
+                obligationsStartDate:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: New version in force
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyVersion'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/commissions/{slug}/policy:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [internal]
+      operationId: internalGetTenantPolicy
+      summary: Current policy version for a Commission (services)
+      responses:
+        '200':
+          description: Current version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyVersion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/commissions/{slug}/roster/records:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [internal]
+      operationId: internalListRosterRecords
+      summary: Roster records touched by an import or an exit batch (services)
+      parameters:
+        - name: importId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: exitBatchId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: state
+          in: query
+          schema:
+            $ref: '#/components/schemas/RosterRecordState'
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 1000
+      responses:
+        '200':
+          description: Page of full records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InternalRosterRecord'
+                  nextCursor:
+                    type: [string, 'null']
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/commissions/{slug}/roster/records/{recordId}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: internalGetRosterRecord
+      summary: One roster record (services)
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalRosterRecord'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/persons/{personId}/contacts:
+    parameters:
+      - name: personId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: internalGetPersonContacts
+      summary: Verified contacts of a person (notifications)
+      responses:
+        '200':
+          description: Contacts, null where none is verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [personId, email, phone]
+                properties:
+                  personId:
+                    type: string
+                    format: uuid
+                  email:
+                    type: [string, 'null']
+                  phone:
+                    type: [string, 'null']
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Slug'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID, unique per logical request; reuse on retry
+      schema:
+        type: string
+        format: uuid
+    ImportId:
+      name: importId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OnboardingSecret:
+      name: X-Onboarding-Secret
+      in: header
+      required: true
+      description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+      schema:
+        type: string
+    OtpChannelParam:
+      name: channel
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/OtpChannel'
+  responses:
+    RateLimited:
+      description: 'Problem code `rate-limited`; RateLimit-* headers present'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/OnboardingProblem'
+    SessionEnded:
+      description: 'Problem code `session-expired`; the cookie is cleared'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/OnboardingProblem'
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ImportChannel:
+      type: string
+      enum: [file, api]
+    ImportState:
+      type: string
+      enum: [pending, processing, completed, failed]
+    ImportFailureCode:
+      type: string
+      enum: [missing-columns, upload-not-clean, parse-error, storage-error, internal]
+    RosterRecordState:
+      type: string
+      enum: [not_onboarded, onboarded, exited]
+    RosterRowInput:
+      type: object
+      description: One roster row as accepted from the template or an API batch (pre-normalisation)
+      required: [personnelFileNumber, fullName, nationalId]
+      properties:
+        personnelFileNumber:
+          type: string
+          minLength: 1
+          maxLength: 30
+          pattern: '^[A-Za-z0-9/.\-]+$'
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 200
+        nationalId:
+          type: string
+          description: Digits after stripping spaces, 5 to 10
+          pattern: '^[0-9 ]{5,12}$'
+        designation:
+          type: [string, 'null']
+          maxLength: 100
+        jobGroup:
+          type: [string, 'null']
+          maxLength: 10
+        reportingEntity:
+          type: [string, 'null']
+          maxLength: 200
+        appointmentDate:
+          type: [string, 'null']
+          description: ISO date preferred; DD/MM/YYYY and DD-MM-YYYY accepted
+        email:
+          type: [string, 'null']
+          format: email
+          maxLength: 254
+        phone:
+          type: [string, 'null']
+          description: Local (07…, 01…) or international; normalised to E.164
+          maxLength: 20
+    StartFileImport:
+      type: object
+      required: [channel, uploadId, declaredComplete]
+      properties:
+        channel:
+          const: file
+        uploadId:
+          type: string
+          format: uuid
+          description: A clean upload with purpose roster-import (documents service)
+        declaredComplete:
+          type: boolean
+          description: True when the file is the complete roster; absent officers get flagged
+    StartBatchImport:
+      type: object
+      required: [channel, rows]
+      properties:
+        channel:
+          const: api
+        rows:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/RosterRowInput'
+    ColumnMapping:
+      type: object
+      required: [matched, ignored, missing]
+      properties:
+        matched:
+          type: array
+          items:
+            type: object
+            required: [source, field]
+            properties:
+              source:
+                type: string
+              field:
+                type: string
+        ignored:
+          type: array
+          items:
+            type: string
+        missing:
+          type: array
+          description: Optional template columns not present
+          items:
+            type: string
+    ImportCounts:
+      type: object
+      required: [accepted, created, updated, unchanged, rejected, flaggedAbsent]
+      properties:
+        accepted:
+          type: integer
+        created:
+          type: integer
+        updated:
+          type: integer
+        unchanged:
+          type: integer
+        rejected:
+          type: integer
+        flaggedAbsent:
+          type: integer
+    RosterImport:
+      type: object
+      required:
+        - id
+        - channel
+        - declaredComplete
+        - state
+        - fileName
+        - format
+        - totalRows
+        - processedRows
+        - counts
+        - mapping
+        - failure
+        - startedBy
+        - startedAt
+        - completedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          $ref: '#/components/schemas/ImportChannel'
+        declaredComplete:
+          type: boolean
+        state:
+          $ref: '#/components/schemas/ImportState'
+        fileName:
+          type: [string, 'null']
+        format:
+          type: [string, 'null']
+          enum: [csv, xlsx, json, null]
+        totalRows:
+          type: [integer, 'null']
+          description: Null until staging finishes
+        processedRows:
+          type: integer
+        counts:
+          oneOf:
+            - $ref: '#/components/schemas/ImportCounts'
+            - type: 'null'
+        mapping:
+          oneOf:
+            - $ref: '#/components/schemas/ColumnMapping'
+            - type: 'null'
+        failure:
+          oneOf:
+            - type: object
+              required: [code, detail]
+              properties:
+                code:
+                  $ref: '#/components/schemas/ImportFailureCode'
+                detail:
+                  type: string
+            - type: 'null'
+        startedBy:
+          type: object
+          required: [kind, id]
+          properties:
+            kind:
+              type: string
+              enum: [user, client]
+            id:
+              type: string
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+    RowError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+        code:
+          type: string
+          enum: [required, format, too-long, future-date, duplicate-in-file, identity-locked]
+        message:
+          type: string
+    RosterImportRow:
+      type: object
+      required: [rowNumber, status, raw, errors, outcome, recordId]
+      properties:
+        rowNumber:
+          type: integer
+        status:
+          type: string
+          enum: [accepted, rejected]
+        raw:
+          type: object
+          additionalProperties:
+            type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RowError'
+        outcome:
+          type: [string, 'null']
+          enum: [created, updated, unchanged, null]
+        recordId:
+          type: [string, 'null']
+          format: uuid
+    ReportingEntityRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    RosterRecordListItem:
+      type: object
+      required:
+        - id
+        - personnelFileNumber
+        - fullName
+        - nationalIdMasked
+        - designation
+        - jobGroup
+        - reportingEntity
+        - state
+        - absentFromLatestImport
+      properties:
+        id:
+          type: string
+          format: uuid
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        nationalIdMasked:
+          type: string
+          description: All but the last three digits replaced, e.g. •••••123
+        designation:
+          type: [string, 'null']
+        jobGroup:
+          type: [string, 'null']
+        reportingEntity:
+          oneOf:
+            - $ref: '#/components/schemas/ReportingEntityRef'
+            - type: 'null'
+        state:
+          $ref: '#/components/schemas/RosterRecordState'
+        absentFromLatestImport:
+          type: boolean
+    RosterRecord:
+      allOf:
+        - $ref: '#/components/schemas/RosterRecordListItem'
+        - type: object
+          required:
+            - nationalId
+            - appointmentDate
+            - email
+            - phone
+            - exitDate
+            - source
+            - flaggedByImportId
+            - firstSeenImportId
+            - lastSeenImportId
+            - imports
+            - createdAt
+            - updatedAt
+          properties:
+            nationalId:
+              type: string
+              description: Full value; reads are audited
+            appointmentDate:
+              type: [string, 'null']
+              format: date
+            email:
+              type: [string, 'null']
+            phone:
+              type: [string, 'null']
+            exitDate:
+              type: [string, 'null']
+              format: date
+            source:
+              $ref: '#/components/schemas/ImportChannel'
+            flaggedByImportId:
+              type: [string, 'null']
+              format: uuid
+            firstSeenImportId:
+              type: [string, 'null']
+              format: uuid
+            lastSeenImportId:
+              type: [string, 'null']
+              format: uuid
+            imports:
+              type: array
+              description: Imports that touched this record, newest first
+              items:
+                type: object
+                required: [importId, startedAt, outcome]
+                properties:
+                  importId:
+                    type: string
+                    format: uuid
+                  startedAt:
+                    type: string
+                    format: date-time
+                  outcome:
+                    type: string
+                    enum: [created, updated, unchanged]
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    ConfirmExits:
+      type: object
+      required: [records]
+      properties:
+        records:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            required: [recordId]
+            properties:
+              recordId:
+                type: string
+                format: uuid
+              exitDate:
+                type: string
+                format: date
+                description: Overrides the batch exitDate for this record
+        exitDate:
+          type: string
+          format: date
+          description: Default exit date for records without their own; required unless every record has one
+    ExitsResult:
+      type: object
+      required: [batchId, count]
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        count:
+          type: integer
+    RosterApiCredential:
+      type: object
+      required: [clientId, createdAt, createdBy, rotatedAt, revokedAt, lastUsedAt]
+      properties:
+        clientId:
+          type: string
+          examples: [roster-psc]
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        rotatedAt:
+          type: [string, 'null']
+          format: date-time
+        revokedAt:
+          type: [string, 'null']
+          format: date-time
+        lastUsedAt:
+          type: [string, 'null']
+          format: date-time
+    RosterApiCredentialWithSecret:
+      allOf:
+        - $ref: '#/components/schemas/RosterApiCredential'
+        - type: object
+          required: [secret, tokenEndpoint, scope]
+          properties:
+            secret:
+              type: string
+              description: Shown once; the platform does not store it
+            tokenEndpoint:
+              type: string
+              format: uri
+            scope:
+              const: roster:write
+    Ofr:
+      type: string
+      description: Officer reference (ADR-011), permanent and person-level
+      pattern: '^OFR-[0-9]{7}-[0-9A-Z]$'
+      examples: [OFR-0482913-L]
+    OtpChannel:
+      type: string
+      enum: [email, phone]
+    OnboardingCommission:
+      type: object
+      required: [slug, issuerCode, name, hasRoster]
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+        name:
+          type: string
+        hasRoster:
+          type: boolean
+    IdentifyDeclarant:
+      type: object
+      required: [commission, personnelFileNumber, nationalId]
+      properties:
+        commission:
+          $ref: '#/components/schemas/Slug'
+        personnelFileNumber:
+          type: string
+          minLength: 1
+          maxLength: 30
+        nationalId:
+          type: string
+          description: Digits after stripping spaces, 5 to 10
+          pattern: '^[0-9 ]{5,12}$'
+    OnboardingState:
+      type: string
+      enum:
+        - identified
+        - email-contact-required
+        - email-pending
+        - email-verified
+        - phone-contact-required
+        - phone-pending
+        - phone-verified
+        - confirmed
+        - identity-mismatch
+        - expired
+    MaskedContact:
+      type: object
+      required: [masked, source, verified]
+      properties:
+        masked:
+          type: string
+          description: e.g. j***@moe.go.ke or 07** *** 123
+        source:
+          type: string
+          enum: [roster, declarant]
+        verified:
+          type: boolean
+    OnboardingSession:
+      type: object
+      required: [id, state, commission, contacts, details, otp, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/OnboardingState'
+        commission:
+          $ref: '#/components/schemas/OnboardingCommission'
+        contacts:
+          type: object
+          required: [email, phone]
+          properties:
+            email:
+              oneOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+            phone:
+              oneOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+        details:
+          description: Roster details shown at the confirm step; null before phone-verified
+          oneOf:
+            - type: object
+              required: [fullName, personnelFileNumber, designation, reportingEntity]
+              properties:
+                fullName:
+                  type: string
+                personnelFileNumber:
+                  type: string
+                designation:
+                  type: [string, 'null']
+                reportingEntity:
+                  type: [string, 'null']
+            - type: 'null'
+        otp:
+          type: object
+          description: Resend availability for the channel currently pending
+          required: [channel, resendAvailableAt, resendsLeft, attemptsLeft]
+          properties:
+            channel:
+              oneOf:
+                - $ref: '#/components/schemas/OtpChannel'
+                - type: 'null'
+            resendAvailableAt:
+              type: [string, 'null']
+              format: date-time
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+        outcome:
+          description: Set when state is confirmed
+          oneOf:
+            - $ref: '#/components/schemas/OnboardingOutcome'
+            - type: 'null'
+        ofr:
+          oneOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+        expiresAt:
+          type: string
+          format: date-time
+    Agency:
+      type: object
+      required: [code, name, legalBasis]
+      properties:
+        code:
+          type: string
+          examples: [DCI, ODPP, ARA, FRC]
+        name:
+          type: string
+        legalBasis:
+          type: string
+    LeaOfficerAccount:
+      type: object
+      required: [id, agencyCode, name, email, state, invitedAt, activatedAt, revokedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        agencyCode:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        state:
+          type: string
+          enum: [invited, activated, revoked]
+        invitedAt:
+          type: string
+          format: date-time
+        activatedAt:
+          type: [string, 'null']
+          format: date-time
+        revokedAt:
+          type: [string, 'null']
+          format: date-time
+    OnboardingSessionCreated:
+      allOf:
+        - $ref: '#/components/schemas/OnboardingSession'
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
+    OnboardingOutcome:
+      type: string
+      enum: [account-created, linked-existing-account, identity-mismatch]
+    OnboardingConfirmResult:
+      type: object
+      required: [outcome, session]
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OnboardingOutcome'
+        session:
+          $ref: '#/components/schemas/OnboardingSession'
+    OnboardingProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              enum:
+                - no-match
+                - already-onboarded
+                - no-roster
+                - otp-invalid
+                - otp-expired
+                - resend-cooldown
+                - session-expired
+                - iprs-unavailable
+                - identity-unavailable
+                - rate-limited
+            attemptsLeft:
+              type: integer
+            retryAfterSeconds:
+              type: integer
+            links:
+              type: object
+              description: Present for already-onboarded
+              properties:
+                signIn:
+                  type: string
+                  format: uri
+                recoverAccess:
+                  type: string
+                  format: uri
+    DeclarantProfile:
+      type: object
+      required: [personId, ofr, fullName, contacts, commissions]
+      properties:
+        personId:
+          type: string
+          format: uuid
+        ofr:
+          $ref: '#/components/schemas/Ofr'
+        fullName:
+          type: string
+        contacts:
+          type: object
+          required: [email, phone]
+          properties:
+            email:
+              type: [string, 'null']
+            phone:
+              type: [string, 'null']
+        commissions:
+          type: array
+          items:
+            type: object
+            required: [slug, name, personnelFileNumber, rosterRecordId, state, onboardedAt]
+            properties:
+              slug:
+                $ref: '#/components/schemas/Slug'
+              name:
+                type: string
+              personnelFileNumber:
+                type: string
+              rosterRecordId:
+                type: string
+                format: uuid
+              state:
+                $ref: '#/components/schemas/RosterRecordState'
+              onboardedAt:
+                type: [string, 'null']
+                format: date-time
+    PersonSummary:
+      type: object
+      required: [personId, ofr, fullName, commissions, createdAt]
+      properties:
+        personId:
+          type: string
+          format: uuid
+        ofr:
+          $ref: '#/components/schemas/Ofr'
+        fullName:
+          type: string
+        commissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slug'
+        createdAt:
+          type: string
+          format: date-time
+    TenantPolicyVersion:
+      type: object
+      required:
+        - id
+        - version
+        - effectiveFrom
+        - obligationsStartDate
+        - initialDueAfterAppointmentDays
+        - biennial
+        - finalDueAfterExitDays
+        - reminderOffsetsDays
+        - clarification
+        - formMDue
+        - createdBy
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        effectiveFrom:
+          type: string
+          format: date-time
+        obligationsStartDate:
+          type: string
+          format: date
+          description: Initial-declaration obligations are created only for appointments on or after this date
+        initialDueAfterAppointmentDays:
+          type: integer
+        biennial:
+          type: object
+          required: [statementDate, dueDate]
+          properties:
+            statementDate:
+              type: string
+              description: Month-day, e.g. 11-01
+            dueDate:
+              type: string
+              description: Month-day, e.g. 12-31
+        finalDueAfterExitDays:
+          type: integer
+        reminderOffsetsDays:
+          type: array
+          items:
+            type: integer
+        clarification:
+          type: object
+          required: [issueWindowMonths, replyWindowDays]
+          properties:
+            issueWindowMonths:
+              type: integer
+            replyWindowDays:
+              type: integer
+        formMDue:
+          type: string
+          description: Month-day, e.g. 07-31
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    TenantPolicyHistory:
+      type: object
+      required: [current, previous]
+      properties:
+        current:
+          $ref: '#/components/schemas/TenantPolicyVersion'
+        previous:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantPolicyVersion'
+    InternalRosterRecord:
+      allOf:
+        - $ref: '#/components/schemas/RosterRecord'
+        - type: object
+          required: [tenant, personId, ofr, onboardedAt]
+          properties:
+            tenant:
+              $ref: '#/components/schemas/Slug'
+            personId:
+              type: [string, 'null']
+              format: uuid
+            ofr:
+              oneOf:
+                - $ref: '#/components/schemas/Ofr'
+                - type: 'null'
+            onboardedAt:
+              type: [string, 'null']
+              format: date-time

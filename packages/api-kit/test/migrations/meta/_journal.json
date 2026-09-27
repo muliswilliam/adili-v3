@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790465111955,
+      "tag": "0000_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790539950822,
+      "tag": "0001_idempotency_claim_token",
+      "breakpoints": true
+    }
+  ]
+}
