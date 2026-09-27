@@ -83,8 +83,11 @@ export abstract class IdentityProvisioning {
    */
   abstract createStaffUser(input: CreateStaffUserInput): Promise<string>;
 
-  /** Adds a realm role. Idempotent. @throws IdentityUserNotFound */
-  abstract grantRole(userId: string, role: string): Promise<void>;
+  /**
+   * Adds a realm role and enables the account (it may have been disabled when it was replaced
+   * as a reporting officer). Idempotent. @throws IdentityUserNotFound
+   */
+  abstract grantRoleAndEnable(userId: string, role: string): Promise<void>;
 
   /** Removes a realm role and disables the account. Idempotent. @throws IdentityUserNotFound */
   abstract revokeRoleAndDisable(userId: string, role: string): Promise<void>;

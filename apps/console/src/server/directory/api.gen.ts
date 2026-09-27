@@ -61,9 +61,11 @@ export interface paths {
         /**
          * Assign or replace the Commission's reporting officer
          * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account,
-         *     grants the reporting-officer role and sends exactly one activation email.
-         *     If an active assignment exists it is marked replaced and the previous account is
-         *     disabled. Idempotent per Idempotency-Key.
+         *     grants the reporting-officer role (enabling the account if it was disabled) and sends
+         *     exactly one activation email. If a current (not replaced) assignment exists it is
+         *     marked `replaced` with `replacedBy` set to the new assignment, and the previous
+         *     account loses the reporting-officer role and is disabled. Idempotent per
+         *     Idempotency-Key.
          */
         put: operations["assignReportingOfficer"];
         post?: never;
@@ -86,7 +88,9 @@ export interface paths {
         put?: never;
         /**
          * Send the activation email again
-         * @description platform-admin only. Allowed while the assignment is `invited`.
+         * @description platform-admin only. Allowed while the current assignment is `invited`; Keycloak sends
+         *     a new activation link valid for 72 hours. No Idempotency-Key: a repeated request only
+         *     sends another email.
          */
         post: operations["resendReportingOfficerInvitation"];
         delete?: never;
@@ -1462,7 +1466,8 @@ export interface operations {
             };
             /**
              * @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the
-             *     email belongs to an account in another tenant (or in none).
+             *     email belongs to an account in another tenant (or in none). Nothing changed and
+             *     the current officer keeps access.
              */
             409: {
                 headers: {
@@ -1514,7 +1519,10 @@ export interface operations {
                 content?: never;
             };
             403: components["responses"]["Forbidden"];
-            /** @description Commission not found or no assignment */
+            /**
+             * @description Commission not found, or problem type `reporting-officer-not-assigned`: it has no
+             *     reporting officer.
+             */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1523,8 +1531,24 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Assignment is not in state `invited` */
+            /**
+             * @description Problem type `reporting-officer-activated`: the officer has already activated, so
+             *     there is nothing to resend. Problem type `reporting-officer-account-missing`: the
+             *     officer's account no longer exists in the identity provider; replace the officer.
+             */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Problem type `identity-unavailable`: the identity provider failed, no email was
+             *     sent. Safe to retry.
+             */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

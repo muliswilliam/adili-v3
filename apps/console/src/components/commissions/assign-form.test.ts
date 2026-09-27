@@ -121,7 +121,7 @@ describe('assignFailure', () => {
   });
 
   it.each([
-    [problem({ status: 409, type: 'reporting-officer-assigned' }), 'assigned'],
+    [problem({ status: 409, type: 'reporting-officer-changed' }), 'officer-changed'],
     [problem({ status: 404 }), 'not-found'],
     [problem({ status: 403 }), 'forbidden'],
     [problem({ status: 422, type: 'idempotency-key-reused' }), 'changed'],

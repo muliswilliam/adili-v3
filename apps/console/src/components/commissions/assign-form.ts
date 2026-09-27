@@ -67,7 +67,7 @@ export function checkAssignField(draft: AssignDraft, field: AssignField): string
 }
 
 export type AssignAlert =
-  'rejected' | 'error' | 'in-progress' | 'changed' | 'assigned' | 'not-found' | 'forbidden';
+  'rejected' | 'error' | 'in-progress' | 'changed' | 'officer-changed' | 'not-found' | 'forbidden';
 
 /** How the dialog shows an assign request the directory did not accept. */
 export interface AssignFailure {
@@ -92,7 +92,8 @@ export function assignFailure(error: DirectoryError): AssignFailure {
   if (problem.type === 'email-belongs-to-other-tenant') {
     return { ...failure, fieldErrors: { email: m.officerEmailTaken } };
   }
-  if (problem.type === 'reporting-officer-assigned') return { ...failure, alert: 'assigned' };
+  // Another replacement won a race (the directory serialises them, so this is rare).
+  if (problem.type === 'reporting-officer-changed') return { ...failure, alert: 'officer-changed' };
   if (problem.status === 404) return { ...failure, alert: 'not-found' };
   if (problem.status === 403) return { ...failure, alert: 'forbidden' };
   if (problem.status === 422) return { ...failure, alert: 'changed' };

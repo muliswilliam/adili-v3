@@ -95,7 +95,8 @@ export const tenantPolicyVersions = pgTable(
 
 /**
  * Reporting officer assignments, tenant-scoped under RLS (FORCE ROW LEVEL SECURITY, policy in
- * migration 0003). At most one assignment per Commission is not `replaced`.
+ * migration 0003). At most one assignment per Commission is not `replaced` (the current one);
+ * the timestamps and `replaced_by` agree with the state.
  */
 export const reportingOfficerAssignments = pgTable(
   'reporting_officer_assignments',
@@ -129,6 +130,20 @@ export const reportingOfficerAssignments = pgTable(
     check(
       'reporting_officer_assignments_state_check',
       sql`${table.state} in ('invited', 'activated', 'replaced')`,
+    ),
+    check(
+      'reporting_officer_assignments_activated_at_check',
+      sql`${table.state} <> 'activated' or ${table.activatedAt} is not null`,
+    ),
+    check(
+      'reporting_officer_assignments_replaced_at_check',
+      sql`(${table.state} = 'replaced') = (${table.replacedAt} is not null)`,
+    ),
+    // Set in the same transaction as the replacement, once the replacing row exists (the current
+    // key admits it only after this row is `replaced`), so it cannot be required here.
+    check(
+      'reporting_officer_assignments_replaced_by_check',
+      sql`${table.replacedBy} is null or (${table.state} = 'replaced' and ${table.replacedBy} <> ${table.id})`,
     ),
   ],
 );

@@ -14,7 +14,7 @@ import {
 export type IdentityCall =
   | { operation: 'findByEmail'; email: string }
   | { operation: 'createStaffUser'; input: CreateStaffUserInput }
-  | { operation: 'grantRole'; userId: string; role: string }
+  | { operation: 'grantRoleAndEnable'; userId: string; role: string }
   | { operation: 'revokeRoleAndDisable'; userId: string; role: string }
   | { operation: 'sendActivationEmail'; userId: string; options: ActivationEmailOptions };
 
@@ -126,14 +126,15 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     return Promise.resolve(userId);
   }
 
-  grantRole(userId: string, role: string): Promise<void> {
-    this.log.push({ operation: 'grantRole', userId, role });
-    const failure = this.takeFailure('grantRole');
+  grantRoleAndEnable(userId: string, role: string): Promise<void> {
+    this.log.push({ operation: 'grantRoleAndEnable', userId, role });
+    const failure = this.takeFailure('grantRoleAndEnable');
     if (failure) return Promise.reject(failure);
     return this.update(userId, (user) => {
       if (!user.roles.includes(role)) {
         user.roles.push(role);
       }
+      user.enabled = true;
     });
   }
 

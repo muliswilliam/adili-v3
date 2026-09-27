@@ -122,7 +122,7 @@ describe('S8 assign', () => {
     expect(emails).toHaveLength(1);
     expect(emails[0]?.options).toEqual(ACTIVATION);
     expect(api.identity.user(emails[0]?.userId ?? '')?.email).toBe(OFFICER.email);
-    expect(api.identity.calls('grantRole')).toEqual([]);
+    expect(api.identity.calls('grantRoleAndEnable')).toEqual([]);
   });
 
   it('records commission.reporting-officer.assigned.v1 with ids only', async () => {
@@ -205,7 +205,7 @@ describe('S9 email in another tenant', () => {
       expect(errorPaths(problem)).toEqual(['email']);
       expect(await officerOf()).toBeNull();
       expect(api.identity.calls('createStaffUser')).toEqual([]);
-      expect(api.identity.calls('grantRole')).toEqual([]);
+      expect(api.identity.calls('grantRoleAndEnable')).toEqual([]);
       expect(api.identity.calls('sendActivationEmail')).toEqual([]);
       expect(await assignedEvents()).toEqual([]);
     },
@@ -225,8 +225,8 @@ describe('S10 email in the same tenant', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json<CommissionBody>().reportingOfficer?.state).toBe('invited');
     expect(api.identity.calls('createStaffUser')).toEqual([]);
-    expect(api.identity.calls('grantRole')).toEqual([
-      { operation: 'grantRole', userId, role: 'reporting-officer' },
+    expect(api.identity.calls('grantRoleAndEnable')).toEqual([
+      { operation: 'grantRoleAndEnable', userId, role: 'reporting-officer' },
     ]);
     expect(api.identity.calls('sendActivationEmail')).toEqual([
       { operation: 'sendActivationEmail', userId, options: ACTIVATION },
@@ -264,24 +264,13 @@ describe('identity provider failures', () => {
     expect(retry.statusCode).toBe(200);
     expect(retry.headers['idempotent-replayed']).toBeUndefined();
     expect(api.identity.calls('createStaffUser')).toHaveLength(1);
-    expect(api.identity.calls('grantRole')).toHaveLength(1);
+    expect(api.identity.calls('grantRoleAndEnable')).toHaveLength(1);
     expect(api.identity.calls('sendActivationEmail')).toHaveLength(2);
     expect(await assignedEvents()).toHaveLength(1);
   });
 });
 
 describe('refusals', () => {
-  it('refuses a second officer until replacement exists (409)', async () => {
-    expect((await assign(OFFICER)).statusCode).toBe(200);
-
-    const second = await assign({ ...OFFICER, email: 'someone.else@tsc.go.ke' });
-
-    expect(second.statusCode).toBe(409);
-    expect(second.json<Problem>().type).toBe('reporting-officer-assigned');
-    expect((await officerOf())?.email).toBe(OFFICER.email);
-    expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
-  });
-
   it('answers 404 for a Commission that does not exist', async () => {
     const response = await assign(OFFICER, { slug: 'nope' });
 
