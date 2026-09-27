@@ -35,4 +35,23 @@ describe('ProgressBar', () => {
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('100');
     expect(screen.getByRole('progressbar').getAttribute('aria-valuetext')).toBe('100%');
   });
+
+  it('shows the status and percentage under the bar', () => {
+    render(<ProgressBar label="Import progress" value={25} status="12,108 of 48,431 rows" />);
+
+    const status = screen.getByText('12,108 of 48,431 rows');
+    expect(status.nextElementSibling?.textContent).toBe('25%');
+  });
+
+  it('has no value while indeterminate', () => {
+    render(
+      <ProgressBar label="Import progress" value={60} indeterminate status="Reading the file…" />,
+    );
+
+    const bar = screen.getByRole('progressbar', { name: 'Import progress' });
+    expect(bar.hasAttribute('aria-valuenow')).toBe(false);
+    expect(bar.hasAttribute('aria-valuetext')).toBe(false);
+    expect(screen.getByRole('status').textContent).toBe('');
+    expect(screen.queryByText('60%')).toBeNull();
+  });
 });

@@ -45,4 +45,13 @@ describe('Stepper', () => {
     expect(screen.getByText('Import').closest('button, a, [tabindex]')).toBeNull();
     expect(screen.getByText('Template').closest('button, a, [tabindex]')).toBeNull();
   });
+
+  it('says when the current step failed', () => {
+    render(<Stepper label="Import steps" steps={steps} current="import" failed />);
+
+    const current = screen
+      .getByRole('navigation', { name: 'Import steps' })
+      .querySelector('[aria-current="step"]');
+    expect(current?.textContent).toContain('Import (failed)');
+  });
 });

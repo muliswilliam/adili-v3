@@ -1,4 +1,4 @@
-import { CloudUploadIcon } from '@hugeicons/core-free-icons';
+import { Upload04Icon } from '@hugeicons/core-free-icons';
 import {
   type ChangeEvent,
   type ComponentProps,
@@ -10,7 +10,7 @@ import {
 } from 'react';
 
 import { cn } from '../lib/cn';
-import { describedBy, FieldError, FieldHint } from './form-field';
+import { describedBy, FieldError } from './form-field';
 import { Icon } from './icon';
 
 export type FileRejection = 'type' | 'size';
@@ -18,7 +18,7 @@ export type FileRejection = 'type' | 'size';
 export type FileDropZoneProps = Omit<ComponentProps<'button'>, 'onSelect' | 'children'> & {
   /** Names the button, e.g. "Drop your roster file here or browse." */
   label: ReactNode;
-  /** Shown under the zone, e.g. accepted formats and the size limit. */
+  /** Shown in the zone under the label, e.g. accepted formats and the size limit. */
   hint?: ReactNode;
   /** File extensions (".csv") or MIME types ("text/csv", "image/*"). Any file when empty. */
   accept?: string[];
@@ -72,6 +72,7 @@ export function FileDropZone({
 }: FileDropZoneProps) {
   const generatedId = useId();
   const zoneId = id ?? generatedId;
+  const labelId = `${zoneId}-label`;
   const hintId = hint ? `${zoneId}-hint` : undefined;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -102,11 +103,12 @@ export function FileDropZone({
   }
 
   return (
-    <div className={cn('grid gap-1.5', className)}>
+    <div className={cn('grid gap-2', className)}>
       <button
         type="button"
         id={zoneId}
         disabled={disabled}
+        aria-labelledby={labelId}
         aria-describedby={describedBy(hintId, errorId)}
         aria-invalid={shownError ? true : undefined}
         data-dragging={dragging || undefined}
@@ -127,13 +129,21 @@ export function FileDropZone({
           handleDrag(event, false);
           if (!disabled) take(event.dataTransfer.files[0]);
         }}
-        className="flex min-h-36 w-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-control px-6 py-8 text-center text-sm transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive data-dragging:border-primary data-dragging:bg-muted"
+        // Children ignore the pointer so moving over them does not fire dragleave on the zone.
+        className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input bg-card px-5 py-7 text-center transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring enabled:hover:border-foreground enabled:hover:bg-brand-faint disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive/45 data-dragging:border-foreground data-dragging:bg-brand-faint [&>*]:pointer-events-none"
         {...props}
       >
-        <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Icon icon={CloudUploadIcon} className="size-5" />
+        <span className="mb-0.5 flex size-11 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
+          <Icon icon={Upload04Icon} className="size-[18px]" />
         </span>
-        <span className="font-medium">{label}</span>
+        <span id={labelId} className="text-[15px] font-semibold">
+          {label}
+        </span>
+        {hint ? (
+          <span id={hintId} className="text-[13.5px] text-muted-foreground">
+            {hint}
+          </span>
+        ) : null}
       </button>
       <input
         ref={inputRef}
@@ -148,7 +158,6 @@ export function FileDropZone({
           event.target.value = '';
         }}
       />
-      {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
       {shownError ? <FieldError id={errorId}>{shownError}</FieldError> : null}
     </div>
   );

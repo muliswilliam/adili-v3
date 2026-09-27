@@ -71,7 +71,7 @@ export {
   TableRowLink,
   type TableRowLinkProps,
 } from './components/table';
-export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';

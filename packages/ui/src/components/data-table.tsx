@@ -74,7 +74,7 @@ export function DataTable<Row>({
         <TableHeader>
           <TableRow>
             {selection ? (
-              <TableHead className="w-10 pr-0">
+              <TableHead className="w-9 pr-0">
                 <SelectAllCheckbox
                   checked={allOnPage}
                   indeterminate={someOnPage}
@@ -98,10 +98,10 @@ export function DataTable<Row>({
               <TableRow
                 key={id}
                 data-state={selected ? 'selected' : undefined}
-                className="data-[state=selected]:bg-muted/60"
+                className="data-[state=selected]:bg-brand-faint"
               >
                 {selection ? (
-                  <TableCell className="w-10 pr-0">
+                  <TableCell className="w-9 pr-0">
                     <Checkbox
                       aria-label={selection.rowLabel(id)}
                       checked={selected}

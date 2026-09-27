@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
 import { Icon } from './icon';
+import { controlClassName } from './input';
 
 type RootProps = ComponentProps<typeof SelectPrimitive.Root>;
 
@@ -70,23 +71,24 @@ export function Select({
     >
       <SelectPrimitive.Trigger
         className={cn(
-          'flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-lg border-0 bg-control px-2.5 text-left text-sm shadow-control transition-shadow outline-none hover:shadow-control-hover focus-visible:shadow-control-focus disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:shadow-control-error aria-invalid:focus-visible:shadow-control-error-focus data-placeholder:text-placeholder [&>span]:truncate',
+          controlClassName,
+          'flex h-11 items-center justify-between gap-2 px-3 text-left data-placeholder:text-placeholder [&>span]:truncate',
           className,
         )}
         {...triggerProps}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon asChild>
-          <Icon icon={ArrowDown01Icon} className="text-muted-foreground" />
+          <Icon icon={ArrowDown01Icon} className="text-muted-foreground" strokeWidth={2} />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           position="popper"
-          sideOffset={4}
-          className="relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg border bg-card text-card-foreground shadow-md"
+          sideOffset={6}
+          className="relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-xl bg-card text-card-foreground shadow-pop"
         >
-          <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
+          <SelectPrimitive.Viewport className="p-1.5">{children}</SelectPrimitive.Viewport>
         </SelectPrimitive.Content>
       </SelectPrimitive.Portal>
     </SelectPrimitive.Root>
@@ -101,13 +103,13 @@ export function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        'relative flex h-8 cursor-default items-center rounded-md pr-8 pl-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-secondary-hover',
+        'relative flex h-9 cursor-default items-center rounded-md pr-8 pl-2.5 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-muted',
         className,
       )}
       {...props}
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-      <SelectPrimitive.ItemIndicator className="absolute right-2 flex items-center">
+      <SelectPrimitive.ItemIndicator className="absolute right-2.5 flex items-center">
         <Icon icon={Tick02Icon} />
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>
