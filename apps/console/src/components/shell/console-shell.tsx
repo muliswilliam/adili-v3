@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 
 import { Breadcrumbs } from './breadcrumbs';
 import { seniorRoleLabel } from '../roles';
-import { initials, navFor } from './nav';
+import { activeNavHref, initials, navFor } from './nav';
 
 export interface ConsoleShellProps {
   userName: string;
@@ -26,7 +26,7 @@ export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
     drawer.current?.close();
   }, [pathname]);
 
-  const sidebar = <Sidebar userName={userName} roles={roles} />;
+  const sidebar = <Sidebar userName={userName} roles={roles} pathname={pathname} />;
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r bg-muted/60 px-3 py-4 lg:flex">
@@ -71,8 +71,17 @@ export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
   );
 }
 
-function Sidebar({ userName, roles }: { userName: string; roles: readonly string[] }) {
+function Sidebar({
+  userName,
+  roles,
+  pathname,
+}: {
+  userName: string;
+  roles: readonly string[];
+  pathname: string;
+}) {
   const groups = navFor(roles);
+  const active = activeNavHref(groups, pathname);
   const role = seniorRoleLabel(roles);
   return (
     <>
@@ -93,11 +102,17 @@ function Sidebar({ userName, roles }: { userName: string; roles: readonly string
             <ul className="grid gap-1">
               {group.items.map((item) => (
                 <li key={item.label}>
+                  {/*
+                    The deepest entry containing the page is current (API access, not also
+                    Roster); the router's own active state would mark both.
+                  */}
                   <Link
                     to={item.to}
+                    activeOptions={{ exact: true }}
+                    aria-current={item.to === active ? 'page' : undefined}
                     className={cn(
                       'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                      'data-[status=active]:bg-card data-[status=active]:text-foreground data-[status=active]:shadow-card',
+                      'aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-card',
                     )}
                   >
                     <Icon icon={item.icon} className="size-[17px]" />

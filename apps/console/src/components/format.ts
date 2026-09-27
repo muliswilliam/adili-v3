@@ -65,6 +65,20 @@ export function formatRelativeDate(iso: string, now: Date = new Date()): string 
   return years <= 1 ? '1 year ago' : `${years} years ago`;
 }
 
+/**
+ * How long ago, to the minute within a day as the prototype words it (`just now`,
+ * `12 minutes ago`, `4 hours ago`), then as `formatRelativeDate`. For recent activity such as a
+ * credential's last use.
+ */
+export function formatRelativeTime(iso: string, now: Date = new Date()): string {
+  const minutes = Math.round((now.getTime() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  return formatRelativeDate(iso, now);
+}
+
 const numberFormat = new Intl.NumberFormat('en-KE');
 
 /** `48,312` */
