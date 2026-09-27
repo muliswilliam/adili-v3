@@ -50,10 +50,7 @@ export class UploadsController {
     description: 'Upload reserved; PUT the bytes to uploadUrl before expiresAt',
     schema: schemaRef('UploadReservation'),
   })
-  @ApiProblemResponse(
-    400,
-    "Request failed validation, or the type or size is outside the purpose's",
-  )
+  @ApiProblemResponse(400, "Request failed validation, or the type or size is not the purpose's")
   @ApiProblemResponse(403, 'Your roles do not allow uploads for this purpose')
   create(
     @CurrentPrincipal() principal: Principal,
@@ -64,7 +61,12 @@ export class UploadsController {
 
   @Get(':id')
   @ApiUploadIdParam()
-  @ApiOperation({ operationId: 'getUpload', summary: 'Upload state and metadata' })
+  @ApiOperation({
+    operationId: 'getUpload',
+    summary: 'Upload state and metadata',
+    description:
+      "Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.",
+  })
   @ApiOkResponse({ description: 'The upload', schema: schemaRef('Upload') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
   get(

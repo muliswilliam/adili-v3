@@ -71,7 +71,9 @@ export const uploadDownloadSchema = z.object({
   expiresAt: z.iso.datetime(),
   sha256: z.string(),
   size: z.number().int(),
-  fileName: z.string().nullable(),
-  detectedType: z.string(),
+  fileName: z.string().nullable().meta({ description: 'As given at createUpload; display only' }),
+  detectedType: z
+    .string()
+    .meta({ description: 'Sniffed content type, e.g. text/csv or the XLSX type' }),
 });
 export type UploadDownload = z.infer<typeof uploadDownloadSchema>;

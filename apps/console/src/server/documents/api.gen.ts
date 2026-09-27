@@ -15,9 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an upload and get a presigned PUT to quarantine
-         * @description The purpose's roles only (roster-import: reporting-officer). The upload belongs to the
-         *     caller's tenant. The PUT URL is valid for 15 minutes and accepts exactly the declared
-         *     Content-Type and size.
+         * @description The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -30,12 +28,13 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: components["parameters"]["UploadId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Upload state and metadata */
+        /**
+         * Upload state and metadata
+         * @description Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.
+         */
         get: operations["getUpload"];
         put?: never;
         post?: never;
@@ -49,21 +48,14 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: components["parameters"]["UploadId"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
         /**
          * Verify, scan and move the uploaded object to the clean bucket
-         * @description Synchronous for purposes with small size limits (roster-import, 50 MB), bounded by a
-         *     60-second budget. Checks the object exists and has the declared size (within the
-         *     purpose's limit), sniffs its type (must equal the declared one), streams it through
-         *     ClamAV and copies clean bytes to the clean bucket with server-side encryption. Returns
-         *     the final state: clean, infected or rejected (type, size, missing, timeout). The
-         *     quarantine object is deleted in every case.
+         * @description Synchronous, bounded by a 60-second budget. Returns the final state: clean, infected or rejected (type, size, missing, timeout). The quarantine object is deleted in every case.
          */
         post: operations["completeUpload"];
         delete?: never;
@@ -75,20 +67,13 @@ export interface paths {
     "/internal/v1/uploads/{id}/download": {
         parameters: {
             query?: never;
-            header: {
-                /** @description Tenant the calling service acts for (decision 2 of spec 02) */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                id: components["parameters"]["UploadId"];
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         /**
          * Short-lived presigned GET on a clean object, for services
-         * @description Not routed by the public entrypoint. Service tokens (client credentials) with scope
-         *     `documents:internal` only, acting for the tenant named in `X-Acting-Tenant`; the upload
-         *     must belong to it. The URL is valid for 5 minutes.
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes.
          */
         get: operations["getUploadDownload"];
         put?: never;
@@ -131,7 +116,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark a document superseded by a newer one */
+        /**
+         * Mark a document superseded by a newer one
+         * @description Sets `status` to superseded and `supersededBy` to the newer document. A document
+         *     already superseded or revoked is refused with 409.
+         */
         post: operations["supersedeDocument"];
         delete?: never;
         options?: never;
@@ -148,7 +137,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Metadata of an issued document (owner) */
+        /**
+         * Metadata of an issued document (owner)
+         * @description The subject person (`subjectPersonId`) only; anyone else gets 404.
+         */
         get: operations["getDocument"];
         put?: never;
         post?: never;
@@ -167,7 +159,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Short-lived presigned download of an issued PDF (owner; audited; emits document.downloaded.v1) */
+        /**
+         * Short-lived presigned download of an issued PDF (owner)
+         * @description The subject person only; audited, and emits `document.downloaded.v1`. Refused with 410
+         *     once the document's download window has ended.
+         */
         get: operations["getDocumentDownload"];
         put?: never;
         post?: never;
@@ -182,11 +178,10 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description Sets allowed content types and the size limit. Implemented: roster-import (text/csv or
-         *     XLSX, 50 MB). The others are drafted for later specs and refused with 400 until then.
+         * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "action-response" | "access-representation";
+        UploadPurpose: "roster-import";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired";
         /** @enum {string} */
@@ -209,7 +204,7 @@ export interface components {
             id: string;
             /**
              * Format: uri
-             * @description Presigned PUT; send the raw bytes with the declared Content-Type and size
+             * @description Presigned PUT; send the raw bytes with the declared Content-Type and size before expiresAt
              */
             uploadUrl: string;
             /** Format: date-time */
@@ -221,19 +216,18 @@ export interface components {
             id: string;
             purpose: components["schemas"]["UploadPurpose"];
             state: components["schemas"]["UploadState"];
-            rejection?: components["schemas"]["UploadRejection"] | null;
+            rejection: components["schemas"]["UploadRejection"] | null;
             /** @description Declared type; detectedType is set after completion */
             contentType: string;
-            detectedType?: string | null;
+            detectedType: string | null;
             declaredSize: number;
-            size?: number | null;
+            size: number | null;
             /** @description Hex digest, set when clean */
-            sha256?: string | null;
+            sha256: string | null;
             fileName: string | null;
             /** Format: date-time */
             createdAt: string;
-            /** Format: date-time */
-            completedAt?: string | null;
+            completedAt: string | null;
         };
         UploadDownload: {
             /** Format: uuid */
@@ -258,6 +252,7 @@ export interface components {
             status: number;
             detail?: string;
             instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
             errors?: {
                 path: string;
                 message: string;
@@ -331,15 +326,6 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
-        /** @description Caller lacks the required role */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
         /** @description Not found, or not visible to the caller */
         NotFound: {
             headers: {
@@ -351,9 +337,6 @@ export interface components {
         };
     };
     parameters: {
-        UploadId: string;
-        /** @description Tenant the calling service acts for (decision 2 of spec 02) */
-        ActingTenant: string;
         DocumentId: string;
     };
     requestBodies: never;
@@ -384,8 +367,24 @@ export interface operations {
                     "application/json": components["schemas"]["UploadReservation"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Request failed validation, or the type or size is not the purpose's */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Your roles do not allow uploads for this purpose */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getUpload: {
@@ -393,7 +392,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["UploadId"];
+                id: string;
             };
             cookie?: never;
         };
@@ -408,7 +407,15 @@ export interface operations {
                     "application/json": components["schemas"]["Upload"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     completeUpload: {
@@ -416,7 +423,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["UploadId"];
+                id: string;
             };
             cookie?: never;
         };
@@ -431,11 +438,16 @@ export interface operations {
                     "application/json": components["schemas"]["Upload"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /**
-             * @description Problem type `upload-completed` (already clean, infected or rejected),
-             *     `upload-expired`, or `upload-completing` (another request is completing it)
-             */
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upload-completed` (already clean, infected or rejected), `upload-expired`, or `upload-completing` (another request is completing it). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -444,10 +456,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /**
-             * @description Problem type `upload-check-unavailable`: storage or the scanner failed; nothing
-             *     changed, retry
-             */
+            /** @description Problem type `upload-check-unavailable`: storage or the scanner failed; nothing changed, retry. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -462,11 +471,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Tenant the calling service acts for (decision 2 of spec 02) */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
             };
             path: {
-                id: components["parameters"]["UploadId"];
+                id: string;
             };
             cookie?: never;
         };
@@ -481,8 +490,16 @@ export interface operations {
                     "application/json": components["schemas"]["UploadDownload"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            /** @description Token lacks scope documents:internal */
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -491,7 +508,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not the acting tenant's upload */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
                 headers: {
