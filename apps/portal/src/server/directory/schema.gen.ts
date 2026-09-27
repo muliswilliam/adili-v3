@@ -544,6 +544,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/onboarding/applicants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification) */
+        post: operations["startApplicantOnboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/law-enforcement/agencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Registered law-enforcement agencies (reference data) */
+        get: operations["listAgencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/law-enforcement/agencies/{code}/officers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        /** Provisioned officer accounts for an agency (platform-admin) */
+        get: operations["listAgencyOfficers"];
+        put?: never;
+        /** Provision a law-enforcement officer account (platform-admin); one activation email */
+        post: operations["provisionAgencyOfficer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/law-enforcement/officers/{officerId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                officerId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable a law-enforcement officer account (platform-admin) */
+        post: operations["revokeAgencyOfficer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/declarant": {
         parameters: {
             query?: never;
@@ -1050,6 +1123,33 @@ export interface components {
             ofr?: components["schemas"]["Ofr"] | null;
             /** Format: date-time */
             expiresAt: string;
+        };
+        Agency: {
+            /**
+             * @example DCI
+             * @example ODPP
+             * @example ARA
+             * @example FRC
+             */
+            code: string;
+            name: string;
+            legalBasis: string;
+        };
+        LeaOfficerAccount: {
+            /** Format: uuid */
+            id: string;
+            agencyCode: string;
+            name: string;
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            state: "invited" | "activated" | "revoked";
+            /** Format: date-time */
+            invitedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
         };
         OnboardingSessionCreated: components["schemas"]["OnboardingSession"] & {
             /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
@@ -2247,6 +2347,167 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
+        };
+    };
+    startApplicantOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    identityDocument: {
+                        /** @enum {string} */
+                        kind: "national-id" | "passport";
+                        number: string;
+                        country?: string;
+                    };
+                    names: {
+                        surname: string;
+                        firstName: string;
+                        otherNames?: string;
+                    };
+                    phone: string;
+                    /** Format: email */
+                    email?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session created; phone OTP sent */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingSessionCreated"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            /** @description Problem code `identity-mismatch` (IPRS) or `already-registered` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listAgencies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agencies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agency"][];
+                };
+            };
+        };
+    };
+    listAgencyOfficers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Officers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaOfficerAccount"][];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    provisionAgencyOfficer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** Format: email */
+                    email: string;
+                    phone: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Provisioned */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaOfficerAccount"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Email belongs to an account in another tenant */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    revokeAgencyOfficer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                officerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaOfficerAccount"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getMyDeclarantProfile: {

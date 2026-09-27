@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="5" />
+    <title>Adili payroll instructions</title>
+    <style>
+      :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 1.5rem; color: #111827; }
+      h1 { font-size: 1.25rem; margin: 0 0 0.75rem; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border-bottom: 1px solid #e5e7eb; text-align: left; padding: 0.5rem 0.4rem; vertical-align: top; }
+      th { color: #6b7280; font-size: 0.8rem; text-transform: uppercase; }
+      .empty { color: #6b7280; }
+      code { font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Payroll instructions</h1>
+    <p>Stop and resume salary instructions accepted by the IPPD mock, with acknowledgement references.</p>
+    {% if instructions %}
+    <table>
+      <thead>
+        <tr>
+          <th>Received</th>
+          <th>Instruction</th>
+          <th>Action</th>
+          <th>Officer</th>
+          <th>Status</th>
+          <th>Payroll reference</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in instructions %}
+        <tr>
+          <td>{{ item.received_at }}</td>
+          <td><code>{{ item.instruction_reference }}</code></td>
+          <td>{{ item.action }}</td>
+          <td>{{ item.personal_number }} / {{ item.id_number }}</td>
+          <td>{{ item.status }}</td>
+          <td><code>{{ item.payroll_reference }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No instructions yet. POST /payroll/v1/instructions (stop_salary or resume_salary).</p>
+    {% endif %}
+  </body>
+</html>
