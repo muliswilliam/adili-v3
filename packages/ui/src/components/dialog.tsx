@@ -1,86 +1,162 @@
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { type ComponentProps, createContext, useContext } from 'react';
 
-import { CloseIcon } from '../lib/close-icon';
 import { cn } from '../lib/cn';
+import { Icon } from './icon';
+import { isInToastViewport } from './toast';
 
-const DialogBusyContext = createContext(false);
-
-/**
- * Modal dialog. While open, focus moves into the dialog and Tab is trapped inside it; on close,
- * focus returns to the element that opened it (the `DialogTrigger`, or whatever had focus).
- */
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 
+const DialogBusyContext = createContext(false);
+
+/** Set on the built-in close button (as data-dialog-dismiss) so initial focus can skip it. */
+const DISMISS_ATTRIBUTE = 'data-dialog-dismiss';
+const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
+
+/** Closes the dialog. Disabled, and does nothing, while the DialogContent is busy. */
+export function DialogClose({
+  disabled,
+  onClick,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Close>) {
+  const busy = useContext(DialogBusyContext);
+  return (
+    <DialogPrimitive.Close
+      {...props}
+      disabled={busy || disabled}
+      onClick={(event) => {
+        onClick?.(event);
+        if (busy) event.preventDefault();
+      }}
+    />
+  );
+}
+
 export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
   /**
-   * Set while a submission is in flight. Esc, clicks outside and every `DialogClose` are ignored,
-   * so the dialog cannot be dismissed half-way through the action.
+   * Set while a submit is in flight. Esc and outside clicks are ignored and every DialogClose
+   * (including the built-in close button) is disabled, so the dialog cannot disappear under a
+   * pending request. A controlled `open` can still be set to false by the caller.
    */
   busy?: boolean;
-  /** Hide the corner close button, e.g. when the footer already has a Cancel `DialogClose`. */
-  hideCloseButton?: boolean;
 };
 
+/**
+ * Modal content: a bottom sheet on phones, a centred 560px panel from `sm`. Compose it from
+ * DialogHeader, DialogBody (which scrolls) and DialogFooter. Focus moves to the first field
+ * (or the close button when there is none) on open, is trapped while open and returns to the
+ * trigger on close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there
+ * is no DialogDescription.
+ */
 export function DialogContent({
   busy = false,
-  hideCloseButton = false,
-  onEscapeKeyDown,
-  onInteractOutside,
   className,
   children,
+  onEscapeKeyDown,
+  onInteractOutside,
+  onOpenAutoFocus,
   ...props
 }: DialogContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/45" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim" />
       <DialogPrimitive.Content
         aria-busy={busy || undefined}
+        onOpenAutoFocus={(event) => {
+          onOpenAutoFocus?.(event);
+          if (event.defaultPrevented || !(event.target instanceof HTMLElement)) return;
+          // The close button comes first in the DOM so it is first in focus order; start on
+          // the content instead, as Radix would if the button were last.
+          const first = Array.from(event.target.querySelectorAll<HTMLElement>(FOCUSABLE)).find(
+            (element) =>
+              element.tabIndex >= 0 &&
+              !element.matches(':disabled') &&
+              !element.hasAttribute(DISMISS_ATTRIBUTE),
+          );
+          if (first) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
         onEscapeKeyDown={(event) => {
-          onEscapeKeyDown?.(event);
           if (busy) event.preventDefault();
+          onEscapeKeyDown?.(event);
         }}
         onInteractOutside={(event) => {
+          // Toasts sit above the dialog; dismissing one should not close it.
+          if (busy || isInToastViewport(event.target)) event.preventDefault();
           onInteractOutside?.(event);
-          if (busy) event.preventDefault();
         }}
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-xl border bg-card p-6 text-card-foreground shadow-lg outline-none',
+          'fixed inset-x-0 bottom-0 z-50 flex max-h-[94dvh] flex-col overflow-hidden rounded-t-[22px] bg-card text-card-foreground shadow-pop outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-3rem)] sm:max-w-[560px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px]',
           className,
         )}
         {...props}
       >
-        <DialogBusyContext.Provider value={busy}>
+        <DialogBusyContext value={busy}>
+          <div
+            aria-hidden="true"
+            className="mx-auto mt-2 h-[5px] w-10 shrink-0 rounded-full bg-input sm:hidden"
+          />
+          {/* Before the content in the DOM, so focus order matches its top-right position. */}
+          <DialogClose
+            data-dialog-dismiss=""
+            className="absolute top-[33px] right-5 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 sm:top-6 sm:right-6"
+          >
+            <Icon icon={Cancel01Icon} className="size-[18px]" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
           {children}
-          {hideCloseButton ? null : (
-            <DialogClose
-              aria-label="Close"
-              className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            >
-              <CloseIcon />
-            </DialogClose>
-          )}
-        </DialogBusyContext.Provider>
+        </DialogBusyContext>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
 }
 
-/** Closes the dialog. Disabled automatically while the dialog is busy. */
-export function DialogClose({ disabled, ...props }: ComponentProps<typeof DialogPrimitive.Close>) {
-  const busy = useContext(DialogBusyContext);
-  return <DialogPrimitive.Close disabled={(disabled ?? false) || busy} {...props} />;
+export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 flex-col gap-[3px] px-5 pt-5 pr-16 pb-3 sm:px-6 sm:pt-6 sm:pr-[72px]',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
-export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col gap-1.5 pr-8', className)} {...props} />;
+/** The dialog's content, with fields 18px apart. Scrolls when the dialog is taller than the screen. */
+export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-5 pt-2 pb-5 sm:px-6 sm:pb-6',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** Actions under a hairline: equal width on phones, right-aligned from `sm`. Put the main action last. */
+export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 gap-2.5 border-t px-5 pt-3.5 pb-5 *:flex-1 sm:justify-end sm:px-6 sm:pt-4 sm:pb-6 sm:*:flex-none',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn('text-lg leading-7 font-semibold tracking-tight', className)}
+      className={cn('text-[19px] leading-7 font-semibold tracking-[-0.015em]', className)}
       {...props}
     />
   );
@@ -93,15 +169,6 @@ export function DialogDescription({
   return (
     <DialogPrimitive.Description
       className={cn('text-sm text-muted-foreground', className)}
-      {...props}
-    />
-  );
-}
-
-export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
-  return (
-    <div
-      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}
     />
   );

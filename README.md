@@ -48,7 +48,7 @@ Keycloak imports the realm (`infra/compose/keycloak/adili-realm.json`) only when
 
 Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.
 
-**Demo accounts** (password `Adili-Demo-2026`): `declarant`, `reporting-officer`, `reviewer`, `supervisor`, `commission-admin`, `access-officer`, `eacc-analyst`, `eacc-supervisor`, `auditor`, `helpdesk`, `platform-admin`.
+**Demo accounts** (password `Adili-Demo-2026`): `declarant`, `applicant`, `reporting-officer`, `reviewer`, `supervisor`, `commission-admin`, `access-officer`, `eacc-analyst`, `eacc-supervisor`, `auditor`, `helpdesk`, `platform-admin`, `law-enforcement`. Staff and law-enforcement enrol TOTP on first sign-in. Declarant and applicant SMS OTP is added by the #79 authenticator. The realm file is `infra/compose/keycloak/adili-realm.json`.
 
 Container images (from the repo root):
 - services: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=directory .`

@@ -1,5 +1,4 @@
-import { DismissableLayerBranch } from '@radix-ui/react-dismissable-layer';
-import { cva } from 'class-variance-authority';
+import { Alert02Icon, Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import {
   createContext,
   type ReactNode,
@@ -9,100 +8,175 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
+import { createPortal } from 'react-dom';
 
-import { CloseIcon } from '../lib/close-icon';
+import { cn } from '../lib/cn';
+import { Icon } from './icon';
 
-export type ToastVariant = 'default' | 'destructive';
+/**
+ * `polite` waits for the screen reader to finish (confirmations); `assertive` interrupts
+ * (failures the user must act on).
+ */
+export type ToastUrgency = 'polite' | 'assertive';
 
 export interface ToastOptions {
   title: ReactNode;
   description?: ReactNode;
-  variant?: ToastVariant;
+  /** Defaults to polite. Assertive toasts are styled as destructive, with a warning icon. */
+  urgency?: ToastUrgency;
   /**
-   * How screen readers announce the toast. `polite` waits for the user to be idle; `assertive`
-   * interrupts. Defaults to `assertive` for destructive toasts and `polite` otherwise.
+   * Milliseconds before the toast dismisses itself. Polite toasts default to 6000; assertive
+   * toasts stay until dismissed so the user has time to read them. The countdown pauses while
+   * the toast is hovered or has focus.
    */
-  politeness?: 'polite' | 'assertive';
-  /** Milliseconds before the toast dismisses itself; `null` keeps it until dismissed. */
-  duration?: number | null;
+  duration?: number;
 }
 
-interface ToastRecord {
-  id: string;
-  title: ReactNode;
-  description?: ReactNode;
-  variant: ToastVariant;
-  politeness: 'polite' | 'assertive';
-  duration: number | null;
+interface ToastEntry extends ToastOptions {
+  id: number;
 }
 
-export interface ToastApi {
+interface ToastApi {
   /** Shows a toast and returns its id. */
-  toast: (options: ToastOptions) => string;
-  dismiss: (id: string) => void;
+  toast: (options: ToastOptions) => number;
+  dismiss: (id: number) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
 
-export interface ToastProviderProps {
-  children?: ReactNode;
-  /** Default auto-dismiss delay in milliseconds. */
-  duration?: number;
+const DEFAULT_POLITE_DURATION = 6000;
+
+/** Whether an event target is inside the toast viewport, so a dialog can ignore it. */
+export function isInToastViewport(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[data-toast-viewport]') !== null;
 }
 
+function urgencyOf(entry: ToastOptions): ToastUrgency {
+  return entry.urgency ?? 'polite';
+}
+
+const subscribeToNothing = () => () => undefined;
+
 /**
- * Hosts toasts for everything below it. The polite and assertive live regions are rendered up
- * front and stay mounted, because screen readers only announce changes to regions that already
- * exist.
+ * Renders both live regions on mount, before any toast exists, so screen readers pick up
+ * toasts added later. They are portalled to the body, above modal dialogs, so a dialog that
+ * hides the rest of the page from assistive technology does not hide them. Mount once near
+ * the app root.
  */
-export function ToastProvider({ children, duration = 5000 }: ToastProviderProps) {
-  const [toasts, setToasts] = useState<ToastRecord[]>([]);
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const nextId = useRef(0);
-
-  const dismiss = useCallback((id: string) => {
-    setToasts((current) => current.filter((item) => item.id !== id));
-  }, []);
-
-  const toast = useCallback(
-    ({ title, description, variant = 'default', politeness, duration: ms }: ToastOptions) => {
-      nextId.current += 1;
-      const id = `toast-${nextId.current}`;
-      const record: ToastRecord = {
-        id,
-        title,
-        description,
-        variant,
-        politeness: politeness ?? (variant === 'destructive' ? 'assertive' : 'polite'),
-        duration: ms === undefined ? duration : ms,
-      };
-      setToasts((current) => [...current, record]);
-      return id;
-    },
-    [duration],
+  // No document during server rendering; the regions mount on the client.
+  const isClient = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
   );
 
+  const dismiss = useCallback((id: number) => {
+    setToasts((current) => current.filter((entry) => entry.id !== id));
+  }, []);
+
+  const toast = useCallback((options: ToastOptions) => {
+    nextId.current += 1;
+    const id = nextId.current;
+    setToasts((current) => [...current, { ...options, id }]);
+    return id;
+  }, []);
+
   const api = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
-  const polite = toasts.filter((item) => item.politeness === 'polite');
-  const assertive = toasts.filter((item) => item.politeness === 'assertive');
+  const polite = toasts.filter((entry) => urgencyOf(entry) === 'polite');
+  const assertive = toasts.filter((entry) => urgencyOf(entry) === 'assertive');
 
   return (
-    <ToastContext.Provider value={api}>
+    <ToastContext value={api}>
       {children}
-      {/* A layer branch, so dismissing a toast does not count as a click outside an open dialog. */}
-      <DismissableLayerBranch className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4">
-        <div role="status" aria-live="polite" className="flex flex-col items-center gap-2">
-          {polite.map((item) => (
-            <ToastItem key={item.id} toast={item} onDismiss={dismiss} />
-          ))}
-        </div>
-        <div role="alert" aria-live="assertive" className="flex flex-col items-center gap-2">
-          {assertive.map((item) => (
-            <ToastItem key={item.id} toast={item} onDismiss={dismiss} />
-          ))}
-        </div>
-      </DismissableLayerBranch>
-    </ToastContext.Provider>
+      {isClient
+        ? createPortal(
+            <div
+              data-toast-viewport=""
+              className="pointer-events-none fixed inset-x-4 bottom-6 z-[60] flex flex-col items-center gap-2"
+            >
+              <div role="alert" aria-live="assertive" className="flex flex-col items-center gap-2">
+                {assertive.map((entry) => (
+                  <ToastItem key={entry.id} entry={entry} onDismiss={dismiss} />
+                ))}
+              </div>
+              <div role="status" aria-live="polite" className="flex flex-col items-center gap-2">
+                {polite.map((entry) => (
+                  <ToastItem key={entry.id} entry={entry} onDismiss={dismiss} />
+                ))}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </ToastContext>
+  );
+}
+
+function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: number) => void }) {
+  const urgency = urgencyOf(entry);
+  const assertive = urgency === 'assertive';
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const remaining = useRef(entry.duration ?? (assertive ? undefined : DEFAULT_POLITE_DURATION));
+
+  useEffect(() => {
+    if (remaining.current === undefined || hovered || focused) return;
+    const startedAt = Date.now();
+    const timer = setTimeout(() => {
+      onDismiss(entry.id);
+    }, remaining.current);
+    return () => {
+      clearTimeout(timer);
+      if (remaining.current !== undefined) remaining.current -= Date.now() - startedAt;
+    };
+  }, [hovered, focused, entry.id, onDismiss]);
+
+  return (
+    <div
+      data-urgency={urgency}
+      onMouseEnter={() => {
+        setHovered(true);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+      }}
+      onFocus={() => {
+        setFocused(true);
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
+      className={cn(
+        'pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl py-[11px] pr-2 pl-4 text-sm shadow-pop',
+        assertive ? 'bg-destructive text-destructive-foreground' : 'bg-foreground text-background',
+      )}
+    >
+      <Icon icon={assertive ? Alert02Icon : Tick02Icon} className="mt-0.5" />
+      <div className="grid min-w-0 gap-0.5">
+        <div className="font-medium">{entry.title}</div>
+        {entry.description ? <div className="opacity-80">{entry.description}</div> : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          onDismiss(entry.id);
+        }}
+        className={cn(
+          '-my-0.5 flex size-6 shrink-0 items-center justify-center rounded-md opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2',
+          assertive
+            ? 'focus-visible:outline-destructive-foreground'
+            : 'focus-visible:outline-background',
+        )}
+      >
+        <Icon icon={Cancel01Icon} />
+        <span className="sr-only">Dismiss notification</span>
+      </button>
+    </div>
   );
 }
 
@@ -110,65 +184,4 @@ export function useToast(): ToastApi {
   const api = useContext(ToastContext);
   if (!api) throw new Error('useToast must be used inside a ToastProvider');
   return api;
-}
-
-const toastVariants = cva(
-  'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-lg py-3 pr-2 pl-4 text-sm shadow-lg',
-  {
-    variants: {
-      variant: {
-        default: 'bg-foreground text-background',
-        destructive: 'bg-destructive text-destructive-foreground',
-      },
-    },
-  },
-);
-
-function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: (id: string) => void }) {
-  const [paused, setPaused] = useState(false);
-  const { id, duration } = toast;
-
-  useEffect(() => {
-    if (duration === null || paused) return;
-    const timer = setTimeout(() => {
-      onDismiss(id);
-    }, duration);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [id, duration, paused, onDismiss]);
-
-  return (
-    // Hover and focus pause the timer so the message can be read and acted on.
-    <div
-      className={toastVariants({ variant: toast.variant })}
-      onMouseEnter={() => {
-        setPaused(true);
-      }}
-      onMouseLeave={() => {
-        setPaused(false);
-      }}
-      onFocus={() => {
-        setPaused(true);
-      }}
-      onBlur={() => {
-        setPaused(false);
-      }}
-    >
-      <div className="grid flex-1 gap-0.5 py-0.5">
-        <p className="leading-5 font-medium">{toast.title}</p>
-        {toast.description ? <p className="leading-5 opacity-90">{toast.description}</p> : null}
-      </div>
-      <button
-        type="button"
-        aria-label="Dismiss"
-        onClick={() => {
-          onDismiss(id);
-        }}
-        className="inline-flex size-7 shrink-0 items-center justify-center rounded-md opacity-80 transition-opacity outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current"
-      >
-        <CloseIcon />
-      </button>
-    </div>
-  );
 }

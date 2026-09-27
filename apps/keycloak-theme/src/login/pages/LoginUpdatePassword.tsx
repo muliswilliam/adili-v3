@@ -1,7 +1,7 @@
-import { Button, Input, Label } from '@adili/ui';
+import { Button, Icon, Input, Label } from '@adili/ui';
+import { ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { useIsPasswordRevealed } from 'keycloakify/tools/useIsPasswordRevealed';
-import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
 import { CheckboxRow, FieldError, Lead } from '../components';
@@ -83,7 +83,7 @@ export default function LoginUpdatePassword({
           />
         ) : null}
         <div className="grid gap-3">
-          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting}>
             {msgStr('adiliPasswordSubmit')}
           </Button>
           {isAppInitiatedAction ? (
@@ -91,8 +91,8 @@ export default function LoginUpdatePassword({
               type="submit"
               name="cancel-aia"
               value="true"
-              variant="outline"
-              size="lg"
+              variant="secondary"
+
               className="w-full"
             >
               {msg('doCancel')}
@@ -137,15 +137,15 @@ function PasswordInput({
       />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         aria-label={msgStr(isPasswordRevealed ? 'hidePassword' : 'showPassword')}
         aria-controls={id}
         onClick={toggleIsPasswordRevealed}
       >
         {isPasswordRevealed ? (
-          <EyeOff className="size-4" aria-hidden="true" />
+          <Icon icon={ViewOffSlashIcon} className="size-4" />
         ) : (
-          <Eye className="size-4" aria-hidden="true" />
+          <Icon icon={ViewIcon} className="size-4" />
         )}
       </button>
     </div>

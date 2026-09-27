@@ -1,18 +1,20 @@
-import { type ComponentProps, type ReactNode, useId } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { useFieldIds } from '../lib/use-field-ids';
+import { FieldError, FieldHint } from './form-field';
 
 export type RadioCardProps = Omit<ComponentProps<'input'>, 'type'> & {
   label: ReactNode;
   /** Secondary text under the label, linked to the radio with `aria-describedby`. */
   description?: ReactNode;
-  /** Decorative icon at the end of the card, e.g. a lucide-react icon. */
+  /** Decorative icon at the end of the card, e.g. an `Icon`. */
   icon?: ReactNode;
 };
 
 /**
- * One choice of a `RadioGroup`, drawn as a card whose whole surface selects it. A native radio,
- * so arrow keys move between choices and it submits with forms.
+ * One choice of a `RadioGroup`, drawn as the prototype kit's `.choice` card: the whole surface
+ * selects it. A native radio, so arrow keys move between choices and it submits with forms.
  */
 export function RadioCard({
   label,
@@ -21,43 +23,44 @@ export function RadioCard({
   id,
   className,
   disabled,
+  'aria-describedby': ownDescribedBy,
   ...props
 }: RadioCardProps) {
-  const generatedId = useId();
-  const radioId = id ?? generatedId;
-  const labelId = `${radioId}-label`;
-  const descriptionId = `${radioId}-description`;
+  const fieldIds = useFieldIds({ id, hint: description, describedBy: ownDescribedBy });
+  const labelId = `${fieldIds.id}-label`;
 
   return (
     <label
-      htmlFor={radioId}
+      htmlFor={fieldIds.id}
       className={cn(
-        'flex cursor-pointer items-start gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-input has-checked:border-primary has-checked:bg-primary-subtle/40 has-checked:ring-1 has-checked:ring-primary has-focus-visible:ring-2 has-focus-visible:ring-ring has-disabled:cursor-not-allowed has-disabled:opacity-60 has-disabled:hover:border-border',
+        'relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg bg-control px-3 py-2.5 text-[14.5px] font-medium shadow-control transition-shadow select-none hover:shadow-control-hover has-checked:shadow-[0_0_0_1.5px_var(--ring)] has-focus-visible:outline-3 has-focus-visible:outline-ring/15 has-disabled:cursor-not-allowed has-disabled:opacity-50',
         className,
       )}
     >
       <input
         type="radio"
-        id={radioId}
+        id={fieldIds.id}
         disabled={disabled}
         // The card label also holds the description; name the radio by its label text only.
         aria-labelledby={labelId}
-        aria-describedby={description ? descriptionId : undefined}
-        className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary outline-none disabled:cursor-not-allowed"
+        aria-describedby={fieldIds.describedBy}
+        className="peer pointer-events-none absolute opacity-0"
         {...props}
       />
+      <span
+        aria-hidden="true"
+        className="mt-0.5 size-[18px] shrink-0 rounded-full bg-control shadow-[inset_0_0_0_1.5px_var(--input)] transition-shadow peer-checked:shadow-[inset_0_0_0_5px_var(--primary)]"
+      />
       <span className="grid flex-1 gap-0.5">
-        <span id={labelId} className="text-sm leading-5 font-medium">
-          {label}
-        </span>
+        <span id={labelId}>{label}</span>
         {description ? (
-          <span id={descriptionId} className="text-[13px] text-muted-foreground">
+          <FieldHint id={fieldIds.hintId} className="font-normal">
             {description}
-          </span>
+          </FieldHint>
         ) : null}
       </span>
       {icon ? (
-        <span aria-hidden="true" className="mt-0.5 text-muted-foreground [&_svg]:size-4">
+        <span aria-hidden="true" className="mt-0.5 flex text-muted-foreground">
           {icon}
         </span>
       ) : null}
@@ -68,52 +71,41 @@ export function RadioCard({
 export type RadioGroupProps = ComponentProps<'fieldset'> & {
   legend: ReactNode;
   hint?: ReactNode;
-  /** Validation message for the group, announced when it appears. */
+  /** When set, the group is marked invalid and described by the message. */
   error?: ReactNode;
 };
 
 /**
- * A fieldset of `RadioCard`s sharing one `name`, with a legend, hint and error. The fieldset is
- * a `radiogroup`; it is marked invalid while an error is shown.
+ * A fieldset of `RadioCard`s sharing one `name`, with a legend, hint and error, laid out like
+ * `CheckboxGroup`. The fieldset is a `radiogroup`; it is marked invalid while an error is shown.
  */
 export function RadioGroup({
   legend,
   hint,
   error,
+  id,
   className,
   children,
+  'aria-describedby': ownDescribedBy,
   ...props
 }: RadioGroupProps) {
-  const id = useId();
-  const hintId = `${id}-hint`;
-  const errorId = `${id}-error`;
-  const hasError = error != null && error !== false && error !== '';
-  const describedBy = [hint ? hintId : null, hasError ? errorId : null].filter(Boolean).join(' ');
+  const fieldIds = useFieldIds({ id, hint, error, describedBy: ownDescribedBy });
 
   return (
     <fieldset
       role="radiogroup"
-      aria-describedby={describedBy || undefined}
-      aria-invalid={hasError ? true : undefined}
-      className={cn('m-0 grid min-w-0 gap-2 border-0 p-0', className)}
       {...props}
+      id={fieldIds.id}
+      aria-describedby={fieldIds.describedBy}
+      aria-invalid={error ? true : props['aria-invalid']}
+      className={cn('grid min-w-0 gap-1.5', className)}
     >
-      <legend className="float-left w-full p-0 text-sm leading-none font-medium">{legend}</legend>
-      {hint ? (
-        <p id={hintId} className="text-[13px] text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-      {hasError ? (
-        <p
-          id={errorId}
-          role="alert"
-          className="text-[13px] font-medium text-destructive-subtle-foreground"
-        >
-          {error}
-        </p>
-      ) : null}
-      <div className="grid gap-2 pt-1">{children}</div>
+      <legend className="mb-1 text-sm leading-5 font-medium text-secondary-foreground">
+        {legend}
+      </legend>
+      {hint ? <FieldHint id={fieldIds.hintId}>{hint}</FieldHint> : null}
+      <div className="grid gap-2">{children}</div>
+      {error ? <FieldError id={fieldIds.errorId}>{error}</FieldError> : null}
     </fieldset>
   );
 }

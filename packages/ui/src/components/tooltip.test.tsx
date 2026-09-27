@@ -1,35 +1,54 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
+import { Tooltip, TooltipProvider } from './tooltip';
 
-// jsdom has no ResizeObserver; Radix measures the arrow with it.
-beforeAll(() => {
-  const noop = () => undefined;
-  globalThis.ResizeObserver = class {
-    observe = noop;
-    unobserve = noop;
-    disconnect = noop;
-  };
-});
+function ImportButton() {
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip content="Wait for the current import to finish">
+        <span tabIndex={0} data-testid="trigger">
+          <button type="button" disabled>
+            Import roster
+          </button>
+        </span>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 describe('Tooltip', () => {
-  it('opens on keyboard focus and describes its trigger', async () => {
+  it('shows on keyboard focus and describes its trigger', () => {
+    render(<ImportButton />);
+    const trigger = screen.getByTestId('trigger');
+
+    fireEvent.focus(trigger);
+
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip.textContent).toBe('Wait for the current import to finish');
+    expect(trigger.getAttribute('aria-describedby')).toBe(tooltip.id);
+  });
+
+  it('closes on Escape', () => {
+    render(<ImportButton />);
+    const trigger = screen.getByTestId('trigger');
+
+    fireEvent.focus(trigger);
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('works without a TooltipProvider', () => {
     render(
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span tabIndex={0}>+2</span>
-          </TooltipTrigger>
-          <TooltipContent>Regs r.5(e), Regs r.5(f)</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>,
+      <Tooltip content="Only admins can export">
+        <button type="button">Export</button>
+      </Tooltip>,
     );
+    const trigger = screen.getByRole('button', { name: 'Export' });
 
-    await userEvent.tab();
+    fireEvent.focus(trigger);
 
-    expect((await screen.findByRole('tooltip')).textContent).toContain('Regs r.5(e), Regs r.5(f)');
-    expect(screen.getByText('+2').getAttribute('aria-describedby')).toBeTruthy();
+    expect(screen.getByRole('tooltip').textContent).toBe('Only admins can export');
   });
 });

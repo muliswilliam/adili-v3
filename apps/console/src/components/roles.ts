@@ -14,7 +14,29 @@ const ROLE_LABELS: Readonly<Record<string, string>> = {
   auditor: 'Auditor',
   helpdesk: 'Helpdesk',
   'platform-admin': 'Platform administrator',
+  'law-enforcement': 'Law enforcement',
 };
+
+/** Console roles, most senior first, for naming a user by one role (sidebar footer). */
+const SENIORITY = [
+  'platform-admin',
+  'eacc-supervisor',
+  'eacc-analyst',
+  'commission-admin',
+  'supervisor',
+  'reviewer',
+  'reporting-officer',
+  'access-officer',
+  'law-enforcement',
+  'auditor',
+  'helpdesk',
+] as const;
+
+/** The label of a user's most senior console role, or null when they hold none. */
+export function seniorRoleLabel(roles: readonly string[]): string | null {
+  const role = SENIORITY.find((candidate) => roles.includes(candidate));
+  return role ? roleLabel(role) : null;
+}
 
 export function roleLabel(role: string): string {
   const known = ROLE_LABELS[role];

@@ -1,43 +1,58 @@
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, createContext, type ReactNode, useContext } from 'react';
 
 import { cn } from '../lib/cn';
 
+const HasProvider = createContext(false);
+
 /**
- * Mount once near the root; tooltips share its open delay. The trigger must be focusable (a
- * button, link, or an element with `tabIndex={0}`) so keyboard users can open it too.
- * Tooltips add detail; never put information in them that the page needs to be understood.
+ * Optional. Mount near the app root so tooltips share one open delay and skip the delay when
+ * moving between triggers. Without it each Tooltip mounts its own provider with the defaults.
  */
-export function TooltipProvider({
-  delayDuration = 200,
-  ...props
-}: ComponentProps<typeof TooltipPrimitive.Provider>) {
-  return <TooltipPrimitive.Provider delayDuration={delayDuration} {...props} />;
+export function TooltipProvider(props: ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return (
+    <HasProvider value={true}>
+      <TooltipPrimitive.Provider {...props} />
+    </HasProvider>
+  );
 }
 
-export const Tooltip = TooltipPrimitive.Root;
+export type TooltipProps = Omit<ComponentProps<typeof TooltipPrimitive.Root>, 'children'> & {
+  /** Supplementary text. Never put information here that the user needs to complete a task. */
+  content: ReactNode;
+  /**
+   * One focusable element. A disabled button cannot take focus or hover, so wrap it in a
+   * `<span tabIndex={0}>` to explain why it is disabled.
+   */
+  children: ReactNode;
+  side?: ComponentProps<typeof TooltipPrimitive.Content>['side'];
+  className?: string;
+};
 
-export const TooltipTrigger = TooltipPrimitive.Trigger;
-
-export function TooltipContent({
-  className,
-  sideOffset = 6,
-  children,
-  ...props
-}: ComponentProps<typeof TooltipPrimitive.Content>) {
-  return (
-    <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content
-        sideOffset={sideOffset}
-        className={cn(
-          'z-50 max-w-xs rounded-md bg-foreground px-3 py-2 text-xs leading-5 text-background shadow-md',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        <TooltipPrimitive.Arrow className="fill-foreground" />
-      </TooltipPrimitive.Content>
-    </TooltipPrimitive.Portal>
+/**
+ * Shows short text on hover and keyboard focus, dismissed with Esc. The trigger is described
+ * by the tooltip text while it is open. Works on its own; inside a TooltipProvider it uses
+ * that provider's delays.
+ */
+export function Tooltip({ content, children, side = 'top', className, ...props }: TooltipProps) {
+  const hasProvider = useContext(HasProvider);
+  const root = (
+    <TooltipPrimitive.Root {...props}>
+      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side={side}
+          sideOffset={8}
+          className={cn(
+            'z-50 max-w-[280px] rounded-md bg-primary px-2.5 py-2 text-[12.5px] leading-[1.45] font-medium text-primary-foreground shadow-pop',
+            className,
+          )}
+        >
+          {content}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
+  // Radix throws when Root has no provider above it.
+  return hasProvider ? root : <TooltipPrimitive.Provider>{root}</TooltipPrimitive.Provider>;
 }

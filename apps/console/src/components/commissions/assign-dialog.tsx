@@ -3,25 +3,28 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  CardIcon,
+  DialogBody,
   DialogClose,
   DialogContent,
   type DialogContentProps,
-  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   FormField,
+  Icon,
   Input,
 } from '@adili/ui';
 import {
-  ArrowRightLeft,
-  Check,
-  CircleAlert,
-  LoaderCircle,
-  Mail,
-  Send,
-  TriangleAlert,
-  UserPlus,
-} from 'lucide-react';
+  Alert02Icon,
+  AlertCircleIcon,
+  ArrowDataTransferHorizontalIcon,
+  Loading03Icon,
+  Mail01Icon,
+  SentIcon,
+  Tick02Icon,
+  UserAdd01Icon,
+} from '@hugeicons/core-free-icons';
 import { type SyntheticEvent, useId, useRef, useState } from 'react';
 
 import { assignReportingOfficer } from '../../server/commissions';
@@ -175,132 +178,134 @@ export function AssignDialogContent({
     <DialogContent
       busy={submitting}
       onCloseAutoFocus={onCloseAutoFocus}
-      className="max-w-[34rem] gap-0 p-0"
+      aria-describedby={undefined}
     >
-      <DialogHeader className="flex-row items-center gap-3 px-6 pt-6 pb-5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-          {replacing ? (
-            <ArrowRightLeft aria-hidden="true" className="size-[18px]" />
-          ) : (
-            <UserPlus aria-hidden="true" className="size-[18px]" />
-          )}
-        </span>
-        <div className="grid min-w-0 gap-0.5">
-          <DialogTitle>{replacing ? m.replaceTitle : m.assignTitle}</DialogTitle>
-          <DialogDescription className="truncate">{commission.name}</DialogDescription>
-        </div>
+      <DialogHeader className="flex-row items-center gap-3">
+        <CardIcon className="mb-0">
+          <Icon icon={replacing ? ArrowDataTransferHorizontalIcon : UserAdd01Icon} />
+        </CardIcon>
+        <DialogTitle>{replacing ? m.replaceTitle : m.assignTitle}</DialogTitle>
       </DialogHeader>
 
-      <form noValidate onSubmit={(event) => void submit(event)} aria-busy={submitting}>
-        <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-5 border-0 px-6 pb-6">
-          {replacing ? (
-            <Alert variant="warning" role="status">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>{m.replaceWarning(replacing.name)}</AlertDescription>
-            </Alert>
-          ) : null}
-          <div ref={alertsRef} tabIndex={-1} className="outline-none empty:hidden">
-            {state.alert ? (
-              <SubmitAlert
-                alert={state.alert}
-                unmapped={state.unmapped}
-                fieldErrors={ASSIGN_FIELDS.some((field) => errors[field])}
-              />
+      <form
+        noValidate
+        onSubmit={(event) => void submit(event)}
+        aria-busy={submitting}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <DialogBody>
+          {/* Disabling the fieldset disables every control while the request is in flight. */}
+          <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-[18px] border-0 p-0">
+            {replacing ? (
+              <Alert variant="warning" role="status">
+                <Icon icon={Alert02Icon} />
+                <AlertDescription>{m.replaceWarning(replacing.name)}</AlertDescription>
+              </Alert>
             ) : null}
-          </div>
+            <div ref={alertsRef} tabIndex={-1} className="outline-none empty:hidden">
+              {state.alert ? (
+                <SubmitAlert
+                  alert={state.alert}
+                  unmapped={state.unmapped}
+                  fieldErrors={ASSIGN_FIELDS.some((field) => errors[field])}
+                />
+              ) : null}
+            </div>
 
-          <FormField label={m.officerFullName} error={errors.name} controlId={controlId('name')}>
-            <Input
-              value={draft.name}
-              autoComplete="off"
-              maxLength={130}
-              onChange={(event) => {
-                change('name', event.target.value);
-              }}
-            />
-          </FormField>
+            <FormField label={m.officerFullName} error={errors.name} controlId={controlId('name')}>
+              <Input
+                value={draft.name}
+                autoComplete="off"
+                maxLength={130}
+                onChange={(event) => {
+                  change('name', event.target.value);
+                }}
+              />
+            </FormField>
 
-          <FormField
-            label={m.officerOfficialEmail}
-            hint={m.officerEmailHint}
-            error={errors.email}
-            controlId={controlId('email')}
-          >
-            <Input
-              type="email"
-              value={draft.email}
-              placeholder={m.officerEmailPlaceholder}
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              maxLength={260}
-              onChange={(event) => {
-                change('email', event.target.value);
-              }}
-            />
-          </FormField>
+            <FormField
+              label={m.officerOfficialEmail}
+              hint={m.officerEmailHint}
+              error={errors.email}
+              controlId={controlId('email')}
+            >
+              <Input
+                type="email"
+                value={draft.email}
+                placeholder={m.officerEmailPlaceholder}
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={260}
+                onChange={(event) => {
+                  change('email', event.target.value);
+                }}
+              />
+            </FormField>
 
-          <FormField
-            label={m.officerPhone}
-            error={errors.phone}
-            controlId={controlId('phone')}
-            hint={
-              <span className="grid gap-1">
-                <span>{m.officerPhoneHint}</span>
+            <div className="grid gap-1.5">
+              <FormField
+                label={m.officerPhone}
+                hint={m.officerPhoneHint}
+                error={errors.phone}
+                controlId={controlId('phone')}
+              >
+                <Input
+                  type="tel"
+                  value={draft.phone}
+                  placeholder={m.officerPhonePlaceholder}
+                  autoComplete="off"
+                  maxLength={40}
+                  className="tabular-nums"
+                  aria-describedby={`${controlId('phone')}-saved`}
+                  onChange={(event) => {
+                    change('phone', event.target.value);
+                  }}
+                />
+              </FormField>
+              {/* Under the field, as in the prototype: what the number will be stored as. */}
+              <p
+                id={`${controlId('phone')}-saved`}
+                aria-live="polite"
+                className="flex items-center gap-1.5 text-[13px] font-medium text-success empty:hidden"
+              >
                 {phone && !errors.phone ? (
-                  <span
-                    aria-live="polite"
-                    className="flex items-center gap-1.5 font-medium text-success-subtle-foreground"
-                  >
-                    <Check aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2.4} />
+                  <>
+                    <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={2.4} />
                     <span className="tabular-nums">
                       {m.officerPhoneSavedAs(formatPhone(phone))}
                     </span>
-                  </span>
+                  </>
                 ) : null}
-              </span>
-            }
-          >
-            <Input
-              type="tel"
-              value={draft.phone}
-              placeholder={m.officerPhonePlaceholder}
-              autoComplete="off"
-              maxLength={40}
-              className="tabular-nums"
-              onChange={(event) => {
-                change('phone', event.target.value);
-              }}
-            />
-          </FormField>
-        </fieldset>
+              </p>
+            </div>
+          </fieldset>
+        </DialogBody>
 
-        <div className="grid gap-4 border-t px-6 py-4">
-          <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
-            <Mail aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-            <span>{m.assignOneEmail}</span>
-          </p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <DialogClose asChild>
-              <Button type="button" variant="ghost">
-                {m.cancel}
-              </Button>
-            </DialogClose>
-            <Button type="submit" disabled={submitting} className="sm:min-w-44">
-              {submitting ? (
-                <>
-                  <LoaderCircle aria-hidden="true" className="animate-spin" />
-                  {m.assignSubmitting}
-                </>
-              ) : (
-                <>
-                  <Send aria-hidden="true" />
-                  {m.assignSubmit}
-                </>
-              )}
+        <p className="flex shrink-0 items-start gap-2 border-t px-5 pt-3.5 text-[13px] text-muted-foreground sm:px-6 sm:pt-4">
+          <Icon icon={Mail01Icon} className="mt-0.5 size-3.5" />
+          <span>{m.assignOneEmail}</span>
+        </p>
+        <DialogFooter className="border-t-0 pt-3 sm:pt-3">
+          <DialogClose asChild>
+            <Button type="button" variant="ghost">
+              {m.cancel}
             </Button>
-          </div>
-        </div>
+          </DialogClose>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? (
+              <>
+                <Icon icon={Loading03Icon} className="animate-spin" />
+                {m.assignSubmitting}
+              </>
+            ) : (
+              <>
+                <Icon icon={SentIcon} />
+                {m.assignSubmit}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </form>
     </DialogContent>
   );
@@ -329,7 +334,7 @@ function SubmitAlert({
   const { title, text } = copy[alert];
   return (
     <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
+      <Icon icon={AlertCircleIcon} />
       <AlertTitle>{title}</AlertTitle>
       {text || unmapped.length > 0 ? (
         <AlertDescription>

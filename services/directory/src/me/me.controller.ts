@@ -9,6 +9,8 @@ export class MeController {
   @ApiOperation({
     operationId: 'getMe',
     summary: 'The signed-in user, tenant and roles, as seen by the platform',
+    description:
+      'Any authenticated caller. Reads the verified access token; the BFFs use it to decide what a user may open.',
   })
   @ApiOkResponse({
     description: 'Verified identity from the access token',

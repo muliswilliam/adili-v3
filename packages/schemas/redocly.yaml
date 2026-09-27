@@ -1,9 +1,14 @@
-# Redocly lint for the contracts generated from the services (`pnpm --filter @adili/schemas lint`).
+# Style rules stay warnings so draft contracts can land. Structural
+# problems (unresolved refs, invalid OpenAPI) still fail the job.
 extends:
   - recommended
+
 rules:
-  # Internal APIs of the platform; no licence applies.
+  operation-summary: warn
+  no-empty-servers: warn
   info-license: off
-apis:
-  directory:
-    root: internal/directory.yaml
+  info-license-strict: off
+  operation-4xx-response: warn
+  operation-description: warn
+  tag-description: warn
+  security-defined: warn

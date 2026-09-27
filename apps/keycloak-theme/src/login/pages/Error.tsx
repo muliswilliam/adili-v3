@@ -1,7 +1,7 @@
 import { Button } from '@adili/ui';
+import { AlertCircleIcon, CheckmarkCircle02Icon, Clock01Icon } from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
-import { CircleAlert, CircleCheck, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 import { actionTokenOf } from '../action-token';
@@ -39,14 +39,14 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
         <Template
           {...frame}
           headerNode={
-            <StateTitle icon={CircleCheck} tone="success">
+            <StateTitle icon={CheckmarkCircle02Icon} tone="success">
               {msg('adiliLinkUsedTitle')}
             </StateTitle>
           }
         >
           <Lead>{msg('adiliLinkUsedLead')}</Lead>
           {token.reduri ? (
-            <Button asChild size="lg" className="w-full">
+            <Button asChild className="w-full">
               <a href={token.reduri}>{msg('adiliSignIn')}</a>
             </Button>
           ) : null}
@@ -55,7 +55,7 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
         <Template
           {...frame}
           headerNode={
-            <StateTitle icon={Clock} tone="warning">
+            <StateTitle icon={Clock01Icon} tone="warning">
               {msg('adiliLinkExpiredTitle')}
             </StateTitle>
           }
@@ -71,7 +71,7 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
               .join(' ')}
           </Lead>
           {token.reduri ? (
-            <Button asChild variant="outline" size="lg" className="w-full">
+            <Button asChild variant="secondary" className="w-full">
               <a href={token.reduri}>{msg('adiliAlreadyActivated')}</a>
             </Button>
           ) : null}
@@ -82,14 +82,14 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
       <Template
         {...frame}
         headerNode={
-          <StateTitle icon={Clock} tone="warning">
+          <StateTitle icon={Clock01Icon} tone="warning">
             {msg('adiliLinkExpiredTitle')}
           </StateTitle>
         }
       >
         <Lead>{msg('adiliLinkExpiredLead')}</Lead>
         {back ? (
-          <Button asChild variant="outline" size="lg" className="w-full">
+          <Button asChild variant="secondary" className="w-full">
             <a href={back}>{msg('adiliBackToAdili')}</a>
           </Button>
         ) : null}
@@ -101,7 +101,7 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
     <Template
       {...frame}
       headerNode={
-        <StateTitle icon={CircleAlert} tone="neutral">
+        <StateTitle icon={AlertCircleIcon} tone="neutral">
           {msg('adiliErrorTitle')}
         </StateTitle>
       }
@@ -112,7 +112,7 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
       />
       <p className="text-sm leading-6 text-muted-foreground">{msg('adiliErrorHelp')}</p>
       {back ? (
-        <Button asChild size="lg" className="w-full">
+        <Button asChild className="w-full">
           <a id="backToApplication" href={back}>
             {msg('adiliBackToAdili')}
           </a>

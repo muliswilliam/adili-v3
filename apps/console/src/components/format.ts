@@ -17,8 +17,6 @@ const partsFormat = new Intl.DateTimeFormat('en-GB', {
   timeZone: TIME_ZONE,
 });
 
-const relativeFormat = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-
 interface KenyanParts {
   day: number;
   month: number;
@@ -52,13 +50,26 @@ export function formatDateTime(iso: string): string {
   return `${formatDate(iso)}, ${hour}:${minute}`;
 }
 
-/** `today`, `yesterday`, `5 days ago`, `2 months ago`, `last year`. */
+/**
+ * How long ago, in Kenyan calendar days as the prototype words it: `today`, `yesterday`,
+ * `12 days ago`, then months of 30 days from day 31 (`1 month ago`), then years.
+ */
 export function formatRelativeDate(iso: string, now: Date = new Date()): string {
-  const days = Math.round((startOfDay(new Date(iso)) - startOfDay(now)) / DAY_MS);
-  if (Math.abs(days) < 30) return relativeFormat.format(days, 'day');
-  const months = Math.round(days / 30.44);
-  if (Math.abs(months) < 12) return relativeFormat.format(months, 'month');
-  return relativeFormat.format(Math.round(days / 365.25), 'year');
+  const days = Math.round((startOfDay(now) - startOfDay(new Date(iso))) / DAY_MS);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 31) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  if (months < 12) return months <= 1 ? '1 month ago' : `${months} months ago`;
+  const years = Math.round(days / 365.25);
+  return years <= 1 ? '1 year ago' : `${years} years ago`;
+}
+
+const numberFormat = new Intl.NumberFormat('en-KE');
+
+/** `48,312` */
+export function formatNumber(value: number): string {
+  return numberFormat.format(value);
 }
 
 /** Midnight of the Kenyan calendar day, as epoch milliseconds. */

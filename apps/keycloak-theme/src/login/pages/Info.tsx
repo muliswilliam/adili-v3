@@ -1,7 +1,7 @@
 import { Button } from '@adili/ui';
+import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
-import { CircleCheck } from 'lucide-react';
 
 import { Lead, StateTitle, type Step, Steps } from '../components';
 import type { I18n } from '../i18n';
@@ -33,7 +33,7 @@ export default function Info({ kcContext, i18n, doUseDefaultCss, Template, class
       <Template {...frame} headerNode={msg(activation ? 'adiliActivateTitle' : 'adiliSetupTitle')}>
         <Lead>{msg(activation ? 'adiliActivateLead' : 'adiliSetupLead')}</Lead>
         <Steps steps={ordered.map((action) => stepFor(action, i18n))} />
-        <Button asChild size="lg" className="w-full">
+        <Button asChild className="w-full">
           <a href={actionUri}>{msg('adiliContinue')}</a>
         </Button>
       </Template>
@@ -46,14 +46,14 @@ export default function Info({ kcContext, i18n, doUseDefaultCss, Template, class
       <Template
         {...frame}
         headerNode={
-          <StateTitle icon={CircleCheck} tone="success">
+          <StateTitle icon={CheckmarkCircle02Icon} tone="success">
             {msg('adiliAccountReadyTitle')}
           </StateTitle>
         }
       >
         <Lead>{msg('adiliAccountReadyLead')}</Lead>
         {next ? (
-          <Button asChild size="lg" className="w-full">
+          <Button asChild className="w-full">
             <a href={next}>{msg('adiliSignIn')}</a>
           </Button>
         ) : (
@@ -82,7 +82,7 @@ export default function Info({ kcContext, i18n, doUseDefaultCss, Template, class
         />
       ) : null}
       {next ? (
-        <Button asChild size="lg" className="w-full">
+        <Button asChild className="w-full">
           <a href={next}>
             {msg(actionUri && !pageRedirectUri ? 'adiliContinue' : 'adiliBackToAdili')}
           </a>

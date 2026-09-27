@@ -1,6 +1,6 @@
-import { Alert, AlertDescription, AlertTitle, Button } from '@adili/ui';
+import { Alert, AlertDescription, AlertTitle, Button, Card, EmptyState, Icon } from '@adili/ui';
+import { AlertCircleIcon, RefreshIcon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { CircleAlert, Lock, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 /** A load that failed and may work if retried (network, timeout, 5xx). Retry reruns loaders. */
@@ -16,26 +16,38 @@ export function LoadError({
   const router = useRouter();
   return (
     <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
+      <Icon icon={AlertCircleIcon} />
       <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{detail}</AlertDescription>
-      <div className="mt-2">
-        <Button variant="outline" size="sm" onClick={() => void router.invalidate()}>
-          <RefreshCw aria-hidden="true" />
+      <AlertDescription className="grid justify-items-start gap-2.5">
+        <p>{detail}</p>
+        <Button variant="secondary" size="sm" onClick={() => void router.invalidate()}>
+          <Icon icon={RefreshIcon} />
           {retryLabel}
         </Button>
-      </div>
+      </AlertDescription>
     </Alert>
   );
 }
 
-/** The directory refused the viewer (403). Retrying will not help. */
+/** The directory refused the viewer (403), or the workspace is not theirs. Retrying will not help. */
 export function NoAccess({ text, action }: { text: string; action?: ReactNode }) {
   return (
     <Alert role="status">
-      <Lock aria-hidden="true" />
+      <Icon icon={SquareLock02Icon} />
       <AlertTitle>{text}</AlertTitle>
       {action ? <div className="mt-2">{action}</div> : null}
     </Alert>
   );
+}
+
+/** A signed-in account with no console role at all. */
+export function NoStaffRoles({ inCard = true }: { inCard?: boolean }) {
+  const state = (
+    <EmptyState
+      icon={<Icon icon={SquareLock02Icon} />}
+      title="No staff roles"
+      description="Your account has no console access. Declarants file through the portal."
+    />
+  );
+  return inCard ? <Card className="p-0 sm:p-0">{state}</Card> : state;
 }

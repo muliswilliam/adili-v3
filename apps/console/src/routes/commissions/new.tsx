@@ -7,6 +7,7 @@ import {
   Checkbox,
   CheckboxGroup,
   FormField,
+  Icon,
   Input,
   RadioCard,
   RadioGroup,
@@ -14,10 +15,15 @@ import {
   useToast,
 } from '@adili/ui';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { CircleAlert, Hash, Link2, LoaderCircle, Server } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  HashtagIcon,
+  Link04Icon,
+  Loading03Icon,
+  ServerStack01Icon,
+} from '@hugeicons/core-free-icons';
 import { type SyntheticEvent, useId, useRef, useState } from 'react';
 
-import { CommissionsBreadcrumb } from '../../components/commissions/breadcrumb';
 import {
   checkDraft,
   checkField,
@@ -33,8 +39,8 @@ import {
 } from '../../components/commissions/create-form';
 import { messages as m } from '../../components/commissions/messages';
 import { LoadError, NoAccess } from '../../components/load-error';
+import { Page, PageHead } from '../../components/page';
 import { signInRedirect } from '../../components/sign-in-redirect';
-import { workspaceFor } from '../../components/workspaces';
 import { createCommission, listOfficerCategories } from '../../server/commissions';
 import type { OfficerCategory } from '../../server/directory/client';
 
@@ -45,25 +51,24 @@ export const Route = createFileRoute('/commissions/new')({
     return result;
   },
   head: () => ({ meta: [{ title: `${m.createTitle} · Adili Online Console` }] }),
+  staticData: { crumb: m.createTitle },
   pendingComponent: CreateSkeleton,
   component: CreateCommissionPage,
 });
 
 function CreateCommissionPage() {
-  const { viewer } = Route.useRouteContext();
+  const { workspace } = Route.useRouteContext();
   const categories = Route.useLoaderData();
-  const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
-  const readOnly = workspaceFor(roles, 'commissions')?.readOnly ?? true;
+  const readOnly = workspace?.readOnly ?? true;
 
   return (
-    <div className="grid w-full max-w-3xl gap-6">
-      <CommissionsBreadcrumb current={m.createTitle} />
-      <h1 className="text-2xl font-semibold tracking-tight">{m.createTitle}</h1>
+    <Page narrow>
+      <PageHead title={m.createTitle} />
       {readOnly ? (
         <NoAccess
           text={m.createForbidden}
           action={
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="secondary" size="sm">
               <Link to="/commissions">{m.backToCommissions}</Link>
             </Button>
           }
@@ -80,7 +85,7 @@ function CreateCommissionPage() {
           retryLabel={m.tryAgain}
         />
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -211,14 +216,14 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
   const issuerCode = issuerCodeOf(draft.slug);
 
   return (
-    <Card>
+    <Card className="p-0 sm:p-0">
       <form noValidate onSubmit={(event) => void submit(event)} aria-busy={submitting}>
         {/* Disabling the fieldset disables every control while the request is in flight. */}
-        <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-7 border-0 p-6">
+        <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-6 border-0 p-5 sm:p-7">
           <div ref={alertsRef} tabIndex={-1} className="grid gap-4 outline-none empty:hidden">
             {state.summary && (invalidCount > 0 || state.unmapped.length > 0) ? (
               <Alert variant="destructive">
-                <CircleAlert aria-hidden="true" />
+                <Icon icon={AlertCircleIcon} />
                 <AlertTitle>
                   {invalidCount > 0 ? m.fixFields(invalidCount) : m.createError}
                 </AlertTitle>
@@ -259,13 +264,16 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
             controlId={controlId('slug')}
             hint={
               issuerCode ? (
-                <span aria-live="polite" className="flex items-start gap-2">
-                  <Hash aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+                <span
+                  aria-live="polite"
+                  className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-secondary-foreground"
+                >
+                  <Icon icon={HashtagIcon} className="mt-0.5 size-3.5 text-muted-foreground" />
                   <span>
                     {m.slugPreviewLead}{' '}
-                    <span className="font-mono font-medium text-foreground">{issuerCode}</span>.{' '}
+                    <span className="font-mono font-semibold text-foreground">{issuerCode}</span>.{' '}
                     {m.slugPreviewExample}{' '}
-                    <span className="font-mono text-foreground">
+                    <span className="font-mono font-semibold text-foreground">
                       {m.referenceExample(issuerCode)}
                     </span>
                     . {m.slugHint}
@@ -296,7 +304,7 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
               value="hosted"
               label={m.typeHostedLong}
               description={m.typeHostedHint}
-              icon={<Server />}
+              icon={<Icon icon={ServerStack01Icon} className="size-[17px]" />}
               checked={draft.type === 'hosted'}
               onChange={() => {
                 change('type', 'hosted');
@@ -307,7 +315,7 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
               value="federated"
               label={m.typeFederatedLong}
               description={m.typeFederatedHint}
-              icon={<Link2 />}
+              icon={<Icon icon={Link04Icon} className="size-[17px]" />}
               checked={draft.type === 'federated'}
               onChange={() => {
                 change('type', 'federated');
@@ -319,7 +327,6 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
             legend={m.categoriesLegend}
             hint={m.categoriesHint}
             error={errors.categories}
-            optional
             data-field="categories"
           >
             <CategoryList
@@ -341,17 +348,7 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
           </CheckboxGroup>
         </fieldset>
 
-        <div className="flex flex-wrap items-center gap-3 border-t px-6 py-4">
-          <Button type="submit" disabled={submitting} className="min-w-44">
-            {submitting ? (
-              <>
-                <LoaderCircle aria-hidden="true" className="animate-spin" />
-                {m.createSubmitting}
-              </>
-            ) : (
-              m.createSubmit
-            )}
-          </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2.5 border-t px-5 py-4 sm:px-7">
           {submitting ? (
             <Button variant="ghost" disabled>
               {m.cancel}
@@ -361,6 +358,16 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
               <Link to="/commissions">{m.cancel}</Link>
             </Button>
           )}
+          <Button type="submit" disabled={submitting} className="min-w-44">
+            {submitting ? (
+              <>
+                <Icon icon={Loading03Icon} className="animate-spin" />
+                {m.createSubmitting}
+              </>
+            ) : (
+              m.createSubmit
+            )}
+          </Button>
         </div>
       </form>
     </Card>
@@ -378,12 +385,12 @@ function SubmitAlert({ alert }: { alert: Alerted }) {
   const { title, text } = copy[alert];
   return (
     <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
+      <Icon icon={AlertCircleIcon} />
       <AlertTitle>{title}</AlertTitle>
       {text ? <AlertDescription>{text}</AlertDescription> : null}
       {alert === 'changed' ? (
         <div className="mt-2">
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="secondary" size="sm">
             <Link to="/commissions">{m.checkList}</Link>
           </Button>
         </div>
@@ -407,10 +414,10 @@ function CategoryList({
   const headingId = useId();
   if (categories.length === 0) return null;
   return (
-    <div role="group" aria-labelledby={headingId} className="overflow-hidden rounded-lg border">
+    <div role="group" aria-labelledby={headingId} className="overflow-hidden rounded-xl border">
       <div
         id={headingId}
-        className="border-b bg-muted px-4 py-2 text-[13px] font-medium text-muted-foreground"
+        className="border-b bg-background px-3.5 py-2.5 text-[13px] font-semibold text-secondary-foreground"
       >
         {title}
       </div>
@@ -422,7 +429,7 @@ function CategoryList({
             <li key={category.code}>
               <label
                 htmlFor={checkboxId}
-                className="grid cursor-pointer grid-cols-[auto_1fr] items-start gap-x-3 gap-y-0.5 px-4 py-3 transition-colors hover:bg-muted/60 has-checked:bg-primary-subtle/40 sm:grid-cols-[auto_7rem_1fr]"
+                className="grid cursor-pointer grid-cols-[auto_1fr] items-start gap-x-3 gap-y-0.5 px-3.5 py-3 transition-colors hover:bg-muted/60 has-checked:bg-brand-faint sm:grid-cols-[auto_6.5rem_1fr]"
               >
                 <Checkbox
                   id={checkboxId}
@@ -438,10 +445,10 @@ function CategoryList({
                     );
                   }}
                 />
-                <span className="font-mono text-xs leading-5 whitespace-nowrap">
+                <span className="text-[13px] leading-5 font-medium whitespace-nowrap text-secondary-foreground tabular-nums">
                   {category.citation}
                 </span>
-                <span className="col-start-2 text-sm leading-5 sm:col-start-3">
+                <span className="col-start-2 text-[14.5px] leading-5 sm:col-start-3">
                   {category.description}
                 </span>
               </label>
@@ -455,14 +462,13 @@ function CategoryList({
 
 function CreateSkeleton() {
   return (
-    <div className="grid w-full max-w-3xl gap-6" aria-busy="true" aria-label={m.createTitle}>
-      <Skeleton className="h-4 w-48" />
-      <Skeleton className="h-8 w-64" />
-      <Card className="grid gap-7 p-6">
+    <Page narrow aria-busy="true" aria-label={m.createTitle}>
+      <Skeleton className="mb-[22px] h-7 w-64" />
+      <Card className="grid gap-7 sm:p-7">
         {[1, 2].map((row) => (
           <div key={row} className="grid gap-2">
             <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-11 w-full" />
           </div>
         ))}
         <div className="grid gap-2">
@@ -471,6 +477,6 @@ function CreateSkeleton() {
           <Skeleton className="h-16 w-full" />
         </div>
       </Card>
-    </div>
+    </Page>
   );
 }

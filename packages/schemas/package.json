@@ -2,6 +2,7 @@
   "name": "@adili/schemas",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Contracts shared across languages: OpenAPI for external systems and internal services, and JSON Schemas for the prescribed forms (ADR-009, ADR-012, ADR-013).",
   "files": [
     "external",
@@ -9,6 +10,13 @@
     "forms"
   ],
   "scripts": {
-    "lint": "pnpm --package=@redocly/cli@2.54.3 dlx redocly lint"
+    "lint:openapi": "redocly lint --config redocly.yaml internal/*.yaml external/*.yaml",
+    "lint:forms": "node ./scripts/validate-forms.mjs",
+    "check:drift": "node ./scripts/check-drift.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.54.3",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1"
   }
 }

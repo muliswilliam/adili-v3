@@ -1,9 +1,9 @@
-import { Button, Input, Label } from '@adili/ui';
+import { Button, Icon, Input, Label } from '@adili/ui';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useScript } from 'keycloakify/login/pages/Login.useScript';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { useIsPasswordRevealed } from 'keycloakify/tools/useIsPasswordRevealed';
-import { Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Key01Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
 import type { I18n } from '../i18n';
@@ -65,7 +65,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               <span className="h-px flex-1 bg-border" />
             </div>
             {social.providers.map((provider) => (
-              <Button key={provider.alias} asChild variant="outline">
+              <Button key={provider.alias} asChild variant="secondary">
                 <a
                   id={`social-${provider.alias}`}
                   href={provider.loginUrl}
@@ -108,7 +108,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               {realm.resetPasswordAllowed ? (
                 <a
                   href={url.loginResetCredentialsUrl}
-                  className="rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {msg('doForgotPassword')}
                 </a>
@@ -144,14 +144,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
             name="credentialId"
             value={auth.selectedCredential}
           />
-          <Button
-            type="submit"
-            name="login"
-            id="kc-login"
-            size="lg"
-            className="w-full"
-            disabled={submitting}
-          >
+          <Button type="submit" name="login" id="kc-login" className="w-full" disabled={submitting}>
             {msgStr('doLogIn')}
           </Button>
         </form>
@@ -180,14 +173,8 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               ))}
             </form>
           ) : null}
-          <Button
-            id={WEBAUTHN_BUTTON_ID}
-            type="button"
-            variant="outline"
-            size="lg"
-            className="w-full"
-          >
-            <KeyRound aria-hidden="true" />
+          <Button id={WEBAUTHN_BUTTON_ID} type="button" variant="secondary" className="w-full">
+            <Icon icon={Key01Icon} />
             {msgStr('passkey-doAuthenticate')}
           </Button>
         </>
@@ -216,15 +203,15 @@ function PasswordInput({ i18n, hasError }: { i18n: I18n; hasError: boolean }) {
       />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         aria-label={msgStr(isPasswordRevealed ? 'hidePassword' : 'showPassword')}
         aria-controls="password"
         onClick={toggleIsPasswordRevealed}
       >
         {isPasswordRevealed ? (
-          <EyeOff className="size-4" aria-hidden="true" />
+          <Icon icon={ViewOffSlashIcon} className="size-4" />
         ) : (
-          <Eye className="size-4" aria-hidden="true" />
+          <Icon icon={ViewIcon} className="size-4" />
         )}
       </button>
     </div>

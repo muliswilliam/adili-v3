@@ -1,4 +1,5 @@
 {
+  "id": "adili",
   "realm": "adili",
   "displayName": "Adili Online",
   "enabled": true,
@@ -8,15 +9,35 @@
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
   "bruteForceProtected": true,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
   "internationalizationEnabled": false,
   "smtpServer": {
     "host": "mailpit",
     "port": "1025",
     "from": "no-reply@adili.go.ke",
     "fromDisplayName": "Adili Online"
+  },
+  "browserFlow": "adili browser",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyCodeReusable": false,
+  "webAuthnPolicyRpEntityName": "Adili Online",
+  "webAuthnPolicySignatureAlgorithms": ["ES256", "RS256"],
+  "webAuthnPolicyAttestationConveyancePreference": "not specified",
+  "webAuthnPolicyAuthenticatorAttachment": "not specified",
+  "webAuthnPolicyRequireResidentKey": "not specified",
+  "webAuthnPolicyUserVerificationRequirement": "preferred",
+  "attributes": {
+    "acr.loa.map": "{\"step-up\":2}"
   },
   "roles": {
     "realm": [
@@ -63,6 +84,14 @@
       {
         "name": "platform-admin",
         "description": "Operates the platform"
+      },
+      {
+        "name": "applicant",
+        "description": "Public Form K applicant"
+      },
+      {
+        "name": "law-enforcement",
+        "description": "Institution-issued law enforcement account"
       }
     ]
   },
@@ -71,6 +100,7 @@
       "clientId": "portal",
       "name": "Adili portal",
       "enabled": true,
+      "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "portal-dev-secret",
@@ -81,7 +111,8 @@
       "webOrigins": ["http://localhost:3010"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:3010/*"
+        "post.logout.redirect.uris": "http://localhost:3010/*",
+        "default.acr.values": "step-up"
       },
       "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"],
       "optionalClientScopes": ["offline_access"],
@@ -117,6 +148,7 @@
       "clientId": "console",
       "name": "Adili console",
       "enabled": true,
+      "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "console-dev-secret",
@@ -127,7 +159,55 @@
       "webOrigins": ["http://localhost:3020"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:3020/*"
+        "post.logout.redirect.uris": "http://localhost:3020/*",
+        "default.acr.values": "step-up"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "verify",
+      "name": "Adili verify",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "verify-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3030/*"],
+      "webOrigins": ["http://localhost:3030"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3030/*"
       },
       "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"],
       "optionalClientScopes": ["offline_access"],
@@ -164,6 +244,7 @@
       "name": "Directory service",
       "description": "Service account the directory uses to provision staff users (Admin REST API)",
       "enabled": true,
+      "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "directory-dev-secret",
@@ -175,6 +256,305 @@
       "optionalClientScopes": []
     }
   ],
+  "authenticatorConfig": [
+    {
+      "alias": "adili-loa-1",
+      "config": {
+        "loa-condition-level": "1",
+        "loa-max-age": "36000"
+      }
+    },
+    {
+      "alias": "adili-loa-2",
+      "config": {
+        "loa-condition-level": "2",
+        "loa-max-age": "300"
+      }
+    },
+    {
+      "alias": "adili-role-declarant",
+      "config": {
+        "condUserRole": "declarant",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "adili-role-applicant",
+      "config": {
+        "condUserRole": "applicant",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "adili-role-not-declarant",
+      "config": {
+        "condUserRole": "declarant",
+        "negate": "true"
+      }
+    },
+    {
+      "alias": "adili-role-not-applicant",
+      "config": {
+        "condUserRole": "applicant",
+        "negate": "true"
+      }
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "adili browser",
+      "description": "Browser login: password at LoA 1, OTP at LoA 2 for step-up",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "auth-cookie"
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "identity-provider-redirector"
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "adili browser forms"
+        }
+      ]
+    },
+    {
+      "alias": "adili browser forms",
+      "description": "Username/password then role-specific OTP",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "adili password"
+        },
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "adili otp"
+        }
+      ]
+    },
+    {
+      "alias": "adili password",
+      "description": "Password form at LoA 1; remains valid for the SSO session",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorConfig": "adili-loa-1"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "auth-username-password-form"
+        }
+      ]
+    },
+    {
+      "alias": "adili otp",
+      "description": "LoA 2 OTP. Step-up with acr_values=step-up re-runs only this (max age 300s)",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorConfig": "adili-loa-2"
+        },
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "adili declarant otp"
+        },
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "adili applicant otp"
+        },
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 40,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "adili staff totp"
+        }
+      ]
+    },
+    {
+      "alias": "adili declarant otp",
+      "description": "Declarant SMS/email OTP. #79 adds REQUIRED authenticator adili-otp here",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "adili-role-declarant"
+        }
+      ]
+    },
+    {
+      "alias": "adili applicant otp",
+      "description": "Applicant SMS/email OTP. #79 adds REQUIRED authenticator adili-otp here",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "adili-role-applicant"
+        }
+      ]
+    },
+    {
+      "alias": "adili staff totp",
+      "description": "Staff and law-enforcement TOTP (anyone who is not a declarant or applicant)",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "adili-role-not-declarant"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "adili-role-not-applicant"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": true,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "auth-otp-form"
+        }
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 30,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 40,
+      "config": {}
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 50,
+      "config": {}
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 80,
+      "config": {}
+    },
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "providerId": "webauthn-register-passwordless",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 90,
+      "config": {}
+    }
+  ],
   "components": {
     "org.keycloak.userprofile.UserProfileProvider": [
       {
@@ -182,7 +562,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"phone\", \"displayName\": \"Phone\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"commissionName\", \"displayName\": \"Commission name\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"invitedRole\", \"displayName\": \"Invited role\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}],\"groups\": []}"
+            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"tenants\", \"displayName\": \"Tenants\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"ofr\", \"displayName\": \"Officer reference\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"person_id\", \"displayName\": \"Person id\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"phone\", \"displayName\": \"Phone\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"commissionName\", \"displayName\": \"Commission name\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"invitedRole\", \"displayName\": \"Invited role\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}], \"groups\": []}"
           ]
         }
       }
@@ -197,7 +577,8 @@
       "lastName": "Kamau",
       "enabled": true,
       "attributes": {
-        "tenant": ["psc"]
+        "tenant": ["psc"],
+        "phone": ["+254700000001"]
       },
       "credentials": [
         {
@@ -216,7 +597,8 @@
       "lastName": "Odhiambo",
       "enabled": true,
       "attributes": {
-        "tenant": ["psc"]
+        "tenant": ["psc"],
+        "phone": ["+254700000002"]
       },
       "credentials": [
         {
@@ -235,7 +617,8 @@
       "lastName": "Njeri",
       "enabled": true,
       "attributes": {
-        "tenant": ["psc"]
+        "tenant": ["psc"],
+        "phone": ["+254700000003"]
       },
       "credentials": [
         {
@@ -254,7 +637,8 @@
       "lastName": "Chebet",
       "enabled": true,
       "attributes": {
-        "tenant": ["psc"]
+        "tenant": ["psc"],
+        "phone": ["+254700000004"]
       },
       "credentials": [
         {
@@ -273,7 +657,8 @@
       "lastName": "Wairimu",
       "enabled": true,
       "attributes": {
-        "tenant": ["psc"]
+        "tenant": ["psc"],
+        "phone": ["+254700000005"]
       },
       "credentials": [
         {
@@ -292,7 +677,8 @@
       "lastName": "Hassan",
       "enabled": true,
       "attributes": {
-        "tenant": ["psc"]
+        "tenant": ["psc"],
+        "phone": ["+254700000006"]
       },
       "credentials": [
         {
@@ -311,7 +697,8 @@
       "lastName": "Mutua",
       "enabled": true,
       "attributes": {
-        "tenant": ["eacc"]
+        "tenant": ["eacc"],
+        "phone": ["+254700000007"]
       },
       "credentials": [
         {
@@ -330,7 +717,8 @@
       "lastName": "Wekesa",
       "enabled": true,
       "attributes": {
-        "tenant": ["eacc"]
+        "tenant": ["eacc"],
+        "phone": ["+254700000008"]
       },
       "credentials": [
         {
@@ -349,7 +737,8 @@
       "lastName": "Muriithi",
       "enabled": true,
       "attributes": {
-        "tenant": ["eacc"]
+        "tenant": ["eacc"],
+        "phone": ["+254700000009"]
       },
       "credentials": [
         {
@@ -368,7 +757,8 @@
       "lastName": "Akinyi",
       "enabled": true,
       "attributes": {
-        "tenant": ["platform"]
+        "tenant": ["platform"],
+        "phone": ["+254700000010"]
       },
       "credentials": [
         {
@@ -387,7 +777,8 @@
       "lastName": "Omondi",
       "enabled": true,
       "attributes": {
-        "tenant": ["platform"]
+        "tenant": ["platform"],
+        "phone": ["+254700000011"]
       },
       "credentials": [
         {
@@ -397,6 +788,46 @@
         }
       ],
       "realmRoles": ["default-roles-adili", "platform-admin"]
+    },
+    {
+      "username": "applicant",
+      "email": "applicant@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Njoki",
+      "lastName": "Wambua",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["public"],
+        "phone": ["+254700000012"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "applicant"]
+    },
+    {
+      "username": "law-enforcement",
+      "email": "law-enforcement@demo.adili.go.ke",
+      "emailVerified": true,
+      "firstName": "Suleiman",
+      "lastName": "Ali",
+      "enabled": true,
+      "attributes": {
+        "tenant": ["lea"],
+        "phone": ["+254700000013"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Adili-Demo-2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-adili", "law-enforcement"]
     },
     {
       "username": "service-account-directory",

@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { organisationOf } from './organisation';
-import { platformRoles, roleLabel } from './roles';
+import { platformRoles, roleLabel, seniorRoleLabel } from './roles';
+
+describe('seniorRoleLabel', () => {
+  it('names the most senior console role and ignores the rest', () => {
+    expect(seniorRoleLabel(['default-roles-adili', 'platform-admin'])).toBe(
+      'Platform administrator',
+    );
+    expect(seniorRoleLabel(['reviewer', 'supervisor'])).toBe('Supervisor');
+    expect(seniorRoleLabel(['declarant'])).toBeNull();
+  });
+});
 
 describe('roleLabel', () => {
   it.each([

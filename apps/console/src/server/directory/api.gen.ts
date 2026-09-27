@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The signed-in user, tenant and roles, as seen by the platform */
+        /**
+         * The signed-in user, tenant and roles, as seen by the platform
+         * @description Any authenticated caller. Reads the verified access token; the BFFs use it to decide what a user may open.
+         */
         get: operations["getMe"];
         put?: never;
         post?: never;
@@ -52,7 +55,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One Commission with its reporting officer and roster summary */
+        /**
+         * One Commission with its reporting officer and roster summary
+         * @description platform-admin, eacc-analyst and eacc-supervisor read any Commission; other staff only their own tenant's. Answers 404 for Commissions the caller may not see.
+         */
         get: operations["getCommission"];
         put?: never;
         post?: never;
@@ -109,7 +115,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Statutory categories of public officers (Act s.32, Regs r.5) */
+        /**
+         * Statutory categories of public officers (Act s.32, Regs r.5)
+         * @description Any staff role. Reference data for the create form, in statutory order.
+         */
         get: operations["listOfficerCategories"];
         put?: never;
         post?: never;

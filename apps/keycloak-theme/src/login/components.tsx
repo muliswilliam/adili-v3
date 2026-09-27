@@ -1,6 +1,6 @@
-import { cn } from '@adili/ui';
+import { cn, Icon, type IconProps } from '@adili/ui';
+import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
-import { Check, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 const tones = {
@@ -12,18 +12,18 @@ const tones = {
 
 /** Page title with an icon above it, for outcome pages (done, expired, failed). */
 export function StateTitle({
-  icon: Icon,
+  icon,
   tone,
   children,
 }: {
-  icon: LucideIcon;
+  icon: IconProps['icon'];
   tone: keyof typeof tones;
   children: ReactNode;
 }) {
   return (
     <span className="grid justify-items-start gap-4">
       <span className={cn('grid size-11 place-items-center rounded-full', tones[tone])}>
-        <Icon className="size-5" aria-hidden="true" />
+        <Icon icon={icon} className="size-5" />
       </span>
       <span>{children}</span>
     </span>
@@ -46,7 +46,7 @@ export interface Step {
 /** Numbered steps in a bordered box. */
 export function Steps({ steps, label }: { steps: Step[]; label?: string }) {
   return (
-    <ol aria-label={label} className="grid gap-4 rounded-lg border bg-card p-4 sm:p-5">
+    <ol aria-label={label} className="grid gap-4 rounded-xl bg-muted/60 p-4 sm:p-5">
       {steps.map((step, index) => (
         <li key={index} className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3">
           <span
@@ -54,11 +54,15 @@ export function Steps({ steps, label }: { steps: Step[]; label?: string }) {
               'grid size-7 place-items-center rounded-full text-xs font-semibold',
               step.done
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-primary-subtle text-primary-subtle-foreground',
+                : 'bg-card text-secondary-foreground shadow-card',
             )}
             aria-hidden="true"
           >
-            {step.done ? <Check className="size-3.5" strokeWidth={3} /> : index + 1}
+            {step.done ? (
+              <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={2.5} />
+            ) : (
+              index + 1
+            )}
           </span>
           <div className="grid gap-0.5 pt-1">
             <span className="text-sm leading-5 font-medium">{step.title}</span>
@@ -78,7 +82,7 @@ export function FieldError({ id, html }: { id: string; html: string }) {
   return (
     <p
       id={id}
-      className="text-sm text-destructive-subtle-foreground"
+      className="text-[13px] font-medium text-destructive"
       aria-live="polite"
       dangerouslySetInnerHTML={{ __html: kcSanitize(html) }}
     />

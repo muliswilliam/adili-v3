@@ -102,6 +102,8 @@ export class CommissionsController {
   @ApiOperation({
     operationId: 'getCommission',
     summary: 'One Commission with its reporting officer and roster summary',
+    description:
+      "platform-admin, eacc-analyst and eacc-supervisor read any Commission; other staff only their own tenant's. Answers 404 for Commissions the caller may not see.",
   })
   @ApiOkResponse({ description: 'The Commission', schema: schemaRef('Commission') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
@@ -183,6 +185,7 @@ export class ReferenceController {
   @ApiOperation({
     operationId: 'listOfficerCategories',
     summary: 'Statutory categories of public officers (Act s.32, Regs r.5)',
+    description: 'Any staff role. Reference data for the create form, in statutory order.',
   })
   @ApiOkResponse({
     description: 'Seeded list, stable order',

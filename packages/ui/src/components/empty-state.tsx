@@ -3,28 +3,44 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../lib/cn';
 
 export type EmptyStateProps = Omit<ComponentProps<'div'>, 'title'> & {
-  /** Decorative icon, e.g. a lucide-react icon. Hidden from assistive technology. */
+  /** Decorative icon, hidden from assistive technology. */
   icon?: ReactNode;
   title: ReactNode;
+  description?: ReactNode;
+  /**
+   * Older name for `description`, kept so existing callers still build. Prefer `description`,
+   * which matches the other primitives. Not tagged deprecated, which would fail their lint.
+   */
   text?: ReactNode;
-  /** Optional call to action, e.g. a `Button`. */
+  /** Optional next step, e.g. a Button. */
   action?: ReactNode;
 };
 
-export function EmptyState({ icon, title, text, action, className, ...props }: EmptyStateProps) {
+/** Centred message for an empty list or panel, usually inside a Card. */
+export function EmptyState({
+  icon,
+  title,
+  description,
+  text,
+  action,
+  className,
+  ...props
+}: EmptyStateProps) {
+  const body = description ?? text;
+
   return (
-    <div className={cn('flex flex-col items-center px-4 py-10 text-center', className)} {...props}>
+    <div className={cn('flex flex-col items-center px-5 py-10 text-center', className)} {...props}>
       {icon ? (
         <div
           aria-hidden="true"
-          className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground [&_svg]:size-5"
+          className="mb-3.5 flex size-[30px] items-center justify-center rounded-[9px] bg-muted text-muted-foreground [&_svg]:size-4"
         >
           {icon}
         </div>
       ) : null}
-      <h3 className="text-[15px] leading-6 font-semibold tracking-tight">{title}</h3>
-      {text ? <p className="mt-1 max-w-sm text-sm text-muted-foreground">{text}</p> : null}
-      {action ? <div className="mt-5 flex flex-wrap justify-center gap-3">{action}</div> : null}
+      <h3 className="text-[15px] leading-snug font-semibold">{title}</h3>
+      {body ? <p className="mt-1 max-w-[340px] text-sm text-muted-foreground">{body}</p> : null}
+      {action ? <div className="mt-3.5">{action}</div> : null}
     </div>
   );
 }

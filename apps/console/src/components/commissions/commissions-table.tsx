@@ -1,174 +1,208 @@
 import {
+  Badge,
   Skeleton,
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
   TableRowLink,
   Tooltip,
-  TooltipContent,
-  TooltipTrigger,
 } from '@adili/ui';
 import { Link } from '@tanstack/react-router';
 
 import type { Commission } from '../../server/directory/client';
-import { formatDate, formatDateTime, formatRelativeDate } from '../format';
+import { formatDateTime, formatRelativeDate } from '../format';
 import { CommissionTypeBadge, IssuerCode, OfficerStateBadge } from './badges';
 import { messages as m } from './messages';
 
-const COLUMNS = [
-  m.columnCommission,
-  m.columnType,
-  m.columnCategories,
-  m.columnOfficer,
-  m.columnRoster,
-  m.columnCreated,
-];
+/** Focus ring for the cells' own focusable bits, which sit above the row link. */
+const FOCUSABLE =
+  'relative z-10 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-function Head() {
+function Header() {
   return (
     <TableHeader>
       <TableRow>
-        {COLUMNS.map((column) => (
-          <TableHead key={column}>{column}</TableHead>
-        ))}
+        <TableHead>{m.columnCommission}</TableHead>
+        <TableHead>{m.columnType}</TableHead>
+        <TableHead>{m.columnCategories}</TableHead>
+        <TableHead>{m.columnOfficer}</TableHead>
+        <TableHead>{m.columnRoster}</TableHead>
+        <TableHead>{m.columnCreated}</TableHead>
       </TableRow>
     </TableHeader>
   );
 }
 
-export function CommissionsTable({ items }: { items: Commission[] }) {
+function Muted({ children }: { children: string }) {
+  return <span className="text-[13.5px] whitespace-nowrap text-muted-foreground">{children}</span>;
+}
+
+function CommissionLink({ commission }: { commission: Commission }) {
   return (
-    <Table>
-      <TableCaption>{m.caption}</TableCaption>
-      <Head />
+    <TableRowLink asChild>
+      <Link to="/commissions/$slug" params={{ slug: commission.slug }}>
+        {commission.name}
+      </Link>
+    </TableRowLink>
+  );
+}
+
+/** First two citations, then a focusable `+N` whose tooltip lists the rest with descriptions. */
+function Categories({ categories }: { categories: Commission['categories'] }) {
+  if (categories.length === 0) return <Muted>{m.noCategories}</Muted>;
+  const shown = categories.slice(0, 2);
+  const rest = categories.slice(2);
+  return (
+    <span className="flex flex-nowrap items-center gap-1.5">
+      {shown.map((category, index) => (
+        <span
+          key={category.code}
+          className="text-[13px] font-medium whitespace-nowrap text-secondary-foreground tabular-nums"
+        >
+          {category.citation}
+          {index < shown.length - 1 ? ',' : null}
+        </span>
+      ))}
+      {rest.length > 0 ? (
+        <Tooltip
+          className="grid max-w-[320px] gap-1 font-normal"
+          content={rest.map((category) => (
+            <span key={category.code}>
+              <b className="font-semibold">{category.citation}</b> {category.description}
+            </span>
+          ))}
+        >
+          <span
+            tabIndex={0}
+            aria-label={m.moreCategories(
+              rest.length,
+              rest.map((category) => category.citation).join(', '),
+            )}
+            className={`inline-flex cursor-default ${FOCUSABLE}`}
+          >
+            <Badge className="rounded-sm font-semibold">+{rest.length}</Badge>
+          </span>
+        </Tooltip>
+      ) : null}
+    </span>
+  );
+}
+
+function Officer({ officer }: { officer: Commission['reportingOfficer'] }) {
+  if (!officer) return <Muted>{m.officerNone}</Muted>;
+  return (
+    <span className="flex flex-col items-start gap-[3px]">
+      <span className="whitespace-nowrap">{officer.name}</span>
+      <OfficerStateBadge state={officer.state} />
+    </span>
+  );
+}
+
+function Created({ iso }: { iso: string }) {
+  return (
+    <Tooltip content={formatDateTime(iso)}>
+      <time dateTime={iso} tabIndex={0} suppressHydrationWarning className={FOCUSABLE}>
+        {formatRelativeDate(iso)}
+      </time>
+    </Tooltip>
+  );
+}
+
+function CommissionsTable({ items }: { items: readonly Commission[] }) {
+  return (
+    <Table caption={m.caption}>
+      <Header />
       <TableBody>
         {items.map((commission) => (
-          <CommissionRow key={commission.id} commission={commission} />
+          <TableRow key={commission.id}>
+            <TableHead scope="row" className="min-w-[270px] font-normal whitespace-normal">
+              <CommissionLink commission={commission} />
+              <IssuerCode code={commission.issuerCode} className="mt-0.5" />
+            </TableHead>
+            <TableCell>
+              <CommissionTypeBadge type={commission.type} />
+            </TableCell>
+            <TableCell>
+              <Categories categories={commission.categories} />
+            </TableCell>
+            <TableCell>
+              <Officer officer={commission.reportingOfficer} />
+            </TableCell>
+            <TableCell>
+              {/* Coverage ("X of Y onboarded") arrives with the roster import (spec 02). */}
+              <Muted>{m.noRoster}</Muted>
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              <Created iso={commission.createdAt} />
+            </TableCell>
+          </TableRow>
         ))}
       </TableBody>
     </Table>
   );
 }
 
-function CommissionRow({ commission }: { commission: Commission }) {
-  const officer = commission.reportingOfficer;
+/** Below 700px the table becomes a list of cards (the prototype's `.mlist`). */
+function CommissionsCards({ items }: { items: readonly Commission[] }) {
   return (
-    <TableRow>
-      <TableCell className="min-w-56">
-        <TableRowLink asChild>
-          <Link to="/commissions/$slug" params={{ slug: commission.slug }}>
-            {commission.name}
-          </Link>
-        </TableRowLink>
-        <IssuerCode code={commission.issuerCode} className="mt-0.5 block" />
-      </TableCell>
-      <TableCell>
-        <CommissionTypeBadge type={commission.type} />
-      </TableCell>
-      <TableCell>
-        <Categories categories={commission.categories} />
-      </TableCell>
-      <TableCell>
-        {officer ? (
-          <div className="grid justify-items-start gap-1">
-            <span className="whitespace-nowrap">{officer.name}</span>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <OfficerStateBadge state={officer.state} />
-              {officer.state === 'activated' && officer.activatedAt ? (
-                <time
-                  dateTime={officer.activatedAt}
-                  className="text-xs whitespace-nowrap text-muted-foreground tabular-nums"
-                >
-                  {formatDate(officer.activatedAt)}
-                </time>
-              ) : null}
+    <ul aria-label={m.caption}>
+      {items.map((commission) => (
+        <li
+          key={commission.id}
+          className="relative flex flex-col gap-2 border-b px-4 py-3.5 transition-colors last:border-b-0 hover:bg-muted/50"
+        >
+          <div className="flex items-start gap-2.5">
+            <div className="min-w-0 flex-1 leading-snug">
+              <CommissionLink commission={commission} />
+              <IssuerCode code={commission.issuerCode} />
             </div>
+            <CommissionTypeBadge type={commission.type} />
           </div>
-        ) : (
-          <span className="text-muted-foreground">{m.officerNone}</span>
-        )}
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">{m.noRoster}</TableCell>
-      <TableCell className="whitespace-nowrap">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <time
-              dateTime={commission.createdAt}
-              tabIndex={0}
-              suppressHydrationWarning
-              className="relative z-10 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {formatRelativeDate(commission.createdAt)}
-            </time>
-          </TooltipTrigger>
-          <TooltipContent>{formatDateTime(commission.createdAt)}</TooltipContent>
-        </Tooltip>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-/** First two citations, then `+N` with the rest in a tooltip. */
-function Categories({ categories }: { categories: Commission['categories'] }) {
-  if (categories.length === 0) {
-    return <span className="text-muted-foreground">{m.noCategories}</span>;
-  }
-  const shown = categories.slice(0, 2);
-  const rest = categories.slice(2);
-  return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-      {shown.map((category, index) => (
-        <span key={category.code} className="whitespace-nowrap">
-          {category.citation}
-          {index < shown.length - 1 ? ',' : ''}
-        </span>
+          <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">
+            {commission.reportingOfficer ? (
+              <>
+                {commission.reportingOfficer.name}
+                <OfficerStateBadge state={commission.reportingOfficer.state} />
+              </>
+            ) : (
+              m.officerNotAssigned
+            )}
+          </p>
+          <p className="text-[13px] text-muted-foreground">{m.noRoster}</p>
+        </li>
       ))}
-      {rest.length > 0 ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              tabIndex={0}
-              aria-label={m.moreCategories(
-                rest.length,
-                rest.map((category) => category.citation).join(', '),
-              )}
-              className="relative z-10 inline-flex h-5 items-center rounded-full bg-secondary px-1.5 text-xs font-medium text-secondary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              +{rest.length}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="grid gap-1">
-            {rest.map((category) => (
-              <span key={category.code}>
-                <span className="font-semibold">{category.citation}</span> {category.description}
-              </span>
-            ))}
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
-    </div>
+    </ul>
   );
 }
 
-/** Five placeholder rows while the list loads; the table is marked busy. */
+export function CommissionsResults({ items }: { items: readonly Commission[] }) {
+  return (
+    <>
+      <div className="hidden min-[700px]:block">
+        <CommissionsTable items={items} />
+      </div>
+      <div className="min-[700px]:hidden">
+        <CommissionsCards items={items} />
+      </div>
+    </>
+  );
+}
+
+const SKELETON_WIDTHS = ['w-[140px]', 'w-[54px]', 'w-[70px]', 'w-[154px]', 'w-10', 'w-[100px]'];
+
+/** Five placeholder rows under the real header while the list loads; the table is marked busy. */
 export function CommissionsTableSkeleton() {
   return (
-    <Table aria-busy="true">
-      <TableCaption>{m.loadingCaption}</TableCaption>
-      <Head />
+    <Table caption={m.loadingCaption} aria-busy="true">
+      <Header />
       <TableBody>
         {Array.from({ length: 5 }, (_, row) => (
           <TableRow key={row}>
-            <TableCell>
-              <Skeleton className="w-48" />
-              <Skeleton className="mt-2 h-3 w-12" />
-            </TableCell>
-            {['w-16', 'w-24', 'w-28', 'w-24', 'w-20'].map((width, cell) => (
-              <TableCell key={cell}>
+            {SKELETON_WIDTHS.map((width) => (
+              <TableCell key={width}>
                 <Skeleton className={width} />
               </TableCell>
             ))}

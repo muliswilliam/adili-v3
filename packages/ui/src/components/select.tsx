@@ -1,32 +1,117 @@
-import type { ComponentProps } from 'react';
+import { ArrowDown01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import * as SelectPrimitive from '@radix-ui/react-select';
+import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { Icon } from './icon';
+import { controlClassName } from './input';
+
+type RootProps = ComponentProps<typeof SelectPrimitive.Root>;
+
+export type SelectProps = Omit<
+  ComponentProps<typeof SelectPrimitive.Trigger>,
+  'dir' | 'value' | 'defaultValue'
+> &
+  Pick<
+    RootProps,
+    | 'value'
+    | 'defaultValue'
+    | 'onValueChange'
+    | 'open'
+    | 'defaultOpen'
+    | 'onOpenChange'
+    | 'name'
+    | 'required'
+    | 'form'
+    | 'autoComplete'
+    | 'dir'
+  > & {
+    placeholder?: ReactNode;
+    /** SelectItem elements. */
+    children: ReactNode;
+  };
 
 /**
- * Native `<select>` styled like `Input`. Native keeps keyboard, screen reader and mobile pickers
- * right for short option lists such as filters. Give it a label (visible or `aria-label`).
+ * A single-choice dropdown styled like Input. Other props go to the trigger button, so it
+ * works as the control inside a FormField (id, aria-describedby and aria-invalid land on the
+ * button the label points at).
  */
-export function Select({ className, children, ...props }: ComponentProps<'select'>) {
+export function Select({
+  value,
+  defaultValue,
+  onValueChange,
+  open,
+  defaultOpen,
+  onOpenChange,
+  name,
+  required,
+  form,
+  autoComplete,
+  dir,
+  disabled,
+  placeholder,
+  className,
+  children,
+  ...triggerProps
+}: SelectProps) {
   return (
-    <div className={cn('relative w-full', className)}>
-      <select
-        className="flex h-10 w-full min-w-0 appearance-none rounded-md border border-input bg-card py-2 pr-9 pl-3 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive"
-        {...props}
+    <SelectPrimitive.Root
+      value={value}
+      defaultValue={defaultValue}
+      onValueChange={onValueChange}
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
+      name={name}
+      required={required}
+      form={form}
+      autoComplete={autoComplete}
+      dir={dir}
+      disabled={disabled}
+    >
+      <SelectPrimitive.Trigger
+        className={cn(
+          controlClassName,
+          'flex h-11 items-center justify-between gap-2 px-3 text-left data-placeholder:text-placeholder [&>span]:truncate',
+          className,
+        )}
+        {...triggerProps}
       >
-        {children}
-      </select>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </div>
+        <SelectPrimitive.Value placeholder={placeholder} />
+        <SelectPrimitive.Icon asChild>
+          <Icon icon={ArrowDown01Icon} className="text-muted-foreground" strokeWidth={2} />
+        </SelectPrimitive.Icon>
+      </SelectPrimitive.Trigger>
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Content
+          position="popper"
+          sideOffset={6}
+          className="relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-xl bg-card text-card-foreground shadow-pop"
+        >
+          <SelectPrimitive.Viewport className="p-1.5">{children}</SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    </SelectPrimitive.Root>
+  );
+}
+
+export function SelectItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof SelectPrimitive.Item>) {
+  return (
+    <SelectPrimitive.Item
+      className={cn(
+        'relative flex h-9 cursor-default items-center rounded-md pr-8 pl-2.5 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-muted',
+        className,
+      )}
+      {...props}
+    >
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemIndicator className="absolute right-2.5 flex items-center">
+        <Icon icon={Tick02Icon} />
+      </SelectPrimitive.ItemIndicator>
+    </SelectPrimitive.Item>
   );
 }

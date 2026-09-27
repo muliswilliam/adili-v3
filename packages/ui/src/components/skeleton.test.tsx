@@ -5,17 +5,28 @@ import { Skeleton } from './skeleton';
 
 describe('Skeleton', () => {
   it('is hidden from assistive technology', () => {
-    const { container } = render(<Skeleton />);
+    const { container } = render(<Skeleton className="h-4 w-32" />);
 
     expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('takes its size from the caller', () => {
-    const { container } = render(<Skeleton className="h-3 w-24" />);
+  it('pulses and takes the caller size over its default', () => {
+    const { container } = render(<Skeleton className="h-4 w-32" />);
 
-    const className = container.firstElementChild?.className ?? '';
-    expect(className).toContain('w-24');
-    expect(className).toContain('h-3');
-    expect(className).not.toContain('h-4');
+    const skeleton = container.firstElementChild;
+    expect(skeleton?.className).toContain('animate-shimmer');
+    expect(skeleton?.className).toContain('h-4');
+    expect(skeleton?.className).not.toContain('h-3');
+  });
+
+  it('sits inside a region marked busy while loading', () => {
+    const { container } = render(
+      <div aria-busy="true" aria-label="Commissions">
+        <Skeleton />
+        <Skeleton />
+      </div>,
+    );
+
+    expect(container.querySelectorAll('[aria-busy="true"] > [aria-hidden="true"]')).toHaveLength(2);
   });
 });

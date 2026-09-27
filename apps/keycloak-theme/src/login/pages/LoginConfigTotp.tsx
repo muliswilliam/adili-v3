@@ -75,7 +75,7 @@ export default function LoginConfigTotp({
                       <a
                         id="mode-barcode"
                         href={totp.qrUrl}
-                        className="w-fit rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className="w-fit rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {msg('adiliTotpScanInstead')}
                       </a>
@@ -97,7 +97,7 @@ export default function LoginConfigTotp({
                       <a
                         id="mode-manual"
                         href={totp.manualUrl}
-                        className="rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className="rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {msg('adiliTotpCantScan')}
                       </a>
@@ -163,7 +163,7 @@ export default function LoginConfigTotp({
         ) : null}
 
         <div className="grid gap-3">
-          <Button type="submit" id="saveTOTPBtn" size="lg" className="w-full" disabled={submitting}>
+          <Button type="submit" id="saveTOTPBtn" className="w-full" disabled={submitting}>
             {msgStr('adiliTotpSubmit')}
           </Button>
           {isAppInitiatedAction ? (
@@ -172,8 +172,8 @@ export default function LoginConfigTotp({
               id="cancelTOTPBtn"
               name="cancel-aia"
               value="true"
-              variant="outline"
-              size="lg"
+              variant="secondary"
+
               className="w-full"
             >
               {msg('doCancel')}

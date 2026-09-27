@@ -15,6 +15,7 @@ paths:
       tags:
         - me
       summary: The signed-in user, tenant and roles, as seen by the platform
+      description: Any authenticated caller. Reads the verified access token; the BFFs use it to decide what a user may open.
       operationId: getMe
       responses:
         '200':
@@ -152,6 +153,7 @@ paths:
       tags:
         - commissions
       summary: One Commission with its reporting officer and roster summary
+      description: platform-admin, eacc-analyst and eacc-supervisor read any Commission; other staff only their own tenant's. Answers 404 for Commissions the caller may not see.
       operationId: getCommission
       parameters:
         - name: slug
@@ -292,6 +294,7 @@ paths:
       tags:
         - reference
       summary: Statutory categories of public officers (Act s.32, Regs r.5)
+      description: Any staff role. Reference data for the create form, in statutory order.
       operationId: listOfficerCategories
       responses:
         '200':

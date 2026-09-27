@@ -5,28 +5,41 @@ import { Button } from './button';
 import { EmptyState } from './empty-state';
 
 describe('EmptyState', () => {
-  it('renders icon, title, text and action', () => {
+  it('renders a heading, description, hidden icon and optional action', () => {
     render(
       <EmptyState
         icon={<svg data-testid="icon" />}
         title="No Commissions yet"
-        text="Create the first Responsible Commission to start onboarding."
-        action={<Button>New Commission</Button>}
+        description="Create the first Commission to get started."
+        action={<Button>Create Commission</Button>}
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'No Commissions yet' })).toBeTruthy();
-    expect(
-      screen.getByText('Create the first Responsible Commission to start onboarding.'),
-    ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'New Commission' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'No Commissions yet' })).toBeDefined();
+    expect(screen.getByText('Create the first Commission to get started.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Create Commission' })).toBeDefined();
     expect(screen.getByTestId('icon').parentElement?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('renders only the title when nothing else is given', () => {
-    const { container } = render(<EmptyState title="No matches" />);
+  it('still accepts the older text prop', () => {
+    render(<EmptyState title="No results" text="Try a different search." />);
 
-    expect(screen.getByRole('heading', { name: 'No matches' })).toBeTruthy();
-    expect(container.querySelectorAll('p, button, [aria-hidden]')).toHaveLength(0);
+    expect(screen.getByText('Try a different search.')).toBeDefined();
+  });
+
+  it('prefers description over text when both are given', () => {
+    render(<EmptyState title="No results" description="New wording" text="Old wording" />);
+
+    expect(screen.getByText('New wording')).toBeDefined();
+    expect(screen.queryByText('Old wording')).toBeNull();
+  });
+
+  it('renders only the title when nothing else is given', () => {
+    const { container } = render(<EmptyState title="No results" />);
+
+    expect(screen.getByRole('heading', { name: 'No results' })).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(container.querySelector('p')).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 });

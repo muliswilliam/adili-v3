@@ -7,6 +7,7 @@ export {
   CardDescription,
   CardFooter,
   CardHeader,
+  CardIcon,
   CardTitle,
 } from './components/card';
 export {
@@ -15,6 +16,7 @@ export {
   type CheckboxGroupProps,
   CheckboxItem,
   type CheckboxItemProps,
+  type CheckboxProps,
 } from './components/checkbox';
 export {
   DescriptionItem,
@@ -23,6 +25,7 @@ export {
 } from './components/description-list';
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   type DialogContentProps,
@@ -33,40 +36,34 @@ export {
   DialogTrigger,
 } from './components/dialog';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
-export { FormField, type FormFieldProps } from './components/form-field';
-export { Input } from './components/input';
+export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
+export { Icon, type IconProps } from './components/icon';
+export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
-export { Logo, LogoMark, type LogoProps } from './components/logo';
+export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export {
   RadioCard,
   type RadioCardProps,
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
-export { Select } from './components/select';
+export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
 export {
   Table,
   TableBody,
-  TableCaption,
-  type TableCaptionProps,
   TableCell,
   TableHead,
+  type TableHeadProps,
   TableHeader,
+  type TableProps,
   TableRow,
   TableRowLink,
   type TableRowLinkProps,
 } from './components/table';
 export { Textarea } from './components/textarea';
-export {
-  type ToastApi,
-  type ToastOptions,
-  ToastProvider,
-  type ToastProviderProps,
-  type ToastVariant,
-  useToast,
-} from './components/toast';
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/tooltip';
+export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
+export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export { cn } from './lib/cn';

@@ -1,6 +1,6 @@
-import { Button, Input, Label } from '@adili/ui';
+import { Button, Icon, Input, Label } from '@adili/ui';
+import { Clock01Icon } from '@hugeicons/core-free-icons';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
-import { Clock } from 'lucide-react';
 import { useState } from 'react';
 
 import { FieldError, Lead } from '../components';
@@ -50,7 +50,7 @@ export default function LoginOtp({
             {devices.map((device) => (
               <label
                 key={device.id}
-                className="flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm has-checked:border-primary has-checked:bg-primary-subtle"
+                className="flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm has-checked:border-transparent has-checked:shadow-[0_0_0_1.5px_var(--ring)]"
               >
                 <input
                   type="radio"
@@ -81,7 +81,7 @@ export default function LoginOtp({
             <FieldError id="input-error-otp-code" html={messagesPerField.get('totp')} />
           ) : (
             <p id="otp-hint" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="size-3.5" aria-hidden="true" />
+              <Icon icon={Clock01Icon} className="size-3.5" />
               {msg('adiliOtpNewCode')}
             </p>
           )}
@@ -90,7 +90,7 @@ export default function LoginOtp({
           type="submit"
           name="login"
           id="kc-login"
-          size="lg"
+
           className="w-full"
           disabled={submitting}
         >

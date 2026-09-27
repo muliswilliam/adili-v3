@@ -1,24 +1,52 @@
-import { Badge, Button, Card, EmptyState, Input, Select, Skeleton } from '@adili/ui';
-import { createFileRoute, Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { Building2, Eye, Plus, Search, SearchX, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-
+import { Button, Card, EmptyState, Icon, Input, Select, SelectItem, Skeleton } from '@adili/ui';
+import { Add01Icon, Building03Icon, Cancel01Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import {
-  CommissionsTable,
+  createFileRoute,
+  Link,
+  useLocation,
+  useNavigate,
+  useRouterState,
+} from '@tanstack/react-router';
+import { useEffect, useId, useState } from 'react';
+
+import { ReadOnlyBadge } from '../../components/commissions/badges';
+import { CommissionsPager } from '../../components/commissions/commissions-pager';
+import {
+  CommissionsResults,
   CommissionsTableSkeleton,
 } from '../../components/commissions/commissions-table';
 import {
+  type CommissionFilters,
   type CommissionListSearch,
   commissionListSearch,
+  filtersOf,
   hasFilters,
   SEARCH_DEBOUNCE_MS,
 } from '../../components/commissions/list-search';
 import { messages as m } from '../../components/commissions/messages';
+import {
+  nextPage,
+  type PageLocation,
+  type PagingState,
+  pagingFor,
+  pagingView,
+  previousPage,
+} from '../../components/commissions/paging';
 import { LoadError, NoAccess } from '../../components/load-error';
+import { Page, PageHead } from '../../components/page';
 import { signInRedirect } from '../../components/sign-in-redirect';
-import { workspaceFor } from '../../components/workspaces';
 import { listCommissions } from '../../server/commissions';
-import type { Commission, CommissionPage, DirectoryResult } from '../../server/directory/client';
+import type { CommissionPage, DirectoryResult } from '../../server/directory/client';
+
+declare module '@tanstack/react-router' {
+  interface HistoryState {
+    /** The way back from a later page of the Commissions list (see `paging.ts`). */
+    commissionsPaging?: PagingState;
+  }
+}
+
+/** Radix Select items cannot have an empty value, so "any" is this sentinel. */
+const ANY = 'any';
 
 export const Route = createFileRoute('/commissions/')({
   validateSearch: commissionListSearch,
@@ -44,49 +72,39 @@ function CommissionsLoaded() {
 /** The list page; `result` is null while the first page loads. */
 function CommissionsPage({ result }: { result: DirectoryResult<CommissionPage> | null }) {
   const committed = Route.useSearch();
-  const { viewer } = Route.useRouteContext();
-  const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
-  const readOnly = workspaceFor(roles, 'commissions')?.readOnly ?? true;
-  // Filter changes keep this page mounted (and the search box focused) while the loader runs;
-  // the toolbar shows the filters being loaded rather than the previous ones.
+  const { workspace } = Route.useRouteContext();
+  const readOnly = workspace?.readOnly ?? true;
+  // Filter and page changes keep this page mounted (and the search box focused) while the
+  // loader runs; the toolbar shows the filters being loaded rather than the previous ones.
   const pending = useRouterState({
     select: (state) =>
       state.status === 'pending' && state.location.pathname === '/commissions'
         ? state.location.search
         : null,
   });
-  const refetching = pending !== null;
   const search = pending ? commissionListSearch.parse(pending) : committed;
-  const loading = result === null || refetching;
+  const loading = result === null || pending !== null;
   const forbidden = result?.ok === false && isForbidden(result);
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{m.title}</h1>
-          <p className="h-5 text-sm text-muted-foreground" aria-live="polite">
-            {loading ? (
-              <Skeleton className="mt-0.5 w-28" />
-            ) : result.ok ? (
-              hasFilters(search) ? (
-                m.matches(result.data.total)
-              ) : (
-                m.count(result.data.total)
-              )
-            ) : null}
-          </p>
-        </div>
-        {readOnly ? (
-          <Badge variant="neutral">
-            <Eye aria-hidden="true" />
-            {m.readOnly}
-          </Badge>
-        ) : forbidden ? null : (
-          <NewCommissionButton />
-        )}
-      </div>
-      <Card className="overflow-hidden">
+    <Page>
+      <PageHead
+        title={m.title}
+        actions={readOnly ? <ReadOnlyBadge /> : forbidden ? null : <NewCommissionButton />}
+      >
+        <p className="mt-1 h-[21px] text-sm text-muted-foreground" aria-live="polite">
+          {loading ? (
+            <Skeleton className="my-1 inline-block w-[110px] align-middle" />
+          ) : result.ok ? (
+            hasFilters(search) ? (
+              m.matches(result.data.total)
+            ) : (
+              m.count(result.data.total)
+            )
+          ) : null}
+        </p>
+      </PageHead>
+      <Card className="overflow-hidden p-0 sm:p-0">
         <Toolbar search={search} disabled={forbidden} />
         {loading ? (
           <CommissionsTableSkeleton />
@@ -94,7 +112,7 @@ function CommissionsPage({ result }: { result: DirectoryResult<CommissionPage> |
           <Results result={result} search={search} readOnly={readOnly} />
         )}
       </Card>
-    </div>
+    </Page>
   );
 }
 
@@ -102,7 +120,7 @@ function NewCommissionButton({ size }: { size?: 'sm' }) {
   return (
     <Button asChild size={size}>
       <Link to="/commissions/new">
-        <Plus aria-hidden="true" />
+        <Icon icon={Add01Icon} />
         {m.newCommission}
       </Link>
     </Button>
@@ -113,63 +131,74 @@ function isForbidden(result: DirectoryResult<unknown>): boolean {
   return !result.ok && result.error.kind === 'problem' && result.error.problem.status === 403;
 }
 
+/**
+ * One row at the top of the list card: search (debounced, or on Enter or blur), type and
+ * reporting-officer filters with visually hidden labels, and Clear while any filter is set.
+ */
 function Toolbar({ search, disabled }: { search: CommissionListSearch; disabled: boolean }) {
+  const id = useId();
   const navigate = useNavigate({ from: '/commissions/' });
-  const setFilter = (patch: Partial<CommissionListSearch>) => {
-    void navigate({ search: (previous) => ({ ...previous, ...patch }) });
+  // A filter change starts again from the first page: the cursor belongs to the old results.
+  const setFilters = (patch: CommissionFilters, replace = false) => {
+    void navigate({ search: { ...filtersOf(search), ...patch }, replace });
   };
 
   return (
-    <div role="search" className="flex flex-wrap items-center gap-3 border-b bg-card p-4">
+    <div role="search" className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
       <SearchBox
+        id={`${id}-search`}
         applied={search.search ?? ''}
         disabled={disabled}
         onSearch={(value) => {
-          void navigate({
-            search: (previous) => ({ ...previous, search: value || undefined }),
-            replace: true,
-          });
+          setFilters({ search: value || undefined }, true);
         }}
       />
+      <label htmlFor={`${id}-type`} className="sr-only">
+        {m.typeLabel}
+      </label>
       <Select
-        aria-label={m.typeLabel}
-        value={search.type ?? ''}
+        id={`${id}-type`}
+        value={search.type ?? ANY}
         disabled={disabled}
-        onChange={(event) => {
-          setFilter({ type: (event.target.value || undefined) as CommissionListSearch['type'] });
+        className="h-9 w-auto min-w-[116px] text-sm"
+        onValueChange={(value) => {
+          setFilters({ type: value === 'hosted' || value === 'federated' ? value : undefined });
         }}
-        className="sm:w-40"
       >
-        <option value="">{m.typeAll}</option>
-        <option value="hosted">{m.typeHosted}</option>
-        <option value="federated">{m.typeFederated}</option>
+        <SelectItem value={ANY}>{m.typeAll}</SelectItem>
+        <SelectItem value="hosted">{m.typeHosted}</SelectItem>
+        <SelectItem value="federated">{m.typeFederated}</SelectItem>
       </Select>
+      <label htmlFor={`${id}-officer`} className="sr-only">
+        {m.officerLabel}
+      </label>
       <Select
-        aria-label={m.officerLabel}
-        value={search.reportingOfficer ?? ''}
+        id={`${id}-officer`}
+        value={search.reportingOfficer ?? ANY}
         disabled={disabled}
-        onChange={(event) => {
-          setFilter({
-            reportingOfficer: (event.target.value ||
-              undefined) as CommissionListSearch['reportingOfficer'],
+        className="h-9 w-auto min-w-[186px] text-sm"
+        onValueChange={(value) => {
+          setFilters({
+            reportingOfficer:
+              value === 'none' || value === 'invited' || value === 'activated' ? value : undefined,
           });
         }}
-        className="sm:w-56"
       >
-        <option value="">{m.officerAny}</option>
-        <option value="none">{m.officerNone}</option>
-        <option value="invited">{m.officerInvited}</option>
-        <option value="activated">{m.officerActivated}</option>
+        <SelectItem value={ANY}>{m.officerAny}</SelectItem>
+        <SelectItem value="none">{m.officerNone}</SelectItem>
+        <SelectItem value="invited">{m.officerInvited}</SelectItem>
+        <SelectItem value="activated">{m.officerActivated}</SelectItem>
       </Select>
       {hasFilters(search) ? (
         <Button
           type="button"
           variant="ghost"
+          size="sm"
           onClick={() => {
             void navigate({ search: {} });
           }}
         >
-          <X aria-hidden="true" />
+          <Icon icon={Cancel01Icon} />
           {m.clear}
         </Button>
       ) : null}
@@ -182,10 +211,12 @@ function Toolbar({ search, disabled }: { search: CommissionListSearch; disabled:
  * blur. Follows `applied` (the URL) when that changes from elsewhere, e.g. "Clear filters".
  */
 function SearchBox({
+  id,
   applied,
   disabled,
   onSearch,
 }: {
+  id: string;
   applied: string;
   disabled: boolean;
   onSearch: (value: string) => void;
@@ -214,19 +245,22 @@ function SearchBox({
 
   return (
     <form
-      className="relative w-full sm:w-auto sm:min-w-60 sm:flex-1"
+      className="relative max-w-[360px] min-w-[220px] flex-1"
       onSubmit={(event) => {
         event.preventDefault();
         apply(text);
       }}
     >
-      <Search
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+      <label htmlFor={id} className="sr-only">
+        {m.searchLabel}
+      </label>
+      <Icon
+        icon={Search01Icon}
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
       />
       <Input
+        id={id}
         type="search"
-        aria-label={m.searchLabel}
         placeholder={m.searchPlaceholder}
         value={text}
         maxLength={100}
@@ -237,7 +271,7 @@ function SearchBox({
         onBlur={() => {
           apply(text);
         }}
-        className="pl-9"
+        className="h-9 pl-9 text-sm"
       />
     </form>
   );
@@ -253,11 +287,13 @@ function Results({
   readOnly: boolean;
 }) {
   const navigate = useNavigate({ from: '/commissions/' });
+  const pagingState = useLocation({ select: (location) => location.state.commissionsPaging });
+
   if (!result.ok) {
     const { error } = result;
     if (isForbidden(result)) {
       return (
-        <div className="p-4">
+        <div className="p-5">
           <NoAccess text={m.forbidden} />
         </div>
       );
@@ -267,7 +303,7 @@ function Results({
       (error.kind === 'problem' ? error.problem.detail : undefined) ??
       m.errorDetail;
     return (
-      <div className="p-4">
+      <div className="p-5">
         <LoadError title={m.errorTitle} detail={detail} retryLabel={m.tryAgain} />
       </div>
     );
@@ -275,12 +311,12 @@ function Results({
   if (result.data.items.length === 0) {
     return hasFilters(search) ? (
       <EmptyState
-        icon={<SearchX />}
+        icon={<Icon icon={Search01Icon} />}
         title={m.noMatchesTitle}
-        text={m.noMatchesText}
+        description={m.noMatchesText}
         action={
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => {
               void navigate({ search: {} });
@@ -292,64 +328,35 @@ function Results({
       />
     ) : (
       <EmptyState
-        icon={<Building2 />}
+        icon={<Icon icon={Building03Icon} />}
         title={m.emptyTitle}
-        text={m.emptyText}
+        description={m.emptyText}
         action={readOnly ? undefined : <NewCommissionButton size="sm" />}
       />
     );
   }
-  // Keyed by the filters so "Load more" state resets when they change.
-  return <Pages key={JSON.stringify(search)} first={result.data} search={search} />;
-}
 
-/** The first page plus any pages appended with "Load more". */
-function Pages({ first, search }: { first: CommissionPage; search: CommissionListSearch }) {
-  const [more, setMore] = useState<{ items: Commission[]; nextCursor: string | null }>({
-    items: [],
-    nextCursor: first.nextCursor,
-  });
-  const [state, setState] = useState<'idle' | 'loading' | 'failed'>('idle');
-  const items = [...first.items, ...more.items];
-
-  const loadMore = async () => {
-    if (!more.nextCursor) return;
-    setState('loading');
-    const result = await listCommissions({ data: { ...search, cursor: more.nextCursor } });
-    if (!result.ok) {
-      setState('failed');
-      return;
-    }
-    setMore((previous) => ({
-      items: [...previous.items, ...result.data.items],
-      nextCursor: result.data.nextCursor,
-    }));
-    setState('idle');
+  const paging = pagingFor(search.cursor, pagingState);
+  const view = pagingView(result.data, paging);
+  const next = nextPage(search, result.data, paging);
+  const go = ({ search: to, state }: PageLocation) => {
+    void navigate({ search: to, state: { commissionsPaging: state } });
   };
-
   return (
     <>
-      <CommissionsTable items={items} />
-      {/* When one page holds everything, the header count says it all. */}
-      {first.nextCursor === null ? null : (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {state === 'failed' ? m.loadMoreFailed : m.showing(items.length, first.total)}
-          </p>
-          {more.nextCursor ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={state === 'loading'}
-              onClick={() => {
-                void loadMore();
-              }}
-            >
-              {state === 'loading' ? m.loadingMore : m.loadMore}
-            </Button>
-          ) : null}
-        </div>
-      )}
+      <CommissionsResults items={result.data.items} />
+      <CommissionsPager
+        range={view.range}
+        rows={result.data.items.length}
+        hasPrevious={view.hasPrevious}
+        hasNext={next !== null}
+        onPrevious={() => {
+          go(previousPage(search, paging));
+        }}
+        onNext={() => {
+          if (next) go(next);
+        }}
+      />
     </>
   );
 }

@@ -1,71 +1,80 @@
-import { Slot } from '@radix-ui/react-slot';
-import { type ComponentProps, type ReactNode, useId } from 'react';
+import { AlertCircleIcon } from '@hugeicons/core-free-icons';
+import { cloneElement, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { useFieldIds } from '../lib/use-field-ids';
+import { Icon } from './icon';
 import { Label } from './label';
+
+export { describedBy } from '../lib/use-field-ids';
+
+export function FieldHint({ className, ...props }: ComponentProps<'p'>) {
+  return <p className={cn('text-[13px] text-muted-foreground', className)} {...props} />;
+}
+
+/**
+ * Announced as soon as it appears, so screen reader users hear new validation errors. The icon
+ * means the error does not rely on colour alone.
+ */
+export function FieldError({ className, children, ...props }: ComponentProps<'p'>) {
+  return (
+    <p
+      role="alert"
+      className={cn('flex items-start gap-1.5 text-[13px] font-medium text-destructive', className)}
+      {...props}
+    >
+      <Icon icon={AlertCircleIcon} className="mt-px size-[15px]" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+interface ControlProps {
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: ComponentProps<'input'>['aria-invalid'];
+}
 
 export type FormFieldProps = Omit<ComponentProps<'div'>, 'children'> & {
   label: ReactNode;
-  /** Help text shown under the control. */
   hint?: ReactNode;
-  /** Validation message. Marks the control invalid and is announced when it appears. */
+  /** When set, the control is marked invalid and described by the message. */
   error?: ReactNode;
-  /** Shows an "Optional" marker next to the label. */
-  optional?: boolean;
-  /** Id for the control. Generated when omitted; do not set `id` on the control itself. */
+  /** Id for the control; falls back to the control's own id, then a generated one. */
   controlId?: string;
-  /** A single control, e.g. `Input` or `Textarea`. It receives id and aria wiring. */
-  children: ReactNode;
+  /**
+   * A single control, e.g. Input or Textarea. It receives id, aria-invalid and
+   * aria-describedby; its own aria-describedby is kept ahead of the hint and error.
+   */
+  children: ReactElement<ControlProps>;
 };
 
-/**
- * Label, control, hint and error wired together: the label targets the control, and the control
- * gets `aria-describedby` (hint, then error) and `aria-invalid` while an error is shown.
- */
 export function FormField({
   label,
   hint,
   error,
-  optional = false,
   controlId,
   className,
   children,
   ...props
 }: FormFieldProps) {
-  const generatedId = useId();
-  const id = controlId ?? generatedId;
-  const hintId = `${id}-hint`;
-  const errorId = `${id}-error`;
-  const hasError = error != null && error !== false && error !== '';
-  const describedBy = [hint ? hintId : null, hasError ? errorId : null].filter(Boolean).join(' ');
+  const { id, hintId, errorId, describedBy } = useFieldIds({
+    id: controlId ?? children.props.id,
+    hint,
+    error,
+    describedBy: children.props['aria-describedby'],
+  });
 
   return (
-    <div className={cn('grid gap-2', className)} {...props}>
-      <div className="flex items-baseline justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
-        {optional ? <span className="text-[13px] text-muted-foreground">Optional</span> : null}
-      </div>
-      <Slot
-        id={id}
-        aria-describedby={describedBy || undefined}
-        aria-invalid={hasError ? true : undefined}
-      >
-        {children}
-      </Slot>
-      {hasError ? (
-        <p
-          id={errorId}
-          role="alert"
-          className="text-[13px] font-medium text-destructive-subtle-foreground"
-        >
-          {error}
-        </p>
-      ) : null}
-      {hint ? (
-        <p id={hintId} className="text-[13px] text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
+    <div className={cn('grid content-start gap-1.5', className)} {...props}>
+      <Label htmlFor={id}>{label}</Label>
+      {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
+      {cloneElement(children, {
+        id,
+        'aria-describedby': describedBy,
+        ...(error ? { 'aria-invalid': true } : {}),
+      })}
+      {error ? <FieldError id={errorId}>{error}</FieldError> : null}
     </div>
   );
 }

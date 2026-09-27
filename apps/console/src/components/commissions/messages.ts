@@ -1,3 +1,5 @@
+import { formatNumber } from '../format';
+
 /**
  * Copy of the Commissions screens (spec 01 frontend). One English string per key; the Swahili
  * slot stays empty until translations are reviewed by EACC. Replace with the console-wide
@@ -18,11 +20,12 @@ export const en = {
   officerLabel: 'Reporting officer',
   officerAny: 'Any reporting officer',
   officerNone: 'Not assigned',
+  officerNotAssigned: 'Reporting officer not assigned',
   officerInvited: 'Invited',
   officerActivated: 'Activated',
   clear: 'Clear',
-  count: (total: number) => `${total} ${total === 1 ? 'Commission' : 'Commissions'}`,
-  matches: (total: number) => `${total} ${total === 1 ? 'match' : 'matches'}`,
+  count: (total: number) => `${formatNumber(total)} ${total === 1 ? 'Commission' : 'Commissions'}`,
+  matches: (total: number) => `${formatNumber(total)} ${total === 1 ? 'match' : 'matches'}`,
   caption: 'Responsible Commissions',
   loadingCaption: 'Responsible Commissions (loading)',
   columnCommission: 'Commission',
@@ -34,10 +37,14 @@ export const en = {
   moreCategories: (count: number, citations: string) => `${count} more: ${citations}`,
   noCategories: 'None recorded',
   noRoster: 'No roster yet',
-  loadMore: 'Load more',
-  loadingMore: 'Loading…',
-  loadMoreFailed: 'More Commissions could not be loaded. Try again.',
-  showing: (shown: number, total: number) => `Showing ${shown} of ${total}`,
+  pagination: 'Pagination',
+  pageRange: (from: number, to: number) =>
+    `Showing ${formatNumber(from)}-${formatNumber(to)} Commissions`,
+  /** A later page opened from a shared link, whose place in the list is unknown. */
+  pageRows: (count: number) =>
+    `Showing ${formatNumber(count)} ${count === 1 ? 'Commission' : 'Commissions'}`,
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
   emptyTitle: 'No Commissions yet',
   emptyText: 'Create the first Responsible Commission to start onboarding.',
   noMatchesTitle: 'No matches',
@@ -51,7 +58,8 @@ export const en = {
   noStaffRolesTitle: 'No staff roles',
   noStaffRolesText: 'Your account has no console access. Declarants file through the portal.',
   // Detail
-  breadcrumb: 'Breadcrumb',
+  loading: 'Loading…',
+  notFoundCrumb: 'Not found',
   details: 'Details',
   name: 'Name',
   commissionKey: 'Commission key',
@@ -72,6 +80,7 @@ export const en = {
   officerInvitedOn: 'Invited on',
   officerActivatedOn: 'Activated on',
   officerLinkValidity: 'The activation link is valid for 72 hours.',
+  officerAgo: (ago: string) => `(${ago})`,
   // Assign dialog
   assignOfficer: 'Assign reporting officer',
   assignTitle: 'Assign reporting officer',
