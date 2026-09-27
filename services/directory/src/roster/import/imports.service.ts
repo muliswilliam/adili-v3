@@ -11,7 +11,8 @@ import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
 import { commissions, type DirectorySchema } from '../../db/schema.js';
 import { rosterActorOf } from '../actor.js';
-import { rosterImports } from '../schema.js';
+import type { RawRosterRow } from '../row-validation.js';
+import { rosterImportBatches, rosterImports } from '../schema.js';
 import { RosterFileError } from '../sheet.js';
 import { decodeImportCursor, encodeImportCursor } from './cursors.js';
 import { rowsRetainedUntil } from './import-rows-purge.js';
@@ -24,6 +25,7 @@ import {
   type RosterImport,
   type RosterImportPage,
   type RosterImportPreview,
+  type StartBatchImportBody,
   type StartFileImportBody,
 } from './representation.js';
 import {
@@ -54,13 +56,7 @@ export class RosterImportsService {
     @InjectTemporalClient() private readonly temporal: Client,
   ) {}
 
-  /**
-   * Starts importing a clean roster upload of the caller's Commission: records the import as
-   * `pending` and starts its workflow before the transaction commits. No import is left pending
-   * without a workflow (which would block the tenant's imports); a workflow whose import then
-   * fails to commit finds none and ends (staging retries briefly, for the commit to land).
-   * 409 `import-in-progress` while another import of the tenant is pending or processing.
-   */
+  /** Starts importing a clean roster upload of the caller's Commission. See `start`. */
   async startFile(
     principal: Principal,
     slug: string,
@@ -70,22 +66,61 @@ export class RosterImportsService {
     const upload = await this.uploads.describe(slug, body.uploadId).catch((error: unknown) => {
       throw this.asProblem(error);
     });
+    return this.start(principal, slug, {
+      channel: 'file',
+      declaredComplete: body.declaredComplete,
+      uploadId: upload.id,
+      fileName: upload.fileName,
+      format: upload.format,
+    });
+  }
+
+  /**
+   * Starts importing a batch of rows an HR system (or anyone who may import) sent inline
+   * (channel `api`): the rows are stored with the import and staged by its workflow like a
+   * file's, so row rules reject rows in the report rather than the request. A batch is never
+   * declared complete. See `start`.
+   */
+  async startBatch(
+    principal: Principal,
+    slug: string,
+    body: StartBatchImportBody,
+  ): Promise<RosterImport> {
+    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    return this.start(
+      principal,
+      slug,
+      { channel: 'api', declaredComplete: false, uploadId: null, fileName: null, format: 'json' },
+      body.rows,
+    );
+  }
+
+  /**
+   * Records the import as `pending` (with the batch's rows, for an API batch) and starts its
+   * workflow before the transaction ends. No import is left pending without a workflow (which
+   * would block the tenant's imports); a workflow whose import then fails to be saved finds
+   * none and ends (staging retries briefly, for the transaction to land).
+   * 409 `import-in-progress` while another import of the tenant is pending or processing.
+   */
+  private async start(
+    principal: Principal,
+    slug: string,
+    source: Pick<ImportRow, 'channel' | 'declaredComplete' | 'uploadId' | 'fileName' | 'format'>,
+    batchRows?: RawRosterRow[],
+  ): Promise<RosterImport> {
     try {
       return await withTenant(this.db, { tenant: slug, subject: principal.subject }, async (tx) => {
         await requireCommission(tx, slug);
         const [row] = await tx
           .insert(rosterImports)
-          .values({
-            tenant: slug,
-            channel: 'file',
-            declaredComplete: body.declaredComplete,
-            uploadId: upload.id,
-            fileName: upload.fileName,
-            format: upload.format,
-            ...startedBy(principal),
-          })
+          .values({ tenant: slug, ...source, ...startedBy(principal) })
           .returning();
         if (!row) throw new Error('insert returned no row');
+        if (batchRows) {
+          await tx
+            .insert(rosterImportBatches)
+            .values({ importId: row.id, tenant: slug, rows: batchRows });
+        }
         await this.startWorkflow(row);
         return toRosterImport(row);
       });
@@ -278,7 +313,8 @@ export function toRosterImport(row: ImportRow): RosterImport {
     totalRows: row.totalRows,
     processedRows: row.processedRows,
     // Parsed for the contract's key order: jsonb stores keys in its own.
-    counts: row.counts && importCountsSchema.parse(row.counts),
+    counts:
+      row.counts && importCountsSchema.parse({ ...row.counts, exitsRecorded: row.exitsRecorded }),
     mapping: row.mapping && columnMappingSchema.parse(row.mapping),
     failure:
       row.failureCode === null ? null : { code: row.failureCode, detail: row.failureDetail ?? '' },

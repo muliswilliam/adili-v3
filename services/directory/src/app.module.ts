@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, IdempotencyModule } from '@adili/api-kit';
-import { CacheModule, ValkeyReadinessCheck } from '@adili/cache';
+import { CoreModule, IdempotencyModule, RateLimitModule } from '@adili/api-kit';
+import { CacheModule, ValkeyRateLimitStore, ValkeyReadinessCheck } from '@adili/cache';
 import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import {
@@ -47,6 +47,7 @@ import { RosterModule } from './roster/roster.module.js';
     }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    RateLimitModule.forRoot({ policies: config.RATE_LIMITS, store: ValkeyRateLimitStore }),
     TemporalModule.forRoot({
       address: config.TEMPORAL_ADDRESS,
       namespace: config.TEMPORAL_NAMESPACE,

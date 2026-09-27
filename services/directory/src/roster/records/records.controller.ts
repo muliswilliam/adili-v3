@@ -6,15 +6,15 @@ import {
   AuditedRead,
   CurrentPrincipal,
   type Principal,
+  RATE_LIMIT_HEADERS,
   Roles,
-  Scopes,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
 
 import type { RosterSummary } from '../../commissions/representation.js';
-import { ROSTER_WRITE_SCOPE } from '../api-credential/representation.js';
+import { HrSystemAccess } from '../api-credential/hr-system-access.js';
 import { IMPORT_READ_ROLES } from '../import/imports.controller.js';
 import { RECORD_READ_ROLES } from './access.js';
 import { type ListRosterRecordsQuery, listRosterRecordsQuery } from './list-query.js';
@@ -33,14 +33,18 @@ export class RosterRecordsController {
 
   @Get('summary')
   @Roles(...IMPORT_READ_ROLES)
-  @Scopes(ROSTER_WRITE_SCOPE)
+  @HrSystemAccess('roster-read')
   @ApiOperation({
     operationId: 'getRosterSummary',
     summary: 'Expected, onboarded and flagged counts and the last import',
     description:
       "The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission. The same summary as the Commission's `roster`.",
   })
-  @ApiOkResponse({ description: 'The summary', schema: schemaRef('RosterSummary') })
+  @ApiOkResponse({
+    description: 'The summary',
+    schema: schemaRef('RosterSummary'),
+    headers: RATE_LIMIT_HEADERS,
+  })
   @ApiProblemResponse(404, NOT_VISIBLE)
   summary(
     @CurrentPrincipal() principal: Principal,

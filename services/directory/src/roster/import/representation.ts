@@ -60,7 +60,10 @@ export const importCountsSchema = z.object({
   flaggedAbsent: z.number().int().meta({
     description: 'Records flagged as absent from this complete import',
   }),
-  exitsRecorded: z.number().int().meta({ description: 'Exits recorded by this import' }),
+  exitsRecorded: z.number().int().meta({
+    description:
+      'Exits confirmed so far (by the reporting officer or the HR system) for records this complete import flagged absent; grows after the import ended',
+  }),
 });
 export type ImportCounts = z.infer<typeof importCountsSchema>;
 
@@ -202,6 +205,71 @@ export const startFileImportBody = z.object({
   }),
 });
 export type StartFileImportBody = z.infer<typeof startFileImportBody>;
+
+/** Rows one API batch may carry. */
+export const MAX_BATCH_ROWS = 1000;
+
+/**
+ * One row of an API batch: the template's columns by field. Only the shape is checked here (an
+ * object of strings or nulls, decision 4); the row rules (required, formats, duplicates) are
+ * applied when the import stages it, rejecting the row in the report like a file's.
+ */
+export const rosterRowInputSchema = z
+  .object(
+    Object.fromEntries(
+      ROSTER_COLUMNS.map((column) => [
+        column.field,
+        z
+          .string()
+          .nullable()
+          .optional()
+          .meta({
+            description: `${column.format}.${column.required ? ' Required: a row without it is rejected in the report.' : ''}`,
+            examples: [column.example],
+          }),
+      ]),
+    ) as Record<RosterField, z.ZodOptional<z.ZodNullable<z.ZodString>>>,
+  )
+  .meta({
+    description:
+      "One officer, by template field. Values are checked like a roster file's cells when the import runs: a row breaking a rule is rejected in the report with its errors, and the others are applied. Unknown properties are ignored.",
+  });
+export type RosterRowInput = z.infer<typeof rosterRowInputSchema>;
+
+export const startBatchImportBody = z.object({
+  channel: z.literal('api'),
+  rows: z.array(rosterRowInputSchema).min(1).max(MAX_BATCH_ROWS).meta({
+    description:
+      'Up to 1,000 rows, upserted by personnel file number. `rowNumber` in the report is the 1-based position here. A batch is never the complete roster: officers not in it are not flagged.',
+  }),
+});
+export type StartBatchImportBody = z.infer<typeof startBatchImportBody>;
+
+/** `startRosterImport`'s body: a clean upload (console) or an inline batch (HR systems). */
+export const startRosterImportBody = z.discriminatedUnion('channel', [
+  startFileImportBody,
+  startBatchImportBody,
+]);
+export type StartRosterImportBody = z.infer<typeof startRosterImportBody>;
+
+/** The 400 of `startRosterImport`: validation errors, with the batch row each is about. */
+export const rosterBatchProblemSchema = problemDetailsSchema.extend({
+  errors: z
+    .array(
+      z.object({
+        path: z.string().meta({
+          description: 'The dotted request field, e.g. `rows.3.nationalId`',
+        }),
+        message: z.string(),
+        rowIndex: z.int().optional().meta({
+          description:
+            'For errors in a row of a batch: its 0-based index in `rows` (its `rowNumber` in the report is one more)',
+        }),
+      }),
+    )
+    .optional()
+    .meta({ description: 'Field-level errors' }),
+});
 
 /** The 409 of `startRosterImport`: problem details, naming the running import when that is why. */
 export const importConflictProblemSchema = problemDetailsSchema.extend({

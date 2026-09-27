@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
+import { createValkey, VALKEY } from '@adili/cache';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -35,6 +36,8 @@ export interface Caller {
   scope?: string;
   /** The `azp` claim: `console` by default, an HR system's client id for machine callers. */
   azp?: string;
+  /** The `iat` claim in seconds since the epoch: when the token is signed by default. */
+  iat?: number;
 }
 
 export interface WriteOptions {
@@ -97,6 +100,12 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
   const identity = new InMemoryIdentityProvisioning();
   const activationLookups = new InMemoryActivationLookups();
   const uploads = new InMemoryRosterUploads();
+  // The suite's own key prefix, so rate limit budgets and throttles start fresh and never meet
+  // another suite's (or an earlier run's) on the shared Valkey.
+  const valkey = createValkey({
+    url: requireEnv('TEST_VALKEY_URL'),
+    keyPrefix: `${pgSchema}:`,
+  });
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -108,6 +117,8 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     .useValue(activationLookups)
     .overrideProvider(RosterUploads)
     .useValue(uploads)
+    .overrideProvider(VALKEY)
+    .useValue(valkey)
     .compile();
   // Quiet like LOG_LEVEL=fatal in the service; expected 5xx in tests would otherwise log errors.
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
@@ -165,7 +176,7 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate roster_import_rows, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
+        sql`truncate roster_import_batches, roster_import_rows, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
       uploads.reset();
@@ -206,9 +217,11 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
     name,
     scope,
     azp = 'console',
+    iat,
   }: Caller) =>
     new SignJWT({ azp, tenant, realm_access: { roles }, name, scope })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
+      .setIssuedAt(iat)
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject(sub)

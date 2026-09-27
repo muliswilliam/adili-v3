@@ -83,3 +83,10 @@ export const keepResultSchema = z.object({
   }),
 });
 export type KeepResult = z.infer<typeof keepResultSchema>;
+
+/** Body of `recordRosterExit`: an HR system recording one officer's exit. */
+export const recordRosterExitBody = z.object({ exitDate: exitDateSchema });
+export type RecordRosterExitBody = z.infer<typeof recordRosterExitBody>;
+
+/** The `fileNumber` path parameter of `recordRosterExit`: matched trimmed, case-insensitively. */
+export const fileNumberParam = z.string().trim().min(1).max(30);

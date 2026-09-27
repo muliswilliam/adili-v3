@@ -85,6 +85,20 @@
       "when": 1790548382608,
       "tag": "0011_roster_import_rows_report_index",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790549818207,
+      "tag": "0012_roster_api_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790549822200,
+      "tag": "0013_roster_api_batches_rls",
+      "breakpoints": true
     }
   ]
 }

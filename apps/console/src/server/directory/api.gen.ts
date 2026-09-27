@@ -205,13 +205,13 @@ export interface paths {
         };
         /**
          * Import history, newest first
-         * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
+         * @description The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission.
          */
         get: operations["listRosterImports"];
         put?: never;
         /**
-         * Start importing a clean roster upload
-         * @description Reporting officer of the Commission. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason. Idempotent per Idempotency-Key.
+         * Start importing a clean roster upload, or a batch of rows
+         * @description Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`). At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key.
          */
         post: operations["startRosterImport"];
         delete?: never;
@@ -249,7 +249,7 @@ export interface paths {
         };
         /**
          * One import with progress, mapping, counts and failure reason
-         * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
+         * @description The Commission's reporting officer, commission admin and HR system (`roster:write`); platform admin, EACC analyst and supervisor for every Commission.
          */
         get: operations["getRosterImport"];
         put?: never;
@@ -269,7 +269,7 @@ export interface paths {
         };
         /**
          * An import's rows with their status, errors and outcome, by row number
-         * @description Read like roster records, as rows hold personal data: the Commission's reporting officer and commission admin, and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`).
+         * @description Read like roster records, as rows hold personal data: the Commission's reporting officer, commission admin and HR system (`roster:write`), and platform admins (audited); not EACC. Rows are kept for 30 days after the import ends (`rowsRetainedUntil`).
          */
         get: operations["listRosterImportRows"];
         put?: never;
@@ -380,6 +380,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/roster/records/{fileNumber}/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record one officer's exit by personnel file number (HR systems)
+         * @description The Commission's HR system (`roster:write`), or its reporting officer. Like confirming the exit of one record: `exited` with the exit date and the absent flag cleared; the officer stays on the roster for their final declaration and no longer counts as expected. Records `roster.exits.confirmed.v1` (source `api` for HR systems). Idempotent per Idempotency-Key.
+         */
+        post: operations["recordRosterExit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/roster/keep": {
         parameters: {
             query?: never;
@@ -394,27 +414,6 @@ export interface paths {
          * @description Reporting officer of the Commission. Clears the flag of the flagged records among them; the others are left as they are. Records `roster.records.kept.v1`. Idempotent per Idempotency-Key.
          */
         post: operations["keepRosterRecords"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/records/{fileNumber}/exit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                /** @description Personnel file number (HR systems address records by it) */
-                fileNumber: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Record one officer's exit by personnel file number (HR systems) */
-        post: operations["recordRosterExit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -836,6 +835,8 @@ export interface components {
             clientId: string | null;
             /** @description Display name: the `name` claim, else `preferred_username` */
             name: string | null;
+            /** @description When the token was issued (`iat`), in seconds since the epoch */
+            issuedAt: number | null;
         };
         /**
          * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
@@ -1032,7 +1033,7 @@ export interface components {
             rejected: number;
             /** @description Records flagged as absent from this complete import */
             flaggedAbsent: number;
-            /** @description Exits recorded by this import */
+            /** @description Exits confirmed so far (by the reporting officer or the HR system) for records this complete import flagged absent; grows after the import ended */
             exitsRecorded: number;
         };
         RosterImport: {
@@ -1086,6 +1087,76 @@ export interface components {
             uploadId: string;
             /** @description True when the file is the complete roster; absent officers get flagged */
             declaredComplete: boolean;
+        };
+        /** @description One officer, by template field. Values are checked like a roster file's cells when the import runs: a row breaking a rule is rejected in the report with its errors, and the others are applied. Unknown properties are ignored. */
+        RosterRowInput: {
+            /**
+             * @description Up to 30 letters, digits, /, - or .; unique in the file. Required: a row without it is rejected in the report.
+             * @example TSC/004512
+             */
+            personnelFileNumber?: string | null;
+            /**
+             * @description 2 to 200 characters. Required: a row without it is rejected in the report.
+             * @example Achieng Mary Otieno
+             */
+            fullName?: string | null;
+            /**
+             * @description 5 to 10 digits; unique in the file. Required: a row without it is rejected in the report.
+             * @example 23456789
+             */
+            nationalId?: string | null;
+            /**
+             * @description Up to 100 characters.
+             * @example Senior Teacher
+             */
+            designation?: string | null;
+            /**
+             * @description Up to 10 characters.
+             * @example C3
+             */
+            jobGroup?: string | null;
+            /**
+             * @description Up to 200 characters.
+             * @example Moi Girls High School, Eldoret
+             */
+            reportingEntity?: string | null;
+            /**
+             * @description YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future.
+             * @example 2019-01-07
+             */
+            appointmentDate?: string | null;
+            /**
+             * @description Email address, up to 254 characters.
+             * @example mary.otieno@example.go.ke
+             */
+            email?: string | null;
+            /**
+             * @description Kenyan mobile (07…, 01…) or international (+…).
+             * @example 0712345678
+             */
+            phone?: string | null;
+        };
+        StartBatchImport: {
+            /** @constant */
+            channel: "api";
+            /** @description Up to 1,000 rows, upserted by personnel file number. `rowNumber` in the report is the 1-based position here. A batch is never the complete roster: officers not in it are not flagged. */
+            rows: components["schemas"]["RosterRowInput"][];
+        };
+        StartRosterImport: components["schemas"]["StartFileImport"] | components["schemas"]["StartBatchImport"];
+        RosterBatchProblem: {
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors */
+            errors?: {
+                /** @description The dotted request field, e.g. `rows.3.nationalId` */
+                path: string;
+                message: string;
+                /** @description For errors in a row of a batch: its 0-based index in `rows` (its `rowNumber` in the report is one more) */
+                rowIndex?: number;
+            }[];
         };
         ImportConflictProblem: {
             type: string;
@@ -1295,6 +1366,13 @@ export interface components {
             /** @description Records whose flag was cleared; records that were not flagged are left as they are */
             count: number;
         };
+        RecordRosterExit: {
+            /**
+             * Format: date
+             * @description Last day of employment; not in the future (Africa/Nairobi)
+             */
+            exitDate: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1306,27 +1384,6 @@ export interface components {
                 path: string;
                 message: string;
             }[];
-        };
-        /** @description One roster row as accepted from the template or an API batch (pre-normalisation) */
-        RosterRowInput: {
-            personnelFileNumber: string;
-            fullName: string;
-            /** @description Digits after stripping spaces, 5 to 10 */
-            nationalId: string;
-            designation?: string | null;
-            jobGroup?: string | null;
-            reportingEntity?: string | null;
-            /** @description ISO date preferred; DD/MM/YYYY and DD-MM-YYYY accepted */
-            appointmentDate?: string | null;
-            /** Format: email */
-            email?: string | null;
-            /** @description Local (07…, 01…) or international; normalised to E.164 */
-            phone?: string | null;
-        };
-        StartBatchImport: {
-            /** @constant */
-            channel: "api";
-            rows: components["schemas"]["RosterRowInput"][];
         };
         /**
          * @description Officer reference (ADR-011), permanent and person-level
@@ -2184,6 +2241,12 @@ export interface operations {
             /** @description Page of imports */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2199,7 +2262,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor */
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2211,6 +2283,23 @@ export interface operations {
             /** @description Not found: another Commission, or the Commission does not exist */
             404: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2233,21 +2322,36 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StartFileImport"];
+                "application/json": components["schemas"]["StartRosterImport"];
             };
         };
         responses: {
             /** @description Import accepted */
             202: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["RosterImport"];
                 };
             };
-            /** @description Request failed validation */
+            /** @description Request failed validation; for a batch, `rowIndex` names the row of each error */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RosterBatchProblem"];
+                };
+            };
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2255,7 +2359,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the roles: reporting-officer */
+            /** @description Requires one of the roles: reporting-officer, or one of the scopes: roster:write */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2285,6 +2389,23 @@ export interface operations {
             /** @description Idempotency-Key reused with a different request body */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2406,6 +2527,12 @@ export interface operations {
             /** @description The import */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2421,7 +2548,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor */
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2433,6 +2569,23 @@ export interface operations {
             /** @description Not found: another Commission, or the Commission does not exist, or no such import */
             404: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2462,6 +2615,12 @@ export interface operations {
             /** @description Page of rows */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2477,7 +2636,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin */
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, or one of the scopes: roster:write */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2498,6 +2666,23 @@ export interface operations {
             /** @description Problem type `import-rows-purged`: the import ended over 30 days ago and its rows were purged; its counts remain */
             410: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2521,6 +2706,12 @@ export interface operations {
             /** @description The rejected rows */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2536,7 +2727,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin */
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, or one of the scopes: roster:write */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2563,6 +2763,23 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getRosterSummary: {
@@ -2579,10 +2796,25 @@ export interface operations {
             /** @description The summary */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["RosterSummary"];
+                };
+            };
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor, or one of the scopes: roster:write */
@@ -2597,6 +2829,23 @@ export interface operations {
             /** @description Not found: another Commission, or the Commission does not exist */
             404: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2788,6 +3037,114 @@ export interface operations {
             };
         };
     };
+    recordRosterExit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+                /** @description Personnel file number, URL-encoded (`/` as `%2F`, e.g. `PSC%2F2019%2F0888`); matched ignoring case and surrounding spaces */
+                fileNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordRosterExit"];
+            };
+        };
+        responses: {
+            /** @description The exited record */
+            200: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterRecord"];
+                };
+            };
+            /** @description Request failed validation: an exit date in the future or missing, or a file number longer than 30 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Missing, expired or invalid access token. Problem type `credential-not-current`: the HR system's credential was revoked, or its secret rotated after the token was issued */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, or one of the scopes: roster:write */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist. Problem type `record-not-found`: no officer on the roster has that personnel file number */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `record-exited`: the officer has exited already */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     keepRosterRecords: {
         parameters: {
             query?: never;
@@ -2844,51 +3201,6 @@ export interface operations {
             };
             /** @description Idempotency-Key reused with a different request body */
             422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    recordRosterExit: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                slug: components["parameters"]["Slug"];
-                /** @description Personnel file number (HR systems address records by it) */
-                fileNumber: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: date */
-                    exitDate: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The exited record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterRecord"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Already exited */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
