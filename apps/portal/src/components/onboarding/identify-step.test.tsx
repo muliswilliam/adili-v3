@@ -18,7 +18,7 @@ const TSC = {
 };
 
 function field(name: string) {
-  return screen.getByRole('textbox', { name });
+  return screen.getByRole<HTMLInputElement>('textbox', { name });
 }
 
 function submit() {

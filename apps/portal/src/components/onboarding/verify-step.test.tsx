@@ -68,7 +68,7 @@ function renderStep(initial = session()) {
 }
 
 function box(position: number) {
-  return screen.getByRole('textbox', {
+  return screen.getByRole<HTMLInputElement>('textbox', {
     name: `Digit ${String(position)} of 6`,
   });
 }
@@ -162,7 +162,7 @@ describe('VerifyStep', () => {
   it('holds the resend link while the directory makes the declarant wait', () => {
     renderStep(session({ resendAvailableAt: new Date(Date.now() + 42_000).toISOString() }));
 
-    const link = screen.getByRole('button', { name: /Resend in \d+s/ });
+    const link = screen.getByRole<HTMLButtonElement>('button', { name: /Resend in \d+s/ });
     expect(link.disabled).toBe(true);
   });
 

@@ -23,7 +23,7 @@ function search() {
 }
 
 function continueButton() {
-  return screen.getByRole('button', { name: 'Continue' });
+  return screen.getByRole<HTMLButtonElement>('button', { name: 'Continue' });
 }
 
 beforeAll(() => {
