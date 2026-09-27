@@ -7,6 +7,7 @@ import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { outbox, rosterImportRows, rosterImports, rosterRecords } from '../../src/db/schema.js';
 import { applyChunk } from '../../src/roster/import/apply-chunk.js';
 import { finaliseImport } from '../../src/roster/import/finalise.js';
+import { flagAbsent } from '../../src/roster/import/flag-absent.js';
 import { DocumentsUnavailable } from '../../src/roster/import/roster-uploads.js';
 import { stageImport } from '../../src/roster/import/staging.js';
 import type { ImportRef } from '../../src/roster/import/workflow-contract.js';
@@ -48,7 +49,7 @@ function asPlatform<T>(work: (tx: Parameters<Parameters<typeof withTenant>[2]>[0
 }
 
 /** A pending file import of FILE, as the start endpoint records it (without its workflow). */
-async function givenImport(content = FILE): Promise<ImportRef> {
+async function givenImport(content = FILE, declaredComplete = true): Promise<ImportRef> {
   const uploadId = api.uploads.add('psc', { bytes: content });
   const [row] = await asPlatform((tx) =>
     tx
@@ -56,7 +57,7 @@ async function givenImport(content = FILE): Promise<ImportRef> {
       .values({
         tenant: 'psc',
         channel: 'file',
-        declaredComplete: true,
+        declaredComplete,
         uploadId,
         fileName: 'roster.csv',
         format: 'csv',
@@ -237,4 +238,84 @@ describe('finalise', () => {
       counts: { created: 3, rejected: 1 },
     });
   });
+});
+
+describe('flagAbsent', () => {
+  /** A completed import of FILE, then a staged and applied one of `content`. */
+  async function givenSecondImport(content: string, declaredComplete = true): Promise<ImportRef> {
+    const first = await givenImport();
+    await stageImport(api.db, api.uploads, first);
+    await applyChunk(api.db, first, 0);
+    await finaliseImport(api.db, events, first, { state: 'completed' });
+    const second = await givenImport(content, declaredComplete);
+    await stageImport(api.db, api.uploads, second);
+    await applyChunk(api.db, second, 0);
+    return second;
+  }
+
+  const flaggedBy = async () =>
+    (await records())
+      .filter((record) => record.absentFromLatestImport)
+      .map((record) => [record.personnelFileNumber, record.flaggedByImportId])
+      .sort();
+
+  it('flags the same records and returns the same count when it runs again', async () => {
+    const ref = await givenSecondImport(
+      ['personnel_file_number,full_name,national_id', 'PSC/1,Achieng Otieno,12345678'].join('\n'),
+    );
+
+    const first = await flagAbsent(api.db, ref);
+    const flaggedAt = (await records()).map((record) => record.flaggedAt?.getTime()).sort();
+    const again = await flagAbsent(api.db, ref);
+
+    expect([first, again]).toEqual([2, 2]);
+    expect(await flaggedBy()).toEqual([
+      ['PSC/2', ref.importId],
+      ['PSC/3', ref.importId],
+    ]);
+    expect((await records()).map((record) => record.flaggedAt?.getTime()).sort()).toEqual(
+      flaggedAt,
+    );
+  });
+
+  it('counts an officer whose row was rejected when staged as seen', async () => {
+    const ref = await givenSecondImport(
+      [
+        'personnel_file_number,full_name,national_id',
+        'PSC/1,Achieng Otieno,12345678',
+        '\u00a0psc/2 ,Kiprono Kipchumba,bad',
+        'PSC/3 x,Wanjiru Kamau,34567890',
+      ].join('\n'),
+    );
+
+    expect(await flagAbsent(api.db, ref)).toBe(1);
+    // A file number that is itself invalid names nobody.
+    expect(await flagged()).toEqual(['PSC/3']);
+  });
+
+  it('flags nobody for a partial import or an import that has ended', async () => {
+    const partial = await givenSecondImport(
+      ['personnel_file_number,full_name,national_id', 'PSC/1,Achieng Otieno,12345678'].join('\n'),
+      false,
+    );
+
+    expect(await flagAbsent(api.db, partial)).toBe(0);
+    await finaliseImport(api.db, events, partial, { state: 'completed' });
+    const ended = await givenImport(
+      ['personnel_file_number,full_name,national_id', 'PSC/1,Achieng Otieno,12345678'].join('\n'),
+    );
+    await stageImport(api.db, api.uploads, ended);
+    await applyChunk(api.db, ended, 0);
+    await finaliseImport(api.db, events, ended, {
+      state: 'failed',
+      failure: { code: 'internal', detail: 'stopped' },
+    });
+
+    expect(await flagAbsent(api.db, ended)).toBe(0);
+    expect(await flagged()).toEqual([]);
+  });
+
+  async function flagged(): Promise<string[]> {
+    return (await flaggedBy()).map(([fileNumber]) => fileNumber ?? '');
+  }
 });

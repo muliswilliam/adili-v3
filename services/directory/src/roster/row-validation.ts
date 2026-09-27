@@ -201,7 +201,8 @@ export function parseDate(value: string): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-function todayInNairobi(): string {
+/** Today, `YYYY-MM-DD`, in Kenya's time zone. */
+export function todayInNairobi(): string {
   // en-CA formats as YYYY-MM-DD.
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
 }

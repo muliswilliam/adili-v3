@@ -1033,16 +1033,25 @@ paths:
         action: roster.record.viewed
         resource: roster-record
   /v1/commissions/{slug}/roster/exits:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
     post:
       tags:
         - roster
       summary: Confirm exits for flagged (or any non-exited) records
+      description: 'Reporting officer of the Commission. Exits every record or none: each becomes `exited` with its exit date and its absent flag cleared. Exited officers stay on the roster for their final declaration and no longer count as expected declarants. Records `roster.exits.confirmed.v1`. Idempotent per Idempotency-Key.'
       operationId: confirmRosterExits
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -1057,11 +1066,92 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExitsResult'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: 'Request failed validation: an exit date in the future or missing, or a record listed twice'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: "Not found: another Commission, or the Commission does not exist. Problem type `record-not-found`: some records are not on the Commission's roster; `errors` points at them and nothing was changed"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `record-exited`: some records have exited already; `errors` points at them and nothing was changed'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/keep:
+    post:
+      tags:
+        - roster
+      summary: 'Clear the absent flag: these officers are still employed'
+      description: Reporting officer of the Commission. Clears the flag of the flagged records among them; the others are left as they are. Records `roster.records.kept.v1`. Idempotent per Idempotency-Key.
+      operationId: keepRosterRecords
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeepRosterRecords'
+      responses:
+        '200':
+          description: Count of records updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeepResult'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "Not found: another Commission, or the Commission does not exist. Problem type `record-not-found`: some records are not on the Commission's roster; `errors` points at them and nothing was changed"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/roster/records/{fileNumber}/exit:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -1109,47 +1199,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/commissions/{slug}/roster/keep:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags:
-        - roster
-      summary: 'Clear the absent flag: these officers are still employed'
-      operationId: keepRosterRecords
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - recordIds
-              properties:
-                recordIds:
-                  type: array
-                  minItems: 1
-                  maxItems: 1000
-                  items:
-                    type: string
-                    format: uuid
-      responses:
-        '200':
-          description: Count of records updated
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - count
-                properties:
-                  count:
-                    type: integer
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/onboarding/commissions:
     get:
       tags:
@@ -2941,6 +2990,66 @@ components:
       required:
         - items
         - nextCursor
+    ConfirmExits:
+      type: object
+      properties:
+        records:
+          minItems: 1
+          maxItems: 1000
+          type: array
+          items:
+            type: object
+            properties:
+              recordId:
+                type: string
+                format: uuid
+              exitDate:
+                description: Overrides the batch `exitDate` for this record. Not in the future (Africa/Nairobi)
+                type: string
+                format: date
+            required:
+              - recordId
+          description: Records to exit; each at most once, none already exited
+        exitDate:
+          description: Exit date of the records without their own; required unless every record has one. Not in the future (Africa/Nairobi)
+          type: string
+          format: date
+      required:
+        - records
+    ExitsResult:
+      type: object
+      properties:
+        batchId:
+          type: string
+          format: uuid
+          description: Identifies this confirmation, as in the `roster.exits.confirmed.v1` event
+        count:
+          type: integer
+          description: Records now exited
+      required:
+        - batchId
+        - count
+    KeepRosterRecords:
+      type: object
+      properties:
+        recordIds:
+          minItems: 1
+          maxItems: 1000
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Records whose officers are still employed
+      required:
+        - recordIds
+    KeepResult:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Records whose flag was cleared; records that were not flagged are left as they are
+      required:
+        - count
     ProblemDetails:
       type: object
       properties:
@@ -3038,42 +3147,6 @@ components:
           maxItems: 1000
           items:
             $ref: '#/components/schemas/RosterRowInput'
-    ConfirmExits:
-      type: object
-      required:
-        - records
-      properties:
-        records:
-          type: array
-          minItems: 1
-          maxItems: 1000
-          items:
-            type: object
-            required:
-              - recordId
-            properties:
-              recordId:
-                type: string
-                format: uuid
-              exitDate:
-                type: string
-                format: date
-                description: Overrides the batch exitDate for this record
-        exitDate:
-          type: string
-          format: date
-          description: Default exit date for records without their own; required unless every record has one
-    ExitsResult:
-      type: object
-      required:
-        - batchId
-        - count
-      properties:
-        batchId:
-          type: string
-          format: uuid
-        count:
-          type: integer
     Ofr:
       type: string
       description: Officer reference (ADR-011), permanent and person-level
