@@ -35,7 +35,11 @@ export function composeMaterialChanges(context: RuleContext): MaterialChangeEntr
   return entries;
 }
 
-/** Paragraph 9 (S11). Refined by the other information screen (#128). */
+/**
+ * Paragraph 9 (S11): each interest card complete, dual citizenship answered (with the country
+ * when held) and free text within 4,000 characters. Messages are what the Other information
+ * screen and the summary show.
+ */
 export function otherCompleteness(
   other: Draft<OtherInformation>,
   context: RuleContext,
@@ -108,5 +112,10 @@ export function otherCompleteness(
       );
     }
   });
+  if ((other.freeText?.length ?? 0) > 4000) {
+    issues.push(
+      issue(context, '/freeText', 'too-long', 'Keep "Anything else" to 4,000 characters.'),
+    );
+  }
   return issues;
 }
