@@ -10,8 +10,6 @@ import {
   MenuTrigger,
   ProgressBar,
   Skeleton,
-  Tooltip,
-  useToast,
 } from '@adili/ui';
 import {
   ArrowDown01Icon,
@@ -23,7 +21,7 @@ import {
   UserGroupIcon,
   Xls02Icon,
 } from '@hugeicons/core-free-icons';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
@@ -31,10 +29,7 @@ import { formatNumber } from '../../components/format';
 import { LoadError } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { messages as m } from '../../components/roster/messages';
-import {
-  downloadRosterTemplate,
-  type RosterTemplateFormat,
-} from '../../components/roster/template-download';
+import { useTemplateDownload } from '../../components/roster/use-template-download';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { getCommission } from '../../server/commissions';
 import type { Commission, DirectoryResult } from '../../server/directory/client';
@@ -152,15 +147,7 @@ function NoRoster({ readOnly }: { readOnly: boolean }) {
 
 /** "Download template" with a menu of the two formats; saves the file or says it could not. */
 function TemplateMenu() {
-  const { toast } = useToast();
-  const download = async (format: RosterTemplateFormat) => {
-    const outcome = await downloadRosterTemplate(format);
-    if (outcome === 'unauthenticated') {
-      window.location.assign(`/auth/login?returnTo=${encodeURIComponent('/roster')}`);
-    } else if (outcome === 'failed') {
-      toast({ title: m.templateError, urgency: 'assertive' });
-    }
-  };
+  const download = useTemplateDownload('/roster');
   return (
     <Menu>
       <MenuTrigger asChild>
@@ -184,23 +171,15 @@ function TemplateMenu() {
   );
 }
 
-/**
- * The way into the import wizard, which is not built yet: disabled, with the reason on hover and
- * focus (a disabled button takes neither, so the tooltip sits on a focusable wrapper).
- */
+/** The way into the import wizard. */
 function ImportButton() {
   return (
-    <Tooltip content={m.importNotYet}>
-      <span
-        tabIndex={0}
-        className="inline-flex rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <Button disabled aria-disabled="true" tabIndex={-1}>
-          <Icon icon={Upload04Icon} />
-          {m.importRoster}
-        </Button>
-      </span>
-    </Tooltip>
+    <Button asChild>
+      <Link to="/roster/import">
+        <Icon icon={Upload04Icon} />
+        {m.importRoster}
+      </Link>
+    </Button>
   );
 }
 

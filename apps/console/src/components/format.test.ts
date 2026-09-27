@@ -3,10 +3,27 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDate,
   formatDateTime,
+  formatFileSize,
   formatNumber,
   formatRelativeDate,
   formatRelativeTime,
 } from './format';
+
+describe('formatFileSize', () => {
+  it.each([
+    [0, '1 KB'],
+    [1, '1 KB'],
+    [12_000, '12 KB'],
+    [1024 * 1024 - 1, '1,024 KB'],
+    [1024 * 1024, '1.0 MB'],
+    [4.3 * 1024 * 1024, '4.3 MB'],
+    [50 * 1024 * 1024, '50.0 MB'],
+    [50 * 1024 * 1024 + 1, '50.1 MB'],
+    [63.4 * 1024 * 1024, '63.4 MB'],
+  ])('shows %d bytes as %s', (bytes, expected) => {
+    expect(formatFileSize(bytes)).toBe(expected);
+  });
+});
 
 describe('formatDateTime', () => {
   it('shows Kenyan time with a 24-hour clock', () => {

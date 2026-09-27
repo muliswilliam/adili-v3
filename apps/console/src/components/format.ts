@@ -86,6 +86,18 @@ export function formatNumber(value: number): string {
   return numberFormat.format(value);
 }
 
+const MEBIBYTE = 1024 * 1024;
+
+/**
+ * `4.3 MB`, `12 KB`: binary units as upload limits count them. Rounded up, so a file just over
+ * a limit never reads as the limit itself ("50.1 MB", not "50.0 MB").
+ */
+export function formatFileSize(bytes: number): string {
+  // The epsilon keeps float noise (4.3 MiB is 43.000000001 tenths) from rounding up a tenth.
+  if (bytes >= MEBIBYTE) return `${(Math.ceil((bytes / MEBIBYTE) * 10 - 1e-9) / 10).toFixed(1)} MB`;
+  return `${formatNumber(Math.max(1, Math.ceil(bytes / 1024)))} KB`;
+}
+
 /** Midnight of the Kenyan calendar day, as epoch milliseconds. */
 function startOfDay(date: Date): number {
   const { day, month, year } = kenyanParts(date);
