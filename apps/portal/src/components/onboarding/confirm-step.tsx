@@ -7,6 +7,7 @@ import {
   DescriptionList,
   Icon,
   MaskedContact,
+  Spinner,
 } from '@adili/ui';
 import { AlertCircleIcon, Clock01Icon } from '@hugeicons/core-free-icons';
 import { useNavigate, useRouter } from '@tanstack/react-router';
@@ -15,7 +16,7 @@ import { type Ref, type SubmitEvent, useEffect, useRef, useState } from 'react';
 import type { OnboardingSession, OtpChannel } from '../../server/directory/types';
 import { confirmOnboarding } from '../../server/onboarding';
 import type { StepGuard } from './guard';
-import { Spinner, StepHeading } from './onboarding-layout';
+import { StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from './problems';
 import { SessionUnavailable } from './step-alerts';
 import { routeForSession } from './steps';

@@ -1,11 +1,20 @@
-import { Alert, Button, CopyButton, Icon, MaskedContact, useToast } from '@adili/ui';
+import {
+  Alert,
+  Button,
+  CopyButton,
+  countdownAnnouncement,
+  Icon,
+  MaskedContact,
+  secondsUntil,
+  useCountdown,
+  useToast,
+} from '@adili/ui';
 import { AlertCircleIcon, Mail01Icon, SentIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useNavigate, useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 
 import type { OnboardingSession } from '../../server/directory/types';
 import { leaveOnboarding, resendSetPasswordEmail } from '../../server/onboarding';
-import { countdownAnnouncement, secondsUntil, useCountdown } from './countdown';
 import type { StepGuard } from './guard';
 import { StepHeading, SuccessMark } from './onboarding-layout';
 import { GENERIC_ERROR } from './problems';
@@ -83,7 +92,7 @@ function describeWait(seconds: number): string {
 
 /**
  * Sends the set-password email again. The wait ticks every second on screen; screen readers
- * hear it only at coarse steps.
+ * hear it only at 10-second steps.
  */
 function ResendEmail({ session }: { session: OnboardingSession }) {
   const navigate = useNavigate();

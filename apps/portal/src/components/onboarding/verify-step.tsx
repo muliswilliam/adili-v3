@@ -1,4 +1,15 @@
-import { Button, FormField, Input, MaskedContact, OtpInput, useToast } from '@adili/ui';
+import {
+  Button,
+  countdownAnnouncement,
+  FormField,
+  Input,
+  MaskedContact,
+  OtpInput,
+  secondsUntil,
+  Spinner,
+  useCountdown,
+  useToast,
+} from '@adili/ui';
 import { useNavigate, useRouter } from '@tanstack/react-router';
 import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 
@@ -11,9 +22,8 @@ import {
 } from '../../server/onboarding';
 import type { StepProblem, StepResult } from '../../server/onboarding.server';
 import { CONTACT_ERRORS, contactError } from './contact';
-import { countdownAnnouncement, secondsUntil, useCountdown } from './countdown';
 import type { StepGuard } from './guard';
-import { Spinner, StepHeading } from './onboarding-layout';
+import { StepHeading } from './onboarding-layout';
 import { GENERIC_ERROR, problemMessage, SEND_FAILED } from './problems';
 import { FailureAlert, SessionUnavailable } from './step-alerts';
 import { routeForSession, type StepRoute } from './steps';
@@ -255,7 +265,7 @@ function describeWait(seconds: number): string {
 
 /**
  * The resend line under the code. The wait ticks every second on screen, but screen readers
- * hear it only at coarse steps, so the countdown does not talk over the declarant.
+ * hear it only at 10-second steps, so the countdown does not talk over the declarant.
  */
 function ResendCode({
   channel,
