@@ -18,6 +18,8 @@ export type CreateCommission = Schemas['CreateCommission'];
 export type ReportingOfficer = Schemas['ReportingOfficer'];
 export type AssignReportingOfficer = Schemas['AssignReportingOfficer'];
 export type ProblemDetails = Schemas['ProblemDetails'];
+export type RosterApiCredential = Schemas['RosterApiCredential'];
+export type RosterApiCredentialWithSecret = Schemas['RosterApiCredentialWithSecret'];
 export type CommissionPage =
   paths['/v1/commissions']['get']['responses'][200]['content']['application/json'];
 export type ListCommissionsQuery = NonNullable<
@@ -37,7 +39,8 @@ export type DirectoryResult<T> = { ok: true; data: T } | { ok: false; error: Dir
 
 /**
  * How long the console waits for the directory, by kind of call. Reads and plain writes are
- * quick. Assigning and resending wait on Keycloak: at worst a dozen or so admin calls at the
+ * quick. Changing a roster API credential waits on several Keycloak admin calls (client, secret,
+ * mappers). Assigning and resending wait on Keycloak too: at worst a dozen or so admin calls at the
  * directory's 5 s timeout each, then the activation email, which Keycloak sends over SMTP before
  * answering (the directory allows it 25 s). Giving up sooner would report a failure for an
  * assignment that still succeeds. A write that does time out keeps its Idempotency-Key, so the
@@ -48,7 +51,9 @@ export const DIRECTORY_TIMEOUTS_MS = { read: 5_000, write: 10_000, identity: 120
 /** The timeout of one directory call, from its method and path. */
 export function directoryTimeoutMs(method: string, path: string): number {
   if (method === 'GET' || method === 'HEAD') return DIRECTORY_TIMEOUTS_MS.read;
-  if (/\/reporting-officer(\/|$)/.test(path)) return DIRECTORY_TIMEOUTS_MS.identity;
+  if (/\/(reporting-officer|roster\/api-credential)(\/|$)/.test(path)) {
+    return DIRECTORY_TIMEOUTS_MS.identity;
+  }
   return DIRECTORY_TIMEOUTS_MS.write;
 }
 
