@@ -1,18 +1,21 @@
 import type { LinkProps } from '@tanstack/react-router';
 
+import type { StaffRole } from '../lib/roles';
+
 export interface Workspace {
-  id: string;
+  id: WorkspaceId;
   title: string;
   description: string;
   /** Where the workspace lives; workspaces without one are not built yet. */
   href?: LinkProps['to'];
 }
 
-interface WorkspaceEntry extends Workspace {
+interface WorkspaceEntry extends Omit<Workspace, 'id'> {
+  id: string;
   /** Realm roles that open the workspace. */
-  roles: readonly string[];
+  roles: readonly StaffRole[];
   /** Roles that may change things; everyone else in `roles` gets read-only access. */
-  writeRoles?: readonly string[];
+  writeRoles?: readonly StaffRole[];
   /** Shown instead of `description` to read-only users. */
   readOnlyDescription?: string;
 }
@@ -20,7 +23,7 @@ interface WorkspaceEntry extends Workspace {
 export type WorkspaceAccess = 'write' | 'read' | null;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
-const WORKSPACES: WorkspaceEntry[] = [
+const WORKSPACES = [
   {
     id: 'review',
     title: 'Review queue',
@@ -85,9 +88,11 @@ const WORKSPACES: WorkspaceEntry[] = [
     description: 'Operate the platform: tenants, integrations and configuration.',
     roles: ['platform-admin'],
   },
-];
+] as const satisfies readonly WorkspaceEntry[];
 
-function hasAny(roles: readonly string[], wanted: readonly string[]): boolean {
+export type WorkspaceId = (typeof WORKSPACES)[number]['id'];
+
+function hasAny(roles: readonly string[], wanted: readonly StaffRole[]): boolean {
   return wanted.some((role) => roles.includes(role));
 }
 
@@ -96,9 +101,11 @@ function accessTo(entry: WorkspaceEntry, roles: readonly string[]): WorkspaceAcc
   return !entry.writeRoles || hasAny(roles, entry.writeRoles) ? 'write' : 'read';
 }
 
+const entries: readonly (WorkspaceEntry & { id: WorkspaceId })[] = WORKSPACES;
+
 /** The console areas a user's roles give access to. */
 export function workspacesFor(roles: readonly string[]): Workspace[] {
-  return WORKSPACES.flatMap((entry) => {
+  return entries.flatMap((entry) => {
     const access = accessTo(entry, roles);
     if (!access) return [];
     const { id, title, href } = entry;
@@ -111,7 +118,7 @@ export function workspacesFor(roles: readonly string[]): Workspace[] {
 }
 
 /** Whether a user's roles open a workspace, and whether they may change things in it. */
-export function workspaceAccess(id: string, roles: readonly string[]): WorkspaceAccess {
-  const entry = WORKSPACES.find((workspace) => workspace.id === id);
+export function workspaceAccess(id: WorkspaceId, roles: readonly string[]): WorkspaceAccess {
+  const entry = entries.find((workspace) => workspace.id === id);
   return entry ? accessTo(entry, roles) : null;
 }

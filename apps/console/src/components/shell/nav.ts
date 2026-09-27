@@ -2,7 +2,8 @@ import type { IconProps } from '@adili/ui';
 import { Building03Icon } from '@hugeicons/core-free-icons';
 import type { LinkProps } from '@tanstack/react-router';
 
-import { workspacesFor } from '../workspaces';
+import type { StaffRole } from '../../lib/roles';
+import { type WorkspaceId, workspacesFor } from '../workspaces';
 
 type NavIcon = IconProps['icon'];
 
@@ -21,7 +22,7 @@ export interface NavGroup {
  * Sidebar groups in the prototype's order (`consoleShell` in the kit). Each item is a workspace;
  * only workspaces that are built (have an `href`) and that the user's roles open are listed.
  */
-const NAV: { label: string; items: { workspace: string; icon: NavIcon }[] }[] = [
+const NAV: { label: string; items: { workspace: WorkspaceId; icon: NavIcon }[] }[] = [
   { label: 'Platform', items: [{ workspace: 'commissions', icon: Building03Icon }] },
 ];
 
@@ -44,7 +45,7 @@ export function navFor(roles: readonly string[]): NavGroup[] {
 }
 
 /** Realm roles as the console names them, most senior first. */
-const ROLE_LABELS: [role: string, label: string][] = [
+const ROLE_LABELS: [role: StaffRole, label: string][] = [
   ['platform-admin', 'Platform administrator'],
   ['eacc-supervisor', 'EACC supervisor'],
   ['eacc-analyst', 'EACC analyst'],

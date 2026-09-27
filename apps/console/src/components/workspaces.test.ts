@@ -63,6 +63,10 @@ describe('workspaceAccess', () => {
 
   it('treats workspaces without write roles as writable by everyone who can open them', () => {
     expect(workspaceAccess('review', ['reviewer'])).toBe('write');
-    expect(workspaceAccess('unknown', ['platform-admin'])).toBeNull();
+  });
+
+  it('only takes workspace ids that exist', () => {
+    // @ts-expect-error: a misspelt workspace id fails typecheck.
+    expect(workspaceAccess('comissions', ['platform-admin'])).toBeNull();
   });
 });
