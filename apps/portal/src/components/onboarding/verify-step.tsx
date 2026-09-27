@@ -161,14 +161,16 @@ function CodeForm({
     setVerifying(false);
     if (!failure) return;
     if (failure.code === 'otp-invalid') {
+      // Only a wrong code clears the boxes (spec 03), ready for the next try.
       if (failure.attemptsLeft !== undefined) attemptsLeft.current = failure.attemptsLeft;
       setError(problemMessage('otp-invalid', { attemptsLeft: failure.attemptsLeft }));
+      clear();
     } else if (failure.code === 'otp-expired') {
       setError(problemMessage('otp-expired'));
     } else {
+      // The code was never checked, so it stays for a retry: pasting it again resends it.
       setError(GENERIC_ERROR);
     }
-    clear();
   }
 
   return (
