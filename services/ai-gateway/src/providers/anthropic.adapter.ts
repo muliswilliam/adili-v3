@@ -280,7 +280,7 @@ function toProviderError(error: unknown): ProviderError {
     return fail('timeout', 'Anthropic request timed out');
   }
   if (error instanceof Anthropic.APIUserAbortError) {
-    return fail('timeout', 'Anthropic request aborted');
+    return fail('cancelled', 'Anthropic request aborted');
   }
   if (error instanceof Anthropic.APIConnectionError) {
     return fail('unavailable', 'Could not reach Anthropic');
@@ -308,5 +308,6 @@ function toProviderError(error: unknown): ProviderError {
     }
     return fail('unavailable', `Anthropic is unavailable (${status ?? 'no status'})`);
   }
-  return fail('unavailable', 'Unexpected Anthropic client failure');
+  // Not an SDK error, so not the provider's doing: retrying would repeat it.
+  return fail('internal', 'Unexpected failure in the Anthropic adapter');
 }

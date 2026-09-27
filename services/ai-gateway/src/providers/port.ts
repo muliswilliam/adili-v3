@@ -122,9 +122,18 @@ export interface ModelProvider {
  * - `bad-request`: the request is wrong for this provider or model; retrying will not help.
  * - `auth`: credentials missing, invalid or not permitted.
  * - `invalid-response`: the provider answered with something the adapter cannot interpret.
+ * - `cancelled`: the caller aborted the request; not retried.
+ * - `internal`: an unexpected failure outside the provider's client, such as an adapter bug.
  */
 export type ProviderErrorKind =
-  'timeout' | 'rate-limited' | 'unavailable' | 'bad-request' | 'auth' | 'invalid-response';
+  | 'timeout'
+  | 'rate-limited'
+  | 'unavailable'
+  | 'bad-request'
+  | 'auth'
+  | 'invalid-response'
+  | 'cancelled'
+  | 'internal';
 
 const RETRYABLE: ReadonlySet<ProviderErrorKind> = new Set([
   'timeout',

@@ -34,6 +34,12 @@ describe('provider environment', () => {
     expect(() => parse({ AI_REPLAY_MODE: 'record' })).toThrow(/ANTHROPIC_API_KEY/);
   });
 
+  it('refuses record mode with the Anthropic provider, which would record nothing', () => {
+    expect(() =>
+      parse({ AI_PROVIDER: 'anthropic', AI_REPLAY_MODE: 'record', ANTHROPIC_API_KEY: 'sk-test' }),
+    ).toThrow(/AI_REPLAY_MODE=record only applies with AI_PROVIDER=replay/);
+  });
+
   it('requires an explicit provider in production', () => {
     expect(() => parse({ NODE_ENV: 'production' })).toThrow(/AI_PROVIDER/);
     expect(parse({ NODE_ENV: 'production', AI_PROVIDER: 'replay' })).toMatchObject({

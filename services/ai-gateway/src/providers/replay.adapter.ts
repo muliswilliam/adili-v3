@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type {
@@ -89,8 +89,6 @@ export class ReplayAdapter implements ModelProvider {
   private readonly inner: ModelProvider | undefined;
   /** Replayed batches never leave the process; their items are resolved from fixtures on poll. */
   private readonly replayBatches = new Map<string, BatchItem[]>();
-  /** Recorded batches: inner batch id → items, to key each outcome's fixture by its request. */
-  private readonly recordBatches = new Map<string, BatchItem[]>();
 
   constructor(private readonly options: ReplayAdapterOptions) {
     if (options.mode === 'record' && !options.inner) {
@@ -113,10 +111,20 @@ export class ReplayAdapter implements ModelProvider {
       yield* await this.read<StreamEvent[]>('stream', request);
       return;
     }
+    const iterator = this.inner.stream(request)[Symbol.asyncIterator]();
     const events: StreamEvent[] = [];
-    for await (const event of this.inner.stream(request)) {
-      events.push(event);
-      yield event;
+    for (let next = await iterator.next(); !next.done; next = await iterator.next()) {
+      events.push(next.value);
+      let resumed = false;
+      try {
+        yield next.value;
+        resumed = true;
+      } finally {
+        if (!resumed) {
+          // The consumer stopped early; finish reading so the fixture holds the whole stream.
+          await this.recordRest(request, iterator, events);
+        }
+      }
     }
     await this.write('stream', request, events);
   }
@@ -124,7 +132,8 @@ export class ReplayAdapter implements ModelProvider {
   async submitBatch(items: BatchItem[]): Promise<{ batchId: string }> {
     if (this.inner) {
       const { batchId } = await this.inner.submitBatch(items);
-      this.recordBatches.set(batchId, items);
+      // On disk, not in memory: a batch can take a day, and outlive this process.
+      await this.writeFile(this.pendingBatchPath(batchId), items);
       return { batchId };
     }
     // Fail at submission, like a provider rejecting a bad batch, rather than on a later poll.
@@ -140,8 +149,8 @@ export class ReplayAdapter implements ModelProvider {
   async pollBatch(batchId: string): Promise<BatchStatus> {
     if (this.inner) {
       const status = await this.inner.pollBatch(batchId);
-      const items = this.recordBatches.get(batchId);
-      if (status.status === 'ended' && items) {
+      if (status.status === 'ended') {
+        const items = await this.readPendingBatch(batchId);
         const byId = new Map(items.map((item) => [item.customId, item.request]));
         await Promise.all(
           status.outcomes.map(async (outcome) => {
@@ -152,7 +161,7 @@ export class ReplayAdapter implements ModelProvider {
             }
           }),
         );
-        this.recordBatches.delete(batchId);
+        await rm(this.pendingBatchPath(batchId), { force: true });
       }
       return status;
     }
@@ -186,6 +195,43 @@ export class ReplayAdapter implements ModelProvider {
     return join(this.options.fixturesDir, `${hash}.json`);
   }
 
+  /** Items of a recorded batch still in flight, to key each outcome's fixture by its request. */
+  private pendingBatchPath(batchId: string): string {
+    return join(this.options.fixturesDir, `${encodeURIComponent(batchId)}.pending-batch.json`);
+  }
+
+  private async readPendingBatch(batchId: string): Promise<BatchItem[]> {
+    const path = this.pendingBatchPath(batchId);
+    try {
+      return JSON.parse(await readFile(path, 'utf8')) as BatchItem[];
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(
+          `Cannot record batch ${batchId}: it was not submitted in record mode with these ` +
+            `fixtures (expected ${path})`,
+          { cause: error },
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async recordRest(
+    request: GenerateRequest,
+    iterator: AsyncIterator<StreamEvent>,
+    events: StreamEvent[],
+  ): Promise<void> {
+    try {
+      for (let next = await iterator.next(); !next.done; next = await iterator.next()) {
+        events.push(next.value);
+      }
+    } catch {
+      // The stream failed after the consumer left; there is no complete response to record.
+      return;
+    }
+    await this.write('stream', request, events);
+  }
+
   private async read<TResponse>(
     operation: Operation,
     request: GenerateRequest,
@@ -210,11 +256,11 @@ export class ReplayAdapter implements ModelProvider {
     response: unknown,
   ): Promise<void> {
     const fixture: Fixture<unknown> = { version: 1, operation, request, response };
+    await this.writeFile(this.path(requestHash(operation, request)), fixture);
+  }
+
+  private async writeFile(path: string, content: unknown): Promise<void> {
     await mkdir(this.options.fixturesDir, { recursive: true });
-    await writeFile(
-      this.path(requestHash(operation, request)),
-      `${JSON.stringify(fixture, null, 2)}\n`,
-      'utf8',
-    );
+    await writeFile(path, `${JSON.stringify(content, null, 2)}\n`, 'utf8');
   }
 }

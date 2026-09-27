@@ -43,6 +43,14 @@ export function checkProviderEnv(env: ParsedProviderEnv, context: z.RefinementCt
       message: 'AI_REPLAY_MODE=record writes prompts to fixture files and is refused in production',
     });
   }
+  if (env.AI_PROVIDER === 'anthropic' && env.AI_REPLAY_MODE === 'record') {
+    context.addIssue({
+      code: 'custom',
+      path: ['AI_REPLAY_MODE'],
+      message:
+        'AI_REPLAY_MODE=record only applies with AI_PROVIDER=replay, which records from Anthropic',
+    });
+  }
   const reachesAnthropic = env.AI_PROVIDER === 'anthropic' || env.AI_REPLAY_MODE === 'record';
   if (reachesAnthropic && !env.ANTHROPIC_API_KEY) {
     context.addIssue({

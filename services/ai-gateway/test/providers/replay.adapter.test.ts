@@ -237,6 +237,33 @@ describe('ReplayAdapter', () => {
     });
   });
 
+  it('records a batch polled by a later process than the one that submitted it', async () => {
+    const items: BatchItem[] = [{ customId: 'a', request: structured }];
+    const { batchId } = await recorder().submitBatch(items);
+
+    await recorder().pollBatch(batchId);
+
+    expect(await readdir(dir)).toEqual([`${requestHash('generateStructured', structured)}.json`]);
+    expect(await replayer().generateStructured(structured)).toMatchObject({ output: { n: 0 } });
+  });
+
+  it('refuses to record a batch it has no record of submitting', async () => {
+    await expect(recorder().pollBatch('inner-batch-1')).rejects.toThrow(/Cannot record batch/);
+  });
+
+  it('records the whole stream when the consumer stops early', async () => {
+    for await (const event of recorder().stream(request)) {
+      expect(event.type).toBe('delta');
+      break;
+    }
+
+    expect((await collect(replayer().stream(request))).map((e) => e.type)).toEqual([
+      'delta',
+      'delta',
+      'final',
+    ]);
+  });
+
   it('rejects a replayed batch up front when an item has no fixture', async () => {
     await expect(
       replayer().submitBatch([{ customId: 'a', request: structured }]),

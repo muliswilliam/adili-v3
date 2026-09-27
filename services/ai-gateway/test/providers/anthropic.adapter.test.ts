@@ -273,6 +273,20 @@ describe('AnthropicAdapter', () => {
     await expect(adapter.generate(structured)).rejects.toMatchObject({ kind: 'unavailable' });
   });
 
+  it.each([
+    ['a caller abort', new Anthropic.APIUserAbortError(), 'cancelled'],
+    ['a failure outside the SDK', new TypeError('adapter bug'), 'internal'],
+  ])('does not retry %s', async (_case, thrown, kind) => {
+    const client = {
+      messages: {
+        create: () => Promise.reject(thrown),
+      },
+    } as unknown as Anthropic;
+    const adapter = new AnthropicAdapter({ client });
+
+    await expect(adapter.generate(structured)).rejects.toMatchObject({ kind, retryable: false });
+  });
+
   it('types a request that exceeds the client timeout as timeout', async () => {
     const { adapter } = fakeAnthropic(
       (_request, signal) =>
