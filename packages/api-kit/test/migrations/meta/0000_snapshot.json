@@ -67,10 +67,7 @@
       "compositePrimaryKeys": {
         "idempotency_keys_key_principal_subject_pk": {
           "name": "idempotency_keys_key_principal_subject_pk",
-          "columns": [
-            "key",
-            "principal_subject"
-          ]
+          "columns": ["key", "principal_subject"]
         }
       },
       "uniqueConstraints": {},
