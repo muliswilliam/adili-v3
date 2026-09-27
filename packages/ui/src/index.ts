@@ -27,6 +27,13 @@ export {
   type DataTableSelection,
 } from './components/data-table';
 export {
+  DeadlineChip,
+  type DeadlineChipProps,
+  type DeadlineState,
+  deadlineStatus,
+  type DeadlineStatus,
+} from './components/deadline-chip';
+export {
   DescriptionItem,
   type DescriptionItemProps,
   DescriptionList,
@@ -51,6 +58,13 @@ export {
 } from './components/file-drop-zone';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
+export {
+  type Ground,
+  GroundsSelect,
+  type GroundsSelectProps,
+  REGULATION_24_GROUNDS,
+  regulation24Grounds,
+} from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
@@ -72,6 +86,26 @@ export {
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  REGISTER_KINDS,
+  type RegisterKind,
+  registerKinds,
+  RegisterTimeline,
+  type RegisterTimelineEntry,
+  type RegisterTimelineProps,
+  type RegisterTone,
+} from './components/register-timeline';
+export {
+  formatScope,
+  isSameScope,
+  isScopeWithin,
+  type Scope,
+  SCOPE_SECTIONS,
+  ScopePicker,
+  type ScopePickerProps,
+  type ScopeSection,
+  scopeSectionLabels,
+} from './components/scope-picker';
 export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
@@ -108,4 +142,4 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { formatDate, formatDateTime } from './lib/format-date';
+export { formatCalendarDate, formatDate, formatDateTime, formatMonth } from './lib/format-date';

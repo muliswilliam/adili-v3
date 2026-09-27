@@ -72,6 +72,8 @@
   --elevation-control-focus:
     0 0 0 1px var(--ring), 0 0 0 4px color-mix(in oklch, var(--ring) 8%, transparent);
   --elevation-control-error: 0 0 0 1.5px var(--destructive);
+  /* A chosen option card, e.g. a checked ground (the kit's .gr:has(input:checked)). */
+  --elevation-control-selected: 0 0 0 1.5px var(--ring);
   --elevation-control-error-focus:
     0 0 0 1.5px var(--destructive),
     0 0 0 4px color-mix(in oklch, var(--destructive) 12%, transparent);
@@ -188,6 +190,7 @@
   --shadow-control-focus: var(--elevation-control-focus);
   --shadow-control-error: var(--elevation-control-error);
   --shadow-control-error-focus: var(--elevation-control-error-focus);
+  --shadow-control-selected: var(--elevation-control-selected);
   --shadow-card: var(--elevation-card);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
