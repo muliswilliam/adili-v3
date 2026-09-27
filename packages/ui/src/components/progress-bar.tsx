@@ -1,16 +1,20 @@
-import { type ComponentProps, type ReactNode, useId } from 'react';
+import { type ComponentProps, type ReactNode, useId, useState } from 'react';
 
 import { cn } from '../lib/cn';
 
 export type ProgressBarProps = Omit<ComponentProps<'div'>, 'children'> & {
   /** Names the bar for assistive technology, e.g. "Import progress". Not shown. */
   label: ReactNode;
+  /** Clamped to 0 to `max`. A value that is not a finite number counts as 0. */
   value: number;
-  /** Defaults to 100. */
+  /** Defaults to 100, which is also used when `max` is not a positive number. */
   max?: number;
   /** Shown under the bar, e.g. "Uploading…" or "12,108 of 48,431 rows". */
   status?: ReactNode;
-  /** Read by screen readers instead of the percentage, e.g. "1,200 of 4,000 rows". */
+  /**
+   * Read by screen readers instead of the percentage, e.g. "1,200 of 4,000 rows", both as the
+   * bar's value and in the step announcements.
+   */
   valueText?: string;
   /** Shows the percentage under the bar. Defaults to true. */
   showValue?: boolean;
@@ -22,7 +26,8 @@ export type ProgressBarProps = Omit<ComponentProps<'div'>, 'children'> & {
   tone?: 'default' | 'success' | 'destructive';
   /**
    * The bar announces progress to screen readers each time it crosses one of these percentage
-   * steps, instead of on every update. Defaults to 25.
+   * steps, instead of on every update. Defaults to 25, which is also used when the value is not
+   * a positive number.
    */
   announceEvery?: number;
 };
@@ -47,13 +52,19 @@ export function ProgressBar({
   ...props
 }: ProgressBarProps) {
   const labelId = useId();
-  const clamped = Math.min(Math.max(value, 0), max);
-  const percent = max > 0 ? Math.round((clamped / max) * 100) : 0;
+  const safeMax = Number.isFinite(max) && max > 0 ? max : 100;
+  const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 0), safeMax) : 0;
+  const percent = Math.round((clamped / safeMax) * 100);
   const text = valueText ?? `${String(percent)}%`;
+  const every = Number.isFinite(announceEvery) && announceEvery > 0 ? announceEvery : 25;
   // The live region's text only changes when a step is crossed, so that is all that is read.
   // Nothing is said at 0%; the label already tells the user what is running.
-  const step = Math.floor(percent / announceEvery) * announceEvery;
-  const announced = !indeterminate && step > 0 ? `${String(step)}%` : '';
+  const step = indeterminate ? 0 : Math.floor(percent / every) * every;
+  const announcementFor = (at: number) => (at > 0 ? (valueText ?? `${String(at)}%`) : '');
+  const [announcement, setAnnouncement] = useState(() => ({ step, text: announcementFor(step) }));
+  if (announcement.step !== step) {
+    setAnnouncement({ step, text: announcementFor(step) });
+  }
   const showMeta = status !== undefined || (showValue && !indeterminate);
 
   return (
@@ -65,7 +76,7 @@ export function ProgressBar({
         role="progressbar"
         aria-labelledby={labelId}
         aria-valuemin={0}
-        aria-valuemax={max}
+        aria-valuemax={safeMax}
         aria-valuenow={indeterminate ? undefined : clamped}
         aria-valuetext={indeterminate ? undefined : text}
         className={cn(
@@ -97,7 +108,7 @@ export function ProgressBar({
         </div>
       ) : null}
       <div role="status" className="sr-only">
-        {announced}
+        {announcement.text}
       </div>
     </div>
   );
