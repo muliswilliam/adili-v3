@@ -6,13 +6,28 @@ export type EmptyStateProps = Omit<ComponentProps<'div'>, 'title'> & {
   /** Decorative icon, hidden from assistive technology. */
   icon?: ReactNode;
   title: ReactNode;
+  description?: ReactNode;
+  /**
+   * Older name for `description`, kept so existing callers still build. Prefer `description`,
+   * which matches the other primitives. Not tagged deprecated, which would fail their lint.
+   */
   text?: ReactNode;
   /** Optional next step, e.g. a Button. */
   action?: ReactNode;
 };
 
 /** Centred message for an empty list or panel, usually inside a Card. */
-export function EmptyState({ icon, title, text, action, className, ...props }: EmptyStateProps) {
+export function EmptyState({
+  icon,
+  title,
+  description,
+  text,
+  action,
+  className,
+  ...props
+}: EmptyStateProps) {
+  const body = description ?? text;
+
   return (
     <div className={cn('flex flex-col items-center px-5 py-10 text-center', className)} {...props}>
       {icon ? (
@@ -24,7 +39,7 @@ export function EmptyState({ icon, title, text, action, className, ...props }: E
         </div>
       ) : null}
       <h3 className="text-[15px] leading-snug font-semibold">{title}</h3>
-      {text ? <p className="mt-1 max-w-[340px] text-sm text-muted-foreground">{text}</p> : null}
+      {body ? <p className="mt-1 max-w-[340px] text-sm text-muted-foreground">{body}</p> : null}
       {action ? <div className="mt-3.5">{action}</div> : null}
     </div>
   );
