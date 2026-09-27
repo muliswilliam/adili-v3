@@ -1,11 +1,11 @@
 import { Copy01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { Button, type ButtonProps } from './button';
 import { Icon } from './icon';
-import { useToast } from './toast';
+import { type ToastOptions, useToast } from './toast';
 
-const CONFIRMED_FOR = 2000;
+const CONFIRMED_FOR_MS = 2000;
 
 export type CopyButtonProps = Omit<ButtonProps, 'children' | 'asChild'> & {
   /** The text put on the clipboard. */
@@ -35,26 +35,35 @@ export function CopyButton({
   onClick,
   ...props
 }: CopyButtonProps) {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
+  const { toast, dismiss } = useToast();
+  // Counts successful copies since the tick last cleared, so each copy restarts its timer.
+  const [copies, setCopies] = useState(0);
+  const copied = copies > 0;
+  // The toast from the previous click, replaced rather than stacked by the next one.
+  const lastToast = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!copied) return;
+    if (copies === 0) return;
     const timer = setTimeout(() => {
-      setCopied(false);
-    }, CONFIRMED_FOR);
+      setCopies(0);
+    }, CONFIRMED_FOR_MS);
     return () => {
       clearTimeout(timer);
     };
-  }, [copied]);
+  }, [copies]);
+
+  function announce(options: ToastOptions) {
+    if (lastToast.current !== null) dismiss(lastToast.current);
+    lastToast.current = toast(options);
+  }
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      toast({ title: copiedMessage });
+      setCopies((count) => count + 1);
+      announce({ title: copiedMessage });
     } catch {
-      toast({ title: failedMessage, urgency: 'assertive' });
+      announce({ title: failedMessage, urgency: 'assertive' });
     }
   }
 
@@ -63,6 +72,7 @@ export function CopyButton({
       type="button"
       variant={variant}
       size={size ?? (showLabel ? 'sm' : 'icon')}
+      data-copied={copied || undefined}
       onClick={(event) => {
         onClick?.(event);
         if (!event.defaultPrevented) void copy();
