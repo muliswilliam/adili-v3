@@ -71,6 +71,13 @@
       "when": 1790545516280,
       "tag": "0009_roster_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790547586009,
+      "tag": "0010_roster_records_reads",
+      "breakpoints": true
     }
   ]
 }

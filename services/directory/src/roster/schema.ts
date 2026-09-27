@@ -130,6 +130,8 @@ export const rosterRecords = pgTable(
       sql`lower(${table.personnelFileNumber})`,
     ),
     index('roster_records_tenant_national_id_idx').on(table.tenant, table.nationalId),
+    /** The records list's order and keyset cursor. */
+    index('roster_records_tenant_full_name_id_idx').on(table.tenant, table.fullName, table.id),
     index('roster_records_tenant_state_idx').on(table.tenant, table.state),
     index('roster_records_tenant_flagged_idx')
       .on(table.tenant)
@@ -240,6 +242,8 @@ export const rosterImportRows = pgTable(
     primaryKey({ columns: [table.importId, table.rowNumber] }),
     index('roster_import_rows_import_id_status_idx').on(table.importId, table.status),
     index('roster_import_rows_import_id_chunk_index_idx').on(table.importId, table.chunkIndex),
+    /** A record's import history. */
+    index('roster_import_rows_record_id_idx').on(table.recordId),
     check('roster_import_rows_status_check', sql`${table.status} in ('accepted', 'rejected')`),
     check(
       'roster_import_rows_outcome_check',

@@ -16,6 +16,7 @@ import { IdentityModule } from './identity/identity.module.js';
 import { MeController } from './me/me.controller.js';
 import { ApiCredentialModule } from './roster/api-credential/api-credential.module.js';
 import { RosterImportModule } from './roster/import/import.module.js';
+import { RosterRecordsModule } from './roster/records/records.module.js';
 import { RosterModule } from './roster/roster.module.js';
 
 @Module({
@@ -54,6 +55,7 @@ import { RosterModule } from './roster/roster.module.js';
     RosterModule,
     ApiCredentialModule,
     RosterImportModule,
+    RosterRecordsModule,
   ],
   controllers: [MeController],
 })
