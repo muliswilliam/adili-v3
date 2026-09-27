@@ -97,4 +97,11 @@ export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from '.
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export { cn } from './lib/cn';
 export { countdownAnnouncement, formatClock, secondsUntil, useCountdown } from './lib/countdown';
+export {
+  daysInMonth,
+  formatDayMonthYear,
+  parseDayMonthYear,
+  shapeDateText,
+} from './lib/date-input';
 export { formatDate, formatDateTime } from './lib/format-date';
+export { formatMoney, type MoneyParseResult, parseMoney, shapeMoneyText } from './lib/money';
