@@ -18,6 +18,8 @@ import {
 import { type DirectorySchema, schema } from '../../src/db/schema.js';
 import { IdentityProvisioning } from '../../src/identity/identity-provisioning.js';
 import { InMemoryIdentityProvisioning } from '../../src/identity/in-memory-identity-provisioning.js';
+import { InMemoryRosterUploads } from '../../src/roster/import/in-memory-roster-uploads.js';
+import { RosterUploads } from '../../src/roster/import/roster-uploads.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -41,6 +43,8 @@ export interface DirectoryApi {
   /** Direct database access for arranging fixtures; assertions go through HTTP. */
   db: Database<DirectorySchema>;
   identity: InMemoryIdentityProvisioning;
+  /** Roster uploads the import endpoints read, standing in for the documents service. */
+  uploads: InMemoryRosterUploads;
   /** The activation observer's cache of subjects without an invitation. */
   activationLookups: InMemoryActivationLookups;
   /** `GET` as the given caller; returns Fastify's injected response. */
@@ -68,8 +72,10 @@ export interface DirectoryApi {
 
 /**
  * The directory service over HTTP against a real Postgres (`TEST_DATABASE_URL`), with tokens
- * signed locally and the in-memory identity adapter. Each suite gets a private Postgres schema
- * with the service's migrations applied, so suites can share the test database.
+ * signed locally, the in-memory identity adapter and in-memory roster uploads. Each suite gets a
+ * private Postgres schema with the service's migrations applied, so suites can share the test
+ * database. Roster imports run on compose Temporal through the service's own worker, polling a
+ * task queue of the suite's own (test/support/temporal-task-queue.ts).
  */
 export async function startDirectoryApi(): Promise<DirectoryApi> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
@@ -86,6 +92,7 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
   const { signer, jwk } = await tokenSigner();
   const identity = new InMemoryIdentityProvisioning();
   const activationLookups = new InMemoryActivationLookups();
+  const uploads = new InMemoryRosterUploads();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -95,6 +102,8 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     .useValue(identity)
     .overrideProvider(ActivationLookups)
     .useValue(activationLookups)
+    .overrideProvider(RosterUploads)
+    .useValue(uploads)
     .compile();
   // Quiet like LOG_LEVEL=fatal in the service; expected 5xx in tests would otherwise log errors.
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
@@ -126,6 +135,7 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     app,
     db,
     identity,
+    uploads,
     activationLookups,
     async get(path, caller) {
       const token = await signer(caller);
@@ -151,9 +161,10 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
+        sql`truncate roster_import_rows, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
+      uploads.reset();
       activationLookups.expireAll();
     },
     async close() {

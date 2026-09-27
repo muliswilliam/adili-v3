@@ -21,62 +21,12 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/imports:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags: [roster]
-      operationId: startRosterImport
-      summary: Start an import from a clean upload or an inline batch
-      description: |
-        reporting-officer of the tenant (file or batch) or a roster:write client of the tenant
-        (batch only). At most one import may be processing per tenant. Returns 202; poll the
-        import resource for progress and the report. Idempotent per Idempotency-Key.
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: '#/components/schemas/StartFileImport'
-                - $ref: '#/components/schemas/StartBatchImport'
-      responses:
-        '202':
-          description: Import accepted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterImport'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Another import is processing, or the upload is not clean
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '422':
-          description: Idempotency-Key reused with a different request body
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '429':
-          description: Rate limit exceeded (RateLimit-* headers present)
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
     get:
       tags: [roster]
       operationId: listRosterImports
       summary: Import history, newest first
       parameters:
+        - $ref: '#/components/parameters/Slug'
         - name: cursor
           in: query
           schema:
@@ -103,66 +53,6 @@ paths:
                       $ref: '#/components/schemas/RosterImport'
                   nextCursor:
                     type: [string, 'null']
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/roster/imports/preview:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags: [roster]
-      operationId: previewRosterImport
-      summary: Column mapping and row estimate of a clean upload, before starting the import
-      description: |
-        reporting-officer of the tenant. Reads only the header row of the clean upload (and a
-        cheap row estimate where the format allows) so the officer can check the columns and
-        choose `declaredComplete` before starting. Nothing is staged or changed. Required template
-        columns absent from the file are the ones neither matched nor listed in `missing`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PreviewRosterImport'
-      responses:
-        '200':
-          description: The mapping
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterImportPreview'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: The upload is not clean
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '422':
-          description: The file cannot be read as CSV or XLSX (`parse-error`)
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/commissions/{slug}/roster/imports/{importId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - $ref: '#/components/parameters/ImportId'
-    get:
-      tags: [roster]
-      operationId: getRosterImport
-      summary: One import with progress, mapping and counts
-      responses:
-        '200':
-          description: The import
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterImport'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/imports/{importId}/rows:
@@ -1108,15 +998,6 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
-    ImportChannel:
-      type: string
-      enum: [file, api]
-    ImportState:
-      type: string
-      enum: [pending, processing, completed, failed]
-    ImportFailureCode:
-      type: string
-      enum: [missing-columns, upload-not-clean, parse-error, storage-error, internal]
     RosterRecordState:
       type: string
       enum: [not_onboarded, onboarded, exited]
@@ -1158,19 +1039,6 @@ components:
           type: [string, 'null']
           description: Local (07…, 01…) or international; normalised to E.164
           maxLength: 20
-    StartFileImport:
-      type: object
-      required: [channel, uploadId, declaredComplete]
-      properties:
-        channel:
-          const: file
-        uploadId:
-          type: string
-          format: uuid
-          description: A clean upload with purpose roster-import (documents service)
-        declaredComplete:
-          type: boolean
-          description: True when the file is the complete roster; absent officers get flagged
     StartBatchImport:
       type: object
       required: [channel, rows]
@@ -1183,133 +1051,6 @@ components:
           maxItems: 1000
           items:
             $ref: '#/components/schemas/RosterRowInput'
-    ColumnMapping:
-      type: object
-      required: [matched, ignored, missing]
-      properties:
-        matched:
-          type: array
-          items:
-            type: object
-            required: [source, field]
-            properties:
-              source:
-                type: string
-              field:
-                type: string
-        ignored:
-          type: array
-          items:
-            type: string
-        missing:
-          type: array
-          description: Optional template columns not present
-          items:
-            type: string
-    PreviewRosterImport:
-      type: object
-      required: [uploadId]
-      properties:
-        uploadId:
-          type: string
-          format: uuid
-          description: A clean upload with purpose roster-import (documents service)
-    RosterImportPreview:
-      type: object
-      required: [mapping, estimatedRows]
-      properties:
-        mapping:
-          $ref: '#/components/schemas/ColumnMapping'
-        estimatedRows:
-          type: [integer, 'null']
-          minimum: 0
-          description: Data rows detected, when the format allows a cheap count
-    ImportCounts:
-      type: object
-      required: [accepted, created, updated, unchanged, rejected, flaggedAbsent]
-      properties:
-        accepted:
-          type: integer
-        created:
-          type: integer
-        updated:
-          type: integer
-        unchanged:
-          type: integer
-        rejected:
-          type: integer
-        flaggedAbsent:
-          type: integer
-    RosterImport:
-      type: object
-      required:
-        - id
-        - channel
-        - declaredComplete
-        - state
-        - fileName
-        - format
-        - totalRows
-        - processedRows
-        - counts
-        - mapping
-        - failure
-        - startedBy
-        - startedAt
-        - completedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        channel:
-          $ref: '#/components/schemas/ImportChannel'
-        declaredComplete:
-          type: boolean
-        state:
-          $ref: '#/components/schemas/ImportState'
-        fileName:
-          type: [string, 'null']
-        format:
-          type: [string, 'null']
-          enum: [csv, xlsx, json, null]
-        totalRows:
-          type: [integer, 'null']
-          description: Null until staging finishes
-        processedRows:
-          type: integer
-        counts:
-          oneOf:
-            - $ref: '#/components/schemas/ImportCounts'
-            - type: 'null'
-        mapping:
-          oneOf:
-            - $ref: '#/components/schemas/ColumnMapping'
-            - type: 'null'
-        failure:
-          oneOf:
-            - type: object
-              required: [code, detail]
-              properties:
-                code:
-                  $ref: '#/components/schemas/ImportFailureCode'
-                detail:
-                  type: string
-            - type: 'null'
-        startedBy:
-          type: object
-          required: [kind, id]
-          properties:
-            kind:
-              type: string
-              enum: [user, client]
-            id:
-              type: string
-        startedAt:
-          type: string
-          format: date-time
-        completedAt:
-          type: [string, 'null']
-          format: date-time
     RowError:
       type: object
       required: [field, code, message]

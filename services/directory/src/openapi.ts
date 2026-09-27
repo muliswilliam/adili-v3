@@ -17,6 +17,17 @@ import {
   rosterSummarySchema,
 } from './commissions/representation.js';
 import {
+  columnMappingSchema,
+  importChannelSchema,
+  importCountsSchema,
+  importFailureCodeSchema,
+  importStateSchema,
+  previewRosterImportBody,
+  rosterImportPreviewSchema,
+  rosterImportSchema,
+  startFileImportBody,
+} from './roster/import/representation.js';
+import {
   rosterApiCredentialSchema,
   rosterApiCredentialWithSecretSchema,
 } from './roster/api-credential/representation.js';
@@ -40,4 +51,13 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   CommissionPage: commissionPageSchema,
   RosterApiCredential: rosterApiCredentialSchema,
   RosterApiCredentialWithSecret: rosterApiCredentialWithSecretSchema,
+  ImportChannel: importChannelSchema,
+  ImportState: importStateSchema,
+  ImportFailureCode: importFailureCodeSchema,
+  ColumnMapping: columnMappingSchema,
+  ImportCounts: importCountsSchema,
+  RosterImport: rosterImportSchema,
+  StartFileImport: startFileImportBody,
+  PreviewRosterImport: previewRosterImportBody,
+  RosterImportPreview: rosterImportPreviewSchema,
 };

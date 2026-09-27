@@ -1,0 +1,392 @@
+import { type Database, withTenant } from '@adili/data-access';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+
+import type { Transaction } from '../../commissions/commissions.service.js';
+import type { DirectorySchema } from '../../db/schema.js';
+import type { NormalisedRosterRow, RowError } from '../row-validation.js';
+import {
+  type ImportChannel,
+  type ImportRowOutcome,
+  reportingEntities,
+  rosterImportRows,
+  rosterImports,
+  rosterRecords,
+} from '../schema.js';
+import { IMPORT_SUBJECT } from './staging.js';
+import type { ChunkCounts, ImportRef } from './workflow-contract.js';
+
+const NOTHING_APPLIED: ChunkCounts = { created: 0, updated: 0, unchanged: 0, rejected: 0 };
+
+/** The fields of a record an import row sets. */
+interface RecordValues {
+  personnelFileNumber: string;
+  fullName: string;
+  nationalId: string;
+  designation: string | null;
+  jobGroup: string | null;
+  reportingEntityId: string | null;
+  appointmentDate: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+type ExistingRecord = RecordValues & { id: string; state: typeof rosterRecords.$inferSelect.state };
+
+/** What applying one row does to the roster. */
+type Decision =
+  | { kind: 'create'; values: RecordValues }
+  | { kind: 'update'; recordId: string; values: RecordValues }
+  | { kind: 'unchanged'; recordId: string }
+  | { kind: 'locked'; recordId: string; errors: RowError[] };
+
+/**
+ * Applies one chunk of an import's accepted rows in one transaction: creates reporting entities
+ * named for the first time, creates or updates records by personnel file number (case-insensitive),
+ * rejects rows that would change an onboarded record's identity (`identity-locked`), marks every
+ * record with a row as seen in this import, and marks the rows applied with their outcome.
+ *
+ * Idempotent: only rows not yet applied are applied, and the import row is locked first, so a
+ * re-run (after a crash, or racing a straggling attempt) applies nothing twice and returns zeros.
+ */
+export async function applyChunk(
+  db: Database<DirectorySchema>,
+  ref: ImportRef,
+  chunkIndex: number,
+): Promise<ChunkCounts> {
+  return withTenant(db, { tenant: ref.tenant, subject: IMPORT_SUBJECT }, async (tx) => {
+    const [current] = await tx
+      .select({ state: rosterImports.state, channel: rosterImports.channel })
+      .from(rosterImports)
+      .where(and(eq(rosterImports.id, ref.importId), eq(rosterImports.tenant, ref.tenant)))
+      .for('update');
+    if (current?.state !== 'processing') return NOTHING_APPLIED;
+
+    const staged = await tx
+      .select({ rowNumber: rosterImportRows.rowNumber, normalised: rosterImportRows.normalised })
+      .from(rosterImportRows)
+      .where(
+        and(
+          eq(rosterImportRows.importId, ref.importId),
+          eq(rosterImportRows.chunkIndex, chunkIndex),
+          eq(rosterImportRows.status, 'accepted'),
+          isNull(rosterImportRows.appliedAt),
+        ),
+      )
+      .orderBy(rosterImportRows.rowNumber);
+    const rows = staged.flatMap(({ rowNumber, normalised }) =>
+      normalised ? [{ rowNumber, normalised }] : [],
+    );
+    if (rows.length === 0) return NOTHING_APPLIED;
+
+    const entityIds = await reportingEntityIds(
+      tx,
+      ref.tenant,
+      rows.map((row) => row.normalised.reportingEntity),
+    );
+    const existing = await recordsByFileNumber(
+      tx,
+      ref.tenant,
+      rows.map((row) => row.normalised.personnelFileNumber),
+    );
+    const decisions = rows.map((row) => {
+      const entity = row.normalised.reportingEntity;
+      const values = recordValues(
+        row.normalised,
+        entity ? requireId(entityIds, entityKey(entity)) : null,
+      );
+      return {
+        rowNumber: row.rowNumber,
+        decision: decide(values, existing.get(fileNumberKey(values.personnelFileNumber))),
+      };
+    });
+
+    const created = await createRecords(
+      tx,
+      ref,
+      current.channel,
+      decisions.flatMap(({ decision }) => (decision.kind === 'create' ? [decision.values] : [])),
+    );
+    await updateRecords(
+      tx,
+      ref,
+      current.channel,
+      decisions.flatMap(({ decision }) => (decision.kind === 'update' ? [decision] : [])),
+    );
+    await markSeen(
+      tx,
+      ref,
+      decisions.flatMap(({ decision }) =>
+        decision.kind === 'unchanged' || decision.kind === 'locked' ? [decision.recordId] : [],
+      ),
+    );
+
+    const counts: ChunkCounts = { ...NOTHING_APPLIED };
+    const outcomes = decisions.map(({ rowNumber, decision }) => {
+      switch (decision.kind) {
+        case 'create': {
+          counts.created += 1;
+          const recordId = requireId(created, fileNumberKey(decision.values.personnelFileNumber));
+          return rowOutcome(rowNumber, 'created', recordId);
+        }
+        case 'update':
+          counts.updated += 1;
+          return rowOutcome(rowNumber, 'updated', decision.recordId);
+        case 'unchanged':
+          counts.unchanged += 1;
+          return rowOutcome(rowNumber, 'unchanged', decision.recordId);
+        case 'locked':
+          counts.rejected += 1;
+          return {
+            row_number: rowNumber,
+            status: 'rejected',
+            outcome: null,
+            record_id: decision.recordId,
+            errors: decision.errors,
+          };
+      }
+    });
+    await tx.execute(sql`
+      update roster_import_rows as target set
+        status = source.status,
+        outcome = source.outcome,
+        record_id = source.record_id,
+        errors = source.errors,
+        applied_at = now()
+      from jsonb_to_recordset(${JSON.stringify(outcomes)}::jsonb)
+        as source(row_number integer, status text, outcome text, record_id uuid, errors jsonb)
+      where target.import_id = ${ref.importId} and target.row_number = source.row_number
+    `);
+    await tx
+      .update(rosterImports)
+      .set({ processedRows: sql`${rosterImports.processedRows} + ${rows.length}` })
+      .where(eq(rosterImports.id, ref.importId));
+    return counts;
+  });
+}
+
+/**
+ * The decision for one row. A row for an onboarded record may not change its identity (national
+ * ID, full name); the row is rejected whole and the record keeps every field.
+ */
+function decide(values: RecordValues, existing: ExistingRecord | undefined): Decision {
+  if (!existing) return { kind: 'create', values };
+  if (existing.state === 'onboarded') {
+    const errors = identityChanges(existing, values);
+    if (errors.length > 0) return { kind: 'locked', recordId: existing.id, errors };
+  }
+  return sameValues(existing, values)
+    ? { kind: 'unchanged', recordId: existing.id }
+    : { kind: 'update', recordId: existing.id, values };
+}
+
+function identityChanges(existing: RecordValues, values: RecordValues): RowError[] {
+  const errors: RowError[] = [];
+  if (existing.nationalId !== values.nationalId) {
+    errors.push({
+      field: 'nationalId',
+      code: 'identity-locked',
+      message: 'The officer has onboarded, so their national ID cannot change through an import',
+    });
+  }
+  if (existing.fullName !== values.fullName) {
+    errors.push({
+      field: 'fullName',
+      code: 'identity-locked',
+      message: 'The officer has onboarded, so their full name cannot change through an import',
+    });
+  }
+  return errors;
+}
+
+const RECORD_FIELDS = [
+  'personnelFileNumber',
+  'fullName',
+  'nationalId',
+  'designation',
+  'jobGroup',
+  'reportingEntityId',
+  'appointmentDate',
+  'email',
+  'phone',
+] as const satisfies readonly (keyof RecordValues)[];
+
+function sameValues(existing: RecordValues, values: RecordValues): boolean {
+  return RECORD_FIELDS.every((field) => existing[field] === values[field]);
+}
+
+function recordValues(row: NormalisedRosterRow, reportingEntityId: string | null): RecordValues {
+  return {
+    personnelFileNumber: row.personnelFileNumber,
+    fullName: row.fullName,
+    nationalId: row.nationalId,
+    designation: row.designation,
+    jobGroup: row.jobGroup,
+    reportingEntityId,
+    appointmentDate: row.appointmentDate,
+    email: row.email,
+    phone: row.phone,
+  };
+}
+
+function rowOutcome(rowNumber: number, outcome: ImportRowOutcome, recordId: string) {
+  return { row_number: rowNumber, status: 'accepted', outcome, record_id: recordId, errors: [] };
+}
+
+/** Personnel file numbers identify records case-insensitively. */
+function fileNumberKey(fileNumber: string): string {
+  return fileNumber.toLowerCase();
+}
+
+/** Reporting entities are identified by lower-cased, whitespace-collapsed name. */
+function entityKey(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function requireId(ids: Map<string, string>, key: string): string {
+  const id = ids.get(key);
+  if (id === undefined) throw new Error(`No id for ${key}`);
+  return id;
+}
+
+/**
+ * Ids of the named reporting entities by name (and normalised name), creating those seen for the
+ * first time with the name as written in their first row.
+ */
+async function reportingEntityIds(
+  tx: Transaction,
+  tenant: string,
+  names: (string | null)[],
+): Promise<Map<string, string>> {
+  const byKey = new Map<string, string>();
+  for (const name of names) {
+    if (name !== null && !byKey.has(entityKey(name))) byKey.set(entityKey(name), name);
+  }
+  if (byKey.size === 0) return new Map();
+  await tx
+    .insert(reportingEntities)
+    .values([...byKey].map(([normalisedName, name]) => ({ tenant, name, normalisedName })))
+    .onConflictDoNothing({ target: [reportingEntities.tenant, reportingEntities.normalisedName] });
+  const rows = await tx
+    .select({ id: reportingEntities.id, normalisedName: reportingEntities.normalisedName })
+    .from(reportingEntities)
+    .where(
+      and(
+        eq(reportingEntities.tenant, tenant),
+        inArray(reportingEntities.normalisedName, [...byKey.keys()]),
+      ),
+    );
+  return new Map(rows.map((row) => [row.normalisedName, row.id]));
+}
+
+/** The tenant's records with these file numbers, locked until the commit, by file number key. */
+async function recordsByFileNumber(
+  tx: Transaction,
+  tenant: string,
+  fileNumbers: string[],
+): Promise<Map<string, ExistingRecord>> {
+  const rows = await tx
+    .select({
+      id: rosterRecords.id,
+      state: rosterRecords.state,
+      personnelFileNumber: rosterRecords.personnelFileNumber,
+      fullName: rosterRecords.fullName,
+      nationalId: rosterRecords.nationalId,
+      designation: rosterRecords.designation,
+      jobGroup: rosterRecords.jobGroup,
+      reportingEntityId: rosterRecords.reportingEntityId,
+      appointmentDate: rosterRecords.appointmentDate,
+      email: rosterRecords.email,
+      phone: rosterRecords.phone,
+    })
+    .from(rosterRecords)
+    .where(
+      and(
+        eq(rosterRecords.tenant, tenant),
+        inArray(sql`lower(${rosterRecords.personnelFileNumber})`, fileNumbers.map(fileNumberKey)),
+      ),
+    )
+    .for('update');
+  return new Map(rows.map((row) => [fileNumberKey(row.personnelFileNumber), row]));
+}
+
+/** Inserts new records; returns their ids by file number key. */
+async function createRecords(
+  tx: Transaction,
+  ref: ImportRef,
+  channel: ImportChannel,
+  values: RecordValues[],
+): Promise<Map<string, string>> {
+  if (values.length === 0) return new Map();
+  const rows = await tx
+    .insert(rosterRecords)
+    .values(
+      values.map((value) => ({
+        ...value,
+        tenant: ref.tenant,
+        source: channel,
+        firstSeenImportId: ref.importId,
+        lastSeenImportId: ref.importId,
+      })),
+    )
+    .returning({ id: rosterRecords.id, personnelFileNumber: rosterRecords.personnelFileNumber });
+  return new Map(rows.map((row) => [fileNumberKey(row.personnelFileNumber), row.id]));
+}
+
+/** Writes the rows' values to their records in one statement. */
+async function updateRecords(
+  tx: Transaction,
+  ref: ImportRef,
+  channel: ImportChannel,
+  updates: { recordId: string; values: RecordValues }[],
+): Promise<void> {
+  if (updates.length === 0) return;
+  const source = updates.map(({ recordId, values }) => ({
+    id: recordId,
+    personnel_file_number: values.personnelFileNumber,
+    full_name: values.fullName,
+    national_id: values.nationalId,
+    designation: values.designation,
+    job_group: values.jobGroup,
+    reporting_entity_id: values.reportingEntityId,
+    appointment_date: values.appointmentDate,
+    email: values.email,
+    phone: values.phone,
+  }));
+  await tx.execute(sql`
+    update roster_records as target set
+      personnel_file_number = source.personnel_file_number,
+      full_name = source.full_name,
+      national_id = source.national_id,
+      designation = source.designation,
+      job_group = source.job_group,
+      reporting_entity_id = source.reporting_entity_id,
+      appointment_date = source.appointment_date,
+      email = source.email,
+      phone = source.phone,
+      source = ${channel},
+      last_seen_import_id = ${ref.importId},
+      updated_at = now()
+    from jsonb_to_recordset(${JSON.stringify(source)}::jsonb) as source(
+      id uuid,
+      personnel_file_number text,
+      full_name text,
+      national_id text,
+      designation text,
+      job_group text,
+      reporting_entity_id uuid,
+      appointment_date date,
+      email text,
+      phone text
+    )
+    where target.id = source.id and target.tenant = ${ref.tenant}
+  `);
+}
+
+/** Records the import saw without changing them; `updated_at` stays as it was. */
+async function markSeen(tx: Transaction, ref: ImportRef, recordIds: string[]): Promise<void> {
+  if (recordIds.length === 0) return;
+  await tx.execute(sql`
+    update roster_records set last_seen_import_id = ${ref.importId}
+    where ${and(eq(rosterRecords.tenant, ref.tenant), inArray(rosterRecords.id, recordIds))}
+  `);
+}

@@ -1,0 +1,111 @@
+import { type Database, withTenant } from '@adili/data-access';
+import type { EventPublisher } from '@adili/events';
+import { and, count, eq, sql } from 'drizzle-orm';
+
+import type { Transaction } from '../../commissions/commissions.service.js';
+import type { DirectorySchema } from '../../db/schema.js';
+import { rosterImportRows, rosterImports } from '../schema.js';
+import { refreshRosterSummary } from '../summary.js';
+import { rosterImportCompleted, rosterImportFailed } from './events.js';
+import type { ImportCounts } from './representation.js';
+import { IMPORT_SUBJECT } from './staging.js';
+import type { ImportRef, ImportResult } from './workflow-contract.js';
+
+/**
+ * Ends an import in one transaction: writes its counts (tallied from its rows, so they are right
+ * however often chunks were retried), its state and completion time, refreshes the tenant's
+ * roster summary and records `roster.import.completed.v1` or `roster.import.failed.v1`.
+ *
+ * Idempotent: an import that has already ended (or does not exist) is left as it is and no
+ * second event is recorded.
+ */
+export async function finaliseImport(
+  db: Database<DirectorySchema>,
+  events: EventPublisher,
+  ref: ImportRef,
+  result: ImportResult,
+): Promise<void> {
+  await withTenant(db, { tenant: ref.tenant, subject: IMPORT_SUBJECT }, async (tx) => {
+    const [current] = await tx
+      .select({
+        state: rosterImports.state,
+        channel: rosterImports.channel,
+        declaredComplete: rosterImports.declaredComplete,
+      })
+      .from(rosterImports)
+      .where(and(eq(rosterImports.id, ref.importId), eq(rosterImports.tenant, ref.tenant)))
+      .for('update');
+    if (!current || current.state === 'completed' || current.state === 'failed') return;
+
+    const counts = await tally(tx, ref.importId, {
+      flaggedAbsent: result.state === 'completed' ? (result.flaggedAbsent ?? 0) : 0,
+    });
+    await tx
+      .update(rosterImports)
+      .set({
+        state: result.state,
+        counts,
+        completedAt: sql`now()`,
+        failureCode: result.state === 'failed' ? result.failure.code : null,
+        failureDetail: result.state === 'failed' ? result.failure.detail : null,
+      })
+      .where(eq(rosterImports.id, ref.importId));
+
+    // Chunks applied before a failure changed records too, so the summary is refreshed either way.
+    if (result.state === 'completed') {
+      await refreshRosterSummary(tx, ref.tenant, {
+        id: ref.importId,
+        declaredComplete: current.declaredComplete,
+      });
+      await events.record(
+        tx,
+        rosterImportCompleted(ref.tenant, {
+          importId: ref.importId,
+          channel: current.channel,
+          declaredComplete: current.declaredComplete,
+          counts,
+        }),
+      );
+    } else {
+      await refreshRosterSummary(tx, ref.tenant);
+      await events.record(
+        tx,
+        rosterImportFailed(ref.tenant, {
+          importId: ref.importId,
+          failureCode: result.failure.code,
+        }),
+      );
+    }
+  });
+}
+
+/** The import's counts from its rows' statuses and outcomes. */
+async function tally(
+  tx: Transaction,
+  importId: string,
+  extra: { flaggedAbsent: number },
+): Promise<ImportCounts> {
+  const groups = await tx
+    .select({
+      status: rosterImportRows.status,
+      outcome: rosterImportRows.outcome,
+      rows: count(),
+    })
+    .from(rosterImportRows)
+    .where(eq(rosterImportRows.importId, importId))
+    .groupBy(rosterImportRows.status, rosterImportRows.outcome);
+  const counts: ImportCounts = {
+    accepted: 0,
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    rejected: 0,
+    flaggedAbsent: extra.flaggedAbsent,
+    exitsRecorded: 0,
+  };
+  for (const { status, outcome, rows } of groups) {
+    counts[status] += rows;
+    if (outcome !== null) counts[outcome] += rows;
+  }
+  return counts;
+}
