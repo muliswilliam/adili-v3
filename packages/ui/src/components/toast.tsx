@@ -29,7 +29,8 @@ export interface ToastOptions {
   /**
    * Milliseconds before the toast dismisses itself. Polite toasts default to 6000; assertive
    * toasts stay until dismissed so the user has time to read them. The countdown pauses while
-   * the toast is hovered or has focus.
+   * the toast is hovered or has focus. A non-finite value (such as `Infinity`) keeps the toast
+   * until dismissed; longer than a timer can hold (about 24.8 days) is capped to that.
    */
   duration?: number;
 }
@@ -47,6 +48,16 @@ interface ToastApi {
 const ToastContext = createContext<ToastApi | null>(null);
 
 const DEFAULT_POLITE_DURATION = 6000;
+/** The longest delay setTimeout accepts; a longer one overflows and fires at once. */
+const MAX_TIMER_DELAY = 2 ** 31 - 1;
+
+/** Milliseconds until the toast dismisses itself, or undefined to keep it until dismissed. */
+function durationOf(entry: ToastOptions): number | undefined {
+  const duration =
+    entry.duration ?? (urgencyOf(entry) === 'assertive' ? undefined : DEFAULT_POLITE_DURATION);
+  if (duration === undefined || !Number.isFinite(duration)) return undefined;
+  return Math.min(Math.max(duration, 0), MAX_TIMER_DELAY);
+}
 
 /** Whether an event target is inside the toast viewport, so a dialog can ignore it. */
 export function isInToastViewport(target: EventTarget | null): boolean {
@@ -122,7 +133,7 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
   const assertive = urgency === 'assertive';
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const remaining = useRef(entry.duration ?? (assertive ? undefined : DEFAULT_POLITE_DURATION));
+  const remaining = useRef(durationOf(entry));
 
   useEffect(() => {
     if (remaining.current === undefined || hovered || focused) return;
@@ -159,7 +170,10 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
       <Icon icon={assertive ? Alert02Icon : Tick02Icon} className="mt-0.5" />
       <div className="grid min-w-0 gap-0.5">
         <div className="font-medium">{entry.title}</div>
-        {entry.description ? <div className="opacity-80">{entry.description}</div> : null}
+        {entry.description ? (
+          // Dimmed only on the polite pill: 80% misses 4.5:1 on the destructive fill.
+          <div className={cn(!assertive && 'opacity-80')}>{entry.description}</div>
+        ) : null}
       </div>
       <button
         type="button"
