@@ -8,7 +8,8 @@
  * header is ignored and the socket address is the client.
  *
  * When the header has fewer entries than trusted hops, the proxies are not configured as
- * expected; the socket address is used rather than guessing.
+ * expected (or there is none, as in local dev with the default of 1); the socket address is used
+ * rather than guessing.
  */
 export function clientIp(
   headers: { get: (name: string) => string | null },
