@@ -316,12 +316,13 @@ paths:
       tags:
         - roster
       summary: Roster template with column notes and a sample row
+      description: reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The nine roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number and phone columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
       operationId: getRosterTemplate
-      x-draft: true
       parameters:
         - name: format
-          in: query
           required: true
+          in: query
+          description: File format of the template
           schema:
             type: string
             enum:
@@ -338,8 +339,21 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: |-
+            The caller may not download the template
+
+            Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/roster/summary:
     parameters:
       - $ref: '#/components/parameters/Slug'
