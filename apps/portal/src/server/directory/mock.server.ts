@@ -239,6 +239,8 @@ interface MockSession {
   record: RosterRecord;
   createdAt: number;
   confirmFailures: ConfirmFailure[];
+  /** When the set-password email last went, for its cooldown. */
+  passwordEmailAt?: number;
 }
 
 const sessions = new Map<string, MockSession>();
@@ -500,11 +502,17 @@ function allocateOfr(): string {
   return `OFR-${digits}-X`;
 }
 
-/** Starts the 60-second wait before the set-password email can be sent again. */
-function passwordEmailSent(session: OnboardingSession) {
-  session.otp = {
+/**
+ * Starts the 60-second wait before the set-password email can be sent again. The contract lets
+ * the directory leave `otp.resendAvailableAt` null here, so the mock does after confirm (the
+ * portal then waits the full cooldown from the page load) and gives the time after a resend.
+ */
+function passwordEmailSent(entry: MockSession, { reportWait }: { reportWait: boolean }) {
+  const now = Date.now();
+  entry.passwordEmailAt = now;
+  entry.session.otp = {
     ...idleOtp(),
-    resendAvailableAt: new Date(Date.now() + RESEND_COOLDOWN_MS).toISOString(),
+    resendAvailableAt: reportWait ? new Date(now + RESEND_COOLDOWN_MS).toISOString() : null,
   };
 }
 
@@ -526,7 +534,7 @@ function confirm(entry: MockSession) {
     session.outcome = record.existingOfr ? 'linked-existing-account' : 'account-created';
     session.ofr = record.existingOfr ?? allocateOfr();
     onboarded.add(record);
-    if (!record.existingOfr) passwordEmailSent(session);
+    if (!record.existingOfr) passwordEmailSent(entry, { reportWait: false });
   }
   return json(200, { outcome: session.outcome, session });
 }
@@ -534,7 +542,7 @@ function confirm(entry: MockSession) {
 function resendPasswordEmail(entry: MockSession) {
   const { session } = entry;
   if (session.state !== 'confirmed' || session.outcome !== 'account-created') return wrongStep();
-  const wait = secondsUntilResend(session);
+  const wait = secondsUntilPasswordEmail(entry);
   if (wait > 0) {
     return problem(
       429,
@@ -544,12 +552,13 @@ function resendPasswordEmail(entry: MockSession) {
       { 'RateLimit-Reset': String(wait) },
     );
   }
-  passwordEmailSent(session);
+  passwordEmailSent(entry, { reportWait: true });
   return new Response(null, { status: 202 });
 }
 
-function secondsUntilResend({ otp }: OnboardingSession): number {
-  const wait = otp.resendAvailableAt === null ? 0 : Date.parse(otp.resendAvailableAt) - Date.now();
+function secondsUntilPasswordEmail({ passwordEmailAt }: MockSession): number {
+  const wait =
+    passwordEmailAt === undefined ? 0 : passwordEmailAt + RESEND_COOLDOWN_MS - Date.now();
   return wait > 0 ? Math.ceil(wait / 1000) : 0;
 }
 

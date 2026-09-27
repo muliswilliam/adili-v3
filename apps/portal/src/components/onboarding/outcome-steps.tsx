@@ -21,8 +21,16 @@ import { useSettle, useStartAgain } from './settle';
 import { SessionUnavailable } from './step-alerts';
 
 const SIGN_IN = '/auth/login';
-/** The directory's wait between set-password emails, if it does not say. */
+/** The wait between set-password emails (spec 03), when the directory does not give a time. */
 const RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * Seconds until the set-password email can go again. The email has only just been sent when
+ * this page shows, so without a time from the directory the full cooldown applies.
+ */
+function emailWait(resendAvailableAt: string | null): number {
+  return resendAvailableAt === null ? RESEND_COOLDOWN_SECONDS : secondsUntil(resendAvailableAt);
+}
 
 /** Check your email (step 6): the new account's set-password email, with resend. */
 export function CheckEmailStep({ guard }: { guard: StepGuard }) {
@@ -92,7 +100,7 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
     commission: session.commission.slug,
   });
   const { toast } = useToast();
-  const [secondsLeft, startCountdown] = useCountdown(secondsUntil(session.otp.resendAvailableAt));
+  const [secondsLeft, startCountdown] = useCountdown(emailWait(session.otp.resendAvailableAt));
   const [sending, setSending] = useState(false);
   const announcement = useCountdownAnnouncement(secondsLeft, describeWait);
 
@@ -102,9 +110,8 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
     try {
       const result = await resendSetPasswordEmail();
       if (result.ok) {
-        startCountdown(
-          secondsUntil(result.session.otp.resendAvailableAt) || RESEND_COOLDOWN_SECONDS,
-        );
+        // It has just gone, so there is always a wait.
+        startCountdown(emailWait(result.session.otp.resendAvailableAt) || RESEND_COOLDOWN_SECONDS);
         toast({ title: 'Email sent again' });
       } else if (result.code === 'resend-cooldown') {
         startCountdown(result.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);

@@ -460,8 +460,10 @@ describe('confirm and the set-password email', () => {
   it('holds the set-password email for 60 seconds, then sends it again', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const session = await atConfirm();
-    await confirm(client(), session);
+    const confirmed = await confirm(client(), session);
 
+    // The contract allows no time here; the cooldown still applies.
+    expect(confirmed.ok && confirmed.session.otp.resendAvailableAt).toBeNull();
     expect(await resendPasswordEmail(client(), session)).toMatchObject({
       ok: false,
       code: 'resend-cooldown',
