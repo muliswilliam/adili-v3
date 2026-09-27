@@ -13,11 +13,13 @@ import {
 } from '@nestjs/common';
 import { ReadinessCheck } from '@adili/api-kit';
 import {
+  bundleWorkflowCode,
   type LogLevel,
   type LogMetadata,
   NativeConnection,
   Runtime,
   Worker,
+  type WorkflowBundleWithSourceMap,
 } from '@temporalio/worker';
 
 export interface TemporalWorkerModuleOptions {
@@ -53,6 +55,8 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
   private readonly logger = new Logger(TemporalWorkerHost.name);
   private worker: Worker | undefined;
   private running: Promise<void> | undefined;
+  /** Bundled once and reused across restarts: bundling takes seconds of CPU. */
+  private bundle: Promise<WorkflowBundleWithSourceMap> | undefined;
   private readonly shutdown = new AbortController();
 
   constructor(
@@ -95,12 +99,18 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
     while (!this.stopping()) {
       let connection: NativeConnection | undefined;
       try {
-        connection = await this.connect();
+        connection = await this.untilStopped(
+          NativeConnection.connect({ address: this.options.address }),
+        );
         if (!connection) break;
-        this.worker = await this.createWorker(connection);
-        if (!this.stopping()) {
-          await this.worker.run();
-        }
+        const bundle = await this.untilStopped(this.bundleWorkflows());
+        if (!bundle) break;
+        this.worker = await this.createWorker(connection, bundle);
+        const running = this.worker.run();
+        // Shutdown began while the worker was being created; a created worker only releases the
+        // connection and its workflow threads once it has run, so run it straight into shutdown.
+        if (this.stopping()) this.worker.shutdown();
+        await running;
       } catch (error) {
         if (this.stopping()) {
           this.logger.warn({ err: error }, 'Temporal worker gave up on in-flight activities');
@@ -122,11 +132,10 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
   }
 
   /**
-   * Connects, or resolves undefined if shutdown starts first: an unresponsive server can hold a
-   * connection attempt open far longer than shutdown should wait, with nothing in flight to drain.
+   * Resolves undefined if shutdown starts first: an unresponsive server can hold a connection
+   * attempt open far longer than shutdown should wait, with nothing in flight to drain.
    */
-  private async connect(): Promise<NativeConnection | undefined> {
-    const connecting = NativeConnection.connect({ address: this.options.address });
+  private async untilStopped<T extends object>(pending: Promise<T>): Promise<T | undefined> {
     const stopped = new Promise<undefined>((resolve) => {
       this.shutdown.signal.addEventListener(
         'abort',
@@ -136,25 +145,40 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
         { once: true },
       );
     });
-    const connection = await Promise.race([connecting, stopped]);
-    if (!connection) {
-      // Close the connection if the abandoned attempt succeeds later.
-      connecting.then((late) => late.close()).catch(() => undefined);
+    const result = await Promise.race([pending, stopped]);
+    if (!result) {
+      // Release what the abandoned attempt produces if it succeeds later.
+      pending
+        .then((late) => (late instanceof NativeConnection ? late.close() : undefined))
+        .catch(() => undefined);
     }
-    return connection;
+    return result;
+  }
+
+  private bundleWorkflows(): Promise<WorkflowBundleWithSourceMap> {
+    this.bundle ??= bundleWorkflowCode({ workflowsPath: this.options.workflowsPath }).catch(
+      (error: unknown) => {
+        this.bundle = undefined;
+        throw error;
+      },
+    );
+    return this.bundle;
   }
 
   private drainTimeoutMs(): number {
     return this.options.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS;
   }
 
-  private createWorker(connection: NativeConnection): Promise<Worker> {
+  private createWorker(
+    connection: NativeConnection,
+    bundle: WorkflowBundleWithSourceMap,
+  ): Promise<Worker> {
     const drainTimeoutMs = this.drainTimeoutMs();
     return Worker.create({
       connection,
       namespace: this.options.namespace,
       taskQueue: this.options.taskQueue,
-      workflowsPath: this.options.workflowsPath,
+      workflowBundle: bundle,
       activities: this.activities,
       shutdownGraceTime: drainTimeoutMs,
       shutdownForceTime: drainTimeoutMs + CANCELLATION_GRACE_MS,
@@ -204,17 +228,27 @@ export class TemporalWorkerModule {
   }
 }
 
+/** Methods of each instance's class and its base classes; accessors are not activities. */
 function collectActivities(instances: object[]): Activities {
   const activities: Activities = {};
   for (const instance of instances) {
-    const prototype = Object.getPrototypeOf(instance) as Record<string, unknown>;
-    for (const name of Object.getOwnPropertyNames(prototype)) {
-      const method = prototype[name];
-      if (name === 'constructor' || typeof method !== 'function') continue;
-      if (name in activities) {
-        throw new Error(`Activity "${name}" is defined by more than one provider`);
+    const seen = new Set<string>();
+    for (
+      let prototype = Object.getPrototypeOf(instance) as object | null;
+      prototype && prototype !== Object.prototype;
+      prototype = Object.getPrototypeOf(prototype) as object | null
+    ) {
+      for (const name of Object.getOwnPropertyNames(prototype)) {
+        // An override in a subclass shadows the base class method of the same name.
+        if (name === 'constructor' || seen.has(name)) continue;
+        seen.add(name);
+        const method: unknown = Object.getOwnPropertyDescriptor(prototype, name)?.value;
+        if (typeof method !== 'function') continue;
+        if (name in activities) {
+          throw new Error(`Activity "${name}" is defined by more than one provider`);
+        }
+        activities[name] = (method as Activities[string]).bind(instance);
       }
-      activities[name] = (method as Activities[string]).bind(instance);
     }
   }
   return activities;
@@ -255,6 +289,9 @@ function installRuntimeLogger(): void {
       },
       // Native (Rust core) warnings, such as lost server connections, go the same way.
       telemetryOptions: { logging: { filter: { core: 'WARN', other: 'WARN' }, forward: {} } },
+      // Nest owns shutdown (beforeApplicationShutdown drains the worker in order); the runtime's
+      // own signal handlers would stop workers out of band, or on signals Nest ignores.
+      shutdownSignals: [],
     });
   } catch {
     // Something (a test environment, another worker) created the runtime first; keep its logger.

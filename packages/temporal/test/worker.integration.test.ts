@@ -95,6 +95,25 @@ describe('TemporalWorkerModule against compose Temporal', () => {
     await waitUntil(() => isUp(readiness));
   });
 
+  it('shuts down cleanly while the worker is still being created', async () => {
+    app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
+    const errors: unknown[] = [];
+    app.useLogger({
+      log: () => undefined,
+      warn: () => undefined,
+      error: (message: unknown) => errors.push(message),
+    });
+    await app.init();
+    // Connected by now, and still bundling the workflows.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const closing = app.close();
+    app = undefined;
+
+    await closing;
+
+    expect(errors).toEqual([]);
+  });
+
   it('reports down and waits for in-flight activities while shutting down', async () => {
     const taskQueue = `worker-test-${randomUUID()}`;
     app = await createApp({ taskQueue, drainTimeoutMs: 10_000 });

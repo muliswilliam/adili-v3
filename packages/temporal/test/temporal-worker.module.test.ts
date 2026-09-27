@@ -17,6 +17,29 @@ class DuplicateActivities {
   }
 }
 
+class GreetingBase {
+  composeGreeting(): Promise<string> {
+    return Promise.resolve('inherited');
+  }
+}
+
+@Injectable()
+class InheritedActivities extends GreetingBase {}
+
+@Injectable()
+class AccessorActivities {
+  private readonly state = { count: 0 };
+
+  /** Reading this on the prototype, where `state` is undefined, throws. */
+  get count(): number {
+    return this.state.count;
+  }
+
+  countCalls(): Promise<number> {
+    return Promise.resolve(++this.state.count);
+  }
+}
+
 const options = {
   // Nothing listens here, so the worker never connects.
   address: '127.0.0.1:1',
@@ -94,5 +117,29 @@ describe('TemporalWorkerModule', () => {
       .compile();
 
     await expect(compiling).rejects.toThrow(/"composeGreeting" is defined by more than one/);
+  });
+
+  it('registers methods inherited from a base class', async () => {
+    const compiling = Test.createTestingModule({
+      imports: [
+        TemporalWorkerModule.forRoot({
+          ...options,
+          activities: [GreetingActivities, InheritedActivities],
+        }),
+      ],
+    })
+      .useMocker((token) => (token === GREETING_PREFIX ? 'Habari' : undefined))
+      .compile();
+
+    await expect(compiling).rejects.toThrow(/"composeGreeting" is defined by more than one/);
+  });
+
+  it('skips accessors on activity providers', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [TemporalWorkerModule.forRoot({ ...options, activities: [AccessorActivities] })],
+    }).compile();
+
+    expect(moduleRef.get(AccessorActivities).count).toBe(0);
+    await moduleRef.close();
   });
 });
