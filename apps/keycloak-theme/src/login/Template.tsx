@@ -93,7 +93,7 @@ export default function Template(props: AdiliTemplateProps) {
                   <span className="truncate text-sm font-medium">{auth.attemptedUsername}</span>
                   <a
                     href={url.loginRestartFlowUrl}
-                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-hidden hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <Icon icon={RotateLeft01Icon} className="size-3.5" />
                     {msg('restartLoginTooltip')}
@@ -160,7 +160,7 @@ export default function Template(props: AdiliTemplateProps) {
                 href={href}
                 lang={languageTag}
                 aria-current={languageTag === currentLanguage.languageTag ? 'true' : undefined}
-                className="rounded-md px-2 py-1 whitespace-nowrap outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=true]:font-medium aria-[current=true]:text-foreground"
+                className="rounded-md px-2 py-1 whitespace-nowrap outline-hidden hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=true]:font-medium aria-[current=true]:text-foreground"
               >
                 {label}
               </a>

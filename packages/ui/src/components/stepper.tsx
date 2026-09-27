@@ -116,7 +116,7 @@ export function Stepper({
                   onClick={() => {
                     onSelect(step.id);
                   }}
-                  className="group flex items-center gap-2 rounded-md py-0.5 pr-1 pl-0.5 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="group flex items-center gap-2 rounded-md py-0.5 pr-1 pl-0.5 outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {content}
                 </button>
