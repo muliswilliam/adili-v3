@@ -6,9 +6,17 @@ import {
   callDirectory,
   type DirectoryResult,
   type RosterImport,
+  type RosterImportPage,
   type RosterImportPreview,
+  type RosterImportRowPage,
   type RosterSummary,
 } from './directory/client';
+
+/** Imports per page of the import history. */
+export const IMPORT_HISTORY_PAGE_SIZE = 20;
+
+/** Rejected rows per page of an import's report (spec 02). */
+export const REJECTED_ROWS_PAGE_SIZE = 50;
 
 /** The viewer's own Commission: roster routes carry no slug, the session's tenant names it. */
 const slug = z.string().min(1).max(40);
@@ -115,4 +123,40 @@ export const findRunningRosterImport = createServerFn({ method: 'GET' })
       );
       return { ok: true, data: running ?? null };
     }),
+  );
+
+/** `GET /v1/commissions/{slug}/roster/imports`: one page of the import history, newest first. */
+export const listRosterImports = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug, cursor: z.string().max(500).optional() }))
+  .handler(({ data }): Promise<DirectoryResult<RosterImportPage>> =>
+    asViewer((client) =>
+      callDirectory(() =>
+        client.GET('/v1/commissions/{slug}/roster/imports', {
+          params: {
+            path: { slug: data.slug },
+            query: { limit: IMPORT_HISTORY_PAGE_SIZE, cursor: data.cursor },
+          },
+        }),
+      ),
+    ),
+  );
+
+/**
+ * `GET /v1/commissions/{slug}/roster/imports/{importId}/rows?status=rejected`: one page of an
+ * import's rejected rows, in row order. 403 for EACC (rows hold personal data), 410 once the
+ * rows are purged, 30 days after the import ended.
+ */
+export const listRejectedRows = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug, importId: z.uuid(), cursor: z.string().max(500).optional() }))
+  .handler(({ data }): Promise<DirectoryResult<RosterImportRowPage>> =>
+    asViewer((client) =>
+      callDirectory(() =>
+        client.GET('/v1/commissions/{slug}/roster/imports/{importId}/rows', {
+          params: {
+            path: { slug: data.slug, importId: data.importId },
+            query: { status: 'rejected', limit: REJECTED_ROWS_PAGE_SIZE, cursor: data.cursor },
+          },
+        }),
+      ),
+    ),
   );

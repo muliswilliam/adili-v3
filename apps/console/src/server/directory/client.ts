@@ -25,6 +25,10 @@ export type RosterImport = Schemas['RosterImport'];
 export type RosterImportPreview = Schemas['RosterImportPreview'];
 export type ColumnMapping = Schemas['ColumnMapping'];
 export type ImportCounts = Schemas['ImportCounts'];
+export type RosterImportRow = Schemas['RosterImportRow'];
+export type RowError = Schemas['RowError'];
+export type RosterImportRowPage =
+  paths['/v1/commissions/{slug}/roster/imports/{importId}/rows']['get']['responses'][200]['content']['application/json'];
 export type RosterRecordListItem = Schemas['RosterRecordListItem'];
 export type RosterRecord = Schemas['RosterRecord'];
 export type RosterRecordState = Schemas['RosterRecordState'];

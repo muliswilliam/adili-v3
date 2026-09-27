@@ -14,6 +14,7 @@ import {
 import {
   ArrowDown01Icon,
   ArrowRight01Icon,
+  Clock01Icon,
   Download04Icon,
   File02Icon,
   Flag02Icon,
@@ -137,6 +138,12 @@ function RosterOverview() {
           <Link to="/roster/records">
             <Icon icon={LeftToRightListBulletIcon} />
             {m.records}
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/imports">
+            <Icon icon={Clock01Icon} />
+            {m.historyTitle}
           </Link>
         </Button>
         {readOnly ? null : (
@@ -354,6 +361,14 @@ function LastImport({ item }: { item: RosterImport }) {
           <Count value={counts.flaggedAbsent} label={m.countFlagged} />
         </p>
       ) : null}
+      <div>
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/imports/$importId" params={{ importId: item.id }}>
+            {m.viewReport}
+            <Icon icon={ArrowRight01Icon} />
+          </Link>
+        </Button>
+      </div>
     </>
   );
 }

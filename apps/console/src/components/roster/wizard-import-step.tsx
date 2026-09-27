@@ -2,15 +2,14 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Badge,
   Button,
   Icon,
   ProgressBar,
   Skeleton,
-  Tooltip,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
+  ArrowRight01Icon,
   InformationCircleIcon,
   RefreshIcon,
   Upload04Icon,
@@ -20,6 +19,7 @@ import { Link } from '@tanstack/react-router';
 import type { RosterImport } from '../../server/directory/client';
 import { formatNumber } from '../format';
 import { FileBox } from './file-box';
+import { CompletenessBadge } from './roster-badges';
 import { failureDetail, failureReason, importProgress } from './import-progress';
 import { messages as m } from './messages';
 import { WizardCard, WizardFoot, WizardSection, WizardTitle } from './wizard-card';
@@ -64,17 +64,10 @@ export function WizardImportStep({
               tone="destructive"
               showValue={false}
             />
-            <FailureAlert imp={imp} />
+            <FailureAlert imp={imp} viewReport />
           </>
-        ) : progress.kind === 'reading' ? (
-          <ProgressBar label={m.importProgress} value={0} indeterminate status={m.readingFile} />
         ) : (
-          <ProgressBar
-            label={m.importProgress}
-            value={progress.percent}
-            valueText={m.rowsOf(progress.processed, progress.total)}
-            status={<RowsOf processed={progress.processed} total={progress.total} />}
-          />
+          <RunningProgress imp={imp} />
         )}
         {failed ? null : (
           <Alert variant="neutral" role="note">
@@ -105,6 +98,21 @@ export function WizardImportStep({
   );
 }
 
+/** A running import's progress bar: reading the file, then rows applied out of the total. */
+export function RunningProgress({ imp }: { imp: RosterImport }) {
+  const progress = importProgress(imp);
+  return progress.kind === 'reading' ? (
+    <ProgressBar label={m.importProgress} value={0} indeterminate status={m.readingFile} />
+  ) : (
+    <ProgressBar
+      label={m.importProgress}
+      value={progress.percent}
+      valueText={m.rowsOf(progress.processed, progress.total)}
+      status={<RowsOf processed={progress.processed} total={progress.total} />}
+    />
+  );
+}
+
 /** "21,400 of 48,431 rows", the numbers in bold. */
 function RowsOf({ processed, total }: { processed: number; total: number }) {
   return (
@@ -115,20 +123,14 @@ function RowsOf({ processed, total }: { processed: number; total: number }) {
   );
 }
 
-function CompletenessBadge({ declaredComplete }: { declaredComplete: boolean }) {
-  return (
-    <Tooltip content={declaredComplete ? m.completeRosterTip : m.partialUpdateTip} side="right">
-      <Badge
-        tabIndex={0}
-        className="cursor-default outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      >
-        {declaredComplete ? m.completeRoster : m.partialUpdate}
-      </Badge>
-    </Tooltip>
-  );
-}
-
-function FailureAlert({ imp }: { imp: RosterImport }) {
+/** Why the import stopped and what became of the rows; in the wizard, a way to its report. */
+export function FailureAlert({
+  imp,
+  viewReport = false,
+}: {
+  imp: RosterImport;
+  viewReport?: boolean;
+}) {
   const failure = imp.failure ?? { code: 'internal', detail: '' };
   const reason = failureReason(failure);
   const detail = failureDetail(failure);
@@ -141,6 +143,16 @@ function FailureAlert({ imp }: { imp: RosterImport }) {
       </AlertTitle>
       {detail ? <AlertDescription>{detail}</AlertDescription> : null}
       <AlertDescription>{applied ? m.stoppedKept : m.stoppedNothing}</AlertDescription>
+      {viewReport ? (
+        <div className="mt-2.5">
+          <Button asChild variant="secondary" size="sm">
+            <Link to="/roster/imports/$importId" params={{ importId: imp.id }}>
+              {m.viewReport}
+              <Icon icon={ArrowRight01Icon} />
+            </Link>
+          </Button>
+        </div>
+      ) : null}
     </Alert>
   );
 }

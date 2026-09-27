@@ -1,13 +1,11 @@
 import { z } from 'zod';
 
-import type { CommissionPage } from '../../server/directory/client';
-import type { CommissionListSearch } from './list-search';
-
 /**
- * Previous and Next over the directory's forward-only cursors. The page on show is the `cursor`
- * search param, so Back, reload and shared links open the same page. The way back (the cursors
- * of the pages before it) and the row offset live in history state: they survive Back and
- * reload but not a shared link, which then offers Previous to the first page.
+ * Previous and Next over the directory's forward-only cursors. In a list page the page on show
+ * is the `cursor` search param, so Back, reload and shared links open the same page, and the way
+ * back (the cursors of the pages before it) and the row offset live in history state: they
+ * survive Back and reload but not a shared link, which then offers Previous to the first page.
+ * A list inside a page (an import's rejected rows) keeps both in component state instead.
  */
 const pagingStateSchema = z.object({
   /** The pages before this one, oldest first; `null` is the first page. */
@@ -40,10 +38,7 @@ export interface PagingView {
   hasNext: boolean;
 }
 
-export function pagingView(
-  page: Pick<CommissionPage, 'items' | 'nextCursor'>,
-  paging: Paging,
-): PagingView {
+export function pagingView(page: CursorPage, paging: Paging): PagingView {
   const rows = page.items.length;
   const known = paging.offset !== null;
   const offset = paging.offset ?? 0;
@@ -54,17 +49,29 @@ export function pagingView(
   };
 }
 
-export interface PageLocation {
-  search: CommissionListSearch;
+/** One page of a cursor-paged directory list. */
+export interface CursorPage {
+  items: readonly unknown[];
+  nextCursor: string | null;
+}
+
+/** The search params of a paged list: its filters and the page's cursor. */
+export interface CursorSearch {
+  cursor?: string | undefined;
+  [param: string]: unknown;
+}
+
+export interface PageLocation<S extends CursorSearch = CursorSearch> {
+  search: S & { cursor?: string | undefined };
   state: PagingState;
 }
 
 /** The location of the page after this one. */
-export function nextPage(
-  search: CommissionListSearch,
-  page: Pick<CommissionPage, 'items' | 'nextCursor'>,
+export function nextPage<S extends CursorSearch>(
+  search: S,
+  page: CursorPage,
   paging: Paging,
-): PageLocation | null {
+): PageLocation<S> | null {
   if (!page.nextCursor) return null;
   const offset = paging.offset ?? 0;
   return {
@@ -77,7 +84,7 @@ export function nextPage(
 }
 
 /** The location of the page before this one; the first page when the way back is unknown. */
-export function previousPage(search: CommissionListSearch, paging: Paging): PageLocation {
+export function previousPage<S extends CursorSearch>(search: S, paging: Paging): PageLocation<S> {
   const before = paging.trail.at(-1);
   return {
     search: { ...search, cursor: before?.cursor ?? undefined },

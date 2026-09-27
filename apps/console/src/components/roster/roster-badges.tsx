@@ -1,4 +1,4 @@
-import { Badge, Icon, Spinner } from '@adili/ui';
+import { Badge, Icon, Spinner, Tooltip } from '@adili/ui';
 import {
   AlertCircleIcon,
   File02Icon,
@@ -104,4 +104,18 @@ export function ImportOutcomeBadge({
     );
   }
   return <Badge>{m.outcomeUnchanged}</Badge>;
+}
+
+/** "Complete roster" or "Partial update", with what that means in a tooltip. */
+export function CompletenessBadge({ declaredComplete }: { declaredComplete: boolean }) {
+  return (
+    <Tooltip content={declaredComplete ? m.completeRosterTip : m.partialUpdateTip} side="right">
+      <Badge
+        tabIndex={0}
+        className="cursor-default outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {declaredComplete ? m.completeRoster : m.partialUpdate}
+      </Badge>
+    </Tooltip>
+  );
 }
