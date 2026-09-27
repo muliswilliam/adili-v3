@@ -1,7 +1,7 @@
 import { type ComponentProps, useId, useLayoutEffect, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
-import { formatMoney, parseMoney, shapeMoneyText } from '../lib/money';
+import { formatMoney, type MoneyInvalidReason, parseMoney, shapeMoneyText } from '../lib/money';
 import { describedBy } from './form-field';
 import { Input } from './input';
 
@@ -15,7 +15,10 @@ export type MoneyInputProps = Omit<
    * Called as the user types, with the amount in cents (null when empty or not a valid amount)
    * and the text shown, so a form can tell an empty field from an invalid one.
    */
-  onValueChange: (cents: number | null, details: { text: string; invalid: boolean }) => void;
+  onValueChange: (
+    cents: number | null,
+    details: { text: string; invalid: boolean; reason?: MoneyInvalidReason },
+  ) => void;
   /** Shown before the amount and read after the label. Defaults to KES. */
   currency?: string;
 };
@@ -42,9 +45,10 @@ function caretAfter(text: string, significantBefore: number) {
 
 /**
  * An amount of money that stores integer cents. Thousands separators are added as the user
- * types, at most two decimals are kept and minus signs are dropped, so a negative cannot be
- * entered. The currency is shown before the field and linked to it as a description. Other
- * props go to the input, so it works inside a FormField.
+ * types and at most two decimals are kept. A negative is refused, not changed: the minus stays
+ * in the field and the change reports it invalid (reason `negative`) so the form can say why.
+ * The currency is shown before the field and linked to it as a description. Other props go to
+ * the input, so it works inside a FormField.
  */
 export function MoneyInput({
   value,
@@ -106,7 +110,12 @@ export function MoneyInput({
           const parsed = parseMoney(next);
           const cents = parsed.status === 'valid' ? parsed.cents : null;
           setSeenValue(cents);
-          onValueChange(cents, { text: next, invalid: parsed.status === 'invalid' });
+          onValueChange(
+            cents,
+            parsed.status === 'invalid'
+              ? { text: next, invalid: true, reason: parsed.reason }
+              : { text: next, invalid: false },
+          );
         }}
         onBlur={(event) => {
           onBlur?.(event);

@@ -138,5 +138,11 @@ export {
   shapeDateText,
 } from './lib/date-input';
 export { formatDate, formatDateTime } from './lib/format-date';
-export { formatMoney, type MoneyParseResult, parseMoney, shapeMoneyText } from './lib/money';
+export {
+  formatMoney,
+  type MoneyInvalidReason,
+  type MoneyParseResult,
+  parseMoney,
+  shapeMoneyText,
+} from './lib/money';
 export { COUNTIES, COUNTRIES } from './lib/places';

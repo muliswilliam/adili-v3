@@ -71,8 +71,10 @@ describe('shapeMoneyText', () => {
     expect(shapeMoneyText('1,2500')).toBe('12,500');
   });
 
-  it('drops minus signs and other characters, so negatives cannot be typed', () => {
-    expect(shapeMoneyText('-1250')).toBe('1,250');
+  it('keeps a leading minus so a negative can be refused, and drops other characters', () => {
+    expect(shapeMoneyText('-1250')).toBe('-1,250');
+    expect(shapeMoneyText(' - 12-50')).toBe('-1,250');
+    expect(shapeMoneyText('-')).toBe('-');
     expect(shapeMoneyText('KES 12a3')).toBe('123');
   });
 

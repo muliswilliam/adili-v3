@@ -6,6 +6,7 @@ import {
   Icon,
   Input,
   MoneyInput,
+  type MoneyInvalidReason,
   SegmentedChoice,
   Select,
   SelectItem,
@@ -170,7 +171,8 @@ export interface ItemEditorProps {
   errorFor: (field: ItemField) => string | undefined;
   onTouch: (field: ItemField) => void;
   /** Reports text in a money field that is not an amount, so the screen can say so. */
-  onMoneyText: (field: 'amount' | 'originalAmount', invalid: boolean) => void;
+  /** A money field's text is not an amount (null when it is), and why. */
+  onMoneyText: (field: 'amount' | 'originalAmount', problem: MoneyInvalidReason | null) => void;
   /** "My share", or "Mary's share" on someone else's statement. */
   shareLabel: string;
   disabled: boolean;
@@ -378,8 +380,8 @@ export function ItemEditor({
           onBlur={() => {
             onTouch('amount');
           }}
-          onValueChange={(cents, { invalid }) => {
-            onMoneyText('amount', invalid);
+          onValueChange={(cents, { reason }) => {
+            onMoneyText('amount', reason ?? null);
             setMoney((current) => ({ ...current, kesCents: cents ?? undefined }));
           }}
         />
@@ -458,8 +460,8 @@ export function ItemEditor({
                 onBlur={() => {
                   onTouch('originalAmount');
                 }}
-                onValueChange={(cents, { invalid }) => {
-                  onMoneyText('originalAmount', invalid);
+                onValueChange={(cents, { reason }) => {
+                  onMoneyText('originalAmount', reason ?? null);
                   setMoney((current) => {
                     const currency = current.original?.currency;
                     const original = { ...current.original };

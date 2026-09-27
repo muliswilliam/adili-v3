@@ -1,7 +1,9 @@
+export type MoneyInvalidReason = 'negative' | 'format' | 'too-large';
+
 export type MoneyParseResult =
   | { status: 'empty' }
   | { status: 'valid'; cents: number }
-  | { status: 'invalid'; reason: 'negative' | 'format' | 'too-large' };
+  | { status: 'invalid'; reason: MoneyInvalidReason };
 
 // Digits with optional correctly placed thousands separators, then up to two decimals.
 const AMOUNT = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{0,2}))?$/;
@@ -47,9 +49,15 @@ export function formatMoney(
 
 /**
  * Reshapes text as it is typed into a money field: keeps digits and one point, at most two
- * decimals, and regroups the thousands. Minus signs are dropped, so a negative cannot be typed.
+ * decimals, and regroups the thousands. A leading minus is kept, so `parseMoney` can refuse the
+ * negative and the field can say why rather than silently changing the amount.
  */
 export function shapeMoneyText(raw: string): string {
+  const sign = raw.trim().startsWith('-') ? '-' : '';
+  return sign + shapeUnsigned(raw);
+}
+
+function shapeUnsigned(raw: string): string {
   const kept = raw.replace(/[^\d.]/g, '');
   const [wholePart = '', ...rest] = kept.split('.');
   const whole = wholePart.replace(/^0+(?=\d)/, '');

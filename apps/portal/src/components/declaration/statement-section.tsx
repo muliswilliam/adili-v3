@@ -17,6 +17,7 @@ import {
   FormField,
   Icon,
   Input,
+  type MoneyInvalidReason,
   Repeater,
   SegmentedChoice,
   Tabs,
@@ -160,7 +161,7 @@ export function StatementSection({
   );
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
-  const [badMoney, setBadMoney] = useState<ReadonlySet<string>>(new Set());
+  const [badMoney, setBadMoney] = useState<ReadonlyMap<string, MoneyInvalidReason>>(new Map());
   const [removing, setRemoving] = useState<Removing | null>(null);
   const [copying, setCopying] = useState<Draft<AssetItem> | null>(null);
 
@@ -203,7 +204,10 @@ export function StatementSection({
 
   function errorFor(category: Category, item: Item, field: ItemField): string | undefined {
     const id = item.id ?? '';
-    if ((field === 'amount' || field === 'originalAmount') && badMoney.has(`${id}:${field}`)) {
+    const problem =
+      field === 'amount' || field === 'originalAmount' ? badMoney.get(`${id}:${field}`) : undefined;
+    if (problem === 'negative') return ITEM_MESSAGES.negative;
+    if (problem) {
       return field === 'amount' ? ITEM_MESSAGES.amountFormat : ITEM_MESSAGES.originalAmount;
     }
     const message = itemIssues(category, item)[field];
@@ -332,12 +336,12 @@ export function StatementSection({
                       current.has(touchKey) ? current : new Set([...current, touchKey]),
                     );
                   }}
-                  onMoneyText={(field, invalid) => {
+                  onMoneyText={(field, problem) => {
                     const moneyKey = `${item.id ?? ''}:${field}`;
                     setBadMoney((current) => {
-                      if (invalid === current.has(moneyKey)) return current;
-                      const next = new Set(current);
-                      if (invalid) next.add(moneyKey);
+                      if ((current.get(moneyKey) ?? null) === problem) return current;
+                      const next = new Map(current);
+                      if (problem) next.set(moneyKey, problem);
                       else next.delete(moneyKey);
                       return next;
                     });

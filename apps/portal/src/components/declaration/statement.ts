@@ -170,6 +170,7 @@ export const ITEM_MESSAGES = {
     liabilities: 'Enter the amount outstanding.',
   },
   amountFormat: 'Enter an amount in shillings, e.g. 1,250,000 or 1,250,000.50. No minus signs.',
+  negative: 'Enter the amount without a minus sign. Amounts cannot be negative.',
   originalCurrency: 'Choose the original currency.',
   originalAmount: 'Enter the original amount as a number.',
   share: 'Enter your share as a percentage from 1 to 100.',

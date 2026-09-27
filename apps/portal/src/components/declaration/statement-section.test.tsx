@@ -351,6 +351,21 @@ describe('StatementSection: item editors', () => {
     expect(screen.getByRole('textbox', { name: 'Approximate amount for the period' })).toBeTruthy();
   });
 
+  it('S19: refuses a negative amount with a field error instead of changing it', () => {
+    renderStatement();
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add income' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Consultancy' }));
+    const amount = screen.getByRole<HTMLInputElement>('textbox', {
+      name: 'Approximate amount for the period',
+    });
+
+    fireEvent.change(amount, { target: { value: '-3000' } });
+
+    expect(amount.value).toBe('-3,000');
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText(ITEM_MESSAGES.negative)).toBeTruthy();
+  });
+
   it('shows a liability with its change flag and the liability kinds', () => {
     renderStatement(statement({ liabilities: [mortgage] }));
     openTab(/^Liabilities/);
