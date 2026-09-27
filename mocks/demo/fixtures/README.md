@@ -6,3 +6,5 @@
 - `dependants.csv` is IPRS only (children under 18).
 
 Phones are E.164 so the SMS inbox can show onboarding OTPs for the same numbers.
+
+`python manage.py push_roster` (`pnpm roster:push`) posts `rosters/<DIRECTORY_COMMISSION>.csv` to the directory as an API roster batch, with the same emails and phones.

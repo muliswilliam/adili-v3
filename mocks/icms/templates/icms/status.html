@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="5" />
+    <title>Adili ICMS referrals</title>
+    <style>
+      :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 1.5rem; color: #111827; }
+      h1 { font-size: 1.25rem; margin: 0 0 0.75rem; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border-bottom: 1px solid #e5e7eb; text-align: left; padding: 0.5rem 0.4rem; vertical-align: top; }
+      th { color: #6b7280; font-size: 0.8rem; text-transform: uppercase; }
+      .empty { color: #6b7280; }
+      code { font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <h1>ICMS referrals</h1>
+    <p>Non-compliance referrals registered with the ICMS mock. Case numbers are the acknowledgement.</p>
+    {% if referrals %}
+    <table>
+      <thead>
+        <tr>
+          <th>Registered</th>
+          <th>Referral</th>
+          <th>Officer</th>
+          <th>Commission</th>
+          <th>Status</th>
+          <th>Case number</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in referrals %}
+        <tr>
+          <td>{{ item.registered_at }}</td>
+          <td><code>{{ item.referral_reference }}</code></td>
+          <td>{{ item.full_name }} / {{ item.id_number }}</td>
+          <td>{{ item.referring_commission }}</td>
+          <td>{{ item.status }}</td>
+          <td><code>{{ item.case_number }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No referrals yet. POST /icms/v1/referrals.</p>
+    {% endif %}
+  </body>
+</html>

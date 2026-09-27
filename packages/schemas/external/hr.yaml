@@ -17,7 +17,7 @@ paths:
           type: string
         required: true
       tags:
-      - hr
+      - employees
       security:
       - {}
       responses:
@@ -26,6 +26,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Employee'
+          description: ''
+        '404':
+          description: No record with this identifier
+  /hr/v1/employers/{employer_code}/suppliers:
+    get:
+      operationId: listSuppliersByEmployer
+      description: Companies on an employer's supplier list. Unknown employers return
+        an empty list.
+      parameters:
+      - in: path
+        name: employer_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - employers
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployerSupplierList'
           description: ''
         '404':
           description: No record with this identifier
@@ -47,6 +71,19 @@ components:
       - employments
       - full_name
       - id_number
+    EmployerSupplierList:
+      type: object
+      description: Supplier company registration numbers for one employer.
+      properties:
+        employer_code:
+          type: string
+        registration_numbers:
+          type: array
+          items:
+            type: string
+      required:
+      - employer_code
+      - registration_numbers
     Employment:
       type: object
       properties:

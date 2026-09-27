@@ -43,3 +43,14 @@ def test_rejects_unknown_action(api: APIClient) -> None:
 @pytest.mark.django_db
 def test_unknown_instruction_is_not_found(api: APIClient) -> None:
     assert api.get("/payroll/v1/instructions/ADM-NOPE").status_code == 404
+
+
+@pytest.mark.django_db
+def test_status_page_shows_acknowledgement(api: APIClient) -> None:
+    created = api.post("/payroll/v1/instructions", INSTRUCTION, format="json")
+    page = api.get("/payroll/status")
+
+    assert page.status_code == 200
+    assert b"Payroll instructions" in page.content
+    assert INSTRUCTION["instruction_reference"].encode() in page.content
+    assert created.json()["payroll_reference"].encode() in page.content
