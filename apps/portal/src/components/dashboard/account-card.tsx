@@ -2,7 +2,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Button,
   Card,
   CardContent,
   CardDescription,
@@ -17,14 +16,7 @@ import {
   MaskedContact,
   OfficerReference,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  ArrowRight01Icon,
-  SecurityCheckIcon,
-  UserCheck01Icon,
-  UserRemove01Icon,
-} from '@hugeicons/core-free-icons';
-import { Link } from '@tanstack/react-router';
+import { AlertCircleIcon, SecurityCheckIcon, UserCheck01Icon } from '@hugeicons/core-free-icons';
 
 import type { DeclarantAccount } from '../../server/declarant.server';
 
@@ -89,41 +81,6 @@ function Contact({ kind, value }: { kind: 'email' | 'phone'; value: string | nul
     return <span className="font-normal text-muted-foreground">Not provided</span>;
   }
   return <MaskedContact kind={kind} value={value} verified className="justify-end" />;
-}
-
-/**
- * The signed-in person has no onboarded roster record (`GET /v1/me/declarant` answered 404), so
- * there is nothing to declare yet. Points public officers to Get started.
- */
-export function NotDeclarantCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardIcon>
-          <Icon icon={UserRemove01Icon} />
-        </CardIcon>
-        <CardTitle>You are not onboarded as a declarant</CardTitle>
-        <CardDescription>
-          This account is not linked to any Commission's roster, so you have no declarations to make
-          here.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          If you are a public officer, get started with your personnel file number and national ID.
-          If you have done that and still see this, contact your Commission's reporting officer.
-        </p>
-      </CardContent>
-      <CardFooter>
-        <Button asChild variant="secondary">
-          <Link to="/get-started">
-            Get started
-            <Icon icon={ArrowRight01Icon} />
-          </Link>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
 }
 
 /** `GET /v1/me/declarant` failed for another reason than 404. */
