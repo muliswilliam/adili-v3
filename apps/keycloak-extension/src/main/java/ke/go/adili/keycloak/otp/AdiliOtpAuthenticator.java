@@ -1,6 +1,7 @@
 package ke.go.adili.keycloak.otp;
 
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Instant;
@@ -22,7 +23,8 @@ import org.keycloak.util.JsonSerialization;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
- * The declarant's second factor: a 6-digit code sent by SMS (email as fallback or on request)
+ * The second factor for declarants and applicants: a 6-digit code sent by SMS (email as fallback
+ * or on request)
  * through the notifications service, entered on the theme's `login-adili-otp.ftl`.
  *
  * <p>The page contract (attributes set here, fields posted back) is documented in
@@ -47,6 +49,17 @@ public final class AdiliOtpAuthenticator implements Authenticator {
     /** Channels whose last send failed since the last code went out. */
     private static final String FAILED_CHANNELS_NOTE = "adili-otp.failed-channels";
 
+    /**
+     * The auth note Keycloak's authentication processor reads the forwarded error from when it
+     * renders the next form. A reset re-runs the flow in the same request, so the login page reads
+     * it at once; `LoginActionsService.FORWARDED_ERROR_MESSAGE_NOTE` would only apply on the next
+     * request. Not public API: the stack tests (S22) catch a change.
+     */
+    private static final String FORWARDED_ERROR_NOTE = "fwMessageError";
+
+    /** Authenticators that ask for the password; see {@link #isStepUp}. */
+    private static final Set<String> PASSWORD_AUTHENTICATORS = Set.of("auth-username-password-form", "auth-password-form");
+
     /** The execution's settings and a notifications client for them. */
     record Setup(OtpSettings settings, NotificationsClient notifications) {}
 
@@ -62,7 +75,7 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         OtpChallenge challenge = challenge(context);
         // Coming back to the page (reload, back button) must not send another code.
         if (challenge.hasLiveCode()) {
-            context.challenge(page(context, challenge, challenge.channel().orElseThrow()).createForm(FORM));
+            context.challenge(codePage(context, challenge, challenge.channel().orElseThrow()));
             return;
         }
         send(context, challenge, Contacts.of(context.getUser()).preferred());
@@ -102,7 +115,7 @@ public final class AdiliOtpAuthenticator implements Authenticator {
             context.getEvent().user(context.getUser()).error(Errors.INVALID_USER_CREDENTIALS);
             restart(context, MESSAGE_TOO_MANY_ATTEMPTS);
         } else {
-            context.challenge(page(context, challenge, current).createForm(FORM));
+            context.challenge(codePage(context, challenge, current));
         }
     }
 
@@ -110,7 +123,7 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         switch (challenge.canResend()) {
             case ALLOWED -> send(context, challenge, current);
             // The page disables the button during the cooldown; a stale page just shows it again.
-            case COOLDOWN -> context.challenge(page(context, challenge, current).createForm(FORM));
+            case COOLDOWN -> context.challenge(codePage(context, challenge, current));
             case EXHAUSTED -> restart(context, MESSAGE_TOO_MANY_RESENDS);
         }
     }
@@ -118,7 +131,14 @@ public final class AdiliOtpAuthenticator implements Authenticator {
     private void switchTo(AuthenticationFlowContext context, OtpChallenge challenge, Channel channel, Channel current) {
         if (Contacts.of(context.getUser()).destination(channel).isEmpty()) {
             // A forged request: the page offers only channels the user has.
-            context.challenge(page(context, challenge, current).createForm(FORM));
+            context.challenge(codePage(context, challenge, current));
+            return;
+        }
+        boolean lastCodeWentThere = challenge.channel().equals(Optional.of(channel))
+                && !failedChannels(context.getAuthenticationSession()).contains(channel);
+        if (lastCodeWentThere) {
+            // Asking again for the channel that has a code is a resend, cooldown included.
+            resend(context, challenge, channel);
             return;
         }
         switch (challenge.canSwitchChannel()) {
@@ -140,7 +160,7 @@ public final class AdiliOtpAuthenticator implements Authenticator {
                 && resolved.notifications().send(channel, to.get(), code, resolved.settings().expiresInMinutes())) {
             challenge.issue(channel, code);
             authSession.removeAuthNote(FAILED_CHANNELS_NOTE);
-            context.challenge(page(context, challenge, channel).createForm(FORM));
+            context.challenge(codePage(context, challenge, channel));
             return;
         }
         Set<Channel> failed = failedChannels(authSession);
@@ -150,14 +170,6 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         String sendFailed = failed.containsAll(EnumSet.allOf(Channel.class)) ? "both" : channel.wireName();
         context.challenge(page(context, challenge, channel).setAttribute("sendFailed", sendFailed).createForm(FORM));
     }
-
-    /**
-     * The auth note Keycloak's authentication processor reads the forwarded error from when it
-     * renders the next form. A reset re-runs the flow in the same request, so the login page reads
-     * it at once; `LoginActionsService.FORWARDED_ERROR_MESSAGE_NOTE` would only apply on the next
-     * request. Not public API: the stack tests (S22) catch a change.
-     */
-    private static final String FORWARDED_ERROR_NOTE = "fwMessageError";
 
     /** Stops this sign-in and returns to the login page with `message` (a theme message key). */
     private static void restart(AuthenticationFlowContext context, String message) {
@@ -172,6 +184,10 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         });
     }
 
+    private Response codePage(AuthenticationFlowContext context, OtpChallenge challenge, Channel channel) {
+        return page(context, challenge, channel).createForm(FORM);
+    }
+
     /** The code page for the current state; callers add error attributes before building. */
     private LoginFormsProvider page(AuthenticationFlowContext context, OtpChallenge challenge, Channel channel) {
         Contacts contacts = Contacts.of(context.getUser());
@@ -179,7 +195,8 @@ public final class AdiliOtpAuthenticator implements Authenticator {
                 .setAttribute("channel", channel.wireName())
                 .setAttribute("maskedDestination", contacts.masked(channel).orElse(""))
                 .setAttribute("attemptsLeft", challenge.attemptsLeft())
-                .setAttribute("resendsLeft", challenge.resendsLeft());
+                .setAttribute("resendsLeft", challenge.resendsLeft())
+                .setAttribute("codeLifetimeMinutes", setup.apply(context).settings().expiresInMinutes());
         contacts.masked(channel.other()).ifPresent(other -> form.setAttribute("alternativeDestination", other));
         challenge.resendAvailableAt().ifPresent(at -> form.setAttribute("resendAvailableAt", at.toString()));
         if (isStepUp(context)) {
@@ -187,9 +204,6 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         }
         return form;
     }
-
-    /** Authenticators that ask for the password; see {@link #isStepUp}. */
-    private static final Set<String> PASSWORD_AUTHENTICATORS = Set.of("auth-username-password-form", "auth-password-form");
 
     /**
      * True when no password was asked in this sign-in: the user came back with a session (cookie)

@@ -9,7 +9,7 @@
   <version>0.0.0</version>
   <packaging>jar</packaging>
   <name>Adili Keycloak extension</name>
-  <description>Adili OTP authenticator: declarant sign-in codes by SMS or email through the notifications service.</description>
+  <description>Adili OTP authenticator: sign-in codes for declarants and applicants by SMS or email through the notifications service.</description>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>

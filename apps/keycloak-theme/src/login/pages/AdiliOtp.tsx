@@ -88,6 +88,7 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
     attemptsLeft,
     resendsLeft,
     resendAvailableAt,
+    codeLifetimeMinutes,
     otpError,
     isStepUp,
   } = kcContext;
@@ -173,7 +174,7 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
           ) : (
             <>
               <Icon icon={Clock01Icon} className="size-3.5" />
-              {msg('adiliOtpValidFor')}
+              {msg('adiliOtpValidFor', String(codeLifetimeMinutes))}
             </>
           )}
         </p>

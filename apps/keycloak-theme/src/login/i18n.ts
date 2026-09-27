@@ -40,7 +40,7 @@ const { useI18n, ofTypeI18n } = i18nBuilder
       adiliOtpSentBySms: 'We sent a 6-digit code by SMS to',
       adiliOtpSentByEmail: 'We sent a 6-digit code to',
       adiliOtpCodeLabel: 'Enter the 6-digit code',
-      adiliOtpValidFor: 'The code works for 10 minutes.',
+      adiliOtpValidFor: 'The code works for {0} minutes.',
       adiliOtpChecking: 'Checking the code',
       adiliOtpDidNotGetIt: "Didn't get it?",
       adiliOtpResend: 'Resend code',

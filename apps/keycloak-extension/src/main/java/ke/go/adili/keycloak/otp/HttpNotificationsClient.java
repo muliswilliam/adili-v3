@@ -40,7 +40,8 @@ public final class HttpNotificationsClient implements NotificationsClient {
                     "params", Map.of("code", code, "expiresInMinutes", expiresInMinutes)));
             Optional<HttpResponse<String>> response = post(body);
             if (response.isPresent() && response.get().statusCode() == 401) {
-                // The token was refused (e.g. keys rotated): fetch a new one and try once more.
+                // The token was refused (e.g. keys rotated), so the message was not processed and
+                // posting it again cannot send it twice: fetch a new token and try once more.
                 response = post(body);
             }
             if (response.isEmpty()) {

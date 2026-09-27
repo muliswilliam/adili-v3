@@ -63,3 +63,11 @@ adili-v3/
 - Mixed-language CI needs path filters so Python jobs don't run on TypeScript-only changes (and vice versa).
 - Repo size and CI time grow. Mitigated by Turborepo remote caching and affected-only builds.
 - Revisit if the mocks become an independent product owned by another team with its own release cycle, or if EACC requires separate access control for parts of the code.
+
+## Amendment (2026-09-28): Java for Keycloak providers
+
+Keycloak extensions can only be written in Java, so `apps/keycloak-extension` (the `adili-otp` authenticator, #79) is a **Maven** module targeting Java 17. It stays small and behind Keycloak's SPI:
+
+- Maven builds and tests it in the Keycloak CI workflow (`mvn verify`) and in the Keycloak image build. It has no `test` script in its `package.json`, so `turbo run test` does not need a JDK on every machine; the TypeScript there is only its stack tests (S22, S23).
+- Its seams with the TypeScript services are HTTP contracts (notifications `sendMessage`) and the page contract with the theme (`apps/keycloak-theme/src/login/adili-otp.ts`).
+- No other Java is added. Anything that can live in a service stays in TypeScript.

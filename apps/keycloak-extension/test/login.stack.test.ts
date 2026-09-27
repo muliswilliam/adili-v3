@@ -83,6 +83,7 @@ describe('S22: declarant sign-in with a one-time code', () => {
       alternativeDestination: 'd***@demo.adili.go.ke',
       attemptsLeft: 5,
       resendsLeft: 3,
+      codeLifetimeMinutes: 10,
     });
     expect(context(page).isStepUp).toBeUndefined();
     const sms = await waitForNew(() => latestSmsCode(MOCKS, DECLARANT.phone), before);
@@ -155,8 +156,12 @@ describe('S22: declarant sign-in with a one-time code', () => {
     expect(resendAvailableAt - Date.now()).toBeGreaterThan(50_000);
 
     const again = await post(browser, page, { action: 'resend' });
+    // Asking for SMS again while the SMS code is live is the same resend.
+    const sameChannel = await post(browser, again, { action: 'send-sms' });
 
-    expect(context(again)).toMatchObject({ pageId: 'login-adili-otp.ftl', resendsLeft: 3 });
+    for (const response of [again, sameChannel]) {
+      expect(context(response)).toMatchObject({ pageId: 'login-adili-otp.ftl', resendsLeft: 3 });
+    }
     expect(await latestSmsCode(MOCKS, DECLARANT.phone)).toEqual(first);
   });
 

@@ -79,14 +79,9 @@ public final class OtpChallenge {
     }
 
     /**
-     * Records a new code sent on `channel` and returns it. Call only after the code went out, so a
-     * failed send neither replaces a working code nor uses up a resend.
+     * Records `code` (see {@link #newCode()}) as sent on `channel` and returns it. Call only after
+     * the code went out, so a failed send neither replaces a working code nor uses up a resend.
      */
-    public String issue(Channel channel) {
-        return issue(channel, newCode());
-    }
-
-    /** As {@link #issue(Channel)} with a code the caller generated (see {@link #newCode()}). */
     public String issue(Channel channel, String code) {
         Instant now = clock.get();
         byte[] key = new byte[32];

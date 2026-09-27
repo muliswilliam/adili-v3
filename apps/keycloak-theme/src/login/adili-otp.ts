@@ -26,6 +26,8 @@ export type AdiliOtpAttributes = {
   resendAvailableAt?: string;
   /** New codes left (3 to start). At 0, a resend ends the sign-in. */
   resendsLeft: number;
+  /** How long a code works, in whole minutes (the authenticator's configured lifetime). */
+  codeLifetimeMinutes: number;
   /**
    * The last send failed: `sms` or `email` for that channel only (the page offers the other),
    * `both` when neither worked. Absent when the code went out.
