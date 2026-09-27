@@ -7,7 +7,10 @@ export function Skeleton({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       aria-hidden="true"
-      className={cn('block h-3 animate-pulse rounded-sm bg-muted', className)}
+      className={cn(
+        'block h-3 animate-shimmer rounded-sm bg-linear-to-r from-muted from-25% via-muted/40 via-50% to-muted to-75% bg-[length:200%_100%] motion-reduce:animate-none',
+        className,
+      )}
       {...props}
     />
   );

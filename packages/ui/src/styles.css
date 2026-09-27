@@ -1,8 +1,16 @@
 /*
  * Adili design tokens. Import once per app, after `@import 'tailwindcss'`.
- * Palette: a deep, institutional green (primary actions), neutral slate surfaces,
- * and a restrained red used only for destructive and error states. All foreground and
- * background pairs meet WCAG 2.2 AA contrast in both themes.
+ * Source: the shared prototype kit (packages/ui/prototype/kit.css) and the app prototypes built
+ * on it. Palette: warm neutrals, a near-black primary, and soft tinted status colours (success,
+ * warning, destructive, info, AI, brand) for badges and callouts. Controls and cards get their
+ * edges from a hairline ring in the shadow rather than a border.
+ *
+ * Every text pair meets WCAG 2.2 AA (4.5:1) in both themes: foreground, muted-foreground and
+ * secondary-foreground on the page, card and muted fills; each -foreground on its solid; each
+ * -subtle-foreground on its -subtle fill; and the solid status colours that badges use on their
+ * -subtle fill. Two exceptions, both deliberate: the light placeholder (#8f8d89, 3.3:1, taken from
+ * the kit and open with design) and disabled buttons, which WCAG exempts. The solid info and brand
+ * colours miss 4.5:1 on their light -subtle fills, so text on those fills uses -subtle-foreground.
  */
 @import '@fontsource-variable/inter';
 
@@ -10,55 +18,115 @@
 @source './';
 
 :root {
-  --background: oklch(0.99 0.003 150);
-  --foreground: oklch(0.2 0.02 160);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 160);
-  --muted: oklch(0.965 0.006 150);
-  --muted-foreground: oklch(0.47 0.02 160);
-  --primary: oklch(0.43 0.11 152);
-  --primary-foreground: oklch(0.99 0.005 150);
-  --primary-subtle: oklch(0.95 0.03 152);
-  --primary-subtle-foreground: oklch(0.36 0.09 152);
-  --secondary: oklch(0.955 0.008 150);
-  --secondary-foreground: oklch(0.25 0.02 160);
-  --accent: oklch(0.8 0.13 85);
-  --destructive: oklch(0.53 0.19 27);
-  --destructive-foreground: oklch(0.99 0.005 27);
-  --destructive-subtle: oklch(0.96 0.025 27);
-  --destructive-subtle-foreground: oklch(0.45 0.16 27);
-  --warning-subtle: oklch(0.97 0.04 85);
-  --warning-subtle-foreground: oklch(0.42 0.09 70);
-  --border: oklch(0.91 0.008 150);
-  --input: oklch(0.87 0.01 150);
-  --ring: oklch(0.55 0.13 152);
-  --radius: 0.625rem;
+  --background: oklch(0.985 0.001 106.4); /* #fafaf9 */
+  --foreground: oklch(0.218 0 0); /* #1a1a1a */
+  --card: oklch(1 0 0); /* #ffffff */
+  --card-foreground: oklch(0.218 0 0);
+  --muted: oklch(0.964 0.003 84.6); /* #f4f3f1: sunken fills, hovers, icon wells */
+  --muted-foreground: oklch(0.538 0.005 91.5); /* #6f6e6b: hints, secondary text */
+  --secondary-foreground: oklch(0.408 0.003 106.5); /* #4a4a48: labels, ghost buttons */
+  --placeholder: oklch(0.644 0.006 84.6); /* #8f8d89 */
+  --primary: oklch(0.218 0 0); /* #1a1a1a */
+  --primary-foreground: oklch(1 0 0);
+  --primary-disabled: oklch(0.83 0.006 84.6); /* #c9c7c3 */
+  --primary-disabled-foreground: oklch(1 0 0);
+  --destructive: oklch(0.544 0.197 29.3); /* #c9291e */
+  --destructive-hover: oklch(0.499 0.18 29.3); /* #b3241a */
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-subtle: oklch(0.956 0.019 21.6); /* #fdeceb */
+  --destructive-subtle-foreground: oklch(0.415 0.147 29.2); /* #8a1c14 */
+  --warning: oklch(0.529 0.119 64.3); /* #9a5a00 */
+  --warning-subtle: oklch(0.969 0.026 84.6); /* #fdf4e2 */
+  --warning-subtle-foreground: oklch(0.413 0.091 67.8); /* #6b4000 */
+  --success: oklch(0.511 0.128 151.3); /* #167a3e */
+  --success-subtle: oklch(0.961 0.017 159.1); /* #e9f6ee */
+  --success-subtle-foreground: oklch(0.412 0.102 151.5); /* #0f5a2d */
+  --info: oklch(0.554 0.165 259); /* #2f6fd1 */
+  --info-subtle: oklch(0.956 0.015 257.2); /* #eaf1fb */
+  --info-subtle-foreground: oklch(0.436 0.128 258.5); /* #1f4f96 */
+  --ai: oklch(0.536 0.215 287.5); /* #6d4ae0 */
+  --ai-subtle: oklch(0.954 0.022 297.4); /* #f1edfd */
+  --ai-subtle-foreground: oklch(0.394 0.178 284.9); /* #43299f */
+  /* Brand orange for UI accents. The logo keeps its own colour, --logo. */
+  --brand: oklch(0.648 0.188 39); /* #e95a24 */
+  --brand-subtle: oklch(0.963 0.017 50.4); /* #fdf0e9 */
+  --brand-subtle-foreground: oklch(0.539 0.162 40); /* #b8430f */
+  --brand-faint: oklch(0.98 0.009 52.1); /* #fef7f3: selected rows, drag-over */
+  --logo: oklch(0.669 0.189 40.8); /* #f06225: the Dials logo only */
+  --border: oklch(0.926 0.005 78.3); /* #e8e6e3 */
+  --input: oklch(0.88 0.006 84.6); /* #d9d7d3: dashed zones, checkbox and step rings */
+  --ring: oklch(0.218 0 0); /* #1a1a1a: focus outlines */
+  /* Surface of inputs, textareas and selects. */
+  --control: var(--card);
+  /* Behind dialogs. */
+  --scrim: rgb(24 20 16 / 0.42);
+  --radius: 10px;
+
+  /* Hairline rings, focus rings and lifts, from the kit's --shadow-* tokens. */
+  --elevation-control: 0 1px 2px rgb(20 20 20 / 0.05), 0 0 0 1px var(--border);
+  --elevation-control-hover: 0 1px 2px rgb(20 20 20 / 0.05), 0 0 0 1px var(--input);
+  --elevation-control-focus:
+    0 0 0 1px var(--ring), 0 0 0 4px color-mix(in oklch, var(--ring) 8%, transparent);
+  --elevation-control-error: 0 0 0 1.5px var(--destructive);
+  --elevation-control-error-focus:
+    0 0 0 1.5px var(--destructive),
+    0 0 0 4px color-mix(in oklch, var(--destructive) 12%, transparent);
+  --elevation-card: 0 1px 2px rgb(20 20 20 / 0.04), 0 0 0 1px var(--border);
+  --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
+  --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  --elevation-button-destructive:
+    0 1px 2px rgb(150 20 10 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.15);
 }
 
+/* Dark theme: not in the prototypes yet, derived from the same warm neutrals and hues. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.17 0.012 160);
-    --foreground: oklch(0.95 0.008 150);
-    --card: oklch(0.21 0.014 160);
-    --card-foreground: oklch(0.95 0.008 150);
-    --muted: oklch(0.25 0.014 160);
-    --muted-foreground: oklch(0.72 0.015 155);
-    --primary: oklch(0.72 0.14 152);
-    --primary-foreground: oklch(0.18 0.03 155);
-    --primary-subtle: oklch(0.28 0.05 152);
-    --primary-subtle-foreground: oklch(0.85 0.1 152);
-    --secondary: oklch(0.27 0.014 160);
-    --secondary-foreground: oklch(0.95 0.008 150);
-    --accent: oklch(0.8 0.13 85);
-    --destructive: oklch(0.65 0.19 25);
-    --destructive-foreground: oklch(0.15 0.02 25);
-    --destructive-subtle: oklch(0.3 0.07 25);
-    --destructive-subtle-foreground: oklch(0.87 0.08 25);
-    --warning-subtle: oklch(0.3 0.05 80);
-    --warning-subtle-foreground: oklch(0.88 0.1 85);
-    --border: oklch(0.3 0.014 160);
-    --input: oklch(0.36 0.016 160);
-    --ring: oklch(0.72 0.14 152);
+    --background: oklch(0.191 0.001 106.4); /* #141413 */
+    --foreground: oklch(0.964 0.003 84.6); /* #f4f3f1 */
+    --card: oklch(0.226 0.004 106.7); /* #1c1c1a */
+    --card-foreground: oklch(0.964 0.003 84.6);
+    --muted: oklch(0.265 0.004 84.6); /* #262523 */
+    --muted-foreground: oklch(0.709 0.006 84.6); /* #a3a19d */
+    --secondary-foreground: oklch(0.852 0.007 88.6); /* #d0cec9 */
+    --placeholder: oklch(0.62 0.006 84.6); /* #888682 */
+    --primary: oklch(0.964 0.003 84.6); /* #f4f3f1 */
+    --primary-foreground: oklch(0.218 0 0);
+    --primary-disabled: oklch(0.345 0.005 91.5); /* #3a3936 */
+    --primary-disabled-foreground: oklch(0.644 0.006 84.6); /* #8f8d89 */
+    --destructive: oklch(0.66 0.18 27.6); /* #ec5c51 */
+    --destructive-hover: oklch(0.687 0.167 26.7); /* #f06a60 */
+    /* White fails AA on the lighter dark-theme red, so solid destructive buttons take dark text. */
+    --destructive-foreground: oklch(0.191 0.001 106.4); /* #141413 */
+    --destructive-subtle: oklch(0.258 0.058 26.7); /* #3b1714 */
+    --destructive-subtle-foreground: oklch(0.835 0.084 25.3); /* #fbb4ad */
+    --warning: oklch(0.756 0.133 75.8); /* #e0a341 */
+    --warning-subtle: oklch(0.272 0.045 78.4); /* #33240a */
+    --warning-subtle-foreground: oklch(0.885 0.082 80.9); /* #f5d49b */
+    --success: oklch(0.702 0.143 152.5); /* #4bb872 */
+    --success-subtle: oklch(0.28 0.049 155.1); /* #12301e */
+    --success-subtle-foreground: oklch(0.864 0.083 155.5); /* #a6e3bb */
+    --info: oklch(0.705 0.123 257.9); /* #6ea1ec */
+    --info-subtle: oklch(0.26 0.052 259); /* #14243d */
+    --info-subtle-foreground: oklch(0.848 0.06 257.8); /* #b5cff5 */
+    --ai: oklch(0.705 0.152 293.4); /* #a58bf5 */
+    --ai-subtle: oklch(0.255 0.078 289.4); /* #231a45 */
+    --ai-subtle-foreground: oklch(0.844 0.08 295.1); /* #cfc2fb */
+    --brand: oklch(0.681 0.178 40.3); /* #f06a36 */
+    --brand-subtle: oklch(0.268 0.051 44.2); /* #3a1d10 */
+    --brand-subtle-foreground: oklch(0.828 0.099 46.8); /* #fdb38f */
+    --brand-faint: oklch(0.213 0.025 40.5); /* #231510 */
+    --border: oklch(0.301 0.005 91.6); /* #2f2e2b */
+    --input: oklch(0.376 0.007 84.6); /* #43413d */
+    --ring: oklch(0.964 0.003 84.6);
+    --scrim: rgb(0 0 0 / 0.6);
+
+    --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
+    --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
+    --elevation-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
+    --elevation-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
+    --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.3);
+    --elevation-button-destructive:
+      0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.15);
   }
 }
 
@@ -70,26 +138,75 @@
   --color-card-foreground: var(--card-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-placeholder: var(--placeholder);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-subtle: var(--primary-subtle);
-  --color-primary-subtle-foreground: var(--primary-subtle-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-accent: var(--accent);
+  --color-primary-disabled: var(--primary-disabled);
+  --color-primary-disabled-foreground: var(--primary-disabled-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-subtle: var(--destructive-subtle);
   --color-destructive-subtle-foreground: var(--destructive-subtle-foreground);
+  --color-warning: var(--warning);
   --color-warning-subtle: var(--warning-subtle);
   --color-warning-subtle-foreground: var(--warning-subtle-foreground);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-subtle-foreground: var(--success-subtle-foreground);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+  --color-info-subtle-foreground: var(--info-subtle-foreground);
+  --color-ai: var(--ai);
+  --color-ai-subtle: var(--ai-subtle);
+  --color-ai-subtle-foreground: var(--ai-subtle-foreground);
+  --color-brand: var(--brand);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-subtle-foreground: var(--brand-subtle-foreground);
+  --color-brand-faint: var(--brand-faint);
+  --color-logo: var(--logo);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-control: var(--control);
+  --color-scrim: var(--scrim);
+  /* 6, 8, 10, 12 and 16px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 6px);
+  --shadow-control: var(--elevation-control);
+  --shadow-control-hover: var(--elevation-control-hover);
+  --shadow-control-focus: var(--elevation-control-focus);
+  --shadow-control-error: var(--elevation-control-error);
+  --shadow-control-error-focus: var(--elevation-control-error-focus);
+  --shadow-card: var(--elevation-card);
+  --shadow-pop: var(--elevation-pop);
+  --shadow-button-primary: var(--elevation-button-primary);
+  --shadow-button-destructive: var(--elevation-button-destructive);
+}
+
+/* Skeleton shimmer and the indeterminate progress sweep. */
+@theme {
+  --animate-shimmer: shimmer 1.2s linear infinite;
+  --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
+
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes indeterminate {
+    from {
+      transform: translateX(-110%);
+    }
+    to {
+      transform: translateX(330%);
+    }
+  }
 }
 
 @layer base {
@@ -108,6 +225,8 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
     font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

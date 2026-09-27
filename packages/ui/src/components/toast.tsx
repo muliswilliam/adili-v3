@@ -1,4 +1,4 @@
-import { CheckIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { Alert02Icon, Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import {
   createContext,
   type ReactNode,
@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom';
 
 import { cn } from '../lib/cn';
+import { Icon } from './icon';
 
 /**
  * `polite` waits for the screen reader to finish (confirmations); `assertive` interrupts
@@ -151,15 +152,11 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
       }}
       className={cn(
-        'pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl py-[11px] pr-2 pl-4 text-sm shadow-2xl',
+        'pointer-events-auto flex max-w-md items-start gap-2.5 rounded-xl py-[11px] pr-2 pl-4 text-sm shadow-pop',
         assertive ? 'bg-destructive text-destructive-foreground' : 'bg-foreground text-background',
       )}
     >
-      {assertive ? (
-        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      ) : (
-        <CheckIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      )}
+      <Icon icon={assertive ? Alert02Icon : Tick02Icon} className="mt-0.5" />
       <div className="grid min-w-0 gap-0.5">
         <div className="font-medium">{entry.title}</div>
         {entry.description ? <div className="opacity-80">{entry.description}</div> : null}
@@ -176,7 +173,7 @@ function ToastItem({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: nu
             : 'focus-visible:outline-background',
         )}
       >
-        <XIcon className="size-4" aria-hidden="true" />
+        <Icon icon={Cancel01Icon} />
         <span className="sr-only">Dismiss notification</span>
       </button>
     </div>

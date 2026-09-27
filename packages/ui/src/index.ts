@@ -7,6 +7,7 @@ export {
   CardDescription,
   CardFooter,
   CardHeader,
+  CardIcon,
   CardTitle,
 } from './components/card';
 export {
@@ -36,9 +37,10 @@ export {
 } from './components/dialog';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
-export { Input } from './components/input';
+export { Icon, type IconProps } from './components/icon';
+export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
-export { Logo, LogoMark, type LogoProps } from './components/logo';
+export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';

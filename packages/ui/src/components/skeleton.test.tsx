@@ -14,7 +14,7 @@ describe('Skeleton', () => {
     const { container } = render(<Skeleton className="h-4 w-32" />);
 
     const skeleton = container.firstElementChild;
-    expect(skeleton?.className).toContain('animate-pulse');
+    expect(skeleton?.className).toContain('animate-shimmer');
     expect(skeleton?.className).toContain('h-4');
     expect(skeleton?.className).not.toContain('h-3');
   });

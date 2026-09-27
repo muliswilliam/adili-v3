@@ -18,8 +18,8 @@ describe('Textarea', () => {
 
     const textarea = screen.getByRole('textbox', { name: 'Reason' });
     expect(textarea.className).toContain('min-h-40');
-    expect(textarea.className).not.toContain('min-h-24');
-    expect(textarea.className).toContain('border-input');
+    expect(textarea.className).not.toContain('min-h-[110px]');
+    expect(textarea.className).toContain('shadow-control');
   });
 
   it('can be disabled', () => {
@@ -33,6 +33,6 @@ describe('Textarea', () => {
 
     const textarea = screen.getByRole('textbox', { name: 'Reason' });
     expect(textarea.getAttribute('aria-invalid')).toBe('true');
-    expect(textarea.className).toContain('aria-invalid:border-destructive');
+    expect(textarea.className).toContain('aria-invalid:shadow-control-error');
   });
 });

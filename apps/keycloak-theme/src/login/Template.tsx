@@ -1,18 +1,24 @@
-import { Alert, AlertDescription, LogoMark } from '@adili/ui';
+import { Alert, AlertDescription, Card, Icon, LogoMark } from '@adili/ui';
+import {
+  Alert02Icon,
+  AlertCircleIcon,
+  CheckmarkCircle02Icon,
+  InformationCircleIcon,
+  RotateLeft01Icon,
+} from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useInitialize } from 'keycloakify/login/Template.useInitialize';
 import type { TemplateProps } from 'keycloakify/login/TemplateProps';
-import { CircleAlert, CircleCheck, Info, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useEffect } from 'react';
 
 import type { I18n } from './i18n';
 import type { KcContext } from './KcContext';
 
 const messageIcons = {
-  success: CircleCheck,
-  warning: TriangleAlert,
-  error: CircleAlert,
-  info: Info,
+  success: CheckmarkCircle02Icon,
+  warning: Alert02Icon,
+  error: AlertCircleIcon,
+  info: InformationCircleIcon,
 } as const;
 
 /** Page frame for every login flow: brand, card, messages and language switch. */
@@ -43,7 +49,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
     displayMessage &&
     message !== undefined &&
     (message.type !== 'warning' || !isAppInitiatedAction);
-  const MessageIcon = message ? messageIcons[message.type] : Info;
+  const messageIcon = message ? messageIcons[message.type] : InformationCircleIcon;
   const showAttemptedUsername = auth?.showUsername === true && !auth.showResetCredentials;
 
   return (
@@ -57,16 +63,16 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
             </p>
           </div>
 
-          <div className="grid gap-6 rounded-xl border bg-card p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:p-8">
+          <Card className="gap-6">
             <header className="grid gap-2">
               {showAttemptedUsername ? (
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
                   <span className="truncate text-sm font-medium">{auth.attemptedUsername}</span>
                   <a
                     href={url.loginRestartFlowUrl}
-                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
-                    <RotateCcw className="size-3.5" aria-hidden="true" />
+                    <Icon icon={RotateLeft01Icon} className="size-3.5" />
                     {msg('restartLoginTooltip')}
                   </a>
                 </div>
@@ -88,7 +94,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                         : 'info'
                   }
                 >
-                  <MessageIcon aria-hidden="true" />
+                  <Icon icon={messageIcon} />
                   <AlertDescription
                     dangerouslySetInnerHTML={{ __html: kcSanitize(message.summary) }}
                   />
@@ -108,7 +114,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
               ) : null}
               {socialProvidersNode}
             </div>
-          </div>
+          </Card>
 
           {displayInfo ? (
             <div className="text-center text-sm text-muted-foreground">{infoNode}</div>
@@ -128,7 +134,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                 href={href}
                 lang={languageTag}
                 aria-current={languageTag === currentLanguage.languageTag ? 'true' : undefined}
-                className="rounded-md px-2 py-1 whitespace-nowrap outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:font-medium aria-[current=true]:text-foreground"
+                className="rounded-md px-2 py-1 whitespace-nowrap outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=true]:font-medium aria-[current=true]:text-foreground"
               >
                 {label}
               </a>

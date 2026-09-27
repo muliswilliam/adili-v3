@@ -4,15 +4,21 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 
 export const badgeVariants = cva(
-  'inline-flex w-fit items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+  'inline-flex h-6 w-fit shrink-0 items-center gap-[5px] rounded-full px-[9px] text-[12.5px] font-medium whitespace-nowrap [&_svg]:size-[13px] [&_svg]:shrink-0',
   {
     variants: {
+      // The prototype kit's .badge and its -ok, -warn, -danger, -info, -brand and -ai tints, with the
+      // kit's text colours: the solid status colour, except info and brand, whose solids miss 4.5:1
+      // on their soft fill and so take the darker -subtle-foreground (the kit's #1f4f96 and
+      // --brand-ink). Pair the colour with text or an icon; never rely on colour alone.
       variant: {
-        default: 'border-transparent bg-primary-subtle text-primary-subtle-foreground',
-        neutral: 'border-transparent bg-secondary text-secondary-foreground',
-        outline: 'text-foreground',
-        warning: 'border-transparent bg-warning-subtle text-warning-subtle-foreground',
-        destructive: 'border-transparent bg-destructive-subtle text-destructive-subtle-foreground',
+        default: 'bg-muted text-secondary-foreground',
+        success: 'bg-success-subtle text-success',
+        warning: 'bg-warning-subtle text-warning',
+        destructive: 'bg-destructive-subtle text-destructive',
+        info: 'bg-info-subtle text-info-subtle-foreground',
+        brand: 'bg-brand-subtle text-brand-subtle-foreground',
+        ai: 'bg-ai-subtle text-ai',
       },
     },
     defaultVariants: { variant: 'default' },
