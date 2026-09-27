@@ -196,8 +196,8 @@ export interface AutosaveQueueOptions {
   etag: string;
   version: number;
   save: SaveSection;
-  /** A section was saved; update its completeness, issues and the section list. */
-  onSaved?: (key: string, result: SectionSaveResult) => void;
+  /** A section was saved (with the contents sent); update its completeness, issues and list. */
+  onSaved?: (key: string, result: SectionSaveResult, contents: unknown) => void;
   /** 404: the draft is gone (discarded elsewhere). */
   onMissing?: () => void;
 }
@@ -365,7 +365,7 @@ export class AutosaveQueue {
     switch (outcome.status) {
       case 'saved':
         this.dispatch({ type: 'saved', etag: outcome.etag, version: outcome.result.draftVersion });
-        this.savedHandler?.(key, outcome.result);
+        this.savedHandler?.(key, outcome.result, contents);
         break;
       case 'conflict':
         this.dispatch({ type: 'conflict' });

@@ -8,6 +8,7 @@ import {
   householdPersons,
   includedAtStatementDate,
   isBlankPerson,
+  renamesPerson,
   spouseState,
   statementsNeeded,
 } from './household';
@@ -210,6 +211,22 @@ describe('child inclusion (S5, S18)', () => {
 });
 
 describe('people and statements', () => {
+  it('spots a person whose name no longer matches their statement', () => {
+    const key = `statement:spouse:${SPOUSE}`;
+    const household: Draft<Household> = {
+      spouses: {
+        none: false,
+        items: [{ id: SPOUSE, name: { firstName: 'Mary', surname: 'Kennedy' } }],
+      },
+    };
+    expect(renamesPerson([{ key, personName: null }], household, STATEMENT_DATE)).toBe(true);
+    expect(renamesPerson([{ key, personName: 'Mary Kennedy' }], household, STATEMENT_DATE)).toBe(
+      false,
+    );
+    // A statement not created yet is reported by sectionsChanged instead.
+    expect(renamesPerson([], household, STATEMENT_DATE)).toBe(false);
+  });
+
   it('lists the statements the household needs, excluding adult children (S5)', () => {
     expect(householdPersons(s5, STATEMENT_DATE).map((person) => person.key)).toEqual([
       `statement:spouse:${SPOUSE}`,

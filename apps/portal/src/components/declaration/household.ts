@@ -199,6 +199,22 @@ export function householdPersons(household: Draft<Household>, statementDate: str
   return [...spouses, ...children];
 }
 
+/**
+ * True when a household names someone differently from their statement in the section list, so
+ * the list (and the navigation) must be read again. Section names are derived by the service,
+ * and `sectionsChanged` only reports statements created, archived or restored.
+ */
+export function renamesPerson(
+  sections: readonly { key: string; personName: string | null }[],
+  household: Draft<Household>,
+  statementDate: string,
+): boolean {
+  return householdPersons(household, statementDate).some((person) => {
+    const section = sections.find((candidate) => candidate.key === person.key);
+    return section !== undefined && (fullName(person.name) || null) !== section.personName;
+  });
+}
+
 /** Everyone who needs a financial statement, for the screen's footer: "you" first. */
 export function statementsNeeded(household: Draft<Household>, statementDate: string): string[] {
   const spouses = (household.spouses?.items ?? []).map((spouse, index) =>

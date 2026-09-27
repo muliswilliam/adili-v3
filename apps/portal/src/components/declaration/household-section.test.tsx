@@ -86,7 +86,7 @@ function card(name: string) {
   return cardOf(name, { level: 3 });
 }
 
-function statement(key: string, personName: string, completeness = 'not-started') {
+function statement(key: string, personName: string | null, completeness = 'not-started') {
   return {
     key,
     completeness,
@@ -415,5 +415,59 @@ describe('HouseholdSection', () => {
     expect(
       within(region(HOUSEHOLD_COPY.removedHeading)).getByText(HOUSEHOLD_COPY.archived('Tom Kamau')),
     ).toBeTruthy();
+  });
+
+  it('refreshes the section navigation when a save renames a person', async () => {
+    const maryKey = `statement:spouse:${MARY}`;
+    const before = sampleDeclaration({ sections: sections({}, [statement(maryKey, null)]) });
+    getMock.mockResolvedValue({
+      status: 'ok',
+      declaration: sampleDeclaration({
+        draftVersion: 2,
+        sections: sections({}, [statement(maryKey, 'Mary Kennedy')]),
+      }),
+      etag: '"2"',
+    });
+    saveMock.mockResolvedValue({
+      status: 'saved',
+      etag: '"2"',
+      result: {
+        key: 'household',
+        completeness: 'incomplete',
+        draftVersion: 2,
+        issues: [],
+        sectionsChanged: [],
+      },
+    });
+    renderWorkspace(
+      <HouseholdSection
+        section={household({
+          spouses: { none: false, items: [{ id: MARY, name: {} }] },
+          children: { none: true, items: [] },
+        })}
+        etag={'"1"'}
+        maritalStatus="married"
+      />,
+      { step: 'household', declaration: before },
+    );
+    const nav = screen.getByRole('navigation', { name: 'Declaration sections' });
+    expect(within(nav).getByText('Unnamed person')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Spouse 1' }));
+    const editor = screen.getByRole('group', { name: 'Spouse 1' });
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'First name' }), {
+      target: { value: 'Mary' },
+    });
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'Surname' }), {
+      target: { value: 'Kennedy' },
+    });
+
+    await waitFor(
+      () => {
+        expect(within(nav).getByText('Mary Kennedy')).toBeTruthy();
+      },
+      { timeout: 5_000 },
+    );
+    expect(getMock).toHaveBeenCalledWith({ data: { declarationId: DECLARATION_ID } });
   });
 });

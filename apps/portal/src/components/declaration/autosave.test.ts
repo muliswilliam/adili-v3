@@ -180,7 +180,9 @@ describe('AutosaveQueue', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(save).toHaveBeenCalledExactlyOnceWith('bio', { place: 'Nyeri' }, '"1"');
     expect(queue.getState()).toMatchObject({ status: 'saved', etag: '"2"' });
-    expect(onSaved).toHaveBeenCalledWith('bio', expect.objectContaining({ key: 'bio' }));
+    expect(onSaved).toHaveBeenCalledWith('bio', expect.objectContaining({ key: 'bio' }), {
+      place: 'Nyeri',
+    });
   });
 
   it('serialises saves and chains the ETag from one to the next', async () => {

@@ -25,6 +25,8 @@ import {
   type HeldResult,
   type HeldWrite,
 } from './autosave';
+import type { Draft, Household } from './contents';
+import { renamesPerson } from './household';
 
 /**
  * The declaration workspace's shared state: the draft's header and section completeness, the
@@ -135,12 +137,19 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
   }, [declarationId, queue]);
 
   useEffect(() => {
-    queue.setOnSaved((key, result) => {
+    queue.setOnSaved((key, result, contents) => {
       setDeclaration((current) => withSaveResult(current, result));
       setIssueMap((current) => ({ ...current, [key]: result.issues }));
-      if (result.sectionsChanged.length > 0) void refresh();
+      const renamed =
+        key === 'household' &&
+        renamesPerson(
+          declaration.sections,
+          contents as Draft<Household>,
+          declaration.statementDate,
+        );
+      if (result.sectionsChanged.length > 0 || renamed) void refresh();
     });
-  }, [queue, refresh]);
+  }, [queue, refresh, declaration]);
 
   useEffect(() => {
     queue.adoptEtag(etag, loaded.draftVersion);
