@@ -21,11 +21,16 @@ function record(overrides: Partial<RosterRecordListItem> = {}): RosterRecordList
     nationalIdMasked: '•••••123',
     designation: 'Senior Accountant',
     jobGroup: 'L',
-    reportingEntity: { id: '0191f8d2-0000-7000-8000-0000000000e1', name: 'State Department for Devolution' },
+    reportingEntity: {
+      id: '0191f8d2-0000-7000-8000-0000000000e1',
+      name: 'State Department for Devolution',
+    },
     state: 'not_onboarded',
     absentFromLatestImport: false,
+    flaggedByImportId: null,
+    flaggedAt: null,
     ...overrides,
-  } as RosterRecordListItem;
+  };
 }
 
 function page(items: RosterRecordListItem[], nextCursor: string | null = null) {
@@ -124,7 +129,10 @@ describe('RecordsList', () => {
     renderList({
       result: {
         ok: false,
-        error: { kind: 'problem', problem: { type: 'about:blank', title: 'Forbidden', status: 403 } },
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Forbidden', status: 403 },
+        },
       },
     });
     expect(screen.getByText('You do not have access to roster records.')).toBeTruthy();
@@ -133,9 +141,9 @@ describe('RecordsList', () => {
 
   it('shows skeleton rows while the first page loads', () => {
     renderList({ result: null });
-    expect(screen.getByRole('table', { name: 'Loading roster records' }).getAttribute('aria-busy')).toBe(
-      'true',
-    );
+    expect(
+      screen.getByRole('table', { name: 'Loading roster records' }).getAttribute('aria-busy'),
+    ).toBe('true');
   });
 
   it('loads the next page below the first and stops at the end', async () => {

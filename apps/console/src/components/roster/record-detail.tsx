@@ -59,7 +59,11 @@ export function RecordDetail({
           {flagged ? (
             <Alert variant="warning" role="status">
               <Icon icon={Flag02Icon} />
-              <AlertTitle>{m.flaggedCallout}</AlertTitle>
+              <AlertTitle>
+                {record.flaggedAt
+                  ? m.flaggedCalloutOn(formatDate(record.flaggedAt))
+                  : m.flaggedCallout}
+              </AlertTitle>
               {readOnly ? <AlertDescription>{m.flaggedCalloutReadOnly}</AlertDescription> : null}
             </Alert>
           ) : null}
@@ -205,6 +209,7 @@ function ImportHistory({ record }: { record: RosterRecord }) {
                 </p>
                 <p className="mt-px text-[12.5px] text-muted-foreground">
                   <time dateTime={entry.startedAt}>{formatDateTime(entry.startedAt)}</time>
+                  {entry.outcome === 'rejected' ? ` · ${m.outcomeRejectedHint}` : null}
                 </p>
               </div>
             </li>

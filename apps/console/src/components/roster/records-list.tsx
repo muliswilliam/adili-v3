@@ -330,15 +330,20 @@ function RecordsTable({
             <TableCell className="whitespace-nowrap">
               <MaskedNationalId value={record.nationalIdMasked} />
             </TableCell>
-            <TableCell className="max-w-[200px] min-w-[140px]">
-              <Optional value={record.designation} />
+            <TableCell>
+              <span
+                className="block max-w-[180px] truncate"
+                title={record.designation ?? undefined}
+              >
+                <Optional value={record.designation} />
+              </span>
             </TableCell>
             <TableCell className="whitespace-nowrap">
               <Optional value={record.jobGroup} />
             </TableCell>
             <TableCell>
               <span
-                className="block max-w-[220px] truncate"
+                className="block max-w-[200px] truncate"
                 title={record.reportingEntity?.name ?? undefined}
               >
                 <Optional value={record.reportingEntity?.name} />
@@ -377,7 +382,7 @@ function RecordsCards({
             <span>
               <MaskedNationalId value={record.nationalIdMasked} />
             </span>
-            {record.jobGroup ? <span>{record.jobGroup}</span> : null}
+            {record.jobGroup ? <span>{m.jobGroupShort(record.jobGroup)}</span> : null}
           </p>
           <StateBadges record={record} />
         </li>

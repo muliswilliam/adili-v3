@@ -95,5 +95,13 @@ export function ImportOutcomeBadge({
 }) {
   if (outcome === 'created') return <Badge variant="success">{m.outcomeCreated}</Badge>;
   if (outcome === 'updated') return <Badge variant="info">{m.outcomeUpdated}</Badge>;
+  if (outcome === 'rejected') {
+    return (
+      <Badge variant="destructive">
+        <Icon icon={AlertCircleIcon} strokeWidth={2.2} />
+        {m.outcomeRejected}
+      </Badge>
+    );
+  }
   return <Badge>{m.outcomeUnchanged}</Badge>;
 }

@@ -10,6 +10,7 @@ const imported: RosterSummary = {
   flagged: 37,
   lastImportAt: '2026-09-21T09:40:00Z',
   lastImportId: '0191f8d2-0000-7000-8000-000000000001',
+  lastCompleteImportAt: '2026-09-21T09:40:00Z',
 };
 
 describe('onboardedPercent', () => {
@@ -51,6 +52,7 @@ describe('rosterCoverage', () => {
         flagged: 0,
         lastImportAt: null,
         lastImportId: null,
+        lastCompleteImportAt: null,
       }),
     ).toBeNull();
   });

@@ -45,16 +45,15 @@ import type {
   Commission,
   DirectoryResult,
   RosterImport,
-  RosterImportPage,
   RosterSummary,
 } from '../../server/directory/client';
 import { getRosterApiCredential } from '../../server/roster-api-credential';
-import { listRecentRosterImports } from '../../server/roster-records';
+import { getRosterImport } from '../../server/roster-records';
 
 interface OverviewData {
   commission: DirectoryResult<Commission>;
-  /** The newest import, for the Last import card; null when not asked for. */
-  imports: DirectoryResult<RosterImportPage> | null;
+  /** The latest completed import, for the Last import card; null when there is none. */
+  lastImport: DirectoryResult<RosterImport> | null;
   /** For the reporting officer's "Connect your HR system" step; null when unknown. */
   credential: CredentialState | null;
 }
@@ -65,19 +64,22 @@ export const Route = createFileRoute('/roster/')({
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
-    if (!slug) return { commission: noCommission, imports: null, credential: null };
-    const [commission, imports, credential] = await Promise.all([
+    if (!slug) return { commission: noCommission, lastImport: null, credential: null };
+    const [commission, credential] = await Promise.all([
       getCommission({ data: { slug } }),
-      listRecentRosterImports({ data: { slug, limit: 1 } }),
       // Credentials are the reporting officer's alone; the directory refuses anyone else.
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
     ]);
     if (!commission.ok && commission.error.kind === 'unauthenticated') {
       throw signInRedirect(location.href);
     }
+    const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
+    const lastImport = lastImportId
+      ? await getRosterImport({ data: { slug, importId: lastImportId } })
+      : null;
     return {
       commission,
-      imports,
+      lastImport,
       credential: credential?.ok ? credentialState(credential.data) : null,
     };
   },
@@ -147,7 +149,7 @@ function RosterOverview() {
         )}
       </nav>
       <div className="mt-5 grid items-start gap-5 min-[1000px]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        <LastImportCard imports={data.imports} />
+        <LastImportCard result={data.lastImport} />
         <NextStepsCard
           steps={nextSteps({ flagged: roster.flagged, readOnly, credential: data.credential })}
         />
@@ -306,18 +308,16 @@ function OverviewCard({ id, title, children }: { id: string; title: string; chil
   );
 }
 
-/** The newest import: how it came in, when and by whom, and what it did. */
-function LastImportCard({ imports }: { imports: DirectoryResult<RosterImportPage> | null }) {
-  if (!imports) return null;
-  const last = imports.ok ? imports.data.items[0] : undefined;
-  if (imports.ok && !last) return null;
+/** The latest completed import: how it came in, when and by whom, and what it did. */
+function LastImportCard({ result }: { result: DirectoryResult<RosterImport> | null }) {
+  if (!result) return null;
   return (
     <OverviewCard id="last-import-title" title={m.lastImport}>
       <div className="grid gap-3 p-5">
-        {last ? (
-          <LastImport item={last} />
+        {result.ok ? (
+          <LastImport item={result.data} />
         ) : (
-          <p className="text-sm text-muted-foreground">{m.importsError}</p>
+          <p className="text-sm text-muted-foreground">{m.lastImportError}</p>
         )}
       </div>
     </OverviewCard>

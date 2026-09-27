@@ -34,6 +34,10 @@ describe('recordsSearchSchema', () => {
     ).toEqual({});
   });
 
+  it('reads a national ID typed into the URL as a search', () => {
+    expect(recordsSearchSchema.parse({ search: 27481123 })).toEqual({ search: '27481123' });
+  });
+
   it('keeps no page in the URL', () => {
     expect(recordsSearchSchema.parse({ cursor: 'abc' })).toEqual({});
   });
@@ -57,8 +61,8 @@ describe('rosterRecordsQuery', () => {
     expect(rosterRecordsQuery({ search: '27481123' })).toEqual({ search: '27481123' });
   });
 
-  it('sends flagged=true only when the toggle is on', () => {
-    expect(rosterRecordsQuery({ flagged: true })).toEqual({ flagged: true });
+  it('sends flagged="true" only when the toggle is on', () => {
+    expect(rosterRecordsQuery({ flagged: true })).toEqual({ flagged: 'true' });
     expect(rosterRecordsQuery({})).toEqual({});
   });
 
@@ -72,7 +76,13 @@ describe('rosterRecordsQuery', () => {
         { search: ' TSC/1 ', state: 'not_onboarded', flagged: true },
         { cursor: 'abc', limit: 50 },
       ),
-    ).toEqual({ search: 'TSC/1', state: 'not_onboarded', flagged: true, cursor: 'abc', limit: 50 });
+    ).toEqual({
+      search: 'TSC/1',
+      state: 'not_onboarded',
+      flagged: 'true',
+      cursor: 'abc',
+      limit: 50,
+    });
   });
 
   it('asks for the first page without a cursor', () => {

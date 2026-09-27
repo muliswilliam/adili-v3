@@ -15,7 +15,13 @@ export const RECORDS_PAGE_SIZE = 50;
  * against the national register failed; the directory contract does not list it yet.
  */
 export const recordsSearchSchema = z.object({
-  search: z.string().trim().min(1).max(200).optional().catch(undefined),
+  // A search of digits alone (a national ID) arrives as a number from a hand-typed URL.
+  search: z
+    .preprocess(
+      (value) => (typeof value === 'number' ? String(value) : value),
+      z.string().trim().min(1).max(200).optional(),
+    )
+    .catch(undefined),
   state: z.enum(RECORD_STATES).optional().catch(undefined),
   flagged: z.literal(true).optional().catch(undefined),
   identityMismatch: z.literal(true).optional().catch(undefined),
@@ -39,7 +45,7 @@ export function rosterRecordsQuery(
   const search = filters.search?.trim();
   if (search) query.search = search;
   if (filters.state) query.state = filters.state;
-  if (filters.flagged) query.flagged = true;
+  if (filters.flagged) query.flagged = 'true';
   if (filters.identityMismatch) query.identityMismatch = true;
   if (page.cursor) query.cursor = page.cursor;
   if (page.limit !== undefined) query.limit = page.limit;

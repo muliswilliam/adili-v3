@@ -6,6 +6,7 @@ import { asViewer } from './as-viewer.server';
 import {
   callDirectory,
   type DirectoryResult,
+  type RosterImport,
   type RosterImportPage,
   type RosterRecord,
   type RosterRecordPage,
@@ -57,6 +58,19 @@ export const getRosterRecord = createServerFn({ method: 'GET' })
       callDirectory(() =>
         client.GET('/v1/commissions/{slug}/roster/records/{recordId}', {
           params: { path: { slug: data.slug, recordId: data.recordId } },
+        }),
+      ),
+    ),
+  );
+
+/** `GET /v1/commissions/{slug}/roster/imports/{importId}`: progress, mapping and counts. */
+export const getRosterImport = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug, importId: z.uuid() }))
+  .handler(({ data }): Promise<DirectoryResult<RosterImport>> =>
+    asViewer((client) =>
+      callDirectory(() =>
+        client.GET('/v1/commissions/{slug}/roster/imports/{importId}', {
+          params: { path: { slug: data.slug, importId: data.importId } },
         }),
       ),
     ),

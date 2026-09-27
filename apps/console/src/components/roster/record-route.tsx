@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { DirectoryResult, RosterRecord } from '../../server/directory/client';
 import { getRosterRecord } from '../../server/roster-records';
 import { LoadError, NoAccess } from '../load-error';
-import { Page } from '../page';
+import { Page, PageHead } from '../page';
 import { messages as m } from './messages';
 
 const notFound: DirectoryResult<never> = {
@@ -64,6 +64,7 @@ export function RecordLoadFailure({
     return (
       <Page narrow>
         {banner}
+        <PageHead title={m.recordTitle} />
         <NoAccess
           text={m.recordsForbidden}
           action={<p className="text-sm">{m.recordsForbiddenText}</p>}

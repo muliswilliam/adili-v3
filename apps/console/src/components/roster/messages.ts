@@ -36,7 +36,7 @@ export const en = {
   lastImportApi: 'HR system batch',
   lastImportWhen: (dateTime: string, relative: string, by: string | null) =>
     by ? `${dateTime} (${relative}) · by ${by}` : `${dateTime} (${relative})`,
-  importsError: 'Import history could not be loaded.',
+  lastImportError: 'The last import could not be loaded.',
   nextSteps: 'Next steps',
   nextReviewFlagged: (count: number) =>
     `Review ${formatNumber(count)} flagged ${count === 1 ? 'officer' : 'officers'}`,
@@ -79,6 +79,7 @@ export const en = {
   columnNationalId: 'National ID',
   columnDesignation: 'Designation',
   columnJobGroup: 'Job group',
+  jobGroupShort: (group: string) => `Job group ${group}`,
   columnReportingEntity: 'Reporting entity',
   columnState: 'State',
   notProvided: 'Not provided',
@@ -88,7 +89,7 @@ export const en = {
   loadMoreError: 'More records could not be loaded. Try again.',
   shown: (count: number) => `Showing ${formatNumber(count)}`,
   allShown: (count: number) =>
-    `All ${formatNumber(count)} ${count === 1 ? 'record' : 'records'} shown`,
+    count === 1 ? '1 record' : `All ${formatNumber(count)} records shown`,
   recordsEmptyTitle: 'No roster records',
   recordsEmptyText: 'Import your roster to see the officers on it here.',
   recordsEmptyTextReadOnly: 'The reporting officer has not imported the roster yet.',
@@ -102,6 +103,7 @@ export const en = {
   backToCommission: 'Back to Commission',
   // Record detail
   record: 'Record',
+  recordTitle: 'Roster record',
   recordNotFoundCrumb: 'Not found',
   recordNotFoundTitle: 'Record not found',
   recordNotFoundText: 'It may belong to another Commission, or the link is wrong.',
@@ -133,6 +135,7 @@ export const en = {
   viaFile: 'file',
   viaApi: 'API',
   flaggedCallout: 'Not in the latest complete import.',
+  flaggedCalloutOn: (date: string) => `Not in the complete import of ${date}.`,
   flaggedCalloutReadOnly: 'The reporting officer decides whether they have left.',
   exitedCallout: (date: string) => `Exited on ${date}.`,
   importHistory: 'Import history',
@@ -141,6 +144,8 @@ export const en = {
   outcomeCreated: 'Created',
   outcomeUpdated: 'Updated',
   outcomeUnchanged: 'Unchanged',
+  outcomeRejected: 'Rejected',
+  outcomeRejectedHint: 'Identity is locked once the officer has onboarded.',
   // Import wizard
   importTitle: 'Import roster',
   cancel: 'Cancel',
