@@ -39,3 +39,6 @@ _sources/
 .vscode/*
 !.vscode/extensions.json
 *.swp
+
+# ui-diff-video recordings and base worktree
+.ui-diff/
