@@ -86,58 +86,63 @@ describe('parse', () => {
  * cases. The test proves every miss falls in that class and keeps the miss rate bounded, so a
  * change of algorithm or a bug cannot hide behind the known gap.
  */
-describe('S19: check character detects typos across 10,000 random OFRs', () => {
-  const random = seededRandom(19);
-  const references = Array.from({ length: 10_000 }, () =>
-    format(OFR, { sequence: 1 + Math.floor(random() * 9_999_999) }),
-  );
+// Millions of checks: well under a second alone, but CI runs it beside every other package.
+describe(
+  'S19: check character detects typos across 10,000 random OFRs',
+  { timeout: 60_000 },
+  () => {
+    const random = seededRandom(19);
+    const references = Array.from({ length: 10_000 }, () =>
+      format(OFR, { sequence: 1 + Math.floor(random() * 9_999_999) }),
+    );
 
-  it('detects every single-character substitution', () => {
-    let substitutions = 0;
-    const missed: string[] = [];
-    for (const reference of references) {
-      for (let index = 0; index < reference.length; index++) {
-        const original = reference.charAt(index);
-        if (original === '-') continue;
-        for (const replacement of ALPHABET) {
-          if (replacement === original) continue;
-          const typo = reference.slice(0, index) + replacement + reference.slice(index + 1);
-          substitutions++;
-          if (hasValidCheckCharacter(typo)) missed.push(typo);
+    it('detects every single-character substitution', () => {
+      let substitutions = 0;
+      const missed: string[] = [];
+      for (const reference of references) {
+        for (let index = 0; index < reference.length; index++) {
+          const original = reference.charAt(index);
+          if (original === '-') continue;
+          for (const replacement of ALPHABET) {
+            if (replacement === original) continue;
+            const typo = reference.slice(0, index) + replacement + reference.slice(index + 1);
+            substitutions++;
+            if (hasValidCheckCharacter(typo)) missed.push(typo);
+          }
         }
       }
-    }
-    expect(missed).toEqual([]);
-    expect(substitutions).toBe(10_000 * 11 * 35);
-  });
+      expect(missed).toEqual([]);
+      expect(substitutions).toBe(10_000 * 11 * 35);
+    });
 
-  it('detects every adjacent transposition outside the known undetectable class', () => {
-    let transpositions = 0;
-    let missed = 0;
-    const unexplained: string[] = [];
-    for (const reference of references) {
-      const compact = reference.replaceAll('-', '');
-      for (let index = 0; index < compact.length - 1; index++) {
-        const [left, right] = [compact.charAt(index), compact.charAt(index + 1)];
-        if (left === right) continue;
-        const typo = compact.slice(0, index) + right + left + compact.slice(index + 2);
-        transpositions++;
-        if (!hasValidCheckCharacter(typo)) continue;
-        missed++;
-        if (!isKnownUndetectable(compact.slice(0, index), left, right)) unexplained.push(typo);
+    it('detects every adjacent transposition outside the known undetectable class', () => {
+      let transpositions = 0;
+      let missed = 0;
+      const unexplained: string[] = [];
+      for (const reference of references) {
+        const compact = reference.replaceAll('-', '');
+        for (let index = 0; index < compact.length - 1; index++) {
+          const [left, right] = [compact.charAt(index), compact.charAt(index + 1)];
+          if (left === right) continue;
+          const typo = compact.slice(0, index) + right + left + compact.slice(index + 2);
+          transpositions++;
+          if (!hasValidCheckCharacter(typo)) continue;
+          missed++;
+          if (!isKnownUndetectable(compact.slice(0, index), left, right)) unexplained.push(typo);
+        }
       }
-    }
-    expect(unexplained).toEqual([]);
-    expect(transpositions).toBeGreaterThan(90_000);
-    expect(missed / transpositions).toBeLessThan(0.01);
-  });
+      expect(unexplained).toEqual([]);
+      expect(transpositions).toBeGreaterThan(90_000);
+      expect(missed / transpositions).toBeLessThan(0.01);
+    });
 
-  it('rejects a transposition across a separator as malformed', () => {
-    expect(() => parse('OF-R0482913-L')).toThrow(InvalidReferenceError);
-    expect(() => parse('OFR0-482913-L')).toThrow(InvalidReferenceError);
-    expect(() => parse('OFR-048291-3L')).toThrow(InvalidReferenceError);
-  });
-});
+    it('rejects a transposition across a separator as malformed', () => {
+      expect(() => parse('OF-R0482913-L')).toThrow(InvalidReferenceError);
+      expect(() => parse('OFR0-482913-L')).toThrow(InvalidReferenceError);
+      expect(() => parse('OFR-048291-3L')).toThrow(InvalidReferenceError);
+    });
+  },
+);
 
 /** Independent restatement of the hybrid step (ISO 7064 §7): p = (2 * (s || 36)) mod 37. */
 function isKnownUndetectable(prefix: string, left: string, right: string): boolean {

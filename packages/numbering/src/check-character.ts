@@ -3,6 +3,12 @@ export const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const MODULUS = ALPHABET.length;
 
+const HYPHEN = '-'.charCodeAt(0);
+
+/** Character code to value, -1 outside the alphabet. */
+const VALUES = new Int8Array(128).fill(-1);
+for (let value = 0; value < MODULUS; value++) VALUES[ALPHABET.charCodeAt(value)] = value;
+
 /**
  * ISO 7064 hybrid MOD 37-36 check character over `input` (ADR-011). Hyphens are separators
  * and are skipped; any other character outside 0-9 and A-Z is a `RangeError`.
@@ -24,9 +30,10 @@ export function hasValidCheckCharacter(reference: string): boolean {
 function checksum(input: string, label: string): number {
   let state = MODULUS / 2;
   let characters = 0;
-  for (const char of input) {
-    if (char === '-') continue;
-    const value = ALPHABET.indexOf(char);
+  for (let index = 0; index < input.length; index++) {
+    const code = input.charCodeAt(index);
+    if (code === HYPHEN) continue;
+    const value = code < 128 ? (VALUES[code] ?? -1) : -1;
     if (value < 0) {
       throw new RangeError(`${label} may only contain 0-9, A-Z and hyphens`);
     }
