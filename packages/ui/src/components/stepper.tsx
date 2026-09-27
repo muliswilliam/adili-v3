@@ -1,5 +1,5 @@
 import { Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import type { ComponentProps, ReactNode } from 'react';
+import { type ComponentProps, type ReactNode, useEffect } from 'react';
 
 import { cn } from '../lib/cn';
 import { Icon } from './icon';
@@ -13,7 +13,10 @@ export type StepperProps = Omit<ComponentProps<'nav'>, 'children'> & {
   /** Names the navigation landmark, e.g. "Import steps". */
   label: string;
   steps: StepperStep[];
-  /** Id of the step the user is on. */
+  /**
+   * Id of the step the user is on. An id that matches no step shows every step as upcoming
+   * and, in development, logs a warning.
+   */
   current: string;
   /** Marks the current step as failed, e.g. an import that stopped. */
   failed?: boolean;
@@ -42,6 +45,12 @@ export function Stepper({
   ...props
 }: StepperProps) {
   const currentIndex = steps.findIndex((step) => step.id === current);
+
+  useEffect(() => {
+    if (import.meta.env.DEV && currentIndex === -1) {
+      console.warn(`Stepper: current "${current}" matches none of the step ids.`);
+    }
+  }, [current, currentIndex]);
 
   return (
     <nav aria-label={label} className={className} {...props}>

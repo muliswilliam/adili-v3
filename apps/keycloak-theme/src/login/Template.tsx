@@ -1,6 +1,7 @@
 import {
   Alert,
   AlertDescription,
+  Card,
   Icon,
   type IconProps,
   LogoMark,
@@ -85,14 +86,14 @@ export default function Template(props: AdiliTemplateProps) {
             </p>
           </div>
 
-          <div className="grid gap-6 rounded-xl border bg-card p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:p-8">
+          <Card className="gap-6">
             <header className="grid gap-3">
               {showAttemptedUsername ? (
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
                   <span className="truncate text-sm font-medium">{auth.attemptedUsername}</span>
                   <a
                     href={url.loginRestartFlowUrl}
-                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <Icon icon={RotateLeft01Icon} className="size-3.5" />
                     {msg('restartLoginTooltip')}
@@ -139,7 +140,7 @@ export default function Template(props: AdiliTemplateProps) {
               ) : null}
               {socialProvidersNode}
             </div>
-          </div>
+          </Card>
 
           {displayInfo ? (
             <div className="text-center text-sm text-muted-foreground">{infoNode}</div>
@@ -159,7 +160,7 @@ export default function Template(props: AdiliTemplateProps) {
                 href={href}
                 lang={languageTag}
                 aria-current={languageTag === currentLanguage.languageTag ? 'true' : undefined}
-                className="rounded-md px-2 py-1 whitespace-nowrap outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:font-medium aria-[current=true]:text-foreground"
+                className="rounded-md px-2 py-1 whitespace-nowrap outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=true]:font-medium aria-[current=true]:text-foreground"
               >
                 {label}
               </a>

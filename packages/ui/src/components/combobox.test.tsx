@@ -120,4 +120,71 @@ describe('Combobox', () => {
 
     expect(onValueChange).toHaveBeenCalledWith(null);
   });
+
+  it('keeps a value whose options have not loaded when it is focused and blurred', () => {
+    const onValueChange = vi.fn();
+    render(
+      <Combobox aria-label="Commission" options={[]} value="tsc" onValueChange={onValueChange} />,
+    );
+
+    const field = screen.getByRole('combobox', { name: 'Commission' });
+    fireEvent.focus(field);
+    fireEvent.click(field);
+    fireEvent.blur(field);
+
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('shows the chosen option once async options load', () => {
+    const { rerender } = render(
+      <Combobox aria-label="Commission" options={[]} value="tsc" onValueChange={vi.fn()} />,
+    );
+    const field = screen.getByRole('combobox', { name: 'Commission' });
+    expect((field as HTMLInputElement).value).toBe('');
+
+    rerender(
+      <Combobox
+        aria-label="Commission"
+        options={commissions}
+        value="tsc"
+        onValueChange={vi.fn()}
+      />,
+    );
+
+    expect((field as HTMLInputElement).value).toBe('Teachers Service Commission');
+  });
+
+  it('shows selectedOption while the options are loading', () => {
+    const onValueChange = vi.fn();
+    render(
+      <Combobox
+        aria-label="Commission"
+        options={[]}
+        value="tsc"
+        selectedOption={{ value: 'tsc', label: 'Teachers Service Commission' }}
+        onValueChange={onValueChange}
+      />,
+    );
+
+    const field = screen.getByRole('combobox', { name: 'Commission' });
+    expect((field as HTMLInputElement).value).toBe('Teachers Service Commission');
+
+    fireEvent.change(field, { target: { value: 'Teach' } });
+    fireEvent.blur(field);
+
+    expect((field as HTMLInputElement).value).toBe('Teachers Service Commission');
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the choice when the text is cleared and typed back before blur', () => {
+    const onValueChange = vi.fn();
+    render(<CommissionPicker initial="psc" onValueChange={onValueChange} />);
+
+    fireEvent.change(input(), { target: { value: '' } });
+    fireEvent.change(input(), { target: { value: 'Pub' } });
+    fireEvent.blur(input());
+
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect((input() as HTMLInputElement).value).toBe('Public Service Commission');
+  });
 });

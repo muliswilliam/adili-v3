@@ -76,7 +76,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
         <div className="grid gap-1.5">
-          <h1 className="text-lg font-semibold tracking-tight">Welcome, {firstName}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
           <p className="text-muted-foreground">
             Your declarations and filing obligations will appear here.
           </p>

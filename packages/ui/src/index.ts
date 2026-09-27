@@ -44,16 +44,15 @@ export {
   DialogTrigger,
 } from './components/dialog';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
-export { FilterChip, type FilterChipProps } from './components/filter-chip';
-export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
   FileDropZone,
   type FileDropZoneProps,
   type FileRejection,
-  matchesAccept,
 } from './components/file-drop-zone';
+export { FilterChip, type FilterChipProps } from './components/filter-chip';
+export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export { Icon, type IconProps } from './components/icon';
-export { Input } from './components/input';
+export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export {
