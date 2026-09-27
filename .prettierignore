@@ -13,3 +13,4 @@ docs
 *.md
 packages/schemas/external
 **/server/*/schema.gen.ts
+apps/keycloak-theme/public/keycloakify-dev-resources
