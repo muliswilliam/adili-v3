@@ -57,6 +57,20 @@
       "when": 1790544213444,
       "tag": "0007_roster_api_credentials_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790545515724,
+      "tag": "0008_roster",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790545516280,
+      "tag": "0009_roster_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ import { ReadinessCheck } from '@adili/api-kit';
 import {
   bundleWorkflowCode,
   type LogLevel,
+  type Logger as TemporalLogger,
   type LogMetadata,
   NativeConnection,
   Runtime,
@@ -156,12 +157,13 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
   }
 
   private bundleWorkflows(): Promise<WorkflowBundleWithSourceMap> {
-    this.bundle ??= bundleWorkflowCode({ workflowsPath: this.options.workflowsPath }).catch(
-      (error: unknown) => {
-        this.bundle = undefined;
-        throw error;
-      },
-    );
+    this.bundle ??= bundleWorkflowCode({
+      workflowsPath: this.options.workflowsPath,
+      logger: bundlerLogger(),
+    }).catch((error: unknown) => {
+      this.bundle = undefined;
+      throw error;
+    });
     return this.bundle;
   }
 
@@ -252,6 +254,30 @@ function collectActivities(instances: object[]): Activities {
     }
   }
   return activities;
+}
+
+/** Webpack's output while bundling goes through Nest's logger: details at debug level. */
+function bundlerLogger(): TemporalLogger {
+  const logger = new Logger('TemporalBundler');
+  const debug = (message: string, meta?: LogMetadata) => {
+    logger.debug(meta ?? {}, message);
+  };
+  return {
+    log: (level, message, meta) => {
+      if (level === 'ERROR') logger.error(meta ?? {}, message);
+      else if (level === 'WARN') logger.warn(meta ?? {}, message);
+      else debug(message, meta);
+    },
+    trace: debug,
+    debug,
+    info: debug,
+    warn: (message, meta) => {
+      logger.warn(meta ?? {}, message);
+    },
+    error: (message, meta) => {
+      logger.error(meta ?? {}, message);
+    },
+  };
 }
 
 let runtimeLoggerInstalled = false;
