@@ -19,7 +19,7 @@ Service skeletons are running end to end: infrastructure, 11 NestJS services, 3 
 
 ## Local development
 
-**Prerequisites:** Node 24+ (`.nvmrc`), pnpm 11 (`corepack enable`), uv, Docker (or Podman) with Compose.
+**Prerequisites:** Node 24 (`.nvmrc`), pnpm 11 (`corepack enable`), uv, Docker (or Podman) with Compose.
 
 ```sh
 pnpm bootstrap      # copy .env.example -> .env everywhere, install dependencies
