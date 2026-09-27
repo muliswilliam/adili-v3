@@ -5,28 +5,28 @@ import { z } from 'zod';
  * is the `cursor` search param, so Back, reload and shared links open the same page, and the way
  * back (the cursors of the pages before it) and the row offset live in history state: they
  * survive Back and reload but not a shared link, which then offers Previous to the first page.
- * A list inside a page (an import's rejected rows) keeps both in component state instead.
+ * A page reached from a shared link has no known offset, and neither do the pages after it nor
+ * the way back to it: their range is not shown, rather than counted from 1.
  */
+const offsetSchema = z.number().int().min(0).nullable();
+
 const pagingStateSchema = z.object({
   /** The pages before this one, oldest first; `null` is the first page. */
-  trail: z.array(z.object({ cursor: z.string().nullable(), offset: z.number().int().min(0) })),
-  /** Rows before this page. */
-  offset: z.number().int().min(0),
+  trail: z.array(z.object({ cursor: z.string().nullable(), offset: offsetSchema })),
+  /** Rows before this page; null when not known (the list was entered at a later page). */
+  offset: offsetSchema,
 });
 
 export type PagingState = z.infer<typeof pagingStateSchema>;
 
-const firstPage: PagingState = { trail: [], offset: 0 };
+/** Where the page on show sits. */
+export type Paging = PagingState;
 
-/** Where the page on show sits; `offset` is null when a shared link opened a later page. */
-export interface Paging {
-  trail: PagingState['trail'];
-  offset: number | null;
-}
+const firstPage: Paging = { trail: [], offset: 0 };
 
 /** Reads the paging for the page on show from its cursor and whatever history state holds. */
 export function pagingFor(cursor: string | undefined, state: unknown): Paging {
-  if (!cursor) return { trail: [], offset: 0 };
+  if (!cursor) return firstPage;
   const parsed = pagingStateSchema.safeParse(state);
   return parsed.success ? parsed.data : { trail: [], offset: null };
 }
@@ -40,10 +40,9 @@ export interface PagingView {
 
 export function pagingView(page: CursorPage, paging: Paging): PagingView {
   const rows = page.items.length;
-  const known = paging.offset !== null;
-  const offset = paging.offset ?? 0;
+  const { offset } = paging;
   return {
-    range: known && rows > 0 ? { from: offset + 1, to: offset + rows } : null,
+    range: offset !== null && rows > 0 ? { from: offset + 1, to: offset + rows } : null,
     hasPrevious: paging.offset !== 0,
     hasNext: page.nextCursor !== null,
   };
@@ -73,12 +72,12 @@ export function nextPage<S extends CursorSearch>(
   paging: Paging,
 ): PageLocation<S> | null {
   if (!page.nextCursor) return null;
-  const offset = paging.offset ?? 0;
+  const { offset } = paging;
   return {
     search: { ...search, cursor: page.nextCursor },
     state: {
       trail: [...paging.trail, { cursor: search.cursor ?? null, offset }],
-      offset: offset + page.items.length,
+      offset: offset === null ? null : offset + page.items.length,
     },
   };
 }
