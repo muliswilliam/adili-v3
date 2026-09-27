@@ -3,15 +3,14 @@ import { describe, expect, it } from 'vitest';
 
 import { Button } from './button';
 import { EmptyState } from './empty-state';
-import { Skeleton } from './skeleton';
 
 describe('EmptyState', () => {
-  it('renders a heading, text, hidden icon and optional action', () => {
+  it('renders a heading, description, hidden icon and optional action', () => {
     render(
       <EmptyState
         icon={<svg data-testid="icon" />}
         title="No Commissions yet"
-        text="Create the first Commission to get started."
+        description="Create the first Commission to get started."
         action={<Button>Create Commission</Button>}
       />,
     );
@@ -22,17 +21,25 @@ describe('EmptyState', () => {
     expect(screen.getByTestId('icon').parentElement?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('omits the action when none is given', () => {
-    render(<EmptyState title="No results" />);
+  it('still accepts the older text prop', () => {
+    render(<EmptyState title="No results" text="Try a different search." />);
 
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByText('Try a different search.')).toBeDefined();
   });
-});
 
-describe('Skeleton', () => {
-  it('is hidden from assistive technology', () => {
-    const { container } = render(<Skeleton className="h-4 w-32" />);
+  it('prefers description over text when both are given', () => {
+    render(<EmptyState title="No results" description="New wording" text="Old wording" />);
 
-    expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByText('New wording')).toBeDefined();
+    expect(screen.queryByText('Old wording')).toBeNull();
+  });
+
+  it('renders only the title when nothing else is given', () => {
+    const { container } = render(<EmptyState title="No results" />);
+
+    expect(screen.getByRole('heading', { name: 'No results' })).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(container.querySelector('p')).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 });

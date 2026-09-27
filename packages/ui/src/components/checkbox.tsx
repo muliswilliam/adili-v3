@@ -1,7 +1,8 @@
-import { type ComponentProps, type ReactNode, useId } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
-import { describedBy, FieldError, FieldHint } from './form-field';
+import { useFieldIds } from '../lib/use-field-ids';
+import { FieldError, FieldHint } from './form-field';
 
 export type CheckboxProps = Omit<ComponentProps<'input'>, 'type'>;
 
@@ -25,22 +26,38 @@ export type CheckboxItemProps = CheckboxProps & {
 };
 
 /** A checkbox with its label and optional hint, for use inside a CheckboxGroup. */
-export function CheckboxItem({ label, hint, id, className, ...props }: CheckboxItemProps) {
-  const generatedId = useId();
-  const checkboxId = id ?? generatedId;
-  const hintId = hint ? `${checkboxId}-hint` : undefined;
+export function CheckboxItem({
+  label,
+  hint,
+  id,
+  disabled,
+  className,
+  'aria-describedby': ownDescribedBy,
+  ...props
+}: CheckboxItemProps) {
+  const fieldIds = useFieldIds({ id, hint, describedBy: ownDescribedBy });
 
   return (
     <div className={cn('flex gap-3', className)}>
-      <Checkbox id={checkboxId} aria-describedby={hintId} className="mt-px" {...props} />
+      <Checkbox
+        {...props}
+        id={fieldIds.id}
+        disabled={disabled}
+        aria-describedby={fieldIds.describedBy}
+        className="mt-px"
+      />
       <div className="grid gap-0.5">
+        {/* Styled from the prop: peer-disabled cannot reach a label that is not a sibling. */}
         <label
-          htmlFor={checkboxId}
-          className="cursor-pointer text-sm leading-5 select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+          htmlFor={fieldIds.id}
+          className={cn(
+            'text-sm leading-5 select-none',
+            disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+          )}
         >
           {label}
         </label>
-        {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
+        {hint ? <FieldHint id={fieldIds.hintId}>{hint}</FieldHint> : null}
       </div>
     </div>
   );
@@ -49,7 +66,7 @@ export function CheckboxItem({ label, hint, id, className, ...props }: CheckboxI
 export type CheckboxGroupProps = ComponentProps<'fieldset'> & {
   legend: ReactNode;
   hint?: ReactNode;
-  /** When set, the message is announced and linked to the group. */
+  /** When set, the group is marked invalid and described by the message. */
   error?: ReactNode;
 };
 
@@ -60,26 +77,25 @@ export function CheckboxGroup({
   id,
   className,
   children,
+  'aria-describedby': ownDescribedBy,
   ...props
 }: CheckboxGroupProps) {
-  const generatedId = useId();
-  const groupId = id ?? generatedId;
-  const hintId = hint ? `${groupId}-hint` : undefined;
-  const errorId = error ? `${groupId}-error` : undefined;
+  const fieldIds = useFieldIds({ id, hint, error, describedBy: ownDescribedBy });
 
   return (
     <fieldset
-      id={groupId}
-      aria-describedby={describedBy(hintId, errorId)}
-      className={cn('grid gap-3', className)}
       {...props}
+      id={fieldIds.id}
+      aria-describedby={fieldIds.describedBy}
+      aria-invalid={error ? true : props['aria-invalid']}
+      className={cn('grid gap-3', className)}
     >
       <legend className="mb-1 text-sm leading-5 font-medium text-secondary-foreground">
         {legend}
       </legend>
-      {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
+      {hint ? <FieldHint id={fieldIds.hintId}>{hint}</FieldHint> : null}
       <div className="grid gap-3">{children}</div>
-      {error ? <FieldError id={errorId}>{error}</FieldError> : null}
+      {error ? <FieldError id={fieldIds.errorId}>{error}</FieldError> : null}
     </fieldset>
   );
 }
