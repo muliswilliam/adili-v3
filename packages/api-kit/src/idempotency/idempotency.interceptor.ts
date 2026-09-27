@@ -4,6 +4,7 @@ import {
   type ExecutionContext,
   HttpStatus,
   Injectable,
+  Logger,
   type NestInterceptor,
   UseInterceptors,
 } from '@nestjs/common';
@@ -25,6 +26,8 @@ export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
 /** Set on responses served from the store instead of the handler. */
 export const IDEMPOTENT_REPLAYED_HEADER = 'idempotent-replayed';
 const MAX_KEY_LENGTH = 255;
+/** Pauses between attempts to record an outcome; one attempt more than there are pauses. */
+const RECORD_RETRY_DELAYS_MS = [50, 250];
 
 /**
  * Makes a write safe to retry (ADR-009). The request must carry an `Idempotency-Key` header.
@@ -36,6 +39,9 @@ const MAX_KEY_LENGTH = 255;
  * - Same key, different method, URL or body: 422 `idempotency-key-reused`.
  * - Same key while the first request is still running: 409 `idempotency-key-in-use`.
  * - 2xx and 4xx outcomes are stored; 5xx are not, so the client can retry.
+ * - Storing an outcome is retried briefly. If it still fails, the client gets the handler's
+ *   outcome anyway: turning a write that happened into an error would invite the very retry
+ *   that runs it twice once the unfinished claim is taken for abandoned.
  *
  * Keys are scoped per caller (token `sub`): two callers may use the same key independently.
  * Needs `IdempotencyModule` in the application; the app fails to start without it.
@@ -59,6 +65,8 @@ export const RequireIdempotencyKey = () =>
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(IdempotencyInterceptor.name);
+
   constructor(private readonly store: IdempotencyStore) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
@@ -104,7 +112,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
     return next.handle().pipe(
       catchError((error: unknown) => from(this.recordFailure(scope, request.url, error))),
       mergeMap(async (body: unknown) => {
-        await this.store.complete(scope, { status: reply.statusCode, body: toJson(body) });
+        await this.record(scope, 'complete', () =>
+          this.store.complete(scope, { status: reply.statusCode, body: toJson(body) }),
+        );
         return body;
       }),
     );
@@ -118,11 +128,41 @@ export class IdempotencyInterceptor implements NestInterceptor {
   ): Promise<never> {
     const problem = toProblemDetails(error, url);
     if (problem.status < 500) {
-      await this.store.complete(scope, { status: problem.status, body: problem });
+      await this.record(scope, 'complete', () =>
+        this.store.complete(scope, { status: problem.status, body: problem }),
+      );
     } else {
-      await this.store.release(scope);
+      // Left unreleased, the claim still frees itself once it counts as abandoned.
+      await this.record(scope, 'release', () => this.store.release(scope));
     }
     throw error;
+  }
+
+  /**
+   * Runs a store write with brief retries. Never throws: the request's own outcome matters more
+   * to the client than its record, so a store that stays down is logged and the outcome sent.
+   */
+  private async record(
+    scope: IdempotencyScope,
+    operation: 'complete' | 'release',
+    write: () => Promise<void>,
+  ): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await write();
+        return;
+      } catch (error) {
+        const delay = RECORD_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) {
+          this.logger.error(
+            { err: error, idempotencyKey: scope.key, subject: scope.subject, operation },
+            'Could not record the outcome of an idempotent request; a retry after the claim timeout runs it again',
+          );
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
 }
 
