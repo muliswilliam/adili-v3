@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
 import { InMemoryIdentityProvisioning } from '../../src/identity/in-memory-identity-provisioning.js';
 import {
   ACTIVATION,
@@ -69,6 +70,19 @@ describe('InMemoryIdentityProvisioning', () => {
     await expect(identity.createStaffUser(reportingOfficer('taken@psc.go.ke'))).rejects.toThrow();
 
     expect(identity.calls('createStaffUser')).toHaveLength(1);
+  });
+
+  it('fails the next call of an operation on request, without effect, then recovers', async () => {
+    const identity = new InMemoryIdentityProvisioning();
+    const outage = new IdentityUnavailable('Keycloak is down');
+    identity.failNext('createStaffUser', outage);
+
+    await expect(identity.createStaffUser(reportingOfficer('new@tsc.go.ke'))).rejects.toBe(outage);
+    await expect(identity.findByEmail('new@tsc.go.ke')).resolves.toBeNull();
+    await expect(identity.createStaffUser(reportingOfficer('new@tsc.go.ke'))).resolves.toEqual(
+      expect.any(String),
+    );
+    expect(identity.calls('createStaffUser')).toHaveLength(2);
   });
 
   it('can be seeded with users per tenant', async () => {

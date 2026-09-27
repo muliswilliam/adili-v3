@@ -1460,7 +1460,10 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The email belongs to an account in another tenant */
+            /**
+             * @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the
+             *     email belongs to an account in another tenant (or in none).
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1471,6 +1474,18 @@ export interface operations {
             };
             /** @description Idempotency-Key reused with a different request body */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Problem type `identity-unavailable`: the identity provider failed, nothing was
+             *     assigned. Safe to retry with the same Idempotency-Key.
+             */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

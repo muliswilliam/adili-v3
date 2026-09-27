@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import {
+  ApiBadGatewayResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
@@ -21,9 +22,14 @@ import {
 } from '@adili/api-kit';
 
 import { STAFF_ROLES } from './access.js';
+import {
+  type AssignReportingOfficerBody,
+  assignReportingOfficerBody,
+} from './assign-reporting-officer.js';
 import { CommissionsService } from './commissions.service.js';
 import { type CreateCommissionBody, createCommissionBody } from './create-commission.js';
 import { type ListCommissionsQuery, listCommissionsQuery } from './list-query.js';
+import { ReportingOfficersService } from './reporting-officers.service.js';
 import type { Commission, CommissionPage, OfficerCategory } from './representation.js';
 
 @ApiTags('commissions')
@@ -31,7 +37,10 @@ import type { Commission, CommissionPage, OfficerCategory } from './representati
 @Controller('v1/commissions')
 @Roles(...STAFF_ROLES)
 export class CommissionsController {
-  constructor(private readonly commissions: CommissionsService) {}
+  constructor(
+    private readonly commissions: CommissionsService,
+    private readonly reportingOfficers: ReportingOfficersService,
+  ) {}
 
   @Post()
   @Roles('platform-admin')
@@ -53,6 +62,35 @@ export class CommissionsController {
     @Body(new ZodValidationPipe(createCommissionBody)) body: CreateCommissionBody,
   ): Promise<Commission> {
     return this.commissions.create(principal, body);
+  }
+
+  @Put(':slug/reporting-officer')
+  @Roles('platform-admin')
+  @RequireIdempotencyKey()
+  @ApiOperation({
+    operationId: 'assignReportingOfficer',
+    summary: "Assign the Commission's reporting officer",
+    description:
+      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role and sends exactly one activation email. Idempotent per Idempotency-Key.',
+  })
+  @ApiOkResponse({ description: 'Commission with the new assignment in state `invited`' })
+  @ApiBadRequestResponse({ description: 'Request failed validation' })
+  @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
+  @ApiNotFoundResponse({ description: 'Commission not found' })
+  @ApiConflictResponse({
+    description:
+      'The email belongs to an account in another tenant, or the Commission already has a reporting officer',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Idempotency-Key reused with a different request body',
+  })
+  @ApiBadGatewayResponse({ description: 'The identity provider failed; nothing was assigned' })
+  assignReportingOfficer(
+    @CurrentPrincipal() principal: Principal,
+    @Param('slug') slug: string,
+    @Body(new ZodValidationPipe(assignReportingOfficerBody)) body: AssignReportingOfficerBody,
+  ): Promise<Commission> {
+    return this.reportingOfficers.assign(principal, slug, body);
   }
 
   @Get()

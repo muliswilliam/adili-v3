@@ -4,6 +4,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, count, eq, ilike, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
 
+import { violatedUniqueConstraint } from '../db/errors.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
 import type { CreateCommissionBody } from './create-commission.js';
@@ -24,7 +25,7 @@ import {
   tenantPolicyVersions,
 } from './schema.js';
 
-type Transaction = Parameters<Parameters<Database<DirectorySchema>['transaction']>[0]>[0];
+export type Transaction = Parameters<Parameters<Database<DirectorySchema>['transaction']>[0]>[0];
 
 /** The current assignment: at most one per Commission is not `replaced`. */
 const currentAssignment = and(
@@ -249,16 +250,6 @@ function taken(fields: readonly ('slug' | 'name')[], body: CreateCommissionBody)
     detail: 'A Commission with this key or name already exists.',
     errors: fields.map((path) => ({ path, message: messages[path] })),
   });
-}
-
-/** The unique constraint a failed query violated, looking through Drizzle's error wrapper. */
-function violatedUniqueConstraint(error: unknown): string | undefined {
-  for (let cause = error; cause instanceof Error; cause = cause.cause) {
-    if ('code' in cause && cause.code === '23505' && 'constraint' in cause) {
-      return typeof cause.constraint === 'string' ? cause.constraint : undefined;
-    }
-  }
-  return undefined;
 }
 
 type CommissionRow = Awaited<

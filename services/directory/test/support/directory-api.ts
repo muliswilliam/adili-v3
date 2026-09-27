@@ -25,6 +25,11 @@ export interface Caller {
   roles?: string[];
 }
 
+export interface WriteOptions {
+  /** Random by default; null sends no header. */
+  idempotencyKey?: string | null;
+}
+
 export interface DirectoryApi {
   app: NestFastifyApplication;
   /** Direct database access for arranging fixtures; assertions go through HTTP. */
@@ -37,7 +42,14 @@ export interface DirectoryApi {
     url: string,
     body: unknown,
     caller: Caller,
-    options?: { idempotencyKey?: string | null },
+    options?: WriteOptions,
+  ): ReturnType<NestFastifyApplication['inject']>;
+  /** `PUT` a JSON body as the given caller, with an `Idempotency-Key` unless it is null. */
+  put(
+    url: string,
+    body: unknown,
+    caller: Caller,
+    options?: WriteOptions,
   ): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every directory table except seeded reference data. */
   reset(): Promise<void>;
@@ -78,6 +90,25 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
+  const write = async (
+    method: 'POST' | 'PUT',
+    path: string,
+    body: unknown,
+    caller: Caller,
+    { idempotencyKey = randomUUID() }: WriteOptions = {},
+  ) => {
+    const token = await signer(caller);
+    return app.inject({
+      method,
+      url: path,
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
+      },
+      payload: body as Record<string, unknown>,
+    });
+  };
+
   return {
     app,
     db,
@@ -90,17 +121,11 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
         headers: { authorization: `Bearer ${token}` },
       });
     },
-    async post(path, body, caller, { idempotencyKey = randomUUID() } = {}) {
-      const token = await signer(caller);
-      return app.inject({
-        method: 'POST',
-        url: path,
-        headers: {
-          authorization: `Bearer ${token}`,
-          ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
-        },
-        payload: body as Record<string, unknown>,
-      });
+    post(path, body, caller, options) {
+      return write('POST', path, body, caller, options);
+    },
+    put(path, body, caller, options) {
+      return write('PUT', path, body, caller, options);
     },
     async reset() {
       await db.execute(

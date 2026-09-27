@@ -171,13 +171,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: The email belongs to an account in another tenant
+          description: |
+            Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the
+            email belongs to an account in another tenant (or in none).
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '422':
           description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: |
+            Problem type `identity-unavailable`: the identity provider failed, nothing was
+            assigned. Safe to retry with the same Idempotency-Key.
           content:
             application/problem+json:
               schema:

@@ -17,6 +17,15 @@ export const RESERVED_SLUGS: readonly string[] = ['platform', 'new'];
 /** `CreateCommission.name` length. */
 export const NAME_LENGTH = { min: 3, max: 120 } as const;
 
+/** `AssignReportingOfficer.name` length. */
+export const OFFICER_NAME_LENGTH = { min: 2, max: 120 } as const;
+
+/** `AssignReportingOfficer.email` maximum length. */
+export const EMAIL_MAX_LENGTH = 254;
+
+/** `AssignReportingOfficer.phone`: E.164, a plus then 7 to 15 digits, not starting with 0. */
+export const E164_PATTERN = /^\+[1-9][0-9]{6,14}$/;
+
 /** `OfficerCategoryCode`: one paragraph of Act s.32 or Regs r.5. */
 export const OFFICER_CATEGORY_CODES = [
   'act-s32-2',
