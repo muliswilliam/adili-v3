@@ -3,6 +3,7 @@ import { XIcon } from 'lucide-react';
 import { type ComponentProps, createContext, useContext } from 'react';
 
 import { cn } from '../lib/cn';
+import { isInToastViewport } from './toast';
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -83,7 +84,8 @@ export function DialogContent({
           onEscapeKeyDown?.(event);
         }}
         onInteractOutside={(event) => {
-          if (busy) event.preventDefault();
+          // Toasts sit above the dialog; dismissing one should not close it.
+          if (busy || isInToastViewport(event.target)) event.preventDefault();
           onInteractOutside?.(event);
         }}
         className={cn(
