@@ -217,6 +217,105 @@ describe('Chart', () => {
     expect(screen.getByTestId('chart').id).toBe('filing-chart');
   });
 
+  it('bridges a line gap with a dashed segment that matches the legend key', () => {
+    const { container } = render(<Chart {...nationalTrend} />);
+
+    expect(
+      container.querySelectorAll('[data-chart-series="filing"] [data-chart-gap]'),
+    ).toHaveLength(1);
+    expect(
+      container.querySelectorAll('[data-chart-series="compliance"] [data-chart-gap]'),
+    ).toHaveLength(0);
+  });
+
+  it('does not bridge a gap at either end of a line', () => {
+    const { container } = render(
+      <Chart
+        {...nationalTrend}
+        data={[
+          { label: '2025', values: { filing: null, compliance: 70 } },
+          { label: '2026', values: { filing: 80, compliance: 72 } },
+          { label: '2027', values: { filing: null, compliance: 75 } },
+        ]}
+      />,
+    );
+
+    expect(container.querySelectorAll('[data-chart-gap]')).toHaveLength(0);
+  });
+
+  it('labels a value missing from the data as no data, not as suppressed', () => {
+    const { container } = render(
+      <Chart
+        {...byCommission}
+        data={[
+          { label: 'Public Service Commission', values: { filing: 91.2 } },
+          { label: 'National Police Service Commission', values: {} },
+        ]}
+      />,
+    );
+
+    const missingRow = screen.getByRole('row', { name: /National Police Service Commission/ });
+    expect(within(missingRow).getByRole('cell').textContent).toBe('No data');
+    expect(container.querySelectorAll('[data-chart-bar]')).toHaveLength(1);
+  });
+
+  it('keys missing and suppressed line gaps separately', () => {
+    const { container } = render(
+      <Chart
+        {...nationalTrend}
+        data={[
+          { label: '2025', values: { filing: 80, compliance: 70 } },
+          { label: '2026', values: { filing: null } },
+          { label: '2027', values: { filing: 91.2, compliance: 75 } },
+        ]}
+      />,
+    );
+
+    expect(
+      Array.from(container.querySelectorAll('[data-chart-gap-key]'), (key) => key.textContent),
+    ).toEqual(['Not shown', 'No data']);
+  });
+
+  it('renders an empty line chart without plotting or labelling anything', () => {
+    const { container } = render(<Chart {...nationalTrend} data={[]} />);
+
+    expect(screen.queryAllByRole('rowheader')).toHaveLength(0);
+    expect(
+      container.querySelectorAll('[data-chart-line], [data-chart-point], [data-chart-x-label]'),
+    ).toHaveLength(0);
+  });
+
+  it('thins year labels on a long line so they do not overlap on phones', () => {
+    const years = Array.from({ length: 12 }, (_, index) => `${2016 + index}/${17 + index}`);
+    const { container } = render(
+      <Chart
+        {...nationalTrend}
+        data={years.map((label, index) => ({
+          label,
+          values: { filing: 70 + index, compliance: 60 + index },
+        }))}
+      />,
+    );
+
+    const labels = Array.from(
+      container.querySelectorAll('[data-chart-x-label]'),
+      (label) => label.textContent,
+    );
+    expect(labels.length).toBeLessThanOrEqual(4);
+    expect(labels.at(-1)).toBe('2027/28');
+    // Every category still has a point and a table row.
+    expect(container.querySelectorAll('[data-chart-point]')).toHaveLength(24);
+    expect(screen.getAllByRole('rowheader')).toHaveLength(12);
+  });
+
+  it('labels every category on a short line', () => {
+    const { container } = render(<Chart {...nationalTrend} />);
+
+    expect(
+      Array.from(container.querySelectorAll('[data-chart-x-label]'), (label) => label.textContent),
+    ).toEqual(['2025', '2026', '2027']);
+  });
+
   it('works out a rounded maximum when none is given', () => {
     const { container } = render(<Chart {...byCommission} max={undefined} />);
 

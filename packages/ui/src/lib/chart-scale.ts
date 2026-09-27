@@ -41,12 +41,15 @@ export interface LinePoint {
   value: number;
 }
 
-/** Splits a series into runs of consecutive values, so a line breaks where a value is null. */
-export function lineSegments(values: readonly (number | null)[]): LinePoint[][] {
+/**
+ * Splits a series into runs of consecutive values, so a line breaks where a value is null
+ * (suppressed) or undefined (missing).
+ */
+export function lineSegments(values: readonly (number | null | undefined)[]): LinePoint[][] {
   const segments: LinePoint[][] = [];
   let current: LinePoint[] = [];
   values.forEach((value, index) => {
-    if (value === null) {
+    if (value === null || value === undefined) {
       if (current.length > 0) segments.push(current);
       current = [];
     } else {
@@ -55,4 +58,16 @@ export function lineSegments(values: readonly (number | null)[]): LinePoint[][] 
   });
   if (current.length > 0) segments.push(current);
   return segments;
+}
+
+/**
+ * Which category labels to show on an axis of `count` categories: all of them up to `limit`,
+ * otherwise every nth one counted back from the last, so the latest is always labelled. The step
+ * spreads at most `limit` labels over the whole axis, leaving room for the right-aligned last one.
+ */
+export function labelledIndexes(count: number, limit: number): number[] {
+  const step = count <= limit ? 1 : Math.ceil((count - 1) / (limit - 1));
+  const indexes: number[] = [];
+  for (let index = count - 1; index >= 0; index -= step) indexes.unshift(index);
+  return indexes;
 }

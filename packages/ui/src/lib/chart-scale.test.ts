@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chartAxis, lineSegments, tidy } from './chart-scale';
+import { chartAxis, labelledIndexes, lineSegments, tidy } from './chart-scale';
 
 describe('chartAxis', () => {
   it.each([
@@ -52,5 +52,28 @@ describe('lineSegments', () => {
 
   it('returns no segments when every value is null', () => {
     expect(lineSegments([null, null])).toEqual([]);
+  });
+
+  it('breaks the line at missing values too', () => {
+    expect(lineSegments([1, undefined, 3])).toEqual([
+      [{ index: 0, value: 1 }],
+      [{ index: 2, value: 3 }],
+    ]);
+  });
+});
+
+describe('labelledIndexes', () => {
+  it('labels every category when there are few', () => {
+    expect(labelledIndexes(4, 4)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('keeps at most the limit, evenly spaced and always including the last', () => {
+    expect(labelledIndexes(12, 4)).toEqual([3, 7, 11]);
+    expect(labelledIndexes(9, 4)).toEqual([2, 5, 8]);
+    expect(labelledIndexes(7, 4)).toEqual([0, 2, 4, 6]);
+  });
+
+  it('labels nothing when there is no data', () => {
+    expect(labelledIndexes(0, 5)).toEqual([]);
   });
 });
