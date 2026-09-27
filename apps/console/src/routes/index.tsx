@@ -7,6 +7,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardIcon,
   CardTitle,
   Icon,
   SiteFooter,
@@ -105,14 +106,14 @@ function Landing({ error }: { error: string | null }) {
 
 function Capability({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
-    <li className="flex gap-4 rounded-xl border bg-card p-5">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-secondary-foreground [&_svg]:size-5">
-        {icon}
-      </div>
-      <div className="grid gap-1">
-        <h2 className="font-semibold">{title}</h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
-      </div>
+    <li>
+      <Card className="flex-row gap-4">
+        <CardIcon className="mb-0 shrink-0">{icon}</CardIcon>
+        <div className="grid gap-1">
+          <h2 className="font-semibold">{title}</h2>
+          <CardDescription className="leading-relaxed">{text}</CardDescription>
+        </div>
+      </Card>
     </li>
   );
 }
@@ -124,7 +125,7 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
     <ConsoleShell userName={viewer.user.name} roles={roles}>
       <Page>
         <div className="grid gap-1.5">
-          <h1 className="text-lg font-semibold tracking-tight">Overview</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
           <p className="text-muted-foreground">Signed in as {viewer.user.name}.</p>
         </div>
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.4fr]">

@@ -108,7 +108,7 @@ export default function Login({ kcContext, i18n, doUseDefaultCss, Template, clas
               {realm.resetPasswordAllowed ? (
                 <a
                   href={url.loginResetCredentialsUrl}
-                  className="rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {msg('doForgotPassword')}
                 </a>
@@ -203,7 +203,7 @@ function PasswordInput({ i18n, hasError }: { i18n: I18n; hasError: boolean }) {
       />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         aria-label={msgStr(isPasswordRevealed ? 'hidePassword' : 'showPassword')}
         aria-controls="password"
         onClick={toggleIsPasswordRevealed}
