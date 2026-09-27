@@ -49,14 +49,14 @@ describe('InMemoryIdentityProvisioning', () => {
 
     await identity.findByEmail('officer@tsc.go.ke');
     const userId = await identity.createStaffUser(input);
-    await identity.grantRole(userId, 'reviewer');
+    await identity.grantRoleAndEnable(userId, 'reviewer');
     await identity.sendActivationEmail(userId, ACTIVATION);
     await identity.revokeRoleAndDisable(userId, 'reporting-officer');
 
     expect(identity.calls()).toEqual([
       { operation: 'findByEmail', email: 'officer@tsc.go.ke' },
       { operation: 'createStaffUser', input },
-      { operation: 'grantRole', userId, role: 'reviewer' },
+      { operation: 'grantRoleAndEnable', userId, role: 'reviewer' },
       { operation: 'sendActivationEmail', userId, options: ACTIVATION },
       { operation: 'revokeRoleAndDisable', userId, role: 'reporting-officer' },
     ]);
@@ -120,7 +120,7 @@ describe('InMemoryIdentityProvisioning', () => {
     const userId = identity.seedUser({ email: 'a@psc.go.ke', tenant: 'psc' });
 
     const before = identity.user(userId);
-    await identity.grantRole(userId, 'reviewer');
+    await identity.grantRoleAndEnable(userId, 'reviewer');
 
     expect(before?.roles).toEqual([]);
     expect(identity.user(userId)?.roles).toEqual(['reviewer']);

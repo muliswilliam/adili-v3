@@ -98,11 +98,25 @@ export const en = {
   assignChanged: 'These details changed after an earlier attempt',
   assignChangedText:
     'The first attempt may have sent the invitation. Close this dialog and check the reporting officer before sending again.',
-  assignAlreadyAssigned: 'This Commission already has a reporting officer',
-  assignAlreadyAssignedText: 'Close this dialog to see who it is.',
+  assignOfficerChanged: 'The reporting officer changed while this was sent',
+  assignOfficerChangedText: 'Close this dialog to see who it is now.',
   assignNotFound: 'This Commission no longer exists',
   assignForbidden: 'Only platform administrators can assign reporting officers.',
   invitationSentToast: (email: string) => `Invitation sent to ${email}`,
+  // Replace and resend
+  officerReplace: 'Replace',
+  replaceTitle: 'Replace reporting officer',
+  replaceWarning: (name: string) =>
+    `${name} will lose access to this Commission immediately. Their account will be disabled.`,
+  officerResend: 'Resend invitation',
+  officerResending: 'Resending…',
+  invitationResentToast: (email: string) => `Invitation sent again to ${email}`,
+  resendActivated: 'This officer has already activated.',
+  resendNoOfficer: 'This Commission no longer has a reporting officer.',
+  resendAccountMissing:
+    "This officer's account no longer exists. Replace the officer to invite someone.",
+  resendForbidden: 'Only platform administrators can resend invitations.',
+  resendError: 'The invitation was not sent again. Try again.',
   rosterCardTitle: 'Roster',
   rosterNoneTitle: 'No roster yet',
   rosterNoneText: 'The reporting officer imports the roster after activating their account.',

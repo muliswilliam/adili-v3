@@ -17,6 +17,12 @@ const OFFICER = {
   phone: '+254712345678',
 };
 
+const SUCCESSOR = {
+  name: 'Brian Otieno',
+  email: 'brian.otieno@tsc.go.ke',
+  phone: '+254722000111',
+};
+
 interface Officer {
   id: string;
   state: string;
@@ -221,6 +227,58 @@ describe('observer off the hot path', () => {
     await api.get('/v1/me', { ...staff, roles: ['reviewer', 'reporting-officer'] });
 
     expect((await commission()).reportingOfficer?.state).toBe('activated');
+    expect(await activatedEvents()).toHaveLength(1);
+  });
+
+  it('looks a replacing officer’s existing account up again once they replace the officer', async () => {
+    await assignOfficer();
+    const userId = api.identity.seedUser({
+      email: SUCCESSOR.email,
+      tenant: 'tsc',
+      roles: ['reviewer'],
+    });
+    const staff = { sub: userId, tenant: 'tsc', roles: ['reviewer'] };
+    await api.get('/v1/me', staff);
+
+    const replaced = await api.put(
+      '/v1/commissions/tsc/reporting-officer',
+      SUCCESSOR,
+      PLATFORM_ADMIN,
+    );
+    expect(replaced.statusCode).toBe(200);
+    await api.get('/v1/me', { ...staff, roles: ['reviewer', 'reporting-officer'] });
+
+    expect((await commission()).reportingOfficer).toMatchObject({
+      email: SUCCESSOR.email,
+      state: 'activated',
+    });
+    expect(await activatedEvents()).toHaveLength(1);
+  });
+
+  it('looks a previously replaced officer up again once they are assigned again', async () => {
+    const first = await assignOfficer();
+    const replaced = await api.put(
+      '/v1/commissions/tsc/reporting-officer',
+      SUCCESSOR,
+      PLATFORM_ADMIN,
+    );
+    expect(replaced.statusCode).toBe(200);
+    // The replaced officer has no invitation waiting now, and is remembered so.
+    await api.get('/v1/me', first);
+    expect(await api.activationLookups.knownNotInvited(first.sub ?? '')).toBe(true);
+
+    const reassigned = await api.put(
+      '/v1/commissions/tsc/reporting-officer',
+      OFFICER,
+      PLATFORM_ADMIN,
+    );
+    expect(reassigned.statusCode).toBe(200);
+    await api.get('/v1/me', first);
+
+    expect((await commission()).reportingOfficer).toMatchObject({
+      email: OFFICER.email,
+      state: 'activated',
+    });
     expect(await activatedEvents()).toHaveLength(1);
   });
 });

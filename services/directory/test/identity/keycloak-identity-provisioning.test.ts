@@ -188,6 +188,44 @@ describe('KeycloakIdentityProvisioning', () => {
     );
   });
 
+  it.each([
+    [false, ['POST role-mappings/realm', 'GET user-1', 'PUT user-1']],
+    [true, ['POST role-mappings/realm', 'GET user-1']],
+  ])(
+    'grants the role and enables the account only when it is disabled (enabled: %s)',
+    async (enabled, expected) => {
+      const user = {
+        id: 'user-1',
+        username: 'a@tsc.go.ke',
+        enabled,
+        attributes: { tenant: ['tsc'] },
+      };
+      const { adapter, requests } = keycloak({
+        [TOKEN]: tokenOk,
+        [`GET ${ADMIN}/users/user-1/role-mappings/realm/available`]: available,
+        [`POST ${ADMIN}/users/user-1/role-mappings/realm`]: () =>
+          new Response(null, { status: 204 }),
+        [`GET ${ADMIN}/users/user-1`]: () => Response.json(user),
+        [`PUT ${ADMIN}/users/user-1`]: () => new Response(null, { status: 204 }),
+      });
+
+      await adapter.grantRoleAndEnable('user-1', 'reporting-officer');
+
+      const calls = requests
+        .filter((request) => request.url.pathname.startsWith(ADMIN))
+        .filter((request) => !request.url.pathname.endsWith('/available'))
+        .map(
+          (request) =>
+            `${request.method} ${request.url.pathname.replace(`${ADMIN}/users/`, '').replace('user-1/', '')}`,
+        );
+      expect(calls).toEqual(expected);
+      if (!enabled) {
+        // The full representation goes back, so attributes such as the tenant survive.
+        expect(requests.at(-1)?.body).toEqual({ ...user, enabled: true });
+      }
+    },
+  );
+
   it('sends execute-actions-email with lifespan, redirect and client', async () => {
     const { adapter, requests } = keycloak({
       [TOKEN]: tokenOk,

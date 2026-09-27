@@ -1,5 +1,16 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiAcceptedResponse,
   ApiBadGatewayResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -69,17 +80,16 @@ export class CommissionsController {
   @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'assignReportingOfficer',
-    summary: "Assign the Commission's reporting officer",
+    summary: "Assign or replace the Commission's reporting officer",
     description:
-      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role and sends exactly one activation email. Idempotent per Idempotency-Key.',
+      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role and sends exactly one activation email. A current officer is replaced: their assignment becomes `replaced` and their account loses the role and is disabled. Idempotent per Idempotency-Key.',
   })
   @ApiOkResponse({ description: 'Commission with the new assignment in state `invited`' })
   @ApiBadRequestResponse({ description: 'Request failed validation' })
   @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
   @ApiNotFoundResponse({ description: 'Commission not found' })
   @ApiConflictResponse({
-    description:
-      'The email belongs to an account in another tenant, or the Commission already has a reporting officer',
+    description: 'The email belongs to an account in another tenant (or in none)',
   })
   @ApiUnprocessableEntityResponse({
     description: 'Idempotency-Key reused with a different request body',
@@ -91,6 +101,27 @@ export class CommissionsController {
     @Body(new ZodValidationPipe(assignReportingOfficerBody)) body: AssignReportingOfficerBody,
   ): Promise<Commission> {
     return this.reportingOfficers.assign(principal, slug, body);
+  }
+
+  @Post(':slug/reporting-officer/resend-invitation')
+  @Roles('platform-admin')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    operationId: 'resendReportingOfficerInvitation',
+    summary: 'Send the activation email again',
+    description:
+      'platform-admin only. Allowed while the assignment is `invited`; the new link is valid for 72 hours.',
+  })
+  @ApiAcceptedResponse({ description: 'Email requested' })
+  @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
+  @ApiNotFoundResponse({ description: 'Commission not found or no reporting officer' })
+  @ApiConflictResponse({ description: 'The reporting officer has already activated' })
+  @ApiBadGatewayResponse({ description: 'The identity provider failed; no email was sent' })
+  resendReportingOfficerInvitation(
+    @CurrentPrincipal() principal: Principal,
+    @Param('slug') slug: string,
+  ): Promise<void> {
+    return this.reportingOfficers.resendInvitation(principal, slug);
   }
 
   @Get()

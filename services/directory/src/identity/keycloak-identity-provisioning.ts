@@ -102,7 +102,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       throw new IdentityUnavailable('Keycloak created the user without returning its location');
     }
     try {
-      await this.grantRole(userId, input.role);
+      await this.grantRealmRole(userId, input.role);
     } catch (error) {
       // Leave no half-provisioned account behind; the caller retries the whole creation.
       await this.request('DELETE', `/users/${userId}`).catch(() => undefined);
@@ -111,7 +111,37 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     return userId;
   }
 
-  async grantRole(userId: string, role: string): Promise<void> {
+  async grantRoleAndEnable(userId: string, role: string): Promise<void> {
+    await this.grantRealmRole(userId, role);
+    const user = await this.user(userId);
+    if (user.enabled === false) await this.putUser(userId, { ...user, enabled: true });
+  }
+
+  async revokeRoleAndDisable(userId: string, role: string): Promise<void> {
+    const held = await this.realmRoles(userId, 'held');
+    const representation = held.find((candidate) => candidate.name === role);
+    if (representation) {
+      await this.request('DELETE', `/users/${userId}/role-mappings/realm`, {
+        body: [representation],
+        userId,
+      });
+    }
+    await this.putUser(userId, { ...(await this.user(userId)), enabled: false });
+  }
+
+  async sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void> {
+    await this.request('PUT', `/users/${userId}/execute-actions-email`, {
+      query: {
+        lifespan: String(options.lifespanSeconds),
+        redirect_uri: options.redirectUri,
+        client_id: options.clientId,
+      },
+      body: options.actions,
+      userId,
+    });
+  }
+
+  private async grantRealmRole(userId: string, role: string): Promise<void> {
     // Roles are looked up per user: reading `/roles` would need `view-realm` as well.
     const available = await this.realmRoles(userId, 'available');
     const representation = available.find((candidate) => candidate.name === role);
@@ -128,31 +158,14 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     }
   }
 
-  async revokeRoleAndDisable(userId: string, role: string): Promise<void> {
-    const held = await this.realmRoles(userId, 'held');
-    const representation = held.find((candidate) => candidate.name === role);
-    if (representation) {
-      await this.request('DELETE', `/users/${userId}/role-mappings/realm`, {
-        body: [representation],
-        userId,
-      });
-    }
-    // Send the full representation back: partial updates can drop profile attributes.
+  private async user(userId: string): Promise<UserRepresentation> {
     const response = await this.request('GET', `/users/${userId}`, { userId });
-    const user = (await response.json()) as UserRepresentation;
-    await this.request('PUT', `/users/${userId}`, { body: { ...user, enabled: false }, userId });
+    return (await response.json()) as UserRepresentation;
   }
 
-  async sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void> {
-    await this.request('PUT', `/users/${userId}/execute-actions-email`, {
-      query: {
-        lifespan: String(options.lifespanSeconds),
-        redirect_uri: options.redirectUri,
-        client_id: options.clientId,
-      },
-      body: options.actions,
-      userId,
-    });
+  /** Sends the full representation back: partial updates can drop profile attributes. */
+  private async putUser(userId: string, user: UserRepresentation): Promise<void> {
+    await this.request('PUT', `/users/${userId}`, { body: user, userId });
   }
 
   /** Realm roles mapped directly to the user, or those that could still be mapped. */

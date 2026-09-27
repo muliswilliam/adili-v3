@@ -12,7 +12,16 @@ import {
   FormField,
   Input,
 } from '@adili/ui';
-import { Check, CircleAlert, LoaderCircle, Mail, Send, UserPlus } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  Check,
+  CircleAlert,
+  LoaderCircle,
+  Mail,
+  Send,
+  TriangleAlert,
+  UserPlus,
+} from 'lucide-react';
 import { type SyntheticEvent, useId, useRef, useState } from 'react';
 
 import { assignReportingOfficer } from '../../server/commissions';
@@ -42,7 +51,12 @@ interface DialogState {
 }
 
 export interface AssignDialogProps {
-  commission: Pick<Commission, 'slug' | 'name'>;
+  commission: Pick<Commission, 'slug' | 'name' | 'reportingOfficer'>;
+  /**
+   * `replace` when the Commission has an officer: the dialog warns that they lose access. The
+   * request is the same either way; the directory replaces a current officer.
+   */
+  mode?: 'assign' | 'replace';
   /** Called with the updated Commission once the invitation is sent. */
   onAssigned: (commission: Commission) => void;
   /** Where focus goes when the dialog closes; defaults to the trigger. */
@@ -50,7 +64,7 @@ export interface AssignDialogProps {
 }
 
 /**
- * Content of the assign dialog (spec 01, Assign / replace dialog). Mount it inside an open
+ * Content of the assign / replace dialog (spec 01, Assign / replace dialog). Mount it inside an open
  * `Dialog`: its state, including the Idempotency-Key, lives as long as the dialog is open. The
  * key is made on the first submit, kept across retries after network errors and 5xx, and
  * replaced once the directory has stored an outcome for it (4xx), so corrected details are not
@@ -58,6 +72,7 @@ export interface AssignDialogProps {
  */
 export function AssignDialogContent({
   commission,
+  mode = 'assign',
   onAssigned,
   onCloseAutoFocus,
 }: AssignDialogProps) {
@@ -154,6 +169,7 @@ export function AssignDialogContent({
   };
 
   const phone = normalisePhone(draft.phone);
+  const replacing = mode === 'replace' ? commission.reportingOfficer : null;
 
   return (
     <DialogContent
@@ -163,16 +179,26 @@ export function AssignDialogContent({
     >
       <DialogHeader className="flex-row items-center gap-3 px-6 pt-6 pb-5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-          <UserPlus aria-hidden="true" className="size-[18px]" />
+          {replacing ? (
+            <ArrowRightLeft aria-hidden="true" className="size-[18px]" />
+          ) : (
+            <UserPlus aria-hidden="true" className="size-[18px]" />
+          )}
         </span>
         <div className="grid min-w-0 gap-0.5">
-          <DialogTitle>{m.assignTitle}</DialogTitle>
+          <DialogTitle>{replacing ? m.replaceTitle : m.assignTitle}</DialogTitle>
           <DialogDescription className="truncate">{commission.name}</DialogDescription>
         </div>
       </DialogHeader>
 
       <form noValidate onSubmit={(event) => void submit(event)} aria-busy={submitting}>
         <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-5 border-0 px-6 pb-6">
+          {replacing ? (
+            <Alert variant="warning" role="status">
+              <TriangleAlert aria-hidden="true" />
+              <AlertDescription>{m.replaceWarning(replacing.name)}</AlertDescription>
+            </Alert>
+          ) : null}
           <div ref={alertsRef} tabIndex={-1} className="outline-none empty:hidden">
             {state.alert ? (
               <SubmitAlert
@@ -296,7 +322,7 @@ function SubmitAlert({
     error: { title: m.assignError, text: m.assignErrorText },
     'in-progress': { title: m.assignInProgress, text: m.assignInProgressText },
     changed: { title: m.assignChanged, text: m.assignChangedText },
-    assigned: { title: m.assignAlreadyAssigned, text: m.assignAlreadyAssignedText },
+    'officer-changed': { title: m.assignOfficerChanged, text: m.assignOfficerChangedText },
     'not-found': { title: m.assignNotFound },
     forbidden: { title: m.assignForbidden },
   };

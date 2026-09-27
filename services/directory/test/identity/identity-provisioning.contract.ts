@@ -123,11 +123,24 @@ export function identityProvisioningContract(name: string, harness: () => Contra
     it('grants a role idempotently', async () => {
       const userId = await create(reportingOfficer(uniqueEmail('grant')));
 
-      await harness().adapter.grantRole(userId, 'reviewer');
-      await harness().adapter.grantRole(userId, 'reviewer');
+      await harness().adapter.grantRoleAndEnable(userId, 'reviewer');
+      await harness().adapter.grantRoleAndEnable(userId, 'reviewer');
 
       const { realmRoles } = await harness().inspect(userId);
       expect(realmRoles).toEqual(expect.arrayContaining(['reporting-officer', 'reviewer']));
+    });
+
+    it('grants a role back to a disabled user and enables it again', async () => {
+      const userId = await create(reportingOfficer(uniqueEmail('reenable')));
+      await harness().adapter.revokeRoleAndDisable(userId, 'reporting-officer');
+
+      await harness().adapter.grantRoleAndEnable(userId, 'reporting-officer');
+
+      const user = await harness().inspect(userId);
+      expect(user.realmRoles).toContain('reporting-officer');
+      expect(user.enabled).toBe(true);
+      expect(user.tenant).toBe('tsc');
+      expect(user.phone).toBe('+254712345678');
     });
 
     it('revokes a role and disables the user, keeping the tenant attribute', async () => {
@@ -154,7 +167,7 @@ export function identityProvisioningContract(name: string, harness: () => Contra
     it('reports an unknown user id as IdentityUserNotFound', async () => {
       const { adapter } = harness();
 
-      await expect(adapter.grantRole(UNKNOWN_USER_ID, 'reviewer')).rejects.toBeInstanceOf(
+      await expect(adapter.grantRoleAndEnable(UNKNOWN_USER_ID, 'reviewer')).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );
       await expect(

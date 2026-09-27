@@ -111,7 +111,8 @@ export const assignReportingOfficerInput = z.object({
 
 /**
  * `PUT /v1/commissions/{slug}/reporting-officer` with the dialog's Idempotency-Key: invites the
- * officer (one activation email). Platform admins only; anyone else gets the 403 problem.
+ * officer (one activation email), replacing a current officer, whose account is disabled.
+ * Platform admins only; anyone else gets the 403 problem.
  */
 export const assignReportingOfficer = createServerFn({ method: 'POST' })
   .validator(assignReportingOfficerInput)
@@ -127,4 +128,23 @@ export const assignReportingOfficer = createServerFn({ method: 'POST' })
         }),
       ),
     ),
+  );
+
+/**
+ * `POST /v1/commissions/{slug}/reporting-officer/resend-invitation`: a new activation email for
+ * an invited officer (202, no body). No Idempotency-Key: repeating it only sends another email.
+ */
+export const resendInvitation = createServerFn({ method: 'POST' })
+  .validator(z.object({ slug: z.string().min(1).max(40) }))
+  .handler(({ data }): Promise<DirectoryResult<null>> =>
+    asViewer(async (client) => {
+      const result = await callDirectory(() =>
+        client.POST('/v1/commissions/{slug}/reporting-officer/resend-invitation', {
+          params: { path: { slug: data.slug } },
+          // 202 has no body; read it as text so an empty response is never parsed as JSON.
+          parseAs: 'text',
+        }),
+      );
+      return result.ok ? { ok: true, data: null } : result;
+    }),
   );
