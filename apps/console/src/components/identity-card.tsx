@@ -15,13 +15,17 @@ import {
 import { CircleAlert, ShieldCheck } from 'lucide-react';
 
 import type { PrincipalResult } from '../server/directory.server';
+import type { Organisation } from './organisation';
+import { platformRoles, roleLabel } from './roles';
 
 export function IdentityCard({
   user,
   directory,
+  organisation,
 }: {
   user: SessionUser;
   directory: PrincipalResult;
+  organisation: Organisation;
 }) {
   return (
     <Card>
@@ -47,19 +51,13 @@ export function IdentityCard({
           {directory.ok ? (
             <>
               <DescriptionItem term="Organisation">
-                {directory.principal.tenant ? (
-                  <span className="font-mono text-[13px] uppercase">
-                    {directory.principal.tenant}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Not assigned</span>
-                )}
+                <OrganisationName organisation={organisation} />
               </DescriptionItem>
               <DescriptionItem term="Roles">
                 <span className="flex flex-wrap gap-1.5">
                   {platformRoles(directory.principal.roles).map((role) => (
                     <Badge key={role} variant="neutral">
-                      {role}
+                      {roleLabel(role)}
                     </Badge>
                   ))}
                 </span>
@@ -79,12 +77,23 @@ export function IdentityCard({
   );
 }
 
-/** Hides Keycloak's built-in roles, which mean nothing to users. */
-export function platformRoles(roles: readonly string[]): string[] {
-  return roles.filter(
-    (role) =>
-      role !== 'offline_access' &&
-      role !== 'uma_authorization' &&
-      !role.startsWith('default-roles-'),
-  );
+function OrganisationName({ organisation }: { organisation: Organisation }) {
+  switch (organisation.kind) {
+    case 'commission':
+      return (
+        <span className="grid gap-0.5">
+          <span>{organisation.name}</span>
+          <span className="font-mono text-xs text-muted-foreground uppercase">
+            {organisation.key}
+          </span>
+        </span>
+      );
+    case 'platform':
+      return <span>Adili Online platform team</span>;
+    case 'key-only':
+      // The directory did not return the Commission's name; its key still identifies it.
+      return <span className="font-mono text-[13px] uppercase">{organisation.key}</span>;
+    case 'none':
+      return <span className="text-muted-foreground">Not assigned</span>;
+  }
 }
