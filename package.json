@@ -26,7 +26,8 @@
     "format:check": "prettier --check .",
     "deps:check": "depcruise services packages apps --config .dependency-cruiser.cjs",
     "check": "pnpm format:check && turbo run lint typecheck test && pnpm deps:check",
-    "health": "node scripts/health.mjs"
+    "health": "node scripts/health.mjs",
+    "keycloak:check": "node scripts/check-keycloak-realm.mjs"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",
