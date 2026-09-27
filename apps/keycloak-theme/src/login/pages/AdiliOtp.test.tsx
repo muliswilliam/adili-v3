@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { OTP_ACTIONS, OTP_FIELDS } from '../adili-otp';
@@ -65,6 +65,39 @@ describe('OTP page', () => {
 
     const waiting = await screen.findByRole('button', { name: /Resend in 1:00|Resend in 0:59/ });
     expect((waiting as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('announces the resend wait politely at 10-second steps only', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    try {
+      renderStory('otp');
+      await screen.findByRole('button', { name: 'Resend in 1:00' });
+      const live = document.querySelector('.sr-only[aria-live="polite"]');
+      if (!live) throw new Error('no live region for the resend wait');
+      expect(live.textContent).toBe('');
+
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+      expect(live.textContent).toBe('');
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(live.textContent).toBe('You can ask for a new code in 50 seconds.');
+
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(live.textContent).toBe('You can ask for a new code in 40 seconds.');
+
+      act(() => {
+        vi.advanceTimersByTime(40_000);
+      });
+      expect(live.textContent).toBe('You can ask for a new code now.');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('offers a resend and the other channel once the cooldown is over', async () => {

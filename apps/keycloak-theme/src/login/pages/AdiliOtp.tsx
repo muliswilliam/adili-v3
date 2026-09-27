@@ -1,4 +1,14 @@
-import { Button, Icon, MaskedContact, OtpInput } from '@adili/ui';
+import {
+  Button,
+  countdownAnnouncement,
+  formatClock,
+  Icon,
+  MaskedContact,
+  OtpInput,
+  secondsUntil,
+  Spinner,
+  useCountdown,
+} from '@adili/ui';
 import {
   AlertCircleIcon,
   Clock01Icon,
@@ -10,10 +20,9 @@ import { useEffect, useRef, useState } from 'react';
 
 import { type OtpAction, OTP_ACTIONS, OTP_FIELDS, type OtpChannel } from '../adili-otp';
 import { Callout, PageAlert } from '../components/PageAlert';
-import { Spinner } from '../components/Spinner';
-import { countdownAnnouncement, formatClock, parseInstant, useSecondsUntil } from '../countdown';
 import type { I18n } from '../i18n';
 import type { KcContext } from '../KcContext';
+import type { MessageKey } from '../shared';
 import Template from '../Template';
 
 export type AdiliOtpKcContext = Extract<KcContext, { pageId: 'login-adili-otp.ftl' }>;
@@ -22,10 +31,44 @@ type AdiliOtpProps = PageProps<AdiliOtpKcContext, I18n>;
 /** The number of new codes a sign-in starts with; "codes left" shows once one is used. */
 const MAX_RESENDS = 3;
 
-const contactKind = (channel: OtpChannel) => (channel === 'email' ? 'email' : 'phone');
-const otherChannel = (channel: OtpChannel): OtpChannel => (channel === 'sms' ? 'email' : 'sms');
-const sendAction = (channel: OtpChannel): OtpAction =>
-  channel === 'sms' ? OTP_ACTIONS.sendSms : OTP_ACTIONS.sendEmail;
+interface ChannelCopy {
+  other: OtpChannel;
+  contactKind: 'phone' | 'email';
+  /** The action that sends a code on this channel. */
+  send: OtpAction;
+  sentTo: MessageKey;
+  switchTo: MessageKey;
+  instead: MessageKey;
+  sendBy: MessageKey;
+  retry: MessageKey;
+  failedTitle: MessageKey;
+}
+
+/** Everything that differs by channel: the other channel, the action and the copy. */
+const CHANNELS = {
+  sms: {
+    other: 'email',
+    contactKind: 'phone',
+    send: OTP_ACTIONS.sendSms,
+    sentTo: 'adiliOtpSentBySms',
+    switchTo: 'adiliOtpSwitchToSms',
+    instead: 'adiliOtpSmsInstead',
+    sendBy: 'adiliOtpSendBySms',
+    retry: 'adiliOtpRetrySms',
+    failedTitle: 'adiliOtpSmsFailedTitle',
+  },
+  email: {
+    other: 'sms',
+    contactKind: 'email',
+    send: OTP_ACTIONS.sendEmail,
+    sentTo: 'adiliOtpSentByEmail',
+    switchTo: 'adiliOtpSwitchToEmail',
+    instead: 'adiliOtpEmailInstead',
+    sendBy: 'adiliOtpSendByEmail',
+    retry: 'adiliOtpRetryEmail',
+    failedTitle: 'adiliOtpEmailFailedTitle',
+  },
+} as const satisfies Record<OtpChannel, ChannelCopy>;
 
 /**
  * The declarant's second factor (login-adili-otp.ftl, rendered by the `adili-otp`
@@ -52,6 +95,7 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
   const form = useRef<HTMLFormElement>(null);
+  const other = CHANNELS[channel].other;
 
   // Submit once the sixth digit has rendered into the hidden `otp` field; there is no button.
   useEffect(() => {
@@ -76,9 +120,9 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
       headerNode={msg(isStepUp ? 'adiliOtpStepUpTitle' : 'adiliOtpTitle')}
       subtitleNode={
         <>
-          {msg(channel === 'email' ? 'adiliOtpSentByEmail' : 'adiliOtpSentBySms')}{' '}
+          {msg(CHANNELS[channel].sentTo)}{' '}
           <MaskedContact
-            kind={contactKind(channel)}
+            kind={CHANNELS[channel].contactKind}
             value={maskedDestination}
             privacyHint={msgStr('adiliPartiallyHidden')}
             className="text-foreground"
@@ -143,10 +187,10 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
               type="submit"
               variant="link"
               name={OTP_FIELDS.action}
-              value={sendAction(otherChannel(channel))}
+              value={CHANNELS[other].send}
               disabled={checking}
             >
-              {msg(channel === 'sms' ? 'adiliOtpSwitchToEmail' : 'adiliOtpSwitchToSms')}
+              {msg(CHANNELS[other].switchTo)}
             </Button>
           ) : null}
         </div>
@@ -166,7 +210,7 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
 
 /**
  * "Resend code", disabled with a countdown until the authenticator's cooldown ends. The wait
- * ticks every second on screen, but screen readers hear it only at coarse steps.
+ * ticks every second on screen, but screen readers hear it only at 10-second steps.
  */
 function ResendButton({
   i18n,
@@ -178,7 +222,7 @@ function ResendButton({
   disabled: boolean;
 }) {
   const { msg, msgStr } = i18n;
-  const secondsLeft = useSecondsUntil(parseInstant(resendAvailableAt));
+  const [secondsLeft] = useCountdown(secondsUntil(resendAvailableAt));
   const [announcement, setAnnouncement] = useState('');
   const previous = useRef(secondsLeft);
 
@@ -216,9 +260,8 @@ function SendFailed({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps
   const { url, channel, sendFailed, alternativeDestination } = kcContext;
   const { msg, msgStr } = i18n;
   const both = sendFailed === 'both';
-  const failed: OtpChannel =
-    sendFailed === 'email' ? 'email' : sendFailed === 'sms' ? 'sms' : channel;
-  const other = otherChannel(failed);
+  const failed: OtpChannel = !sendFailed || sendFailed === 'both' ? channel : sendFailed;
+  const other = CHANNELS[failed].other;
   const canSwitch = !both && alternativeDestination !== undefined;
 
   return (
@@ -228,13 +271,7 @@ function SendFailed({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps
       doUseDefaultCss={doUseDefaultCss}
       classes={classes}
       mark={both ? { icon: WifiDisconnected01Icon, tone: 'destructive' } : undefined}
-      headerNode={msg(
-        both
-          ? 'adiliOtpBothFailedTitle'
-          : failed === 'sms'
-            ? 'adiliOtpSmsFailedTitle'
-            : 'adiliOtpEmailFailedTitle',
-      )}
+      headerNode={msg(both ? 'adiliOtpBothFailedTitle' : CHANNELS[failed].failedTitle)}
       subtitleNode={msg(
         both
           ? 'adiliOtpBothFailedText'
@@ -247,9 +284,9 @@ function SendFailed({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps
         {canSwitch ? (
           <>
             <Callout>
-              {msg(other === 'email' ? 'adiliOtpEmailInstead' : 'adiliOtpSmsInstead')}{' '}
+              {msg(CHANNELS[other].instead)}{' '}
               <MaskedContact
-                kind={contactKind(other)}
+                kind={CHANNELS[other].contactKind}
                 value={alternativeDestination}
                 privacyHint={msgStr('adiliPartiallyHidden')}
               />
@@ -258,27 +295,27 @@ function SendFailed({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps
             <Button
               type="submit"
               name={OTP_FIELDS.action}
-              value={sendAction(other)}
+              value={CHANNELS[other].send}
               className="w-full"
               autoFocus
             >
-              {msg(other === 'email' ? 'adiliOtpSendByEmail' : 'adiliOtpSendBySms')}
+              {msg(CHANNELS[other].sendBy)}
             </Button>
             <Button
               type="submit"
               variant="ghost"
               name={OTP_FIELDS.action}
-              value={sendAction(failed)}
+              value={CHANNELS[failed].send}
               className="w-full"
             >
-              {msg(failed === 'sms' ? 'adiliOtpRetrySms' : 'adiliOtpRetryEmail')}
+              {msg(CHANNELS[failed].retry)}
             </Button>
           </>
         ) : (
           <Button
             type="submit"
             name={OTP_FIELDS.action}
-            value={both ? OTP_ACTIONS.resend : sendAction(failed)}
+            value={both ? OTP_ACTIONS.resend : CHANNELS[failed].send}
             className="w-full"
             autoFocus
           >
