@@ -177,13 +177,23 @@ async function openSource(
     }
     return { ok: true, mapping: file.mapping, rows: file.rows };
   } catch (error) {
-    if (error instanceof UploadNotFound || error instanceof UploadNotClean) {
+    if (error instanceof UploadNotFound) {
+      return {
+        ok: false,
+        mapping: null,
+        failure: {
+          code: 'upload-missing',
+          detail: 'The uploaded file is no longer available. Upload it again.',
+        },
+      };
+    }
+    if (error instanceof UploadNotClean) {
       return {
         ok: false,
         mapping: null,
         failure: {
           code: 'upload-not-clean',
-          detail: 'The uploaded file is no longer available. Upload it again.',
+          detail: 'The uploaded file has not passed its checks. Upload it again.',
         },
       };
     }

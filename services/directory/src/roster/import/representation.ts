@@ -19,6 +19,7 @@ import {
 export const IMPORT_FAILURE_CODES = [
   'missing-columns',
   'upload-not-clean',
+  'upload-missing',
   'parse-error',
   'storage-error',
   'internal',

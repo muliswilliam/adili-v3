@@ -60,6 +60,9 @@ describe('failureReason', () => {
     expect(failureReason({ code: 'upload-not-clean' })).toBe(
       'the file had not passed the security scan',
     );
+    expect(failureReason({ code: 'upload-missing' })).toBe(
+      'the uploaded file was no longer available',
+    );
   });
 });
 

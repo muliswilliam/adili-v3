@@ -1006,7 +1006,7 @@ export interface components {
         /** @enum {string} */
         ImportState: "pending" | "processing" | "completed" | "failed";
         /** @enum {string} */
-        ImportFailureCode: "missing-columns" | "upload-not-clean" | "parse-error" | "storage-error" | "internal";
+        ImportFailureCode: "missing-columns" | "upload-not-clean" | "upload-missing" | "parse-error" | "storage-error" | "internal";
         ColumnMapping: {
             /** @description File headers matched to template columns, in file order */
             matched: {

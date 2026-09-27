@@ -2688,6 +2688,7 @@ components:
       enum:
         - missing-columns
         - upload-not-clean
+        - upload-missing
         - parse-error
         - storage-error
         - internal

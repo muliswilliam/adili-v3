@@ -40,6 +40,8 @@ export function failureReason(failure: Pick<ImportFailure, 'code'>): string {
       return 'the file could not be read from storage';
     case 'upload-not-clean':
       return 'the file had not passed the security scan';
+    case 'upload-missing':
+      return 'the uploaded file was no longer available';
     case 'internal':
       return 'a system error interrupted it';
   }
