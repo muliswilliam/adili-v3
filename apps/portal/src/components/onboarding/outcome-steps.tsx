@@ -163,8 +163,7 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
     try {
       const result = await resendSetPasswordEmail();
       if (result.ok) {
-        // It has just gone, so there is always a wait.
-        startCountdown(emailWait(result.session.otp.resendAvailableAt) || RESEND_COOLDOWN_SECONDS);
+        startCountdown(emailWait(result.session.otp.resendAvailableAt));
         toast({ title: 'Email sent again' });
       } else if (result.code === 'resend-cooldown') {
         startCountdown(result.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);

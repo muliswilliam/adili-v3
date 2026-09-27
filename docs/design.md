@@ -131,7 +131,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Spinner` | `.spinner` | 18px ring in the current text colour, spinning (still when reduced motion is set); decorative |
 | `StatusMark` | state icon on login outcome pages | 56px circle with a 28px icon above an outcome or error title; tones `success`, `warning`, `destructive`, `neutral` on their soft fills |
 
-Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
+Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `useCountdownAnnouncement`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 
 ## Dark theme
 

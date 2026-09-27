@@ -3,7 +3,7 @@ import { redirect } from '@tanstack/react-router';
 import type { OnboardingSession } from '../../server/directory/types';
 import { getOnboardingSession } from '../../server/onboarding';
 import type { SessionLookup } from '../../server/onboarding.server';
-import { routeForSession, type StepRoute } from './steps';
+import { resumeRoute, routeForSession, type StepRoute } from './steps';
 
 export type StepGuard =
   { status: 'unavailable' } | { status: 'active'; session: OnboardingSession };
@@ -52,4 +52,14 @@ export async function requireCheckEmail(): Promise<CheckEmailGuard> {
   if (lookup.status === 'none') return { status: 'none' };
   if (lookup.status === 'ended') throw redirectToStart();
   return toStep('/get-started/check-email', lookup);
+}
+
+/**
+ * Loader check for the start of Get started (Choose your Commission and Identify): a session in
+ * progress resumes at its step; a finished or ended one does not hold the declarant on its page,
+ * so they can start a new onboarding (see `resumeRoute`).
+ */
+export function resumeInProgress(lookup: SessionLookup): void {
+  const resume = lookup.status === 'active' ? resumeRoute(lookup.session) : null;
+  if (resume) throw redirect({ to: resume });
 }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OnboardingSession } from '../../server/directory/types';
 import { getOnboardingSession } from '../../server/onboarding';
 import type { SessionLookup } from '../../server/onboarding.server';
-import { requireCheckEmail, requireStep } from './guard';
+import { requireCheckEmail, requireStep, resumeInProgress } from './guard';
 
 vi.mock('../../server/onboarding', () => ({
   getOnboardingSession: vi.fn(),
@@ -134,5 +134,32 @@ describe('requireCheckEmail', () => {
     expect(await redirectFrom(requireCheckEmail())).toMatchObject({
       to: '/get-started/verify-email',
     });
+  });
+});
+
+describe('resumeInProgress', () => {
+  it('sends a session in progress back to its step', () => {
+    let thrown: unknown;
+    try {
+      resumeInProgress({ status: 'active', session: session('phone-pending') });
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as { options: unknown }).options).toMatchObject({
+      to: '/get-started/verify-phone',
+    });
+  });
+
+  it.each([
+    { status: 'active', session: session('confirmed', 'linked-existing-account') },
+    { status: 'active', session: session('confirmed', 'account-created') },
+    { status: 'active', session: session('identity-mismatch', 'identity-mismatch') },
+    { status: 'none' },
+    { status: 'ended' },
+    { status: 'unavailable' },
+  ] as const)('starts fresh for a $status $session.state session', (lookup) => {
+    expect(() => {
+      resumeInProgress(lookup);
+    }).not.toThrow();
   });
 });
