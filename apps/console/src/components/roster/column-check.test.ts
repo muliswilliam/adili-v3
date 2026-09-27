@@ -25,6 +25,7 @@ const summary = (overrides: Partial<RosterSummary> = {}): RosterSummary => ({
   flagged: 0,
   lastImportAt: '2026-09-20T08:00:00Z',
   lastImportId: '0199a0b4-0000-7000-8000-000000000001',
+  lastCompleteImportAt: '2026-09-20T08:00:00Z',
   ...overrides,
 });
 
