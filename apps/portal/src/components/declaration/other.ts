@@ -1,5 +1,5 @@
 import type { Draft, MaterialChangeEntry, OtherInformation } from './contents';
-import { countryName } from './format';
+import { countryName, UNANSWERED } from './format';
 import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
 
 /**
@@ -70,38 +70,45 @@ export function materialChangeStep(entry: Draft<MaterialChangeEntry>): string {
   return `statement:${entry.personKey ?? 'officer'}`;
 }
 
-const text = (value: string | undefined) => (value?.trim() ? value.trim() : '-');
+/** An answer inside a line: the text, or "{what} not answered" (the first part says UNANSWERED). */
+function part(value: string | undefined, what: string | null): string {
+  if (value?.trim()) return value.trim();
+  return what ? `${what} not answered` : UNANSWERED;
+}
 
 function yesNo(value: boolean | undefined) {
-  if (value === undefined) return '-';
+  if (value === undefined) return 'not answered';
   return value ? 'yes' : 'no';
 }
 
-/** "{company}, {role} (paid|unpaid|-)". */
+/** "{company}, {role} (paid|unpaid)", naming any part not answered. */
 export function directorshipLine(entry: DraftDirectorship): string {
-  const paid = entry.remunerated === undefined ? '-' : entry.remunerated ? 'paid' : 'unpaid';
-  return `${text(entry.company)}, ${text(entry.role)} (${paid})`;
+  const paid =
+    entry.remunerated === undefined ? 'pay not answered' : entry.remunerated ? 'paid' : 'unpaid';
+  return `${part(entry.company, null)}, ${part(entry.role, 'role')} (${paid})`;
 }
 
 /** "{entity} ({Kind})". */
 export function membershipLine(entry: DraftMembership): string {
-  return `${text(entry.entity)} (${entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : '-'})`;
+  const kind = entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : 'kind not answered';
+  return `${part(entry.entity, null)} (${kind})`;
 }
 
 /** "{court}, {reference}: {nature}". */
 export function pendingCaseLine(entry: DraftPendingCase): string {
-  return `${text(entry.forum)}, ${text(entry.reference)}: ${text(entry.nature)}`;
+  return `${part(entry.forum, null)}, ${part(entry.reference, 'reference')}: ${part(entry.nature, 'nature')}`;
 }
 
-/** "Yes, Uganda · pending application: no", "No · pending application: yes", "- · ...". */
+/** "Yes, Uganda · pending application: no", "No · pending application: yes", "Not answered". */
 export function dualCitizenshipLine(dual: DraftDualCitizenship | undefined): string {
+  if (dual?.holds === undefined && dual?.pendingApplication === undefined) return UNANSWERED;
   const holds =
-    dual?.holds === undefined
-      ? '-'
+    dual.holds === undefined
+      ? UNANSWERED
       : dual.holds
-        ? `Yes, ${countryName(dual.country) ?? '-'}`
+        ? `Yes, ${countryName(dual.country) ?? 'country not answered'}`
         : 'No';
-  return `${holds} · pending application: ${yesNo(dual?.pendingApplication)}`;
+  return `${holds} · pending application: ${yesNo(dual.pendingApplication)}`;
 }
 
 /** "{n} / 4,000 characters". */

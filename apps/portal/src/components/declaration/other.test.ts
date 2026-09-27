@@ -51,7 +51,15 @@ describe('registrable interests', () => {
     expect(
       directorshipLine({ company: 'Kapsoya Water Ltd', role: 'Director', remunerated: false }),
     ).toBe('Kapsoya Water Ltd, Director (unpaid)');
-    expect(directorshipLine({ company: 'Kapsoya Water Ltd' })).toBe('Kapsoya Water Ltd, - (-)');
+    expect(directorshipLine({ company: 'Kapsoya Water Ltd' })).toBe(
+      'Kapsoya Water Ltd, role not answered (pay not answered)',
+    );
+    expect(membershipLine({ entity: 'Kapsoya Parents Welfare Group' })).toBe(
+      'Kapsoya Parents Welfare Group (kind not answered)',
+    );
+    expect(pendingCaseLine({ forum: 'Eldoret CMC' })).toBe(
+      'Eldoret CMC, reference not answered: nature not answered',
+    );
     expect(membershipLine({ entity: 'Kapsoya Parents Welfare Group', kind: 'society' })).toBe(
       'Kapsoya Parents Welfare Group (Society)',
     );
@@ -67,7 +75,13 @@ describe('registrable interests', () => {
     expect(dualCitizenshipLine({ holds: false, pendingApplication: true })).toBe(
       'No · pending application: yes',
     );
-    expect(dualCitizenshipLine(undefined)).toBe('- · pending application: -');
+    expect(dualCitizenshipLine(undefined)).toBe('Not answered');
+    expect(dualCitizenshipLine({ holds: true })).toBe(
+      'Yes, country not answered · pending application: not answered',
+    );
+    expect(dualCitizenshipLine({ pendingApplication: false })).toBe(
+      'Not answered · pending application: no',
+    );
   });
 
   it('counts free text against 4,000 characters', () => {

@@ -364,14 +364,13 @@ describe('SummaryView', () => {
       ),
     );
 
-    expect(valueOf(card('Your details'), 'Postal address')).toBe('-');
+    expect(valueOf(card('Your details'), 'Postal address')).toBe('Not answered');
     expect(within(card('Spouses')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Dependent children')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Financial statements')).getAllByText('Not answered yet.')).toHaveLength(3);
     expect(valueOf(card('Other information'), 'Material changes')).toBe('None flagged.');
-    expect(valueOf(card('Other information'), 'Dual citizenship')).toBe(
-      '- · pending application: -',
-    );
+    expect(valueOf(card('Other information'), 'Dual citizenship')).toBe('Not answered');
+    expect(within(card('Your details')).queryByText('-')).toBeNull();
   });
 
   it('shows a child not included at the statement date', () => {

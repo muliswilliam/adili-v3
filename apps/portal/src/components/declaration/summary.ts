@@ -19,7 +19,7 @@ import type {
   Spouse,
   Statement,
 } from './contents';
-import { ageOn } from './format';
+import { ageOn, UNANSWERED } from './format';
 import { CHANGE_KIND_WORDS, OCCUPATION_SECTOR_LABELS } from './labels';
 import { liveSections, sectionKind, stepTitle } from './steps';
 
@@ -208,8 +208,8 @@ export function itemFlags(item: AnyItem): string[] {
   return flags;
 }
 
-/** An item's amount without the currency, or "-". */
+/** An item's amount without the currency, or "Not answered". */
 export function itemAmount(item: AnyItem): string {
   const cents = amountOf(item)?.kesCents;
-  return cents === undefined ? '-' : formatMoney(cents);
+  return cents === undefined ? UNANSWERED : formatMoney(cents);
 }

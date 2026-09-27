@@ -31,7 +31,7 @@ import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from './contents';
 import { DiscardDraftButton } from './discard-dialog';
-import { fullName } from './format';
+import { fullName, orUnanswered, UNANSWERED } from './format';
 import {
   ASSET_TYPE_LABELS,
   EMPLOYMENT_NATURE_LABELS,
@@ -203,8 +203,6 @@ function Rows({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-const orDash = (value: string | undefined) => (value?.trim() ? value.trim() : '-');
-
 function Muted({ children, warning = false }: { children: ReactNode; warning?: boolean }) {
   return (
     <p className={warning ? 'text-sm font-medium text-warning' : 'text-sm text-muted-foreground'}>
@@ -224,9 +222,9 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
   const employment = officer.employment ?? {};
   const nature = employment.nature
     ? employment.nature === 'other'
-      ? `Other: ${orDash(employment.natureOther)}`
+      ? `Other: ${orUnanswered(employment.natureOther)}`
       : EMPLOYMENT_NATURE_LABELS[employment.nature]
-    : '-';
+    : UNANSWERED;
   return (
     <ParagraphCard
       paragraphs="Paragraphs 1-5"
@@ -236,24 +234,24 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
     >
       <Rows
         rows={[
-          ['Name', orDash(fullName(officer.name))],
-          ['Date and place of birth', birth.length > 0 ? birth.join(', ') : '-'],
+          ['Name', orUnanswered(fullName(officer.name))],
+          ['Date and place of birth', birth.length > 0 ? birth.join(', ') : UNANSWERED],
           [
             'Marital status',
             <>
-              {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : '-'}
+              {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : UNANSWERED}
               {change?.changed ? (
                 <span className="block text-[13px] font-normal text-muted-foreground">
-                  Changed since last declaration: {orDash(change.explanation)}
+                  Changed since last declaration: {orUnanswered(change.explanation)}
                 </span>
               ) : null}
             </>,
           ],
-          ['Postal address', orDash(officer.address?.postal)],
-          ['Physical address', orDash(officer.address?.physical)],
+          ['Postal address', orUnanswered(officer.address?.postal)],
+          ['Physical address', orUnanswered(officer.address?.physical)],
           [
             'Employer and designation',
-            `${orDash(employment.employer)} · ${orDash(employment.designation)}`,
+            `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
           ],
           ['Nature of employment', nature],
           [
@@ -294,9 +292,7 @@ function SpousesCard({ summary, document }: { summary: LoadedSummary; document: 
       ) : (
         <Rows
           rows={spouses.map((spouse, index) => [
-            orDash(fullName(spouse.name)) === '-'
-              ? `Spouse ${String(index + 1)}`
-              : fullName(spouse.name),
+            fullName(spouse.name) || `Spouse ${String(index + 1)}`,
             spouseDetails(spouse),
           ])}
         />
@@ -344,7 +340,7 @@ const CATEGORIES = [
 ] as const;
 
 function typeLabel(category: (typeof CATEGORIES)[number]['key'], type: string | undefined) {
-  if (!type) return '-';
+  if (!type) return UNANSWERED;
   if (category === 'income') return INCOME_TYPE_LABELS[type as keyof typeof INCOME_TYPE_LABELS];
   if (category === 'assets') return ASSET_TYPE_LABELS[type as keyof typeof ASSET_TYPE_LABELS];
   return LIABILITY_TYPE_LABELS[type as keyof typeof LIABILITY_TYPE_LABELS];
@@ -405,7 +401,7 @@ function StatementItems({
                       <TableRow key={item.id ?? index}>
                         <TableCell>{typeLabel(category.key, item.type)}</TableCell>
                         <TableCell>
-                          <span className="block">{orDash(item.description)}</span>
+                          <span className="block">{orUnanswered(item.description)}</span>
                           {flags.length > 0 ? (
                             <span className="block text-[13px] text-muted-foreground">
                               {flags.join(' · ')}

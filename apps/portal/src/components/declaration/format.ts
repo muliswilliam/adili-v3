@@ -38,3 +38,11 @@ export function countryName(code: string | undefined): string | undefined {
   if (!code) return undefined;
   return COUNTRIES.find((country) => country.code === code)?.name ?? code;
 }
+
+/** How the summary shows a field the declarant has not answered. */
+export const UNANSWERED = 'Not answered';
+
+/** The trimmed answer, or "Not answered". */
+export function orUnanswered(value: string | undefined): string {
+  return value?.trim() ? value.trim() : UNANSWERED;
+}
