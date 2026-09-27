@@ -15,7 +15,8 @@ export function FileBox({
   children,
 }: {
   name: string;
-  size: number;
+  /** Unknown for an import reopened after a refresh: the import does not record it. */
+  size?: number;
   /** After the size, e.g. the number of rows detected. */
   detail?: ReactNode;
   /** On the right: a status badge, a spinner line or an action. */
@@ -37,10 +38,13 @@ export function FileBox({
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14.5px] font-medium">{name}</p>
-        <p className="text-[13px] text-muted-foreground">
-          {formatFileSize(size)}
-          {detail ? <> · {detail}</> : null}
-        </p>
+        {size !== undefined || detail ? (
+          <p className="text-[13px] text-muted-foreground">
+            {size !== undefined ? formatFileSize(size) : null}
+            {size !== undefined && detail ? ' · ' : null}
+            {detail}
+          </p>
+        ) : null}
       </div>
       {children ? <div className="flex shrink-0 items-center">{children}</div> : null}
     </div>

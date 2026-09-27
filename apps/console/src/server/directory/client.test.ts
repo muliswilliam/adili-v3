@@ -111,6 +111,8 @@ describe('directoryTimeoutMs', () => {
     ['DELETE', '/v1/commissions/psc/roster/api-credential', DIRECTORY_TIMEOUTS_MS.identity],
     ['POST', '/v1/commissions/psc/roster/api-credential/rotate', DIRECTORY_TIMEOUTS_MS.identity],
     ['POST', '/v1/commissions/psc/roster/imports', DIRECTORY_TIMEOUTS_MS.write],
+    ['POST', '/v1/commissions/psc/roster/imports/preview', DIRECTORY_TIMEOUTS_MS.file],
+    ['GET', '/v1/commissions/psc/roster/imports/0190', DIRECTORY_TIMEOUTS_MS.read],
   ])('%s %s waits %i ms', (method, path, expected) => {
     expect(directoryTimeoutMs(method, path)).toBe(expected);
   });

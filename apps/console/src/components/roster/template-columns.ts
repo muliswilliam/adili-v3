@@ -1,11 +1,17 @@
+import type { components } from '../../server/directory/api.gen';
+
 /**
  * The nine roster template columns as the wizard's template step lists them. Mirrors the
- * directory's `ROSTER_COLUMNS` (services/directory/src/roster/columns.ts), the single source for
- * the parser and the template file; a test keeps the two in step. Column names stay English
- * identifiers in every UI language.
+ * directory's column definitions, the single source for its parser and the template file. The
+ * names are checked against the directory contract at compile time (below); the rules and
+ * examples copy the template's notes. Column names stay English identifiers in every UI language.
  */
+
+/** A template column name, as the directory contract enumerates them. */
+export type RosterColumnName = components['schemas']['ColumnMapping']['matched'][number]['field'];
+
 export interface TemplateColumn {
-  name: string;
+  name: RosterColumnName;
   required: boolean;
   /** One-line format rule, as in the template's notes. */
   format: string;
@@ -64,6 +70,13 @@ export const TEMPLATE_COLUMNS: readonly TemplateColumn[] = [
     example: '0712345678',
   },
 ];
+
+/**
+ * Compile-time drift check: a column the contract names but this list lacks is a type error
+ * here. (A name the contract does not know already fails `TemplateColumn['name']`.)
+ */
+type Unlisted = Exclude<RosterColumnName, (typeof TEMPLATE_COLUMNS)[number]['name']>;
+export const EVERY_CONTRACT_COLUMN_LISTED: [Unlisted] extends [never] ? true : Unlisted = true;
 
 /** The required columns, in template order. */
 export const REQUIRED_COLUMNS = TEMPLATE_COLUMNS.filter((column) => column.required).map(

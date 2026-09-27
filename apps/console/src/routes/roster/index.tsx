@@ -3,7 +3,6 @@ import {
   Button,
   Card,
   Icon,
-  type IconProps,
   Menu,
   MenuContent,
   MenuItem,
@@ -29,6 +28,7 @@ import { formatNumber } from '../../components/format';
 import { LoadError } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { messages as m } from '../../components/roster/messages';
+import { Tile, TileValue } from '../../components/roster/tile';
 import { useTemplateDownload } from '../../components/roster/use-template-download';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { getCommission } from '../../server/commissions';
@@ -217,34 +217,6 @@ function SummaryTiles({ roster }: { roster: RosterSummary }) {
         {roster.flagged > 0 ? <Badge variant="warning">{m.flagged}</Badge> : null}
       </Tile>
     </section>
-  );
-}
-
-function Tile({
-  icon,
-  label,
-  children,
-}: {
-  icon: IconProps['icon'];
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="gap-1.5">
-      <p className="flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground [&_svg]:size-[15px]">
-        <Icon icon={icon} />
-        {label}
-      </p>
-      {children}
-    </Card>
-  );
-}
-
-function TileValue({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-[26px] leading-tight font-semibold tracking-[-0.02em] tabular-nums">
-      {children}
-    </p>
   );
 }
 

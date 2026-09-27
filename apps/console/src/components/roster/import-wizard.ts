@@ -2,8 +2,9 @@ import type { CleanUpload, UploadOutcome } from './upload';
 
 /**
  * The import wizard's state machine (spec 02: Template, Upload, Check, Import, Report). Pure, so
- * the rules are tested without a browser: going back is allowed until the import starts, and an
- * upload's progress only counts for the attempt that is still current.
+ * the rules are tested without a browser: going back is allowed until the import starts, an
+ * upload's progress only counts for the attempt that is still current, and once an import has
+ * started the wizard follows it to its report or failure.
  */
 
 export const WIZARD_STEPS = ['template', 'upload', 'check', 'importing', 'report'] as const;
@@ -33,6 +34,10 @@ export interface WizardState {
    * late progress or outcome cannot overwrite a newer one.
    */
   attempt: number;
+  /** The import started from this wizard (or reopened from the URL), from step 4 on. */
+  importId: string | null;
+  /** Whether that import stopped with a failure; step 4 then shows why. */
+  importFailed: boolean;
 }
 
 export type WizardAction =
@@ -43,13 +48,33 @@ export type WizardAction =
   | { type: 'scanning'; attempt: number }
   | { type: 'finished'; attempt: number; outcome: UploadOutcome }
   /** Drop the current upload (cancel, choose another file) and show the drop zone again. */
-  | { type: 'reset' };
+  | { type: 'reset' }
+  /** The directory accepted the import of the clean upload. */
+  | { type: 'started'; importId: string }
+  /** The import being followed ended. */
+  | { type: 'import-ended'; importId: string; outcome: 'completed' | 'failed' }
+  /** After a report or a failed import: a new file, from the upload step. */
+  | { type: 'import-another' }
+  /** The followed import cannot be read (not the viewer's): start over from the template. */
+  | { type: 'restart' }
+  /** Follow another import, e.g. the one already running (its id put in the URL). */
+  | { type: 'open'; importId: string };
 
 export const initialWizardState: WizardState = {
   step: 'template',
   upload: { phase: 'idle' },
   attempt: 0,
+  importId: null,
+  importFailed: false,
 };
+
+/**
+ * Where the wizard opens: at the template, or following an import already started (its id in
+ * the URL), so a refresh or a return visit shows its progress again.
+ */
+export function wizardStateFor(importId: string | undefined): WizardState {
+  return importId ? { ...initialWizardState, step: 'importing', importId } : initialWizardState;
+}
 
 const stepIndex = (step: WizardStep) => WIZARD_STEPS.indexOf(step);
 
@@ -110,6 +135,31 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case 'reset':
       if (state.step !== 'upload') return state;
       return { ...state, upload: { phase: 'idle' }, attempt: state.attempt + 1 };
+    case 'started':
+      // Only a clean upload being checked can start an import.
+      if (state.step !== 'check' || state.upload.phase !== 'clean') return state;
+      return { ...state, step: 'importing', importId: action.importId, importFailed: false };
+    case 'import-ended':
+      if (state.step !== 'importing' || state.importId !== action.importId) return state;
+      return action.outcome === 'completed'
+        ? { ...state, step: 'report' }
+        : { ...state, importFailed: true };
+    case 'import-another':
+      // From the report, or an import that stopped; a running import is left to finish.
+      if (state.step !== 'report' && !(state.step === 'importing' && state.importFailed)) {
+        return state;
+      }
+      return {
+        ...initialWizardState,
+        step: 'upload',
+        attempt: state.attempt + 1,
+      };
+    case 'restart':
+      if (!importStarted(state.step)) return state;
+      return { ...initialWizardState, attempt: state.attempt + 1 };
+    case 'open':
+      if (state.importId === action.importId) return state;
+      return { ...wizardStateFor(action.importId), attempt: state.attempt + 1 };
     default:
       return uploadEvent(state, action);
   }
