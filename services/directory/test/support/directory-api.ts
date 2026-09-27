@@ -11,6 +11,10 @@ import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 
 import { AppModule } from '../../src/app.module.js';
+import {
+  ActivationLookups,
+  InMemoryActivationLookups,
+} from '../../src/commissions/activation-lookups.js';
 import { type DirectorySchema, schema } from '../../src/db/schema.js';
 import { IdentityProvisioning } from '../../src/identity/identity-provisioning.js';
 import { InMemoryIdentityProvisioning } from '../../src/identity/in-memory-identity-provisioning.js';
@@ -35,6 +39,8 @@ export interface DirectoryApi {
   /** Direct database access for arranging fixtures; assertions go through HTTP. */
   db: Database<DirectorySchema>;
   identity: InMemoryIdentityProvisioning;
+  /** The activation observer's cache of subjects without an invitation. */
+  activationLookups: InMemoryActivationLookups;
   /** `GET` as the given caller; returns Fastify's injected response. */
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /** `POST` a JSON body as the given caller, with an `Idempotency-Key` unless it is null. */
@@ -75,6 +81,7 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
 
   const { signer, jwk } = await tokenSigner();
   const identity = new InMemoryIdentityProvisioning();
+  const activationLookups = new InMemoryActivationLookups();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -82,6 +89,8 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
     .overrideProvider(IdentityProvisioning)
     .useValue(identity)
+    .overrideProvider(ActivationLookups)
+    .useValue(activationLookups)
     .compile();
   // Quiet like LOG_LEVEL=fatal in the service; expected 5xx in tests would otherwise log errors.
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
@@ -113,6 +122,7 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     app,
     db,
     identity,
+    activationLookups,
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
@@ -132,6 +142,7 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
         sql`truncate reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
+      activationLookups.expireAll();
     },
     async close() {
       // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.

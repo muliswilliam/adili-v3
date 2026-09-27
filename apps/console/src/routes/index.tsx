@@ -68,11 +68,16 @@ function Landing({ error }: { error: string | null }) {
               Responsible Commissions review and verify the declarations filed with them, act on
               non-compliance and report to the Ethics and Anti-Corruption Commission.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button asChild size="lg">
-                <a href="/auth/login">Sign in to the console</a>
-              </Button>
-              <p className="text-sm text-muted-foreground">Use your staff account.</p>
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button asChild size="lg">
+                  <a href="/auth/login">Sign in to the console</a>
+                </Button>
+                <p className="text-sm text-muted-foreground">Use your staff account.</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Activation link expired? Ask EACC to resend your invitation.
+              </p>
             </div>
           </div>
           <ul className="grid gap-4">

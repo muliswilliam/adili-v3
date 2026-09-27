@@ -15,6 +15,7 @@ import {
   STAFF_REQUIRED_ACTIONS,
 } from '../identity/identity-provisioning.js';
 import { PLATFORM_TENANT } from './access.js';
+import { ActivationLookups } from './activation-lookups.js';
 import type { AssignReportingOfficerBody } from './assign-reporting-officer.js';
 import { CommissionsService, type Transaction } from './commissions.service.js';
 import { reportingOfficerAssigned } from './events.js';
@@ -54,6 +55,7 @@ export class ReportingOfficersService {
     private readonly events: EventPublisher,
     private readonly identity: IdentityProvisioning,
     private readonly commissions: CommissionsService,
+    private readonly activationLookups: ActivationLookups,
   ) {}
 
   /**
@@ -67,8 +69,9 @@ export class ReportingOfficersService {
     slug: string,
     body: AssignReportingOfficerBody,
   ): Promise<Commission> {
+    let invitedUserId: string;
     try {
-      await withTenant(
+      invitedUserId = await withTenant(
         this.db,
         { tenant: PLATFORM_TENANT, subject: principal.subject },
         async (tx) => {
@@ -109,11 +112,14 @@ export class ReportingOfficersService {
             }),
           );
           await this.identity.sendActivationEmail(keycloakUserId, activationEmail());
+          return keycloakUserId;
         },
       );
     } catch (error) {
       throw asProblem(error);
     }
+    // A reused account may be remembered as having no invitation; look it up again next time.
+    await this.activationLookups.forget(invitedUserId);
     return this.commissions.get(principal, slug);
   }
 
