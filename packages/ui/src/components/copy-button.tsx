@@ -63,6 +63,9 @@ export function CopyButton({
       setCopies((count) => count + 1);
       announce({ title: copiedMessage });
     } catch {
+      // A tick left from an earlier copy would contradict the failure; clearing it also stops
+      // its timer.
+      setCopies(0);
       announce({ title: failedMessage, urgency: 'assertive' });
     }
   }
