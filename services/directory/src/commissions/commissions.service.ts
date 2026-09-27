@@ -1,11 +1,15 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { and, asc, count, eq, ilike, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../db/schema.js';
 import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
+import type { CreateCommissionBody } from './create-commission.js';
+import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';
+import { PLATFORM_DEFAULT_POLICY } from './policy.js';
 import {
   type Commission,
   type CommissionPage,
@@ -60,13 +64,70 @@ const commissionColumns = {
   },
 };
 
+/** Unique constraints of `commissions` and the request field each one protects. */
+const UNIQUE_FIELDS: Record<string, 'slug' | 'name'> = {
+  commissions_slug_unique: 'slug',
+  commissions_name_lower_key: 'name',
+};
+
 /**
- * Reads of Responsible Commissions with the spec 01 visibility rule: national readers see every
- * Commission, other staff only their own tenant's; anything invisible is 404.
+ * Responsible Commissions with the spec 01 visibility rule: national readers see every
+ * Commission, other staff only their own tenant's; anything invisible is 404. Only
+ * platform admins create them (enforced by the controller).
  */
 @Injectable()
 export class CommissionsService {
-  constructor(@InjectDatabase() private readonly db: Database<DirectorySchema>) {}
+  constructor(
+    @InjectDatabase() private readonly db: Database<DirectorySchema>,
+    private readonly events: EventPublisher,
+  ) {}
+
+  /**
+   * Creates a Commission with policy version 1 from platform defaults and records
+   * `commission.created.v1`, all in one transaction: on any failure nothing is kept.
+   * A slug or name that is taken is a 409 naming the field(s).
+   */
+  async create(principal: Principal, body: CreateCommissionBody): Promise<Commission> {
+    try {
+      await this.db.transaction(async (tx) => {
+        await this.refuseTaken(tx, body);
+        const [created] = await tx
+          .insert(commissions)
+          .values({
+            slug: body.slug,
+            name: body.name,
+            type: body.type,
+            createdBy: principal.subject,
+          })
+          .returning({ id: commissions.id });
+        if (!created) throw new Error('Commission insert returned no row');
+        if (body.categories.length > 0) {
+          await tx.insert(commissionCategories).values(
+            body.categories.map((categoryCode) => ({
+              commissionId: created.id,
+              categoryCode,
+            })),
+          );
+        }
+        await tx.insert(tenantPolicyVersions).values({
+          tenant: body.slug,
+          version: 1,
+          policy: PLATFORM_DEFAULT_POLICY,
+          createdBy: principal.subject,
+        });
+        await this.events.record(
+          tx,
+          commissionCreated({ commissionId: created.id, slug: body.slug, type: body.type }),
+        );
+      });
+    } catch (error) {
+      // A concurrent create can pass `refuseTaken` and lose at the unique constraint instead.
+      const field = UNIQUE_FIELDS[violatedUniqueConstraint(error) ?? ''];
+      if (field) throw taken([field], body);
+      throw error;
+    }
+    return this.get(principal, body.slug);
+  }
 
   /** One page ordered by name, plus the number of Commissions matching the filters. */
   async list(principal: Principal, query: ListCommissionsQuery): Promise<CommissionPage> {
@@ -130,6 +191,24 @@ export class CommissionsService {
       .orderBy(asc(officerCategories.sortOrder));
   }
 
+  /** 409 naming every field whose value another Commission already has. */
+  private async refuseTaken(tx: Transaction, body: CreateCommissionBody): Promise<void> {
+    const clashes = await tx
+      .select({ slug: commissions.slug, name: commissions.name })
+      .from(commissions)
+      .where(
+        or(eq(commissions.slug, body.slug), sql`lower(${commissions.name}) = lower(${body.name})`),
+      );
+    const fields = (['slug', 'name'] as const).filter((field) =>
+      clashes.some((clash) =>
+        field === 'slug'
+          ? clash.slug === body.slug
+          : clash.name.toLowerCase() === body.name.toLowerCase(),
+      ),
+    );
+    if (fields.length > 0) throw taken(fields, body);
+  }
+
   private select(tx: Transaction) {
     return tx
       .select(commissionColumns)
@@ -156,6 +235,30 @@ export class CommissionsService {
     }
     return filters;
   }
+}
+
+function taken(fields: readonly ('slug' | 'name')[], body: CreateCommissionBody) {
+  const messages = {
+    slug: `The key ${body.slug} is already used by another Commission`,
+    name: 'A Commission with this name already exists',
+  };
+  return new ProblemException({
+    type: 'commission-exists',
+    title: 'Commission already exists',
+    status: HttpStatus.CONFLICT,
+    detail: 'A Commission with this key or name already exists.',
+    errors: fields.map((path) => ({ path, message: messages[path] })),
+  });
+}
+
+/** The unique constraint a failed query violated, looking through Drizzle's error wrapper. */
+function violatedUniqueConstraint(error: unknown): string | undefined {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    if ('code' in cause && cause.code === '23505' && 'constraint' in cause) {
+      return typeof cause.constraint === 'string' ? cause.constraint : undefined;
+    }
+  }
+  return undefined;
 }
 
 type CommissionRow = Awaited<

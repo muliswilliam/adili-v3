@@ -16,6 +16,7 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteImport } from './routes/commissions/$slug'
+import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,11 @@ const CommissionsSlugRoute = CommissionsSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => CommissionsRouteRoute,
 } as any)
+const CommissionsNewRoute = CommissionsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => CommissionsRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
+  '/commissions/new': typeof CommissionsNewRoute
   '/commissions/': typeof CommissionsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
+  '/commissions/new': typeof CommissionsNewRoute
   '/commissions': typeof CommissionsIndexRoute
 }
 export interface FileRoutesById {
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
+  '/commissions/new': typeof CommissionsNewRoute
   '/commissions/': typeof CommissionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/$slug'
+    | '/commissions/new'
     | '/commissions/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/$slug'
+    | '/commissions/new'
     | '/commissions'
   id:
     | '__root__'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/$slug'
+    | '/commissions/new'
     | '/commissions/'
   fileRoutesById: FileRoutesById
 }
@@ -168,16 +180,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsSlugRouteImport
       parentRoute: typeof CommissionsRouteRoute
     }
+    '/commissions/new': {
+      id: '/commissions/new'
+      path: '/new'
+      fullPath: '/commissions/new'
+      preLoaderRoute: typeof CommissionsNewRouteImport
+      parentRoute: typeof CommissionsRouteRoute
+    }
   }
 }
 
 interface CommissionsRouteRouteChildren {
   CommissionsSlugRoute: typeof CommissionsSlugRoute
+  CommissionsNewRoute: typeof CommissionsNewRoute
   CommissionsIndexRoute: typeof CommissionsIndexRoute
 }
 
 const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
   CommissionsSlugRoute: CommissionsSlugRoute,
+  CommissionsNewRoute: CommissionsNewRoute,
   CommissionsIndexRoute: CommissionsIndexRoute,
 }
 

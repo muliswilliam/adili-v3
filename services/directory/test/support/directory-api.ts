@@ -32,6 +32,13 @@ export interface DirectoryApi {
   identity: InMemoryIdentityProvisioning;
   /** `GET` as the given caller; returns Fastify's injected response. */
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
+  /** `POST` a JSON body as the given caller, with an `Idempotency-Key` unless it is null. */
+  post(
+    url: string,
+    body: unknown,
+    caller: Caller,
+    options?: { idempotencyKey?: string | null },
+  ): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every directory table except seeded reference data. */
   reset(): Promise<void>;
   close(): Promise<void>;
@@ -64,7 +71,10 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
     .overrideProvider(IdentityProvisioning)
     .useValue(identity)
     .compile();
-  const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  // Quiet like LOG_LEVEL=fatal in the service; expected 5xx in tests would otherwise log errors.
+  const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
+    logger: ['fatal'],
+  });
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
@@ -78,6 +88,18 @@ export async function startDirectoryApi(): Promise<DirectoryApi> {
         method: 'GET',
         url: path,
         headers: { authorization: `Bearer ${token}` },
+      });
+    },
+    async post(path, body, caller, { idempotencyKey = randomUUID() } = {}) {
+      const token = await signer(caller);
+      return app.inject({
+        method: 'POST',
+        url: path,
+        headers: {
+          authorization: `Bearer ${token}`,
+          ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
+        },
+        payload: body as Record<string, unknown>,
       });
     },
     async reset() {

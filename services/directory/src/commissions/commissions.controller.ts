@@ -1,16 +1,28 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiTags,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { CurrentPrincipal, type Principal, Roles, ZodValidationPipe } from '@adili/api-kit';
+import {
+  CurrentPrincipal,
+  type Principal,
+  RequireIdempotencyKey,
+  Roles,
+  ZodValidationPipe,
+} from '@adili/api-kit';
 
 import { STAFF_ROLES } from './access.js';
 import { CommissionsService } from './commissions.service.js';
+import { type CreateCommissionBody, createCommissionBody } from './create-commission.js';
 import { type ListCommissionsQuery, listCommissionsQuery } from './list-query.js';
 import type { Commission, CommissionPage, OfficerCategory } from './representation.js';
 
@@ -20,6 +32,28 @@ import type { Commission, CommissionPage, OfficerCategory } from './representati
 @Roles(...STAFF_ROLES)
 export class CommissionsController {
   constructor(private readonly commissions: CommissionsService) {}
+
+  @Post()
+  @Roles('platform-admin')
+  @RequireIdempotencyKey()
+  @ApiOperation({
+    operationId: 'createCommission',
+    summary: 'Create a Responsible Commission and provision its workspace',
+    description: 'platform-admin only. Idempotent per Idempotency-Key.',
+  })
+  @ApiCreatedResponse({ description: 'Commission created with policy version 1' })
+  @ApiBadRequestResponse({ description: 'Request failed validation' })
+  @ApiForbiddenResponse({ description: 'Caller lacks the required role' })
+  @ApiConflictResponse({ description: 'Tenant key or name already exists' })
+  @ApiUnprocessableEntityResponse({
+    description: 'Idempotency-Key reused with a different request body',
+  })
+  create(
+    @CurrentPrincipal() principal: Principal,
+    @Body(new ZodValidationPipe(createCommissionBody)) body: CreateCommissionBody,
+  ): Promise<Commission> {
+    return this.commissions.create(principal, body);
+  }
 
   @Get()
   @ApiOperation({
