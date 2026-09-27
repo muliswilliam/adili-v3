@@ -27,8 +27,8 @@ const GENERAL_NOTES = [
 
 /**
  * The roster template in `format`, generated from the roster columns: the nine headers and a
- * sample row. The XLSX adds a Notes sheet documenting each column, and formats the file number
- * and phone columns as text so Excel keeps their leading zeros.
+ * sample row. The XLSX adds a Notes sheet documenting each column, and formats the identifier
+ * columns (`textCell`) as text so Excel keeps their leading zeros.
  */
 export async function rosterTemplate(format: RosterTemplateFormat): Promise<RosterTemplateFile> {
   return format === 'csv'
@@ -68,7 +68,7 @@ async function rosterTemplateXlsx(): Promise<Buffer> {
     key: column.name,
     width: Math.max(column.name.length, column.example.length) + 4,
     // Column-wide, so the rows HR staff add are text too.
-    style: column.text ? { numFmt: TEXT_FORMAT } : {},
+    style: column.textCell ? { numFmt: TEXT_FORMAT } : {},
   }));
   roster.getRow(1).font = { bold: true };
   roster.addRow(Object.fromEntries(ROSTER_COLUMNS.map((column) => [column.name, column.example])));
@@ -77,8 +77,9 @@ async function rosterTemplateXlsx(): Promise<Buffer> {
   notes.columns = [
     { header: 'Column', key: 'name', width: 24 },
     { header: 'Required', key: 'required', width: 10 },
-    { header: 'Format', key: 'format', width: 90 },
-    { header: 'Example', key: 'example', width: 38 },
+    { header: 'Format', key: 'format', width: 50 },
+    { header: 'Example', key: 'example', width: 32 },
+    { header: 'Notes', key: 'note', width: 70 },
   ];
   notes.getRow(1).font = { bold: true };
   for (const column of ROSTER_COLUMNS) {
@@ -87,9 +88,12 @@ async function rosterTemplateXlsx(): Promise<Buffer> {
       required: column.required ? 'Yes' : 'No',
       format: column.format,
       example: column.example,
+      note: column.note,
     });
   }
-  notes.getColumn('format').alignment = { wrapText: true, vertical: 'top' };
+  for (const key of ['format', 'note']) {
+    notes.getColumn(key).alignment = { wrapText: true, vertical: 'top' };
+  }
   notes.addRow([]);
   for (const note of GENERAL_NOTES) notes.addRow([note]);
 
