@@ -1,9 +1,9 @@
 import type { ClassKey } from 'keycloakify/login';
 
-import { buttonVariants } from '@adili/ui';
+import { buttonVariants, cn, controlClassName } from '@adili/ui';
 
-const input =
-  'flex h-10 w-full min-w-0 rounded-md border border-input bg-card px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 aria-invalid:border-destructive';
+/** Same edges, height and states as the design system's Input. */
+const input = cn(controlClassName, 'flex h-11 px-3');
 
 /**
  * Tailwind classes for the pages rendered by Keycloakify's DefaultPage (everything except the

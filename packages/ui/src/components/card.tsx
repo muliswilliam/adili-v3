@@ -6,7 +6,6 @@ import { cn } from '../lib/cn';
 export function Card({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
-      data-slot="card"
       className={cn(
         'flex flex-col rounded-2xl bg-card p-5 text-card-foreground shadow-card sm:p-6',
         className,
