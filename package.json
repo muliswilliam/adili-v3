@@ -25,7 +25,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deps:check": "depcruise services packages apps --config .dependency-cruiser.cjs",
-    "check": "pnpm format:check && turbo run lint typecheck test && pnpm deps:check",
+    "contracts:lint": "pnpm --filter @adili/schemas lint:openapi && pnpm --filter @adili/schemas lint:forms",
+    "contracts:drift": "pnpm --filter @adili/schemas check:drift",
+    "check": "pnpm format:check && pnpm contracts:lint && pnpm contracts:drift && turbo run lint typecheck test && pnpm deps:check",
     "health": "node scripts/health.mjs"
   },
   "devDependencies": {
