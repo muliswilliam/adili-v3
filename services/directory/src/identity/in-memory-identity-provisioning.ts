@@ -49,6 +49,7 @@ export interface SeedUser {
 export class InMemoryIdentityProvisioning extends IdentityProvisioning {
   private readonly log: IdentityCall[] = [];
   private readonly users = new Map<string, InMemoryUser>();
+  private readonly failures = new Map<IdentityOperation, Error>();
 
   /** Adds an existing account (for example, one already in another tenant). Returns its id. */
   seedUser(seed: SeedUser): string {
@@ -64,6 +65,14 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       enabled: seed.enabled ?? true,
     });
     return userId;
+  }
+
+  /**
+   * Makes the next call of `operation` fail with `error` (for example IdentityUnavailable)
+   * without any effect. The call is still recorded.
+   */
+  failNext(operation: IdentityOperation, error: Error): void {
+    this.failures.set(operation, error);
   }
 
   /** Every call so far, or only those of one operation. */
@@ -85,16 +94,21 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
   reset(): void {
     this.log.length = 0;
     this.users.clear();
+    this.failures.clear();
   }
 
   findByEmail(email: string): Promise<IdentityUser | null> {
     this.log.push({ operation: 'findByEmail', email });
+    const failure = this.takeFailure('findByEmail');
+    if (failure) return Promise.reject(failure);
     const user = this.byEmail(email);
     return Promise.resolve(user ? { userId: user.userId, tenant: user.tenant } : null);
   }
 
   createStaffUser(input: CreateStaffUserInput): Promise<string> {
     this.log.push({ operation: 'createStaffUser', input: structuredClone(input) });
+    const failure = this.takeFailure('createStaffUser');
+    if (failure) return Promise.reject(failure);
     if (this.byEmail(input.email)) {
       return Promise.reject(new EmailTaken(input.email));
     }
@@ -114,6 +128,8 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
 
   grantRole(userId: string, role: string): Promise<void> {
     this.log.push({ operation: 'grantRole', userId, role });
+    const failure = this.takeFailure('grantRole');
+    if (failure) return Promise.reject(failure);
     return this.update(userId, (user) => {
       if (!user.roles.includes(role)) {
         user.roles.push(role);
@@ -123,6 +139,8 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
 
   revokeRoleAndDisable(userId: string, role: string): Promise<void> {
     this.log.push({ operation: 'revokeRoleAndDisable', userId, role });
+    const failure = this.takeFailure('revokeRoleAndDisable');
+    if (failure) return Promise.reject(failure);
     return this.update(userId, (user) => {
       user.roles = user.roles.filter((held) => held !== role);
       user.enabled = false;
@@ -131,7 +149,15 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
 
   sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void> {
     this.log.push({ operation: 'sendActivationEmail', userId, options: structuredClone(options) });
+    const failure = this.takeFailure('sendActivationEmail');
+    if (failure) return Promise.reject(failure);
     return this.update(userId, () => undefined);
+  }
+
+  private takeFailure(operation: IdentityOperation): Error | undefined {
+    const failure = this.failures.get(operation);
+    this.failures.delete(operation);
+    return failure;
   }
 
   private byEmail(email: string): InMemoryUser | undefined {

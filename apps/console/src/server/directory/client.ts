@@ -16,6 +16,7 @@ export type OfficerCategory = Schemas['OfficerCategory'];
 export type OfficerCategoryCode = Schemas['OfficerCategoryCode'];
 export type CreateCommission = Schemas['CreateCommission'];
 export type ReportingOfficer = Schemas['ReportingOfficer'];
+export type AssignReportingOfficer = Schemas['AssignReportingOfficer'];
 export type ProblemDetails = Schemas['ProblemDetails'];
 export type CommissionPage =
   paths['/v1/commissions']['get']['responses'][200]['content']['application/json'];

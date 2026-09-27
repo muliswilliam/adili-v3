@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { getBff } from './bff.server';
 import {
+  type AssignReportingOfficer,
   callDirectory,
   type Commission,
   type CommissionPage,
@@ -91,6 +92,38 @@ export const createCommission = createServerFn({ method: 'POST' })
         client.POST('/v1/commissions', {
           params: { header: { 'Idempotency-Key': data.idempotencyKey } },
           body: data.commission,
+        }),
+      ),
+    ),
+  );
+
+export const assignReportingOfficerInput = z.object({
+  slug: z.string().min(1).max(40),
+  /** One per dialog submission, reused on retry (spec 01). */
+  idempotencyKey: z.uuid(),
+  // Loose bounds only: the directory validates and its 400 problem maps back to the dialog.
+  officer: z.object({
+    name: z.string().max(500),
+    email: z.string().max(500),
+    phone: z.string().max(40),
+  }) satisfies z.ZodType<AssignReportingOfficer>,
+});
+
+/**
+ * `PUT /v1/commissions/{slug}/reporting-officer` with the dialog's Idempotency-Key: invites the
+ * officer (one activation email). Platform admins only; anyone else gets the 403 problem.
+ */
+export const assignReportingOfficer = createServerFn({ method: 'POST' })
+  .validator(assignReportingOfficerInput)
+  .handler(({ data }): Promise<DirectoryResult<Commission>> =>
+    asViewer((client) =>
+      callDirectory(() =>
+        client.PUT('/v1/commissions/{slug}/reporting-officer', {
+          params: {
+            path: { slug: data.slug },
+            header: { 'Idempotency-Key': data.idempotencyKey },
+          },
+          body: data.officer,
         }),
       ),
     ),

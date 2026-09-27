@@ -12,6 +12,12 @@ export const envSchema = baseEnvSchema.extend({
   /** Confidential Keycloak client whose service account provisions staff users. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('directory'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
+  /**
+   * Public origin of the staff console, e.g. `https://console.adili.go.ke`. Activation emails
+   * send staff here once they have completed their required actions; it must be a valid
+   * redirect URI of the realm's `console` client.
+   */
+  CONSOLE_URL: z.url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -6,24 +6,31 @@ import {
   CardTitle,
   DescriptionItem,
   DescriptionList,
+  Dialog,
+  DialogTrigger,
   EmptyState,
   Skeleton,
+  useToast,
 } from '@adili/ui';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { Search, UserPlus, Users } from 'lucide-react';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
+import { Clock, Search, UserPlus, Users } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import {
   CommissionTypeBadge,
   IssuerCode,
   OfficerStateBadge,
 } from '../../components/commissions/badges';
+import { AssignDialogContent } from '../../components/commissions/assign-dialog';
 import { CommissionsBreadcrumb } from '../../components/commissions/breadcrumb';
 import { messages as m } from '../../components/commissions/messages';
+import { formatPhone } from '../../components/commissions/phone';
 import { formatDate, formatDateTime } from '../../components/format';
 import { LoadError } from '../../components/load-error';
 import { signInRedirect } from '../../components/sign-in-redirect';
+import { workspaceFor } from '../../components/workspaces';
 import { getCommission } from '../../server/commissions';
-import type { Commission, ReportingOfficer } from '../../server/directory/client';
+import type { Commission } from '../../server/directory/client';
 
 export const Route = createFileRoute('/commissions/$slug')({
   loader: async ({ params, location }) => {
@@ -95,7 +102,7 @@ function Detail({ commission }: { commission: Commission }) {
       </header>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <DetailsCard commission={commission} />
-        <OfficerCard officer={commission.reportingOfficer} />
+        <OfficerCard commission={commission} />
       </div>
       <Card>
         <CardHeader>
@@ -158,19 +165,41 @@ function DetailsCard({ commission }: { commission: Commission }) {
   );
 }
 
-function OfficerCard({ officer }: { officer: ReportingOfficer | null }) {
+function OfficerCard({ commission }: { commission: Commission }) {
+  const { viewer } = Route.useRouteContext();
+  const router = useRouter();
+  const { toast } = useToast();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const justAssigned = useRef(false);
+  const [assigning, setAssigning] = useState(false);
+  const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
+  const canWrite = workspaceFor(roles, 'commissions')?.readOnly === false;
+  const officer = commission.reportingOfficer;
+
+  const assigned = (updated: Commission) => {
+    justAssigned.current = true;
+    setAssigning(false);
+    toast({ title: m.invitationSentToast(updated.reportingOfficer?.email ?? '') });
+    // Refetch so the card shows the directory's view of the new assignment.
+    void router.invalidate();
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{m.officerCardTitle}</CardTitle>
+        <CardTitle ref={headingRef} tabIndex={-1} className="outline-none">
+          {m.officerCardTitle}
+        </CardTitle>
       </CardHeader>
       {officer ? (
         <CardContent className="grid gap-4">
           <DescriptionList>
             <DescriptionItem term={m.officerName}>{officer.name}</DescriptionItem>
-            <DescriptionItem term={m.officerEmail}>{officer.email}</DescriptionItem>
+            <DescriptionItem term={m.officerEmail}>
+              <span className="break-all">{officer.email}</span>
+            </DescriptionItem>
             <DescriptionItem term={m.officerPhone}>
-              <span className="tabular-nums">{officer.phone}</span>
+              <span className="tabular-nums">{formatPhone(officer.phone)}</span>
             </DescriptionItem>
             <DescriptionItem term={m.officerState}>
               <OfficerStateBadge state={officer.state} />
@@ -186,16 +215,43 @@ function OfficerCard({ officer }: { officer: ReportingOfficer | null }) {
             )}
           </DescriptionList>
           {officer.state === 'invited' ? (
-            <p className="text-sm text-muted-foreground">{m.officerLinkValidity}</p>
+            <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
+              <Clock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+              <span>{m.officerLinkValidity}</span>
+            </p>
           ) : null}
         </CardContent>
       ) : (
-        <EmptyState
-          icon={<UserPlus />}
-          title={m.officerNoneTitle}
-          text={m.officerNoneText}
-          className="pt-2"
-        />
+        <Dialog open={assigning} onOpenChange={setAssigning}>
+          <EmptyState
+            icon={<UserPlus />}
+            title={m.officerNoneTitle}
+            text={m.officerNoneText}
+            className="pt-2"
+            action={
+              canWrite ? (
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <UserPlus aria-hidden="true" />
+                    {m.assignOfficer}
+                  </Button>
+                </DialogTrigger>
+              ) : undefined
+            }
+          />
+          <AssignDialogContent
+            commission={commission}
+            onAssigned={assigned}
+            onCloseAutoFocus={(event) => {
+              // The trigger goes away once the card shows the officer; land on the heading.
+              if (justAssigned.current) {
+                justAssigned.current = false;
+                event.preventDefault();
+                headingRef.current?.focus();
+              }
+            }}
+          />
+        </Dialog>
       )}
     </Card>
   );
