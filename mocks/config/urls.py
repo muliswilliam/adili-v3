@@ -18,5 +18,6 @@ SYSTEM_URLCONFS = [
 
 urlpatterns = [
     path("health", health, name="health"),
+    path("", include("demo.urls")),
     *[path("", include(urlconf)) for urlconf in SYSTEM_URLCONFS],
 ]

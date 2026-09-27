@@ -29,6 +29,25 @@ def test_person_without_public_employment_is_not_found(api: APIClient) -> None:
     assert api.get("/hr/v1/employees/24718355").status_code == 404
 
 
+@pytest.mark.usefixtures("seeded")
+def test_lists_kemsa_suppliers_including_wanjikus_company(api: APIClient) -> None:
+    response = api.get("/hr/v1/employers/KEMSA/suppliers")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "employer_code": "KEMSA",
+        "registration_numbers": ["PVT-9XYZ2L4Q"],
+    }
+
+
+@pytest.mark.usefixtures("seeded")
+def test_unknown_employer_has_no_suppliers(api: APIClient) -> None:
+    response = api.get("/hr/v1/employers/UNKNOWN/suppliers")
+
+    assert response.status_code == 200
+    assert response.json() == {"employer_code": "UNKNOWN", "registration_numbers": []}
+
+
 def test_demo_batch_matches_directory_roster_rows() -> None:
     rows = demo_batch_rows()
     wanjiku = next(row for row in rows if row["nationalId"] == "27451863")

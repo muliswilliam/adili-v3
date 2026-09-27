@@ -17,7 +17,7 @@ from django.db import transaction
 from ardhisasa.models import Parcel
 from brs.models import Company, Directorship
 from demo.fixtures import load_dependants, load_extra_people, load_roster_rows, parse_name
-from hr.models import Employment
+from hr.models import EmployerSupplier, Employment
 from iprs.models import Person
 from kra.models import Taxpayer
 from ntsa.models import Vehicle
@@ -48,6 +48,11 @@ COMPANIES = [
 ]  # fmt: skip
 
 NON_COMPLIANT_TAXPAYERS = {"22607781"}
+
+# (employer_code, company registration, company name) - 07b supplier-directorship.
+SUPPLIERS = [
+    ("KEMSA", "PVT-9XYZ2L4Q", "Afya Bora Medical Supplies Limited"),
+]
 
 
 def _full_name(first: str, middle: str, last: str) -> str:
@@ -214,3 +219,10 @@ def seed_demo() -> None:
                     "appointed_on": appointed_on,
                 },
             )
+
+    for employer_code, registration, company_name in SUPPLIERS:
+        EmployerSupplier.objects.update_or_create(
+            employer_code=employer_code,
+            registration_number=registration,
+            defaults={"company_name": company_name},
+        )
