@@ -1,12 +1,16 @@
 import { sql } from 'drizzle-orm';
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { PgQueryResultHKT, PgTransaction } from 'drizzle-orm/pg-core';
 
 import { format, keySegments } from './reference.js';
 import { numberingCounters } from './schema.js';
 import type { NumberingScheme } from './schemes.js';
 
-/** The caller's transaction (or database) on a schema that includes `numberingSchema`. */
-export type NumberingExecutor = Pick<PgDatabase<PgQueryResultHKT>, 'insert'>;
+/**
+ * The caller's transaction on a schema that includes `numberingSchema`. A plain database is
+ * refused: in autocommit the increment commits on its own, so a failed insert of the numbered
+ * record burns the number (ADR-011 §3).
+ */
+export type NumberingExecutor = Pick<PgTransaction<PgQueryResultHKT>, 'insert' | 'rollback'>;
 
 export interface CounterKey {
   issuer?: string;

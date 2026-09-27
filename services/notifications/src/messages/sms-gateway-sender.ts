@@ -35,7 +35,7 @@ export class SmsGatewaySender extends MessageSender {
       signal,
     });
     const body: unknown = await response.json().catch(() => undefined);
-    if (response.status === 400 && rejected.safeParse(body).data?.to) {
+    if (response.status === 400 && rejected.safeParse(body).data?.to?.length) {
       throw new DeliveryError('rejected-recipient', 'SMS gateway refused the recipient');
     }
     if (!response.ok) {

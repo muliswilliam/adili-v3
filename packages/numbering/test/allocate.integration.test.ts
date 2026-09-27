@@ -53,6 +53,13 @@ afterAll(async () => {
 });
 
 describe('allocate', () => {
+  it('only accepts a transaction', () => {
+    // Checked by tsc: outside a transaction the increment would commit on its own.
+    // @ts-expect-error: a database is not a transaction.
+    const outsideTransaction = () => allocate(db, OFR);
+    expect(outsideTransaction).toBeTypeOf('function');
+  });
+
   it('starts at 1 and increments per (scheme, issuer, period)', async () => {
     const next = (parts: { issuer?: string; period?: number }) =>
       db.transaction((tx) => allocate(tx, DCB, parts));

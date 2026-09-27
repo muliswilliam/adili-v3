@@ -42,6 +42,7 @@ export class OpenBaoReadinessCheck extends ReadinessCheck {
 
   async check(): Promise<void> {
     const response = await this.client.request('GET', 'sys/health');
+    await discard(response);
     if (!response.ok) {
       // 429 standby, 501 not initialised, 503 sealed.
       throw new Error(`OpenBao health answered ${response.status}`);
@@ -82,6 +83,7 @@ class TransitKeyWrapper implements KeyWrapper {
     });
     // Transit answers 400 for a missing key, a wrong key or a tampered wrapped key.
     if (response.status === 400) {
+      await discard(response);
       throw new FieldCipherError('decryption-failed', `Data key did not unwrap with ${key}`);
     }
     if (!response.ok) {
@@ -104,10 +106,11 @@ class TransitKeyWrapper implements KeyWrapper {
 
   private async createIfMissing(key: string): Promise<void> {
     const existing = await this.client.request('GET', `${this.mount}/keys/${key}`);
-    if (existing.ok) return;
-    if (existing.status !== 404) {
+    if (existing.status !== 404 && !existing.ok) {
       throw await unavailable(`Transit key lookup for ${key}`, existing);
     }
+    await discard(existing);
+    if (existing.ok) return;
     // Creation is idempotent, so concurrent first uses across instances are safe.
     const created = await this.client.request('POST', `${this.mount}/keys/${key}`, {
       type: 'aes256-gcm96',
@@ -117,6 +120,7 @@ class TransitKeyWrapper implements KeyWrapper {
     if (!created.ok) {
       throw await unavailable(`Transit key creation for ${key}`, created);
     }
+    await discard(created);
   }
 }
 
@@ -144,6 +148,11 @@ class OpenBaoClient {
       });
     }
   }
+}
+
+/** Releases the connection of a response whose body is not needed; unread bodies hold it. */
+async function discard(response: Response): Promise<void> {
+  await response.body?.cancel();
 }
 
 async function unavailable(what: string, response: Response): Promise<FieldCipherError> {
