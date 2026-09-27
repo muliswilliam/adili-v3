@@ -142,6 +142,14 @@ describe('autosave reducer (S19)', () => {
     expect(run(saved, { type: 'adopt-etag', etag: '"5"', version: 5 }).etag).toBe('"6"');
   });
 
+  it('takes the ETag of a write made while saves were held, even with edits waiting', () => {
+    const waiting = run(start, { type: 'edit', key: 'bio', contents: 1 });
+    expect(run(waiting, { type: 'took-etag', etag: '"5"', version: 5 }).etag).toBe('"5"');
+    const sending = run(waiting, { type: 'ready', key: 'bio' }, { type: 'send' });
+    expect(run(sending, { type: 'took-etag', etag: '"5"', version: 5 }).etag).toBe('"1"');
+    expect(run(start, { type: 'took-etag', etag: '"0"', version: 0 }).etag).toBe('"1"');
+  });
+
   it('backs off exponentially up to 30 seconds', () => {
     expect([1, 2, 3, 4, 5, 6, 7].map(retryDelay)).toEqual([
       1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000,
@@ -245,5 +253,81 @@ describe('AutosaveQueue', () => {
     queue.flush();
     await vi.advanceTimersByTimeAsync(0);
     expect(save).toHaveBeenLastCalledWith('bio', 3, '"7"');
+  });
+
+  describe('whileHeld (writes outside the queue, e.g. linking a document)', () => {
+    function deferred<T>() {
+      let resolve: (value: T) => void = () => undefined;
+      const promise = new Promise<T>((done) => {
+        resolve = done;
+      });
+      return { promise, resolve };
+    }
+
+    it('sends waiting edits first, holds saves during the write, then saves with its ETag', async () => {
+      const save = vi
+        .fn<(key: string, contents: unknown, ifMatch: string) => Promise<SaveOutcome>>()
+        .mockResolvedValueOnce(savedOutcome('"2"'))
+        .mockResolvedValue(savedOutcome('"4"'));
+      const queue = new AutosaveQueue({ etag: '"1"', version: 1, save });
+      const write = deferred<{ value: string; etag: string; version: number }>();
+      const task = vi.fn(() => write.promise);
+
+      queue.edit('statement:officer', { assets: ['new item'] });
+      const held = queue.whileHeld(task);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(save).toHaveBeenCalledWith('statement:officer', { assets: ['new item'] }, '"1"');
+      expect(task).toHaveBeenCalledTimes(1);
+
+      // Typing during the write waits for it.
+      queue.edit('statement:officer', { assets: ['typed'] });
+      await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+      expect(save).toHaveBeenCalledTimes(1);
+
+      write.resolve({ value: 'linked', etag: '"3"', version: 3 });
+      expect(await held).toEqual({ status: 'done', value: 'linked' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(save).toHaveBeenLastCalledWith('statement:officer', { assets: ['typed'] }, '"3"');
+    });
+
+    it('runs one write at a time', async () => {
+      const queue = new AutosaveQueue({ etag: '"1"', version: 1, save: vi.fn() });
+      const first = deferred<{ value: number; etag: null; version: number }>();
+      const second = vi.fn(() => Promise.resolve({ value: 2, etag: null, version: 0 }));
+
+      const one = queue.whileHeld(() => first.promise);
+      const two = queue.whileHeld(second);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(second).not.toHaveBeenCalled();
+
+      first.resolve({ value: 1, etag: null, version: 0 });
+      expect(await one).toEqual({ status: 'done', value: 1 });
+      expect(await two).toEqual({ status: 'done', value: 2 });
+    });
+
+    it('does not write after a conflict', async () => {
+      const save = vi.fn(() => Promise.resolve<SaveOutcome>({ status: 'conflict' }));
+      const queue = new AutosaveQueue({ etag: '"1"', version: 1, save });
+      const task = vi.fn(() => Promise.resolve({ value: 1, etag: null, version: 0 }));
+
+      queue.edit('bio', 1);
+      const held = queue.whileHeld(task);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(await held).toEqual({ status: 'conflict' });
+      expect(task).not.toHaveBeenCalled();
+    });
+
+    it('releases the hold when the write throws', async () => {
+      const save = vi.fn(() => Promise.resolve(savedOutcome('"2"')));
+      const queue = new AutosaveQueue({ etag: '"1"', version: 1, save });
+
+      await expect(queue.whileHeld(() => Promise.reject(new Error('offline')))).rejects.toThrow(
+        'offline',
+      );
+      queue.edit('bio', 1);
+      queue.flush();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(save).toHaveBeenCalledWith('bio', 1, '"1"');
+    });
   });
 });

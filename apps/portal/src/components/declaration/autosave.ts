@@ -58,6 +58,12 @@ export type AutosaveEvent =
    * it is newer and nothing is waiting or in flight, so a slow read cannot undo a save.
    */
   | { type: 'adopt-etag'; etag: string; version: number }
+  /**
+   * The ETag a write made while saves were held left the draft at (see `whileHeld`). Edits that
+   * waited during the write already build on it, so it is taken with them waiting, as long as
+   * nothing is in flight and it is newer.
+   */
+  | { type: 'took-etag'; etag: string; version: number }
   | { type: 'reloaded'; etag: string; version: number };
 
 export function initialAutosave(etag: string, version: number): AutosaveState {
@@ -162,6 +168,10 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
       return idle(state) && event.version > state.version
         ? { ...state, etag: event.etag, version: event.version }
         : state;
+    case 'took-etag':
+      return state.inFlight === null && event.version > state.version
+        ? { ...state, etag: event.etag, version: event.version }
+        : state;
     case 'reloaded':
       return initialAutosave(event.etag, event.version);
   }
@@ -171,6 +181,14 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
 export function retryDelay(failures: number): number {
   return Math.min(1_000 * 2 ** Math.max(failures - 1, 0), MAX_RETRY_MS);
 }
+
+/**
+ * A write to the draft outside the queue (linking or unlinking a document). It resolves to the
+ * ETag and version the draft was left at, read back afterwards, or `etag: null` when unknown.
+ */
+export type HeldWrite<T> = () => Promise<{ value: T; etag: string | null; version: number }>;
+
+export type HeldResult<T> = { status: 'done'; value: T } | { status: 'conflict' };
 
 export type SaveSection = (key: string, contents: unknown, ifMatch: string) => Promise<SaveOutcome>;
 
@@ -195,6 +213,8 @@ export class AutosaveQueue {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly options: AutosaveQueueOptions;
   private savedHandler: AutosaveQueueOptions['onSaved'];
+  private holding = false;
+  private holds: Promise<unknown> = Promise.resolve();
 
   constructor(options: AutosaveQueueOptions) {
     this.options = options;
@@ -245,6 +265,55 @@ export class AutosaveQueue {
     this.dispatch({ type: 'adopt-etag', etag, version });
   }
 
+  /**
+   * Runs a write the service makes to the draft outside this queue, e.g. linking a document,
+   * which bumps the draft version without returning an ETag. Sends every waiting edit first (so
+   * a new item exists before a document is linked to it), holds saves while the write runs,
+   * then takes the ETag it read back before saving again. One write at a time; none after a
+   * conflict.
+   */
+  whileHeld<T>(write: HeldWrite<T>): Promise<HeldResult<T>> {
+    const run = this.holds.then(() => this.hold(write));
+    this.holds = run.catch(() => undefined);
+    return run;
+  }
+
+  private async hold<T>(write: HeldWrite<T>): Promise<HeldResult<T>> {
+    this.flush();
+    const settled = await this.until(
+      (state) =>
+        state.status === 'conflict' ||
+        (state.inFlight === null &&
+          this.retryTimer === null &&
+          !Object.values(state.pending).some((pending) => pending.ready)),
+    );
+    if (settled.status === 'conflict') return { status: 'conflict' };
+    this.holding = true;
+    try {
+      const { value, etag, version } = await write();
+      if (etag !== null) this.dispatch({ type: 'took-etag', etag, version });
+      return { status: 'done', value };
+    } finally {
+      this.holding = false;
+      this.pump();
+    }
+  }
+
+  /** Resolves once the state satisfies `done`, checking after every change. */
+  private until(done: (state: AutosaveState) => boolean): Promise<AutosaveState> {
+    return new Promise((resolve) => {
+      if (done(this.state)) {
+        resolve(this.state);
+        return;
+      }
+      const unsubscribe = this.subscribe(() => {
+        if (!done(this.state)) return;
+        unsubscribe();
+        resolve(this.state);
+      });
+    });
+  }
+
   /** Starts over from a freshly loaded draft, e.g. after Reload on a conflict. */
   reset(etag: string, version: number) {
     for (const key of [...this.debounces.keys()]) this.clearDebounce(key);
@@ -277,6 +346,7 @@ export class AutosaveQueue {
   }
 
   private pump() {
+    if (this.holding) return; // a write outside the queue is running
     if (this.retryTimer) return; // the backoff decides when to try again
     const before = this.state.inFlight;
     this.dispatch({ type: 'send' });

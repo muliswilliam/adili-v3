@@ -18,7 +18,13 @@ import type {
   SectionKey,
   SectionSaveResult,
 } from '../../server/declarations/types';
-import { type AutosaveState, AutosaveQueue, hasUnsavedWork } from './autosave';
+import {
+  type AutosaveState,
+  AutosaveQueue,
+  hasUnsavedWork,
+  type HeldResult,
+  type HeldWrite,
+} from './autosave';
 
 /**
  * The declaration workspace's shared state: the draft's header and section completeness, the
@@ -37,6 +43,12 @@ export interface WorkspaceValue {
   flush: (key?: SectionKey) => void;
   /** Takes a freshly read ETag when it is newer than the queue's (e.g. after an attachment). */
   adoptEtag: (etag: string, version: number) => void;
+  /**
+   * Runs a write the service makes to the draft outside autosave (linking or unlinking a
+   * document): waiting edits are sent first, saves wait while it runs, and the ETag it read back
+   * is used for the next save. See `AutosaveQueue.whileHeld`.
+   */
+  whileHeld: <T>(write: HeldWrite<T>) => Promise<HeldResult<T>>;
   setIssues: (key: SectionKey, issues: CompletenessIssue[]) => void;
   /** Re-reads the header and section list, e.g. after a household save changed statements. */
   refresh: () => Promise<void>;
@@ -184,6 +196,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     },
     [queue],
   );
+  const whileHeld = useCallback(<T,>(write: HeldWrite<T>) => queue.whileHeld(write), [queue]);
   const setIssues = useCallback((key: SectionKey, next: CompletenessIssue[]) => {
     setIssueMap((current) => ({ ...current, [key]: next }));
   }, []);
@@ -196,6 +209,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     edit,
     flush,
     adoptEtag,
+    whileHeld,
     setIssues,
     refresh,
     reload,
