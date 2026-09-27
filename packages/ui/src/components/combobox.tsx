@@ -1,4 +1,4 @@
-import { ArrowDown01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { Search01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import {
   type ComponentProps,
   type KeyboardEvent,
@@ -16,7 +16,7 @@ export interface ComboboxOption {
   value: string;
   /** Shown in the list and in the input once chosen. */
   label: string;
-  /** Secondary text in the list, e.g. an issuer code. Also searched. */
+  /** A short code shown as a chip before the label in the list, e.g. an issuer code. Also searched. */
   description?: string;
 }
 
@@ -168,11 +168,11 @@ export function Combobox({
           }
         }}
         onKeyDown={handleKeyDown}
-        className="pr-8"
+        className="pl-10"
       />
       <Icon
-        icon={ArrowDown01Icon}
-        className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground"
+        icon={Search01Icon}
+        className="pointer-events-none absolute top-1/2 left-3 size-[17px] -translate-y-1/2 text-muted-foreground"
       />
       <ul
         id={listId}
@@ -182,10 +182,10 @@ export function Combobox({
         onMouseDown={(event) => {
           event.preventDefault();
         }}
-        className="absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-card p-1 text-card-foreground shadow-md"
+        className="absolute inset-x-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-xl bg-card p-1.5 text-card-foreground shadow-pop"
       >
         {matches.length === 0 ? (
-          <li role="presentation" className="px-2 py-1.5 text-sm text-muted-foreground">
+          <li role="presentation" className="px-3 py-4 text-sm text-muted-foreground">
             {emptyText}
           </li>
         ) : (
@@ -202,16 +202,17 @@ export function Combobox({
               onMouseMove={() => {
                 setActive(index);
               }}
-              className="relative flex cursor-default flex-col gap-0.5 rounded-md py-1.5 pr-8 pl-2 text-sm select-none data-active:bg-secondary-hover"
+              className="flex cursor-default items-center gap-3 rounded-[9px] p-2.5 text-[14.5px] leading-snug font-medium select-none data-active:bg-muted"
             >
-              <span>{option.label}</span>
+              <span className="min-w-0 flex-1">{option.label}</span>
+              {/* After the label in the DOM so the option is named by it, shown before it. */}
               {option.description ? (
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="order-first grid h-[26px] min-w-[58px] shrink-0 place-items-center rounded-sm bg-brand-subtle px-1.5 font-mono text-[11.5px] font-semibold tracking-[0.02em] text-brand-subtle-foreground">
                   {option.description}
                 </span>
               ) : null}
               {option.value === value ? (
-                <Icon icon={Tick02Icon} className="absolute top-2 right-2" />
+                <Icon icon={Tick02Icon} strokeWidth={2.4} className="shrink-0" />
               ) : null}
             </li>
           ))

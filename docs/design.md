@@ -121,6 +121,10 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Stepper` | `.hstep` | 24px numbered circles joined by 28px lines (14px on phones, where only the current label shows). Done steps are a green tick on `success-subtle`, the current step is ink (red with a cross when `failed`), upcoming steps are a ring in `placeholder` text. |
 | `Tabs` | `.tabs` | 40px underlined tabs, 14px medium, the active one ink with a 2px ink rule; `TabsCount` adds the kit's 18px count pill |
 | `Tooltip` | `.tip-t`, `#kit-tipbox` | ink panel, 12.5px medium text up to 280px wide, `shadow-pop` |
+| `Combobox` | `.combo-list`, `.combo-opt` | `Input` with a search icon; the list is a pop-shadow menu whose options show the description as a `brand-subtle` mono code chip before the label, and a tick on the chosen one |
+| `OtpInput` | `.otp` | 54 × 58px boxes, 24px semibold digits, 8px apart with a 10px gap between the halves; 1.5px ring on focus and on error; disabled boxes fill `muted` |
+| `MaskedContact` | `.masked`, `.vbadge-ok` | semibold tabular value; the optional verified badge is `success` with a tick |
+| `CopyButton` | copy button in the portal gallery | 36px ghost icon button, or `sm` with its label shown; confirms with a polite toast |
 
 ## Dark theme
 

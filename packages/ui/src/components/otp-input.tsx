@@ -1,5 +1,6 @@
 import {
   type ClipboardEvent,
+  Fragment,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
@@ -166,50 +167,52 @@ export function OtpInput({
       aria-describedby={describedBy(hintId, errorId)}
       className={cn('grid gap-1.5', className)}
     >
-      <span
-        id={labelId}
-        className={cn('text-sm', error ? 'text-destructive' : 'text-muted-foreground')}
-      >
+      <span id={labelId} className="text-sm leading-5 font-medium text-secondary-foreground">
         {label}
       </span>
       {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
       <div className="flex gap-2">
         {Array.from({ length }, (_, index) => (
-          <Input
-            key={index}
-            ref={(element) => {
-              inputs.current[index] = element;
-            }}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            // Lets iOS and Android offer the code from the SMS; it lands in the first box.
-            autoComplete={index === 0 ? 'one-time-code' : 'off'}
-            aria-label={digitLabel(index + 1, length)}
-            aria-invalid={error ? true : undefined}
-            disabled={disabled}
-            value={code[index] ?? ''}
-            onMouseDown={(event) => {
-              // Keep the code gapless: a click past the last digit lands on the next empty box.
-              if (index > code.length) {
-                event.preventDefault();
-                focusBox(code.length);
-              }
-            }}
-            onFocus={(event) => {
-              event.target.select();
-            }}
-            onKeyDown={(event) => {
-              handleKeyDown(event, index);
-            }}
-            onPaste={(event) => {
-              handlePaste(event, index);
-            }}
-            onChange={(event) => {
-              fill(index, typedDigits(event.target.value, code[index]));
-            }}
-            className="size-10 px-0 text-center text-base font-medium tabular-nums"
-          />
+          <Fragment key={index}>
+            {/* A gap splits the code in two halves, e.g. 482 913, so it is easier to read back. */}
+            {index > 0 && index === Math.ceil(length / 2) ? (
+              <span aria-hidden="true" className="w-2.5 shrink-0" />
+            ) : null}
+            <Input
+              ref={(element) => {
+                inputs.current[index] = element;
+              }}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              // Lets iOS and Android offer the code from the SMS; it lands in the first box.
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
+              aria-label={digitLabel(index + 1, length)}
+              aria-invalid={error ? true : undefined}
+              disabled={disabled}
+              value={code[index] ?? ''}
+              onMouseDown={(event) => {
+                // Keep the code gapless: a click past the last digit lands on the next empty box.
+                if (index > code.length) {
+                  event.preventDefault();
+                  focusBox(code.length);
+                }
+              }}
+              onFocus={(event) => {
+                event.target.select();
+              }}
+              onKeyDown={(event) => {
+                handleKeyDown(event, index);
+              }}
+              onPaste={(event) => {
+                handlePaste(event, index);
+              }}
+              onChange={(event) => {
+                fill(index, typedDigits(event.target.value, code[index]));
+              }}
+              className="h-[58px] max-w-[54px] px-0 text-center text-2xl font-semibold tabular-nums focus-visible:shadow-[0_0_0_1.5px_var(--ring),0_0_0_5px_color-mix(in_oklch,var(--ring)_8%,transparent)]"
+            />
+          </Fragment>
         ))}
       </div>
       {name ? <input type="hidden" name={name} value={code} /> : null}

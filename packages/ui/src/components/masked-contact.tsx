@@ -1,7 +1,9 @@
+import { Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
 import { Badge } from './badge';
+import { Icon } from './icon';
 
 export type ContactKind = 'email' | 'phone';
 
@@ -64,10 +66,17 @@ export function MaskedContact({
   return (
     <span className={cn('inline-flex flex-wrap items-center gap-2', className)} {...props}>
       <span>
-        <span className="font-medium tabular-nums">{maskContact(kind, value)}</span>
+        <span className="font-semibold whitespace-nowrap tabular-nums">
+          {maskContact(kind, value)}
+        </span>
         <span className="sr-only"> {privacyHint}</span>
       </span>
-      {verified ? <Badge variant="success">{verifiedLabel}</Badge> : null}
+      {verified ? (
+        <Badge variant="success">
+          <Icon icon={Tick02Icon} strokeWidth={2.5} />
+          {verifiedLabel}
+        </Badge>
+      ) : null}
     </span>
   );
 }
