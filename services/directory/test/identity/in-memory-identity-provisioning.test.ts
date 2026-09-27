@@ -26,13 +26,15 @@ identityProvisioningContract('InMemoryIdentityProvisioning', () => ({
       realmRoles: user.roles,
       requiredActions: user.requiredActions,
       enabled: user.enabled,
+      commissionName: user.commissionName,
+      invitedRole: user.invitedRole,
     });
   },
-  expectActivationDelivered: (_email, userId) => {
+  expectActivationDelivered: (_email, userId, options = ACTIVATION) => {
     expect(fake.calls('sendActivationEmail')).toContainEqual({
       operation: 'sendActivationEmail',
       userId,
-      options: ACTIVATION,
+      options,
     });
     return Promise.resolve();
   },

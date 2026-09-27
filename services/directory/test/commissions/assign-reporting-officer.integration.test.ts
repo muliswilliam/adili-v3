@@ -18,8 +18,10 @@ const OFFICER = {
 const ACTIVATION = {
   actions: ['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP'],
   lifespanSeconds: 259_200,
-  redirectUri: 'http://localhost:3020/',
+  redirectUri: 'http://localhost:3020/auth/login',
   clientId: 'console',
+  commissionName: 'Teachers Service Commission',
+  role: 'reporting-officer',
 };
 
 interface Problem {

@@ -50,6 +50,13 @@ interface RequestOptions {
  */
 export const ACTIVATION_EMAIL_TIMEOUT_MS = 25_000;
 
+/**
+ * Account attributes the activation email is rendered from (apps/keycloak-theme
+ * `src/email`). Declared admin-only in the realm's user profile, so users cannot change them.
+ */
+export const COMMISSION_NAME_ATTRIBUTE = 'commissionName';
+export const INVITED_ROLE_ATTRIBUTE = 'invitedRole';
+
 /** Refresh the service-account token this long before Keycloak says it expires. */
 const TOKEN_EXPIRY_MARGIN_MS = 30_000;
 
@@ -161,6 +168,18 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   }
 
   async sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void> {
+    // The Adili email theme renders these (admin-only) attributes into the email.
+    const user = await this.user(userId);
+    const invitation = {
+      [COMMISSION_NAME_ATTRIBUTE]: [options.commissionName],
+      [INVITED_ROLE_ATTRIBUTE]: [options.role],
+    };
+    const recorded = Object.entries(invitation).every(
+      ([name, value]) => user.attributes?.[name]?.[0] === value[0],
+    );
+    if (!recorded) {
+      await this.putUser(userId, { ...user, attributes: { ...user.attributes, ...invitation } });
+    }
     await this.request('PUT', `/users/${userId}/execute-actions-email`, {
       query: {
         lifespan: String(options.lifespanSeconds),

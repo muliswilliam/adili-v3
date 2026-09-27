@@ -49,6 +49,10 @@ export interface ActivationEmailOptions {
   redirectUri: string;
   /** OAuth client the redirect belongs to, e.g. `console`. */
   clientId: string;
+  /** Display name of the account's Commission, which the email names ("Teachers Service Commission"). */
+  commissionName: string;
+  /** Realm role the account is invited to, e.g. `reporting-officer`; the email names it and its duties. */
+  role: string;
 }
 
 /** The email already belongs to an account. */
@@ -105,6 +109,11 @@ export abstract class IdentityProvisioning {
   /** Deletes the account. Idempotent: an account that does not exist is not an error. */
   abstract deleteUser(userId: string): Promise<void>;
 
-  /** Emails the user a link that performs `actions`. @throws IdentityUserNotFound */
+  /**
+   * Emails the user a link that performs `actions`, in an email that names the Commission and
+   * role they are invited to. Adapters record both on the account first (Keycloak renders the
+   * email from the account), overwriting what an earlier invitation recorded.
+   * @throws IdentityUserNotFound
+   */
   abstract sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void>;
 }

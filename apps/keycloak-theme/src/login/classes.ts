@@ -6,8 +6,8 @@ const input =
   'flex h-10 w-full min-w-0 rounded-md border border-input bg-card px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 aria-invalid:border-destructive';
 
 /**
- * Tailwind classes for the pages rendered by Keycloakify's DefaultPage (everything except the
- * custom login page), so rarely seen flows (OTP, password update, errors) match the design system.
+ * Tailwind classes for the pages rendered by Keycloakify's DefaultPage (everything this theme does
+ * not render itself in pages/), so rarely seen flows match the design system.
  */
 export const classes = {
   kcFormClass: 'grid gap-5',

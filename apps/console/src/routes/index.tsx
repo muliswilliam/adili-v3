@@ -26,11 +26,11 @@ import { authErrorMessage } from '../components/auth-error';
 import { ConsoleHeader } from '../components/console-header';
 import { IdentityCard } from '../components/identity-card';
 import { type Workspace, workspacesFor } from '../components/workspaces';
-import { getViewer, type Viewer } from '../server/viewer';
+import { type DashboardViewer, getDashboardViewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
   validateSearch: z.object({ auth_error: z.string().optional() }),
-  loader: () => getViewer(),
+  loader: () => getDashboardViewer(),
   component: Home,
 });
 
@@ -117,7 +117,7 @@ function Capability({ icon, title, text }: { icon: ReactNode; title: string; tex
   );
 }
 
-function Dashboard({ viewer }: { viewer: Viewer }) {
+function Dashboard({ viewer }: { viewer: DashboardViewer }) {
   const workspaces = viewer.directory.ok ? workspacesFor(viewer.directory.principal.roles) : [];
   return (
     <>
@@ -128,7 +128,11 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
           <p className="text-muted-foreground">Signed in as {viewer.user.name}.</p>
         </div>
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-          <IdentityCard user={viewer.user} directory={viewer.directory} />
+          <IdentityCard
+            user={viewer.user}
+            directory={viewer.directory}
+            organisation={viewer.organisation}
+          />
           <Card>
             <CardHeader>
               <CardTitle>Your workspaces</CardTitle>

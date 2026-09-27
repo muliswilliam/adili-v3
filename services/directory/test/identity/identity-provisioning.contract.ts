@@ -22,13 +22,20 @@ export interface InspectedUser {
   realmRoles: string[];
   requiredActions: string[];
   enabled: boolean;
+  /** Commission and role the latest activation email named. */
+  commissionName: string | null;
+  invitedRole: string | null;
 }
 
 export interface ContractHarness {
   adapter: IdentityProvisioning;
   inspect(userId: string): Promise<InspectedUser>;
-  /** Asserts the activation email for `email` was delivered (or recorded). */
-  expectActivationDelivered(email: string, userId: string): Promise<void>;
+  /** Asserts the activation email for `email` was delivered (or recorded), by default ACTIVATION. */
+  expectActivationDelivered(
+    email: string,
+    userId: string,
+    options?: ActivationEmailOptions,
+  ): Promise<void>;
   /** Removes accounts the suite created. */
   cleanup(userIds: string[]): Promise<void>;
 }
@@ -36,8 +43,10 @@ export interface ContractHarness {
 export const ACTIVATION: ActivationEmailOptions = {
   actions: STAFF_REQUIRED_ACTIONS,
   lifespanSeconds: 72 * 60 * 60,
-  redirectUri: 'http://localhost:3020/',
+  redirectUri: 'http://localhost:3020/auth/login',
   clientId: 'console',
+  commissionName: 'Teachers Service Commission',
+  role: 'reporting-officer',
 };
 
 /** An id no account has (Keycloak ids are UUIDs). */
@@ -186,13 +195,36 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       await expect(harness().adapter.findById(userId)).resolves.toBeNull();
     });
 
-    it('sends the activation email', async () => {
+    it('sends the activation email, naming the Commission and role on the account', async () => {
       const email = uniqueEmail('activation');
       const userId = await create(reportingOfficer(email));
 
       await harness().adapter.sendActivationEmail(userId, ACTIVATION);
 
       await harness().expectActivationDelivered(email, userId);
+      const user = await harness().inspect(userId);
+      expect(user).toMatchObject({
+        commissionName: 'Teachers Service Commission',
+        invitedRole: 'reporting-officer',
+        tenant: 'tsc',
+        phone: '+254712345678',
+      });
+      expect(user.realmRoles).toContain('reporting-officer');
+    });
+
+    it('names the Commission of the latest activation email', async () => {
+      const email = uniqueEmail('renamed');
+      const userId = await create(reportingOfficer(email));
+      await harness().adapter.sendActivationEmail(userId, ACTIVATION);
+      await harness().expectActivationDelivered(email, userId);
+
+      const renamed = { ...ACTIVATION, commissionName: 'Teachers Service Commission of Kenya' };
+      await harness().adapter.sendActivationEmail(userId, renamed);
+
+      await harness().expectActivationDelivered(email, userId, renamed);
+      expect((await harness().inspect(userId)).commissionName).toBe(
+        'Teachers Service Commission of Kenya',
+      );
     });
 
     it('reports an unknown user id as IdentityUserNotFound', async () => {
