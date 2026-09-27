@@ -2,6 +2,9 @@ import { COUNTIES, COUNTRIES } from '@adili/ui';
 
 import type {
   AssetItem,
+  AssetType,
+  IncomeType,
+  LiabilityType,
   ChangeKind,
   Draft,
   IncomeItem,
@@ -24,7 +27,9 @@ export const CATEGORIES: readonly Category[] = ['income', 'assets', 'liabilities
 export type Item = Draft<IncomeItem> | Draft<AssetItem> | Draft<LiabilityItem>;
 
 /** An item of any category, with every field any category has. */
-export type AnyItem = Draft<IncomeItem> & Draft<AssetItem> & Draft<LiabilityItem>;
+export type AnyItem = Omit<Draft<IncomeItem> & Draft<AssetItem> & Draft<LiabilityItem>, 'type'> & {
+  type?: IncomeType | AssetType | LiabilityType;
+};
 
 export const NIL_KEY = {
   income: 'incomeNil',
