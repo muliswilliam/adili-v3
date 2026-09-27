@@ -7,8 +7,9 @@ import { EventPublisher } from '@adili/events';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
+import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
-import { commissions, type DirectorySchema } from '../../db/schema.js';
+import type { DirectorySchema } from '../../db/schema.js';
 import {
   ApiClientNotFound,
   IdentityProvisioning,
@@ -64,7 +65,7 @@ export class ApiCredentialService {
     let issued: { row: CredentialRow; secret: string } | undefined;
     try {
       return await this.inTenant(principal, slug, async (tx) => {
-        await this.requireCommission(tx, slug);
+        await requireCommission(tx, slug);
         const row = await this.claim(tx, principal, slug, clientId);
         const { secret } = await this.identity.createApiClient({
           tenant: slug,
@@ -139,14 +140,6 @@ export class ApiCredentialService {
   ): Promise<T> {
     notFoundIfInvisible(slug, () => principal.tenant === slug);
     return withTenant(this.db, { tenant: slug, subject: principal.subject }, work);
-  }
-
-  private async requireCommission(tx: Transaction, slug: string): Promise<void> {
-    const [commission] = await tx
-      .select({ slug: commissions.slug })
-      .from(commissions)
-      .where(eq(commissions.slug, slug));
-    notFoundIfInvisible(commission);
   }
 
   /**

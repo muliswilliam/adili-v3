@@ -5,6 +5,7 @@ import { and, asc, desc, eq, ilike, isNotNull, like, or, type SQL, sql } from 'd
 
 import { canSeeCommission, tenantContextOf } from '../../commissions/access.js';
 import type { Transaction } from '../../commissions/commissions.service.js';
+import { requireCommission } from '../../commissions/require-commission.js';
 import { decodeCursor, encodeCursor } from '../../commissions/list-query.js';
 import type { RosterSummary } from '../../commissions/representation.js';
 import { commissions, type DirectorySchema } from '../../db/schema.js';
@@ -218,14 +219,6 @@ function filtersFor(query: ListRosterRecordsQuery): (SQL | undefined)[] {
     filters.push(eq(rosterRecords.absentFromLatestImport, query.flagged));
   }
   return filters;
-}
-
-async function requireCommission(tx: Transaction, slug: string): Promise<void> {
-  const [commission] = await tx
-    .select({ slug: commissions.slug })
-    .from(commissions)
-    .where(eq(commissions.slug, slug));
-  notFoundIfInvisible(commission);
 }
 
 interface ListItemRow {
