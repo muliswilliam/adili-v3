@@ -115,12 +115,12 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
 | `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
 | `Select` | `.select`, `.menu` | trigger styled like `Input`; the list is a 12px-radius `shadow-pop` menu with 36px items. The trigger takes the id and aria attributes from `FormField`. |
-| `DataTable` | `.table` with `.cbx` | `Table` with a 36px checkbox column; selected rows tint `brand-faint`; select all covers the current page |
-| `FileDropZone` | `.drop` | 1.5px dashed `input` border, 16px radius, 44px icon tile, 15px semibold label and 13.5px hint inside the zone. Hover and drag-over turn the border ink on `brand-faint`; an error softens it red and shows `FieldError` below; disabled is 55% opacity. |
+| `DataTable` | `.table` with `.cbx` | `Table` with a 36px checkbox column; selected rows tint `brand-faint`; select all covers the current page. The header checkbox is named by `selection.selectAllLabel` (default "Select all on page") |
+| `FileDropZone` | `.drop` | 1.5px dashed `input` border, 16px radius, 44px icon tile, 15px semibold label and 13.5px hint inside the zone. Hover and drag-over turn the border ink on `brand-faint`; an error softens it red and shows `FieldError` below; disabled is 55% opacity with a not-allowed cursor. A file rejected in the browser shows its message until the next file is accepted or `error` changes to a new value; clearing `error` does not hide it. |
 | `ProgressBar` | `.pbar`, `.prog-meta` | 10px bar (`sm`: 6px) on `muted` with a hairline; fill `primary`, or `success` / `destructive` via `tone`. Status text and the percentage sit under the bar. `indeterminate` sweeps while the total is unknown. The label names the bar for screen readers only. |
 | `Stepper` | `.hstep` | 24px numbered circles joined by 28px lines (14px on phones, where only the current label shows). Done steps are a green tick on `success-subtle`, the current step is ink (red with a cross when `failed`), upcoming steps are a ring in `placeholder` text. |
 | `Tabs` | `.tabs` | 40px underlined tabs, 14px medium, the active one ink with a 2px ink rule; `TabsCount` adds the kit's 18px count pill |
-| `Tooltip` | `.tip-t`, `#kit-tipbox` | ink panel, 12.5px medium text up to 280px wide, `shadow-pop` |
+| `Tooltip` | `.tip-t`, `#kit-tipbox` | ink panel, 12.5px medium text up to 280px wide, `shadow-pop`. `TooltipProvider` is optional: mount it near the app root to share one open delay across tooltips; without it each `Tooltip` uses the defaults. |
 
 ## Dark theme
 

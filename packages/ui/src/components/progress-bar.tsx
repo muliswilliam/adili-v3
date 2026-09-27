@@ -2,6 +2,9 @@ import { type ComponentProps, type ReactNode, useId, useState } from 'react';
 
 import { cn } from '../lib/cn';
 
+const DEFAULT_MAX = 100;
+const DEFAULT_ANNOUNCE_EVERY = 25;
+
 export type ProgressBarProps = Omit<ComponentProps<'div'>, 'children'> & {
   /** Names the bar for assistive technology, e.g. "Import progress". Not shown. */
   label: ReactNode;
@@ -40,23 +43,24 @@ export type ProgressBarProps = Omit<ComponentProps<'div'>, 'children'> & {
 export function ProgressBar({
   label,
   value,
-  max = 100,
+  max = DEFAULT_MAX,
   status,
   valueText,
   showValue = true,
   indeterminate = false,
   size = 'default',
   tone = 'default',
-  announceEvery = 25,
+  announceEvery = DEFAULT_ANNOUNCE_EVERY,
   className,
   ...props
 }: ProgressBarProps) {
   const labelId = useId();
-  const safeMax = Number.isFinite(max) && max > 0 ? max : 100;
+  const safeMax = Number.isFinite(max) && max > 0 ? max : DEFAULT_MAX;
   const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 0), safeMax) : 0;
   const percent = Math.round((clamped / safeMax) * 100);
   const text = valueText ?? `${String(percent)}%`;
-  const every = Number.isFinite(announceEvery) && announceEvery > 0 ? announceEvery : 25;
+  const every =
+    Number.isFinite(announceEvery) && announceEvery > 0 ? announceEvery : DEFAULT_ANNOUNCE_EVERY;
   // The live region's text only changes when a step is crossed, so that is all that is read.
   // Nothing is said at 0%; the label already tells the user what is running.
   const step = indeterminate ? 0 : Math.floor(percent / every) * every;
