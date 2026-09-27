@@ -76,7 +76,7 @@ export default function LoginConfigTotp({
                       <a
                         id="mode-barcode"
                         href={totp.qrUrl}
-                        className="w-fit rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="w-fit rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {msg('adiliTotpScanInstead')}
                       </a>
@@ -98,7 +98,7 @@ export default function LoginConfigTotp({
                       <a
                         id="mode-manual"
                         href={totp.manualUrl}
-                        className="rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {msg('adiliTotpCantScan')}
                       </a>

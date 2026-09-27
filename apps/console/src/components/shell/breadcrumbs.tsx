@@ -61,7 +61,7 @@ export function Breadcrumbs() {
             <li key={crumb.id} className="flex shrink-0 items-center gap-1.5">
               <Link
                 to={crumb.to}
-                className="rounded-sm outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="rounded-sm outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {crumb.label}
               </Link>

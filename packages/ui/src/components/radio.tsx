@@ -26,7 +26,7 @@ export function RadioCard({
   'aria-describedby': ownDescribedBy,
   ...props
 }: RadioCardProps) {
-  const fieldIds = useFieldIds({ id, hint: description, describedBy: ownDescribedBy });
+  const fieldIds = useFieldIds({ id, hint: description, ownDescribedBy });
   const labelId = `${fieldIds.id}-label`;
 
   return (
@@ -89,7 +89,7 @@ export function RadioGroup({
   'aria-describedby': ownDescribedBy,
   ...props
 }: RadioGroupProps) {
-  const fieldIds = useFieldIds({ id, hint, error, describedBy: ownDescribedBy });
+  const fieldIds = useFieldIds({ id, hint, error, ownDescribedBy });
 
   return (
     <fieldset

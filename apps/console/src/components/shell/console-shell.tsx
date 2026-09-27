@@ -59,7 +59,7 @@ export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
           <Link
             to="/"
             aria-label="Dials console home"
-            className="shrink-0 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
+            className="shrink-0 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
           >
             <LogoWordmark className="h-5" />
           </Link>
@@ -79,7 +79,7 @@ function Sidebar({ userName, roles }: { userName: string; roles: readonly string
       <Link
         to="/"
         aria-label="Dials console home"
-        className="mb-2 flex w-fit items-center gap-2 rounded-sm px-2 pt-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="mb-2 flex w-fit items-center gap-2 rounded-sm px-2 pt-1 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <LogoWordmark className="h-[22px]" />
         <Badge className="h-5 px-2 text-[11px]">Console</Badge>
@@ -96,7 +96,7 @@ function Sidebar({ userName, roles }: { userName: string; roles: readonly string
                   <Link
                     to={item.to}
                     className={cn(
-                      'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
                       'data-[status=active]:bg-card data-[status=active]:text-foreground data-[status=active]:shadow-card',
                     )}
                   >
