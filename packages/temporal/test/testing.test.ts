@@ -5,6 +5,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { WorkflowTestEnvironment } from '../src/testing.js';
 import { greet } from './fixtures/workflows.js';
 
+// One spy for every importer: the factory may run once per module graph.
+const bundleWorkflowCode = vi.hoisted(() => vi.fn());
+vi.mock('@temporalio/worker', async (importOriginal) => {
+  const worker = await importOriginal<typeof import('@temporalio/worker')>();
+  bundleWorkflowCode.mockImplementation(worker.bundleWorkflowCode);
+  return { ...worker, bundleWorkflowCode };
+});
+
 const workflowsPath = fileURLToPath(new URL('fixtures/workflows.ts', import.meta.url));
 
 describe('WorkflowTestEnvironment', () => {
@@ -29,10 +37,11 @@ describe('WorkflowTestEnvironment', () => {
 
     expect(result).toBe('Hi, Amina');
     expect(composeGreeting).toHaveBeenCalledExactlyOnceWith('Amina');
+    expect(bundleWorkflowCode).toHaveBeenCalledOnce();
   });
 
-  it('reuses the workflow bundle, so later runs take milliseconds', async () => {
-    const started = Date.now();
+  it('reuses the workflow bundle across runs', async () => {
+    const bundlesBefore = bundleWorkflowCode.mock.calls.length;
 
     const result = await env.execute(greet, {
       workflowsPath,
@@ -41,7 +50,7 @@ describe('WorkflowTestEnvironment', () => {
     });
 
     expect(result).toBe('ok');
-    // The workflow sleeps for a day; time skipping and the cached bundle make it near-instant.
-    expect(Date.now() - started).toBeLessThan(2_000);
+    // Bundling takes seconds; skipped timers and a cached bundle keep later runs near-instant.
+    expect(bundleWorkflowCode.mock.calls.length).toBe(bundlesBefore);
   });
 });

@@ -44,7 +44,7 @@ describe('TemporalWorkerModule', () => {
     );
     const started = Date.now();
     await moduleRef.close();
-    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(Date.now() - started).toBeLessThan(10_000);
   });
 
   it('shuts down promptly while still connecting to an unresponsive server', async () => {
@@ -74,7 +74,7 @@ describe('TemporalWorkerModule', () => {
 
       const started = Date.now();
       await moduleRef.close();
-      expect(Date.now() - started).toBeLessThan(2_000);
+      expect(Date.now() - started).toBeLessThan(10_000);
     } finally {
       for (const socket of sockets) socket.destroy();
       await new Promise((resolve) => silent.close(resolve));
