@@ -2,22 +2,18 @@ import {
   Alert,
   AlertDescription,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Icon,
   SiteFooter,
   SiteHeader,
+  ToastProvider,
 } from '@adili/ui';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircleIcon, ArrowRight01Icon, Calendar03Icon } from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
-import { IdentityCard } from '../components/identity-card';
+import { DashboardCards } from '../components/dashboard/dashboard-cards';
 import { SignOutButton } from '../components/sign-out-button';
 import { getViewer, type Viewer } from '../server/viewer';
 
@@ -67,7 +63,7 @@ function Landing({ error }: { error: string | null }) {
 function Dashboard({ viewer }: { viewer: Viewer }) {
   const firstName = viewer.user.name.split(' ')[0];
   return (
-    <>
+    <ToastProvider>
       <SiteHeader
         actions={
           <>
@@ -85,27 +81,11 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
             Your declarations and filing obligations will appear here.
           </p>
         </div>
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <IdentityCard user={viewer.user} directory={viewer.directory} />
-          <Card>
-            <CardHeader>
-              <CardTitle>Filing obligations</CardTitle>
-              <CardDescription>Declarations you are required to file.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
-                <Icon icon={Calendar03Icon} className="size-6 text-muted-foreground" />
-                <p className="text-sm font-medium">No obligations yet</p>
-                <p className="max-w-xs text-sm text-muted-foreground">
-                  Obligations appear here when a declaration falls due under your Commission's
-                  roster.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="mt-8">
+          <DashboardCards viewer={viewer} />
         </div>
       </main>
       <SiteFooter />
-    </>
+    </ToastProvider>
   );
 }
