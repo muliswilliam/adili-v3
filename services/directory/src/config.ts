@@ -18,6 +18,12 @@ export const envSchema = baseEnvSchema.extend({
    * redirect URI of the realm's `console` client.
    */
   CONSOLE_URL: z.url(),
+  TEMPORAL_ADDRESS: z.string().min(1),
+  TEMPORAL_NAMESPACE: z.string().min(1),
+  /** The queue the directory's worker polls: roster imports run here (ADR-013 §4). */
+  TEMPORAL_TASK_QUEUE: z.string().min(1).default('directory'),
+  /** Base URL of the documents service, whose internal API hands out clean roster files. */
+  DOCUMENTS_URL: z.url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

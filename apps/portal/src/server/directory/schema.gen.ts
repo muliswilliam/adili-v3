@@ -196,6 +196,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/roster/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import history, newest first */
+        get: operations["listRosterImports"];
+        put?: never;
+        /**
+         * Start importing a clean roster upload
+         * @description Reporting officer of the Commission. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason. Idempotent per Idempotency-Key.
+         */
+        post: operations["startRosterImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * How a clean upload's columns line up with the template, before importing
+         * @description Reporting officer of the Commission. Reads the header row and counts (or, for large files, estimates) the data rows. Changes nothing.
+         */
+        post: operations["previewRosterImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/imports/{importId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One import with progress, mapping, counts and failure reason
+         * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
+         */
+        get: operations["getRosterImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/roster/summary": {
         parameters: {
             query?: never;
@@ -207,51 +268,6 @@ export interface paths {
         };
         /** Expected, onboarded and flagged counts and the last import */
         get: operations["getRosterSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/imports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Import history, newest first */
-        get: operations["listRosterImports"];
-        put?: never;
-        /**
-         * Start an import from a clean upload or an inline batch
-         * @description reporting-officer of the tenant (file or batch) or a roster:write client of the tenant
-         *     (batch only). At most one import may be processing per tenant. Returns 202; poll the
-         *     import resource for progress and the report. Idempotent per Idempotency-Key.
-         */
-        post: operations["startRosterImport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/imports/{importId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        /** One import with progress, mapping and counts */
-        get: operations["getRosterImport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -969,6 +985,110 @@ export interface components {
             /** @constant */
             scope: "roster:write";
         };
+        /** @enum {string} */
+        ImportChannel: "file" | "api";
+        /** @enum {string} */
+        ImportState: "pending" | "processing" | "completed" | "failed";
+        /** @enum {string} */
+        ImportFailureCode: "missing-columns" | "upload-not-clean" | "parse-error" | "storage-error" | "internal";
+        ColumnMapping: {
+            /** @description File headers matched to template columns, in file order */
+            matched: {
+                /** @description Header as written in the file */
+                source: string;
+                /**
+                 * @description Template column it matched
+                 * @enum {string}
+                 */
+                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone";
+            }[];
+            /** @description File headers that match no template column, or repeat one already matched */
+            ignored: string[];
+            /** @description Optional template columns not present */
+            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
+        };
+        ImportCounts: {
+            /** @description Rows that passed validation when staged */
+            accepted: number;
+            created: number;
+            updated: number;
+            unchanged: number;
+            /** @description Rows rejected when staged or when applied (`identity-locked`) */
+            rejected: number;
+            /** @description Records flagged as absent from this complete import */
+            flaggedAbsent: number;
+            /** @description Exits recorded by this import */
+            exitsRecorded: number;
+        };
+        RosterImport: {
+            /** Format: uuid */
+            id: string;
+            channel: components["schemas"]["ImportChannel"];
+            /** @description The file is the complete roster: officers not in it get flagged as absent */
+            declaredComplete: boolean;
+            state: components["schemas"]["ImportState"];
+            /** @description Name of the uploaded file */
+            fileName: string | null;
+            format: ("csv" | "xlsx" | "json") | null;
+            /** @description Data rows in the file; null until staging finishes */
+            totalRows: number | null;
+            /** @description Rows whose outcome is decided (rejected when staged, or applied); equals totalRows once completed */
+            processedRows: number;
+            /** @description Set when the import ends */
+            counts: components["schemas"]["ImportCounts"] | null;
+            /** @description How the file header lined up with the template; null for API batches */
+            mapping: components["schemas"]["ColumnMapping"] | null;
+            /** @description Set when the import failed */
+            failure: {
+                code: components["schemas"]["ImportFailureCode"];
+                /** @description Readable reason, e.g. the missing columns */
+                detail: string;
+            } | null;
+            startedBy: {
+                /** @enum {string} */
+                kind: "user" | "client";
+                /** @description User's account (`sub`), or the HR system's client id */
+                id: string;
+                /**
+                 * @description Display name when it started (the client id for HR systems); null when the token had none
+                 * @example Fatuma Wanjiru
+                 */
+                name: string | null;
+            };
+            /** Format: date-time */
+            startedAt: string;
+            completedAt: string | null;
+        };
+        StartFileImport: {
+            /** @constant */
+            channel: "file";
+            /**
+             * Format: uuid
+             * @description A clean upload with purpose roster-import (documents service)
+             */
+            uploadId: string;
+            /** @description True when the file is the complete roster; absent officers get flagged */
+            declaredComplete: boolean;
+        };
+        PreviewRosterImport: {
+            /**
+             * Format: uuid
+             * @description A clean upload with purpose roster-import (documents service)
+             */
+            uploadId: string;
+        };
+        RosterImportPreview: {
+            /** Format: uuid */
+            uploadId: string;
+            fileName: string | null;
+            /** @enum {string} */
+            format: "csv" | "xlsx";
+            mapping: components["schemas"]["ColumnMapping"];
+            /** @description Required template columns the file lacks; the import would fail while any are */
+            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
+            /** @description Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files */
+            estimatedRows: number | null;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -981,12 +1101,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        ImportChannel: "file" | "api";
-        /** @enum {string} */
-        ImportState: "pending" | "processing" | "completed" | "failed";
-        /** @enum {string} */
-        ImportFailureCode: "missing-columns" | "upload-not-clean" | "parse-error" | "storage-error" | "internal";
         /** @enum {string} */
         RosterRecordState: "not_onboarded" | "onboarded" | "exited";
         /** @description One roster row as accepted from the template or an API batch (pre-normalisation) */
@@ -1005,66 +1119,10 @@ export interface components {
             /** @description Local (07…, 01…) or international; normalised to E.164 */
             phone?: string | null;
         };
-        StartFileImport: {
-            /** @constant */
-            channel: "file";
-            /**
-             * Format: uuid
-             * @description A clean upload with purpose roster-import (documents service)
-             */
-            uploadId: string;
-            /** @description True when the file is the complete roster; absent officers get flagged */
-            declaredComplete: boolean;
-        };
         StartBatchImport: {
             /** @constant */
             channel: "api";
             rows: components["schemas"]["RosterRowInput"][];
-        };
-        ColumnMapping: {
-            matched: {
-                source: string;
-                field: string;
-            }[];
-            ignored: string[];
-            /** @description Optional template columns not present */
-            missing: string[];
-        };
-        ImportCounts: {
-            accepted: number;
-            created: number;
-            updated: number;
-            unchanged: number;
-            rejected: number;
-            flaggedAbsent: number;
-        };
-        RosterImport: {
-            /** Format: uuid */
-            id: string;
-            channel: components["schemas"]["ImportChannel"];
-            declaredComplete: boolean;
-            state: components["schemas"]["ImportState"];
-            fileName: string | null;
-            /** @enum {string|null} */
-            format: "csv" | "xlsx" | "json" | null;
-            /** @description Null until staging finishes */
-            totalRows: number | null;
-            processedRows: number;
-            counts: components["schemas"]["ImportCounts"] | null;
-            mapping: components["schemas"]["ColumnMapping"] | null;
-            failure: {
-                code: components["schemas"]["ImportFailureCode"];
-                detail: string;
-            } | null;
-            startedBy: {
-                /** @enum {string} */
-                kind: "user" | "client";
-                id: string;
-            };
-            /** Format: date-time */
-            startedAt: string;
-            /** Format: date-time */
-            completedAt: string | null;
         };
         RowError: {
             field: string;
@@ -1993,29 +2051,6 @@ export interface operations {
             };
         };
     };
-    getRosterSummary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The summary */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterSummary"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
     listRosterImports: {
         parameters: {
             query?: {
@@ -2050,16 +2085,16 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StartFileImport"] | components["schemas"]["StartBatchImport"];
+                "application/json": components["schemas"]["StartFileImport"];
             };
         };
         responses: {
@@ -2072,10 +2107,34 @@ export interface operations {
                     "application/json": components["schemas"]["RosterImport"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Another import is processing, or the upload is not clean */
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist. Problem type `upload-not-found`: the Commission has no roster upload with that id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `import-in-progress`: another import of the Commission is still running. Problem type `upload-not-clean`: the upload has not passed its checks */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2093,8 +2152,97 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Rate limit exceeded (RateLimit-* headers present) */
-            429: {
+            /** @description Problem type `documents-unavailable`: the file cannot be read right now; safe to retry */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `import-unavailable`: the import could not be started and nothing was recorded; safe to retry */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    previewRosterImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewRosterImport"];
+            };
+        };
+        responses: {
+            /** @description The preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterImportPreview"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist. Problem type `upload-not-found`: the Commission has no roster upload with that id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upload-not-clean`: the upload has not passed its checks */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `unreadable-file`: the file is empty or not a readable CSV or XLSX; `detail` says why */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `documents-unavailable`: the file cannot be read right now; safe to retry */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2109,8 +2257,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
+                slug: components["schemas"]["Slug"];
+                importId: string;
             };
             cookie?: never;
         };
@@ -2123,6 +2271,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RosterImport"];
+                };
+            };
+            /** @description importId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist, or no such import */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getRosterSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterSummary"];
                 };
             };
             404: components["responses"]["NotFound"];

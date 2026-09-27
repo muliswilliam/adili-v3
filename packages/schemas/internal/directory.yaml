@@ -508,47 +508,32 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/commissions/{slug}/roster/summary:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - roster
-      summary: Expected, onboarded and flagged counts and the last import
-      operationId: getRosterSummary
-      x-draft: true
-      responses:
-        '200':
-          description: The summary
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RosterSummary'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/imports:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
     post:
       tags:
         - roster
-      summary: Start an import from a clean upload or an inline batch
-      description: |
-        reporting-officer of the tenant (file or batch) or a roster:write client of the tenant
-        (batch only). At most one import may be processing per tenant. Returns 202; poll the
-        import resource for progress and the report. Idempotent per Idempotency-Key.
+      summary: Start importing a clean roster upload
+      description: Reporting officer of the Commission. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason. Idempotent per Idempotency-Key.
       operationId: startRosterImport
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/StartFileImport'
-                - $ref: '#/components/schemas/StartBatchImport'
+              $ref: '#/components/schemas/StartFileImport'
       responses:
         '202':
           description: Import accepted
@@ -557,13 +542,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/RosterImport'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: 'Not found: another Commission, or the Commission does not exist. Problem type `upload-not-found`: the Commission has no roster upload with that id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Another import is processing, or the upload is not clean
+          description: 'Problem type `import-in-progress`: another import of the Commission is still running. Problem type `upload-not-clean`: the upload has not passed its checks'
           content:
             application/problem+json:
               schema:
@@ -574,8 +571,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-        '429':
-          description: Rate limit exceeded (RateLimit-* headers present)
+        '502':
+          description: 'Problem type `documents-unavailable`: the file cannot be read right now; safe to retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `import-unavailable`: the import could not be started and nothing was recorded; safe to retry'
           content:
             application/problem+json:
               schema:
@@ -587,6 +590,7 @@ paths:
       operationId: listRosterImports
       x-draft: true
       parameters:
+        - $ref: '#/components/parameters/Slug'
         - name: cursor
           in: query
           schema:
@@ -619,16 +623,87 @@ paths:
                       - 'null'
         '404':
           $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/roster/imports/preview:
+    post:
+      tags:
+        - roster
+      summary: How a clean upload's columns line up with the template, before importing
+      description: Reporting officer of the Commission. Reads the header row and counts (or, for large files, estimates) the data rows. Changes nothing.
+      operationId: previewRosterImport
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewRosterImport'
+      responses:
+        '200':
+          description: The preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterImportPreview'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: reporting-officer'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist. Problem type `upload-not-found`: the Commission has no roster upload with that id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `upload-not-clean`: the upload has not passed its checks'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: 'Problem type `unreadable-file`: the file is empty or not a readable CSV or XLSX; `detail` says why'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `documents-unavailable`: the file cannot be read right now; safe to retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/roster/imports/{importId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - $ref: '#/components/parameters/ImportId'
     get:
       tags:
         - roster
-      summary: One import with progress, mapping and counts
+      summary: One import with progress, mapping, counts and failure reason
+      description: The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission.
       operationId: getRosterImport
-      x-draft: true
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: importId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: The import
@@ -636,6 +711,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RosterImport'
+        '400':
+          description: importId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist, or no such import'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/roster/summary:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags:
+        - roster
+      summary: Expected, onboarded and flagged counts and the last import
+      operationId: getRosterSummary
+      x-draft: true
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterSummary'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/roster/imports/{importId}/rows:
@@ -2011,6 +2120,280 @@ components:
         - secret
         - tokenEndpoint
         - scope
+    ImportChannel:
+      type: string
+      enum:
+        - file
+        - api
+    ImportState:
+      type: string
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+    ImportFailureCode:
+      type: string
+      enum:
+        - missing-columns
+        - upload-not-clean
+        - parse-error
+        - storage-error
+        - internal
+    ColumnMapping:
+      type: object
+      properties:
+        matched:
+          type: array
+          items:
+            type: object
+            properties:
+              source:
+                type: string
+                description: Header as written in the file
+              field:
+                type: string
+                enum:
+                  - personnel_file_number
+                  - full_name
+                  - national_id
+                  - designation
+                  - job_group
+                  - reporting_entity
+                  - appointment_date
+                  - email
+                  - phone
+                description: Template column it matched
+            required:
+              - source
+              - field
+          description: File headers matched to template columns, in file order
+        ignored:
+          type: array
+          items:
+            type: string
+          description: File headers that match no template column, or repeat one already matched
+        missing:
+          type: array
+          items:
+            type: string
+            enum:
+              - personnel_file_number
+              - full_name
+              - national_id
+              - designation
+              - job_group
+              - reporting_entity
+              - appointment_date
+              - email
+              - phone
+          description: Optional template columns not present
+      required:
+        - matched
+        - ignored
+        - missing
+    ImportCounts:
+      type: object
+      properties:
+        accepted:
+          type: integer
+          description: Rows that passed validation when staged
+        created:
+          type: integer
+        updated:
+          type: integer
+        unchanged:
+          type: integer
+        rejected:
+          type: integer
+          description: Rows rejected when staged or when applied (`identity-locked`)
+        flaggedAbsent:
+          type: integer
+          description: Records flagged as absent from this complete import
+        exitsRecorded:
+          type: integer
+          description: Exits recorded by this import
+      required:
+        - accepted
+        - created
+        - updated
+        - unchanged
+        - rejected
+        - flaggedAbsent
+        - exitsRecorded
+    RosterImport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          $ref: '#/components/schemas/ImportChannel'
+        declaredComplete:
+          type: boolean
+          description: 'The file is the complete roster: officers not in it get flagged as absent'
+        state:
+          $ref: '#/components/schemas/ImportState'
+        fileName:
+          description: Name of the uploaded file
+          type:
+            - string
+            - 'null'
+        format:
+          anyOf:
+            - type: string
+              enum:
+                - csv
+                - xlsx
+                - json
+            - type: 'null'
+        totalRows:
+          description: Data rows in the file; null until staging finishes
+          type:
+            - integer
+            - 'null'
+        processedRows:
+          type: integer
+          description: Rows whose outcome is decided (rejected when staged, or applied); equals totalRows once completed
+        counts:
+          anyOf:
+            - $ref: '#/components/schemas/ImportCounts'
+            - type: 'null'
+          description: Set when the import ends
+        mapping:
+          anyOf:
+            - $ref: '#/components/schemas/ColumnMapping'
+            - type: 'null'
+          description: How the file header lined up with the template; null for API batches
+        failure:
+          anyOf:
+            - type: object
+              properties:
+                code:
+                  $ref: '#/components/schemas/ImportFailureCode'
+                detail:
+                  type: string
+                  description: Readable reason, e.g. the missing columns
+              required:
+                - code
+                - detail
+            - type: 'null'
+          description: Set when the import failed
+        startedBy:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+                - user
+                - client
+            id:
+              type: string
+              description: User's account (`sub`), or the HR system's client id
+            name:
+              description: Display name when it started (the client id for HR systems); null when the token had none
+              examples:
+                - Fatuma Wanjiru
+              type:
+                - string
+                - 'null'
+          required:
+            - kind
+            - id
+            - name
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required:
+        - id
+        - channel
+        - declaredComplete
+        - state
+        - fileName
+        - format
+        - totalRows
+        - processedRows
+        - counts
+        - mapping
+        - failure
+        - startedBy
+        - startedAt
+        - completedAt
+    StartFileImport:
+      type: object
+      properties:
+        channel:
+          type: string
+          const: file
+        uploadId:
+          type: string
+          format: uuid
+          description: A clean upload with purpose roster-import (documents service)
+        declaredComplete:
+          type: boolean
+          description: True when the file is the complete roster; absent officers get flagged
+      required:
+        - channel
+        - uploadId
+        - declaredComplete
+    PreviewRosterImport:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+          description: A clean upload with purpose roster-import (documents service)
+      required:
+        - uploadId
+    RosterImportPreview:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        fileName:
+          type:
+            - string
+            - 'null'
+        format:
+          type: string
+          enum:
+            - csv
+            - xlsx
+        mapping:
+          $ref: '#/components/schemas/ColumnMapping'
+        missingRequired:
+          type: array
+          items:
+            type: string
+            enum:
+              - personnel_file_number
+              - full_name
+              - national_id
+              - designation
+              - job_group
+              - reporting_entity
+              - appointment_date
+              - email
+              - phone
+          description: Required template columns the file lacks; the import would fail while any are
+        estimatedRows:
+          description: 'Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files'
+          type:
+            - integer
+            - 'null'
+      required:
+        - uploadId
+        - fileName
+        - format
+        - mapping
+        - missingRequired
+        - estimatedRows
     ProblemDetails:
       type: object
       properties:
@@ -2041,26 +2424,6 @@ components:
         - type
         - title
         - status
-    ImportChannel:
-      type: string
-      enum:
-        - file
-        - api
-    ImportState:
-      type: string
-      enum:
-        - pending
-        - processing
-        - completed
-        - failed
-    ImportFailureCode:
-      type: string
-      enum:
-        - missing-columns
-        - upload-not-clean
-        - parse-error
-        - storage-error
-        - internal
     RosterRecordState:
       type: string
       enum:
@@ -2120,22 +2483,6 @@ components:
             - 'null'
           description: Local (07…, 01…) or international; normalised to E.164
           maxLength: 20
-    StartFileImport:
-      type: object
-      required:
-        - channel
-        - uploadId
-        - declaredComplete
-      properties:
-        channel:
-          const: file
-        uploadId:
-          type: string
-          format: uuid
-          description: A clean upload with purpose roster-import (documents service)
-        declaredComplete:
-          type: boolean
-          description: True when the file is the complete roster; absent officers get flagged
     StartBatchImport:
       type: object
       required:
@@ -2150,144 +2497,6 @@ components:
           maxItems: 1000
           items:
             $ref: '#/components/schemas/RosterRowInput'
-    ColumnMapping:
-      type: object
-      required:
-        - matched
-        - ignored
-        - missing
-      properties:
-        matched:
-          type: array
-          items:
-            type: object
-            required:
-              - source
-              - field
-            properties:
-              source:
-                type: string
-              field:
-                type: string
-        ignored:
-          type: array
-          items:
-            type: string
-        missing:
-          type: array
-          description: Optional template columns not present
-          items:
-            type: string
-    ImportCounts:
-      type: object
-      required:
-        - accepted
-        - created
-        - updated
-        - unchanged
-        - rejected
-        - flaggedAbsent
-      properties:
-        accepted:
-          type: integer
-        created:
-          type: integer
-        updated:
-          type: integer
-        unchanged:
-          type: integer
-        rejected:
-          type: integer
-        flaggedAbsent:
-          type: integer
-    RosterImport:
-      type: object
-      required:
-        - id
-        - channel
-        - declaredComplete
-        - state
-        - fileName
-        - format
-        - totalRows
-        - processedRows
-        - counts
-        - mapping
-        - failure
-        - startedBy
-        - startedAt
-        - completedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        channel:
-          $ref: '#/components/schemas/ImportChannel'
-        declaredComplete:
-          type: boolean
-        state:
-          $ref: '#/components/schemas/ImportState'
-        fileName:
-          type:
-            - string
-            - 'null'
-        format:
-          type:
-            - string
-            - 'null'
-          enum:
-            - csv
-            - xlsx
-            - json
-            - null
-        totalRows:
-          type:
-            - integer
-            - 'null'
-          description: Null until staging finishes
-        processedRows:
-          type: integer
-        counts:
-          oneOf:
-            - $ref: '#/components/schemas/ImportCounts'
-            - type: 'null'
-        mapping:
-          oneOf:
-            - $ref: '#/components/schemas/ColumnMapping'
-            - type: 'null'
-        failure:
-          oneOf:
-            - type: object
-              required:
-                - code
-                - detail
-              properties:
-                code:
-                  $ref: '#/components/schemas/ImportFailureCode'
-                detail:
-                  type: string
-            - type: 'null'
-        startedBy:
-          type: object
-          required:
-            - kind
-            - id
-          properties:
-            kind:
-              type: string
-              enum:
-                - user
-                - client
-            id:
-              type: string
-        startedAt:
-          type: string
-          format: date-time
-        completedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
     RowError:
       type: object
       required:
