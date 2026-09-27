@@ -84,7 +84,7 @@ importers:
         version: 6.1.1(vite@8.3.1)
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       jsdom:
         specifier: ^30.1.1
         version: 30.1.1
@@ -151,7 +151,7 @@ importers:
         version: 6.1.1(vite@8.3.1)
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       jsdom:
         specifier: ^30.1.1
         version: 30.1.1
@@ -230,7 +230,7 @@ importers:
         version: 6.1.1(vite@8.3.1)
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       jsdom:
         specifier: ^30.1.1
         version: 30.1.1
@@ -297,7 +297,7 @@ importers:
         version: 6.1.1(vite@8.3.1)
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       nitro:
         specifier: 3.0.260903-beta
         version: 3.0.260903-beta
@@ -363,7 +363,7 @@ importers:
         version: link:../tsconfig
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -390,7 +390,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -414,7 +414,7 @@ importers:
     dependencies:
       iovalkey:
         specifier: ^0.4.0
-        version: 0.4.0
+        version: 0.4.0(supports-color@10.2.2)
       openid-client:
         specifier: ^6.8.8
         version: 6.8.8
@@ -433,7 +433,7 @@ importers:
         version: 24.13.6
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -448,7 +448,7 @@ importers:
         version: link:../api-kit
       iovalkey:
         specifier: ^0.4.0
-        version: 0.4.0
+        version: 0.4.0(supports-color@10.2.2)
     devDependencies:
       '@adili/eslint-config':
         specifier: workspace:*
@@ -458,16 +458,28 @@ importers:
         version: link:../tsconfig
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
+      '@swc/core':
+        specifier: ^1.16.2
+        version: 1.16.2
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
+      unplugin-swc:
+        specifier: ^2.0.0
+        version: 2.0.0(@swc/core@1.16.2)(esbuild@0.28.2)(rolldown@1.2.10)(vite@8.3.1)(webpack@5.111.1)
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
 
   packages/data-access:
     dependencies:
@@ -489,7 +501,7 @@ importers:
         version: link:../tsconfig
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -498,7 +510,7 @@ importers:
         version: 8.23.1
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -513,7 +525,7 @@ importers:
         version: 10.0.1(eslint@10.11.0)
       eslint:
         specifier: ^10.0.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@10.11.0)
@@ -525,7 +537,7 @@ importers:
         version: 17.12.0
       typescript-eslint:
         specifier: ^8.70.1
-        version: 8.70.1(eslint@10.11.0)(typescript@6.0.3)
+        version: 8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)
 
   packages/events:
     dependencies:
@@ -559,7 +571,7 @@ importers:
         version: link:../tsconfig
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/microservices':
         specifier: ^12.1.0
         version: 12.1.0(@grpc/grpc-js@1.14.5)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(amqp-connection-manager@5.0.0)(amqplib@2.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -583,7 +595,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -623,7 +635,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -687,7 +699,7 @@ importers:
         version: 24.13.6
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -715,7 +727,7 @@ importers:
         version: link:../tsconfig
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -733,7 +745,7 @@ importers:
         version: 24.13.6
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -811,7 +823,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       jsdom:
         specifier: ^30.1.1
         version: 30.1.1
@@ -853,7 +865,7 @@ importers:
         version: link:../../packages/temporal
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -887,7 +899,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -899,7 +911,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -932,7 +944,7 @@ importers:
         version: 0.128.0(zod@4.6.5)
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -966,7 +978,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -978,7 +990,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1005,7 +1017,7 @@ importers:
         version: link:../../packages/telemetry
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1039,7 +1051,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1051,7 +1063,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1084,7 +1096,7 @@ importers:
         version: link:../../packages/temporal
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1118,7 +1130,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1130,7 +1142,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1160,7 +1172,7 @@ importers:
         version: link:../../packages/telemetry
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1200,7 +1212,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1218,7 +1230,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       jose:
         specifier: ^6.2.12
         version: 6.2.12
@@ -1257,7 +1269,7 @@ importers:
         version: 3.1140.0
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1291,7 +1303,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1303,7 +1315,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1333,7 +1345,7 @@ importers:
         version: link:../../packages/temporal
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1367,7 +1379,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1379,7 +1391,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1409,7 +1421,7 @@ importers:
         version: link:../../packages/temporal
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1452,7 +1464,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1467,7 +1479,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       jose:
         specifier: ^6.2.12
         version: 6.2.12
@@ -1503,7 +1515,7 @@ importers:
         version: link:../../packages/temporal
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1537,7 +1549,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1549,7 +1561,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1579,7 +1591,7 @@ importers:
         version: link:../../packages/temporal
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1613,7 +1625,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1625,7 +1637,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1652,7 +1664,7 @@ importers:
         version: link:../../packages/telemetry
       '@nestjs/common':
         specifier: ^12.1.0
-        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1686,7 +1698,7 @@ importers:
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
       '@swc-node/register':
         specifier: ^1.12.1
-        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)
+        version: 1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
@@ -1698,7 +1710,7 @@ importers:
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -7529,12 +7541,12 @@ snapshots:
 
   '@eslint-community/eslint-utils@4.10.1(eslint@10.11.0)':
     dependencies:
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
 
-  '@eslint/config-array@0.23.5':
+  '@eslint/config-array@0.23.5(supports-color@10.2.2)':
     dependencies:
       '@eslint/object-schema': 3.0.5
       debug: 4.4.3(supports-color@10.2.2)
@@ -7552,7 +7564,7 @@ snapshots:
 
   '@eslint/js@10.0.1(eslint@10.11.0)':
     optionalDependencies:
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
 
   '@eslint/object-schema@3.0.5': {}
 
@@ -7868,10 +7880,10 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@nestjs/common@12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/common@12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)':
     dependencies:
       '@standard-schema/spec': 1.1.0
-      file-type: 22.1.1
+      file-type: 22.1.1(supports-color@10.2.2)
       iterare: 1.2.1
       load-esm: 1.0.3
       reflect-metadata: 0.2.2
@@ -7883,7 +7895,7 @@ snapshots:
 
   '@nestjs/core@12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       fast-safe-stringify: 2.1.1
       iterare: 1.2.1
       path-to-regexp: 8.4.2
@@ -7896,12 +7908,12 @@ snapshots:
 
   '@nestjs/mapped-types@12.0.0(@nestjs/common@12.1.0)(reflect-metadata@0.2.2)':
     dependencies:
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       reflect-metadata: 0.2.2
 
   '@nestjs/microservices@12.1.0(@grpc/grpc-js@1.14.5)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(amqp-connection-manager@5.0.0)(amqplib@2.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       iterare: 1.2.1
       reflect-metadata: 0.2.2
@@ -7917,7 +7929,7 @@ snapshots:
       '@fastify/cors': 11.3.0
       '@fastify/formbody': 9.0.0
       '@fastify/middie': 9.3.4
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       fast-querystring: 1.1.2
       fastify: 5.12.5
@@ -7931,7 +7943,7 @@ snapshots:
   '@nestjs/swagger@12.0.2(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(reflect-metadata@0.2.2)(typescript@6.0.3)':
     dependencies:
       '@microsoft/tsdoc': 0.17.0
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/mapped-types': 12.0.0(@nestjs/common@12.1.0)(reflect-metadata@0.2.2)
       '@standard-schema/spec': 1.1.0
@@ -7946,7 +7958,7 @@ snapshots:
 
   '@nestjs/testing@12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)':
     dependencies:
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       tslib: 2.8.1
     optionalDependencies:
@@ -9226,7 +9238,7 @@ snapshots:
       '@swc/core': 1.16.2
       '@swc/types': 0.1.28
 
-  '@swc-node/register@1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(typescript@6.0.3)':
+  '@swc-node/register@1.12.1(@swc/core@1.16.2)(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
       '@node-rs/xxhash': 1.7.8
       '@swc-node/core': 1.15.0(@swc/core@1.16.2)(@swc/types@0.1.28)
@@ -9734,7 +9746,7 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.2
 
-  '@tokenizer/inflate@0.4.1':
+  '@tokenizer/inflate@0.4.1(supports-color@10.2.2)':
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       token-types: 6.1.2
@@ -9823,15 +9835,15 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1)(eslint@10.11.0)(typescript@6.0.3)':
+  '@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1)(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0)(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)
       '@typescript-eslint/scope-manager': 8.70.1
-      '@typescript-eslint/type-utils': 8.70.1(eslint@10.11.0)(typescript@6.0.3)
+      '@typescript-eslint/type-utils': 8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)
       '@typescript-eslint/utils': 8.70.1(eslint@10.11.0)(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.70.1
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       ignore: 7.0.10
       natural-compare: 1.4.0
       ts-api-utils: 2.5.0(typescript@6.0.3)
@@ -9839,14 +9851,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.70.1(eslint@10.11.0)(typescript@6.0.3)':
+  '@typescript-eslint/parser@8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.70.1
       '@typescript-eslint/types': 8.70.1
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.70.1
       debug: 4.4.3(supports-color@10.2.2)
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -9869,13 +9881,13 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  '@typescript-eslint/type-utils@8.70.1(eslint@10.11.0)(typescript@6.0.3)':
+  '@typescript-eslint/type-utils@8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/types': 8.70.1
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
       '@typescript-eslint/utils': 8.70.1(eslint@10.11.0)(typescript@6.0.3)
       debug: 4.4.3(supports-color@10.2.2)
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       ts-api-utils: 2.5.0(typescript@6.0.3)
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -9904,7 +9916,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 8.70.1
       '@typescript-eslint/types': 8.70.1
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -10418,13 +10430,13 @@ snapshots:
 
   eslint-config-prettier@10.1.8(eslint@10.11.0):
     dependencies:
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
 
   eslint-plugin-react-hooks@7.1.1(eslint@10.11.0):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/parser': 7.29.9
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       hermes-parser: 0.25.1
       zod: 4.6.5
       zod-validation-error: 4.0.2(zod@4.6.5)
@@ -10442,11 +10454,11 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.11.0(jiti@2.7.0):
+  eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2):
     dependencies:
       '@eslint-community/eslint-utils': 4.10.1(eslint@10.11.0)
       '@eslint-community/regexpp': 4.12.2
-      '@eslint/config-array': 0.23.5
+      '@eslint/config-array': 0.23.5(supports-color@10.2.2)
       '@eslint/config-helpers': 0.7.0
       '@eslint/core': 1.2.1
       '@eslint/plugin-kit': 0.7.3
@@ -10583,9 +10595,9 @@ snapshots:
     dependencies:
       flat-cache: 6.1.23
 
-  file-type@22.1.1:
+  file-type@22.1.1(supports-color@10.2.2):
     dependencies:
-      '@tokenizer/inflate': 0.4.1
+      '@tokenizer/inflate': 0.4.1(supports-color@10.2.2)
       strtok3: 10.3.5
       token-types: 6.1.2
       uint8array-extras: 1.5.0
@@ -10785,7 +10797,7 @@ snapshots:
 
   interpret@3.1.1: {}
 
-  iovalkey@0.4.0:
+  iovalkey@0.4.0(supports-color@10.2.2):
     dependencies:
       '@iovalkey/commands': 0.1.0
       cluster-key-slot: 1.1.2
@@ -11134,7 +11146,7 @@ snapshots:
 
   nestjs-pino@5.2.1(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(pino-http@11.0.0)(pino@10.3.1)(rxjs@7.8.2):
     dependencies:
-      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.1.0(@nestjs/common@12.1.0)(@nestjs/microservices@12.1.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       pino: 10.3.1
       pino-http: 11.0.0
@@ -11792,13 +11804,13 @@ snapshots:
 
   type-fest@4.41.0: {}
 
-  typescript-eslint@8.70.1(eslint@10.11.0)(typescript@6.0.3):
+  typescript-eslint@8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.70.1(@typescript-eslint/parser@8.70.1)(eslint@10.11.0)(typescript@6.0.3)
-      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0)(typescript@6.0.3)
+      '@typescript-eslint/eslint-plugin': 8.70.1(@typescript-eslint/parser@8.70.1)(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0)(supports-color@10.2.2)(typescript@6.0.3)
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
       '@typescript-eslint/utils': 8.70.1(eslint@10.11.0)(typescript@6.0.3)
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
