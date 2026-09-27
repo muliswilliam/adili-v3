@@ -42,13 +42,12 @@ export {
   DialogTrigger,
 } from './components/dialog';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
-export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
   FileDropZone,
   type FileDropZoneProps,
   type FileRejection,
-  matchesAccept,
 } from './components/file-drop-zone';
+export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export { Icon, type IconProps } from './components/icon';
 export { Input } from './components/input';
 export { Label } from './components/label';
