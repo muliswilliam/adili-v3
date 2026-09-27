@@ -164,7 +164,24 @@ describe('CoreModule', () => {
       roles: ['reviewer'],
       scopes: [],
       clientId: 'console',
+      name: null,
     });
+  });
+
+  it('names the caller from the name claim, else the preferred username', async () => {
+    const named = await signToken({ name: 'Fatuma Wanjiru', preferred_username: 'fatuma' });
+    const unnamed = await signToken({ preferred_username: 'service-account-roster-psc' });
+    const me = async (token: string) =>
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/v1/me',
+          headers: { authorization: `Bearer ${token}` },
+        })
+      ).json<{ name: string | null }>().name;
+
+    expect(await me(named)).toBe('Fatuma Wanjiru');
+    expect(await me(unnamed)).toBe('service-account-roster-psc');
   });
 
   it('parses scopes from the space-separated scope claim', async () => {

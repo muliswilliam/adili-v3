@@ -11,6 +11,11 @@ export interface Principal {
   scopes: readonly string[];
   /** OAuth client that obtained the token (`azp`). */
   clientId: string | null;
+  /**
+   * Display name for audit fields ("created by"): the `name` claim, else `preferred_username`
+   * (a service account's is `service-account-<client id>`). Never used for access decisions.
+   */
+  name: string | null;
 }
 
 /** `Principal` for API documentation, e.g. a service's `/v1/me`. */
@@ -27,4 +32,7 @@ export const principalSchema = z.object({
     .string()
     .nullable()
     .meta({ description: 'OAuth client that obtained the token (`azp`)' }),
+  name: z.string().nullable().meta({
+    description: 'Display name: the `name` claim, else `preferred_username`',
+  }),
 }) satisfies z.ZodType<Principal>;
