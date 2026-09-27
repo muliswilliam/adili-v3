@@ -32,13 +32,17 @@ function scriptedExecutor(failures: Error[]) {
 const providerError = (kind: ProviderErrorKind) =>
   new ProviderError(kind, 'anthropic', `anthropic: ${kind}`);
 
-/** The `aiJob` workflow with the real activities over a scripted executor, timers skipped. */
-describe('aiJob workflow', () => {
+/**
+ * The `aiJob` workflow with the real activities over a scripted executor, timers skipped.
+ * Timeouts as in @adili/temporal: the first run downloads Temporal's test server and bundles
+ * the workflows, and each run starts a worker, which takes seconds on a busy CI runner.
+ */
+describe('aiJob workflow', { timeout: 60_000 }, () => {
   let env: WorkflowTestEnvironment;
 
   beforeAll(async () => {
     env = await WorkflowTestEnvironment.create();
-  });
+  }, 120_000);
 
   afterAll(async () => {
     await env.teardown();
