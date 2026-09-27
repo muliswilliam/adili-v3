@@ -40,6 +40,17 @@ export interface CreateStaffUserInput {
   requiredActions: readonly RequiredAction[];
 }
 
+/** How a staff member is named and reached, as entered by the admin who assigned them. */
+export interface StaffProfile {
+  /** Full name as entered; adapters split it into given and family names. */
+  name: string;
+  /** E.164. */
+  phone: string;
+}
+
+/** Puts back what a change replaced. */
+export type Restore = () => Promise<void>;
+
 export interface ActivationEmailOptions {
   /** Actions the emailed link walks the user through. */
   actions: readonly RequiredAction[];
@@ -105,6 +116,13 @@ export abstract class IdentityProvisioning {
 
   /** Enables or disables sign-in, keeping everything else. Idempotent. @throws IdentityUserNotFound */
   abstract setEnabled(userId: string, enabled: boolean): Promise<void>;
+
+  /**
+   * Sets the account's name and phone, keeping everything else. Returns the call that puts the
+   * previous name and phone back exactly, or null when the account already had these.
+   * @throws IdentityUserNotFound
+   */
+  abstract updateProfile(userId: string, profile: StaffProfile): Promise<Restore | null>;
 
   /** Deletes the account. Idempotent: an account that does not exist is not an error. */
   abstract deleteUser(userId: string): Promise<void>;

@@ -29,6 +29,7 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
   const { msg, msgStr } = i18n;
   const frame = { kcContext, i18n, doUseDefaultCss, classes, displayMessage: false } as const;
   const back = skipLink ? undefined : client?.baseUrl;
+  const signIn = consoleSignIn(kcContext.properties.ADILI_CONSOLE_URL);
   // The token is still in the address bar: it tells an activation link apart, and whether it
   // really expired or was already used (Keycloak reports both as "Action expired.").
   const [token] = useState(() => actionTokenOf(window.location.search, Date.now()));
@@ -45,9 +46,9 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
           }
         >
           <Lead>{msg('adiliLinkUsedLead')}</Lead>
-          {token.reduri ? (
+          {signIn ? (
             <Button asChild className="w-full">
-              <a href={token.reduri}>{msg('adiliSignIn')}</a>
+              <a href={signIn}>{msg('adiliSignIn')}</a>
             </Button>
           ) : null}
         </Template>
@@ -70,9 +71,9 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
               .filter(Boolean)
               .join(' ')}
           </Lead>
-          {token.reduri ? (
+          {signIn ? (
             <Button asChild variant="secondary" className="w-full">
-              <a href={token.reduri}>{msg('adiliAlreadyActivated')}</a>
+              <a href={signIn}>{msg('adiliAlreadyActivated')}</a>
             </Button>
           ) : null}
         </Template>
@@ -120,4 +121,13 @@ export default function Error({ kcContext, i18n, doUseDefaultCss, Template, clas
       ) : null}
     </Template>
   );
+}
+
+/** The console's sign-in, which starts sign-in at once; undefined when the URL is not set. */
+function consoleSignIn(consoleUrl: string): string | undefined {
+  try {
+    return new URL('/auth/login', consoleUrl).toString();
+  } catch {
+    return undefined;
+  }
 }

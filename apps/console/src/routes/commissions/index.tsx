@@ -51,7 +51,9 @@ const ANY = 'any';
 export const Route = createFileRoute('/commissions/')({
   validateSearch: commissionListSearch,
   loaderDeps: ({ search }) => search,
-  loader: async ({ deps, location }) => {
+  loader: async ({ deps, location, context }) => {
+    // The layout shows no list without the workspace; do not fetch one.
+    if (!context.workspace) return null;
     const result = await listCommissions({ data: deps });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;

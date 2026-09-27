@@ -36,6 +36,13 @@
       "when": 1790469766504,
       "tag": "0004_reporting_officer_replacement",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790539953477,
+      "tag": "0005_idempotency_claim_token",
+      "breakpoints": true
     }
   ]
 }

@@ -31,7 +31,7 @@ export interface ReportingOfficerAssignedData extends Record<string, unknown> {
   replacedAssignmentId: string | null;
 }
 
-/** A reporting officer was assigned (or replaced) and sent one activation email. */
+/** A reporting officer was assigned (or replaced); their one activation email follows the commit. */
 export function reportingOfficerAssigned(
   slug: string,
   data: ReportingOfficerAssignedData,

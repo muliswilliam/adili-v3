@@ -51,7 +51,9 @@ function isHidden(result: DirectoryResult<unknown>): boolean {
 /** The breadcrumb for a detail match, from loader data the router only knows as `unknown`. */
 function detailCrumb(loaderData: unknown): string | null {
   if (loaderData === undefined) return m.loading;
-  if (typeof loaderData !== 'object' || loaderData === null || !('ok' in loaderData)) return null;
+  // No workspace: the layout says so under the workspace's title, as on the list.
+  if (loaderData === null) return m.title;
+  if (typeof loaderData !== 'object' || !('ok' in loaderData)) return null;
   if (!loaderData.ok) {
     return isHidden(loaderData as DirectoryResult<unknown>) ? m.notFoundCrumb : m.detailErrorTitle;
   }
@@ -65,7 +67,9 @@ function detailCrumb(loaderData: unknown): string | null {
 }
 
 export const Route = createFileRoute('/commissions/$slug')({
-  loader: async ({ params, location }) => {
+  loader: async ({ params, location, context }) => {
+    // The layout shows no detail without the workspace; do not fetch one.
+    if (!context.workspace) return null;
     const result = await getCommission({ data: { slug: params.slug } });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
@@ -86,6 +90,7 @@ export const Route = createFileRoute('/commissions/$slug')({
 
 function CommissionDetail() {
   const result = Route.useLoaderData();
+  if (!result) return null;
   if (result.ok) {
     return <Detail commission={result.data} />;
   }
@@ -219,7 +224,12 @@ function OfficerCard({ commission }: { commission: Commission }) {
     // A first assignment removes its trigger (the empty state), so focus goes to the heading.
     justAssigned.current = officer === null;
     setDialogOpen(false);
-    toast({ title: m.invitationSentToast(updated.reportingOfficer?.email ?? '') });
+    const now = updated.reportingOfficer;
+    // The activated officer corrected in place: no invitation went out.
+    const corrected = now !== null && now.id === officer?.id && now.state === 'activated';
+    toast({
+      title: corrected ? m.detailsSavedToast(now.name) : m.invitationSentToast(now?.email ?? ''),
+    });
     // Refetch so the card shows the directory's view of the new assignment.
     void router.invalidate();
   };

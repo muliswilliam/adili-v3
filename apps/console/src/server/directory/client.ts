@@ -28,8 +28,8 @@ export type ListCommissionsQuery = NonNullable<
 export type DirectoryError =
   /** No console session, or the directory refused the token (401): sign in again. */
   | { kind: 'unauthenticated' }
-  /** Network failure, timeout or 5xx: worth retrying. */
-  | { kind: 'unavailable'; detail: string | null }
+  /** Network failure, timeout or 5xx: worth retrying. `problemType` is set for 5xx problems. */
+  | { kind: 'unavailable'; detail: string | null; problemType?: string }
   /** The directory answered with RFC 9457 problem details (400, 403, 404, 409, 422). */
   | { kind: 'problem'; problem: ProblemDetails };
 
@@ -37,12 +37,13 @@ export type DirectoryResult<T> = { ok: true; data: T } | { ok: false; error: Dir
 
 /**
  * How long the console waits for the directory, by kind of call. Reads and plain writes are
- * quick. Assigning and resending wait on Keycloak, which sends the activation email over SMTP
- * before answering (the directory allows it 25 s) around several other admin calls; giving up
- * sooner would report a failure for an invitation that is still sent. A write that does time out
- * keeps its Idempotency-Key, so the retry replays the directory's outcome.
+ * quick. Assigning and resending wait on Keycloak: at worst a dozen or so admin calls at the
+ * directory's 5 s timeout each, then the activation email, which Keycloak sends over SMTP before
+ * answering (the directory allows it 25 s). Giving up sooner would report a failure for an
+ * assignment that still succeeds. A write that does time out keeps its Idempotency-Key, so the
+ * retry replays the directory's outcome.
  */
-export const DIRECTORY_TIMEOUTS_MS = { read: 5_000, write: 10_000, identity: 45_000 } as const;
+export const DIRECTORY_TIMEOUTS_MS = { read: 5_000, write: 10_000, identity: 120_000 } as const;
 
 /** The timeout of one directory call, from its method and path. */
 export function directoryTimeoutMs(method: string, path: string): number {
@@ -98,7 +99,10 @@ export async function callDirectory<T>(
   }
   const problem = toProblem(error, response);
   if (response.status >= 500) {
-    return { ok: false, error: { kind: 'unavailable', detail: problem.detail ?? null } };
+    return {
+      ok: false,
+      error: { kind: 'unavailable', detail: problem.detail ?? null, problemType: problem.type },
+    };
   }
   return { ok: false, error: { kind: 'problem', problem } };
 }

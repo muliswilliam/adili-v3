@@ -2,10 +2,10 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 
 import { config } from '../config.js';
-import { violatedUniqueConstraint } from '../db/errors.js';
+import { failedToLock, violatedUniqueConstraint } from '../db/errors.js';
 import type { DirectorySchema } from '../db/schema.js';
 import {
   type ActivationEmailOptions,
@@ -15,7 +15,7 @@ import {
   IdentityUserNotFound,
   STAFF_REQUIRED_ACTIONS,
 } from '../identity/identity-provisioning.js';
-import { PLATFORM_TENANT } from './access.js';
+import { PLATFORM_TENANT, REPORTING_OFFICER_ROLE } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
 import { IdentityChanges } from './identity-changes.js';
 import type { AssignReportingOfficerBody } from './assign-reporting-officer.js';
@@ -24,11 +24,15 @@ import { reportingOfficerAssigned } from './events.js';
 import type { Commission } from './representation.js';
 import { commissions, reportingOfficerAssignments } from './schema.js';
 
-/** Realm role that gives an account the roster tools of its tenant. */
-export const REPORTING_OFFICER_ROLE = 'reporting-officer';
-
 /** How long an activation link stays valid (spec 01: 72 hours). */
 export const ACTIVATION_LIFESPAN_SECONDS = 72 * 60 * 60;
+
+/**
+ * How long a change to a Commission's reporting officer waits for another one to finish before
+ * it is refused (409). The one holding the lock may be waiting on Keycloak; queueing behind it
+ * would tie up a database connection per waiting request.
+ */
+export const OFFICER_LOCK_WAIT = '3s';
 
 /**
  * The activation email every reporting officer receives (on assignment, and on resend): it names
@@ -55,10 +59,11 @@ export function activationEmail(
  * staff account they sign in with. Assignments are tenant data under RLS, so every write runs in
  * the platform context.
  *
- * Identity calls run inside the same unit of work but cannot roll back with it, so an assignment
- * records each identity change it makes and undoes them when a later step (or the commit) fails:
- * Keycloak then looks as it did before, like the database, and the request can be retried with
- * the same Idempotency-Key.
+ * Identity calls cannot roll back with the database, so an assignment records each identity
+ * change it makes and undoes them when a later step (or the commit) fails: Keycloak then looks
+ * as it did before, like the database, and the request can be retried with the same
+ * Idempotency-Key. The activation email cannot be undone, so it is sent only once the
+ * assignment has committed.
  */
 @Injectable()
 export class ReportingOfficersService {
@@ -80,9 +85,13 @@ export class ReportingOfficersService {
    * disabled when that was its only role), and their assignment becomes `replaced` with
    * `replacedBy` naming the new one.
    *
+   * Assigning the current officer again (to correct their name or phone, or to retry an email
+   * that was not sent) updates their assignment and account in place: an activated officer stays
+   * activated and gets no email, an invited one gets their activation email again.
+   *
    * Order: the new account first (an email of another tenant is refused before anything
-   * changes), then the records and the activation email, and the previous officer's access
-   * last, so that the current officer keeps access whenever the new one could not be invited.
+   * changes), then the records and the previous officer's access, so that the current officer
+   * keeps access whenever the new one could not be assigned; the email last, after the commit.
    */
   async assign(
     principal: Principal,
@@ -90,7 +99,7 @@ export class ReportingOfficersService {
     body: AssignReportingOfficerBody,
   ): Promise<Commission> {
     const changes = new IdentityChanges(this.logger);
-    let assigned: { keycloakUserId: string; commission: Commission };
+    let assigned: Assigned;
     try {
       assigned = await this.inPlatformContext(principal, (tx) =>
         this.assignWithin(tx, principal, slug, body, changes).catch(async (error: unknown) => {
@@ -108,23 +117,41 @@ export class ReportingOfficersService {
         'The identity provider did not respond, so the officer was not assigned. Try again.',
       );
     }
-    // A reused account may be remembered as having no invitation; look it up again next time.
-    // Never throws: nothing after the commit may fail, or a retry would assign again.
-    await this.activationLookups.forget(assigned.keycloakUserId);
+    if (assigned.newlyInvited) {
+      // A reused account may be remembered as having no invitation; look it up again next time.
+      await this.activationLookups.forget(assigned.keycloakUserId);
+    }
+    if (assigned.sendEmail) {
+      await this.sendAfterAssigning(assigned.keycloakUserId, assigned.commissionName);
+    }
     return assigned.commission;
   }
 
-  /** The unit of work of `assign`: the invited account id and the Commission to answer with. */
+  /** The unit of work of `assign`: what was assigned, and whether an email is due. */
   private async assignWithin(
     tx: Transaction,
     principal: Principal,
     slug: string,
     body: AssignReportingOfficerBody,
     changes: IdentityChanges,
-  ): Promise<{ keycloakUserId: string; commission: Commission }> {
+  ): Promise<Assigned> {
     const { id: commissionId, name: commissionName } = await this.lockCommission(tx, slug);
     const previous = await this.currentAssignment(tx, commissionId);
     const keycloakUserId = await this.provisionAccount(slug, body, changes);
+    if (previous?.keycloakUserId === keycloakUserId) {
+      // The current officer again: the same assignment, with the details as now entered.
+      await tx
+        .update(reportingOfficerAssignments)
+        .set({ name: body.name, email: body.email, phone: body.phone })
+        .where(eq(reportingOfficerAssignments.id, previous.id));
+      return {
+        keycloakUserId,
+        commissionName,
+        newlyInvited: false,
+        sendEmail: previous.state === 'invited',
+        commission: await this.commissions.read(tx, slug),
+      };
+    }
     const now = new Date();
     if (previous) {
       // Replaced before the insert: the current key admits one non-replaced assignment.
@@ -163,12 +190,34 @@ export class ReportingOfficersService {
         replacedAssignmentId: previous?.id ?? null,
       }),
     );
-    await this.identity.sendActivationEmail(keycloakUserId, activationEmail(commissionName));
-    // Re-assigning the same person (to correct their details) keeps their account.
-    if (previous && previous.keycloakUserId !== keycloakUserId) {
-      await this.retire(previous.keycloakUserId, changes);
+    if (previous) await this.retire(previous.keycloakUserId, changes);
+    return {
+      keycloakUserId,
+      commissionName,
+      newlyInvited: true,
+      sendEmail: true,
+      commission: await this.commissions.read(tx, slug),
+    };
+  }
+
+  /**
+   * The activation email of an assignment that has committed. A failure cannot undo the
+   * assignment, so it is reported as such: a retry with the same Idempotency-Key (or a resend)
+   * sends the email without assigning anyone again.
+   */
+  private async sendAfterAssigning(userId: string, commissionName: string): Promise<void> {
+    try {
+      await this.identity.sendActivationEmail(userId, activationEmail(commissionName));
+    } catch (error) {
+      this.logger.warn({ err: error }, 'Assigned a reporting officer but could not send the email');
+      throw new ProblemException({
+        type: 'invitation-not-sent',
+        title: 'Activation email not sent',
+        status: HttpStatus.BAD_GATEWAY,
+        detail:
+          'The officer was assigned, but the identity provider did not send the activation email. Resend the invitation.',
+      });
     }
-    return { keycloakUserId, commission: await this.commissions.read(tx, slug) };
   }
 
   /**
@@ -177,16 +226,15 @@ export class ReportingOfficersService {
    */
   async resendInvitation(principal: Principal, slug: string): Promise<void> {
     try {
-      await this.inPlatformContext(principal, async (tx) => {
-        const commission = await this.lockCommission(tx, slug);
+      // Read, then sent outside the transaction: the email holds no row lock or connection.
+      const { userId, commissionName } = await this.inPlatformContext(principal, async (tx) => {
+        const commission = await this.findCommission(tx, slug);
         const current = await this.currentAssignment(tx, commission.id);
         if (!current) throw noReportingOfficer();
         if (current.state !== 'invited') throw officerAlreadyActivated();
-        await this.identity.sendActivationEmail(
-          current.keycloakUserId,
-          activationEmail(commission.name),
-        );
+        return { userId: current.keycloakUserId, commissionName: commission.name };
       });
+      await this.identity.sendActivationEmail(userId, activationEmail(commissionName));
     } catch (error) {
       throw asProblem(
         error,
@@ -201,18 +249,27 @@ export class ReportingOfficersService {
 
   /**
    * The Commission's id and display name, locked for the rest of the transaction so that
-   * assignments, replacements and resends of one Commission run one at a time. 404 when it does
-   * not exist.
+   * assignments and replacements of one Commission run one at a time. 404 when it does not
+   * exist; a lock not granted within {@link OFFICER_LOCK_WAIT} fails the transaction.
    */
   private async lockCommission(
     tx: Transaction,
     slug: string,
   ): Promise<{ id: string; name: string }> {
-    const [commission] = await tx
+    await tx.execute(sql.raw(`set local lock_timeout = '${OFFICER_LOCK_WAIT}'`));
+    return this.findCommission(tx, slug, { lock: true });
+  }
+
+  private async findCommission(
+    tx: Transaction,
+    slug: string,
+    { lock = false } = {},
+  ): Promise<{ id: string; name: string }> {
+    const query = tx
       .select({ id: commissions.id, name: commissions.name })
       .from(commissions)
-      .where(eq(commissions.slug, slug))
-      .for('update');
+      .where(eq(commissions.slug, slug));
+    const [commission] = await (lock ? query.for('update') : query);
     return notFoundIfInvisible(commission);
   }
 
@@ -237,9 +294,10 @@ export class ReportingOfficersService {
 
   /**
    * The officer's account id: an existing account of this tenant gets the role (and is enabled
-   * again, in case it was replaced earlier), otherwise a new staff account is created. An account
-   * of another tenant (or of none) is refused: a user belongs to one tenant until Keycloak
-   * Organizations are adopted. Every change is recorded in `changes` with its undo.
+   * again, in case it was replaced earlier) and the name and phone as entered, otherwise a new
+   * staff account is created. An account of another tenant (or of none) is refused: a user
+   * belongs to one tenant until Keycloak Organizations are adopted. Every change is recorded in
+   * `changes` with its undo.
    */
   private async provisionAccount(
     slug: string,
@@ -260,6 +318,11 @@ export class ReportingOfficersService {
         await this.identity.setEnabled(userId, true);
         changes.made(`enabled ${userId}`, () => this.identity.setEnabled(userId, false));
       }
+      const restore = await this.identity.updateProfile(userId, {
+        name: body.name,
+        phone: body.phone,
+      });
+      if (restore) changes.made(`updated the name and phone of ${userId}`, restore);
       return userId;
     }
     const userId = await this.identity.createStaffUser({
@@ -301,6 +364,17 @@ export class ReportingOfficersService {
  * Maps identity and constraint failures to the problem the caller receives. `unavailable` says
  * what did not happen when the identity provider failed.
  */
+/** What `assign` committed, and what is left to do after the commit. */
+interface Assigned {
+  keycloakUserId: string;
+  commissionName: string;
+  /** A new assignment: the account now has an invitation waiting. */
+  newlyInvited: boolean;
+  /** The officer is invited, so the activation email is due. */
+  sendEmail: boolean;
+  commission: Commission;
+}
+
 function asProblem(error: unknown, unavailable: string): unknown {
   if (error instanceof EmailTaken) {
     // Created by someone else between the lookup and the create, or a username clash.
@@ -321,6 +395,15 @@ function asProblem(error: unknown, unavailable: string): unknown {
       status: HttpStatus.CONFLICT,
       detail:
         "The reporting officer's account no longer exists in the identity provider. Replace the officer instead.",
+    });
+  }
+  if (failedToLock(error)) {
+    return new ProblemException({
+      type: 'reporting-officer-busy',
+      title: 'Reporting officer being changed',
+      status: HttpStatus.CONFLICT,
+      detail:
+        "Another change to this Commission's reporting officer is still in progress. Try again shortly.",
     });
   }
   if (violatedUniqueConstraint(error) === 'reporting_officer_assignments_current_key') {

@@ -6,6 +6,7 @@ import { outbox } from '../../src/db/schema.js';
 import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
+import { withOutboxRefusing } from '../support/reporting-officers.js';
 
 /** Spec 01 scenarios S8-S10: assigning a Commission's reporting officer over HTTP. */
 const PLATFORM_ADMIN: Caller = { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] };
@@ -237,10 +238,24 @@ describe('S10 email in the same tenant', () => {
     expect(api.identity.user(userId)?.roles).toEqual(['reviewer', 'reporting-officer']);
     expect((await assignedEvents())[0]?.envelope.data).toMatchObject({ keycloakUserId: userId });
   });
+
+  it('gives the reused account the name and phone as entered', async () => {
+    const userId = api.identity.seedUser({
+      email: OFFICER.email,
+      tenant: 'tsc',
+      name: 'Fatuma W.',
+      phone: '+254700000001',
+      roles: ['reviewer'],
+    });
+
+    expect((await assign(OFFICER)).statusCode).toBe(200);
+
+    expect(api.identity.user(userId)).toMatchObject({ name: OFFICER.name, phone: OFFICER.phone });
+  });
 });
 
 describe('identity provider failures', () => {
-  it.each(['findByEmail', 'createStaffUser', 'sendActivationEmail'] as const)(
+  it.each(['findByEmail', 'createStaffUser'] as const)(
     'answers 502 and keeps no assignment when %s fails',
     async (operation) => {
       api.identity.failNext(operation, new IdentityUnavailable('Keycloak is unreachable'));
@@ -254,33 +269,78 @@ describe('identity provider failures', () => {
       expect(problem.detail).not.toContain('unreachable');
       expect(await officerOf()).toBeNull();
       expect(await assignedEvents()).toEqual([]);
+      expect(api.identity.calls('sendActivationEmail')).toEqual([]);
     },
   );
 
-  it('removes the account a failed attempt created', async () => {
-    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
+  it('removes the account, and sends no email, when recording the assignment fails', async () => {
+    const response = await withOutboxRefusing(api, () => assign(OFFICER));
 
-    expect((await assign(OFFICER)).statusCode).toBe(502);
-
+    expect(response.statusCode).toBe(500);
     expect(api.identity.userByEmail(OFFICER.email)).toBeUndefined();
+    expect(api.identity.calls('sendActivationEmail')).toEqual([]);
+    expect(await officerOf()).toBeNull();
   });
 
-  it('returns a reused account to how it was when a later step fails', async () => {
+  it('returns a reused account to how it was when recording the assignment fails', async () => {
     const userId = api.identity.seedUser({
       email: OFFICER.email,
       tenant: 'tsc',
+      name: 'Fatuma W.',
+      phone: '+254700000001',
       roles: ['reviewer'],
     });
-    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
 
-    expect((await assign(OFFICER)).statusCode).toBe(502);
+    expect((await withOutboxRefusing(api, () => assign(OFFICER))).statusCode).toBe(500);
 
-    expect(api.identity.user(userId)).toMatchObject({ enabled: true, roles: ['reviewer'] });
+    expect(api.identity.user(userId)).toMatchObject({
+      enabled: true,
+      roles: ['reviewer'],
+      name: 'Fatuma W.',
+      phone: '+254700000001',
+    });
+    expect(api.identity.calls('sendActivationEmail')).toEqual([]);
   });
 
-  it('can be retried with the same key after a 502', async () => {
+  it('keeps the assignment and answers 502 invitation-not-sent when the email fails', async () => {
+    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
+
+    const response = await assign(OFFICER);
+
+    expect(response.statusCode).toBe(502);
+    const problem = response.json<Problem>();
+    expect(contractErrors(componentSchema('ProblemDetails'), problem)).toEqual([]);
+    expect(problem.type).toBe('invitation-not-sent');
+    expect(problem.detail).not.toContain('SMTP');
+    expect(await officerOf()).toMatchObject({ email: OFFICER.email, state: 'invited' });
+    expect(await assignedEvents()).toHaveLength(1);
+    expect(api.identity.userByEmail(OFFICER.email)).toMatchObject({
+      roles: ['reporting-officer'],
+      enabled: true,
+    });
+  });
+
+  it('sends the email, without assigning again, when retried with the same key after it failed', async () => {
     const key = randomUUID();
     api.identity.failNext('sendActivationEmail', new IdentityUnavailable('timeout'));
+    expect((await assign(OFFICER, { key })).statusCode).toBe(502);
+    const assigned = await officerOf();
+
+    const retry = await assign(OFFICER, { key });
+
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBeUndefined();
+    expect(retry.json<CommissionBody>().reportingOfficer).toEqual(assigned);
+    expect(api.identity.calls('createStaffUser')).toHaveLength(1);
+    const emails = api.identity.calls('sendActivationEmail');
+    expect(emails).toHaveLength(2);
+    expect(emails[1]?.userId).toBe(api.identity.userByEmail(OFFICER.email)?.userId);
+    expect(await assignedEvents()).toHaveLength(1);
+  });
+
+  it('can be retried with the same key after a 502 that assigned nothing', async () => {
+    const key = randomUUID();
+    api.identity.failNext('createStaffUser', new IdentityUnavailable('timeout'));
     expect((await assign(OFFICER, { key })).statusCode).toBe(502);
 
     const retry = await assign(OFFICER, { key });
@@ -288,18 +348,14 @@ describe('identity provider failures', () => {
     expect(retry.statusCode).toBe(200);
     expect(retry.headers['idempotent-replayed']).toBeUndefined();
     expect(api.identity.calls('createStaffUser')).toHaveLength(2);
-    expect(api.identity.calls('sendActivationEmail')).toHaveLength(2);
-    expect(api.identity.userByEmail(OFFICER.email)?.userId).toBe(
-      api.identity.calls('sendActivationEmail')[1]?.userId,
-    );
+    expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
     expect(await assignedEvents()).toHaveLength(1);
   });
 
   it('reuses on retry an account that a failed attempt could not remove', async () => {
     const key = randomUUID();
-    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('timeout'));
     api.identity.failNext('deleteUser', new IdentityUnavailable('timeout'));
-    expect((await assign(OFFICER, { key })).statusCode).toBe(502);
+    expect((await withOutboxRefusing(api, () => assign(OFFICER, { key }))).statusCode).toBe(500);
     const leftover = api.identity.userByEmail(OFFICER.email);
     expect(leftover).toMatchObject({ tenant: 'tsc', roles: ['reporting-officer'] });
 
@@ -307,6 +363,7 @@ describe('identity provider failures', () => {
 
     expect(retry.statusCode).toBe(200);
     expect(api.identity.calls('createStaffUser')).toHaveLength(1);
+    expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
     expect(api.identity.calls('sendActivationEmail').at(-1)?.userId).toBe(leftover?.userId);
     expect(await assignedEvents()).toHaveLength(1);
   });

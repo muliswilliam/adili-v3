@@ -24,12 +24,16 @@ let clock = Date.now();
 class FlakyStore extends InMemoryIdempotencyStore {
   failCompletes = 0;
 
-  override complete(scope: IdempotencyScope, response: StoredResponse): Promise<void> {
+  override complete(
+    scope: IdempotencyScope,
+    token: string,
+    response: StoredResponse,
+  ): Promise<boolean> {
     if (this.failCompletes > 0) {
       this.failCompletes--;
       return Promise.reject(new Error('connection terminated unexpectedly'));
     }
-    return super.complete(scope, response);
+    return super.complete(scope, token, response);
   }
 }
 
@@ -64,6 +68,24 @@ describeIdempotency(
       expect(retry.headers['idempotent-replayed']).toBe('true');
       expect(retry.json()).toEqual(first.json());
       expect(calls.create).toBe(1);
+    });
+
+    it('does not let a request whose claim was taken over overwrite the outcome of the retry', async () => {
+      const scope = { key: randomUUID(), subject: 'admin-1' };
+      const slow = await store.claim(scope, 'first-body');
+      clock += CLAIM_TIMEOUT_MS + 1;
+      const retry = await store.claim(scope, 'second-body');
+      if (slow.outcome !== 'claimed' || retry.outcome !== 'claimed') throw new Error('not claimed');
+
+      expect(await store.complete(scope, retry.token, { status: 200, body: 'retry' })).toBe(true);
+      expect(await store.complete(scope, slow.token, { status: 200, body: 'slow' })).toBe(false);
+      await store.release(scope, slow.token);
+
+      expect(await store.claim(scope, 'second-body')).toEqual({
+        outcome: 'existing',
+        requestHash: 'second-body',
+        response: { status: 200, body: 'retry' },
+      });
     });
 
     it("answers with the handler's result even when its outcome cannot be stored", async () => {

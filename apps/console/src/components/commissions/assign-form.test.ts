@@ -77,6 +77,19 @@ describe('assignFailure', () => {
     });
   });
 
+  it('says the officer was assigned and keeps the key when only the email failed', () => {
+    expect(
+      assignFailure({ kind: 'unavailable', detail: null, problemType: 'invitation-not-sent' }),
+    ).toEqual({ fieldErrors: {}, unmapped: [], alert: 'not-sent', newKey: false });
+  });
+
+  it('asks to wait, with a new key, while another change of the officer is running', () => {
+    expect(assignFailure(problem({ status: 409, type: 'reporting-officer-busy' }))).toMatchObject({
+      alert: 'busy',
+      newKey: true,
+    });
+  });
+
   it('keeps the key while the first attempt is still in progress', () => {
     expect(assignFailure(problem({ status: 409, type: 'idempotency-key-in-use' }))).toMatchObject({
       alert: 'in-progress',

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   DEFAULT_CLAIM_TIMEOUT_MS,
   DEFAULT_RETENTION_MS,
@@ -10,6 +12,7 @@ import {
 
 interface Entry {
   requestHash: string;
+  token: string;
   response: StoredResponse | null;
   createdAt: number;
 }
@@ -46,19 +49,19 @@ export class InMemoryIdempotencyStore extends IdempotencyStore {
         response: existing.response,
       });
     }
-    this.entries.set(id, { requestHash, response: null, createdAt: this.now() });
-    return Promise.resolve({ outcome: 'claimed' });
+    const token = randomUUID();
+    this.entries.set(id, { requestHash, token, response: null, createdAt: this.now() });
+    return Promise.resolve({ outcome: 'claimed', token });
   }
 
-  complete(scope: IdempotencyScope, response: StoredResponse): Promise<void> {
-    const entry = this.entries.get(entryId(scope));
+  complete(scope: IdempotencyScope, token: string, response: StoredResponse): Promise<boolean> {
+    const entry = this.heldBy(scope, token);
     if (entry) entry.response = response;
-    return Promise.resolve();
+    return Promise.resolve(entry !== undefined);
   }
 
-  release(scope: IdempotencyScope): Promise<void> {
-    const id = entryId(scope);
-    if (this.entries.get(id)?.response === null) this.entries.delete(id);
+  release(scope: IdempotencyScope, token: string): Promise<void> {
+    if (this.heldBy(scope, token)) this.entries.delete(entryId(scope));
     return Promise.resolve();
   }
 
@@ -71,6 +74,11 @@ export class InMemoryIdempotencyStore extends IdempotencyStore {
       }
     }
     return Promise.resolve(removed);
+  }
+
+  private heldBy(scope: IdempotencyScope, token: string): Entry | undefined {
+    const entry = this.entries.get(entryId(scope));
+    return entry?.token === token && entry.response === null ? entry : undefined;
   }
 
   private isLive(entry: Entry): boolean {

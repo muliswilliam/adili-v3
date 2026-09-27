@@ -19,13 +19,15 @@ import {
   Alert02Icon,
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
+  InformationCircleIcon,
   Loading03Icon,
   Mail01Icon,
   SentIcon,
   Tick02Icon,
   UserAdd01Icon,
 } from '@hugeicons/core-free-icons';
-import { type SyntheticEvent, useId, useRef, useState } from 'react';
+import { useRouter } from '@tanstack/react-router';
+import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
 
 import { assignReportingOfficer } from '../../server/commissions';
 import type { Commission } from '../../server/directory/client';
@@ -80,7 +82,16 @@ export function AssignDialogContent({
   onCloseAutoFocus,
 }: AssignDialogProps) {
   const id = useId();
+  const router = useRouter();
   const idempotencyKey = useRef<string | null>(null);
+  /** An officer was assigned without the page knowing (the email failed); reload it on close. */
+  const assignedUnseen = useRef(false);
+  useEffect(
+    () => () => {
+      if (assignedUnseen.current) void router.invalidate();
+    },
+    [router],
+  );
   const alertsRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<DialogState>({
     draft: EMPTY_ASSIGN_DRAFT,
@@ -162,6 +173,7 @@ export function AssignDialogContent({
     }
     const failure = assignFailure(result.error);
     if (failure.newKey) idempotencyKey.current = null;
+    if (failure.alert === 'not-sent') assignedUnseen.current = true;
     setState((previous) => ({
       ...previous,
       errors: failure.fieldErrors,
@@ -173,6 +185,11 @@ export function AssignDialogContent({
 
   const phone = normalisePhone(draft.phone);
   const replacing = mode === 'replace' ? commission.reportingOfficer : null;
+  // The current officer's own email: the directory corrects their details instead of replacing
+  // them, and an activated officer gets no email.
+  const correcting =
+    replacing !== null && draft.email.trim().toLowerCase() === replacing.email.toLowerCase();
+  const savesOnly = correcting && replacing.state === 'activated';
 
   return (
     <DialogContent
@@ -184,7 +201,9 @@ export function AssignDialogContent({
         <CardIcon className="mb-0">
           <Icon icon={replacing ? ArrowDataTransferHorizontalIcon : UserAdd01Icon} />
         </CardIcon>
-        <DialogTitle>{replacing ? m.replaceTitle : m.assignTitle}</DialogTitle>
+        <DialogTitle>
+          {correcting ? m.correctTitle : replacing ? m.replaceTitle : m.assignTitle}
+        </DialogTitle>
       </DialogHeader>
 
       <form
@@ -196,7 +215,12 @@ export function AssignDialogContent({
         <DialogBody>
           {/* Disabling the fieldset disables every control while the request is in flight. */}
           <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-[18px] border-0 p-0">
-            {replacing ? (
+            {replacing && correcting ? (
+              <Alert variant="info" role="status">
+                <Icon icon={InformationCircleIcon} />
+                <AlertDescription>{m.correctNotice(replacing.name)}</AlertDescription>
+              </Alert>
+            ) : replacing ? (
               <Alert variant="warning" role="status">
                 <Icon icon={Alert02Icon} />
                 <AlertDescription>{m.replaceWarning(replacing.name)}</AlertDescription>
@@ -284,7 +308,9 @@ export function AssignDialogContent({
 
         <p className="flex shrink-0 items-start gap-2 border-t px-5 pt-3.5 text-[13px] text-muted-foreground sm:px-6 sm:pt-4">
           <Icon icon={Mail01Icon} className="mt-0.5 size-3.5" />
-          <span>{m.assignOneEmail}</span>
+          <span>
+            {savesOnly ? m.correctNoEmail : correcting ? m.correctEmailAgain : m.assignOneEmail}
+          </span>
         </p>
         <DialogFooter className="border-t-0 pt-3 sm:pt-3">
           <DialogClose asChild>
@@ -296,12 +322,12 @@ export function AssignDialogContent({
             {submitting ? (
               <>
                 <Icon icon={Loading03Icon} className="animate-spin" />
-                {m.assignSubmitting}
+                {savesOnly ? m.correctSubmitting : m.assignSubmitting}
               </>
             ) : (
               <>
-                <Icon icon={SentIcon} />
-                {m.assignSubmit}
+                <Icon icon={savesOnly ? Tick02Icon : SentIcon} />
+                {savesOnly ? m.correctSubmit : m.assignSubmit}
               </>
             )}
           </Button>
@@ -325,7 +351,9 @@ function SubmitAlert({
   const copy: Record<AssignAlert, { title: string; text?: string }> = {
     rejected: { title: m.assignRejected, text: fieldErrors ? m.assignRejectedText : undefined },
     error: { title: m.assignError, text: m.assignErrorText },
+    'not-sent': { title: m.assignNotSent, text: m.assignNotSentText },
     'in-progress': { title: m.assignInProgress, text: m.assignInProgressText },
+    busy: { title: m.assignBusy, text: m.assignBusyText },
     changed: { title: m.assignChanged, text: m.assignChangedText },
     'officer-changed': { title: m.assignOfficerChanged, text: m.assignOfficerChangedText },
     'not-found': { title: m.assignNotFound },

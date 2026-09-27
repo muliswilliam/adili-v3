@@ -78,7 +78,7 @@ export interface paths {
         get?: never;
         /**
          * Assign or replace the Commission's reporting officer
-         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role (and is disabled when it holds no other role). Idempotent per Idempotency-Key.
+         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account with the name and phone as entered, grants the reporting-officer role (enabling the account if it was disabled) and, once the assignment is recorded, sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role (and is disabled when it holds no other role). Assigning the current officer again corrects their name and phone in place: an activated officer stays activated and gets no email; an invited one gets their activation email again. Idempotent per Idempotency-Key.
          */
         put: operations["assignReportingOfficer"];
         post?: never;
@@ -1540,7 +1540,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Commission with the new assignment in state `invited` */
+            /** @description Commission with the new assignment in state `invited`, or with the current one corrected */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1576,7 +1576,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account in another tenant (or in none). Nothing changed and the current officer keeps access. */
+            /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account in another tenant (or in none). Problem type `reporting-officer-busy`: another change to this Commission's reporting officer is still in progress; try again shortly. Either way nothing changed and the current officer keeps access. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1594,7 +1594,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned and identity changes already made were undone, so the current officer keeps access. Safe to retry with the same Idempotency-Key. */
+            /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned and identity changes already made were undone, so the current officer keeps access. Problem type `invitation-not-sent`: the officer was assigned but the activation email was not sent; resend the invitation. Both are safe to retry with the same Idempotency-Key. */
             502: {
                 headers: {
                     [name: string]: unknown;

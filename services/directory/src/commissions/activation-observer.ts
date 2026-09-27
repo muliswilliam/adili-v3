@@ -12,7 +12,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { from, type Observable, switchMap } from 'rxjs';
 
 import type { DirectorySchema } from '../db/schema.js';
-import { PLATFORM_TENANT } from './access.js';
+import { PLATFORM_TENANT, REPORTING_OFFICER_ROLE } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
 import { reportingOfficerActivated } from './events.js';
 import { reportingOfficerAssignments } from './schema.js';
@@ -24,9 +24,11 @@ import { reportingOfficerAssignments } from './schema.js';
  * `commission.reporting-officer.activated.v1`, exactly once.
  *
  * Runs before every authenticated handler, so the officer's own first request already sees the
- * new state. Subjects found without an invitation are remembered for a few minutes
- * ({@link ActivationLookups}), which keeps the database out of everyone else's requests.
- * Observing never fails the request: on error the next request simply tries again.
+ * new state. Only tokens carrying the reporting-officer role are looked at (an invited account
+ * holds it from the moment it is assigned), so everyone else pays nothing. Officers found
+ * without an invitation are remembered for a few minutes ({@link ActivationLookups}), which
+ * keeps the database out of their later requests. Observing never fails the request: on error
+ * the next request simply tries again.
  */
 @Injectable()
 export class ActivationObserver implements NestInterceptor {
@@ -39,20 +41,22 @@ export class ActivationObserver implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const subject =
+    const principal =
       context.getType() === 'http'
-        ? context.switchToHttp().getRequest<AuthenticatedRequest>().principal?.subject
+        ? context.switchToHttp().getRequest<AuthenticatedRequest>().principal
         : undefined;
-    if (!subject) return next.handle();
-    return from(this.observe(subject)).pipe(switchMap(() => next.handle()));
+    if (!principal?.roles.includes(REPORTING_OFFICER_ROLE)) return next.handle();
+    return from(this.observe(principal.subject)).pipe(switchMap(() => next.handle()));
   }
 
   private async observe(subject: string): Promise<void> {
-    if (await this.lookups.knownNotInvited(subject)) return;
+    const lookup = await this.lookups.lookup(subject);
+    if (lookup.notInvited) return;
     try {
       await this.activate(subject);
-      // Activated now or never invited: either way nothing is waiting for this subject.
-      await this.lookups.rememberNotInvited(subject);
+      // Activated now or never invited: either way nothing is waiting for this subject, unless
+      // an assignment committed meanwhile, which the version check leaves to the next request.
+      await this.lookups.rememberNotInvited(subject, lookup.version);
     } catch (error) {
       this.logger.warn({ err: error }, 'Observing reporting-officer activation failed');
     }

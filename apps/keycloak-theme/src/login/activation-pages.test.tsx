@@ -11,6 +11,16 @@ import {
 } from './previews';
 
 /** Spec 01 stories 22, 23 and 25: the Keycloak pages of a reporting officer's activation. */
+
+/** `search` with the token's redirect claim replaced, as a crafted link would have it. */
+function withRedirect(search: string, reduri: string): string {
+  const params = new URLSearchParams(search);
+  const [header, payload, signature] = (params.get('key') ?? '').split('.');
+  const claims = JSON.parse(atob(payload ?? '')) as Record<string, unknown>;
+  const forged = btoa(JSON.stringify({ ...claims, reduri })).replace(/=+$/, '');
+  params.set('key', `${header}.${forged}.${signature}`);
+  return `?${params.toString()}`;
+}
 function renderPreview(name: PreviewName) {
   render(<KcPage kcContext={previews[name]()} />);
 }
@@ -75,6 +85,22 @@ describe('activation pages', () => {
     );
   });
 
+  it.each([
+    ['used', USED_ACTIVATION_SEARCH, 'Sign in'],
+    ['expired', EXPIRED_ACTIVATION_SEARCH, 'Already activated? Sign in'],
+  ])(
+    'leads from a %s link to the console, whatever redirect the link names',
+    async (_state, search, link) => {
+      window.history.replaceState(null, '', `/${withRedirect(search, 'https://phish.example/')}`);
+
+      renderPreview('link-expired');
+
+      expect((await screen.findByRole('link', { name: link })).getAttribute('href')).toBe(
+        'http://localhost:3020/auth/login',
+      );
+    },
+  );
+
   it('keeps other expired links generic', async () => {
     renderPreview('link-expired');
 
@@ -135,10 +161,9 @@ describe('activation pages', () => {
 });
 
 describe('actionTokenOf', () => {
-  it('reads the type, redirect and lifespan of a link', () => {
+  it('reads the type and lifespan of a link', () => {
     expect(actionTokenOf(EXPIRED_ACTIVATION_SEARCH, Date.now())).toEqual({
       typ: 'execute-actions',
-      reduri: 'http://localhost:3020/auth/login',
       lifespanHours: 72,
       expired: true,
     });

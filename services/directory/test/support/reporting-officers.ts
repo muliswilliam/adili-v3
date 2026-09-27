@@ -1,5 +1,5 @@
 import { withTenant } from '@adili/data-access';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { expect } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
@@ -128,4 +128,46 @@ export async function assignedEvents(api: DirectoryApi) {
   return (
     await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox)
   ).filter((event) => event.type === 'commission.reporting-officer.assigned.v1');
+}
+
+/**
+ * Runs `work` while every outbox insert fails, as when recording an event fails after the
+ * identity changes of an assignment were made.
+ */
+export async function withOutboxRefusing<T>(api: DirectoryApi, work: () => Promise<T>): Promise<T> {
+  await api.db.execute(sql`
+    create function refuse_outbox() returns trigger language plpgsql as $$
+    begin raise exception 'outbox unavailable'; end $$`);
+  await api.db.execute(sql`
+    create trigger refuse_outbox before insert on outbox
+    for each row execute function refuse_outbox()`);
+  try {
+    return await work();
+  } finally {
+    await api.db.execute(sql`drop trigger refuse_outbox on outbox`);
+    await api.db.execute(sql`drop function refuse_outbox()`);
+  }
+}
+
+/**
+ * Runs `work` while another transaction holds the lock on the Commission `tsc`, as a slow
+ * assignment of it would.
+ */
+export async function withTscLocked<T>(api: DirectoryApi, work: () => Promise<T>): Promise<T> {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  let locked!: () => void;
+  const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+  const holder = withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, async (tx) => {
+    await tx.select().from(commissions).where(eq(commissions.slug, 'tsc')).for('update');
+    locked();
+    await released;
+  });
+  await lockTaken;
+  try {
+    return await work();
+  } finally {
+    release();
+    await holder;
+  }
 }

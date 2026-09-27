@@ -6,6 +6,8 @@ import {
   IdentityUnavailable,
   type IdentityUser,
   IdentityUserNotFound,
+  type Restore,
+  type StaffProfile,
 } from './identity-provisioning.js';
 
 export interface KeycloakIdentityOptions {
@@ -24,6 +26,8 @@ interface UserRepresentation {
   id: string;
   username?: string;
   email?: string;
+  firstName?: string;
+  lastName?: string;
   enabled?: boolean;
   attributes?: Record<string, string[]>;
   [field: string]: unknown;
@@ -157,6 +161,23 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   async setEnabled(userId: string, enabled: boolean): Promise<void> {
     const user = await this.user(userId);
     if (user.enabled !== enabled) await this.putUser(userId, { ...user, enabled });
+  }
+
+  async updateProfile(userId: string, profile: StaffProfile): Promise<Restore | null> {
+    const user = await this.user(userId);
+    const previous = profileOf(user);
+    const wanted = { ...splitName(profile.name), phone: profile.phone };
+    if (
+      previous.firstName === wanted.firstName &&
+      previous.lastName === wanted.lastName &&
+      previous.phone === wanted.phone
+    ) {
+      return null;
+    }
+    await this.putUser(userId, withProfile(user, wanted));
+    return async () => {
+      await this.putUser(userId, withProfile(await this.user(userId), previous));
+    };
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -336,6 +357,29 @@ export class KeycloakHttpError extends Error {
   ) {
     super(`Keycloak ${method} ${path} answered ${status}${detail}`);
   }
+}
+
+interface Profile {
+  firstName: string | undefined;
+  lastName: string | undefined;
+  phone: string | undefined;
+}
+
+function profileOf(user: UserRepresentation): Profile {
+  return { firstName: user.firstName, lastName: user.lastName, phone: user.attributes?.phone?.[0] };
+}
+
+/** The full representation with `profile` in place; an undefined field is cleared. */
+function withProfile(user: UserRepresentation, profile: Profile): UserRepresentation {
+  const attributes = { ...user.attributes };
+  if (profile.phone === undefined) delete attributes.phone;
+  else attributes.phone = [profile.phone];
+  return {
+    ...user,
+    firstName: profile.firstName ?? '',
+    lastName: profile.lastName ?? '',
+    attributes,
+  };
 }
 
 /** First word is the given name, the rest the family name ("Otieno Odhiambo"). */

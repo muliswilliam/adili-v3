@@ -19,7 +19,11 @@ import {
   ProblemException,
   toProblemDetails,
 } from '../problem-details.filter.js';
-import { type IdempotencyScope, IdempotencyStore } from './idempotency.store.js';
+import {
+  type IdempotencyScope,
+  IdempotencyStore,
+  type StoredResponse,
+} from './idempotency.store.js';
 import { hashRequest } from './request-hash.js';
 
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
@@ -109,11 +113,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
       return of(body ?? undefined);
     }
 
+    const { token } = claim;
     return next.handle().pipe(
-      catchError((error: unknown) => from(this.recordFailure(scope, request.url, error))),
+      catchError((error: unknown) => from(this.recordFailure(scope, token, request.url, error))),
       mergeMap(async (body: unknown) => {
         await this.record(scope, 'complete', () =>
-          this.store.complete(scope, { status: reply.statusCode, body: toJson(body) }),
+          this.complete(scope, token, { status: reply.statusCode, body: toJson(body) }),
         );
         return body;
       }),
@@ -123,19 +128,34 @@ export class IdempotencyInterceptor implements NestInterceptor {
   /** Stores client errors (they will not change on retry); frees the key after server errors. */
   private async recordFailure(
     scope: IdempotencyScope,
+    token: string,
     url: string,
     error: unknown,
   ): Promise<never> {
     const problem = toProblemDetails(error, url);
     if (problem.status < 500) {
       await this.record(scope, 'complete', () =>
-        this.store.complete(scope, { status: problem.status, body: problem }),
+        this.complete(scope, token, { status: problem.status, body: problem }),
       );
     } else {
       // Left unreleased, the claim still frees itself once it counts as abandoned.
-      await this.record(scope, 'release', () => this.store.release(scope));
+      await this.record(scope, 'release', () => this.store.release(scope, token));
     }
     throw error;
+  }
+
+  /** Stores the outcome, or says why it could not: the claim was taken over meanwhile. */
+  private async complete(
+    scope: IdempotencyScope,
+    token: string,
+    response: StoredResponse,
+  ): Promise<void> {
+    if (!(await this.store.complete(scope, token, response))) {
+      this.logger.warn(
+        { idempotencyKey: scope.key, subject: scope.subject },
+        'An idempotent request outlived its claim, which a retry took over; its outcome is not stored',
+      );
+    }
   }
 
   /**

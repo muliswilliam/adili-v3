@@ -1,6 +1,7 @@
 export {
   CacheModule,
   type CacheModuleOptions,
+  createValkey,
   InjectValkey,
   VALKEY,
   ValkeyReadinessCheck,

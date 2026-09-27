@@ -67,7 +67,15 @@ export function checkAssignField(draft: AssignDraft, field: AssignField): string
 }
 
 export type AssignAlert =
-  'rejected' | 'error' | 'in-progress' | 'changed' | 'officer-changed' | 'not-found' | 'forbidden';
+  | 'rejected'
+  | 'error'
+  | 'not-sent'
+  | 'in-progress'
+  | 'busy'
+  | 'changed'
+  | 'officer-changed'
+  | 'not-found'
+  | 'forbidden';
 
 /** How the dialog shows an assign request the directory did not accept. */
 export interface AssignFailure {
@@ -84,6 +92,10 @@ export interface AssignFailure {
 
 export function assignFailure(error: DirectoryError): AssignFailure {
   const failure: AssignFailure = { fieldErrors: {}, unmapped: [], alert: null, newKey: false };
+  // Assigned, but the email failed: a retry with the same key sends it, assigning no one again.
+  if (error.kind === 'unavailable' && error.problemType === 'invitation-not-sent') {
+    return { ...failure, alert: 'not-sent' };
+  }
   if (error.kind !== 'problem') return { ...failure, alert: 'error' };
   const { problem } = error;
   if (problem.type === 'idempotency-key-in-use') return { ...failure, alert: 'in-progress' };
@@ -92,6 +104,8 @@ export function assignFailure(error: DirectoryError): AssignFailure {
   if (problem.type === 'email-belongs-to-other-tenant') {
     return { ...failure, fieldErrors: { email: m.officerEmailTaken } };
   }
+  // Another change of this officer is still running; the directory refuses rather than queue.
+  if (problem.type === 'reporting-officer-busy') return { ...failure, alert: 'busy' };
   // Another replacement won a race (the directory serialises them, so this is rare).
   if (problem.type === 'reporting-officer-changed') return { ...failure, alert: 'officer-changed' };
   if (problem.status === 404) return { ...failure, alert: 'not-found' };

@@ -71,17 +71,17 @@ describe('callDirectory', () => {
     });
   });
 
-  it('treats 5xx as unavailable, keeping the problem detail', async () => {
+  it('treats 5xx as unavailable, keeping the problem detail and type', async () => {
     const { client } = clientAnswering(() =>
       json(
-        { type: 'about:blank', title: 'Bad Gateway', status: 502, detail: 'Keycloak down' },
+        { type: 'invitation-not-sent', title: 'Bad Gateway', status: 502, detail: 'Keycloak down' },
         502,
       ),
     );
 
     expect(await callDirectory(() => client.GET('/v1/commissions'))).toEqual({
       ok: false,
-      error: { kind: 'unavailable', detail: 'Keycloak down' },
+      error: { kind: 'unavailable', detail: 'Keycloak down', problemType: 'invitation-not-sent' },
     });
   });
 

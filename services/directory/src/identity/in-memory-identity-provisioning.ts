@@ -8,6 +8,8 @@ import {
   type IdentityUser,
   IdentityUserNotFound,
   type RequiredAction,
+  type Restore,
+  type StaffProfile,
 } from './identity-provisioning.js';
 
 /** Every call made to the fake, in order, with its arguments. */
@@ -18,6 +20,7 @@ export type IdentityCall =
   | { operation: 'grantRole'; userId: string; role: string }
   | { operation: 'revokeRole'; userId: string; role: string }
   | { operation: 'setEnabled'; userId: string; enabled: boolean }
+  | { operation: 'updateProfile'; userId: string; profile: StaffProfile }
   | { operation: 'deleteUser'; userId: string }
   | { operation: 'sendActivationEmail'; userId: string; options: ActivationEmailOptions };
 
@@ -175,6 +178,23 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     return this.update(userId, (user) => {
       user.enabled = enabled;
     });
+  }
+
+  updateProfile(userId: string, profile: StaffProfile): Promise<Restore | null> {
+    this.log.push({ operation: 'updateProfile', userId, profile: { ...profile } });
+    const failure = this.takeFailure('updateProfile');
+    if (failure) return Promise.reject(failure);
+    const user = this.users.get(userId);
+    if (!user) return Promise.reject(new IdentityUserNotFound(userId));
+    const previous = { name: user.name, phone: user.phone };
+    if (previous.name === profile.name && previous.phone === profile.phone) {
+      return Promise.resolve(null);
+    }
+    Object.assign(user, profile);
+    // Not recorded: an undo is not a call the code under test makes.
+    return Promise.resolve(() =>
+      this.update(userId, (restored) => Object.assign(restored, previous)),
+    );
   }
 
   deleteUser(userId: string): Promise<void> {

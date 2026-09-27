@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 
@@ -37,23 +39,25 @@ export class PostgresIdempotencyStore extends IdempotencyStore {
 
   async claim(scope: IdempotencyScope, requestHash: string): Promise<IdempotencyClaim> {
     for (let attempt = 0; attempt < MAX_CLAIM_ATTEMPTS; attempt++) {
+      const token = randomUUID();
       // Inserts a fresh claim, or takes over a row that expired or was abandoned mid-request.
       const claimed = await this.db
         .insert(table)
-        .values({ key: scope.key, principalSubject: scope.subject, requestHash })
+        .values({ key: scope.key, principalSubject: scope.subject, requestHash, claimToken: token })
         .onConflictDoUpdate({
           target: [table.key, table.principalSubject],
           set: {
             requestHash,
             responseStatus: null,
             responseBody: null,
+            claimToken: token,
             createdAt: sql`now()`,
           },
           setWhere: sql`${table.createdAt} < ${olderThan(this.retentionMs)} or (${table.responseStatus} is null and ${table.createdAt} < ${olderThan(this.claimTimeoutMs)})`,
         })
         .returning({ key: table.key });
       if (claimed.length > 0) {
-        return { outcome: 'claimed' };
+        return { outcome: 'claimed', token };
       }
 
       const [existing] = await this.db
@@ -79,15 +83,21 @@ export class PostgresIdempotencyStore extends IdempotencyStore {
     throw new Error('Could not claim idempotency key under contention');
   }
 
-  async complete(scope: IdempotencyScope, response: StoredResponse): Promise<void> {
-    await this.db
+  async complete(
+    scope: IdempotencyScope,
+    token: string,
+    response: StoredResponse,
+  ): Promise<boolean> {
+    const completed = await this.db
       .update(table)
       .set({ responseStatus: response.status, responseBody: response.body })
-      .where(matches(scope));
+      .where(heldBy(scope, token))
+      .returning({ key: table.key });
+    return completed.length > 0;
   }
 
-  async release(scope: IdempotencyScope): Promise<void> {
-    await this.db.delete(table).where(and(matches(scope), isNull(table.responseStatus)));
+  async release(scope: IdempotencyScope, token: string): Promise<void> {
+    await this.db.delete(table).where(heldBy(scope, token));
   }
 
   async purgeExpired(): Promise<number> {
@@ -101,6 +111,11 @@ export class PostgresIdempotencyStore extends IdempotencyStore {
 
 function matches(scope: IdempotencyScope) {
   return and(eq(table.key, scope.key), eq(table.principalSubject, scope.subject));
+}
+
+/** The unfinished claim of `scope` made with `token`. */
+function heldBy(scope: IdempotencyScope, token: string) {
+  return and(matches(scope), eq(table.claimToken, token), isNull(table.responseStatus));
 }
 
 /** Cutoff on the database clock, so replicas with skewed clocks agree on expiry. */

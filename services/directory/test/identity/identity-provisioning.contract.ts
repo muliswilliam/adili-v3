@@ -184,6 +184,41 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       }
     });
 
+    it('updates the name and phone, keeping roles and attributes, and restores them exactly', async () => {
+      const userId = await create(reportingOfficer(uniqueEmail('profile')));
+
+      const restore = await harness().adapter.updateProfile(userId, {
+        name: 'Achieng Atieno',
+        phone: '+254733444555',
+      });
+      const updated = await harness().inspect(userId);
+      await restore?.();
+
+      expect(updated).toMatchObject({
+        name: 'Achieng Atieno',
+        phone: '+254733444555',
+        tenant: 'tsc',
+        enabled: true,
+      });
+      expect(updated.realmRoles).toContain('reporting-officer');
+      expect(await harness().inspect(userId)).toMatchObject({
+        name: 'Otieno Odhiambo Ouma',
+        phone: '+254712345678',
+        tenant: 'tsc',
+      });
+    });
+
+    it('changes nothing, and has nothing to restore, when the profile already matches', async () => {
+      const userId = await create(reportingOfficer(uniqueEmail('same-profile')));
+
+      await expect(
+        harness().adapter.updateProfile(userId, {
+          name: 'Otieno Odhiambo Ouma',
+          phone: '+254712345678',
+        }),
+      ).resolves.toBeNull();
+    });
+
     it('deletes an account idempotently', async () => {
       const email = uniqueEmail('delete');
       const userId = await harness().adapter.createStaffUser(reportingOfficer(email));
@@ -239,6 +274,9 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       await expect(adapter.setEnabled(UNKNOWN_USER_ID, false)).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );
+      await expect(
+        adapter.updateProfile(UNKNOWN_USER_ID, { name: 'Nobody', phone: '+254700000000' }),
+      ).rejects.toBeInstanceOf(IdentityUserNotFound);
       await expect(adapter.sendActivationEmail(UNKNOWN_USER_ID, ACTIVATION)).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );

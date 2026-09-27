@@ -22,7 +22,13 @@ import { MeController } from './me/me.controller.js';
       schema,
       applicationName: SERVICE_NAME,
     }),
-    IdempotencyModule.forRoot({ database: DATABASE }),
+    IdempotencyModule.forRoot({
+      database: DATABASE,
+      // Outlasts the slowest idempotent request: an assignment whose dozen or so Keycloak admin
+      // calls each take their full 5 s timeout, then the 25 s activation email. A retry sooner
+      // is told the first request is still running instead of running it again.
+      claimTimeoutMs: 3 * 60 * 1000,
+    }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
     IdentityModule,

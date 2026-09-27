@@ -16,6 +16,8 @@ import {
   givenTsc,
   officerOf,
   type Problem,
+  withOutboxRefusing,
+  withTscLocked,
 } from '../support/reporting-officers.js';
 
 /** Spec 01 scenario S11: replacing a Commission's reporting officer over HTTP. */
@@ -147,22 +149,47 @@ describe('S11 replace', () => {
     expect(api.identity.user(reviewer)).toMatchObject({ enabled: true, roles: ['reviewer'] });
   });
 
-  it('keeps the account when the same person is assigned again with corrected details', async () => {
+  it('corrects the details of the invited officer in place and sends their email again', async () => {
     const previous = await givenOfficer(api, FIRST);
+    const corrected = { ...FIRST, name: 'Fatuma Wanjiru Kamau', phone: '+254733444555' };
+
+    const response = await assign(api, corrected);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<CommissionBody>().reportingOfficer).toMatchObject({
+      ...corrected,
+      id: previous.assignmentId,
+      state: 'invited',
+    });
+    expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['invited']);
+    expect(await assignedEvents(api)).toHaveLength(1);
+    expect(api.identity.calls('revokeRole')).toEqual([]);
+    expect(api.identity.user(previous.userId)).toMatchObject({
+      name: corrected.name,
+      phone: corrected.phone,
+      enabled: true,
+      roles: ['reporting-officer'],
+    });
+    const emails = api.identity.calls('sendActivationEmail');
+    expect(emails.map((email) => email.userId)).toEqual([previous.userId, previous.userId]);
+  });
+
+  it('corrects the details of an activated officer without an email or a new invitation', async () => {
+    const previous = await givenOfficer(api, FIRST);
+    await givenActivated(api, previous.assignmentId);
+    const activated = await officerOf(api);
 
     const response = await assign(api, { ...FIRST, phone: '+254733444555' });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json<CommissionBody>().reportingOfficer).toMatchObject({
+    expect(response.json<CommissionBody>().reportingOfficer).toEqual({
+      ...activated,
       phone: '+254733444555',
-      state: 'invited',
     });
-    expect(api.identity.calls('revokeRole')).toEqual([]);
-    expect(api.identity.user(previous.userId)).toMatchObject({
-      enabled: true,
-      roles: ['reporting-officer'],
-    });
-    expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['replaced', 'invited']);
+    expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['activated']);
+    expect(await assignedEvents(api)).toHaveLength(1);
+    expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
+    expect(api.identity.user(previous.userId)).toMatchObject({ phone: '+254733444555' });
   });
 
   it('enables the account of a previously replaced officer who is assigned again', async () => {
@@ -242,13 +269,7 @@ describe('S11 refusals and failures leave the current officer in place', () => {
     expect(await assignedEvents(api)).toHaveLength(1);
   });
 
-  it.each([
-    'findById',
-    'revokeRole',
-    'setEnabled',
-    'createStaffUser',
-    'sendActivationEmail',
-  ] as const)(
+  it.each(['findById', 'revokeRole', 'setEnabled', 'createStaffUser'] as const)(
     'answers 502, records nothing and leaves both accounts as they were when %s fails',
     async (operation) => {
       const previous = await givenOfficer(api, FIRST);
@@ -268,29 +289,51 @@ describe('S11 refusals and failures leave the current officer in place', () => {
         roles: ['reporting-officer'],
       });
       expect(api.identity.userByEmail(SECOND.email)).toBeUndefined();
+      expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
     },
   );
 
-  it('returns a reused account of the tenant to how it was when the email fails', async () => {
+  it('returns both accounts to how they were when recording the replacement fails', async () => {
     const previous = await givenOfficer(api, FIRST);
     const reviewer = api.identity.seedUser({
       email: SECOND.email,
       tenant: 'tsc',
+      name: 'Brian O.',
+      phone: '+254700000002',
       roles: ['reviewer'],
     });
-    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
 
-    expect((await assign(api, SECOND)).statusCode).toBe(502);
+    expect((await withOutboxRefusing(api, () => assign(api, SECOND))).statusCode).toBe(500);
 
-    expect(api.identity.user(reviewer)).toMatchObject({ enabled: true, roles: ['reviewer'] });
+    expect(api.identity.user(reviewer)).toMatchObject({
+      enabled: true,
+      roles: ['reviewer'],
+      name: 'Brian O.',
+      phone: '+254700000002',
+    });
     expect(api.identity.user(previous.userId)).toMatchObject({
       enabled: true,
       roles: ['reporting-officer'],
     });
+    expect((await officerOf(api))?.id).toBe(previous.assignmentId);
+    expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
   });
 
-  it('completes the replacement when retried with the same key after a 502', async () => {
+  it('keeps the replacement and answers 502 invitation-not-sent when the email fails', async () => {
     const previous = await givenOfficer(api, FIRST);
+    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
+
+    const response = await assign(api, SECOND);
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json<Problem>().type).toBe('invitation-not-sent');
+    expect((await officerOf(api))?.email).toBe(SECOND.email);
+    expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['replaced', 'invited']);
+    expect(api.identity.user(previous.userId)).toMatchObject({ enabled: false, roles: [] });
+  });
+
+  it('sends the email, without replacing again, when retried with the same key after it failed', async () => {
+    await givenOfficer(api, FIRST);
     const key = randomUUID();
     api.identity.failNext('sendActivationEmail', new IdentityUnavailable('timeout'));
     expect((await assign(api, SECOND, { key })).statusCode).toBe(502);
@@ -298,9 +341,23 @@ describe('S11 refusals and failures leave the current officer in place', () => {
     const retry = await assign(api, SECOND, { key });
 
     expect(retry.statusCode).toBe(200);
-    expect(api.identity.calls('createStaffUser')).toHaveLength(3);
-    expect(api.identity.user(previous.userId)?.enabled).toBe(false);
+    expect(api.identity.calls('createStaffUser')).toHaveLength(2);
+    expect(api.identity.calls('revokeRole')).toHaveLength(1);
+    const emails = api.identity.calls('sendActivationEmail');
+    expect(emails).toHaveLength(3);
+    expect(emails[2]?.userId).toBe(api.identity.userByEmail(SECOND.email)?.userId);
     expect((await assignmentRows(api)).map((row) => row.state)).toEqual(['replaced', 'invited']);
     expect(await assignedEvents(api)).toHaveLength(2);
+  });
+
+  it('refuses (409) rather than queue behind a change that holds the Commission', async () => {
+    const previous = await givenOfficer(api, FIRST);
+
+    const response = await withTscLocked(api, () => assign(api, SECOND));
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json<Problem>().type).toBe('reporting-officer-busy');
+    expect((await officerOf(api))?.id).toBe(previous.assignmentId);
+    expect(api.identity.userByEmail(SECOND.email)).toBeUndefined();
   });
 });

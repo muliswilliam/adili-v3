@@ -22,12 +22,14 @@ const store = new PostgresIdempotencyStore(db, { claimTimeoutMs: 1_000 });
 
 beforeAll(async () => {
   await db.execute(sql.raw(`drop schema if exists ${SCHEMA} cascade; create schema ${SCHEMA}`));
-  const migration = readFileSync(
-    new URL('migrations/0000_idempotency.sql', import.meta.url),
-    'utf8',
-  );
-  for (const statement of migration.split('--> statement-breakpoint')) {
-    await db.execute(sql.raw(statement));
+  const journal = JSON.parse(
+    readFileSync(new URL('migrations/meta/_journal.json', import.meta.url), 'utf8'),
+  ) as { entries: { tag: string }[] };
+  for (const { tag } of journal.entries) {
+    const migration = readFileSync(new URL(`migrations/${tag}.sql`, import.meta.url), 'utf8');
+    for (const statement of migration.split('--> statement-breakpoint')) {
+      if (statement.trim()) await db.execute(sql.raw(statement));
+    }
   }
 });
 
@@ -86,6 +88,24 @@ describe('PostgresIdempotencyStore', () => {
     );
 
     expect(claims.filter((claim) => claim.outcome === 'claimed')).toHaveLength(1);
+  });
+
+  it('does not let a request whose claim was taken over overwrite the outcome of the retry', async () => {
+    const scope = { key: randomUUID(), subject: 'admin-1' };
+    const slow = await store.claim(scope, 'first-body');
+    await ageKey(scope.key, '2 seconds');
+    const retry = await store.claim(scope, 'second-body');
+    if (slow.outcome !== 'claimed' || retry.outcome !== 'claimed') throw new Error('not claimed');
+
+    expect(await store.complete(scope, retry.token, { status: 200, body: 'retry' })).toBe(true);
+    expect(await store.complete(scope, slow.token, { status: 200, body: 'slow' })).toBe(false);
+    await store.release(scope, slow.token);
+
+    expect(await store.claim(scope, 'second-body')).toEqual({
+      outcome: 'existing',
+      requestHash: 'second-body',
+      response: { status: 200, body: 'retry' },
+    });
   });
 
   it('purges keys older than 24 hours and keeps recent ones', async () => {

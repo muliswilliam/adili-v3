@@ -102,8 +102,12 @@ export const en = {
   assignRejectedText: 'Check the highlighted fields.',
   assignError: 'The invitation was not sent. Try again.',
   assignErrorText: 'Your details are kept. Retrying is safe.',
+  assignNotSent: 'The officer was assigned, but the activation email was not sent',
+  assignNotSentText: 'Select Send invitation again to send it. Your details are kept.',
   assignInProgress: 'The first attempt is still being processed',
   assignInProgressText: 'Wait a moment, then select Send invitation again.',
+  assignBusy: 'Another change to this reporting officer is still being processed',
+  assignBusyText: 'Wait a moment, then select Send invitation again.',
   assignChanged: 'These details changed after an earlier attempt',
   assignChangedText:
     'The first attempt may have sent the invitation. Close this dialog and check the reporting officer before sending again.',
@@ -117,6 +121,14 @@ export const en = {
   replaceTitle: 'Replace reporting officer',
   replaceWarning: (name: string) =>
     `${name} will lose reporting officer access to this Commission immediately. If that is their only role, their account will be disabled.`,
+  correctTitle: 'Correct reporting officer details',
+  correctNotice: (name: string) =>
+    `This is ${name}'s email, so their details are corrected. They keep their access.`,
+  correctNoEmail: 'They have already activated, so no email is sent.',
+  correctEmailAgain: 'Their activation email will be sent again. No one else is contacted.',
+  correctSubmit: 'Save details',
+  correctSubmitting: 'Saving…',
+  detailsSavedToast: (name: string) => `Details saved for ${name}`,
   officerResend: 'Resend invitation',
   officerResending: 'Resending…',
   invitationResentToast: (email: string) => `Invitation sent again to ${email}`,

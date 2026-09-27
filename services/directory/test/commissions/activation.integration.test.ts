@@ -166,6 +166,20 @@ describe('S13 activation observed', () => {
     expect(await activatedEvents()).toEqual([]);
   });
 
+  it('looks only at tokens that carry the reporting-officer role', async () => {
+    const officer = await assignOfficer();
+    const withoutRole = { ...officer, roles: ['reviewer'] };
+
+    await api.get('/v1/me', withoutRole);
+
+    expect((await commission()).reportingOfficer?.state).toBe('invited');
+    expect(api.activationLookups.knownNotInvited(officer.sub ?? '')).toBe(false);
+
+    await api.get('/v1/me', officer);
+
+    expect((await commission()).reportingOfficer?.state).toBe('activated');
+  });
+
   it('does not fail the request when recording fails, and activates on the next one', async () => {
     const officer = await assignOfficer();
     await api.db.execute(sql`
@@ -265,7 +279,7 @@ describe('observer off the hot path', () => {
     expect(replaced.statusCode).toBe(200);
     // The replaced officer has no invitation waiting now, and is remembered so.
     await api.get('/v1/me', first);
-    expect(await api.activationLookups.knownNotInvited(first.sub ?? '')).toBe(true);
+    expect(api.activationLookups.knownNotInvited(first.sub ?? '')).toBe(true);
 
     const reassigned = await api.put(
       '/v1/commissions/tsc/reporting-officer',
