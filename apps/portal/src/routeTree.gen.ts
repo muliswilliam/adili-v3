@@ -24,6 +24,7 @@ import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/ide
 import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
 import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
 import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
+import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
 import { Route as DeclarationsIdIndexRouteImport } from './routes/declarations/$id/index'
 import { Route as DeclarationsIdBioRouteImport } from './routes/declarations/$id/bio'
 import { Route as DeclarationsIdHouseholdRouteImport } from './routes/declarations/$id/household'
@@ -106,6 +107,11 @@ const GetStartedVerifyPhoneRoute = GetStartedVerifyPhoneRouteImport.update({
   path: '/verify-phone',
   getParentRoute: () => GetStartedRouteRoute,
 } as any)
+const ApiMockUploadsIdRoute = ApiMockUploadsIdRouteImport.update({
+  id: '/api/mock-uploads/$id',
+  path: '/api/mock-uploads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeclarationsIdIndexRoute = DeclarationsIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/declarations/$id/bio': typeof DeclarationsIdBioRoute
   '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/get-started': typeof GetStartedIndexRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/declarations/$id/bio': typeof DeclarationsIdBioRoute
   '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/declarations/$id/bio': typeof DeclarationsIdBioRoute
   '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/get-started/'
+    | '/api/mock-uploads/$id'
     | '/declarations/$id/bio'
     | '/declarations/$id/household'
     | '/declarations/$id/other'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/get-started'
+    | '/api/mock-uploads/$id'
     | '/declarations/$id/bio'
     | '/declarations/$id/household'
     | '/declarations/$id/other'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/get-started/'
+    | '/api/mock-uploads/$id'
     | '/declarations/$id/bio'
     | '/declarations/$id/household'
     | '/declarations/$id/other'
@@ -284,6 +296,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthRecoverRoute: typeof AuthRecoverRoute
+  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport
       parentRoute: typeof GetStartedRouteRoute
     }
+    '/api/mock-uploads/$id': {
+      id: '/api/mock-uploads/$id'
+      path: '/api/mock-uploads/$id'
+      fullPath: '/api/mock-uploads/$id'
+      preLoaderRoute: typeof ApiMockUploadsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/declarations/$id/': {
       id: '/declarations/$id/'
       path: '/'
@@ -494,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthRecoverRoute: AuthRecoverRoute,
+  ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

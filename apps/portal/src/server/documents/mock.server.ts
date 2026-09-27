@@ -3,8 +3,9 @@
  * DECLARATIONS_MOCK is set until the service implements them.
  *
  * - `POST /v1/uploads` reserves an upload. `uploadUrl` is the same-origin path
- *   `/api/mock-uploads/{id}`; a portal route that accepts the browser's PUT in mock mode belongs
- *   with the attachments work (#125).
+ *   `/api/mock-uploads/{id}`, served in mock mode by `routes/api/mock-uploads.$id.ts`, which
+ *   hands the bytes to `receiveMockUpload`. A file name containing "fail" drops there, like a
+ *   lost connection.
  * - `POST /v1/uploads/{id}/complete` decides the scan: a file name containing "virus" is
  *   infected, anything else is clean.
  * - `GET /v1/uploads/{id}` returns the upload.
@@ -36,6 +37,20 @@ export function resetDocumentsMock() {
 /** An upload as the documents service holds it; the declarations mock checks it is clean. */
 export function mockUpload(id: string): Upload | undefined {
   return uploads.get(id);
+}
+
+/**
+ * The browser's PUT to an upload's presigned URL. Records the size received; a file name
+ * containing "fail" gets a 500, as if the connection dropped (prototype rules).
+ */
+export function receiveMockUpload(id: string, size: number): Response {
+  const upload = uploads.get(id);
+  if (upload?.state !== 'awaiting-upload') return new Response(null, { status: 404 });
+  if ((upload.fileName ?? '').toLowerCase().includes('fail')) {
+    return new Response(null, { status: 500 });
+  }
+  uploads.set(id, { ...upload, size });
+  return new Response(null, { status: 200 });
 }
 
 export function mockDocumentsFetch(request: Request): Promise<Response> {
@@ -114,7 +129,7 @@ function completeUpload(id: string) {
     ...upload,
     state: infected ? 'infected' : 'clean',
     detectedType: upload.contentType,
-    size: upload.declaredSize,
+    size: upload.size ?? upload.declaredSize,
     sha256: infected ? null : createHash('sha256').update(id).digest('hex'),
     completedAt: new Date().toISOString(),
   };
