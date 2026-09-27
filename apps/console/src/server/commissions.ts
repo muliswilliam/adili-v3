@@ -111,7 +111,8 @@ export const assignReportingOfficerInput = z.object({
 
 /**
  * `PUT /v1/commissions/{slug}/reporting-officer` with the dialog's Idempotency-Key: invites the
- * officer (one activation email), replacing a current officer, whose account is disabled.
+ * officer (one activation email), replacing a current officer, who loses the role (and is
+ * disabled when it was their only one).
  * Platform admins only; anyone else gets the 403 problem.
  */
 export const assignReportingOfficer = createServerFn({ method: 'POST' })

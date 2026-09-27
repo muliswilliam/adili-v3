@@ -122,7 +122,7 @@ describe('S8 assign', () => {
     expect(emails).toHaveLength(1);
     expect(emails[0]?.options).toEqual(ACTIVATION);
     expect(api.identity.user(emails[0]?.userId ?? '')?.email).toBe(OFFICER.email);
-    expect(api.identity.calls('grantRoleAndEnable')).toEqual([]);
+    expect(api.identity.calls('grantRole')).toEqual([]);
   });
 
   it('records commission.reporting-officer.assigned.v1 with ids only', async () => {
@@ -205,7 +205,7 @@ describe('S9 email in another tenant', () => {
       expect(errorPaths(problem)).toEqual(['email']);
       expect(await officerOf()).toBeNull();
       expect(api.identity.calls('createStaffUser')).toEqual([]);
-      expect(api.identity.calls('grantRoleAndEnable')).toEqual([]);
+      expect(api.identity.calls('grantRole')).toEqual([]);
       expect(api.identity.calls('sendActivationEmail')).toEqual([]);
       expect(await assignedEvents()).toEqual([]);
     },
@@ -225,9 +225,10 @@ describe('S10 email in the same tenant', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json<CommissionBody>().reportingOfficer?.state).toBe('invited');
     expect(api.identity.calls('createStaffUser')).toEqual([]);
-    expect(api.identity.calls('grantRoleAndEnable')).toEqual([
-      { operation: 'grantRoleAndEnable', userId, role: 'reporting-officer' },
+    expect(api.identity.calls('grantRole')).toEqual([
+      { operation: 'grantRole', userId, role: 'reporting-officer' },
     ]);
+    expect(api.identity.calls('setEnabled')).toEqual([]);
     expect(api.identity.calls('sendActivationEmail')).toEqual([
       { operation: 'sendActivationEmail', userId, options: ACTIVATION },
     ]);
@@ -254,7 +255,28 @@ describe('identity provider failures', () => {
     },
   );
 
-  it('can be retried with the same key, reusing the account the failed attempt created', async () => {
+  it('removes the account a failed attempt created', async () => {
+    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
+
+    expect((await assign(OFFICER)).statusCode).toBe(502);
+
+    expect(api.identity.userByEmail(OFFICER.email)).toBeUndefined();
+  });
+
+  it('returns a reused account to how it was when a later step fails', async () => {
+    const userId = api.identity.seedUser({
+      email: OFFICER.email,
+      tenant: 'tsc',
+      roles: ['reviewer'],
+    });
+    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('SMTP timeout'));
+
+    expect((await assign(OFFICER)).statusCode).toBe(502);
+
+    expect(api.identity.user(userId)).toMatchObject({ enabled: true, roles: ['reviewer'] });
+  });
+
+  it('can be retried with the same key after a 502', async () => {
     const key = randomUUID();
     api.identity.failNext('sendActivationEmail', new IdentityUnavailable('timeout'));
     expect((await assign(OFFICER, { key })).statusCode).toBe(502);
@@ -263,9 +285,27 @@ describe('identity provider failures', () => {
 
     expect(retry.statusCode).toBe(200);
     expect(retry.headers['idempotent-replayed']).toBeUndefined();
-    expect(api.identity.calls('createStaffUser')).toHaveLength(1);
-    expect(api.identity.calls('grantRoleAndEnable')).toHaveLength(1);
+    expect(api.identity.calls('createStaffUser')).toHaveLength(2);
     expect(api.identity.calls('sendActivationEmail')).toHaveLength(2);
+    expect(api.identity.userByEmail(OFFICER.email)?.userId).toBe(
+      api.identity.calls('sendActivationEmail')[1]?.userId,
+    );
+    expect(await assignedEvents()).toHaveLength(1);
+  });
+
+  it('reuses on retry an account that a failed attempt could not remove', async () => {
+    const key = randomUUID();
+    api.identity.failNext('sendActivationEmail', new IdentityUnavailable('timeout'));
+    api.identity.failNext('deleteUser', new IdentityUnavailable('timeout'));
+    expect((await assign(OFFICER, { key })).statusCode).toBe(502);
+    const leftover = api.identity.userByEmail(OFFICER.email);
+    expect(leftover).toMatchObject({ tenant: 'tsc', roles: ['reporting-officer'] });
+
+    const retry = await assign(OFFICER, { key });
+
+    expect(retry.statusCode).toBe(200);
+    expect(api.identity.calls('createStaffUser')).toHaveLength(1);
+    expect(api.identity.calls('sendActivationEmail').at(-1)?.userId).toBe(leftover?.userId);
     expect(await assignedEvents()).toHaveLength(1);
   });
 });

@@ -39,7 +39,16 @@ interface RequestOptions {
   body?: unknown;
   /** Map a 404 to IdentityUserNotFound for this user id. */
   userId?: string;
+  /** Overrides the adapter's per-request timeout. */
+  timeoutMs?: number;
 }
+
+/**
+ * Keycloak sends the execute-actions email over SMTP before it answers, with its own SMTP
+ * connect and read timeouts of 10 seconds each. Waiting less could abandon an email that is
+ * still delivered, reporting a failure for an invitation the officer receives.
+ */
+export const ACTIVATION_EMAIL_TIMEOUT_MS = 25_000;
 
 /** Refresh the service-account token this long before Keycloak says it expires. */
 const TOKEN_EXPIRY_MARGIN_MS = 30_000;
@@ -51,6 +60,8 @@ const TOKEN_EXPIRY_MARGIN_MS = 30_000;
  */
 export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   private readonly adminUrl: string;
+  /** The realm's composite default role, which every account holds (`default-roles-<realm>`). */
+  private readonly defaultRole: string;
   private readonly tokenUrl: string;
   private readonly timeoutMs: number;
   private readonly fetch: typeof fetch;
@@ -63,6 +74,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       throw new Error(`Not a Keycloak realm issuer URL: ${options.issuerUrl}`);
     }
     this.adminUrl = `${issuer.base}/admin/realms/${issuer.realm}`;
+    this.defaultRole = `default-roles-${issuer.realm}`;
     this.tokenUrl = `${issuer.base}/realms/${issuer.realm}/protocol/openid-connect/token`;
     this.timeoutMs = options.timeoutMs ?? 5_000;
     this.fetch = options.fetch ?? globalThis.fetch;
@@ -75,7 +87,16 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     });
     const users = (await response.json()) as UserRepresentation[];
     const user = users.find((candidate) => candidate.email?.toLowerCase() === wanted);
-    return user ? { userId: user.id, tenant: user.attributes?.tenant?.[0] ?? null } : null;
+    return user ? this.identityUser(user) : null;
+  }
+
+  async findById(userId: string): Promise<IdentityUser | null> {
+    try {
+      return await this.identityUser(await this.user(userId));
+    } catch (error) {
+      if (error instanceof IdentityUserNotFound) return null;
+      throw error;
+    }
   }
 
   async createStaffUser(input: CreateStaffUserInput): Promise<string> {
@@ -105,19 +126,17 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       await this.grantRealmRole(userId, input.role);
     } catch (error) {
       // Leave no half-provisioned account behind; the caller retries the whole creation.
-      await this.request('DELETE', `/users/${userId}`).catch(() => undefined);
+      await this.deleteUser(userId).catch(() => undefined);
       throw error;
     }
     return userId;
   }
 
-  async grantRoleAndEnable(userId: string, role: string): Promise<void> {
+  async grantRole(userId: string, role: string): Promise<void> {
     await this.grantRealmRole(userId, role);
-    const user = await this.user(userId);
-    if (user.enabled === false) await this.putUser(userId, { ...user, enabled: true });
   }
 
-  async revokeRoleAndDisable(userId: string, role: string): Promise<void> {
+  async revokeRole(userId: string, role: string): Promise<void> {
     const held = await this.realmRoles(userId, 'held');
     const representation = held.find((candidate) => candidate.name === role);
     if (representation) {
@@ -126,7 +145,19 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
         userId,
       });
     }
-    await this.putUser(userId, { ...(await this.user(userId)), enabled: false });
+  }
+
+  async setEnabled(userId: string, enabled: boolean): Promise<void> {
+    const user = await this.user(userId);
+    if (user.enabled !== enabled) await this.putUser(userId, { ...user, enabled });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    try {
+      await this.request('DELETE', `/users/${userId}`, { userId });
+    } catch (error) {
+      if (!(error instanceof IdentityUserNotFound)) throw error;
+    }
   }
 
   async sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void> {
@@ -138,6 +169,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       },
       body: options.actions,
       userId,
+      timeoutMs: ACTIVATION_EMAIL_TIMEOUT_MS,
     });
   }
 
@@ -156,6 +188,17 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     if (!held.some((candidate) => candidate.name === role)) {
       throw new Error(`Realm role ${role} does not exist`);
     }
+  }
+
+  /** The account as provisioning sees it: one extra call for its directly granted roles. */
+  private async identityUser(user: UserRepresentation): Promise<IdentityUser> {
+    const roles = await this.realmRoles(user.id, 'held');
+    return {
+      userId: user.id,
+      tenant: user.attributes?.tenant?.[0] ?? null,
+      enabled: user.enabled !== false,
+      roles: roles.map((role) => role.name).filter((name) => name !== this.defaultRole),
+    };
   }
 
   private async user(userId: string): Promise<UserRepresentation> {
@@ -194,15 +237,19 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       url.searchParams.set(key, value);
     }
     const token = await this.accessToken();
-    const response = await this.send(url, {
-      method,
-      headers: {
-        authorization: `Bearer ${token}`,
-        accept: 'application/json',
-        ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
+    const response = await this.send(
+      url,
+      {
+        method,
+        headers: {
+          authorization: `Bearer ${token}`,
+          accept: 'application/json',
+          ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
       },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
+      options.timeoutMs,
+    );
     if (response.ok) {
       return response;
     }
@@ -249,9 +296,9 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     return body.access_token;
   }
 
-  private async send(url: URL, init: RequestInit): Promise<Response> {
+  private async send(url: URL, init: RequestInit, timeoutMs = this.timeoutMs): Promise<Response> {
     try {
-      return await this.fetch(url, { ...init, signal: AbortSignal.timeout(this.timeoutMs) });
+      return await this.fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     } catch (error) {
       throw new IdentityUnavailable(`Keycloak is unreachable at ${url.origin}`, { cause: error });
     }

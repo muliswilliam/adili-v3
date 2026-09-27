@@ -19,6 +19,12 @@ export interface IdentityUser {
   userId: string;
   /** Tenant key on the account, or null when the account belongs to no tenant. */
   tenant: string | null;
+  enabled: boolean;
+  /**
+   * Realm roles granted to the account directly, e.g. `reviewer`, `reporting-officer`. The
+   * realm's default roles, which every account has, are left out.
+   */
+  roles: string[];
 }
 
 export interface CreateStaffUserInput {
@@ -69,12 +75,16 @@ export class IdentityUserNotFound extends Error {
 }
 
 /**
- * Nest injection token and contract. Emails are compared case-insensitively.
- * Every operation may throw IdentityUnavailable.
+ * Nest injection token and contract. Emails are compared case-insensitively. Operations are
+ * small and idempotent so that callers can undo exactly what they changed when a later step of
+ * their unit of work fails. Every operation may throw IdentityUnavailable.
  */
 export abstract class IdentityProvisioning {
   /** The account whose email matches, or null. */
   abstract findByEmail(email: string): Promise<IdentityUser | null>;
+
+  /** The account with this id, or null (for example, it was deleted in Keycloak by hand). */
+  abstract findById(userId: string): Promise<IdentityUser | null>;
 
   /**
    * Creates an enabled staff account with the email as username, the tenant attribute,
@@ -83,14 +93,17 @@ export abstract class IdentityProvisioning {
    */
   abstract createStaffUser(input: CreateStaffUserInput): Promise<string>;
 
-  /**
-   * Adds a realm role and enables the account (it may have been disabled when it was replaced
-   * as a reporting officer). Idempotent. @throws IdentityUserNotFound
-   */
-  abstract grantRoleAndEnable(userId: string, role: string): Promise<void>;
+  /** Adds a realm role. Idempotent. @throws IdentityUserNotFound */
+  abstract grantRole(userId: string, role: string): Promise<void>;
 
-  /** Removes a realm role and disables the account. Idempotent. @throws IdentityUserNotFound */
-  abstract revokeRoleAndDisable(userId: string, role: string): Promise<void>;
+  /** Removes a realm role. Idempotent. @throws IdentityUserNotFound */
+  abstract revokeRole(userId: string, role: string): Promise<void>;
+
+  /** Enables or disables sign-in, keeping everything else. Idempotent. @throws IdentityUserNotFound */
+  abstract setEnabled(userId: string, enabled: boolean): Promise<void>;
+
+  /** Deletes the account. Idempotent: an account that does not exist is not an error. */
+  abstract deleteUser(userId: string): Promise<void>;
 
   /** Emails the user a link that performs `actions`. @throws IdentityUserNotFound */
   abstract sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void>;

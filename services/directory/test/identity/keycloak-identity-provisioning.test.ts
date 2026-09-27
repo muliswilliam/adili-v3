@@ -189,42 +189,105 @@ describe('KeycloakIdentityProvisioning', () => {
   });
 
   it.each([
-    [false, ['POST role-mappings/realm', 'GET user-1', 'PUT user-1']],
-    [true, ['POST role-mappings/realm', 'GET user-1']],
+    [true, false, ['GET user-1', 'PUT user-1']],
+    [false, false, ['GET user-1']],
+    [false, true, ['GET user-1', 'PUT user-1']],
   ])(
-    'grants the role and enables the account only when it is disabled (enabled: %s)',
-    async (enabled, expected) => {
+    'sets enabled (from %s to %s) with the full representation, only when it changes',
+    async (enabled, wanted, expected) => {
       const user = {
         id: 'user-1',
         username: 'a@tsc.go.ke',
         enabled,
-        attributes: { tenant: ['tsc'] },
+        attributes: { tenant: ['tsc'], phone: ['+254712345678'] },
       };
       const { adapter, requests } = keycloak({
         [TOKEN]: tokenOk,
-        [`GET ${ADMIN}/users/user-1/role-mappings/realm/available`]: available,
-        [`POST ${ADMIN}/users/user-1/role-mappings/realm`]: () =>
-          new Response(null, { status: 204 }),
         [`GET ${ADMIN}/users/user-1`]: () => Response.json(user),
         [`PUT ${ADMIN}/users/user-1`]: () => new Response(null, { status: 204 }),
       });
 
-      await adapter.grantRoleAndEnable('user-1', 'reporting-officer');
+      await adapter.setEnabled('user-1', wanted);
 
       const calls = requests
         .filter((request) => request.url.pathname.startsWith(ADMIN))
-        .filter((request) => !request.url.pathname.endsWith('/available'))
         .map(
-          (request) =>
-            `${request.method} ${request.url.pathname.replace(`${ADMIN}/users/`, '').replace('user-1/', '')}`,
+          (request) => `${request.method} ${request.url.pathname.replace(`${ADMIN}/users/`, '')}`,
         );
       expect(calls).toEqual(expected);
-      if (!enabled) {
+      if (expected.length === 2) {
         // The full representation goes back, so attributes such as the tenant survive.
-        expect(requests.at(-1)?.body).toEqual({ ...user, enabled: true });
+        expect(requests.at(-1)?.body).toEqual({ ...user, enabled: wanted });
       }
     },
   );
+
+  it('finds a user with its directly granted roles, leaving out the realm default role', async () => {
+    const { adapter } = keycloak({
+      [TOKEN]: tokenOk,
+      [`GET ${ADMIN}/users`]: () =>
+        Response.json([
+          { id: 'user-1', email: 'a@tsc.go.ke', enabled: false, attributes: { tenant: ['tsc'] } },
+        ]),
+      [`GET ${ADMIN}/users/user-1/role-mappings/realm`]: () =>
+        Response.json([
+          { id: 'r1', name: 'default-roles-adili' },
+          { id: 'r2', name: 'reviewer' },
+          { id: 'r3', name: 'reporting-officer' },
+        ]),
+    });
+
+    await expect(adapter.findByEmail('A@tsc.go.ke')).resolves.toEqual({
+      userId: 'user-1',
+      tenant: 'tsc',
+      enabled: false,
+      roles: ['reviewer', 'reporting-officer'],
+    });
+  });
+
+  it('finds no user by an unknown id', async () => {
+    const { adapter } = keycloak({
+      [TOKEN]: tokenOk,
+      [`GET ${ADMIN}/users/missing`]: () => new Response(null, { status: 404 }),
+    });
+
+    await expect(adapter.findById('missing')).resolves.toBeNull();
+  });
+
+  it('treats deleting a user that does not exist as done', async () => {
+    const { adapter } = keycloak({
+      [TOKEN]: tokenOk,
+      [`DELETE ${ADMIN}/users/missing`]: () => new Response(null, { status: 404 }),
+    });
+
+    await expect(adapter.deleteUser('missing')).resolves.toBeUndefined();
+  });
+
+  it('waits longer than other calls for the activation email, which Keycloak sends over SMTP first', async () => {
+    const adapter = new KeycloakIdentityProvisioning({
+      issuerUrl: 'http://keycloak.test/realms/adili',
+      clientId: 'directory',
+      clientSecret: 'secret',
+      timeoutMs: 20,
+      // Every admin call takes 100 ms, unless its timeout aborts it first.
+      fetch: (input: string | URL | Request, init: RequestInit = {}) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        if (url.pathname.endsWith('/token')) return Promise.resolve(tokenOk(url, init));
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            resolve(new Response(null, { status: 204 }));
+          }, 100);
+          init.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(init.signal?.reason as Error);
+          });
+        });
+      },
+    });
+
+    await expect(adapter.sendActivationEmail('user-1', ACTIVATION)).resolves.toBeUndefined();
+    await expect(adapter.findById('user-1')).rejects.toBeInstanceOf(IdentityUnavailable);
+  });
 
   it('sends execute-actions-email with lifespan, redirect and client', async () => {
     const { adapter, requests } = keycloak({

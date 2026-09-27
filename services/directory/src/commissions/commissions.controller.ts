@@ -117,7 +117,7 @@ export class CommissionsController {
     operationId: 'assignReportingOfficer',
     summary: "Assign or replace the Commission's reporting officer",
     description:
-      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role and is disabled. Idempotent per Idempotency-Key.',
+      'platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role (and is disabled when it holds no other role). Idempotent per Idempotency-Key.',
   })
   @ApiBody({ required: true, schema: schemaRef('AssignReportingOfficer') })
   @ApiOkResponse({
@@ -132,7 +132,7 @@ export class CommissionsController {
   )
   @ApiProblemResponse(
     502,
-    'Problem type `identity-unavailable`: the identity provider failed, nothing was assigned. Safe to retry with the same Idempotency-Key.',
+    'Problem type `identity-unavailable`: the identity provider failed, nothing was assigned and identity changes already made were undone, so the current officer keeps access. Safe to retry with the same Idempotency-Key.',
   )
   assignReportingOfficer(
     @CurrentPrincipal() principal: Principal,
