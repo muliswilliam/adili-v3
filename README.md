@@ -25,7 +25,7 @@ Service skeletons are running end to end: infrastructure, 11 NestJS services, 3 
 pnpm bootstrap      # copy .env.example -> .env everywhere, install dependencies
 pnpm infra:up       # Postgres, Valkey, RabbitMQ, Temporal, Keycloak, SeaweedFS, OpenBao, ClamAV, Gotenberg, Mailpit, OTel
 pnpm db:migrate     # apply every service's migrations
-pnpm db:seed        # demo Commissions (psc, eacc) and synthetic data for the government-system mocks
+pnpm db:seed        # demo Commissions (psc, tsc, eacc) and synthetic data for the government-system mocks
 pnpm dev            # all services, apps and mocks in watch mode
 pnpm health         # readiness of everything
 ```
@@ -59,7 +59,9 @@ Per-service Postgres roles (password is `<role>_dev`): `adili_directory`, `adili
 
 Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.
 
-**Demo accounts** (password `Adili-Demo-2026`): `declarant`, `applicant`, `reporting-officer`, `reviewer`, `supervisor`, `commission-admin`, `access-officer`, `eacc-analyst`, `eacc-supervisor`, `auditor`, `helpdesk`, `platform-admin`, `law-enforcement`. Staff and law-enforcement enrol TOTP on first sign-in. Declarant and applicant SMS OTP is added by the #79 authenticator. The realm file is `infra/compose/keycloak/adili-realm.json`.
+**Demo accounts** (password `Adili-Demo-2026`): `declarant`, `applicant`, `reporting-officer`, `tsc-reporting-officer`, `reviewer`, `supervisor`, `commission-admin`, `access-officer`, `eacc-analyst`, `eacc-supervisor`, `auditor`, `helpdesk`, `platform-admin`, `law-enforcement`. Staff and law-enforcement enrol TOTP on first sign-in. Declarant and applicant SMS OTP is added by the #79 authenticator. The realm file is `infra/compose/keycloak/adili-realm.json`.
+
+**Demo roster files** for the console's import wizard (Roster > Import roster): `mocks/demo/rosters/psc-roster.csv` (sign in as `reporting-officer`) and `mocks/demo/rosters/tsc-roster.csv` (as `tsc-reporting-officer`). They hold the HR mock's officers of each Commission (the rows `pnpm db:seed` loads into the HR and IPRS mocks, so onboarding finds them) in the template's columns, plus six planted bad rows each (bad national ID, duplicate file number, future or impossible date, malformed email or phone, missing name, values too long), so the import report and the rejected rows CSV have something to show. They are generated: after changing `mocks/demo/fixtures/rosters/` or the planted rows in `mocks/demo/rosters.py`, run `pnpm --filter @adili/mocks roster:files`. Import rows are purged 30 days after their import ends; the import stays in the history.
 
 Container images (from the repo root):
 - services: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=directory .`
