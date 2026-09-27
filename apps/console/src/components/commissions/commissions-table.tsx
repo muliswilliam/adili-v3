@@ -15,7 +15,7 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import type { Commission } from '../../server/directory/client';
-import { formatDateTime, formatRelativeDate } from '../format';
+import { formatDate, formatDateTime, formatRelativeDate } from '../format';
 import { CommissionTypeBadge, IssuerCode, OfficerStateBadge } from './badges';
 import { messages as m } from './messages';
 
@@ -76,7 +76,17 @@ function CommissionRow({ commission }: { commission: Commission }) {
         {officer ? (
           <div className="grid justify-items-start gap-1">
             <span className="whitespace-nowrap">{officer.name}</span>
-            <OfficerStateBadge state={officer.state} />
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <OfficerStateBadge state={officer.state} />
+              {officer.state === 'activated' && officer.activatedAt ? (
+                <time
+                  dateTime={officer.activatedAt}
+                  className="text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+                >
+                  {formatDate(officer.activatedAt)}
+                </time>
+              ) : null}
+            </div>
           </div>
         ) : (
           <span className="text-muted-foreground">{m.officerNone}</span>

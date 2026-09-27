@@ -38,3 +38,21 @@ export function reportingOfficerAssigned(
 ): NewEvent<ReportingOfficerAssignedData> {
   return { type: REPORTING_OFFICER_ASSIGNED, subject: data.commissionId, tenant: slug, data };
 }
+
+export const REPORTING_OFFICER_ACTIVATED = 'commission.reporting-officer.activated.v1';
+
+export interface ReportingOfficerActivatedData extends Record<string, unknown> {
+  commissionId: string;
+  assignmentId: string;
+}
+
+/**
+ * A reporting officer signed in for the first time: their first authenticated request reached
+ * the directory. Recorded once per assignment.
+ */
+export function reportingOfficerActivated(
+  slug: string,
+  data: ReportingOfficerActivatedData,
+): NewEvent<ReportingOfficerActivatedData> {
+  return { type: REPORTING_OFFICER_ACTIVATED, subject: data.commissionId, tenant: slug, data };
+}

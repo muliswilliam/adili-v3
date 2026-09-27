@@ -813,7 +813,10 @@ export interface components {
              */
             phone: string;
         };
-        /** @enum {string} */
+        /**
+         * @description `invited` once assigned; `activated` when the officer's account first makes an authenticated request to the directory (in practice the console's `/v1/me` after their first sign-in); `replaced` when another officer takes over.
+         * @enum {string}
+         */
         ReportingOfficerState: "invited" | "activated" | "replaced";
         ReportingOfficer: {
             /** Format: uuid */
@@ -825,7 +828,10 @@ export interface components {
             state: components["schemas"]["ReportingOfficerState"];
             /** Format: date-time */
             invitedAt: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description First authenticated request of the officer's account; null until then
+             */
             activatedAt: string | null;
         };
         Commission: {
