@@ -4,6 +4,13 @@
  * on it. Palette: warm neutrals, a near-black primary, and soft tinted status colours (success,
  * warning, destructive, info, AI, brand) for badges and callouts. Controls and cards get their
  * edges from a hairline ring in the shadow rather than a border.
+ *
+ * Every text pair meets WCAG 2.2 AA (4.5:1) in both themes: foreground, muted-foreground and
+ * secondary-foreground on the page, card and muted fills; each -foreground on its solid; each
+ * -subtle-foreground on its -subtle fill; and the solid status colours that badges use on their
+ * -subtle fill. Two exceptions, both deliberate: the light placeholder (#8f8d89, 3.3:1, taken from
+ * the kit and open with design) and disabled buttons, which WCAG exempts. The solid info and brand
+ * colours miss 4.5:1 on their light -subtle fills, so text on those fills uses -subtle-foreground.
  */
 @import '@fontsource-variable/inter';
 
@@ -85,13 +92,15 @@
     --muted: oklch(0.265 0.004 84.6); /* #262523 */
     --muted-foreground: oklch(0.709 0.006 84.6); /* #a3a19d */
     --secondary-foreground: oklch(0.852 0.007 88.6); /* #d0cec9 */
-    --placeholder: oklch(0.583 0.006 84.6); /* #7d7b77 */
+    --placeholder: oklch(0.62 0.006 84.6); /* #888682 */
     --primary: oklch(0.964 0.003 84.6); /* #f4f3f1 */
     --primary-foreground: oklch(0.218 0 0);
     --primary-disabled: oklch(0.345 0.005 91.5); /* #3a3936 */
     --primary-disabled-foreground: oklch(0.644 0.006 84.6); /* #8f8d89 */
-    --destructive: oklch(0.646 0.183 27.6); /* #e8564b */
+    --destructive: oklch(0.66 0.18 27.6); /* #ec5c51 */
     --destructive-hover: oklch(0.687 0.167 26.7); /* #f06a60 */
+    /* White fails AA on the lighter dark-theme red, so solid destructive buttons take dark text. */
+    --destructive-foreground: oklch(0.191 0.001 106.4); /* #141413 */
     --destructive-subtle: oklch(0.258 0.058 26.7); /* #3b1714 */
     --destructive-subtle-foreground: oklch(0.835 0.084 25.3); /* #fbb4ad */
     --warning: oklch(0.756 0.133 75.8); /* #e0a341 */

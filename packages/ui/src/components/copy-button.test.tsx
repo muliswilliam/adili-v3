@@ -18,6 +18,7 @@ function renderButton() {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -46,5 +47,47 @@ describe('CopyButton', () => {
     });
 
     expect(screen.getByRole('alert').textContent).toContain('Could not copy');
+    expect(button.hasAttribute('data-copied')).toBe(false);
+  });
+
+  it('shows the tick for two seconds after copying', async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const button = renderButton();
+
+    await act(async () => {
+      fireEvent.click(button);
+      await Promise.resolve();
+    });
+    expect(button.hasAttribute('data-copied')).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(button.hasAttribute('data-copied')).toBe(false);
+  });
+
+  it('restarts the tick and replaces the toast when copied again', async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const button = renderButton();
+
+    await act(async () => {
+      fireEvent.click(button);
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    await act(async () => {
+      fireEvent.click(button);
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(button.hasAttribute('data-copied')).toBe(true);
+    expect(screen.getAllByText('Copied')).toHaveLength(1);
   });
 });

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Stepper } from './stepper';
 
@@ -11,6 +11,10 @@ const steps = [
 ];
 
 describe('Stepper', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('marks the current step', () => {
     render(<Stepper label="Import steps" steps={steps} current="upload" />);
 
@@ -53,5 +57,33 @@ describe('Stepper', () => {
       .getByRole('navigation', { name: 'Import steps' })
       .querySelector('[aria-current="step"]');
     expect(current?.textContent).toContain('Import (failed)');
+  });
+
+  it('keeps completed steps as text when canSelect returns false', () => {
+    const onSelect = vi.fn();
+    render(
+      <Stepper
+        label="Import steps"
+        steps={steps}
+        current="import"
+        onSelect={onSelect}
+        canSelect={() => false}
+      />,
+    );
+
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    fireEvent.click(screen.getByText('Template'));
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('warns in development when current matches no step', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { rerender } = render(<Stepper label="Import steps" steps={steps} current="missing" />);
+    rerender(<Stepper label="Import steps" steps={steps} current="missing" />);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('"missing"');
+    const nav = screen.getByRole('navigation', { name: 'Import steps' });
+    expect(nav.querySelector('[aria-current]')).toBeNull();
   });
 });

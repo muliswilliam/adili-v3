@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, Button, Icon } from '@adili/ui';
+import { Alert, AlertDescription, Button, cn, Icon } from '@adili/ui';
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import type { Ref } from 'react';
 
@@ -24,15 +24,17 @@ export function SessionUnavailable() {
 }
 
 /** A failed step. Focusable, so the step can move focus to it and screen readers read it. */
-export function FailureAlert({
+export function StepFailureAlert({
   ref,
   message = GENERIC_ERROR,
+  className,
 }: {
   ref: Ref<HTMLDivElement>;
   message?: string;
+  className?: string;
 }) {
   return (
-    <Alert ref={ref} tabIndex={-1} variant="destructive" className="outline-none">
+    <Alert ref={ref} tabIndex={-1} variant="destructive" className={cn('outline-none', className)}>
       <Icon icon={AlertCircleIcon} />
       <AlertDescription>{message}</AlertDescription>
     </Alert>

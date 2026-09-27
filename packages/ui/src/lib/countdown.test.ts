@@ -1,6 +1,12 @@
+import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { countdownAnnouncement, formatClock, secondsUntil } from './countdown';
+import {
+  countdownAnnouncement,
+  formatClock,
+  secondsUntil,
+  useCountdownAnnouncement,
+} from './countdown';
 
 const describe_ = (seconds: number) => `${String(seconds)}s`;
 
@@ -36,6 +42,24 @@ describe('countdownAnnouncement', () => {
   it('says nothing when a countdown starts or restarts', () => {
     expect(countdownAnnouncement(0, 60, describe_)).toBeNull();
     expect(countdownAnnouncement(0, 0, describe_)).toBeNull();
+  });
+});
+
+describe('useCountdownAnnouncement', () => {
+  it('announces at 10-second steps and clears when a new countdown starts', () => {
+    const { result, rerender } = renderHook(
+      ({ seconds }) => useCountdownAnnouncement(seconds, describe_),
+      { initialProps: { seconds: 21 } },
+    );
+    expect(result.current).toBe('');
+
+    rerender({ seconds: 20 });
+    expect(result.current).toBe('20s');
+    rerender({ seconds: 19 });
+    expect(result.current).toBe('20s');
+
+    rerender({ seconds: 60 });
+    expect(result.current).toBe('');
   });
 });
 

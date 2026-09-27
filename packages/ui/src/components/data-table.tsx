@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useLayoutEffect, useRef } from 'react';
 
 import { Checkbox } from './checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
@@ -20,6 +20,8 @@ export interface DataTableSelection {
   rowLabel: (id: string) => string;
   /** Text announced when the selection changes. Defaults to "{n} selected". */
   summary?: (count: number) => string;
+  /** Accessible name for the header checkbox. Defaults to "Select all on page". */
+  selectAllLabel?: string;
 }
 
 export interface DataTableProps<Row> {
@@ -50,18 +52,10 @@ export function DataTable<Row>({
   const allOnPage = ids.length > 0 && selectedOnPage === ids.length;
   const someOnPage = selectedOnPage > 0 && !allOnPage;
 
-  function toggle(id: string, checked: boolean) {
+  function toggle(targets: string[], checked: boolean) {
     if (!selection) return;
     const next = new Set(selection.selected);
-    if (checked) next.add(id);
-    else next.delete(id);
-    selection.onChange(next);
-  }
-
-  function toggleAll(checked: boolean) {
-    if (!selection) return;
-    const next = new Set(selection.selected);
-    for (const id of ids) {
+    for (const id of targets) {
       if (checked) next.add(id);
       else next.delete(id);
     }
@@ -76,10 +70,13 @@ export function DataTable<Row>({
             {selection ? (
               <TableHead className="w-9 pr-0">
                 <SelectAllCheckbox
+                  label={selection.selectAllLabel ?? 'Select all on page'}
                   checked={allOnPage}
                   indeterminate={someOnPage}
                   disabled={ids.length === 0}
-                  onChange={toggleAll}
+                  onChange={(checked) => {
+                    toggle(ids, checked);
+                  }}
                 />
               </TableHead>
             ) : null}
@@ -106,7 +103,7 @@ export function DataTable<Row>({
                       aria-label={selection.rowLabel(id)}
                       checked={selected}
                       onChange={(event) => {
-                        toggle(id, event.target.checked);
+                        toggle([id], event.target.checked);
                       }}
                       // Above a TableRowLink's stretched hit area.
                       className="relative z-10 align-middle"
@@ -143,11 +140,13 @@ function defaultSummary(count: number) {
 }
 
 function SelectAllCheckbox({
+  label,
   checked,
   indeterminate,
   disabled,
   onChange,
 }: {
+  label: string;
   checked: boolean;
   indeterminate: boolean;
   disabled: boolean;
@@ -155,19 +154,23 @@ function SelectAllCheckbox({
 }) {
   const ref = useRef<HTMLInputElement>(null);
 
-  // Mixed state has no HTML attribute; it is only settable as a DOM property.
-  useEffect(() => {
+  // Mixed state has no HTML attribute; it is only settable as a DOM property. Set it after
+  // every render, since clicking clears it in the DOM whatever the props say.
+  useLayoutEffect(() => {
     if (ref.current) ref.current.indeterminate = indeterminate;
-  }, [indeterminate]);
+  });
 
   return (
     <Checkbox
       ref={ref}
-      aria-label="Select all on page"
+      aria-label={label}
       checked={checked}
       disabled={disabled}
       onChange={(event) => {
         onChange(event.target.checked);
+        // A controlled parent may keep the selection as it was and not re-render, so put the
+        // mixed state back now. A re-render with new props corrects it in the effect above.
+        event.target.indeterminate = indeterminate;
       }}
       className="align-middle"
     />

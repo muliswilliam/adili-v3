@@ -17,7 +17,7 @@ export const buttonVariants = cva(
         destructive:
           'bg-destructive text-destructive-foreground shadow-button-destructive hover:bg-destructive-hover',
         'destructive-ghost': 'text-destructive hover:bg-destructive-subtle',
-        link: 'rounded-sm text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground active:translate-y-0',
+        link: 'text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground active:translate-y-0',
       },
       size: {
         xs: 'h-7 rounded-[7px] px-2.5 text-[13px] [&_svg]:size-3.5',

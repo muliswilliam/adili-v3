@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { OnboardingState } from '../../server/directory/types';
 import { contractEnum } from '../../test/contract';
-import { routeForSession, STEP_ROUTES } from './steps';
+import { resumeRoute, routeForSession, STEP_ROUTES } from './steps';
 
 // S24: every session state maps to exactly one route.
 describe('routeForSession', () => {
@@ -54,5 +54,22 @@ describe('routeForSession', () => {
     // Identify comes before there is a session: the Commission step links to it.
     const afterIdentify = STEP_ROUTES.filter((route) => route !== '/get-started/identify');
     expect([...reached].sort()).toEqual([...afterIdentify].sort());
+  });
+});
+
+describe('resumeRoute', () => {
+  it('sends a session in progress back to its step', () => {
+    expect(resumeRoute({ state: 'phone-pending', outcome: null })).toBe(
+      '/get-started/verify-phone',
+    );
+  });
+
+  it.each([
+    { state: 'confirmed', outcome: 'account-created' },
+    { state: 'confirmed', outcome: 'linked-existing-account' },
+    { state: 'identity-mismatch', outcome: 'identity-mismatch' },
+    { state: 'expired', outcome: null },
+  ] as const)('lets a $state session start again', (session) => {
+    expect(resumeRoute(session)).toBeNull();
   });
 });

@@ -13,6 +13,11 @@ describe('maskEmail', () => {
     expect(maskEmail('j***@moe.go.ke')).toBe('j***@moe.go.ke');
     expect(maskEmail('not-an-email')).toBe('***');
   });
+
+  it('masks a value that merely contains a star', () => {
+    expect(maskEmail('a*b@moe.go.ke')).toBe('a***@moe.go.ke');
+    expect(maskEmail('jane*doe.smith@moe.go.ke')).toBe('j***@moe.go.ke');
+  });
 });
 
 describe('maskPhone', () => {
@@ -21,9 +26,37 @@ describe('maskPhone', () => {
     expect(maskPhone('0712 345 678')).toBe('07** *** 678');
   });
 
-  it('leaves an already masked value alone and hides a short one', () => {
-    expect(maskPhone('07** *** 123')).toBe('07** *** 123');
+  it('normalises 254 without the plus, spaces and dashes', () => {
+    expect(maskPhone('254712345678')).toBe('07** *** 678');
+    expect(maskPhone('+254 712-345-678')).toBe('07** *** 678');
+    expect(maskPhone('0712-345-678')).toBe('07** *** 678');
+    expect(maskPhone('+254110345678')).toBe('01** *** 678');
+  });
+
+  it('keeps the country code of other international numbers', () => {
+    expect(maskPhone('+44 20 7946 0958')).toBe('+44 ** *** 958');
+    expect(maskPhone('+442079460958')).toBe('+44 ** *** 958');
+    expect(maskPhone('+1 415 555 2671')).toBe('+1 ** *** 671');
+    expect(maskPhone('+256 772 123456')).toBe('+256 ** *** 456');
+  });
+
+  it('hides every digit of a short value', () => {
     expect(maskPhone('123')).toBe('** *** ***');
+    expect(maskPhone('12345678')).toBe('** *** ***');
+    expect(maskPhone('+44 1234')).toBe('** *** ***');
+  });
+
+  it('leaves an already masked value alone', () => {
+    expect(maskPhone('07** *** 678')).toBe('07** *** 678');
+    expect(maskPhone('07** *** 123')).toBe('07** *** 123');
+    expect(maskPhone('+44 ** *** 958')).toBe('+44 ** *** 958');
+    expect(maskPhone('** *** ***')).toBe('** *** ***');
+  });
+
+  it('masks a value that merely contains a star', () => {
+    expect(maskPhone('0712*345678')).toBe('07** *** 678');
+    expect(maskPhone('07*2345678')).toBe('07** *** 678');
+    expect(maskPhone('0712345678*')).toBe('07** *** 678');
   });
 });
 
@@ -33,6 +66,16 @@ describe('MaskedContact', () => {
 
     expect(container.textContent).not.toContain('jane.doe');
     expect(screen.getByText('j***@moe.go.ke')).toBeDefined();
+  });
+
+  it('never renders the full value when it contains a star', () => {
+    const email = render(<MaskedContact kind="email" value="a*b@moe.go.ke" />);
+    expect(email.container.textContent).not.toContain('a*b');
+    email.unmount();
+
+    const phone = render(<MaskedContact kind="phone" value="0712*345678" />);
+    expect(phone.container.textContent).not.toContain('0712');
+    expect(phone.container.textContent).toContain('07** *** 678');
   });
 
   it('tells screen reader users the value is partly hidden', () => {
