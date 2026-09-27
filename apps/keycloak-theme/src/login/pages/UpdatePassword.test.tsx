@@ -29,16 +29,12 @@ describe('Set your password', () => {
     expect(logout.checked).toBe(true);
   });
 
-  it('ticks the default rules as the password grows', async () => {
+  it('lists no rules when Keycloak does not pass the realm policy', async () => {
     renderStory('update-password');
     const input = await screen.findByLabelText('New password');
 
-    expect(rules()).toEqual([
-      'At least 12 characters (not met yet)',
-      'Not your email or officer reference',
-    ]);
-    fireEvent.change(input, { target: { value: 'correct horse battery' } });
-    expect(rules()[0]).toBe('At least 12 characters (met)');
+    expect(screen.queryByRole('list', { name: 'Password rules' })).toBeNull();
+    expect(input.getAttribute('aria-describedby')).toBeNull();
   });
 
   it("follows the realm's policy when Keycloak passes it", async () => {
@@ -50,6 +46,18 @@ describe('Set your password', () => {
       'At least 1 number(s) (not met yet)',
       'At least 1 capital letter(s) (not met yet)',
       'Not your email or officer reference',
+    ]);
+  });
+
+  it('ticks a rule once the password meets it', async () => {
+    renderStory('update-password-policy');
+    const input = await screen.findByLabelText('New password');
+
+    fireEvent.change(input, { target: { value: 'correct horse' } });
+    expect(rules().slice(0, 3)).toEqual([
+      'At least 10 characters (met)',
+      'At least 1 number(s) (not met yet)',
+      'At least 1 capital letter(s) (not met yet)',
     ]);
   });
 
@@ -88,6 +96,6 @@ describe('Set your password', () => {
     renderStory('update-password-staff');
     await screen.findByLabelText('New password');
 
-    expect(rules()).toContain('Not your email address');
+    expect(rules()).toEqual(['At least 12 characters (not met yet)', 'Not your email address']);
   });
 });
