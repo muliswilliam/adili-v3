@@ -4,13 +4,16 @@
 # Database roles are applied again after Postgres is up so new services appear on an existing volume.
 set -eu
 
-# shellcheck source=lib/compose.sh
+# shellcheck source=SCRIPTDIR/lib/compose.sh
 . "$(dirname "$0")/lib/compose.sh"
 
 init_jobs="temporal-schema temporal-namespace seaweedfs-buckets"
 long_running=$(compose config --services | grep -vxF -e temporal-schema -e temporal-namespace -e seaweedfs-buckets)
 
-# --pull never: adili/keycloak:dev is built locally; a Hub lookup for it can abort the whole up.
+# Pull registry images that are not cached yet. adili/keycloak:dev is built locally, so it is
+# skipped here and `up --pull never` builds it instead of failing on a Hub lookup.
+# shellcheck disable=SC2086
+compose pull --policy missing --ignore-buildable $long_running
 # shellcheck disable=SC2086
 compose up -d --wait --pull never $long_running
 

@@ -37,7 +37,7 @@ services:
     image: rabbitmq:4.3.6-management-alpine
     hostname: rabbitmq
     # Official image starts as root, chowns /var/lib/rabbitmq, then drops to rabbitmq.
-    # Do not set `user:` or mount only `mnesia/` — Ra cannot create its data dir.
+    # Do not set `user:` or mount only `mnesia/` - Ra cannot create its data dir.
     environment:
       RABBITMQ_DEFAULT_USER: adili
       RABBITMQ_DEFAULT_PASS: adili_dev

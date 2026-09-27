@@ -2,7 +2,7 @@
 # Stops local infrastructure. Pass --volumes (or INFRA_DOWN_VOLUMES=1) to delete data.
 set -eu
 
-# shellcheck source=lib/compose.sh
+# shellcheck source=SCRIPTDIR/lib/compose.sh
 . "$(dirname "$0")/lib/compose.sh"
 
 volumes=0

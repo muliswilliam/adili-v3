@@ -3,7 +3,7 @@
 # shellcheck shell=sh
 
 compose_file() {
-  echo "$(CDPATH= cd -- "$(dirname "$0")/../infra/compose" && pwd)/docker-compose.yml"
+  echo "$(CDPATH='' cd -- "$(dirname "$0")/../infra/compose" && pwd)/docker-compose.yml"
 }
 
 compose_bin() {
