@@ -17,6 +17,12 @@ import {
   rosterSummarySchema,
 } from './commissions/representation.js';
 import {
+  confirmExitsBody,
+  exitsResultSchema,
+  keepResultSchema,
+  keepRosterRecordsBody,
+} from './roster/exits/representation.js';
+import {
   columnMappingSchema,
   importChannelSchema,
   importCountsSchema,
@@ -84,4 +90,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterRecordImport: rosterRecordImportSchema,
   RosterRecord: rosterRecordSchema,
   RosterRecordPage: rosterRecordPageSchema,
+  ConfirmExits: confirmExitsBody,
+  ExitsResult: exitsResultSchema,
+  KeepRosterRecords: keepRosterRecordsBody,
+  KeepResult: keepResultSchema,
 };

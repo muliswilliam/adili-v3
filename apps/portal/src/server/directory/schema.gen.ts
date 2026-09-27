@@ -364,15 +364,36 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Confirm exits for flagged (or any non-exited) records */
+        /**
+         * Confirm exits for flagged (or any non-exited) records
+         * @description Reporting officer of the Commission. Exits every record or none: each becomes `exited` with its exit date and its absent flag cleared. Exited officers stay on the roster for their final declaration and no longer count as expected declarants. Records `roster.exits.confirmed.v1`. Idempotent per Idempotency-Key.
+         */
         post: operations["confirmRosterExits"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/keep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear the absent flag: these officers are still employed
+         * @description Reporting officer of the Commission. Clears the flag of the flagged records among them; the others are left as they are. Records `roster.records.kept.v1`. Idempotent per Idempotency-Key.
+         */
+        post: operations["keepRosterRecords"];
         delete?: never;
         options?: never;
         head?: never;
@@ -394,25 +415,6 @@ export interface paths {
         put?: never;
         /** Record one officer's exit by personnel file number (HR systems) */
         post: operations["recordRosterExit"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/roster/keep": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Clear the absent flag: these officers are still employed */
-        post: operations["keepRosterRecords"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1259,6 +1261,40 @@ export interface components {
             /** @description Pass as `cursor` for the next page; null on the last page */
             nextCursor: string | null;
         };
+        ConfirmExits: {
+            /** @description Records to exit; each at most once, none already exited */
+            records: {
+                /** Format: uuid */
+                recordId: string;
+                /**
+                 * Format: date
+                 * @description Overrides the batch `exitDate` for this record. Not in the future (Africa/Nairobi)
+                 */
+                exitDate?: string;
+            }[];
+            /**
+             * Format: date
+             * @description Exit date of the records without their own; required unless every record has one. Not in the future (Africa/Nairobi)
+             */
+            exitDate?: string;
+        };
+        ExitsResult: {
+            /**
+             * Format: uuid
+             * @description Identifies this confirmation, as in the `roster.exits.confirmed.v1` event
+             */
+            batchId: string;
+            /** @description Records now exited */
+            count: number;
+        };
+        KeepRosterRecords: {
+            /** @description Records whose officers are still employed */
+            recordIds: string[];
+        };
+        KeepResult: {
+            /** @description Records whose flag was cleared; records that were not flagged are left as they are */
+            count: number;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1291,27 +1327,6 @@ export interface components {
             /** @constant */
             channel: "api";
             rows: components["schemas"]["RosterRowInput"][];
-        };
-        ConfirmExits: {
-            records: {
-                /** Format: uuid */
-                recordId: string;
-                /**
-                 * Format: date
-                 * @description Overrides the batch exitDate for this record
-                 */
-                exitDate?: string;
-            }[];
-            /**
-             * Format: date
-             * @description Default exit date for records without their own; required unless every record has one
-             */
-            exitDate?: string;
-        };
-        ExitsResult: {
-            /** Format: uuid */
-            batchId: string;
-            count: number;
         };
         /**
          * @description Officer reference (ADR-011), permanent and person-level
@@ -2704,10 +2719,10 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
@@ -2726,9 +2741,116 @@ export interface operations {
                     "application/json": components["schemas"]["ExitsResult"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description Request failed validation: an exit date in the future or missing, or a record listed twice */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist. Problem type `record-not-found`: some records are not on the Commission's roster; `errors` points at them and nothing was changed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `record-exited`: some records have exited already; `errors` points at them and nothing was changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    keepRosterRecords: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeepRosterRecords"];
+            };
+        };
+        responses: {
+            /** @description Count of records updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeepResult"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist. Problem type `record-not-found`: some records are not on the Commission's roster; `errors` points at them and nothing was changed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     recordRosterExit: {
@@ -2774,38 +2896,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    keepRosterRecords: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    recordIds: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description Count of records updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        count: number;
-                    };
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
         };
     };
     listOnboardingCommissions: {
