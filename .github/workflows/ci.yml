@@ -38,15 +38,17 @@ jobs:
     name: Integration (Postgres, RabbitMQ, Keycloak)
     runs-on: ubuntu-latest
     services:
+      # As in infra/compose: `postgres` is the superuser and the init script (run below) creates
+      # the non-superuser roles, so row-level security applies to the tests as to the services.
+      # The health check uses TCP so it cannot pass on the image's socket-only init server.
       postgres:
         image: postgres:18.6-alpine
         env:
-          POSTGRES_USER: adili_test
-          POSTGRES_PASSWORD: adili_test_dev
-          POSTGRES_DB: adili_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_dev
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U adili_test" --health-interval 5s --health-timeout 5s --health-retries 20
+          --health-cmd "pg_isready -U postgres -h localhost" --health-interval 5s --health-timeout 5s --health-retries 20
       rabbitmq:
         image: rabbitmq:4.3.6-alpine
         env:
@@ -68,6 +70,11 @@ jobs:
       TEST_MAILPIT_URL: http://localhost:8025
     steps:
       - uses: actions/checkout@v5
+      # Service containers cannot mount the repo, so the compose init script is copied in.
+      - name: Create the databases and roles
+        run: |
+          docker cp infra/compose/postgres/init-databases.sh ${{ job.services.postgres.id }}:/tmp/init-databases.sh
+          docker exec -e POSTGRES_USER=postgres ${{ job.services.postgres.id }} /tmp/init-databases.sh
       # Service containers cannot take a command, so Keycloak (same version as
       # infra/docker/keycloak.Dockerfile, without the login theme) runs here.
       - name: Start Keycloak with the realm import
