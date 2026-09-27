@@ -25,6 +25,8 @@ export interface ColumnCheckDeps {
   onViewRunning: (importId: string) => void;
   /** The running import the officer asked for has already ended. */
   onRunningGone: () => void;
+  /** The running import could not be looked up. */
+  onRunningUnavailable: () => void;
   newIdempotencyKey?: () => string;
 }
 
@@ -120,6 +122,8 @@ export function useColumnCheck(upload: CleanUpload | null, deps: ColumnCheckDeps
     } else if (result.ok) {
       setRefused(null);
       deps.onRunningGone();
+    } else {
+      deps.onRunningUnavailable();
     }
   };
 

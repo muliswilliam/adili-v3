@@ -105,6 +105,7 @@ describe('WizardCheckStep', () => {
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toContain('A required column is missing.');
     expect(alert.textContent).toContain('Add a national_id column and upload again.');
+    expect(screen.getByRole<HTMLInputElement>('checkbox').checked).toBe(false);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Start import' }).disabled).toBe(
       true,
     );

@@ -162,7 +162,8 @@ function Ready({
           <CheckboxItem
             label={<b className="font-semibold">{m.completeLabel}</b>}
             hint={m.completeHint}
-            checked={declaredComplete}
+            // A file that cannot be imported is no complete roster either.
+            checked={declaredComplete && !blocked}
             disabled={blocked || starting}
             onChange={(event) => {
               onDeclaredCompleteChange(event.currentTarget.checked);
@@ -347,7 +348,9 @@ function MissingAlert({
       title={columns.length === 1 ? m.missingTitle : m.missingTitleMany}
       text={
         <>
-          {m.missingBefore} <ColumnList columns={columns} /> {m.missingAfter}
+          {columns.length === 1 ? m.missingBefore : m.missingBeforeMany}{' '}
+          <ColumnList columns={columns} />{' '}
+          {columns.length === 1 ? m.missingAfter : m.missingAfterMany}
         </>
       }
     >

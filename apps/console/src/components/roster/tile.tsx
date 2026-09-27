@@ -1,18 +1,20 @@
-import { Card, Icon, type IconProps } from '@adili/ui';
+import { Card, cn, Icon, type IconProps } from '@adili/ui';
 import type { ReactNode } from 'react';
 
 /** A stat tile (the prototype's `.tile`): an icon and label, then the value and any detail. */
 export function Tile({
   icon,
   label,
+  className,
   children,
 }: {
   icon: IconProps['icon'];
   label: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <Card className="gap-1.5">
+    <Card className={cn('gap-1.5', className)}>
       <p className="flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground [&_svg]:size-[15px]">
         <Icon icon={icon} />
         {label}

@@ -188,6 +188,9 @@ function ImportWizard({ slug }: { slug: string }) {
     onRunningGone: () => {
       toast({ title: m.runningGone });
     },
+    onRunningUnavailable: () => {
+      toast({ title: m.runningUnavailable });
+    },
   });
 
   const following = importStarted(state.step) ? state.importId : null;

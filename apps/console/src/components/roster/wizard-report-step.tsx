@@ -64,7 +64,13 @@ export function WizardReportStep({
             className="mt-5 grid grid-cols-2 gap-3 min-[900px]:grid-cols-5"
           >
             {TILES.map((tile) => (
-              <Tile key={tile.key} icon={tile.icon} label={tile.label}>
+              <Tile
+                key={tile.key}
+                icon={tile.icon}
+                label={tile.label}
+                // Five across: the prototype's tighter tile padding keeps each label on one line.
+                className="p-4 sm:p-4"
+              >
                 <TileValue>{formatNumber(counts[tile.key])}</TileValue>
               </Tile>
             ))}
