@@ -24,6 +24,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          # The check is a plain node script. setup-node@v5 otherwise looks
+          # for pnpm because package.json pins packageManager.
+          package-manager-cache: false
       - run: node scripts/check-keycloak-realm.mjs
 
   image:
