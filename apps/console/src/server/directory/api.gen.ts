@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in user, tenant and roles, as seen by the platform */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions": {
         parameters: {
             query?: never;
@@ -13,8 +30,7 @@ export interface paths {
         };
         /**
          * List Responsible Commissions
-         * @description platform-admin, eacc-analyst and eacc-supervisor see every Commission.
-         *     Other staff see only their own tenant's Commission.
+         * @description platform-admin, eacc-analyst and eacc-supervisor see every Commission. Other staff see only their own tenant's Commission.
          */
         get: operations["listCommissions"];
         put?: never;
@@ -33,9 +49,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
         /** One Commission with its reporting officer and roster summary */
@@ -52,20 +66,13 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         /**
          * Assign or replace the Commission's reporting officer
-         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account,
-         *     grants the reporting-officer role (enabling the account if it was disabled) and sends
-         *     exactly one activation email. If a current (not replaced) assignment exists it is
-         *     marked `replaced` with `replacedBy` set to the new assignment, and the previous
-         *     account loses the reporting-officer role and is disabled. Idempotent per
-         *     Idempotency-Key.
+         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account, grants the reporting-officer role (enabling the account if it was disabled) and sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role and is disabled. Idempotent per Idempotency-Key.
          */
         put: operations["assignReportingOfficer"];
         post?: never;
@@ -79,18 +86,14 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
         /**
          * Send the activation email again
-         * @description platform-admin only. Allowed while the current assignment is `invited`; Keycloak sends
-         *     a new activation link valid for 72 hours. No Idempotency-Key: a repeated request only
-         *     sends another email.
+         * @description platform-admin only. Allowed while the current assignment is `invited`; Keycloak sends a new activation link valid for 72 hours. No Idempotency-Key: a repeated request only sends another email.
          */
         post: operations["resendReportingOfficerInvitation"];
         delete?: never;
@@ -777,9 +780,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Principal: {
+            /** @description Keycloak user or service-account ID (`sub`) */
+            subject: string;
+            /** @description Responsible Commission (or `eacc` / `platform`) the caller acts for */
+            tenant: string | null;
+            /** @description Realm roles from the token */
+            roles: string[];
+            /** @description OAuth client that obtained the token (`azp`) */
+            clientId: string | null;
+        };
         /**
-         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars.
-         *     Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
+         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
          * @example psc
          * @example tsc
          * @example cpsb047
@@ -832,11 +844,17 @@ export interface components {
             state: components["schemas"]["ReportingOfficerState"];
             /** Format: date-time */
             invitedAt: string;
-            /**
-             * Format: date-time
-             * @description First authenticated request of the officer's account; null until then
-             */
+            /** @description First authenticated request of the officer's account; null until then */
             activatedAt: string | null;
+        };
+        RosterSummary: {
+            /** @enum {string} */
+            status: "none" | "imported";
+            expectedDeclarants: number;
+            onboardedDeclarants: number;
+            flagged: number;
+            lastImportAt: string | null;
+            lastImportId: string | null;
         };
         Commission: {
             /** Format: uuid */
@@ -860,12 +878,20 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        CommissionPage: {
+            items: components["schemas"]["Commission"][];
+            /** @description Pass as `cursor` for the next page; null on the last page */
+            nextCursor: string | null;
+            /** @description Commissions matching the filters across all pages */
+            total: number;
+        };
         ProblemDetails: {
             type: string;
             title: string;
             status: number;
             detail?: string;
             instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
             errors?: {
                 path: string;
                 message: string;
@@ -1043,17 +1069,6 @@ export interface components {
             /** Format: uuid */
             batchId: string;
             count: number;
-        };
-        RosterSummary: {
-            /** @enum {string} */
-            status: "none" | "imported";
-            expectedDeclarants: number;
-            onboardedDeclarants: number;
-            flagged: number;
-            /** Format: date-time */
-            lastImportAt: string | null;
-            /** Format: uuid */
-            lastImportId: string | null;
         };
         RosterApiCredential: {
             /** @example roster-psc */
@@ -1319,14 +1334,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified identity from the access token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Principal"];
+                };
+            };
+        };
+    };
     listCommissions: {
         parameters: {
             query?: {
-                /** @description Case-insensitive match on name or slug */
+                /** @description Case-insensitive match on name or slug; blank means no search */
                 search?: string;
-                type?: components["schemas"]["CommissionType"];
+                type?: "hosted" | "federated";
                 /** @description Filter by current reporting officer state; `none` means no assignment yet */
                 reportingOfficer?: "none" | "invited" | "activated";
+                /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
                 limit?: number;
             };
@@ -1342,16 +1378,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: components["schemas"]["Commission"][];
-                        nextCursor: string | null;
-                        /** @description Commissions matching the filters across all pages */
-                        total: number;
-                    };
+                    "application/json": components["schemas"]["CommissionPage"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     createCommission: {
@@ -1359,7 +1406,7 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path?: never;
             cookie?: never;
@@ -1379,9 +1426,25 @@ export interface operations {
                     "application/json": components["schemas"]["Commission"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            /** @description Tenant key or name already exists */
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `commission-exists`: the tenant key or name is taken; `errors[].path` names `slug` and/or `name`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1406,7 +1469,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
@@ -1419,6 +1482,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Commission"];
+                };
+            };
+            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Not found, or not visible to the caller */
@@ -1437,10 +1509,10 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
@@ -1459,8 +1531,24 @@ export interface operations {
                     "application/json": components["schemas"]["Commission"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Commission not found */
             404: {
                 headers: {
@@ -1470,11 +1558,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /**
-             * @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the
-             *     email belongs to an account in another tenant (or in none). Nothing changed and
-             *     the current officer keeps access.
-             */
+            /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account in another tenant (or in none). Nothing changed and the current officer keeps access. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1492,10 +1576,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /**
-             * @description Problem type `identity-unavailable`: the identity provider failed, nothing was
-             *     assigned. Safe to retry with the same Idempotency-Key.
-             */
+            /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned. Safe to retry with the same Idempotency-Key. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -1511,7 +1592,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: components["schemas"]["Slug"];
             };
             cookie?: never;
         };
@@ -1524,11 +1605,16 @@ export interface operations {
                 };
                 content?: never;
             };
-            403: components["responses"]["Forbidden"];
-            /**
-             * @description Commission not found, or problem type `reporting-officer-not-assigned`: it has no
-             *     reporting officer.
-             */
+            /** @description Requires one of the roles: platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Commission not found, or problem type `reporting-officer-not-assigned`: it has no reporting officer. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1537,11 +1623,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /**
-             * @description Problem type `reporting-officer-activated`: the officer has already activated, so
-             *     there is nothing to resend. Problem type `reporting-officer-account-missing`: the
-             *     officer's account no longer exists in the identity provider; replace the officer.
-             */
+            /** @description Problem type `reporting-officer-activated`: the officer has already activated, so there is nothing to resend. Problem type `reporting-officer-account-missing`: the officer's account no longer exists in the identity provider; replace the officer. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1550,10 +1632,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /**
-             * @description Problem type `identity-unavailable`: the identity provider failed, no email was
-             *     sent. Safe to retry.
-             */
+            /** @description Problem type `identity-unavailable`: the identity provider failed, no email was sent. Safe to retry. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -1580,6 +1659,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OfficerCategory"][];
+                };
+            };
+            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

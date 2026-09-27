@@ -1,18 +1,25 @@
 import { z } from 'zod';
 
+import { commissionTypeSchema } from './create-commission.js';
+
 /** Query of `GET /v1/commissions`. */
 export const listCommissionsQuery = z.object({
-  /** Case-insensitive match on name or slug; blank means no search. */
   search: z
     .string()
     .trim()
     .max(100)
     .optional()
-    .transform((value) => (value === '' ? undefined : value)),
-  type: z.enum(['hosted', 'federated']).optional(),
-  /** Current reporting officer state; `none` means no assignment yet. */
-  reportingOfficer: z.enum(['none', 'invited', 'activated']).optional(),
-  cursor: z.string().max(500).optional(),
+    .transform((value) => (value === '' ? undefined : value))
+    .meta({ description: 'Case-insensitive match on name or slug; blank means no search' }),
+  type: commissionTypeSchema.optional(),
+  reportingOfficer: z.enum(['none', 'invited', 'activated']).optional().meta({
+    description: 'Filter by current reporting officer state; `none` means no assignment yet',
+  }),
+  cursor: z
+    .string()
+    .max(500)
+    .optional()
+    .meta({ description: '`nextCursor` of the previous page; omit for the first page' }),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 

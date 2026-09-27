@@ -8,8 +8,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ApiForbiddenResponse } from '@nestjs/swagger';
 
+import { ApiProblemResponse } from '../openapi.js';
 import { ProblemException } from '../problem-details.filter.js';
 import type { AuthenticatedRequest } from './jwt-auth.guard.js';
 
@@ -32,7 +32,7 @@ export const Roles = (...roles: [string, ...string[]]) =>
   applyDecorators(
     SetMetadata(ROLES, roles),
     UseGuards(RolesGuard),
-    ApiForbiddenResponse({ description: `Requires one of the roles: ${roles.join(', ')}` }),
+    ApiProblemResponse(403, `Requires one of the roles: ${roles.join(', ')}`),
   );
 
 @Injectable()

@@ -12,6 +12,7 @@ import type { FastifyReply } from 'fastify';
 import { catchError, from, mergeMap, type Observable, of } from 'rxjs';
 
 import type { AuthenticatedRequest } from '../auth/jwt-auth.guard.js';
+import { ApiProblemResponse } from '../openapi.js';
 import {
   PROBLEM_CONTENT_TYPE,
   ProblemException,
@@ -53,6 +54,7 @@ export const RequireIdempotencyKey = () =>
       description: 'Client-generated UUID, unique per logical request; reuse on retry',
       schema: { type: 'string', format: 'uuid' },
     }),
+    ApiProblemResponse(422, 'Idempotency-Key reused with a different request body'),
   );
 
 @Injectable()

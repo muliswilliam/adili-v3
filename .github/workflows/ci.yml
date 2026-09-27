@@ -27,6 +27,12 @@ jobs:
       - run: pnpm format:check
       - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks'
       - run: pnpm deps:check
+      # The console's typecheck above regenerates api.gen.ts from the committed contract, so a
+      # stale client shows up here too.
+      - name: Internal contracts match the services
+        run: |
+          pnpm --filter @adili/directory contracts
+          git diff --exit-code packages/schemas apps/console/src/server/directory/api.gen.ts
 
   integration:
     name: Integration (Postgres, RabbitMQ, Keycloak)
