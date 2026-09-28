@@ -58,7 +58,11 @@ export interface SuggestionMessages {
   /** Defaults to 'Matches "{title}".' */
   matches: (title: string) => string;
   fills: string;
-  nothingToFill: string;
+  /**
+   * Said of a match whose fields are all filled already. Defaults to "Nothing to fill. Applying
+   * marks this item as confirmed by {source}."
+   */
+  nothingToFill: (source: string) => string;
   added: string;
   applied: string;
   dismissed: string;
@@ -77,7 +81,7 @@ export const SUGGESTION_MESSAGES: SuggestionMessages = {
   actionLabel: (action, title) => `${action}: ${title}`,
   matches: (title) => `Matches "${title}".`,
   fills: 'Fills:',
-  nothingToFill: 'Nothing to fill.',
+  nothingToFill: (source) => `Nothing to fill. Applying marks this item as confirmed by ${source}.`,
   added: 'Added',
   applied: 'Applied',
   dismissed: 'Dismissed',
@@ -99,8 +103,9 @@ export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | '
   fields?: SuggestionField[];
   /**
    * The existing item it matches. The main action becomes "Apply to this item", listing the
-   * empty fields it fills (not offered when there is nothing to fill); Add and Edit and add
-   * stay as secondary actions, for when it is a different item after all.
+   * empty fields it fills. It stays the main action when there is nothing to fill: applying
+   * still records the source on the item. Add and Edit and add stay as secondary actions, for
+   * when it is a different item after all.
    */
   match?: SuggestionMatch;
   status?: SuggestionStatus;
@@ -235,7 +240,7 @@ export function SuggestionCard({
 
   const actions = match ? (
     <>
-      {match.fills.length > 0 ? action(messages.apply, onApply, 'default') : null}
+      {action(messages.apply, onApply, 'default')}
       {action(messages.add, onAdd, 'secondary')}
       {action(messages.editAndAdd, onEditAndAdd, 'secondary')}
       {action(messages.dismiss, onDismiss, 'ghost')}
@@ -287,7 +292,7 @@ export function SuggestionCard({
                 ))}
               </>
             ) : (
-              messages.nothingToFill
+              messages.nothingToFill(SOURCE_NAMES[source])
             )}
           </p>
         ) : fields.length > 0 ? (

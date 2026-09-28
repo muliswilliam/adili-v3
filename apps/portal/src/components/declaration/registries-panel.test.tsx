@@ -470,6 +470,43 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
     expect(acceptMock.mock.calls[0]?.[0].data.applyToItemId).toBe(FIELDER_ID);
   });
 
+  it('still applies a match with nothing to fill, to record the registry as its source', async () => {
+    const one = fielder();
+    acceptMock.mockResolvedValue({
+      status: 'accepted',
+      suggestion: { ...one, status: 'accepted', acceptedItemId: FIELDER_ID },
+      itemId: FIELDER_ID,
+      etag: '"2"',
+    });
+    getSectionMock.mockResolvedValue({ status: 'ok', etag: '"2"', section: statement() });
+    const ours = {
+      id: FIELDER_ID,
+      type: 'vehicle',
+      description: 'Our Fielder',
+      details: { registration: 'KDA123X', makeModel: 'Toyota Fielder' },
+      location: { inKenya: true },
+      change: { changed: false },
+      joint: { isJoint: false },
+    };
+    renderPanel({ section: statement({ assets: [ours] }), sets: readySets([one]) });
+
+    const card = suggestionCard('KDA 123X · Toyota Fielder 2014');
+    expect(card.textContent).toContain(
+      'Matches "Our Fielder". Nothing to fill. Applying marks this item as confirmed by NTSA.',
+    );
+    expect(within(card).getAllByRole('button')[0]?.textContent).toBe('Apply to this item');
+    fireEvent.click(
+      within(card).getByRole('button', {
+        name: 'Apply to this item: KDA 123X · Toyota Fielder 2014',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(suggestionCard('KDA 123X · Toyota Fielder 2014').textContent).toContain('Applied');
+    });
+    expect(acceptMock.mock.calls[0]?.[0].data.applyToItemId).toBe(FIELDER_ID);
+  });
+
   it('matches only the item the service names, not one it guesses', () => {
     const ours = {
       id: FIELDER_ID,

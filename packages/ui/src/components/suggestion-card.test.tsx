@@ -101,15 +101,20 @@ describe('SuggestionCard', () => {
     expect(onApply).toHaveBeenCalledOnce();
   });
 
-  it('leaves out Apply when a match has nothing to fill', () => {
-    const { card, element } = renderCard({ match: { title: 'Toyota Probox', fills: [] } });
+  it('still leads with Apply when a match has nothing to fill, as applying confirms the item', () => {
+    const { card, element, onApply } = renderCard({ match: { title: 'Toyota Probox', fills: [] } });
 
-    expect(card.getByText(/Matches/).textContent).toBe('Matches "Toyota Probox". Nothing to fill.');
+    expect(card.getByText(/Matches/).textContent).toBe(
+      'Matches "Toyota Probox". Nothing to fill. Applying marks this item as confirmed by NTSA.',
+    );
     expect(buttonNames(element)).toEqual([
+      `Apply to this item: ${TITLE}`,
       `Add: ${TITLE}`,
       `Edit and add: ${TITLE}`,
       `Dismiss: ${TITLE}`,
     ]);
+    fireEvent.click(card.getByRole('button', { name: `Apply to this item: ${TITLE}` }));
+    expect(onApply).toHaveBeenCalledOnce();
   });
 
   it('collapses to "Added" with a link to the item once accepted', () => {

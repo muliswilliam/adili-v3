@@ -100,6 +100,7 @@ export const REGISTRY_COPY = {
   spouseTax: (first: string) => `Adds to ${first}'s details in Household`,
   ownKraPin: 'your KRA PIN',
   theirKraPin: (first: string) => `${first}'s KRA PIN`,
+  pinOnFile: 'Nothing to fill.',
   apply: 'Apply',
   added: 'Added. Enter its value.',
   addedEdited: 'Added',
@@ -369,8 +370,9 @@ export function RegistriesPanel({
           description={match ? undefined : REGISTRY_COPY.spouseTax(person.firstName)}
           fields={fields}
           match={match}
-          messages={{ add: REGISTRY_COPY.apply }}
-          // The spouse's KRA PIN is already there: applying would change nothing.
+          // The spouse's KRA PIN is already there: applying would change nothing, and there is
+          // no item to mark with the source, so there is no Apply.
+          messages={{ add: REGISTRY_COPY.apply, nothingToFill: () => REGISTRY_COPY.pinOnFile }}
           onAdd={
             match
               ? undefined
