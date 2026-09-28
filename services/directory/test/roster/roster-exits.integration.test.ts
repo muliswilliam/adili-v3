@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import type { RosterSummary } from '../../src/commissions/representation.js';
-import { outbox, rosterImportRows, rosterRecords } from '../../src/db/schema.js';
+import { outbox, rosterImportRows, rosterRecords, rosterSummaries } from '../../src/db/schema.js';
 import type { ExitsResult, KeepResult } from '../../src/roster/exits/representation.js';
 import type { RosterImport } from '../../src/roster/import/representation.js';
 import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
 import { todayInNairobi } from '../../src/roster/row-validation.js';
+import { refreshRosterSummary } from '../../src/roster/summary.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -528,5 +529,54 @@ describe('S13 import row for an exited officer', () => {
     });
     expect(reactivated.imports[0]).toMatchObject({ importId: back.id, outcome: 'updated' });
     expect(await summary()).toMatchObject({ expectedDeclarants: 4, flagged: 1 });
+  });
+});
+
+describe('roster summary after exits and keeps', () => {
+  const recount = () =>
+    withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      refreshRosterSummary(tx, 'psc'),
+    );
+
+  const storedSummary = () =>
+    withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, async (tx) => {
+      const [row] = await tx
+        .select({
+          expected: rosterSummaries.expected,
+          onboarded: rosterSummaries.onboarded,
+          flagged: rosterSummaries.flagged,
+        })
+        .from(rosterSummaries)
+        .where(eq(rosterSummaries.tenant, 'psc'));
+      return row;
+    });
+
+  it('moves the counts as a full recount of the records would', async () => {
+    const { ids } = await givenTwoFlagged();
+    const [achieng, kiprono, wanjiru, mary] = ['PSC/0001', 'PSC/0002', 'PSC/0003', 'PSC/0004'].map(
+      (fileNumber) => idOf(ids, fileNumber),
+    );
+    // Onboarded officers, one of them flagged: an exit must stop counting them as onboarded.
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .update(rosterRecords)
+        .set({ state: 'onboarded' })
+        .where(inArray(rosterRecords.id, [kiprono ?? '', wanjiru ?? ''])),
+    );
+    await recount();
+    expect(await storedSummary()).toEqual({ expected: 4, onboarded: 2, flagged: 2 });
+
+    const exited = await confirmExits({
+      records: [{ recordId: wanjiru }, { recordId: achieng }],
+      exitDate: daysAgo(1),
+    });
+    expect(exited.statusCode, exited.body).toBe(200);
+    const kept = await keep({ recordIds: [mary, kiprono] });
+    expect(kept.json<KeepResult>()).toEqual({ count: 1 });
+
+    const adjusted = await storedSummary();
+    await recount();
+    expect(adjusted).toEqual(await storedSummary());
+    expect(adjusted).toEqual({ expected: 2, onboarded: 1, flagged: 0 });
   });
 });

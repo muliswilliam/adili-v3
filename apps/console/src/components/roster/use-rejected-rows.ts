@@ -22,30 +22,49 @@ export interface RejectedRowsDeps {
   onUnauthenticated: () => void;
 }
 
+/**
+ * Where the page on show is kept when not in the hook's own state: the report page keeps its
+ * cursor in the URL and the way back in history state, like the other paged lists.
+ */
+export interface RejectedRowsPager {
+  location: PageLocation;
+  go: (to: PageLocation) => void;
+}
+
+export interface RejectedRowsOptions {
+  /** The page at the pager's (or the first) location, as the route's loader read it. */
+  initial?: DirectoryResult<RosterImportRowPage>;
+  pager?: RejectedRowsPager;
+}
+
 const firstPage: PageLocation = { search: {}, state: { trail: [], offset: 0 } };
 
 const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } as const;
 
 /**
- * An import's rejected rows, a page at a time with Previous and Next. The page on show lives in
- * component state (the report shows one import; its rows are a section of the page), and each
- * page is read when it is asked for. `initial`, when given, is the first page as the route's
- * loader read it. Pass `importId: null` to read nothing (no rows to show).
+ * An import's rejected rows, a page at a time with Previous and Next; each page is read when it
+ * is asked for. The page on show lives in `options.pager` when given, otherwise in component
+ * state, where another import starts again at its first page. Pass `importId: null` to read
+ * nothing (no rows to show).
  */
 export function useRejectedRows(
   importId: string | null,
   deps: RejectedRowsDeps,
-  initial?: DirectoryResult<RosterImportRowPage>,
+  { initial, pager }: RejectedRowsOptions = {},
 ) {
-  const [location, setLocation] = useState<PageLocation>(firstPage);
+  const [own, setOwn] = useState({ importId, location: firstPage });
+  const location = pager ? pager.location : own.importId === importId ? own.location : firstPage;
+  const go = (to: PageLocation) => {
+    if (pager) pager.go(to);
+    else setOwn({ importId, location: to });
+  };
   const [round, setRound] = useState(0);
   const cursor = location.search.cursor;
   const key = `${importId}:${cursor ?? ''}:${String(round)}`;
-  const firstKey = `${importId}::0`;
   const [found, setFound] = useState<{
     key: string;
     result: DirectoryResult<RosterImportRowPage>;
-  } | null>(initial ? { key: firstKey, result: initial } : null);
+  } | null>(() => (initial ? { key, result: initial } : null));
   const result = found?.key === key ? found.result : null;
 
   const read = useEffectEvent((at: string | undefined) => deps.read(at));
@@ -72,7 +91,7 @@ export function useRejectedRows(
     };
   }, [key, cursor, loaded, importId]);
 
-  const paging = { trail: location.state.trail, offset: location.state.offset };
+  const paging = location.state;
   const view: RejectedRowsView =
     result === null
       ? { phase: 'loading' }
@@ -85,10 +104,10 @@ export function useRejectedRows(
     next: () => {
       if (!result?.ok) return;
       const to = nextPage<CursorSearch>(location.search, result.data, paging);
-      if (to) setLocation(to);
+      if (to) go(to);
     },
     previous: () => {
-      setLocation(previousPage<CursorSearch>(location.search, paging));
+      go(previousPage<CursorSearch>(location.search, paging));
     },
     retry: () => {
       setRound((current) => current + 1);

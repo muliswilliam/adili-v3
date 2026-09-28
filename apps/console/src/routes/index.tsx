@@ -8,6 +8,7 @@ import {
   CardIcon,
   Icon,
   type IconProps,
+  SiteFooter,
   SiteHeader,
 } from '@adili/ui';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -110,6 +111,7 @@ function Landing({ error }: { error: string | null }) {
           </ul>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }

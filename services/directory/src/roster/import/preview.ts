@@ -1,5 +1,4 @@
-import { parseRosterFile, ROSTER_FILE_MAX_BYTES } from '../roster-file.js';
-import { RosterFileError } from '../sheet.js';
+import { parseRosterFile, toBuffer } from '../roster-file.js';
 import type { RosterImportPreview } from './representation.js';
 import type { OpenedRosterUpload } from './roster-uploads.js';
 
@@ -10,12 +9,12 @@ export const PREVIEW_COUNTED_ROWS = 10_000;
  * The column mapping of a roster file and its data rows: counted when there are up to
  * `PREVIEW_COUNTED_ROWS`, otherwise estimated from the line breaks of a CSV file (quoted
  * multi-line cells count extra) and unknown (null) for a large XLSX file.
- * Throws `RosterFileError` for a file that cannot be read.
+ * Throws `RosterFileError` for a file that cannot be read or is too large.
  */
 export async function previewRosterFile(
   upload: OpenedRosterUpload,
 ): Promise<Omit<RosterImportPreview, 'uploadId'>> {
-  const bytes = await readAll(upload.body);
+  const bytes = await toBuffer(upload.body);
   const file = await parseRosterFile(bytes, upload.format);
   const base = { fileName: upload.fileName, format: upload.format, mapping: file.mapping };
   if (!file.ok) {
@@ -34,19 +33,6 @@ export async function previewRosterFile(
       ? Math.max(PREVIEW_COUNTED_ROWS, lineCount(bytes) - 1)
       : null;
   return { ...base, missingRequired: [], estimatedRows };
-}
-
-async function readAll(body: AsyncIterable<Uint8Array>): Promise<Buffer> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of body) {
-    size += chunk.byteLength;
-    if (size > ROSTER_FILE_MAX_BYTES) {
-      throw new RosterFileError('too-large', 'The file is over 50 MB');
-    }
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
 }
 
 /** Lines in a text file: line feeds, plus one for a last line without one. */

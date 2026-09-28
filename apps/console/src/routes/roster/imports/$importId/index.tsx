@@ -1,11 +1,13 @@
 import { Alert, AlertDescription, Button, Card, EmptyState, Icon, Skeleton } from '@adili/ui';
 import { InformationCircleIcon, Search01Icon, Upload04Icon } from '@hugeicons/core-free-icons';
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { z } from 'zod';
 
 import { formatDate, formatDateTime, formatNumber } from '../../../../components/format';
 import { LoadError } from '../../../../components/load-error';
 import { Page, PageHead } from '../../../../components/page';
+import { type PagingState, pagingFor } from '../../../../components/paging';
 import {
   ImportChannelBadge,
   CompletenessBadge,
@@ -18,6 +20,7 @@ import { ImportReportBody } from '../../../../components/roster/import-report-bo
 import { messages as m } from '../../../../components/roster/messages';
 import { useImportPolling } from '../../../../components/roster/use-import-polling';
 import { FailureAlert, RunningProgress } from '../../../../components/roster/wizard-import-step';
+import type { RejectedRowsPager } from '../../../../components/roster/use-rejected-rows';
 import { signInRedirect } from '../../../../components/sign-in-redirect';
 import type {
   DirectoryResult,
@@ -26,9 +29,19 @@ import type {
 } from '../../../../server/directory/client';
 import { getRosterImport, listRejectedRows } from '../../../../server/roster-imports';
 
+declare module '@tanstack/react-router' {
+  interface HistoryState {
+    /** The way back from a later page of an import's rejected rows (see `paging.ts`). */
+    rejectedRowsPaging?: PagingState;
+  }
+}
+
+/** `rows`: the cursor of the page of rejected rows on show, so reload and links keep it. */
+const reportSearch = z.object({ rows: z.string().max(500).optional().catch(undefined) });
+
 interface ReportData {
   imp: DirectoryResult<RosterImport>;
-  /** The first page of rejected rows, read alongside when the import ended with some. */
+  /** The page of rejected rows on show, read alongside when the import ended with some. */
   rows?: DirectoryResult<RosterImportRowPage>;
 }
 
@@ -59,6 +72,9 @@ function reportCrumb(loaderData: unknown): string | null {
 const returnTo = (importId: string) => `/roster/imports/${importId}`;
 
 export const Route = createFileRoute('/roster/imports/$importId/')({
+  validateSearch: reportSearch,
+  // Not a loader dependency: paging the rejected rows reads only them (in the component), not
+  // the report again; the loader reads the page the URL names when the report opens.
   loader: async ({ params, location, context }): Promise<ReportData | null> => {
     // The layout shows no report without the workspace; do not fetch one.
     if (!context.workspace) return null;
@@ -69,7 +85,8 @@ export const Route = createFileRoute('/roster/imports/$importId/')({
     const imp = await getRosterImport({ data: { slug, importId: params.importId } });
     if (!imp.ok && imp.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     if (!imp.ok || !showsRows(imp.data)) return { imp };
-    const rows = await listRejectedRows({ data: { slug, importId: params.importId } });
+    const { rows: cursor } = reportSearch.parse(location.search);
+    const rows = await listRejectedRows({ data: { slug, importId: params.importId, cursor } });
     if (!rows.ok && rows.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return { imp, rows };
   },
@@ -144,6 +161,7 @@ function Report({
 }) {
   const router = useRouter();
   const { workspace } = Route.useRouteContext();
+  const rowsPager = useRowsPager();
   // A running import is polled until it ends; then the loader runs again for its rows.
   const polling = useImportPolling(importRunning(loaded) ? loaded.id : null, {
     read: (importId) => getRosterImport({ data: { slug, importId } }),
@@ -195,7 +213,7 @@ function Report({
               <FailureAlert imp={imp} />
               {imp.counts ? (
                 <p className="mt-[18px] mb-2.5 text-[13px] text-muted-foreground">
-                  {m.countsUpToStop}
+                  {m.countsUpToStop(imp.processedRows, imp.totalRows)}
                 </p>
               ) : null}
             </div>
@@ -206,12 +224,30 @@ function Report({
               readRows={(cursor) => listRejectedRows({ data: { slug, importId: imp.id, cursor } })}
               returnTo={returnTo(imp.id)}
               initialRows={initialRows}
+              rowsPager={rowsPager}
             />
           </div>
         </>
       )}
     </Page>
   );
+}
+
+/** The page of rejected rows on show: its cursor in the URL, the way back in history state. */
+function useRowsPager(): RejectedRowsPager {
+  const { rows } = Route.useSearch();
+  const state = useLocation({ select: (location) => location.state.rejectedRowsPaging });
+  const navigate = useNavigate({ from: Route.fullPath });
+  return {
+    location: { search: { cursor: rows }, state: pagingFor(rows, state) },
+    go: ({ search, state: paging }) => {
+      void navigate({
+        search: (current) => ({ ...current, rows: search.cursor }),
+        state: (current) => ({ ...current, rejectedRowsPaging: paging }),
+        resetScroll: false,
+      });
+    },
+  };
 }
 
 /** One label and value of the import's details (the prototype's `.kv`). */

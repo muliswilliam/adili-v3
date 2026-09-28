@@ -29,7 +29,7 @@ export function importEnded(imp: Pick<RosterImport, 'state'>): boolean {
 
 type ImportFailure = NonNullable<RosterImport['failure']>;
 
-/** Why an import stopped, completing "The import stopped after {n} rows: …". */
+/** Why an import stopped, completing "The import stopped after {n} of {total} rows: …". */
 export function failureReason(failure: Pick<ImportFailure, 'code'>): string {
   switch (failure.code) {
     case 'missing-columns':
@@ -40,6 +40,8 @@ export function failureReason(failure: Pick<ImportFailure, 'code'>): string {
       return 'the file could not be read from storage';
     case 'upload-not-clean':
       return 'the file had not passed the security scan';
+    case 'upload-missing':
+      return 'the uploaded file was no longer available';
     case 'internal':
       return 'a system error interrupted it';
   }

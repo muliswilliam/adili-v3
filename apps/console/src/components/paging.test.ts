@@ -46,6 +46,26 @@ describe('cursor paging', () => {
     expect(previousPage(search, paging).search.cursor).toBeUndefined();
   });
 
+  it('keeps the offset unknown past and back to a page a shared link opened', () => {
+    const shared = { ...filters, cursor: '20' };
+    const next = nextPage(shared, page(0, 5, '25'), pagingFor(shared.cursor, null));
+    if (!next) throw new Error('expected a next page');
+    expect(next.state).toEqual({ trail: [{ cursor: '20', offset: null }], offset: null });
+
+    const after = pagingFor(next.search.cursor, next.state);
+    expect(pagingView(page(5, 10, null), after)).toMatchObject({ range: null, hasPrevious: true });
+
+    // Previous returns to the shared page, still not counted from 1, and still with Previous.
+    const back = previousPage(next.search, after);
+    expect(back).toEqual({
+      search: { ...filters, cursor: '20' },
+      state: { trail: [], offset: null },
+    });
+    const shown = pagingFor(back.search.cursor, back.state);
+    expect(pagingView(page(0, 5, '25'), shown)).toMatchObject({ range: null, hasPrevious: true });
+    expect(previousPage(back.search, shown).search.cursor).toBeUndefined();
+  });
+
   it('ignores history state that does not describe paging', () => {
     expect(pagingFor('10', { trail: 'nope' })).toEqual({ trail: [], offset: null });
   });

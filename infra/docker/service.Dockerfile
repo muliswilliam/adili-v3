@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Builds any NestJS service in the monorepo:
 #   docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=directory -t adili/directory .
+# Keep in step with .nvmrc (CI reads it).
 ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-alpine AS base

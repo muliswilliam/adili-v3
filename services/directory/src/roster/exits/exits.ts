@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
 import type { EventPublisher } from '@adili/events';
-import { and, count, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { RosterActor } from '../actor.js';
 import { rosterImports, rosterRecords } from '../schema.js';
-import { refreshRosterSummary } from '../summary.js';
+import { adjustRosterSummary } from '../summary.js';
 import { type ExitSource, rosterExitsConfirmed, rosterRecordsKept } from './events.js';
 
 /**
@@ -75,8 +75,9 @@ export async function confirmExits(
 ): Promise<{ batchId: string; count: number }> {
   const recordIds = command.exits.map((exit) => exit.recordId);
   const found = await lockRecords(tx, command.tenant, recordIds);
-  const exited = recordIds.filter((id) => found.get(id) === 'exited');
+  const exited = recordIds.filter((id) => found.get(id)?.state === 'exited');
   if (exited.length > 0) throw new RosterRecordsExited(exited);
+  const records = [...found.values()];
 
   await countExitsOnFlaggingImports(tx, command.tenant, recordIds);
   const source = command.exits.map((exit) => ({ id: exit.recordId, exit_date: exit.exitDate }));
@@ -94,7 +95,12 @@ export async function confirmExits(
     from jsonb_to_recordset(${JSON.stringify(source)}::jsonb) as source(id uuid, exit_date date)
     where target.id = source.id and target.tenant = ${command.tenant}
   `);
-  await refreshRosterSummary(tx, command.tenant);
+  // None had exited: each stops counting as expected, and as onboarded or flagged if it did.
+  await adjustRosterSummary(tx, command.tenant, {
+    expected: -records.length,
+    onboarded: -records.filter((record) => record.state === 'onboarded').length,
+    flagged: -records.filter((record) => record.absentFromLatestImport).length,
+  });
 
   const batchId = randomUUID();
   await events.record(
@@ -142,12 +148,17 @@ export async function keepRecords(
         eq(rosterRecords.tenant, command.tenant),
         inArray(rosterRecords.id, [...command.recordIds]),
         eq(rosterRecords.absentFromLatestImport, true),
+        ne(rosterRecords.state, 'exited'),
       ),
     )
     .returning({ id: rosterRecords.id });
   if (kept.length === 0) return { count: 0 };
 
-  await refreshRosterSummary(tx, command.tenant);
+  await adjustRosterSummary(tx, command.tenant, {
+    expected: 0,
+    onboarded: 0,
+    flagged: -kept.length,
+  });
   await events.record(
     tx,
     rosterRecordsKept(command.tenant, {
@@ -188,23 +199,33 @@ async function countExitsOnFlaggingImports(
   }
 }
 
+interface LockedRecord {
+  state: typeof rosterRecords.$inferSelect.state;
+  absentFromLatestImport: boolean;
+}
+
 /**
- * Locks the tenant's records with these ids until the commit and returns their states by id;
- * throws `RosterRecordsNotFound` for ids not on the roster.
+ * Locks the tenant's records with these ids until the commit and returns their state and flag by
+ * id; throws `RosterRecordsNotFound` for ids not on the roster. Locked in id order, as everywhere
+ * records are locked (imports too), so overlapping transactions never deadlock.
  */
 async function lockRecords(
   tx: Transaction,
   tenant: string,
   recordIds: readonly string[],
-): Promise<Map<string, typeof rosterRecords.$inferSelect.state>> {
+): Promise<Map<string, LockedRecord>> {
   const rows = await tx
-    .select({ id: rosterRecords.id, state: rosterRecords.state })
+    .select({
+      id: rosterRecords.id,
+      state: rosterRecords.state,
+      absentFromLatestImport: rosterRecords.absentFromLatestImport,
+    })
     .from(rosterRecords)
     .where(and(eq(rosterRecords.tenant, tenant), inArray(rosterRecords.id, [...recordIds])))
     .orderBy(rosterRecords.id)
     .for('update');
-  const states = new Map(rows.map((row) => [row.id, row.state]));
-  const missing = recordIds.filter((id) => !states.has(id));
+  const records = new Map(rows.map(({ id, ...record }) => [id, record]));
+  const missing = recordIds.filter((id) => !records.has(id));
   if (missing.length > 0) throw new RosterRecordsNotFound(missing);
-  return states;
+  return records;
 }

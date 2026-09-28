@@ -20,7 +20,11 @@ import { rowsPurged } from './import-report';
 import { messages as m } from './messages';
 import { RejectedRows } from './rejected-rows';
 import { Tile, TileValue } from './tile';
-import { type RejectedRowsDeps, useRejectedRows } from './use-rejected-rows';
+import {
+  type RejectedRowsDeps,
+  type RejectedRowsPager,
+  useRejectedRows,
+} from './use-rejected-rows';
 import { useReportDownload } from './use-report-download';
 
 const TILES = [
@@ -41,14 +45,17 @@ export function ImportReportBody({
   readRows,
   returnTo,
   initialRows,
+  rowsPager,
 }: {
   imp: RosterImport;
   /** Reads a page of the import's rejected rows (`listRejectedRows` in the app). */
   readRows: RejectedRowsDeps['read'];
   /** Where signing in again comes back to. */
   returnTo: string;
-  /** The first page of rejected rows, when the route's loader read it. */
+  /** The page of rejected rows on show, when the route's loader read it. */
   initialRows?: DirectoryResult<RosterImportRowPage>;
+  /** Keeps the page of rejected rows on show in the URL; otherwise in component state. */
+  rowsPager?: RejectedRowsPager;
 }) {
   const counts = imp.counts;
   if (!counts) return null;
@@ -93,6 +100,7 @@ export function ImportReportBody({
           readRows={readRows}
           returnTo={returnTo}
           initialRows={initialRows}
+          rowsPager={rowsPager}
         />
       )}
     </>
@@ -104,11 +112,13 @@ function ImportRejectedRows({
   readRows,
   returnTo,
   initialRows,
+  rowsPager,
 }: {
   imp: RosterImport;
   readRows: RejectedRowsDeps['read'];
   returnTo: string;
   initialRows?: DirectoryResult<RosterImportRowPage>;
+  rowsPager?: RejectedRowsPager;
 }) {
   // Past the retention date the directory has purged the rows (410): say so without asking.
   const purged = rowsPurged(imp);
@@ -120,7 +130,7 @@ function ImportRejectedRows({
         window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
       },
     },
-    initialRows,
+    { initial: initialRows, pager: rowsPager },
   );
   const { downloading, download } = useReportDownload(imp, returnTo);
   return (

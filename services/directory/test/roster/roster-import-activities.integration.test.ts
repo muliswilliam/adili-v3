@@ -49,8 +49,11 @@ function asPlatform<T>(work: (tx: Parameters<Parameters<typeof withTenant>[2]>[0
 }
 
 /** A pending file import of FILE, as the start endpoint records it (without its workflow). */
-async function givenImport(content = FILE, declaredComplete = true): Promise<ImportRef> {
-  const uploadId = api.uploads.add('psc', { bytes: content });
+async function givenImport(
+  content = FILE,
+  declaredComplete = true,
+  uploadId = api.uploads.add('psc', { bytes: content }),
+): Promise<ImportRef> {
   const [row] = await asPlatform((tx) =>
     tx
       .insert(rosterImports)
@@ -135,6 +138,28 @@ describe('stage', () => {
     await stageImport(api.db, api.uploads, ref);
 
     expect((await stagedRows(ref)).map((row) => row.rowNumber)).toEqual([2, 3, 4, 5]);
+  });
+
+  it('fails an import whose upload is gone as missing, not as unclean', async () => {
+    const ref = await givenImport();
+    api.uploads.reset();
+
+    expect(await stageImport(api.db, api.uploads, ref)).toEqual({
+      outcome: 'failed',
+      failure: {
+        code: 'upload-missing',
+        detail: 'The uploaded file is no longer available. Upload it again.',
+      },
+    });
+  });
+
+  it('fails an import whose upload is not clean as unclean', async () => {
+    const ref = await givenImport(FILE, true, api.uploads.addNotClean('psc'));
+
+    expect(await stageImport(api.db, api.uploads, ref)).toMatchObject({
+      outcome: 'failed',
+      failure: { code: 'upload-not-clean' },
+    });
   });
 
   it('throws for a retry when documents is unavailable, leaving no rows', async () => {
@@ -236,6 +261,25 @@ describe('finalise', () => {
       processedRows: 4,
       failureCode: 'internal',
       counts: { created: 3, rejected: 1 },
+    });
+  });
+});
+
+describe('finalise a failed import', () => {
+  it('counts only the rows it processed, not accepted rows of chunks never applied', async () => {
+    const ref = await givenImport();
+    await stageImport(api.db, api.uploads, ref);
+
+    await finaliseImport(api.db, events, ref, {
+      state: 'failed',
+      failure: { code: 'internal', detail: 'Rows could not be applied.' },
+    });
+
+    expect(await importRow(ref)).toMatchObject({
+      state: 'failed',
+      totalRows: 4,
+      processedRows: 1,
+      counts: { accepted: 0, created: 0, updated: 0, unchanged: 0, rejected: 1 },
     });
   });
 });

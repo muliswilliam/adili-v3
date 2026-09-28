@@ -80,10 +80,71 @@ describe('useRejectedRows', () => {
   it("uses the loader's first page without reading it again", () => {
     const read = vi.fn(() => Promise.resolve(page(2, 1, null)));
     const { result } = renderHook(() =>
-      useRejectedRows(IMPORT_ID, { read, onUnauthenticated: vi.fn() }, page(2, 1, null)),
+      useRejectedRows(
+        IMPORT_ID,
+        { read, onUnauthenticated: vi.fn() },
+        { initial: page(2, 1, null) },
+      ),
     );
     expect(result.current.view.phase).toBe('ready');
     expect(read).not.toHaveBeenCalled();
+  });
+
+  it('starts another import at its first page', async () => {
+    const OTHER = '0199a0b4-0000-7000-8000-0000000000bb';
+    const read = vi.fn((cursor: string | undefined) =>
+      Promise.resolve(cursor === 'c2' ? page(52, 3, null) : page(2, 50, 'c2')),
+    );
+    const deps = { read, onUnauthenticated: vi.fn() };
+    const { result, rerender } = renderHook(({ id }) => useRejectedRows(id, deps), {
+      initialProps: { id: IMPORT_ID },
+    });
+    await waitFor(() => {
+      expect(result.current.view.phase).toBe('ready');
+    });
+    act(() => {
+      result.current.next();
+    });
+    await waitFor(() => {
+      expect(read).toHaveBeenLastCalledWith('c2');
+    });
+
+    rerender({ id: OTHER });
+
+    await waitFor(() => {
+      const view = result.current.view;
+      expect(view.phase === 'ready' && view.paging).toEqual({
+        range: { from: 1, to: 50 },
+        hasPrevious: false,
+        hasNext: true,
+      });
+    });
+    expect(read).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('pages through the location a pager keeps, starting where it is', async () => {
+    const read = vi.fn(() => Promise.resolve(page(52, 3, 'c3')));
+    const go = vi.fn();
+    const pager = {
+      location: { search: { cursor: 'c2' }, state: { trail: [], offset: null } },
+      go,
+    };
+    const { result } = renderHook(() =>
+      useRejectedRows(IMPORT_ID, { read, onUnauthenticated: vi.fn() }, { pager }),
+    );
+    await waitFor(() => {
+      expect(result.current.view.phase).toBe('ready');
+    });
+    expect(read).toHaveBeenLastCalledWith('c2');
+
+    act(() => {
+      result.current.next();
+    });
+
+    expect(go).toHaveBeenCalledWith({
+      search: { cursor: 'c3' },
+      state: { trail: [{ cursor: 'c2', offset: null }], offset: null },
+    });
   });
 
   it('reads nothing without an import', () => {

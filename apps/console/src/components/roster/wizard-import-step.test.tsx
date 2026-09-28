@@ -99,7 +99,7 @@ describe('WizardImportStep', () => {
     expect(screen.getByRole('heading', { name: 'Import stopped' })).toBeTruthy();
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toContain(
-      'The import stopped after 30,000 rows: a system error interrupted it.',
+      'The import stopped after 30,000 of 48,431 rows: a system error interrupted it.',
     );
     expect(alert.textContent).toContain('Rows already applied are kept.');
     expect(within(alert).getByRole('link', { name: 'View report' }).getAttribute('href')).toBe(
@@ -108,6 +108,24 @@ describe('WizardImportStep', () => {
     expect(screen.queryByText('You can leave this page; the import continues.')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Import a corrected file' }));
     expect(onImportAnother).toHaveBeenCalled();
+  });
+
+  it('counts the rows it stopped after on their own when every row was processed', () => {
+    render(
+      <WizardImportStep
+        imp={imp({
+          state: 'failed',
+          totalRows: 2,
+          processedRows: 2,
+          failure: { code: 'internal', detail: '' },
+        })}
+        reconnecting={false}
+        onImportAnother={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('alert').textContent).toContain(
+      'The import stopped after 2 rows: a system error interrupted it.',
+    );
   });
 
   it('says nothing changed when it stopped before any row', () => {

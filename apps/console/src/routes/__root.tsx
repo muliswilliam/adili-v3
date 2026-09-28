@@ -1,4 +1,4 @@
-import { SiteFooter, ToastProvider, TooltipProvider } from '@adili/ui';
+import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -41,10 +41,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       <body>
         <TooltipProvider>
           <ToastProvider>
-            <div className="flex min-h-dvh flex-col">
-              {children}
-              <SiteFooter />
-            </div>
+            {/* Pages place the site footer: below the content, never under the sidebar. */}
+            <div className="flex min-h-dvh flex-col">{children}</div>
           </ToastProvider>
         </TooltipProvider>
         <Scripts />

@@ -6,10 +6,10 @@ import type { Client } from '@temporalio/client';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { canSeeCommission, tenantContextOf } from '../../commissions/access.js';
-import type { Transaction } from '../../commissions/commissions.service.js';
+import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
-import { commissions, type DirectorySchema } from '../../db/schema.js';
+import type { DirectorySchema } from '../../db/schema.js';
 import { rosterActorOf } from '../actor.js';
 import type { RawRosterRow } from '../row-validation.js';
 import { rosterImportBatches, rosterImports } from '../schema.js';
@@ -284,14 +284,6 @@ export class RosterImportsService {
     }
     return error;
   }
-}
-
-async function requireCommission(tx: Transaction, slug: string): Promise<void> {
-  const [commission] = await tx
-    .select({ slug: commissions.slug })
-    .from(commissions)
-    .where(eq(commissions.slug, slug));
-  notFoundIfInvisible(commission);
 }
 
 /** Who started an import (decision 10): a user, or an HR system by its client id. */

@@ -1006,7 +1006,7 @@ export interface components {
         /** @enum {string} */
         ImportState: "pending" | "processing" | "completed" | "failed";
         /** @enum {string} */
-        ImportFailureCode: "missing-columns" | "upload-not-clean" | "parse-error" | "storage-error" | "internal";
+        ImportFailureCode: "missing-columns" | "upload-not-clean" | "upload-missing" | "parse-error" | "storage-error" | "internal";
         ColumnMapping: {
             /** @description File headers matched to template columns, in file order */
             matched: {
@@ -1024,7 +1024,7 @@ export interface components {
             missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
         };
         ImportCounts: {
-            /** @description Rows that passed validation when staged */
+            /** @description Rows applied to the roster (created, updated or unchanged). Like every count, only rows processed: a failed import does not count the rows it did not reach (totalRows - processedRows) */
             accepted: number;
             created: number;
             updated: number;

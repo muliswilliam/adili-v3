@@ -135,17 +135,25 @@ const WHITESPACE = String.raw`[\s\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u20
  * is valid. Rows rejected later (`identity-locked`) are marked seen when applied.
  */
 async function markRejectedRowsSeen(tx: Transaction, ref: ImportRef): Promise<void> {
+  // The records are locked in id order first, as everywhere records are locked.
   await tx.execute(sql`
-    update roster_records as record set last_seen_import_id = ${ref.importId}
-    from (
+    with rejected as (
       select distinct lower(regexp_replace(
         raw ->> 'personnelFileNumber', ${`^${WHITESPACE}+|${WHITESPACE}+$`}, '', 'g'
       )) as file_number_key
       from roster_import_rows
       where import_id = ${ref.importId} and status = 'rejected' and chunk_index is null
-    ) as rejected
-    where record.tenant = ${ref.tenant}
-      and lower(record.personnel_file_number) = rejected.file_number_key
+    ), seen as (
+      select record.id
+      from roster_records as record
+      join rejected on lower(record.personnel_file_number) = rejected.file_number_key
+      where record.tenant = ${ref.tenant}
+      order by record.id
+      for update of record
+    )
+    update roster_records as record set last_seen_import_id = ${ref.importId}
+    from seen
+    where record.id = seen.id
   `);
 }
 
@@ -177,13 +185,23 @@ async function openSource(
     }
     return { ok: true, mapping: file.mapping, rows: file.rows };
   } catch (error) {
-    if (error instanceof UploadNotFound || error instanceof UploadNotClean) {
+    if (error instanceof UploadNotFound) {
+      return {
+        ok: false,
+        mapping: null,
+        failure: {
+          code: 'upload-missing',
+          detail: 'The uploaded file is no longer available. Upload it again.',
+        },
+      };
+    }
+    if (error instanceof UploadNotClean) {
       return {
         ok: false,
         mapping: null,
         failure: {
           code: 'upload-not-clean',
-          detail: 'The uploaded file is no longer available. Upload it again.',
+          detail: 'The uploaded file has not passed its checks. Upload it again.',
         },
       };
     }
