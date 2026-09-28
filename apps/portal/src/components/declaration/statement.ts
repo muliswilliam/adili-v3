@@ -3,7 +3,6 @@ import type {
   AssetType,
   IncomeType,
   LiabilityType,
-  ChangeKind,
   Draft,
   IncomeItem,
   LiabilityItem,
@@ -11,7 +10,6 @@ import type {
   Statement,
 } from './contents';
 import { blank, countryName, countyName } from './format';
-import { ASSET_TYPE_LABELS, INCOME_TYPE_LABELS, LIABILITY_TYPE_LABELS } from './labels';
 
 /**
  * Pure rules for a financial statement (paragraph 8): the three categories, what an item needs
@@ -42,52 +40,6 @@ export const AMOUNT_KEY = {
   assets: 'value',
   liabilities: 'outstanding',
 } as const;
-
-export const CATEGORY_WORDS = {
-  income: { tab: 'Income', lower: 'income', one: 'income item', add: 'Add income' },
-  assets: { tab: 'Assets', lower: 'assets', one: 'asset', add: 'Add an asset' },
-  liabilities: {
-    tab: 'Liabilities',
-    lower: 'liabilities',
-    one: 'liability',
-    add: 'Add a liability',
-  },
-} as const satisfies Record<Category, { tab: string; lower: string; one: string; add: string }>;
-
-export const TYPE_LABELS: Record<Category, Record<string, string>> = {
-  income: INCOME_TYPE_LABELS,
-  assets: ASSET_TYPE_LABELS,
-  liabilities: LIABILITY_TYPE_LABELS,
-};
-
-/** Change kinds offered per category, in the spec's words. */
-export const CHANGE_KIND_OPTIONS: Record<Category, { value: ChangeKind; label: string }[]> = {
-  income: [
-    { value: 'value-change', label: 'Value changed by 25% or more' },
-    { value: 'new-source', label: 'New source' },
-    { value: 'source-ended', label: 'Source ended' },
-  ],
-  assets: [
-    { value: 'value-change', label: 'Value changed by 25% or more' },
-    { value: 'acquisition', label: 'Acquired' },
-    { value: 'disposal', label: 'Disposed' },
-  ],
-  liabilities: [
-    { value: 'value-change', label: 'Value changed' },
-    // The spec's liability kind "New" has no value of its own in declaration.v1's ChangeFlag
-    // enum. A liability taken on since the last declaration is recorded as `acquisition` (the
-    // debt was acquired); `new-source` is income's word for a new source of income.
-    { value: 'acquisition', label: 'New' },
-    { value: 'settled', label: 'Settled' },
-  ],
-};
-
-/** A change kind in a sentence, e.g. "Changed: new" for a liability. */
-export function changeWord(category: Category, kind: ChangeKind): string {
-  const label = CHANGE_KIND_OPTIONS[category].find((option) => option.value === kind)?.label;
-  if (kind === 'value-change') return 'value changed';
-  return (label ?? kind).toLowerCase();
-}
 
 export type ItemField =
   | 'type'

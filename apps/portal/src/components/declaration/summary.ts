@@ -20,7 +20,8 @@ import type {
   Statement,
 } from './contents';
 import { ageOn, UNANSWERED } from './format';
-import { CHANGE_KIND_WORDS, OCCUPATION_SECTOR_LABELS } from './labels';
+import { changeWord, OCCUPATION_SECTOR_LABELS } from './labels';
+import type { Category } from './statement';
 import { liveSections, sectionKind, stepTitle } from './steps';
 
 /**
@@ -189,7 +190,7 @@ function amountOf(item: AnyItem) {
 }
 
 /** "Joint, share {n}%", "Original {CUR} {amount}", "Changed: {kind}". */
-export function itemFlags(item: AnyItem): string[] {
+export function itemFlags(category: Category, item: AnyItem): string[] {
   const flags: string[] = [];
   if ('joint' in item && item.joint?.isJoint) {
     flags.push(
@@ -203,7 +204,7 @@ export function itemFlags(item: AnyItem): string[] {
     flags.push(`Original ${original.currency} ${formatMoney(original.minorUnits)}`);
   }
   if (item.change?.changed) {
-    flags.push(item.change.kind ? `Changed: ${CHANGE_KIND_WORDS[item.change.kind]}` : 'Changed');
+    flags.push(item.change.kind ? `Changed: ${changeWord(category, item.change.kind)}` : 'Changed');
   }
   return flags;
 }

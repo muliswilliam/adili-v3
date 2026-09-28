@@ -20,17 +20,15 @@ import {
   AMOUNT_KEY,
   type AnyItem,
   type Category,
-  CATEGORY_WORDS,
-  CHANGE_KIND_OPTIONS,
   centsToMinorUnits,
   CURRENCIES,
   currencyLabel,
   type Item,
   type ItemField,
   originalCents,
-  TYPE_LABELS,
   withCurrency,
 } from './statement';
+import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from './labels';
 
 /**
  * Where #125 mounts the AttachmentList for an item. Called for assets and liabilities (the

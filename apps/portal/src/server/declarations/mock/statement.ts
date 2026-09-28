@@ -1,13 +1,13 @@
 import type { Draft, Statement } from '../../../components/declaration/contents';
 import {
   CATEGORIES,
-  CATEGORY_WORDS,
   type Item,
   ITEM_FIELD_ORDER,
   itemFieldPath,
   itemIssues,
   NIL_KEY,
 } from '../../../components/declaration/statement';
+import { CATEGORY_WORDS } from '../../../components/declaration/labels';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 

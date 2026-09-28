@@ -50,9 +50,7 @@ import {
   type AnyItem,
   CATEGORIES,
   type Category,
-  CATEGORY_WORDS,
   addJointCopy,
-  changeWord,
   firstItemIssue,
   isBlankItem,
   type Item,
@@ -67,8 +65,8 @@ import {
   originalCents,
   statementTotal,
   tabState,
-  TYPE_LABELS,
 } from './statement';
+import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
 import { fullName } from './format';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { liveSections, personKeyOf, relationship } from './steps';

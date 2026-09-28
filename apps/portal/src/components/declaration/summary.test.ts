@@ -146,12 +146,21 @@ describe('statement lines', () => {
 
   it('flags joint shares, foreign amounts and changes', () => {
     expect(
-      itemFlags({
+      itemFlags('assets', {
         joint: { isJoint: true, sharePercent: 50 },
         value: { kesCents: 100, original: { currency: 'USD', minorUnits: 125000 } },
         change: { changed: true, kind: 'acquisition' },
       }),
     ).toEqual(['Joint, share 50%', 'Original USD 1,250', 'Changed: acquired']);
-    expect(itemFlags({})).toEqual([]);
+    expect(itemFlags('assets', {})).toEqual([]);
+  });
+
+  it('names a change the way the editor offered it for the category', () => {
+    const acquired = { change: { changed: true, kind: 'acquisition' as const } };
+    expect(itemFlags('assets', acquired)).toEqual(['Changed: acquired']);
+    expect(itemFlags('liabilities', acquired)).toEqual(['Changed: new']);
+    expect(itemFlags('income', { change: { changed: true, kind: 'value-change' } })).toEqual([
+      'Changed: value changed',
+    ]);
   });
 });

@@ -32,13 +32,7 @@ import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from './contents';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from './format';
-import {
-  ASSET_TYPE_LABELS,
-  EMPLOYMENT_NATURE_LABELS,
-  INCOME_TYPE_LABELS,
-  LIABILITY_TYPE_LABELS,
-  MARITAL_STATUS_LABELS,
-} from './labels';
+import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, TYPE_LABELS } from './labels';
 import {
   directorshipLine,
   dualCitizenshipLine,
@@ -341,9 +335,7 @@ const CATEGORIES = [
 
 function typeLabel(category: (typeof CATEGORIES)[number]['key'], type: string | undefined) {
   if (!type) return UNANSWERED;
-  if (category === 'income') return INCOME_TYPE_LABELS[type as keyof typeof INCOME_TYPE_LABELS];
-  if (category === 'assets') return ASSET_TYPE_LABELS[type as keyof typeof ASSET_TYPE_LABELS];
-  return LIABILITY_TYPE_LABELS[type as keyof typeof LIABILITY_TYPE_LABELS];
+  return TYPE_LABELS[category][type] ?? type;
 }
 
 function categoryHeading(
@@ -393,7 +385,7 @@ function StatementItems({
                 </TableHeader>
                 <TableBody>
                   {items.map((item, index) => {
-                    const flags = itemFlags(item);
+                    const flags = itemFlags(category.key, item);
                     const documents = (item.attachments ?? [])
                       .map((attachment) => attachment.fileName)
                       .filter(Boolean);
