@@ -1,6 +1,6 @@
 import { Alert02Icon, Clock01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { cva } from 'class-variance-authority';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, useEffect, useState } from 'react';
 
 import { cn } from '../lib/cn';
 import { formatCalendarDate, formatDate } from '../lib/format-date';
@@ -34,6 +34,38 @@ export function deadlineStatus(
   return { state, days };
 }
 
+// Kenya keeps UTC+3 all year, so its midnight is a fixed offset from UTC.
+const KENYA_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+function msUntilKenyanMidnight(now: number): number {
+  return DAY_MS - ((now + KENYA_OFFSET_MS) % DAY_MS);
+}
+
+/**
+ * Now, or `fixed` when given. Re-read after hydration (the server may have rendered on the
+ * other side of midnight) and at each Kenyan midnight, so a page left open moves on a day.
+ */
+function useNow(fixed: number | undefined): number {
+  const [now, setNow] = useState(() => fixed ?? Date.now());
+  useEffect(() => {
+    if (fixed !== undefined) return;
+    // Only a new calendar day changes what the chip shows, so keep the old time otherwise.
+    const refresh = () => {
+      setNow((previous) => {
+        const current = Date.now();
+        return formatCalendarDate(current) === formatCalendarDate(previous) ? previous : current;
+      });
+    };
+    const afterHydration = setTimeout(refresh, 0);
+    const atMidnight = setTimeout(refresh, msUntilKenyanMidnight(Date.now()) + 1000);
+    return () => {
+      clearTimeout(afterHydration);
+      clearTimeout(atMidnight);
+    };
+  }, [fixed, now]);
+  return fixed ?? now;
+}
+
 const deadlineChipVariants = cva(
   'inline-flex h-6 w-fit shrink-0 items-center gap-[5px] rounded-full pr-[9px] pl-[7px] text-[12.5px] font-semibold whitespace-nowrap tabular-nums [&_svg]:size-[13px]',
   {
@@ -62,7 +94,7 @@ export type DeadlineChipProps = Omit<ComponentProps<'time'>, 'children' | 'dateT
   todayText?: string;
   /** When set, the deadline was met: shows this text, e.g. "Decided 26 Sep", with a tick. */
   met?: string;
-  /** Epoch milliseconds to count from; defaults to now. */
+  /** Epoch milliseconds to count from; defaults to now, moving on at each Kenyan midnight. */
   now?: number;
 };
 
@@ -82,6 +114,7 @@ export function DeadlineChip({
   className,
   ...props
 }: DeadlineChipProps) {
+  const today = useNow(now);
   const title = `${label} ${formatDate(due)}`;
 
   if (met) {
@@ -100,7 +133,7 @@ export function DeadlineChip({
     );
   }
 
-  const { state, days: left } = deadlineStatus(due, { now, soonDays });
+  const { state, days: left } = deadlineStatus(due, { now: today, soonDays });
   const text =
     state === 'late' ? `${days(-left)} late` : state === 'today' ? todayText : `${days(left)} left`;
   // Mid-sentence after the date: "Decision due 26 Sep 2026, due today".
@@ -113,10 +146,14 @@ export function DeadlineChip({
       title={title}
       data-state={state}
       className={cn(deadlineChipVariants({ state }), className)}
+      // The day can differ between server and browser around midnight; useNow corrects it.
+      suppressHydrationWarning
     >
       <Icon icon={state === 'late' ? Alert02Icon : Clock01Icon} strokeWidth={2.2} />
-      <span className="sr-only">{`${title}, ${spoken}`}</span>
-      <span aria-hidden="true">{text}</span>
+      <span className="sr-only" suppressHydrationWarning>{`${title}, ${spoken}`}</span>
+      <span aria-hidden="true" suppressHydrationWarning>
+        {text}
+      </span>
     </time>
   );
 }

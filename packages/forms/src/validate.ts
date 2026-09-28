@@ -11,7 +11,12 @@ export interface FormValidationError {
 export type FormValidationResult<T> =
   { ok: true; value: T } | { ok: false; errors: FormValidationError[] };
 
-const ajv = new Ajv2020({ allErrors: true });
+/** A hostile document can fail thousands of times; the caller gets the first ones. */
+export const MAX_REPORTED_ERRORS = 50;
+
+// Strict (an unknown keyword throws), but untyped keywords are allowed as in declaration.v1. The
+// schemas' lint compiles with the same options (packages/schemas/scripts/validate-forms.mjs).
+const ajv = new Ajv2020({ allErrors: true, strictTypes: false });
 // ajv-formats is CommonJS; its function is also exported as `default`, which TypeScript can see.
 addFormats.default(ajv);
 
@@ -20,13 +25,15 @@ export function compileForm<T>(schema: AnySchema): (document: unknown) => FormVa
   const validate = ajv.compile<T>(schema);
   return (document: unknown): FormValidationResult<T> => {
     if (validate(document)) return { ok: true, value: document as T };
-    return { ok: false, errors: (validate.errors ?? []).map(toFieldError) };
+    return {
+      ok: false,
+      errors: (validate.errors ?? []).slice(0, MAX_REPORTED_ERRORS).map(toFieldError),
+    };
   };
 }
 
 // Ajv reports a missing or unexpected property against its parent object; the path names the
-// property itself, so a form can put the message on that field. The fixture check in
-// packages/schemas/scripts/validate-forms.mjs maps paths the same way; keep them in step.
+// property itself, so a form can put the message on that field.
 function toFieldError(error: ErrorObject): FormValidationError {
   const segments = error.instancePath.split('/').slice(1).map(unescapePointer);
   if (error.keyword === 'required') {

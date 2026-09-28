@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Writes src/<form>.gen.ts, the TypeScript types of each prescribed form, from its JSON Schema in
-// @adili/schemas. Typecheck and build run it, so CI fails when the committed copy is stale.
+// @adili/schemas. Build runs it (and turbo runs build before typecheck, lint and test, so they
+// never read a half-written file); CI fails when the committed copy is stale.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';

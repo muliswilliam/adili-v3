@@ -1,3 +1,4 @@
+import type { FormKV1 } from '@adili/forms';
 import { type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
@@ -6,11 +7,16 @@ import { useFieldIds } from '../lib/use-field-ids';
 import { Checkbox, CheckboxItem } from './checkbox';
 import { FieldError } from './form-field';
 
-/** The declaration sections a request can cover, in the order of the form. */
-export const SCOPE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
+/**
+ * What an access request asks for, or a decision grants: declaration years, whether the
+ * officer's spouses and children are included, which sections, and clarifications (always false
+ * for law-enforcement requests). The officer is always included. The `scope` of `form-k.v1`.
+ */
+export type Scope = FormKV1['scope'];
 
-export type ScopeSection = (typeof SCOPE_SECTIONS)[number];
+export type ScopeSection = Scope['sections'][number];
 
+/** Every section of `form-k.v1`, labelled, in the order of the form. */
 export const scopeSectionLabels: Record<ScopeSection, string> = {
   bio: 'Personal details',
   income: 'Income',
@@ -19,19 +25,7 @@ export const scopeSectionLabels: Record<ScopeSection, string> = {
   other: 'Other information',
 };
 
-/**
- * What an access request asks for, or a decision grants: declaration years, whether the
- * officer's spouses and children are included, which sections, and (Form K only) clarifications.
- * The officer is always included. Matches the `scope` of `form-k.v1`; access.yaml's `Scope` has
- * no `includeClarifications` yet, so it is optional here.
- */
-export interface Scope {
-  years: number[];
-  includeSpouses: boolean;
-  includeChildren: boolean;
-  sections: ScopeSection[];
-  includeClarifications?: boolean;
-}
+export const SCOPE_SECTIONS = Object.keys(scopeSectionLabels) as ScopeSection[];
 
 type ScopeFlag = 'includeSpouses' | 'includeChildren' | 'includeClarifications';
 
@@ -42,7 +36,7 @@ export function isScopeWithin(scope: Scope, requested: Scope): boolean {
     scope.sections.every((section) => requested.sections.includes(section)) &&
     (!scope.includeSpouses || requested.includeSpouses) &&
     (!scope.includeChildren || requested.includeChildren) &&
-    (!scope.includeClarifications || Boolean(requested.includeClarifications))
+    (!scope.includeClarifications || requested.includeClarifications)
   );
 }
 
@@ -76,7 +70,10 @@ export function formatScope(scope: Scope): string {
 export interface ScopePickerProps {
   value: Scope;
   onChange: (value: Scope) => void;
-  /** The declaration years on offer, e.g. the Commission's cycles so far. */
+  /**
+   * The declaration years on offer, e.g. the Commission's cycles so far. Years already chosen or
+   * requested are shown too, so none is dropped unseen.
+   */
   years: number[];
   /**
    * The requested scope, when choosing what to grant: anything outside it is disabled and
@@ -84,8 +81,8 @@ export interface ScopePickerProps {
    */
   restrictTo?: Scope;
   /**
-   * Offer clarifications (Form K); law-enforcement requests do not cover them. When off, the
-   * caller should leave `includeClarifications` false.
+   * Offer clarifications (Form K); law-enforcement requests do not cover them, so leave
+   * `includeClarifications` false when this is off.
    */
   clarifications?: boolean;
   errors?: { years?: ReactNode; sections?: ReactNode };
@@ -152,14 +149,16 @@ export function ScopePicker({
     item({
       field: key,
       label,
-      checked: Boolean(value[key]),
-      requested: !restrictTo || Boolean(restrictTo[key]),
+      checked: value[key],
+      requested: !restrictTo || restrictTo[key],
       onToggle: (on) => {
         onChange({ ...value, [key]: on });
       },
     });
 
-  const sortedYears = [...years].sort((a, b) => a - b);
+  const sortedYears = [...new Set([...years, ...value.years, ...(restrictTo?.years ?? [])])].sort(
+    (a, b) => a - b,
+  );
 
   return (
     <div className={cn('@container', className)}>

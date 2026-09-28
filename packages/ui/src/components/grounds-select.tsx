@@ -88,7 +88,8 @@ export function GroundsSelect({
             key={ground}
             className={cn(
               'grid grid-cols-[18px_minmax(0,1fr)] gap-3 rounded-lg bg-card px-3.5 py-3',
-              error ? 'shadow-control-error' : 'shadow-control has-checked:shadow-control-selected',
+              'has-checked:shadow-control-selected',
+              error ? 'shadow-control-error' : 'shadow-control',
               disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
             )}
           >

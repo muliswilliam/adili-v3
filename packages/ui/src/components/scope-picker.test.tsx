@@ -121,6 +121,23 @@ describe('ScopePicker', () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...requested, includeSpouses: false });
   });
 
+  it('shows and keeps chosen and requested years outside the years on offer', () => {
+    const onChange = renderPicker({
+      value: { ...requested, years: [2025, 2026] },
+      years: [2026, 2027],
+      restrictTo: { ...requested, years: [2024, 2025, 2026] },
+    });
+
+    expect(
+      within(screen.getByRole('group', { name: 'Years' }))
+        .getAllByRole('checkbox')
+        .map((box) => box.getAttribute('value')),
+    ).toEqual(['2024', '2025', '2026', '2027']);
+    fireEvent.click(screen.getByRole('checkbox', { name: '2024' }));
+
+    expect(onChange).toHaveBeenLastCalledWith({ ...requested, years: [2024, 2025, 2026] });
+  });
+
   it('lets a stray choice outside the request be unticked', () => {
     const onChange = renderPicker({
       value: { ...requested, sections: ['bio', 'income'] },

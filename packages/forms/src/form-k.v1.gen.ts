@@ -70,6 +70,7 @@ export interface FormKV1 {
   scope: {
     /**
      * @minItems 1
+     * @maxItems 50
      */
     years: number[];
     includeSpouses: boolean;

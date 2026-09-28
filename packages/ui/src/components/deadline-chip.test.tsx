@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DeadlineChip, deadlineStatus } from './deadline-chip';
 
@@ -115,5 +115,21 @@ describe('DeadlineChip', () => {
     expect(screen.getByText('Decision due 19 Sep 2026, met: Decided 18 Sep').className).toContain(
       'sr-only',
     );
+  });
+
+  it('moves on a day at Kenyan midnight when counting from now', () => {
+    vi.useFakeTimers({ now: Date.parse('2026-09-26T20:59:00Z') }); // 23:59 in Nairobi
+    try {
+      render(<DeadlineChip due="2026-09-28T09:00:00+03:00" />);
+      expect(screen.getByText('2 days left')).toBeDefined();
+
+      act(() => {
+        vi.advanceTimersByTime(2 * 60 * 1000);
+      });
+
+      expect(screen.getByText('1 day left')).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

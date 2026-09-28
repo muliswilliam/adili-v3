@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { type FormKV1, validateFormK } from './index.js';
+import { MAX_REPORTED_ERRORS } from './validate.js';
 
 const require = createRequire(import.meta.url);
 const fixturesDir = join(
@@ -88,6 +89,33 @@ describe('validateFormK', () => {
       'partI.email',
       'partIV.declaredAt',
     ]);
+  });
+
+  it('bounds the years and refuses repeats', () => {
+    const document = structuredClone(complete);
+    document.scope.years = [2026, 2026];
+
+    const result = validateFormK(document);
+
+    expect(result.ok ? [] : result.errors).toEqual([
+      {
+        path: 'scope.years',
+        message: 'must NOT have duplicate items (items ## 1 and 0 are identical)',
+      },
+    ]);
+  });
+
+  it('reports only the first errors of a hostile document', () => {
+    const document = structuredClone(complete);
+    document.scope.years = Array.from({ length: 10_000 }, () => 1990);
+
+    const result = validateFormK(document);
+
+    expect(result.ok ? [] : result.errors).toHaveLength(MAX_REPORTED_ERRORS);
+    expect(result.ok ? undefined : result.errors[0]).toEqual({
+      path: 'scope.years',
+      message: 'must NOT have more than 50 items',
+    });
   });
 
   it('rejects a document that is not an object at the root', () => {
