@@ -40,6 +40,10 @@ export type RosterRecordState = (typeof ROSTER_RECORD_STATES)[number];
 export const IMPORT_CHANNELS = ['file', 'api'] as const;
 export type ImportChannel = (typeof IMPORT_CHANNELS)[number];
 
+/** Who changes a roster: a user, or a Commission's HR system (`RosterActor`). */
+export const ROSTER_ACTOR_KINDS = ['user', 'client'] as const;
+export type RosterActorKind = (typeof ROSTER_ACTOR_KINDS)[number];
+
 export const IMPORT_STATES = ['pending', 'processing', 'completed', 'failed'] as const;
 export type ImportState = (typeof IMPORT_STATES)[number];
 
@@ -204,7 +208,7 @@ export const rosterImports = pgTable(
     mapping: jsonb().$type<ColumnMapping>(),
     failureCode: text().$type<ImportFailureCode>(),
     failureDetail: text(),
-    startedByKind: text({ enum: ['user', 'client'] }).notNull(),
+    startedByKind: text({ enum: ROSTER_ACTOR_KINDS }).notNull(),
     /** `sub` of the user, or the OAuth client id of an HR system. */
     startedBy: text().notNull(),
     /** Display name when it started (token `name`; client id for HR systems). */

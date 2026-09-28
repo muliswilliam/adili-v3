@@ -15,7 +15,7 @@ import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterActorOf } from '../actor.js';
+import { rosterActorOf, startedByColumns, startedByOf } from '../actor.js';
 import { isHrSystem } from '../api-credential/hr-system-access.js';
 import type { RawRosterRow } from '../row-validation.js';
 import { rosterImportBatches, rosterImports } from '../schema.js';
@@ -129,7 +129,7 @@ export class RosterImportsService {
         await requireCommission(tx, slug);
         const [inserted] = await tx
           .insert(rosterImports)
-          .values({ tenant: slug, ...source, ...startedBy(principal) })
+          .values({ tenant: slug, ...source, ...startedByColumns(rosterActorOf(principal)) })
           .returning();
         if (!inserted) throw new Error('insert returned no row');
         if (batchRows) {
@@ -342,14 +342,6 @@ const UPLOAD_PROBLEMS: Record<
   }),
 };
 
-/** Who started an import (decision 10): a user, or an HR system by its client id. */
-function startedBy(
-  principal: Principal,
-): Pick<ImportRow, 'startedByKind' | 'startedBy' | 'startedByName'> {
-  const actor = rosterActorOf(principal);
-  return { startedByKind: actor.kind, startedBy: actor.id, startedByName: actor.name };
-}
-
 export function toRosterImport(row: ImportRow): RosterImport {
   return {
     id: row.id,
@@ -366,7 +358,8 @@ export function toRosterImport(row: ImportRow): RosterImport {
     mapping: row.mapping && columnMappingSchema.parse(row.mapping),
     failure:
       row.failureCode === null ? null : { code: row.failureCode, detail: row.failureDetail ?? '' },
-    startedBy: { kind: row.startedByKind, id: row.startedBy, name: row.startedByName },
+    // Who started it (decision 10): a user, or an HR system by its client id.
+    startedBy: startedByOf(row),
     startedAt: row.startedAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,
     rowsRetainedUntil: rowsRetainedUntil(row.completedAt)?.toISOString() ?? null,
