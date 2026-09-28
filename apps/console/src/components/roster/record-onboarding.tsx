@@ -18,13 +18,15 @@ export interface RosterRecordOnboarding {
   identityMismatchAt: string | null;
 }
 
+/** A record from the directory, which may or may not carry the onboarding fields yet (#76). */
+export type RecordWithOnboarding = Pick<RosterRecordOnboarding, 'state'> &
+  Partial<Omit<RosterRecordOnboarding, 'state'>>;
+
 /**
  * The onboarding fields of a record from the directory. Fields the contract does not list yet
  * (#76) read as not set, so the screens show them as soon as the directory sends them.
  */
-export function recordOnboarding(
-  record: Pick<RosterRecordOnboarding, 'state'> & Partial<Omit<RosterRecordOnboarding, 'state'>>,
-): RosterRecordOnboarding {
+export function recordOnboarding(record: RecordWithOnboarding): RosterRecordOnboarding {
   return {
     state: record.state,
     ofr: record.ofr ?? null,
@@ -34,7 +36,7 @@ export function recordOnboarding(
 }
 
 /** Whether the record's identity check against the national register failed. */
-export function hasIdentityMismatch(record: Parameters<typeof recordOnboarding>[0]): boolean {
+export function hasIdentityMismatch(record: RecordWithOnboarding): boolean {
   return recordOnboarding(record).identityMismatchAt !== null;
 }
 
