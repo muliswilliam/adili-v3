@@ -67,12 +67,17 @@ export interface CleanUpload {
   size: number;
 }
 
+/**
+ * Why the documents service refused a file for good: not a CSV or XLSX file, a CSV not saved as
+ * UTF-8, or too big.
+ */
+export type UploadRejectionReason = 'type' | 'encoding' | 'size';
+
 /** How uploading a roster file ended. */
 export type UploadOutcome =
   | { kind: 'clean'; upload: CleanUpload }
   | { kind: 'infected' }
-  /** The documents service found the bytes are not a CSV or XLSX file, or too big. */
-  | { kind: 'rejected'; reason: 'type' | 'size' }
+  | { kind: 'rejected'; reason: UploadRejectionReason }
   /** Expired, interrupted, missing, timed out or refused: worth trying again. */
   | { kind: 'failed' }
   | { kind: 'unauthenticated' }
@@ -108,7 +113,9 @@ export function outcomeOf(upload: Upload, file: Pick<File, 'name' | 'size'>): Up
     case 'infected':
       return { kind: 'infected' };
     case 'rejected':
-      return upload.rejection === 'type' || upload.rejection === 'size'
+      return upload.rejection === 'type' ||
+        upload.rejection === 'encoding' ||
+        upload.rejection === 'size'
         ? { kind: 'rejected', reason: upload.rejection }
         : { kind: 'failed' };
     default:

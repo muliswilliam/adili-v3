@@ -23,7 +23,14 @@ import { FileBox } from './file-box';
 import type { UploadState } from './import-wizard';
 import { messages as m } from './messages';
 import { ROSTER_FILE_ACCEPT, ROSTER_FILE_MAX_BYTES } from './roster-file';
+import type { UploadRejectionReason } from './upload';
 import { WizardCard, WizardFoot, WizardSection, WizardTitle } from './wizard-card';
+
+const REJECTED_TITLE: Record<UploadRejectionReason, string> = {
+  type: m.rejectedType,
+  encoding: m.rejectedEncoding,
+  size: m.rejectedSize,
+};
 
 export interface WizardUploadStepProps {
   upload: UploadState;
@@ -176,12 +183,11 @@ function UploadProgress({
         <div className="grid gap-3.5">
           {box(<Badge variant="destructive">{m.notUploaded}</Badge>)}
           <Failure
-            title={
-              upload.phase === 'failed'
-                ? m.uploadFailed
-                : upload.reason === 'type'
-                  ? m.rejectedType
-                  : m.rejectedSize
+            title={upload.phase === 'failed' ? m.uploadFailed : REJECTED_TITLE[upload.reason]}
+            text={
+              upload.phase === 'rejected' && upload.reason === 'encoding'
+                ? m.rejectedEncodingText
+                : undefined
             }
           >
             {upload.phase === 'failed' ? (

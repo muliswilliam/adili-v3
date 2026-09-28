@@ -21,14 +21,14 @@ import { config } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
-import { type DetectedType, policyOf, purposesFor } from './purposes.js';
+import { CSV, type DetectedType, policyOf, purposesFor } from './purposes.js';
 import type {
   CreateUploadBody,
   Upload,
   UploadDownload,
   UploadReservation,
 } from './representation.js';
-import { detectType } from './sniff.js';
+import { detectType, NOT_UTF8_TEXT } from './sniff.js';
 import { type UploadRejection, uploads } from './schema.js';
 
 /** Injection token of the completion time budget in milliseconds (60 s in the service). */
@@ -330,6 +330,12 @@ export class UploadsService {
         );
         return requireValue(part.Body).transformToByteArray();
       }, size);
+      if (detectedType === NOT_UTF8_TEXT) {
+        // Text in another encoding is refused as such when a CSV was declared, so the officer
+        // is told to save it as CSV UTF-8 rather than that it is no CSV at all.
+        const rejection = upload.declaredContentType === CSV ? 'encoding' : 'type';
+        return { state: 'rejected', rejection, size };
+      }
       if (detectedType !== upload.declaredContentType) {
         return { state: 'rejected', rejection: 'type', size };
       }

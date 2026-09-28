@@ -1,4 +1,4 @@
-import type { CleanUpload, UploadOutcome } from './upload';
+import type { CleanUpload, UploadOutcome, UploadRejectionReason } from './upload';
 
 /**
  * The import wizard's state machine (spec 02: Template, Upload, Check, Import, Report). Pure, so
@@ -23,7 +23,7 @@ export type UploadState =
   | { phase: 'scanning'; file: ChosenFile }
   | { phase: 'clean'; file: ChosenFile; upload: CleanUpload }
   | { phase: 'infected'; file: ChosenFile }
-  | { phase: 'rejected'; file: ChosenFile; reason: 'type' | 'size' }
+  | { phase: 'rejected'; file: ChosenFile; reason: UploadRejectionReason }
   | { phase: 'failed'; file: ChosenFile };
 
 export interface WizardState {

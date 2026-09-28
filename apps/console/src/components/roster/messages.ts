@@ -193,6 +193,9 @@ export const en = {
   infectedTitle: 'This file failed the security scan and was not imported.',
   infectedText: 'Scan the source computer and export the file again.',
   rejectedType: 'This is not a CSV or Excel file.',
+  rejectedEncoding: 'This CSV is not saved as UTF-8.',
+  rejectedEncodingText:
+    'In Excel, choose Save As > CSV UTF-8 (Comma delimited), then upload the file again.',
   rejectedSize: 'The file is over 50 MB.',
   uploadFailed: 'The upload did not complete. Try again.',
   retryUpload: 'Try again',

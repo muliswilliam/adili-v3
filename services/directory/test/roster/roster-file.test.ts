@@ -240,6 +240,33 @@ describe('parseRosterFile: CSV', () => {
     await expect(parsed(file)).rejects.toMatchObject({ code: 'too-many-rows' });
   });
 
+  it('refuses a file that is not UTF-8, however far in, rather than garbling its names', async () => {
+    const header = 'personnel_file_number,full_name,national_id\n';
+    // Past what the documents service samples (8 KB) and past the first chunk.
+    const valid = Array.from(
+      { length: 3000 },
+      (_, index) => `A${index},Jane Doe,${10_000_000 + index}\n`,
+    ).join('');
+    async function* chunks(): AsyncGenerator<Buffer> {
+      yield Buffer.from(header + valid);
+      await Promise.resolve();
+      yield Buffer.from('B1,Ren\xe9 Otieno,33333333\n', 'latin1');
+    }
+    const readAll = async () => parsed(await parseRosterFile(chunks(), 'csv'));
+
+    await expect(readAll()).rejects.toMatchObject({
+      code: 'encoding',
+      message: expect.stringContaining('CSV UTF-8') as unknown,
+    });
+    await expect(
+      parseRosterFile(Buffer.from(`${header}B1,Ren\xe9,1\n`, 'latin1'), 'csv').then(parsed),
+    ).rejects.toMatchObject({ code: 'encoding' });
+    // A file cut off mid-character is not UTF-8 either.
+    await expect(
+      parseRosterFile(Buffer.from(`${header}B1,Wanjir\xc5`, 'latin1'), 'csv').then(parsed),
+    ).rejects.toMatchObject({ code: 'encoding' });
+  });
+
   it('passes on an error of the source stream part way', async () => {
     async function* failing(): AsyncGenerator<Buffer> {
       yield Buffer.from('personnel_file_number,full_name,national_id\nA1,Jane Doe,11111111\n');

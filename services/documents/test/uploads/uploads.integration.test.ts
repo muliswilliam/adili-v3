@@ -243,6 +243,19 @@ describe('S3 refused files', () => {
     expect(await objectStatus('quarantine', `roster-import/${reservation.id}`)).toBe(404);
   });
 
+  it('rejects a CSV that is not UTF-8 with encoding, so the officer can save it as CSV UTF-8', async () => {
+    const reservation = await upload(
+      Buffer.from('personnel_file_number,full_name\nPSC/1,Ren\xe9 Otieno\n', 'latin1'),
+    );
+
+    expect((await complete(reservation.id)).json()).toMatchObject({
+      state: 'rejected',
+      rejection: 'encoding',
+      detectedType: null,
+    });
+    expect(await objectStatus('quarantine', `roster-import/${reservation.id}`)).toBe(404);
+  });
+
   it('rejects a CSV declared as XLSX with type', async () => {
     const reservation = await upload(fixture('roster.csv'), XLSX);
 

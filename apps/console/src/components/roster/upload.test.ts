@@ -275,6 +275,10 @@ describe('outcomeOf', () => {
     [upload({ state: 'infected', rejection: null }), { kind: 'infected' }],
     [upload({ state: 'rejected', rejection: 'type' }), { kind: 'rejected', reason: 'type' }],
     [upload({ state: 'rejected', rejection: 'size' }), { kind: 'rejected', reason: 'size' }],
+    [
+      upload({ state: 'rejected', rejection: 'encoding' }),
+      { kind: 'rejected', reason: 'encoding' },
+    ],
     [upload({ state: 'rejected', rejection: 'missing' }), { kind: 'failed' }],
     [upload({ state: 'rejected', rejection: 'timeout' }), { kind: 'failed' }],
     [upload({ state: 'expired' }), { kind: 'failed' }],

@@ -12,7 +12,7 @@ export const UPLOAD_STATES = [
 ] as const;
 export type UploadState = (typeof UPLOAD_STATES)[number];
 
-export const UPLOAD_REJECTIONS = ['type', 'size', 'missing', 'timeout'] as const;
+export const UPLOAD_REJECTIONS = ['type', 'encoding', 'size', 'missing', 'timeout'] as const;
 export type UploadRejection = (typeof UPLOAD_REJECTIONS)[number];
 
 /**
@@ -60,7 +60,7 @@ export const uploads = pgTable(
     ),
     check(
       'uploads_rejection_check',
-      sql`(${table.state} = 'rejected') = (${table.rejection} is not null) and (${table.rejection} is null or ${table.rejection} in ('type', 'size', 'missing', 'timeout'))`,
+      sql`(${table.state} = 'rejected') = (${table.rejection} is not null) and (${table.rejection} is null or ${table.rejection} in ('type', 'encoding', 'size', 'missing', 'timeout'))`,
     ),
     check(
       'uploads_clean_check',

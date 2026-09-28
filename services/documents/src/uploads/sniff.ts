@@ -14,38 +14,59 @@ const ZIP_LOCAL_HEADER = [0x50, 0x4b, 0x03, 0x04];
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_HEADER_SIGNATURE = 0x02014b50;
 const UTF8_BOM = [0xef, 0xbb, 0xbf];
+/** UTF-16 little- and big-endian byte order marks. */
+const UTF16_BOMS = [
+  [0xff, 0xfe],
+  [0xfe, 0xff],
+];
+/** `%PDF-`: text-like at first, but never a CSV. */
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d];
 
 /** Zip entries every Office Open XML workbook has. */
 const XLSX_ENTRIES = ['[Content_Types].xml', 'xl/workbook.xml'];
 
 /**
- * The type of an object from its bytes, not its name or declared type: `text/csv` for UTF-8
- * text without control characters, the XLSX type for a zip whose central directory holds a
- * workbook, otherwise null. Reads the first 8 KB, and for zips the tail and central directory.
+ * Text that is not UTF-8: most likely a CSV saved in a legacy encoding (Excel's plain "CSV" is
+ * Windows-1252) or as UTF-16 ("Unicode Text"). Not importable; the fix is saving as CSV UTF-8.
  */
-export async function detectType(read: RangeReader, size: number): Promise<DetectedType | null> {
+export const NOT_UTF8_TEXT = 'not-utf8-text';
+
+export type SniffedType = DetectedType | typeof NOT_UTF8_TEXT;
+
+/**
+ * The type of an object from its bytes, not its name or declared type: `text/csv` for UTF-8
+ * text without control characters, `NOT_UTF8_TEXT` for text in another encoding, the XLSX type
+ * for a zip whose central directory holds a workbook, otherwise null. Reads the first 8 KB, and
+ * for zips the tail and central directory. Only the sample is checked: the importer rejects a
+ * file whose text stops being UTF-8 later on.
+ */
+export async function detectType(read: RangeReader, size: number): Promise<SniffedType | null> {
   if (size <= 0) return null;
   const head = await read(0, Math.min(size, HEAD_BYTES) - 1);
   if (startsWith(head, ZIP_LOCAL_HEADER)) {
     const names = await zipEntryNames(read, size);
     return names && XLSX_ENTRIES.every((entry) => names.has(entry)) ? XLSX : null;
   }
-  return looksLikeCsv(head, size > head.length) ? CSV : null;
+  return textType(head, size > head.length);
 }
 
-function looksLikeCsv(head: Uint8Array, truncated: boolean): boolean {
+function textType(head: Uint8Array, truncated: boolean): SniffedType | null {
+  if (UTF16_BOMS.some((bom) => startsWith(head, bom))) return NOT_UTF8_TEXT;
+  if (startsWith(head, PDF_MAGIC)) return null;
   const text = startsWith(head, UTF8_BOM) ? head.subarray(UTF8_BOM.length) : head;
   // Tab, line feed and carriage return are the only control characters a CSV contains.
   if (text.some((byte) => (byte < 0x20 && ![0x09, 0x0a, 0x0d].includes(byte)) || byte === 0x7f)) {
-    return false;
+    return null;
   }
+  let decoded;
   try {
     // A sample cut mid-character is fine: streaming mode leaves an incomplete tail undecoded.
-    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(text, { stream: truncated });
-    return decoded.trim().length > 0;
+    decoded = new TextDecoder('utf-8', { fatal: true }).decode(text, { stream: truncated });
   } catch {
-    return false;
+    // Printable bytes that are not UTF-8: text in a single-byte encoding.
+    return NOT_UTF8_TEXT;
   }
+  return decoded.trim().length > 0 ? CSV : null;
 }
 
 /** Entry names from the zip's central directory, or null when it is not a readable zip. */

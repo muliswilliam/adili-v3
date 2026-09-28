@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CSV, XLSX } from '../../src/uploads/purposes.js';
-import { detectType, type RangeReader } from '../../src/uploads/sniff.js';
+import { detectType, NOT_UTF8_TEXT, type RangeReader } from '../../src/uploads/sniff.js';
 import { EICAR, fixture, PNG } from '../support/files.js';
 
 /** Sniffs an in-memory object, recording the ranges read. */
@@ -40,13 +40,20 @@ describe('detectType', () => {
     ['a PNG', PNG],
     ['a zip that is not a workbook', fixture('archive.zip')],
     ['a truncated zip', fixture('roster.xlsx').subarray(0, 600)],
-    ['UTF-16 text', Buffer.from('﻿name,town\n', 'utf16le')],
-    ['Latin-1 text', Buffer.from('name,town\nRen\xe9,Nairobi\n', 'latin1')],
+    ['UTF-16 text without a byte order mark', Buffer.from('name,town\n', 'utf16le')],
     ['a PDF', Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\n', 'latin1')],
     ['whitespace only', Buffer.from(' \n\r\n\t')],
     ['an empty object', Buffer.alloc(0)],
   ])('rejects %s', async (_, bytes) => {
     expect((await sniff(bytes)).type).toBeNull();
+  });
+
+  it.each([
+    ['Windows-1252 text (Excel "CSV")', Buffer.from('name,town\nRen\xe9,Nairobi\n', 'latin1')],
+    ['UTF-16 text (Excel "Unicode Text")', Buffer.from('﻿name\ttown\n', 'utf16le')],
+    ['big-endian UTF-16 text', Buffer.from([0xfe, 0xff, 0x00, 0x6e, 0x00, 0x0a])],
+  ])('tells %s from other bytes: text, but not UTF-8', async (_, bytes) => {
+    expect((await sniff(bytes)).type).toBe(NOT_UTF8_TEXT);
   });
 
   it('treats the EICAR test file as text (the scanner, not the sniffer, catches it)', async () => {

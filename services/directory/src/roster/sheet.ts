@@ -12,7 +12,7 @@ export interface SheetRow {
   cells: SheetCell[];
 }
 
-export type RosterFileErrorCode = 'malformed' | 'too-large' | 'too-many-rows';
+export type RosterFileErrorCode = 'malformed' | 'encoding' | 'too-large' | 'too-many-rows';
 
 /**
  * The file as a whole cannot be parsed. The import fails with `parse-error` and this message as
