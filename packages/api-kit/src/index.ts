@@ -85,13 +85,12 @@ export {
 export { RateLimitModule, type RateLimitModuleOptions } from './rate-limit/rate-limit.module.js';
 export {
   type ConsumeOptions,
+  countRequest,
   RATE_LIMIT_CLOCK,
   type RateLimitClock,
   type RateLimitDecision,
   type RateLimitPolicy,
   RateLimitStore,
-  takeToken,
-  type TokenBucket,
 } from './rate-limit/rate-limit.store.js';
 export { type ContractExportOptions, exportContract } from './contract.js';
 export {

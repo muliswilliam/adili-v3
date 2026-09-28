@@ -63,7 +63,7 @@ export interface RateLimitOptions {
   key?: RateLimitKey;
   /**
    * Outcomes that do not count: when the route fails with a problem carrying one of these
-   * codes, its token goes back to the bucket, e.g. `['no-roster']` so that choosing a
+   * codes, its request is given back (it no longer counts in the window), e.g. `['no-roster']` so that choosing a
    * Commission without a roster uses up nothing.
    */
   refundOn?: readonly ProblemCode[];
@@ -153,7 +153,7 @@ function addRule(rule: RateLimitRule): ClassDecorator & MethodDecorator {
   };
 }
 
-/** A token a request took, and what would give it back. */
+/** A request counted against one budget, and what would give it back. */
 interface TakenToken {
   key: string;
   policy: RateLimitPolicy;
@@ -161,7 +161,7 @@ interface TakenToken {
   refundOn: readonly ProblemCode[];
 }
 
-/** Tokens taken per request that may be refunded (see `RateLimitRefundInterceptor`). */
+/** Counted requests that may be given back (see `RateLimitRefundInterceptor`). */
 const refundable = new WeakMap<object, TakenToken[]>();
 
 @Injectable()
@@ -235,7 +235,7 @@ export class RateLimitGuard implements CanActivate {
 }
 
 /**
- * Gives a request's tokens back when the route fails with a problem code its `@RateLimit`
+ * Gives a request back to its budgets when the route fails with a problem code its `@RateLimit`
  * lists in `refundOn`, and updates the headers to match. Registered by `@RateLimit`.
  */
 @Injectable()
@@ -276,7 +276,10 @@ export class RateLimitRefundInterceptor implements NestInterceptor {
           await this.store.consume(token.key, token.policy, { cost: -1, ...at(this.clock) }),
         );
       } catch (refundError) {
-        this.logger.warn({ err: refundError }, 'Rate limit store unavailable; token not refunded');
+        this.logger.warn(
+          { err: refundError },
+          'Rate limit store unavailable; request not given back',
+        );
         decisions.push(token.decision);
       }
     }
@@ -289,7 +292,7 @@ function at(clock: RateLimitClock | null): ConsumeOptions {
   return clock ? { nowMs: clock() } : {};
 }
 
-/** The budget closest to running out: fewest requests left, then longest to refill. */
+/** The budget closest to running out: fewest requests left, then longest until full again. */
 function tightest(decisions: RateLimitDecision[]): RateLimitDecision | undefined {
   return decisions.reduce<RateLimitDecision | undefined>(
     (tightestSoFar, decision) =>
