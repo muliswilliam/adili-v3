@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq } from 'drizzle-orm';
+import { v5 as uuidv5 } from 'uuid';
 
 import { Clock } from '../../clock.js';
 import { config } from '../../config.js';
@@ -210,12 +211,13 @@ export class ObligationSteps {
     }
 
     const progress: ChannelProgress = { ...attempt.progress };
+    // Everything sent derives from the reminder, not the clock, so a retry sends the same request.
     const params = {
       type: obligation.type,
       commissionName: obligation.commissionName.slice(0, COMMISSION_NAME_MAX),
       statementDate: obligation.statementDate,
       dueDate: obligation.dueDate,
-      daysLeft: daysLeft(nairobiDate(this.clock.now()), obligation.dueDate),
+      daysLeft: daysLeft(nairobiDate(new Date(request.scheduledAt)), obligation.dueDate),
       portalUrl: config.PORTAL_URL,
     };
     const retryable: string[] = [];
@@ -227,6 +229,7 @@ export class ObligationSteps {
           personId,
           tenant: obligation.tenant,
           params,
+          idempotencyKey: reminderMessageKey(request, channel),
         });
         if (outcome.status === 'sent') {
           progress[channel] = outcome;
@@ -351,6 +354,17 @@ export class ObligationSteps {
       return outcome;
     });
   }
+}
+
+/** Namespace of the reminder messages' idempotency keys (UUID v5). */
+const REMINDER_KEY_NAMESPACE = '5b8f2c1e-3d4a-4e6f-9a7b-0c1d2e3f4a5b';
+
+/** The `Idempotency-Key` of one channel of one reminder: a UUID derived from both. */
+export function reminderMessageKey(request: ReminderRequest, channel: ReminderChannel): string {
+  return uuidv5(
+    `${request.obligationId}:${String(request.offsetDays)}:${channel}`,
+    REMINDER_KEY_NAMESPACE,
+  );
 }
 
 /** Whole days from `today` to the due date, within the template's 0 to 366. */

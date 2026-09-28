@@ -21,9 +21,14 @@ export interface ReminderParams {
 export interface ReminderMessage {
   channel: ReminderChannel;
   personId: string;
-  /** The Commission's slug, stored with the message for audit. */
+  /** The Commission's slug: the person's contacts are read there, and it is stored for audit. */
   tenant: string;
   params: ReminderParams;
+  /**
+   * The same for every attempt at this channel of this reminder, so notifications sends it once
+   * however often the request is retried (`Idempotency-Key`).
+   */
+  idempotencyKey: string;
 }
 
 /**

@@ -10,6 +10,7 @@ import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
   type ChannelProgress,
   type ReminderAttempt,
+  reminderMessageKey,
   ReminderRetryable,
 } from '../../src/obligations/workflow/obligation-steps.js';
 import {
@@ -152,9 +153,11 @@ describe('sendReminder', () => {
           commissionName: 'Public Service Commission',
           statementDate: '2027-07-01',
           dueDate: '2027-07-31',
-          daysLeft: 21,
+          // The 14-day reminder, planned for 17 July.
+          daysLeft: 14,
           portalUrl: 'http://localhost:3010',
         },
+        idempotencyKey: reminderMessageKey(reminder(initial), channel),
         messageId: expect.any(String) as string,
       })),
     );
@@ -220,6 +223,35 @@ describe('sendReminder', () => {
       outcome: 'sent',
       channels: ['email'],
     });
+  });
+
+  it('sends each channel of a reminder with its own Idempotency-Key, the same on every attempt', async () => {
+    const { initial } = await officer(PERSON);
+    api.notifications.answer('sms', 'unreachable', 'sent');
+
+    await expect(
+      api.steps.sendReminder(reminder(initial), attempt(false).run),
+    ).rejects.toBeInstanceOf(ReminderRetryable);
+    await api.steps.sendReminder(reminder(initial), attempt(true).run);
+
+    const [sms1, email1, sms2, email2] = api.notifications.sent;
+    expect(sms1?.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sms2?.idempotencyKey).toBe(sms1?.idempotencyKey);
+    expect(email2?.idempotencyKey).toBe(email1?.idempotencyKey);
+    expect(email1?.idempotencyKey).not.toBe(sms1?.idempotencyKey);
+    // Another reminder of the same obligation has other keys.
+    await api.steps.sendReminder(reminder(initial, 7), attempt(true).run);
+    expect(api.notifications.sent.at(-1)?.idempotencyKey).not.toBe(email1?.idempotencyKey);
+  });
+
+  it("counts the days left from the reminder's planned day, so a retried request is the same", async () => {
+    const { initial } = await officer(PERSON);
+    // Planned for 17 July, sent late on 20 July: still "14 days" (due 31 July).
+    api.clock.setToday('2027-07-20');
+
+    await api.steps.sendReminder(reminder(initial), attempt(true).run);
+
+    expect(api.notifications.sent.map((m) => m.params.daysLeft)).toEqual([14, 14]);
   });
 
   it('records failed when the last attempt sent nothing', async () => {

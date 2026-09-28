@@ -42,6 +42,7 @@ const MESSAGE: ReminderMessage = {
     daysLeft: 30,
     portalUrl: 'http://localhost:3010',
   },
+  idempotencyKey: '4b0f3c8e-5d6a-5e7f-8a9b-0c1d2e3f4a5b',
 };
 
 const message = (status: 'sent' | 'failed', error: string | null = null) => ({
@@ -58,7 +59,11 @@ const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 function clientAnswering(...responses: (Response | Error)[]) {
-  const requests: { body: unknown; authorization: string | null }[] = [];
+  const requests: {
+    body: unknown;
+    authorization: string | null;
+    idempotencyKey: string | null;
+  }[] = [];
   let tokens = 0;
   let invalidated = 0;
   const client = new HttpNotificationsClient({
@@ -74,6 +79,7 @@ function clientAnswering(...responses: (Response | Error)[]) {
       requests.push({
         body: await request.json(),
         authorization: request.headers.get('authorization'),
+        idempotencyKey: request.headers.get('idempotency-key'),
       });
       const next = responses.shift() ?? new Error('no more answers');
       return next instanceof Error ? Promise.reject(next) : next;
@@ -102,6 +108,7 @@ describe('HttpNotificationsClient', () => {
     });
     expectConforming('SendMessage', request?.body);
     expect(request?.authorization).toBe('Bearer token-1');
+    expect(request?.idempotencyKey).toBe(MESSAGE.idempotencyKey);
   });
 
   it('uses the email template for email', async () => {
@@ -133,12 +140,26 @@ describe('HttpNotificationsClient', () => {
     await expect(client.sendReminder(MESSAGE)).resolves.toMatchObject({ status: 'sent' });
     expect(invalidated()).toBe(1);
     expect(requests.map((r) => r.authorization)).toEqual(['Bearer token-1', 'Bearer token-2']);
+    expect(requests.map((r) => r.idempotencyKey)).toEqual([
+      MESSAGE.idempotencyKey,
+      MESSAGE.idempotencyKey,
+    ]);
   });
 
-  it('is rejected on a 400 and unavailable on anything else unexpected', async () => {
+  it('is rejected on a 400 or a reused key (422), and unavailable on anything else unexpected', async () => {
     await expect(
       clientAnswering(json({ status: 400 }, 400)).client.sendReminder(MESSAGE),
     ).rejects.toBeInstanceOf(NotificationsRejected);
+    await expect(
+      clientAnswering(json({ status: 422 }, 422)).client.sendReminder(MESSAGE),
+    ).rejects.toBeInstanceOf(NotificationsRejected);
+    // The first request with the key is still running: ask again later.
+    await expect(
+      clientAnswering(json({ status: 409 }, 409)).client.sendReminder(MESSAGE),
+    ).rejects.toBeInstanceOf(NotificationsUnavailable);
+    await expect(
+      clientAnswering(json({ id: 'not-a-message' }, 201)).client.sendReminder(MESSAGE),
+    ).rejects.toBeInstanceOf(NotificationsUnavailable);
     await expect(
       clientAnswering(json({ status: 503 }, 503)).client.sendReminder(MESSAGE),
     ).rejects.toBeInstanceOf(NotificationsUnavailable);

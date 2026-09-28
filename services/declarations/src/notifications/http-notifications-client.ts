@@ -1,5 +1,5 @@
-import { type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
-import createClient, { type Client } from 'openapi-fetch';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
+import { z } from 'zod';
 
 import type { components, paths } from './notifications-api.gen.js';
 import {
@@ -14,6 +14,13 @@ import {
 /** The scope the declarations service's token needs for the notifications messages API. */
 export const NOTIFICATIONS_MESSAGES_SCOPE = 'messages';
 
+/**
+ * How long a reminder waits for notifications: its synchronous budget for the contact lookup and
+ * the provider (5 s, spec 03 and 04) plus the hop. A recorded exception to ADR-013's 2 s default;
+ * the reminder activity retries, with the same Idempotency-Key, what gets no answer in time.
+ */
+export const NOTIFICATIONS_SEND_TIMEOUT_MS = 8_000;
+
 type SendMessage = components['schemas']['SendMessage'];
 
 const TEMPLATES = {
@@ -21,12 +28,19 @@ const TEMPLATES = {
   email: 'obligation-reminder-email',
 } as const satisfies Record<ReminderChannel, SendMessage['template']>;
 
+/** What the reminder reads of notifications' `Message`, validated at the boundary. */
+const messageSchema = z.object({
+  id: z.uuid(),
+  status: z.enum(['sent', 'failed']),
+  error: z.string().nullable(),
+});
+
 export interface HttpNotificationsClientOptions {
   /** Base URL of the notifications service, e.g. `http://localhost:4010`. */
   notificationsUrl: string;
   /** Client credentials tokens of the declarations service carrying `messages`. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
-  /** Per call. Default 8 s: notifications gives its provider 5 s. */
+  /** Per attempt. Default `NOTIFICATIONS_SEND_TIMEOUT_MS`. */
   timeoutMs?: number;
   /** For tests. */
   fetch?: typeof fetch;
@@ -35,21 +49,26 @@ export interface HttpNotificationsClientOptions {
 /**
  * `POST /internal/v1/messages` with recipient `{ kind: 'person', personId }` through the client
  * generated from the notifications contract (packages/schemas/internal/notifications.yaml →
- * notifications-api.gen.ts via `pnpm generate:api`), with the service's own token (client
- * credentials, `messages`). A 401 is retried once with a fresh token.
+ * notifications-api.gen.ts via `pnpm generate:api`) on api-kit's service client (the service's
+ * own token with `messages`, one retry after a 401), with the reminder channel's
+ * `Idempotency-Key`, so a retried request never sends a second message.
+ *
+ * A 400 (or a key reused for another body, 422) is `NotificationsRejected`: the same request
+ * cannot succeed. Anything else unexpected, including 409 (the first request with the key still
+ * running), is `NotificationsUnavailable`: retry later.
  */
 export class HttpNotificationsClient extends NotificationsClient {
-  private readonly notifications: Client<paths>;
+  private readonly notifications: ServiceClient<paths>;
 
-  constructor(private readonly options: HttpNotificationsClientOptions) {
+  constructor(options: HttpNotificationsClientOptions) {
     super();
-    const fetchImpl = options.fetch ?? globalThis.fetch;
-    const timeoutMs = options.timeoutMs ?? 8_000;
-    this.notifications = createClient<paths>({
-      baseUrl: options.notificationsUrl.replace(/\/$/, ''),
-      headers: { accept: 'application/json' },
-      fetch: (request) =>
-        fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) })),
+    this.notifications = createServiceClient<paths>({
+      baseUrl: options.notificationsUrl,
+      service: 'notifications',
+      tokens: options.tokens,
+      unavailable: (message, cause) => new NotificationsUnavailable(message, cause),
+      timeoutMs: options.timeoutMs ?? NOTIFICATIONS_SEND_TIMEOUT_MS,
+      fetch: options.fetch,
     });
   }
 
@@ -62,44 +81,19 @@ export class HttpNotificationsClient extends NotificationsClient {
       locale: 'en',
       tenant: message.tenant,
     };
-    let answer = await this.post(body);
-    if (answer.response.status === 401) {
-      this.options.tokens.invalidate();
-      answer = await this.post(body);
-    }
-    const { data, response } = answer;
-    if (response.status === 400) {
+    const rejected = () => {
       throw new NotificationsRejected(`notifications refused the ${message.channel} reminder`);
-    }
-    if (response.status !== 201 || !data) {
-      throw new NotificationsUnavailable(`notifications answered ${String(response.status)}`);
-    }
-    return data.status === 'sent'
-      ? { status: 'sent', messageId: data.id }
-      : { status: 'failed', error: data.error ?? 'provider-error' };
-  }
-
-  private async post(body: SendMessage) {
-    let token: string;
-    try {
-      token = await this.options.tokens.token();
-    } catch (error) {
-      if (error instanceof ServiceTokenError) {
-        throw new NotificationsUnavailable('no service token for the notifications service', {
-          cause: error,
-        });
-      }
-      throw error;
-    }
-    try {
-      return await this.notifications.POST('/internal/v1/messages', {
-        body,
-        headers: { authorization: `Bearer ${token}` },
-      });
-    } catch (error) {
-      throw new NotificationsUnavailable('the notifications service is unreachable', {
-        cause: error,
-      });
-    }
+    };
+    const sent = await this.notifications.call(
+      (api) =>
+        api.POST('/internal/v1/messages', {
+          body,
+          params: { header: { 'Idempotency-Key': message.idempotencyKey } },
+        }),
+      { status: 201, schema: messageSchema, otherwise: { 400: rejected, 422: rejected } },
+    );
+    return sent.status === 'sent'
+      ? { status: 'sent', messageId: sent.id }
+      : { status: 'failed', error: sent.error ?? 'provider-error' };
   }
 }
