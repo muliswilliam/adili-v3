@@ -202,12 +202,12 @@ export function ItemEditor({
   disabled,
   renderAttachments,
 }: ItemEditorProps) {
-  const any = item as AnyItem;
-  const id = any.id ?? '';
+  const fields = item as AnyItem;
+  const id = fields.id ?? '';
   const copy = COPY[category];
   const amountKey = AMOUNT_KEY[category];
-  const money: Draft<Money> = any[amountKey] ?? {};
-  const location: Draft<Location> = any.location ?? { inKenya: true };
+  const money: Draft<Money> = fields[amountKey] ?? {};
+  const location: Draft<Location> = fields.location ?? { inKenya: true };
   const abroad = location.inKenya === false;
   const fid = (field: string) => itemFieldId(id, field);
 
@@ -238,7 +238,7 @@ export function ItemEditor({
       id={fid('type')}
       legend={copy.type}
       options={Object.entries(TYPE_LABELS[category]).map(([value, label]) => ({ value, label }))}
-      value={any.type ?? null}
+      value={fields.type ?? null}
       error={errorFor('type')}
       onValueChange={(value) => {
         onTouch('type');
@@ -247,7 +247,7 @@ export function ItemEditor({
     />
   );
 
-  if (!any.type) {
+  if (!fields.type) {
     return (
       <div className="grid gap-4">
         {type}
@@ -256,7 +256,7 @@ export function ItemEditor({
     );
   }
 
-  const details = category === 'assets' ? (ASSET_DETAILS[any.type] ?? []) : [];
+  const details = category === 'assets' ? (ASSET_DETAILS[fields.type] ?? []) : [];
 
   return (
     <div className="grid gap-5">
@@ -272,7 +272,7 @@ export function ItemEditor({
               controlId={fid(field.key)}
             >
               <Input
-                value={any.details?.[field.key] ?? ''}
+                value={fields.details?.[field.key] ?? ''}
                 maxLength={field.maxLength}
                 placeholder={field.placeholder}
                 onChange={(event) => {
@@ -285,7 +285,7 @@ export function ItemEditor({
               />
             </FormField>
           ))}
-          {any.type === 'bank-account' ? (
+          {fields.type === 'bank-account' ? (
             <p className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-secondary-foreground sm:col-span-2">
               <Icon icon={LockIcon} className="size-4 shrink-0" />
               Do not enter account numbers.
@@ -296,7 +296,7 @@ export function ItemEditor({
 
       <FormField label="Description" error={errorFor('description')} controlId={fid('description')}>
         <Input
-          value={any.description ?? ''}
+          value={fields.description ?? ''}
           maxLength={200}
           placeholder={copy.description}
           onBlur={() => {
@@ -312,7 +312,7 @@ export function ItemEditor({
       {category === 'liabilities' ? (
         <FormField label="Creditor" error={errorFor('creditor')} controlId={fid('creditor')}>
           <Input
-            value={any.creditor ?? ''}
+            value={fields.creditor ?? ''}
             maxLength={200}
             placeholder="Who you owe, e.g. HFC Bank, Mwalimu SACCO"
             onBlur={() => {
@@ -491,7 +491,7 @@ export function ItemEditor({
         <div className="grid gap-3">
           <CheckboxItem
             label="Jointly held"
-            checked={any.joint?.isJoint === true}
+            checked={fields.joint?.isJoint === true}
             onChange={(event) => {
               const isJoint = event.target.checked;
               set((current) => ({
@@ -500,11 +500,11 @@ export function ItemEditor({
               }));
             }}
           />
-          {any.joint?.isJoint ? (
+          {fields.joint?.isJoint ? (
             <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4 sm:grid-cols-2">
               <FormField label={shareLabel} error={errorFor('share')} controlId={fid('share')}>
                 <PercentInput
-                  value={any.joint.sharePercent ?? null}
+                  value={fields.joint.sharePercent ?? null}
                   placeholder="50"
                   onBlur={() => {
                     onTouch('share');
@@ -521,7 +521,7 @@ export function ItemEditor({
               <FormField label={optionalLabel('Co-owner relationship')} controlId={fid('coOwner')}>
                 <Select
                   placeholder="Choose one"
-                  value={any.joint.coOwner ?? ''}
+                  value={fields.joint.coOwner ?? ''}
                   onValueChange={(coOwner) => {
                     set((current) => ({
                       ...current,
@@ -545,7 +545,7 @@ export function ItemEditor({
         <CheckboxItem
           label="Changed since my last declaration"
           hint="Value up or down 25% or more, acquired, disposed of or settled."
-          checked={any.change?.changed === true}
+          checked={fields.change?.changed === true}
           onChange={(event) => {
             const changed = event.target.checked;
             set((current) => ({
@@ -554,13 +554,13 @@ export function ItemEditor({
             }));
           }}
         />
-        {any.change?.changed ? (
+        {fields.change?.changed ? (
           <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
             <SegmentedChoice
               id={fid('changeKind')}
               legend="What changed?"
               options={CHANGE_KIND_OPTIONS[category]}
-              value={any.change.kind ?? null}
+              value={fields.change.kind ?? null}
               error={errorFor('changeKind')}
               onValueChange={(kind) => {
                 onTouch('changeKind');
@@ -583,7 +583,7 @@ export function ItemEditor({
                 rows={3}
                 maxLength={1000}
                 placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
-                value={any.change.explanation ?? ''}
+                value={fields.change.explanation ?? ''}
                 onBlur={() => {
                   onTouch('explanation');
                 }}
@@ -606,12 +606,12 @@ export function ItemEditor({
             category,
             itemId: id,
             itemNoun: CATEGORY_WORDS[category].one,
-            attachments: any.attachments ?? [],
+            attachments: fields.attachments ?? [],
             setAttachments: (attachments) => {
               set((current) => ({ ...current, attachments }));
             },
             disabled,
-            itemType: any.type,
+            itemType: fields.type,
             item,
           })
         : null}
