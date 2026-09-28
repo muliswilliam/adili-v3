@@ -34,7 +34,7 @@ import type { Draft, Statement } from '../../declaration/contents';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
 import { sourceDetails } from '../../declaration/item-source';
-import { statementSectionKey } from '../../declaration/section-key';
+import { OFFICER_KEY, statementSectionKey } from '../../declaration/section-key';
 import {
   EMPLOYMENT_NATURE_LABELS,
   MARITAL_STATUS_LABELS,
@@ -518,7 +518,7 @@ function SourcedItems({
 }
 
 function statementKeyOf(statement: Draft<Statement>) {
-  return statementSectionKey(statement.personKey ?? 'officer');
+  return statementSectionKey(statement.personKey ?? OFFICER_KEY);
 }
 
 function StatementsCard({
