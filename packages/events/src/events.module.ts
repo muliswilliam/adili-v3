@@ -7,6 +7,7 @@ import {
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ClientProxy, ClientsModule, Transport } from '@nestjs/microservices';
 import { ReadinessCheck } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
@@ -14,6 +15,7 @@ import amqp from 'amqplib';
 import { eq, isNull, sql } from 'drizzle-orm';
 import { lastValueFrom } from 'rxjs';
 
+import { AuditedReadInterceptor } from './audited-read.interceptor.js';
 import { createEnvelope, type EventEnvelope, type NewEvent } from './envelope.js';
 import { outbox } from './schema.js';
 import { DEAD_LETTER_EXCHANGE, deadLetterQueue, EVENTS_EXCHANGE, eventsQueue } from './topology.js';
@@ -199,6 +201,8 @@ export class EventsModule {
         EventPublisher,
         OutboxRelay,
         RabbitMqReadinessCheck,
+        // Audited reads (ADR-008) go through the outbox like every other event.
+        { provide: APP_INTERCEPTOR, useClass: AuditedReadInterceptor },
       ],
       exports: [EventPublisher, RabbitMqReadinessCheck],
     };

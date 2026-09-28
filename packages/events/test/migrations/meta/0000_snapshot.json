@@ -33,10 +33,7 @@
       "compositePrimaryKeys": {
         "inbox_consumer_event_id_pk": {
           "name": "inbox_consumer_event_id_pk",
-          "columns": [
-            "consumer",
-            "event_id"
-          ]
+          "columns": ["consumer", "event_id"]
         }
       },
       "uniqueConstraints": {},

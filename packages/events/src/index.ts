@@ -1,4 +1,9 @@
 export {
+  AUDIT_READ,
+  type AuditReadData,
+  AuditedReadInterceptor,
+} from './audited-read.interceptor.js';
+export {
   createEnvelope,
   type EventEnvelope,
   eventEnvelopeSchema,

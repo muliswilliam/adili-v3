@@ -5,7 +5,7 @@ import { withTenant } from '@adili/data-access';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { uploads } from '../../src/db/schema.js';
+import { outbox, uploads } from '../../src/db/schema.js';
 import { CSV, XLSX } from '../../src/uploads/purposes.js';
 import type {
   Upload,
@@ -411,9 +411,23 @@ describe('internal download', () => {
     await complete(clean.id);
   });
 
-  it('is an audited read of the document (ADR-008)', () => {
+  it('is an audited read of the document (ADR-008)', async () => {
     expect(contractOperation('/internal/v1/uploads/{id}/download', 'get')).toMatchObject({
       'x-audited-read': { action: 'upload.download.issued', resource: 'upload' },
+    });
+
+    expect((await download(clean.id)).statusCode).toBe(200);
+
+    const audited = await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'));
+    expect(audited.at(-1)?.envelope).toMatchObject({
+      source: 'adili/documents',
+      // The tenant the service acted for, whose document it read.
+      tenant: 'psc',
+      data: {
+        action: 'upload.download.issued',
+        resource: { type: 'upload', params: { id: clean.id } },
+        outcome: 'success',
+      },
     });
   });
 
