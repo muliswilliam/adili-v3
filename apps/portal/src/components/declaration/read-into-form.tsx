@@ -48,6 +48,7 @@ import {
   readingState,
   readSuggestion,
 } from '../../declaration/extraction';
+import { personKeyOf } from '../../declaration/section-key';
 import { useAcceptSuggestion } from './suggestion-accept';
 import { useWorkspace } from './workspace';
 
@@ -106,7 +107,7 @@ export function ReadIntoForm({
 }: ReadIntoFormProps) {
   const { declaration } = useWorkspace();
   const declarationId = declaration.id;
-  const personKey = sectionKey.slice('statement:'.length);
+  const personKey = personKeyOf(sectionKey) ?? 'officer';
   const [step, setStep] = useState<Step>({ name: 'kind' });
   const [kind, setKind] = useState<DocumentKind>(() => defaultKind(itemType));
   const [seen, setSeen] = useState<ReadTarget | null>(target);

@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { isSectionKey } from '../declaration/section-key';
+import { isSectionKey, parsePersonKey } from '../declaration/section-key';
 import { getBff } from './bff.server';
 import {
   acceptSuggestion,
@@ -120,7 +120,7 @@ export const getDeclarationSummary = createServerFn({ method: 'GET' })
     asDeclarant((client) => loadSummary(client, data.declarationId)),
   );
 
-const personKey = z.string().regex(/^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$/);
+const personKey = z.string().refine((value) => parsePersonKey(value) !== null, 'Not a person key');
 const json: z.ZodType<Json> = z.lazy(() =>
   z.union([
     z.string(),

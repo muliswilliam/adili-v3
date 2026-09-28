@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Draft, Household, ItemSource } from '../../../declaration/contents';
 import { DOCUMENT_KINDS } from '../../../declaration/extraction';
+import { personKeyOf } from '../../../declaration/section-key';
 import { type Item, NIL_KEY } from '../../../declaration/statement';
 import {
   categoryOf,
@@ -605,7 +606,7 @@ export async function requestExtraction(
   const now = Date.now();
   const set: StoredSet = {
     id: randomUUID(),
-    personKey: attachment.sectionKey.slice('statement:'.length),
+    personKey: personKeyOf(attachment.sectionKey) ?? 'officer',
     source: 'document',
     status: 'pending',
     requestedAt: new Date(now).toISOString(),

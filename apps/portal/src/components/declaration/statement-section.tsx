@@ -313,7 +313,7 @@ export function StatementSection({
 
       {registries ? (
         <RegistriesPanel
-          personKey={key.slice('statement:'.length)}
+          personKey={personKeyOf(key) ?? 'officer'}
           person={registries.person}
           initialSets={registries.sets}
           pollMs={registries.pollMs}
