@@ -8,6 +8,7 @@ import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
+import { TEMPORAL_CLIENT } from '@adili/temporal';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
@@ -16,9 +17,14 @@ import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
 import { type DeclarationsSchema, schema } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
+import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { RosterEventsConsumer } from '../../src/obligations/roster-events.consumer.js';
+import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
+import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
 import { type ObligationChanges, ObligationWorkflows } from '../../src/obligations/workflows.js';
 import { FakeDirectory } from './fake-directory.js';
+import { FakeNotifications } from './fake-notifications.js';
+import { FakeTemporal } from './fake-temporal.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -76,12 +82,26 @@ export class RecordingWorkflows extends ObligationWorkflows {
   }
 }
 
+/**
+ * How obligation workflows are started: `recording` (default) records what `ObligationWorkflows`
+ * is told; `fake` runs the real `TemporalObligationWorkflows` against `FakeTemporal`; `real` uses
+ * the compose Temporal, with the service's worker polling the suite's own task queue.
+ */
+export type WorkflowMode = 'recording' | 'fake' | 'real';
+
 export interface DeclarationsApi {
   app: NestFastifyApplication;
   /** Direct database access for arranging fixtures and reading rows the API does not show. */
   db: Database<DeclarationsSchema>;
   directory: FakeDirectory;
+  notifications: FakeNotifications;
+  /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
+  /** Starts and signals sent to Temporal (`fake` mode only). */
+  temporal: FakeTemporal;
+  /** The steps the workflow activities take. */
+  steps: ObligationSteps;
+  sweep: ObligationsSweep;
   clock: TestClock;
   /** The directory event consumers, called as the RabbitMQ transport would. */
   consumers: RosterEventsConsumer;
@@ -97,11 +117,14 @@ export interface DeclarationsApi {
 /**
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
- * directory is `FakeDirectory`, workflows are recorded, tokens are signed locally and the outbox
- * relay is off (events stay in the outbox for assertions). The test role owns the tables, so
+ * directory is `FakeDirectory`, notifications `FakeNotifications`, workflows are recorded (see
+ * `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay in the outbox
+ * for assertions). The service's Temporal worker polls the suite's own task queue. The test role owns the tables, so
  * FORCE row-level security applies to it as to the service's role.
  */
-export async function startDeclarationsApi(): Promise<DeclarationsApi> {
+export async function startDeclarationsApi({
+  workflows: mode = 'recording',
+}: { workflows?: WorkflowMode } = {}): Promise<DeclarationsApi> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
   const pgSchema = `declarations_test_${process.pid}_${randomUUID().slice(0, 8)}`;
   const url = new URL(baseUrl);
@@ -117,21 +140,31 @@ export async function startDeclarationsApi(): Promise<DeclarationsApi> {
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
   const workflows = new RecordingWorkflows();
+  const temporal = new FakeTemporal();
+  const notifications = new FakeNotifications();
   const clock = new TestClock();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
     .overrideProvider(TokenVerifier)
     .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
     .overrideProvider(DirectoryClient)
     .useValue(directory)
-    .overrideProvider(ObligationWorkflows)
-    .useValue(workflows)
+    .overrideProvider(NotificationsClient)
+    .useValue(notifications)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(OutboxRelay)
     .useValue({})
-    .compile();
+    // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
+    .overrideProvider(SweepSchedule)
+    .useValue({});
+  if (mode === 'recording') {
+    builder = builder.overrideProvider(ObligationWorkflows).useValue(workflows);
+  } else if (mode === 'fake') {
+    builder = builder.overrideProvider(TEMPORAL_CLIENT).useValue(temporal);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
@@ -142,7 +175,11 @@ export async function startDeclarationsApi(): Promise<DeclarationsApi> {
     app,
     db,
     directory,
+    notifications,
     workflows,
+    temporal,
+    steps: app.get(ObligationSteps),
+    sweep: app.get(ObligationsSweep),
     clock,
     consumers: app.get(RosterEventsConsumer),
     async get(path, caller) {
@@ -161,7 +198,9 @@ export async function startDeclarationsApi(): Promise<DeclarationsApi> {
         sql`truncate obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, outbox, inbox`,
       );
       directory.reset();
+      notifications.reset();
       workflows.reset();
+      temporal.reset();
       clock.reset();
     },
     async close() {

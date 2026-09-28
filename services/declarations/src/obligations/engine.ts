@@ -276,8 +276,11 @@ function obligation(
   };
 }
 
-/** Initial and final are due from creation; a biennial waits for its statement date. */
-function statusOn(
+/**
+ * The open status an obligation has on `today`: initial and final are due from creation, a
+ * biennial waits for its statement date; all are overdue after the due date.
+ */
+export function statusOn(
   type: ObligationType,
   statementDate: CivilDate,
   dueDate: CivilDate,

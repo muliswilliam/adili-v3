@@ -1,6 +1,7 @@
 import type { NewEvent } from '@adili/events';
 
 import type { CancelReason, ObligationStatus, ObligationType } from './engine.js';
+import type { ReminderChannel, ReminderOutcome } from './schema.js';
 
 /**
  * Events the declarations service publishes about filing obligations (spec 04). Identifiers and
@@ -41,6 +42,24 @@ export function obligationStatusChanged(
   data: ObligationStatusChangedData,
 ): NewEvent<ObligationStatusChangedData> {
   return { type: OBLIGATION_STATUS_CHANGED, subject: data.obligationId, tenant, data };
+}
+
+export const OBLIGATION_REMINDER_SENT = 'obligation.reminder-sent.v1';
+
+/** A reminder's outcome, whether sent or skipped (and why) or failed. */
+export interface ObligationReminderSentData extends Record<string, unknown> {
+  obligationId: string;
+  offsetDays: number;
+  /** The channels it went out on; empty unless sent. */
+  channels: ReminderChannel[];
+  outcome: ReminderOutcome;
+}
+
+export function obligationReminderSent(
+  tenant: string,
+  data: ObligationReminderSentData,
+): NewEvent<ObligationReminderSentData> {
+  return { type: OBLIGATION_REMINDER_SENT, subject: data.obligationId, tenant, data };
 }
 
 /** The directory events the declarations service consumes, and their data (ids only). */

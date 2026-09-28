@@ -1242,6 +1242,18 @@ importers:
       '@nestjs/swagger':
         specifier: ^12.0.2
         version: 12.0.2(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(reflect-metadata@0.2.2)(typescript@6.0.3)
+      '@temporalio/activity':
+        specifier: ^1.24.0
+        version: 1.24.0
+      '@temporalio/client':
+        specifier: ^1.24.0
+        version: 1.24.0
+      '@temporalio/common':
+        specifier: ^1.24.0
+        version: 1.24.0
+      '@temporalio/workflow':
+        specifier: ^1.24.0
+        version: 1.24.0
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(pg@8.23.0)
@@ -1282,6 +1294,9 @@ importers:
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
+      '@temporalio/testing':
+        specifier: ^1.24.0
+        version: 1.24.0(esbuild@0.28.2)
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
