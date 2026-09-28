@@ -703,7 +703,7 @@
         'pending-applicant-verification': ['Verify applicant', 'warn'],
         'officer-unresolved': ['Identify officer', 'warn'],
         'awaiting-representations': ['Awaiting representations', ''],
-        'under-decision': ['Under decision', 'brand'],
+        'under-decision': ['Ready for decision', 'brand'],
         granted: ['Granted', 'ok'],
         'partially-granted': ['Partially granted', 'ok'],
         denied: ['Denied', 'danger'],
@@ -712,7 +712,7 @@
       };
       const LS = {
         received: ['Verify', 'warn'],
-        verified: ['Under decision', 'brand'],
+        verified: ['Ready for decision', 'brand'],
         granted: ['Granted', 'ok'],
         denied: ['Denied', 'danger'],
         withdrawn: ['Withdrawn', ''],
@@ -3008,11 +3008,11 @@
       /* ---------- certified copies tab (#304) ---------- */
       const APP_ST = {
         recorded: ['To issue', 'warn'],
-        issuing: ['Preparing', 'info'],
+        issuing: ['Preparing', ''],
         failed: ['Issue failed', 'danger'],
         issued: ['Ready', 'brand'],
         collected: ['Collected', 'ok'],
-        dispatched: ['Dispatched', 'ok'],
+        dispatched: ['Dispatched', 'info'],
       };
       const appBadge = (st) => badge(APP_ST[st][0], APP_ST[st][1]);
       function copiesCard() {
@@ -4451,7 +4451,7 @@
         J('j-r-window', '#254 Awaiting representations: none yet', 'access-officer', () =>
           openReq('r-window'),
         ),
-        J('request', '#254 Under decision: objection received (demo)', 'access-officer', () =>
+        J('request', '#254 Ready for decision: objection received (demo)', 'access-officer', () =>
           openReq('r-hero'),
         ),
         J('j-r-consent', '#254 Representations: declarant consented', 'access-officer', () =>

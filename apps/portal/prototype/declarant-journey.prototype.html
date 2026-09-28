@@ -583,20 +583,10 @@
         display: grid;
         gap: 14px;
       }
-      .rel-badge.due {
-        background: rgba(255, 255, 255, 0.8);
-        color: var(--brand-ink);
-        box-shadow: 0 0 0 1px #f3d2bd;
-      }
       .rel-badge.plain {
         background: rgba(255, 255, 255, 0.8);
         color: var(--ink-2);
         box-shadow: 0 0 0 1px var(--line);
-      }
-      .rel-badge.overdue {
-        background: rgba(255, 255, 255, 0.8);
-        color: var(--danger);
-        box-shadow: 0 0 0 1px #efd3a0;
       }
       .acct .dl dd.stackv {
         flex-direction: column;
@@ -1334,46 +1324,10 @@
         outline: 3px solid rgba(233, 90, 36, 0.45);
         outline-offset: 2px;
       }
-      .ptabs {
-        display: flex;
-        gap: 4px;
-        padding: 4px;
-        border-radius: 12px;
-        background: var(--sunken);
+      .st-tabs {
         margin-bottom: 16px;
       }
-      .ptabs button {
-        flex: 1;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        height: 40px;
-        border: 0;
-        border-radius: 9px;
-        background: none;
-        font: inherit;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--ink-2);
-        cursor: pointer;
-      }
-      .ptabs button[aria-selected='true'] {
-        background: var(--surface);
-        color: var(--ink);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-      }
-      .ptabs .c {
-        font-size: 11.5px;
-        min-width: 20px;
-        height: 20px;
-        padding: 0 6px;
-        border-radius: 10px;
-        display: grid;
-        place-items: center;
-        background: rgba(0, 0, 0, 0.06);
-      }
-      .ptabs .ok {
+      .tabs .ok {
         color: var(--ok);
         display: inline-flex;
       }
@@ -4256,6 +4210,13 @@
         return `${plural(-n, 'day')} overdue`;
       }
       const dateText = (o) => `<span title="Due ${longDate(o.dueDate)}">${relText(o)}</span>`;
+      /* One badge per obligation: status tone and icon, relative date as the label. */
+      function oblBadge(o, st = oblStatus(o)) {
+        if (st === 'filed') return statusBadge(st);
+        if (st === 'due') return Kit.badge(`${icon('clock', 13)} ${dateText(o)}`, 'info');
+        if (st === 'overdue') return Kit.badge(`${icon('alert', 13)} ${dateText(o)}`, 'warn');
+        return Kit.badge(dateText(o));
+      }
       /* money: formatted string <-> integer cents */
       function toCents(s) {
         if (s === '' || s == null) return null;
@@ -4917,7 +4878,7 @@
         const pct = d && d.status !== 'submitted' ? completeness(d).pct : null;
         return `<article class="ob ${st}" data-act="openObl" data-arg="${o.id}" aria-labelledby="obh-${o.id}">
     ${st === 'due' || st === 'overdue' ? '<div class="glow"></div>' : ''}
-    <div class="row wrap" style="gap:8px;margin-bottom:10px;position:relative">${statusBadge(st)}${st !== 'filed' ? `<span class="badge rel-badge ${st}">${dateText(o)}</span>` : ''}${d && d.status === 'draft' ? `<span class="badge rel-badge plain">${icon('pencil', 12)} Draft in progress</span>` : ''}${d && d.status === 'amending' ? Kit.badge('Amendment in progress', 'info') : ''}</div>
+    <div class="row wrap" style="gap:8px;margin-bottom:10px;position:relative">${oblBadge(o, st)}${d && d.status === 'draft' ? `<span class="badge rel-badge plain">${icon('pencil', 12)} Draft in progress</span>` : ''}${d && d.status === 'amending' ? Kit.badge('Amendment in progress', 'info') : ''}</div>
     <h3 id="obh-${o.id}">${typeLabel(o)}</h3>
     ${st === 'upcoming' ? `<p class="small muted" style="margin-top:4px">Submit from ${fmtDate(o.statementDate)}.</p>` : ''}
     <div class="meta">
@@ -5040,7 +5001,7 @@
           title: typeLabel(o),
           sub: `${esc(c.name)} · <span class="mono">${c.code}</span>`,
           wide: true,
-          body: `<div class="row wrap" style="gap:8px">${statusBadge(st)}${st !== 'filed' ? `<span class="badge">${relText(o)}</span>` : ''}</div>
+          body: `<div class="row wrap" style="gap:8px">${oblBadge(o, st)}</div>
       ${st === 'overdue' ? `<div class="alert alert-warn">${icon('alert', 16)}<div><b>Overdue.</b> If you have already declared by other means, contact your Commission.</div></div>` : ''}
       <div class="kv k3">
         <div><div class="k">Cycle</div><div class="v">${cycle}</div></div>
@@ -5826,9 +5787,7 @@
                 { icon: 'heart' },
               )
             : ['married', 'separated'].includes(m)
-              ? h.noSpouse
-                ? `<div class="nil-row">${checkbox(P('hh.noSpouse'), 'I have no spouse to declare')}</div>`
-                : `<div class="alert alert-warn" role="${S.ui.showErrors ? 'alert' : 'note'}">${icon('alert', 17)}<div><div class="t">Add your spouse, or confirm you have none</div><div style="margin-top:10px">${checkbox(P('hh.noSpouse'), 'I have no spouse to declare')}</div></div></div>`
+              ? `<div class="${E('spouses') ? 'alert alert-warn' : 'nil-row'}" ${E('spouses') ? 'role="alert"' : ''}>${E('spouses') ? icon('alert', 17) : ''}<div>${E('spouses') ? `<div class="t" style="margin-bottom:8px">${E('spouses')}</div>` : ''}${checkbox(P('hh.noSpouse'), 'I have no spouse to declare')}</div></div>`
               : `<div class="callout callout-info">${icon('info', 16)}<span>Choose your marital status in <button class="linklike" data-act="navSec" data-arg="decl-bio">Your details</button> first. Then add your spouse if you have one.</span></div>`
           : '';
         const ps = persons(D);
@@ -6029,7 +5988,7 @@
         const sum = `<div class="rep-sum"><span class="ico">${icon(t ? t[2] : 'plus', 18)}</span><div class="body"><div class="t"><h3 style="font:inherit;display:inline">${title}</h3></div><div class="d">${esc(itemSummary(cat, it)) || '<span class="muted">No description yet</span>'}</div>${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}</div>
     <div class="amt">${amt != null && !isNaN(amt) ? fmtCents(amt) : '<span class="muted" style="font-weight:400">-</span>'}${cat === 'assets' && it.joint && amt ? `<small>whole value</small>` : ''}</div>
     <div class="acts">${open ? '' : `<button class="btn btn-ghost icon-btn" data-act="openEditor" data-arg="${it.id}" aria-label="Edit ${esc(title)}${it.desc ? ': ' + esc(it.desc) : ''}" ${nil ? 'disabled' : ''}>${icon('pencil', 16)}</button>`}
-      <div class="menu-wrap"><button class="btn btn-ghost icon-btn" data-act="menu" data-arg="${menuId}" aria-label="More actions for ${esc(title)}" aria-haspopup="menu" aria-expanded="${S.menu === menuId}">${icon('moreV', 16)}</button>${S.menu === menuId ? `<div class="menu" role="menu">${cat === 'assets' ? `<button role="menuitem" data-act="askCopyAsset" data-arg="${p.key}|${it.id}">${icon('users', 16)} Also declare for…</button>` : ''}<button role="menuitem" class="danger" data-act="askRemoveItem" data-arg="${cat}|${p.key}|${it.id}">${icon('trash', 16)} Remove</button></div>` : ''}</div></div></div>`;
+      ${open ? '' : `<div class="menu-wrap"><button class="btn btn-ghost icon-btn" data-act="menu" data-arg="${menuId}" aria-label="More actions for ${esc(title)}" aria-haspopup="menu" aria-expanded="${S.menu === menuId}">${icon('moreV', 16)}</button>${S.menu === menuId ? `<div class="menu" role="menu">${cat === 'assets' ? `<button role="menuitem" data-act="askCopyAsset" data-arg="${p.key}|${it.id}">${icon('users', 16)} Also declare for…</button>` : ''}<button role="menuitem" class="danger" data-act="askRemoveItem" data-arg="${cat}|${p.key}|${it.id}">${icon('trash', 16)} Remove</button></div>` : ''}</div>`}</div></div>`;
         if (!open)
           return `<div class="rep-card ${nil ? 'dis' : ''}" id="card-${it.id}">${sum}</div>`;
         const tl = typeList(cat);
@@ -6115,7 +6074,7 @@
     ${cat !== 'income' ? attachmentList(cat, p.key, it) : ''}`
         : '<p class="small muted">Choose a type first.</p>'
     }
-    <div class="foot"><button class="btn btn-danger-ghost btn-sm" data-act="askRemoveItem" data-arg="${cat}|${p.key}|${it.id}">${icon('trash', 15)} Remove</button><span class="spacer"></span><button class="btn btn-primary btn-sm" data-act="closeItem" data-arg="${cat}|${p.key}|${it.id}">Done</button></div>
+    <div class="foot">${cat === 'assets' ? `<button class="btn btn-ghost btn-sm" data-act="askCopyAsset" data-arg="${p.key}|${it.id}">${icon('users', 15)} Also declare for…</button>` : ''}<span class="spacer"></span><button class="btn btn-danger-ghost btn-sm" data-act="askRemoveItem" data-arg="${cat}|${p.key}|${it.id}">${icon('trash', 15)} Remove</button><button class="btn btn-primary btn-sm" data-act="closeItem" data-arg="${cat}|${p.key}|${it.id}">Done</button></div>
   </div>`;
         return `<div class="rep-card open" id="card-${it.id}">${sum}${edit}</div>`;
       }
@@ -6145,7 +6104,7 @@
         const tabCount = (k) => {
           const s = st[k];
           return s.length
-            ? `<span class="c">${s.length}</span>`
+            ? `<span class="count">${s.length}</span>`
             : s === st[k] && st[CAT[k].nilKey]
               ? `<span class="ok">${icon('check', 14, 2.6)}</span>`
               : '';
@@ -6162,10 +6121,10 @@
       .join('')}</div>
     ${sp && sp.separated ? `<div class="callout callout-info" style="margin-bottom:16px">${icon('info', 16)}<span>Separated spouse: declare what you know. If you do not know, say so in the description.</span></div>` : ''}
     ${regPanel(D, p)}
-    <div class="ptabs" role="tablist" aria-label="Parts of the statement">${Object.keys(CAT)
+    <div class="tabs st-tabs" role="tablist" aria-label="Parts of the statement">${Object.keys(CAT)
       .map(
         (k) =>
-          `<button role="tab" id="tab-${k}" aria-controls="panel-${k}" aria-selected="${tab === k}" data-act="stTab" data-arg="${k}">${CAT[k].label}${tabCount(k)}</button>`,
+          `<button role="tab" id="tab-${k}" aria-controls="panel-${k}" class="${tab === k ? 'on' : ''}" aria-selected="${tab === k}" data-act="stTab" data-arg="${k}">${CAT[k].label}${tabCount(k)}</button>`,
       )
       .join('')}</div>
     <div role="tabpanel" id="panel-${tab}" aria-labelledby="tab-${tab}">
@@ -7130,7 +7089,7 @@
           if (D.status === 'draft') {
             const cmp = completeness(D);
             return `<article class="decl-row"><div class="top"><span class="avatar" style="border-radius:10px;background:var(--brand-soft);color:var(--brand-ink)">${icon('pencil', 17)}</span><div class="body"><h3>${typeLabel(o)}</h3><div class="facts"><span>${esc(c.name)}</span><span>Statement date ${fmtDate(D.statementDate)}</span><span>Saved ${fmtDateTime(D.updatedAt)}</span></div><div class="row" style="gap:10px;margin-top:12px;max-width:360px"><div class="progress" style="flex:1"><i style="width:${cmp.pct}%"></i></div><span class="small" style="font-weight:600">${cmp.pct}%</span></div></div>${Kit.badge('Draft')}</div>
-      <div class="bar"><button class="btn btn-primary btn-sm" data-act="openDecl" data-arg="${D.id}">Continue ${icon('right', 15)}</button><button class="btn btn-danger-ghost btn-sm" data-act="askDiscard" data-arg="${D.id}">${icon('trash', 15)} Discard</button><span class="spacer"></span><span class="small muted">${statusBadge(o.status)} ${relText(o, o.status)}</span></div></article>`;
+      <div class="bar"><button class="btn btn-primary btn-sm" data-act="openDecl" data-arg="${D.id}">Continue ${icon('right', 15)}</button><button class="btn btn-danger-ghost btn-sm" data-act="askDiscard" data-arg="${D.id}">${icon('trash', 15)} Discard</button><span class="spacer"></span>${oblBadge(o, o.status)}</div></article>`;
           }
           return `<article class="decl-row"><div class="top"><span class="avatar" style="border-radius:10px;background:var(--ok-soft);color:var(--ok)">${icon('check', 17, 2.4)}</span><div class="body"><h3>${typeLabel(o)}</h3>
         <div style="margin-top:8px">${refChip(D.reference, 'sm')}</div>
