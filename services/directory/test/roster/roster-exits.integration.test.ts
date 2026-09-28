@@ -113,7 +113,12 @@ const storedRecords = () =>
   );
 
 const events = async (type: string) =>
-  (await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox))
+  (
+    await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .orderBy(outbox.id)
+  )
     .filter((event) => event.type === type)
     .map((event) => event.envelope);
 
