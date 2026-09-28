@@ -26,13 +26,26 @@ const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0) => ({
   filed,
 });
 
-function summary(biennial = counts(1_204, 0, 0)): CommissionObligationsSummary {
+/** A biennial cycle under the statutory dates. */
+const cycle = (year: number, opened: boolean) => ({
+  key: `biennial:${String(year)}`,
+  statementDate: `${String(year)}-11-01`,
+  dueDate: `${String(year)}-12-31`,
+  opensOn: `${String(year)}-07-04`,
+  opened,
+});
+
+function summary(
+  overrides: Partial<CommissionObligationsSummary> = {},
+): CommissionObligationsSummary {
   return {
     commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
-    cycle: { key: 'biennial:2027', statementDate: '2027-11-01', dueDate: '2027-12-31' },
+    cycle: cycle(2027, true),
+    cycles: [cycle(2027, true), cycle(2029, false), cycle(2031, false)],
     total: counts(1_204, 18, 7),
-    byType: { initial: counts(0, 14, 5), biennial, final: counts(0, 4, 2) },
+    byType: { initial: counts(0, 14, 5), biennial: counts(1_204, 0, 0), final: counts(0, 4, 2) },
     notOnboarded: { due: 9, overdue: 4 },
+    ...overrides,
   };
 }
 
@@ -142,7 +155,7 @@ describe('obligationsQuery', () => {
       search: 'Otieno',
       type: 'final',
       status: 'due',
-      onboarded: false,
+      onboarded: 'false',
       cycle: 'biennial:2027',
       cursor: 'c2',
       limit: 50,
@@ -152,12 +165,29 @@ describe('obligationsQuery', () => {
 });
 
 describe('cycleOptions', () => {
-  it('offers the current cycle, open once it has obligations', () => {
+  it('offers the opened cycles, and the current one while it has not opened', () => {
     expect(cycleOptions(summary(), undefined)).toEqual([
       { key: 'biennial:2027', label: 'Biennial 2027', opened: true },
     ]);
-    expect(cycleOptions(summary(counts()), undefined)).toEqual([
-      { key: 'biennial:2027', label: 'Biennial 2027', opened: false },
+    expect(
+      cycleOptions(
+        summary({
+          cycle: cycle(2027, false),
+          cycles: [cycle(2027, false), cycle(2029, false), cycle(2031, false)],
+        }),
+        undefined,
+      ),
+    ).toEqual([{ key: 'biennial:2027', label: 'Biennial 2027', opened: false }]);
+  });
+
+  it('offers every opened cycle, a cycle brought forward included', () => {
+    const summaryIn2029 = summary({
+      cycle: cycle(2029, true),
+      cycles: [cycle(2027, true), cycle(2029, true), cycle(2031, false)],
+    });
+    expect(cycleOptions(summaryIn2029, undefined).map((option) => option.key)).toEqual([
+      'biennial:2027',
+      'biennial:2029',
     ]);
   });
 

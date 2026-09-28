@@ -1,4 +1,4 @@
-import { cn, EmptyState, Icon } from '@adili/ui';
+import { cn, EmptyState, Icon, obligationStatusMeta } from '@adili/ui';
 import { AlertCircleIcon, Calendar03Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
@@ -8,7 +8,7 @@ import type {
 } from '../../server/declarations/client';
 import { formatDate, formatNumber } from '../format';
 import { SectionCard } from '../page';
-import { messages as m, OBLIGATION_STATUS_LABELS } from './messages';
+import { messages as m } from './messages';
 import { cycleLabel, notOnboardedCount } from './obligations-query';
 
 export interface CommissionObligationsCardProps {
@@ -59,10 +59,10 @@ export function CommissionObligationsCard({
       ) : (
         <>
           <dl className="grid grid-cols-2 gap-2.5 p-5">
-            <Count label={OBLIGATION_STATUS_LABELS.upcoming} value={counts.total.upcoming} />
-            <Count label={OBLIGATION_STATUS_LABELS.due} value={counts.total.due} />
+            <Count label={obligationStatusMeta.upcoming.label} value={counts.total.upcoming} />
+            <Count label={obligationStatusMeta.due.label} value={counts.total.due} />
             <Count
-              label={OBLIGATION_STATUS_LABELS.overdue}
+              label={obligationStatusMeta.overdue.label}
               value={counts.total.overdue}
               warn={counts.total.overdue > 0}
             />

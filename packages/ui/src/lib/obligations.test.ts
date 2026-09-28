@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   obligationCycleLabel,
+  obligationStatusLabel,
   obligationStatusMeta,
   obligationTypeLabel,
+  obligationTypeNames,
+  obligationTypeShortLabel,
   reminderChannelsLabel,
   reminderOffsetLabel,
   reminderOutcomeLabel,
@@ -15,6 +18,19 @@ describe('obligationTypeLabel', () => {
     expect(obligationTypeLabel('initial', '2027-03-10')).toBe('Initial declaration');
     expect(obligationTypeLabel('biennial', '2027-11-01')).toBe('Biennial declaration 2027');
     expect(obligationTypeLabel('final', '2027-09-15')).toBe('Final declaration');
+  });
+});
+
+describe('obligationTypeShortLabel', () => {
+  it('names each type briefly, with the cycle year for a biennial declaration', () => {
+    expect(obligationTypeShortLabel('initial', '2027-03-10')).toBe('Initial');
+    expect(obligationTypeShortLabel('biennial', '2027-11-01')).toBe('Biennial 2027');
+    expect(obligationTypeShortLabel('final', '2027-09-15')).toBe('Final');
+    expect(obligationTypeNames).toEqual({
+      initial: 'Initial',
+      biennial: 'Biennial',
+      final: 'Final',
+    });
   });
 });
 
@@ -34,6 +50,13 @@ describe('obligationStatusMeta', () => {
       overdue: { label: 'Overdue', variant: 'warning' },
       filed: { label: 'Filed', variant: 'success' },
     });
+  });
+});
+
+describe('obligationStatusLabel', () => {
+  it('words every status, cancelled too', () => {
+    expect(obligationStatusLabel('overdue')).toBe('Overdue');
+    expect(obligationStatusLabel('cancelled')).toBe('Cancelled');
   });
 });
 

@@ -4,7 +4,6 @@ import {
   Card,
   cn,
   EmptyState,
-  formatCalendarDate,
   Icon,
   Select,
   SelectItem,
@@ -38,7 +37,6 @@ import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { messages as m } from './messages';
 import {
-  biennialCycleDates,
   hasNationalObligations,
   type NationalSearch,
   type NationalSort,
@@ -60,8 +58,6 @@ export interface NationalViewProps {
   commissionLink: (row: NationalCommissionRow) => ReactNode;
   /** Offered to staff refused the page (403), e.g. their own Commission's obligations. */
   forbiddenAction?: ReactNode;
-  /** Now, as a timestamp: whether the cycle has opened yet. */
-  today: number;
 }
 
 interface Column {
@@ -104,8 +100,7 @@ export function NationalView(props: NationalViewProps) {
     );
   }
   const summary = result?.ok ? result.data : null;
-  const cycle = summary ? biennialCycleDates(summary.cycle) : null;
-  const notOpen = cycle !== null && formatCalendarDate(props.today) < cycle.opensOn;
+  const cycle = summary?.cycle ?? null;
   return (
     <Page>
       <PageHead title={m.nationalTitle}>
@@ -114,18 +109,16 @@ export function NationalView(props: NationalViewProps) {
         ) : summary ? (
           <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-secondary-foreground">
             <Icon icon={Calendar03Icon} className="size-[15px]" />
-            {cycle
-              ? m.nationalCycle(cycleLabel(summary.cycle), formatDate(cycle.dueDate))
-              : cycleLabel(summary.cycle)}
+            {m.nationalCycle(cycleLabel(summary.cycle.key), formatDate(summary.cycle.dueDate))}
           </p>
         ) : null}
       </PageHead>
       <div className="flex flex-col gap-4">
-        {summary && cycle && notOpen ? (
+        {cycle && !cycle.opened ? (
           <Alert variant="info" role="status">
             <Icon icon={InformationCircleIcon} />
             <AlertDescription>
-              {m.nationalNotOpen(cycleLabel(summary.cycle), formatDate(cycle.opensOn))}
+              {m.nationalNotOpen(cycleLabel(cycle.key), formatDate(cycle.opensOn))}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -175,7 +168,7 @@ function NationalTable({
   return (
     <>
       <div className="hidden @[760px]:block">
-        <Table caption={m.nationalCaption(cycleLabel(summary.cycle))}>
+        <Table caption={m.nationalCaption(cycleLabel(summary.cycle.key))}>
           <TableHeader>
             <TableRow>
               {COLUMNS.map((column) => (
@@ -236,7 +229,7 @@ function NationalTable({
         <NationalCards
           rows={page.rows}
           totals={totals}
-          caption={m.nationalCaption(cycleLabel(summary.cycle))}
+          caption={m.nationalCaption(cycleLabel(summary.cycle.key))}
           sort={order.sort}
           onSortChange={(sort) => {
             onSearchChange({ sort: sort === 'overdue' ? undefined : sort });

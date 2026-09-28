@@ -3,6 +3,7 @@ import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/ap
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import {
   and,
+  type AnyColumn,
   asc,
   eq,
   ilike,
@@ -39,13 +40,18 @@ import type {
   CommissionSummary,
   NationalSummary,
   ObligationPage,
+  Reminder,
   StatusCounts,
   SummaryCycle,
 } from './representation.js';
 import {
   commissionRefs,
   cycleCalendar,
+  cycleOpenings,
   filingObligations,
+  obligationReminders,
+  type ReminderChannel,
+  type ReminderOutcome,
   rosterSnapshots,
   tenantPolicyCache,
 } from './schema.js';
@@ -53,8 +59,20 @@ import {
 /** EACC's roles: counts of any Commission, never officers. */
 export const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'] as const;
 
+/** A policy's biennial statement and due dates, as month-days. */
+interface MonthDays {
+  statementDate: string;
+  dueDate: string;
+}
+
 /** The statutory biennial dates, for a Commission whose policy has not been pulled yet. */
-const STATUTORY_BIENNIAL = { statementDate: '11-01', dueDate: '12-31' } as const;
+const STATUTORY_BIENNIAL: MonthDays = { statementDate: '11-01', dueDate: '12-31' };
+
+/**
+ * The opening lead named for a cycle the calendar does not list (spec 04's default). Such a cycle
+ * never opens by date: the engine creates obligations only for calendar cycles.
+ */
+const UNLISTED_OPENING_LEAD_DAYS = 120;
 
 const SLUG = /^[a-z][a-z0-9]{1,19}$/;
 
@@ -63,6 +81,42 @@ const OPEN_STATUSES = ['upcoming', 'due', 'overdue'] as const;
 /** Statuses a summary counts: every one but `cancelled`. */
 type CountedStatus = Exclude<ObligationStatus, 'cancelled'>;
 const COUNTED_STATUSES = ['upcoming', 'due', 'overdue', 'filed'] as const;
+
+/** An obligation's latest reminder (by scheduled time) as JSON, times in epoch milliseconds. */
+interface LastReminderRow {
+  offsetDays: number;
+  scheduledAt: number;
+  sentAt: number | null;
+  channels: ReminderChannel[];
+  outcome: ReminderOutcome;
+}
+
+const epochMs = (column: AnyColumn) => sql`floor(extract(epoch from ${column}) * 1000)::bigint`;
+
+const lastReminderColumn = sql<LastReminderRow | null>`(
+  select json_build_object(
+    'offsetDays', ${obligationReminders.offsetDays},
+    'scheduledAt', ${epochMs(obligationReminders.scheduledAt)},
+    'sentAt', ${epochMs(obligationReminders.sentAt)},
+    'channels', ${obligationReminders.channels},
+    'outcome', ${obligationReminders.outcome}
+  )
+  from ${obligationReminders}
+  where ${obligationReminders.obligationId} = ${filingObligations.id}
+  order by ${obligationReminders.scheduledAt} desc, ${obligationReminders.offsetDays} asc
+  limit 1
+)`;
+
+function toReminder(row: LastReminderRow | null): Reminder | null {
+  if (row === null) return null;
+  return {
+    offsetDays: row.offsetDays,
+    scheduledAt: new Date(row.scheduledAt).toISOString(),
+    sentAt: row.sentAt === null ? null : new Date(row.sentAt).toISOString(),
+    channels: row.channels,
+    outcome: row.outcome,
+  };
+}
 
 /** Ranks overdue obligations before the rest, the list's first ordering key. */
 const overdueRank = sql<number>`(case when ${filingObligations.status} = 'overdue' then 0 else 1 end)`;
@@ -101,7 +155,12 @@ export class CommissionObligationsService {
         .from(tenantPolicyCache)
         .where(eq(tenantPolicyCache.tenant, slug));
       const biennial = cached?.policy.biennial ?? STATUTORY_BIENNIAL;
-      const year = await this.cycleYear(tx, query.cycle, biennial);
+      const { counted, cycles } = await this.cycles(tx, {
+        asked: query.cycle,
+        biennial,
+        tenant: slug,
+      });
+      const year = Number(counted.statementDate.slice(0, 4));
 
       const rows = await tx.execute<{
         kind: 'count' | 'not-onboarded';
@@ -147,7 +206,8 @@ export class CommissionObligationsService {
       const issuerCode = reference?.issuerCode ?? slug.toUpperCase();
       return {
         commission: { slug, issuerCode, name: reference?.name ?? issuerCode },
-        cycle: cycleOf(year, biennial),
+        cycle: counted,
+        cycles,
         total,
         byType,
         notOnboarded,
@@ -185,6 +245,7 @@ export class CommissionObligationsService {
           fullName: rosterSnapshots.fullName,
           personId: rosterSnapshots.personId,
           ofr: rosterSnapshots.ofr,
+          lastReminder: lastReminderColumn,
         })
         .from(filingObligations)
         .innerJoin(
@@ -216,6 +277,7 @@ export class CommissionObligationsService {
             onboarded: row.personId !== null,
             ofr: row.ofr,
           },
+          lastReminder: toReminder(row.lastReminder),
         })),
         nextCursor:
           rows.length > query.limit && last
@@ -240,7 +302,11 @@ export class CommissionObligationsService {
       this.db,
       { tenant: PLATFORM_TENANT, subject: principal.subject },
       async (tx) => {
-        const year = await this.cycleYear(tx, query.cycle, STATUTORY_BIENNIAL);
+        const { counted } = await this.cycles(tx, {
+          asked: query.cycle,
+          biennial: STATUTORY_BIENNIAL,
+        });
+        const year = Number(counted.statementDate.slice(0, 4));
         const rows = await tx.execute<{
           slug: string;
           issuer_code: string;
@@ -304,31 +370,53 @@ export class CommissionObligationsService {
                 : new Date(row.last_roster_import_at).toISOString(),
           };
         });
-        return { cycle: `biennial:${String(year)}`, commissions, totals };
+        return { cycle: counted, commissions, totals };
       },
     );
   }
 
   /**
-   * The asked-for cycle's year, or the current cycle's: the latest one opened by today, or the
-   * first of the calendar while none has opened.
+   * The calendar's cycles under `biennial` dates, oldest first, and the one counted: the asked-for
+   * cycle, or the current one (the latest opened, or the first of the calendar while none has).
+   * A cycle has opened once its opening day has come (Africa/Nairobi) or its biennials were created
+   * (a `cycle_openings` row of `tenant`, or of any Commission for the national summary).
    */
-  private async cycleYear(
+  private async cycles(
     tx: Transaction,
-    cycle: string | undefined,
-    biennial: { statementDate: string; dueDate: string },
-  ): Promise<number> {
-    const asked = cycle === undefined ? undefined : BIENNIAL_CYCLE_KEY.exec(cycle)?.[1];
-    if (asked !== undefined) return Number(asked);
+    {
+      asked,
+      biennial,
+      tenant,
+    }: { asked: string | undefined; biennial: MonthDays; tenant?: string },
+  ): Promise<{ counted: SummaryCycle; cycles: SummaryCycle[] }> {
     const calendar = await tx.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
+    const openings = await tx
+      .selectDistinct({ cycleYear: cycleOpenings.cycleYear })
+      .from(cycleOpenings)
+      .where(tenant === undefined ? undefined : eq(cycleOpenings.tenant, tenant));
+    const openedYears = new Set(openings.map((row) => row.cycleYear));
     const today = nairobiDate(this.clock.now());
-    const opened = calendar.filter(
-      (entry) =>
-        addDays(atMonthDay(entry.cycleYear, biennial.statementDate), -entry.openingLeadDays) <=
-        today,
-    );
-    const current = opened.at(-1) ?? calendar[0];
-    return current?.cycleYear ?? Number(today.slice(0, 4));
+    /** `listed`: whether the calendar has the cycle, so that it opens by date. */
+    const cycleIn = (year: number, openingLeadDays: number, listed = true): SummaryCycle => {
+      const dates = cycleOf(year, biennial);
+      const opensOn = addDays(dates.statementDate, -openingLeadDays);
+      return { ...dates, opensOn, opened: (listed && opensOn <= today) || openedYears.has(year) };
+    };
+    const cycles = calendar.map((entry) => cycleIn(entry.cycleYear, entry.openingLeadDays));
+
+    const askedYear = asked === undefined ? undefined : BIENNIAL_CYCLE_KEY.exec(asked)?.[1];
+    if (askedYear !== undefined) {
+      const key = `biennial:${askedYear}`;
+      const counted =
+        cycles.find((entry) => entry.key === key) ??
+        cycleIn(Number(askedYear), UNLISTED_OPENING_LEAD_DAYS, false);
+      return { counted, cycles };
+    }
+    const counted =
+      cycles.filter((entry) => entry.opened).at(-1) ??
+      cycles[0] ??
+      cycleIn(Number(today.slice(0, 4)), UNLISTED_OPENING_LEAD_DAYS, false);
+    return { counted, cycles };
   }
 }
 
@@ -389,8 +477,8 @@ function listFilters(query: ListCommissionObligationsQuery): (SQL | undefined)[]
 /** A biennial cycle's key and dates under the policy's month-days. */
 export function cycleOf(
   year: number,
-  biennial: { statementDate: string; dueDate: string },
-): SummaryCycle {
+  biennial: MonthDays,
+): Pick<SummaryCycle, 'key' | 'statementDate' | 'dueDate'> {
   return {
     key: `biennial:${String(year)}`,
     statementDate: atMonthDay(year, biennial.statementDate),

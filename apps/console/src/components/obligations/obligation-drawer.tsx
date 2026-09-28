@@ -13,6 +13,10 @@ import {
   DrawerTitle,
   formatLongDate,
   Icon,
+  obligationTypeLabel,
+  reminderChannelsLabel,
+  reminderOffsetLabel,
+  reminderOutcomeLabel,
   Skeleton,
   Tooltip,
 } from '@adili/ui';
@@ -34,12 +38,7 @@ import type {
 import { formatDate, formatDateTime } from '../format';
 import { DetailItem, DetailList } from '../page';
 import { ObligationStatusBadge, OnboardedBadge } from './obligation-badges';
-import {
-  messages as m,
-  obligationTypeLong,
-  reminderChannelsText,
-  reminderOutcomeLabel,
-} from './messages';
+import { messages as m } from './messages';
 
 const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } as const;
 
@@ -78,7 +77,7 @@ export function ObligationDrawer({
           <DrawerHeader>
             <DrawerTitle>{obligation.officer.fullName}</DrawerTitle>
             <DrawerDescription>
-              {obligationTypeLong(obligation.type, obligation.cycleKey)}
+              {obligationTypeLabel(obligation.type, obligation.statementDate)}
             </DrawerDescription>
           </DrawerHeader>
           <DrawerBody>
@@ -156,7 +155,7 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
           </span>
         </DetailItem>
         <DetailItem term={m.type}>
-          {obligationTypeLong(obligation.type, obligation.cycleKey)}
+          {obligationTypeLabel(obligation.type, obligation.statementDate)}
         </DetailItem>
         <DetailItem term={m.commission}>
           {commission.name}{' '}
@@ -260,7 +259,7 @@ function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDeta
               className="border-b last:border-b-0"
             >
               <th scope="row" className="py-2.5 pr-4 text-left font-normal whitespace-nowrap">
-                {m.offsetDays(reminder.offsetDays)}
+                {reminderOffsetLabel(reminder.offsetDays)}
               </th>
               <td className="py-2.5 pr-4 whitespace-nowrap">{formatDate(reminder.scheduledAt)}</td>
               <td className="py-2.5 pr-4 whitespace-nowrap">
@@ -270,7 +269,9 @@ function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDeta
                   m.noValue
                 )}
               </td>
-              <td className="py-2.5 pr-4 whitespace-nowrap">{reminderChannelsText(reminder)}</td>
+              <td className="py-2.5 pr-4 whitespace-nowrap">
+                {reminderChannelsLabel(reminder.channels)}
+              </td>
               <td className="py-2.5 align-top">
                 <Outcome reminder={reminder} />
               </td>
@@ -298,7 +299,7 @@ function Outcome({ reminder }: { reminder: Reminder }) {
   return (
     <span className={`inline-flex items-start gap-1.5 font-medium ${style.className}`}>
       <Icon icon={style.icon} strokeWidth={2.2} className="mt-0.5 size-3.5 shrink-0" />
-      <span>{reminderOutcomeLabel(reminder)}</span>
+      <span>{reminderOutcomeLabel(reminder.outcome, reminder.channels)}</span>
     </span>
   );
 }

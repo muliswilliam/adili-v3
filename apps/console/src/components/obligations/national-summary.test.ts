@@ -5,7 +5,6 @@ import type {
   NationalObligationsSummary,
 } from '../../server/declarations/client';
 import {
-  biennialCycleDates,
   hasNationalObligations,
   NATIONAL_PAGE_SIZE,
   nationalPage,
@@ -136,7 +135,13 @@ describe('S16 national summary: URL', () => {
 
 describe('S16 national summary: totals and pages', () => {
   const summary: NationalObligationsSummary = {
-    cycle: 'biennial:2027',
+    cycle: {
+      key: 'biennial:2027',
+      statementDate: '2027-11-01',
+      dueDate: '2027-12-31',
+      opensOn: '2027-07-04',
+      opened: true,
+    },
     commissions: [npsc, tsc, psc, jsc, caj],
     totals: { upcoming: 0, due: 1_472, overdue: 1_820, filed: 0 },
   };
@@ -174,17 +179,5 @@ describe('S16 national summary: totals and pages', () => {
       to: NATIONAL_PAGE_SIZE + 3,
     });
     expect(last.rows).toHaveLength(3);
-  });
-});
-
-describe('S16 national summary: cycle', () => {
-  it('opens a biennial cycle 120 days before its statement date', () => {
-    expect(biennialCycleDates('biennial:2027')).toEqual({
-      year: '2027',
-      opensOn: '2027-07-04',
-      statementDate: '2027-11-01',
-      dueDate: '2027-12-31',
-    });
-    expect(biennialCycleDates('initial:2027-03-10')).toBeNull();
   });
 });

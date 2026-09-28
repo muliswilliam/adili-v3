@@ -23,6 +23,15 @@ const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0) => ({
   filed,
 });
 
+/** A biennial cycle under the statutory dates. */
+const cycle = (year: number, opened: boolean) => ({
+  key: `biennial:${String(year)}`,
+  statementDate: `${String(year)}-11-01`,
+  dueDate: `${String(year)}-12-31`,
+  opensOn: `${String(year)}-07-04`,
+  opened,
+});
+
 function summary(
   overrides: Partial<CommissionObligationsSummary> = {},
 ): DeclarationsResult<CommissionObligationsSummary> {
@@ -30,7 +39,8 @@ function summary(
     ok: true,
     data: {
       commission: PSC,
-      cycle: { key: 'biennial:2027', statementDate: '2027-11-01', dueDate: '2027-12-31' },
+      cycle: cycle(2027, true),
+      cycles: [cycle(2027, true), cycle(2029, false), cycle(2031, false)],
       total: counts(1_204, 18, 7),
       byType: { initial: counts(0, 14, 5), biennial: counts(1_204, 0, 0), final: counts(0, 4, 2) },
       notOnboarded: { due: 9, overdue: 4 },
@@ -52,6 +62,7 @@ function obligation(overrides: Partial<ObligationListItem> = {}): ObligationList
     remindersSent: 3,
     policyVersion: 1,
     createdAt: '2026-08-21T06:00:00Z',
+    lastReminder: null,
     officer: {
       rosterRecordId: '0199a0b4-0000-7000-8000-0000000000a1',
       personnelFileNumber: 'PSC/2009/0412',
@@ -190,13 +201,23 @@ describe('S23 summary tiles', () => {
     expect(screen.queryByRole('button', { name: /^Overdue/ })).toBeNull();
   });
 
-  it('says what the current cycle is, and that it is not open yet before it has obligations', () => {
+  it('says what the current cycle is, and when it opens while it has not', () => {
     renderView({
-      summary: summary({ byType: { initial: counts(), biennial: counts(), final: counts() } }),
+      summary: summary({
+        cycle: { ...cycle(2027, false), opensOn: '2027-06-15' },
+        byType: { initial: counts(), biennial: counts(), final: counts() },
+      }),
     });
     expect(screen.getByText('Biennial 2027 · statement 1 Nov 2027 · due 31 Dec 2027')).toBeTruthy();
     expect(screen.getByText('Public Service Commission')).toBeTruthy();
-    expect(screen.getByText('Not open yet')).toBeTruthy();
+    expect(screen.getByText('Not open yet').getAttribute('title')).toBe(
+      "The cycle's obligations are created on 15 Jun 2027.",
+    );
+  });
+
+  it('says nothing of opening once the cycle has opened', () => {
+    renderView();
+    expect(screen.queryByText('Not open yet')).toBeNull();
   });
 
   it('shows the counts failing to load as an alert with retry, and keeps the list', () => {
@@ -266,6 +287,28 @@ describe('S23 obligations list', () => {
     expect(second.getByText('No')).toBeTruthy();
     expect(second.getByText('Opens 1 November 2027')).toBeTruthy();
     expect(screen.getByText('All 2 obligations shown')).toBeTruthy();
+  });
+
+  it("tells the reminders sent and the last one's outcome on focus", async () => {
+    renderView({
+      list: page([
+        obligation({
+          remindersSent: 1,
+          lastReminder: {
+            offsetDays: 7,
+            scheduledAt: '2026-09-12T09:00:00Z',
+            sentAt: null,
+            channels: [],
+            outcome: 'skipped-no-contact',
+          },
+        }),
+      ]),
+    });
+    fireEvent.focus(within(table()).getByLabelText('1 reminder sent'));
+    const tip = await screen.findByRole('tooltip');
+    expect(tip.textContent).toBe(
+      '1 reminder sentLast, 7 days before: Skipped: no contact detailsOpen the officer for the reminder history.',
+    );
   });
 
   it('shows placeholder rows while the first page loads', () => {
@@ -366,9 +409,9 @@ describe('obligation drawer', () => {
     expect(loadObligation).toHaveBeenCalledWith(obligation().id);
     const rows = within(history).getAllByRole('row').slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      '14 days before5 Sep 20265 Sep 2026SMS, emailSent by SMS and email',
+      '14 days before5 Sep 20265 Sep 2026SMS, EmailSent by SMS and email',
       '7 days before12 Sep 2026--Skipped: no contact details',
-      '30 days before20 Aug 2026--Skipped: date had passed when the obligation was created',
+      '30 days before20 Aug 2026--Skipped: the date had passed when this obligation was created',
     ]);
     expect(within(drawer).getByRole('link', { name: 'Roster record' }).getAttribute('href')).toBe(
       `/roster/records/${obligation().officer.rosterRecordId}`,

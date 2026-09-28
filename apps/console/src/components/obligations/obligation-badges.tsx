@@ -1,23 +1,13 @@
-import { Badge, Icon, StatusBadge, type StatusBadgeVariant } from '@adili/ui';
+import { Badge, Icon, obligationStatusLabel, obligationStatusMeta, StatusBadge } from '@adili/ui';
 import { MinusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 
 import type { ObligationStatus } from '../../server/declarations/client';
-import { messages as m, OBLIGATION_STATUS_LABELS } from './messages';
+import { messages as m } from './messages';
 
-/** Spec 04: upcoming neutral, due info, overdue warning, filed success. */
-export const STATUS_VARIANTS: Record<ObligationStatus, StatusBadgeVariant> = {
-  upcoming: 'neutral',
-  due: 'info',
-  overdue: 'warning',
-  filed: 'success',
-  cancelled: 'neutral',
-};
-
-/** An obligation's status as a badge with its word. */
+/** An obligation's status as a badge with its word (spec 04: the variants of the shared table). */
 export function ObligationStatusBadge({ status }: { status: ObligationStatus }) {
-  return (
-    <StatusBadge variant={STATUS_VARIANTS[status]}>{OBLIGATION_STATUS_LABELS[status]}</StatusBadge>
-  );
+  const variant = status === 'cancelled' ? 'neutral' : obligationStatusMeta[status].variant;
+  return <StatusBadge variant={variant}>{obligationStatusLabel(status)}</StatusBadge>;
 }
 
 /** Whether the officer has onboarded: "Yes" with a tick, or a plain "No". */

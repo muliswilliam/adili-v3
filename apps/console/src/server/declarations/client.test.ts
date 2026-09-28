@@ -24,7 +24,7 @@ describe('createDeclarationsClient', () => {
       },
     });
     await client.GET('/v1/commissions/{slug}/obligations', {
-      params: { path: { slug: 'psc' }, query: { status: 'overdue', onboarded: false } },
+      params: { path: { slug: 'psc' }, query: { status: 'overdue', onboarded: 'false' } },
     });
     const request = seen[0];
     expect(request?.url).toBe(

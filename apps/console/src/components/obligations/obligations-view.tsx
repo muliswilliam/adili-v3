@@ -153,7 +153,6 @@ function CycleLine({
   }
   if (!summary.ok) return null;
   const { commission, cycle } = summary.data;
-  const opened = cycleOptions(summary.data, undefined)[0]?.opened ?? false;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-muted-foreground">
       <span>{commission.name}</span>
@@ -166,8 +165,8 @@ function CycleLine({
           formatDate(cycle.dueDate),
         )}
       </span>
-      {opened ? null : (
-        <Badge title={m.cycleNotOpenHint} className="-my-0.5">
+      {cycle.opened ? null : (
+        <Badge title={m.cycleNotOpenHint(formatDate(cycle.opensOn))} className="-my-0.5">
           {m.cycleNotOpen}
         </Badge>
       )}

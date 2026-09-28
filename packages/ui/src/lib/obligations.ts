@@ -27,6 +27,9 @@ export const obligationMessages = {
   initial: 'Initial declaration',
   biennial: (year: string) => `Biennial declaration ${year}`,
   final: 'Final declaration',
+  typeInitial: 'Initial',
+  typeBiennial: 'Biennial',
+  typeFinal: 'Final',
   cycleInitial: (date: string) => `Appointment on ${date}`,
   cycleBiennial: (year: string) => `Biennial ${year}`,
   cycleFinal: (date: string) => `Exit on ${date}`,
@@ -34,6 +37,7 @@ export const obligationMessages = {
   due: 'Due',
   overdue: 'Overdue',
   filed: 'Filed',
+  cancelled: 'Cancelled',
   sentBoth: 'Sent by SMS and email',
   sentSms: 'Sent by SMS',
   sentEmail: 'Sent by email',
@@ -61,6 +65,19 @@ export function obligationTypeLabel(type: ObligationType, statementDate: string)
   return type === 'initial' ? m.initial : m.final;
 }
 
+/** The types as short names, e.g. for a filter or a count breakdown. */
+export const obligationTypeNames: Record<ObligationType, string> = {
+  initial: m.typeInitial,
+  biennial: m.typeBiennial,
+  final: m.typeFinal,
+};
+
+/** The type as a table cell: "Initial", "Biennial 2027" or "Final". */
+export function obligationTypeShortLabel(type: ObligationType, statementDate: string): string {
+  if (type === 'biennial') return m.cycleBiennial(statementDate.slice(0, 4));
+  return obligationTypeNames[type];
+}
+
 /** What started the duty: "Appointment on 10 Mar 2027", "Biennial 2027", "Exit on 15 Sep 2027". */
 export function obligationCycleLabel(type: ObligationType, statementDate: string): string {
   if (type === 'biennial') return m.cycleBiennial(statementDate.slice(0, 4));
@@ -78,6 +95,11 @@ export const obligationStatusMeta: Record<
   overdue: { label: m.overdue, variant: 'warning' },
   filed: { label: m.filed, variant: 'success' },
 };
+
+/** A status's word, `cancelled` included (staff may open a cancelled obligation). */
+export function obligationStatusLabel(status: ObligationStatus): string {
+  return status === 'cancelled' ? m.cancelled : obligationStatusMeta[status].label;
+}
 
 /** A reminder's outcome in plain words, naming the channels it went by when sent. */
 export function reminderOutcomeLabel(
