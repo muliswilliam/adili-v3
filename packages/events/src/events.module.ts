@@ -1,4 +1,5 @@
 import {
+  type BeforeApplicationShutdown,
   type DynamicModule,
   Inject,
   Injectable,
@@ -30,9 +31,11 @@ const RELAY_IDLE_MS = 500;
  * Delivery is at-least-once; consumers deduplicate with `consumeOnce`.
  */
 @Injectable()
-export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdown {
+export class OutboxRelay implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger(OutboxRelay.name);
   private timer: NodeJS.Timeout | undefined;
+  /** The batch in flight, if any; settles once its transaction has ended. */
+  private batch: Promise<void> | undefined;
   private stopped = false;
 
   constructor(
@@ -44,15 +47,20 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
     this.schedule(0);
   }
 
-  onApplicationShutdown(): void {
+  /**
+   * Finishes the batch in flight before the events client closes on application shutdown: a
+   * publish racing that close never settles, holding its transaction and a pooled connection.
+   */
+  async beforeApplicationShutdown(): Promise<void> {
     this.stopped = true;
     clearTimeout(this.timer);
+    await this.batch;
   }
 
   private schedule(delayMs: number): void {
     if (this.stopped) return;
     this.timer = setTimeout(() => {
-      this.relayBatch()
+      this.batch = this.relayBatch()
         .then((full) => {
           this.schedule(full ? 0 : RELAY_IDLE_MS);
         })
