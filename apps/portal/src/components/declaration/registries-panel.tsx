@@ -58,6 +58,7 @@ import {
   findMatch,
   isChecking,
   lastChecked,
+  listedDirectorship,
   REGISTRIES,
   registryEntries,
   type ShownSuggestion,
@@ -98,6 +99,8 @@ export const REGISTRY_COPY = {
   addValue: (type: string) => `${type} · add the value yourself`,
   officerTax: 'Shown in Your details',
   spouseTax: (first: string) => `Adds to ${first}'s details in Household`,
+  interest: 'Adds to your registrable interests in Other information',
+  listedInterest: (company: string) => `Your directorship in ${company}`,
   ownKraPin: 'your KRA PIN',
   theirKraPin: (first: string) => `${first}'s KRA PIN`,
   apply: 'Apply',
@@ -129,6 +132,8 @@ export interface RegistryPerson {
   hasId: boolean;
   /** A spouse's KRA PIN as Household has it. */
   kraPin?: string;
+  /** The officer's paragraph 9 directorships as Other information has them. */
+  directorships?: readonly { company?: string; role?: string }[];
 }
 
 export interface RegistriesPanelProps {
@@ -386,6 +391,46 @@ export function RegistriesPanel({
                   );
                 }
           }
+        />
+      );
+    }
+
+    if (suggestionKind(suggestion.itemType).target === 'interest') {
+      const acceptedAs = 'added' as const;
+      const listed = listedDirectorship(suggestion, person.directorships ?? []);
+      const match: SuggestionMatch | undefined = listed
+        ? {
+            title: REGISTRY_COPY.listedInterest(listed.company?.trim() ?? ''),
+            fills: emptyFieldDiff(fields, { company: listed.company, role: listed.role }),
+          }
+        : undefined;
+      // Already listed: adding would duplicate it, so the card only says where it is.
+      return (
+        <SuggestionCard
+          key={suggestion.id}
+          {...common}
+          acceptedAs={acceptedAs}
+          description={match ? undefined : REGISTRY_COPY.interest}
+          fields={fields}
+          match={match}
+          {...(match
+            ? {}
+            : {
+                onAdd: () => {
+                  void run(
+                    each,
+                    { fields: suggestion.fields, applyToItemId: null },
+                    {
+                      done: REGISTRY_COPY.addedEdited,
+                      refreshed: REGISTRY_COPY.refreshedAdded,
+                      applied: false,
+                    },
+                  );
+                },
+                onEditAndAdd: () => {
+                  setEditing(each);
+                },
+              })}
         />
       );
     }

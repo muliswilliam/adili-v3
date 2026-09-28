@@ -1,7 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 
-import type { Draft, Household, PersonName } from '../../../../declaration/contents';
+import type {
+  Draft,
+  Household,
+  OtherInformation,
+  PersonName,
+} from '../../../../declaration/contents';
 import { fullName } from '../../../../declaration/format';
 import type { RegistryPerson } from '../../../../components/declaration/registries-panel';
 import {
@@ -52,6 +57,21 @@ async function householdEntry(
   return child ? { separated: false, nationalId: child.nationalId } : null;
 }
 
+/**
+ * The officer's paragraph 9 directorships, so a BRS directorship already listed is not offered
+ * again. None for anyone else, or when Other information cannot be read.
+ */
+async function listedDirectorships(
+  declarationId: string,
+  personKey: string,
+): Promise<RegistryPerson['directorships']> {
+  if (personKey !== 'officer') return [];
+  const result = await getDeclarationSection({ data: { declarationId, sectionKey: 'other' } });
+  if (result.status !== 'ok') return [];
+  const other = result.section.contents as Draft<OtherInformation>;
+  return other.registrableInterests?.directorships ?? [];
+}
+
 /** The person's registry suggestion sets; none when they cannot be read. */
 async function suggestionSets(
   declarationId: string,
@@ -65,6 +85,7 @@ function registryPerson(
   personKey: string,
   name: Draft<PersonName> | undefined,
   entry: HouseholdEntry | null,
+  directorships: RegistryPerson['directorships'],
 ): RegistryPerson {
   const fallback = personKey.startsWith('spouse:') ? 'your spouse' : 'this child';
   const nationalId = entry?.nationalId?.trim();
@@ -76,6 +97,7 @@ function registryPerson(
     // The officer's ID is on record from onboarding, though the portal cannot see it.
     hasId: personKey === 'officer' || Boolean(nationalId),
     kraPin: entry?.kraPin,
+    directorships,
   };
 }
 
@@ -83,19 +105,20 @@ export const Route = createFileRoute('/declarations/$id/statements/$personKey')(
   validateSearch: z.object({ errors: z.boolean().optional() }),
   loader: async ({ params, location }) => {
     const load = await loadSectionFor(params.id, statementKey(params.personKey), location.href);
-    if (load.status !== 'ok') return { load, entry: null, sets: [] };
-    const [entry, sets] = await Promise.all([
+    if (load.status !== 'ok') return { load, entry: null, sets: [], directorships: [] };
+    const [entry, sets, directorships] = await Promise.all([
       householdEntry(params.id, params.personKey),
       suggestionSets(params.id, params.personKey),
+      listedDirectorships(params.id, params.personKey),
     ]);
-    return { load, entry, sets };
+    return { load, entry, sets, directorships };
   },
   head: () => ({ meta: [{ title: 'Financial statement · Adili Online' }] }),
   component: StatementRoute,
 });
 
 function StatementRoute() {
-  const { load, entry, sets } = Route.useLoaderData();
+  const { load, entry, sets, directorships } = Route.useLoaderData();
   const { personKey } = Route.useParams();
   const { errors } = Route.useSearch();
   if (load.status === 'unavailable') return <SectionUnavailable />;
@@ -109,7 +132,7 @@ function StatementRoute() {
         separated={personKey.startsWith('spouse:') && entry?.separated === true}
         showErrors={errors === true}
         renderAttachments={renderItemAttachments}
-        registries={{ person: registryPerson(personKey, name, entry), sets }}
+        registries={{ person: registryPerson(personKey, name, entry, directorships), sets }}
       />
     </AttachmentUploadsProvider>
   );

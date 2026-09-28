@@ -251,7 +251,11 @@ export function StatementSection({
     const itemId = suggestion.acceptedItemId;
     const category = itemId ? categoryOfItem(statement, itemId) : null;
     if (!itemId || !category) {
-      if (suggestion.sectionKey === 'household' || suggestion.sectionKey === 'bio') {
+      if (
+        suggestion.sectionKey === 'household' ||
+        suggestion.sectionKey === 'bio' ||
+        suggestion.sectionKey === 'other'
+      ) {
         void navigate(stepLink(declaration.id, suggestion.sectionKey));
       }
       return;

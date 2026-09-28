@@ -16,13 +16,16 @@ import {
   findMatch,
   isChecking,
   lastChecked,
+  listedDirectorship,
   maskKraPin,
   REGISTRIES,
   registryEntries,
   shownSuggestions,
+  suggestionKind,
   suggestionPatch,
   suggestionTitle,
   supersededBy,
+  typeWord,
   valuesAt,
   withAcceptedItem,
   withSuggestion,
@@ -49,6 +52,10 @@ const shares = {
     role: 'Shareholder',
     shares: 500,
   },
+};
+const directorship = {
+  itemType: 'directorship',
+  fields: { companyName: 'Kimumu Transporters Limited', role: 'Director' },
 };
 const kra = {
   itemType: 'bio-tax',
@@ -133,6 +140,16 @@ describe('suggestionPatch', () => {
     ]);
   });
 
+  it('maps a directorship onto a paragraph 9 entry, with no description', () => {
+    expect(suggestionTitle(directorship)).toBe('Kimumu Transporters Limited · Director');
+    expect(suggestionPatch(directorship).map(({ path, value }) => [path, value])).toEqual([
+      ['company', 'Kimumu Transporters Limited'],
+      ['role', 'Director'],
+    ]);
+    expect(suggestionKind('directorship').target).toBe('interest');
+    expect(typeWord('directorship')).toBe('Directorship');
+  });
+
   it('takes an edited description', () => {
     const edited = { ...vehicle, fields: { ...vehicle.fields, description: 'Family car' } };
     expect(suggestionPatch(edited).at(-1)?.value).toBe('Family car');
@@ -155,6 +172,16 @@ describe('applying to a matching item', () => {
     expect(findMatch(kra, [item])).toBe(null);
   });
 
+  it('finds a listed directorship by company, ignoring case and separators', () => {
+    const listed = [
+      { company: 'Rift Valley Agrovet Ltd' },
+      { company: 'KIMUMU TRANSPORTERS LIMITED' },
+    ];
+    expect(listedDirectorship(directorship, listed)).toBe(listed[1]);
+    expect(listedDirectorship(directorship, listed.slice(0, 1))).toBeUndefined();
+    expect(findMatch(directorship, [item])).toBe(null);
+  });
+
   it('lists what applying fills, for the card', () => {
     const patch = suggestionPatch(vehicle);
     const fills = emptyFieldDiff(
@@ -172,6 +199,7 @@ describe('categoryOf', () => {
     expect(categoryOf('salary-emoluments')).toBe('income');
     expect(categoryOf('loan')).toBe('liabilities');
     expect(categoryOf('bio-tax')).toBe(null);
+    expect(categoryOf('directorship')).toBe(null);
   });
 });
 
@@ -186,6 +214,11 @@ describe('edit and add', () => {
     ]);
     expect(editValue(vehicle, 'year')).toBe('2016');
     expect(editValue(vehicle, 'description')).toBe('Toyota Fielder');
+  });
+
+  it('offers a directorship’s company and role, and no description', () => {
+    expect(editFields('directorship').map((field) => field.key)).toEqual(['companyName', 'role']);
+    expect(editValue(directorship, 'role')).toBe('Director');
   });
 });
 

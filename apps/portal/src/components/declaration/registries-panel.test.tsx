@@ -544,6 +544,81 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
     ).toEqual(['Dismiss']);
   });
 
+  function kimumu() {
+    return suggestion({
+      setId: 'brs',
+      itemType: 'directorship',
+      sectionKey: 'other',
+      fields: { companyName: 'Kimumu Transporters Limited', role: 'Director' },
+      sourceRef: { registrationNumber: 'PVT-XY98ZW7Q' },
+    });
+  }
+
+  it("adds the officer's directorship to Other information and goes there from the card", async () => {
+    const directorship = kimumu();
+    acceptMock.mockResolvedValue({
+      status: 'accepted',
+      suggestion: { ...directorship, status: 'accepted' },
+      itemId: directorship.id,
+      etag: '"2"',
+    });
+    getSectionMock.mockResolvedValue({
+      status: 'ok',
+      etag: '"2"',
+      section: {
+        key: 'other',
+        completeness: 'incomplete',
+        draftVersion: 2,
+        issues: [],
+        contents: {},
+      },
+    });
+    renderPanel({ sets: [set('brs', { suggestions: [directorship] })] });
+    const title = 'Kimumu Transporters Limited · Director';
+    const card = suggestionCard(title);
+    expect(card.textContent).toContain(REGISTRY_COPY.interest);
+    expect(within(card).getByText('Company').nextSibling?.textContent).toBe(
+      'Kimumu Transporters Limited',
+    );
+
+    fireEvent.click(within(card).getByRole('button', { name: `Add: ${title}` }));
+
+    await waitFor(() => {
+      expect(acceptMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          suggestionId: directorship.id,
+          fields: directorship.fields,
+          applyToItemId: null,
+        }) as unknown,
+      });
+    });
+    expect(getSectionMock).toHaveBeenCalledWith({
+      data: { declarationId: DECLARATION_ID, sectionKey: 'other' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: `View: ${title}` }));
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/declarations/$id/other',
+      params: { id: DECLARATION_ID },
+    });
+  });
+
+  it('does not offer a directorship already listed in Other information again', () => {
+    renderPanel({
+      person: {
+        ...officer,
+        directorships: [{ company: 'KIMUMU TRANSPORTERS LIMITED', role: 'Director' }],
+      },
+      sets: [set('brs', { suggestions: [kimumu()] })],
+    });
+    const card = suggestionCard('Kimumu Transporters Limited · Director');
+    expect(card.textContent).toContain(REGISTRY_COPY.listedInterest('KIMUMU TRANSPORTERS LIMITED'));
+    expect(
+      within(card)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Dismiss']);
+  });
+
   it("applies a spouse's KRA PIN and goes to Household from the accepted card", async () => {
     const kra = suggestion({
       setId: 'kra',

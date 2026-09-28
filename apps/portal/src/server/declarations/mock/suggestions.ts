@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Draft, Household, ItemSource } from '../../../declaration/contents';
+import type { Draft, Household, ItemSource, OtherInformation } from '../../../declaration/contents';
 import { DOCUMENT_KINDS } from '../../../declaration/extraction';
 import { personKeyOf } from '../../../declaration/section-key';
 import { type Item, NIL_KEY } from '../../../declaration/statement';
@@ -8,6 +8,7 @@ import {
   categoryOf,
   declaredType,
   findMatch,
+  listedDirectorship,
   type PatchEntry,
   REGISTRIES,
   type SuggestionKind,
@@ -31,7 +32,8 @@ import { isRecord, json, problem, readJson } from '../../mock-http';
  * - A lookup needs `consent.requested` and, for a spouse or child, a national ID in Household
  *   (400 `no-id`). It answers one `pending` set per registry; each resolves a moment later (the
  *   next list after `lookupDelay`), so the portal polls as it would the service.
- * - The officer: KRA PIN and compliance, two vehicles, a shareholding and two parcels. A spouse:
+ * - The officer: KRA PIN and compliance, two vehicles, two shareholdings, two directorships (one
+ *   in a company they also hold shares in) and two parcels. A spouse:
  *   a KRA PIN, nothing at NTSA or BRS, and ArdhiSasa unavailable on the first try (the Eldoret
  *   parcel on a retry). A child: nothing anywhere.
  * - A suggestion whose identifier equals an item's in the statement gets `matchItemId` (S4).
@@ -46,7 +48,10 @@ import { isRecord, json, problem, readJson } from '../../mock-http';
  * - Accept follows the section save path: `If-Match` (428, 412), then writes the fields (new
  *   item, or the matching item's empty fields unless `overwrite`) with `source` on the item and
  *   bumps the draft version. A spouse's KRA PIN goes to Household; the officer has no KRA
- *   fields in declaration.v1, so theirs answers 400 `no-target`.
+ *   fields in declaration.v1, so theirs answers 400 `no-target`. A directorship adds a paragraph
+ *   9 registrable interest in Other information (or fills the one listed for that company).
+ *   Those entries have no id, but the contract's `itemId` is required, so the mock answers the
+ *   suggestion's id and leaves `acceptedItemId` null.
  */
 
 function isEmpty(value: unknown) {
@@ -164,6 +169,28 @@ const OFFICER: Record<Exclude<SuggestionSource, 'document'>, Fixture[]> = {
       },
       sourceRef: { registrationNumber: 'PVT-AB12CD3E' },
     },
+    // A director without shares: a directorship, not a shareholding.
+    {
+      itemType: 'directorship',
+      fields: { companyName: 'Kimumu Transporters Limited', role: 'Director' },
+      sourceRef: { registrationNumber: 'PVT-XY98ZW7Q' },
+    },
+    // A director holding shares: both.
+    {
+      itemType: 'shareholding',
+      fields: {
+        companyName: 'Eldoret Grain Millers Ltd',
+        registrationNumber: 'PVT-LM45NP6R',
+        role: 'Managing Director',
+        shares: 2000,
+      },
+      sourceRef: { registrationNumber: 'PVT-LM45NP6R' },
+    },
+    {
+      itemType: 'directorship',
+      fields: { companyName: 'Eldoret Grain Millers Ltd', role: 'Managing Director' },
+      sourceRef: { registrationNumber: 'PVT-LM45NP6R' },
+    },
   ],
   ardhisasa: [
     {
@@ -243,8 +270,31 @@ function statementItems(stored: SuggestionDraft, sectionKey: string, itemType: s
 }
 
 function suggestionSection(personKey: string, itemType: string) {
-  if (suggestionKind(itemType).target !== 'tax') return `statement:${personKey}`;
+  const { target } = suggestionKind(itemType);
+  if (target === 'interest') return 'other';
+  if (target !== 'tax') return `statement:${personKey}`;
   return personKey === 'officer' ? 'bio' : 'household';
+}
+
+/** Paragraph 9 with the directorship added, or the listed one for that company filled. */
+function withDirectorship(
+  other: Draft<OtherInformation>,
+  suggestion: { itemType: string; fields: Record<string, unknown> },
+  patch: PatchEntry[],
+  overwrite: boolean,
+): Draft<OtherInformation> {
+  const interests = other.registrableInterests ?? {};
+  const directorships = interests.directorships ?? [];
+  const listed = listedDirectorship(suggestion, directorships);
+  return {
+    ...other,
+    registrableInterests: {
+      ...interests,
+      directorships: listed
+        ? directorships.map((each) => (each === listed ? applyPatch(each, patch, overwrite) : each))
+        : [...directorships, applyPatch({}, patch, true)],
+    },
+  };
 }
 
 interface ReadField {
@@ -495,8 +545,17 @@ export async function acceptSuggestion(
   };
 
   let itemId: string;
-  const fillsTax = suggestionKind(suggestion.itemType).target === 'tax';
-  if (fillsTax) {
+  const { target } = suggestionKind(suggestion.itemType);
+  const fillsTax = target === 'tax';
+  if (target === 'interest') {
+    const other = stored.contents.get('other');
+    if (suggestion.personKey !== 'officer' || !other) {
+      return problem(400, 'There is no registrable interest to add to', 'no-target');
+    }
+    const edited = { itemType: suggestion.itemType, fields: body.fields };
+    stored.contents.set('other', withDirectorship(other, edited, patch, overwrite));
+    itemId = suggestion.id;
+  } else if (fillsTax) {
     const spouse = suggestion.personKey.startsWith('spouse:')
       ? person(stored, suggestion.personKey)
       : undefined;
@@ -546,7 +605,7 @@ export async function acceptSuggestion(
   }
 
   suggestion.status = 'accepted';
-  suggestion.acceptedItemId = itemId;
+  suggestion.acceptedItemId = target === 'interest' ? null : itemId;
   const etag = commit(fillsTax ? 'household' : suggestion.sectionKey);
   const accepted: Suggestion = { ...suggestion };
   return json(200, { suggestion: accepted, itemId, etag }, { ETag: etag });

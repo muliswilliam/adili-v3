@@ -154,6 +154,9 @@ describe('registry lookups (S1, S2)', () => {
       ['vehicle', 'statement:officer'],
       ['vehicle', 'statement:officer'],
       ['shareholding', 'statement:officer'],
+      ['directorship', 'other'],
+      ['shareholding', 'statement:officer'],
+      ['directorship', 'other'],
       ['land', 'statement:officer'],
       ['land', 'statement:officer'],
     ]);
@@ -212,6 +215,17 @@ describe('registry lookups (S1, S2)', () => {
 
   it('has nothing for a child', () => {
     expect(registryAnswer(`child:${CHILD}`, 'ntsa', 0)).toEqual([]);
+  });
+
+  it('gives a director without shares a directorship only, and one with shares both', () => {
+    const brs = registryAnswer('officer', 'brs', 0);
+    if (brs === 'unavailable') throw new Error(brs);
+    const byCompany = (company: string) =>
+      brs.filter((each) => each.fields.companyName === company).map((each) => each.itemType);
+
+    expect(byCompany('Kimumu Transporters Limited')).toEqual(['directorship']);
+    expect(byCompany('Eldoret Grain Millers Ltd')).toEqual(['shareholding', 'directorship']);
+    expect(registryAnswer(`spouse:${SPOUSE}`, 'brs', 0)).toEqual([]);
   });
 });
 
@@ -379,6 +393,82 @@ describe('accepting a suggestion (S4)', () => {
         applyToItemId: null,
       }),
     ).toEqual({ status: 'rejected', code: 'no-target' });
+  });
+});
+
+describe('accepting a directorship', () => {
+  async function directorship(declarationId: string, company: string) {
+    await lookup(declarationId, { systems: ['brs'] });
+    const found = all(await sets(declarationId)).find(
+      (each) => each.itemType === 'directorship' && each.fields.companyName === company,
+    );
+    if (!found) throw new Error(`No directorship in ${company}`);
+    return found;
+  }
+
+  async function directorships(declarationId: string) {
+    const other = await loadSection(client, declarationId, 'other');
+    if (other.status !== 'ok') throw new Error(other.status);
+    return (other.section.contents.registrableInterests as { directorships?: unknown[] })
+      .directorships;
+  }
+
+  it('adds a paragraph 9 directorship, not a statement item', async () => {
+    const { declarationId } = await start();
+    const suggestion = await directorship(declarationId, 'Kimumu Transporters Limited');
+    const before = await loadSection(client, declarationId, 'statement:officer');
+
+    const outcome = await acceptSuggestion(client, {
+      declarationId,
+      suggestionId: suggestion.id,
+      ifMatch: await etagOf(declarationId),
+      fields: suggestion.fields,
+      applyToItemId: null,
+    });
+
+    if (outcome.status !== 'accepted') throw new Error(outcome.status);
+    expect(outcome.suggestion).toMatchObject({ status: 'accepted', acceptedItemId: null });
+    // Whether it is remunerated stays for the declarant to answer.
+    expect(await directorships(declarationId)).toEqual([
+      { company: 'Kimumu Transporters Limited', role: 'Director' },
+    ]);
+    const other = await loadSection(client, declarationId, 'other');
+    if (other.status !== 'ok') throw new Error(other.status);
+    expect(other.section.issues?.map((issue) => issue.path)).toContain(
+      '/registrableInterests/directorships/0',
+    );
+    const after = await loadSection(client, declarationId, 'statement:officer');
+    if (before.status !== 'ok' || after.status !== 'ok') throw new Error('statement unreadable');
+    expect(after.section.contents).toEqual(before.section.contents);
+  });
+
+  it('fills the directorship listed for the same company instead of adding another', async () => {
+    const { declarationId, etag } = await start();
+    const saved = await saveSection(client, {
+      declarationId,
+      sectionKey: 'other',
+      ifMatch: etag,
+      contents: {
+        registrableInterests: {
+          directorships: [{ company: 'KIMUMU TRANSPORTERS LIMITED', remunerated: false }],
+        },
+      },
+    });
+    if (saved.status !== 'saved') throw new Error(saved.status);
+    const suggestion = await directorship(declarationId, 'Kimumu Transporters Limited');
+
+    const outcome = await acceptSuggestion(client, {
+      declarationId,
+      suggestionId: suggestion.id,
+      ifMatch: await etagOf(declarationId),
+      fields: suggestion.fields,
+      applyToItemId: null,
+    });
+
+    expect(outcome.status).toBe('accepted');
+    expect(await directorships(declarationId)).toEqual([
+      { company: 'KIMUMU TRANSPORTERS LIMITED', remunerated: false, role: 'Director' },
+    ]);
   });
 });
 

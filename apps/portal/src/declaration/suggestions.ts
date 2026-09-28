@@ -21,10 +21,13 @@ import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
  * and 10), so this module fixes the field names per item type, as the mock emits them:
  * - `vehicle`: registration, make, model, year
  * - `land`: parcelNumber, size, location, county (a county code)
- * - `shareholding` (BRS; the spec's `investment`, which declaration.v1 does not have):
- *   companyName, registrationNumber, role, shares
+ * - `shareholding` (BRS, shares held; the spec's `investment`, which declaration.v1 does not
+ *   have): companyName, registrationNumber, role, shares
+ * - `directorship` (BRS, the officer's director roles): companyName, role. It adds a paragraph 9
+ *   registrable interest in Other information, not a statement item.
  * - `bio-tax` (KRA): kraPin, complianceStatus
- * Any type may also carry `description`, which the declarant can edit before adding.
+ * Any statement item type may also carry `description`, which the declarant can edit before
+ * adding.
  *
  * From those it composes the card's title, the item fields a suggestion fills (the same paths
  * the mock writes on accept), and each registry's status in a person's check.
@@ -104,9 +107,12 @@ type Fields = Record<string, unknown>;
  * document kind "Read into the form" offers first.
  */
 export interface SuggestionKind {
-  key: 'vehicle' | 'land' | 'shares' | 'bank' | 'tax' | 'other';
-  /** `tax` fills a person's tax fields (`bio-tax`) rather than adding a statement item. */
-  target: 'item' | 'tax';
+  key: 'vehicle' | 'land' | 'shares' | 'directorship' | 'bank' | 'tax' | 'other';
+  /**
+   * `tax` fills a person's tax fields (`bio-tax`) and `interest` adds a paragraph 9 registrable
+   * interest (`directorship`), rather than adding a statement item.
+   */
+  target: 'item' | 'tax' | 'interest';
   /** The title from the fields, or '' when they say nothing usable. */
   title: (fields: Fields) => string;
   /** The item fields it fills, before the description. */
@@ -202,6 +208,22 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     ],
     documentKind: 'share-certificate',
   },
+  directorship: {
+    key: 'directorship',
+    target: 'interest',
+    title: (fields) => joined([fieldText(fields.companyName), fieldText(fields.role)], ' · '),
+    patch: (fields) => [
+      ...entry('company', 'Company', fieldText(fields.companyName)),
+      ...entry('role', 'Role', fieldText(fields.role)),
+    ],
+    // Paragraph 9 entries have no id, so they are matched by company (`listedDirectorship`).
+    identifier: null,
+    editFields: [
+      { key: 'companyName', label: 'Company' },
+      { key: 'role', label: 'Role' },
+    ],
+    documentKind: 'other',
+  },
   bank: {
     key: 'bank',
     target: 'item',
@@ -259,6 +281,7 @@ const ITEM_TYPES: Record<string, { kind: SuggestionKind['key']; declared?: strin
   mortgage: { kind: 'bank' },
   loan: { kind: 'bank' },
   guarantee: { kind: 'bank' },
+  directorship: { kind: 'directorship' },
   'bio-tax': { kind: 'tax' },
 };
 
@@ -283,7 +306,9 @@ export function categoryOf(itemType: string): Category | null {
 
 /** The item type in words, e.g. "Vehicle"; "KRA PIN" for `bio-tax`. */
 export function typeWord(itemType: string): string {
-  if (suggestionKind(itemType).target === 'tax') return 'KRA PIN';
+  const { target } = suggestionKind(itemType);
+  if (target === 'tax') return 'KRA PIN';
+  if (target === 'interest') return 'Directorship';
   const category = categoryOf(itemType);
   return (category && TYPE_LABELS[category][declaredType(itemType)]) ?? 'Suggestion';
 }
@@ -291,7 +316,8 @@ export function typeWord(itemType: string): string {
 /**
  * The card's title, composed from the fields because the contract has none (gap 4):
  * "KCA 123A · Toyota Fielder 2016", "Uasin Gishu/Kimumu/2231 · 0.5 acres",
- * "Rift Valley Agrovet Ltd · 500 shares", "KRA PIN A00•••••76K · Compliance: Compliant".
+ * "Rift Valley Agrovet Ltd · 500 shares", "Kimumu Transporters Limited · Director",
+ * "KRA PIN A00•••••76K · Compliance: Compliant".
  * Falls back to the item type in words when the fields say nothing usable.
  */
 export function suggestionTitle({ itemType, fields }: SuggestionLike): string {
@@ -355,6 +381,18 @@ export function findMatch(suggestion: SuggestionLike, items: Item[]): string | n
   const identifier = suggestionPatch(suggestion).find((each) => each.path === path)?.value;
   const hit = items.find((item) => sameIdentifier(readPath(item, path), identifier));
   return hit?.id ?? null;
+}
+
+/**
+ * The paragraph 9 directorship already listed for the suggestion's company, compared like an
+ * identifier ("Kimumu Transporters Ltd" is "KIMUMU TRANSPORTERS LTD"), or undefined.
+ */
+export function listedDirectorship<T extends { company?: string }>(
+  suggestion: SuggestionLike,
+  directorships: readonly T[],
+): T | undefined {
+  const company = suggestion.fields.companyName;
+  return directorships.find((each) => sameIdentifier(each.company, company));
 }
 
 /** The set each registry last answered with (the newest by `requestedAt`). */
@@ -510,9 +548,11 @@ export function categoryOfItem(statement: Draft<Statement>, itemId: string): Cat
   return locateItem(statement, itemId)?.category ?? null;
 }
 
-/** The editable fields for a suggestion's type, then Description. */
+/** The editable fields for a suggestion's type, then Description for a type that adds one. */
 export function editFields(itemType: string): EditField[] {
-  return [...suggestionKind(itemType).editFields, { key: 'description', label: 'Description' }];
+  const kind = suggestionKind(itemType);
+  if (!kind.description) return kind.editFields;
+  return [...kind.editFields, { key: 'description', label: 'Description' }];
 }
 
 /** The text an edit field starts with: the suggestion's field, or the description it would add. */
