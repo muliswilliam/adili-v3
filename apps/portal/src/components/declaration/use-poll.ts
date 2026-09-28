@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 export interface PollOptions<T> {
   /** Polls while this is not null; a new key starts over with a fresh count. */
-  pollKey: string | null;
+  pollKey: string | number | null;
   /** One read. A read that throws counts as a read that changed nothing. */
   read: () => Promise<T>;
   /** Handles a read; returns true when there is nothing left to wait for. */

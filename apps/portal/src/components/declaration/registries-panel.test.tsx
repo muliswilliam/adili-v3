@@ -319,6 +319,59 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
     expect(lookupsMock).toHaveBeenCalledTimes(1);
   });
 
+  it('gives a Retry its own minute while another registry is still pending', async () => {
+    const pendingNtsa = set('ntsa', { status: 'pending', readyAt: null });
+    const loaded = [set('kra'), pendingNtsa, set('ardhisasa', { status: 'unavailable' })];
+    const retried = [
+      set('kra'),
+      pendingNtsa,
+      set('ardhisasa', {
+        id: 'land-2',
+        status: 'pending',
+        requestedAt: '2026-09-26T07:40:00Z',
+        readyAt: null,
+      }),
+    ];
+    // Reads before the Retry wait until the test answers them.
+    const held: ((value: Awaited<ReturnType<typeof listDeclarationSuggestions>>) => void)[] = [];
+    listMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          held.push(resolve);
+        }),
+    );
+    lookupsMock.mockResolvedValue({ status: 'started', sets: retried.slice(2) });
+    renderPanel({ sets: loaded, pollLimit: 3 });
+
+    // Two of the three reads go by while NTSA is pending.
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+    held[0]?.({ status: 'ok', sets: loaded });
+    await waitFor(() => {
+      expect(held).toHaveLength(2);
+    });
+
+    fireEvent.click(within(strip()).getByRole('button', { name: 'Retry ArdhiSasa' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Check registries' });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'I request this check' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    await waitFor(() => {
+      expect(statusOf('ArdhiSasa')).toBe('Checking…');
+    });
+
+    // From here every read answers at once; the one held from before the Retry answers late.
+    listMock.mockResolvedValue({ status: 'ok', sets: retried });
+    held[1]?.({ status: 'ok', sets: retried });
+
+    await waitFor(() => {
+      expect(statusOf('ArdhiSasa')).toBe('Not available nowRetry');
+    });
+    // Two reads before the Retry, then three more: the Retry waited its own full count.
+    expect(listMock).toHaveBeenCalledTimes(5);
+    expect(statusOf('NTSA')).toBe('Not available nowRetry');
+  });
+
   it('shows a registry still pending after the time limit as unavailable, and asks it again on reload', async () => {
     // As the page loaded them: NTSA had not answered yet.
     const loaded = [set('kra'), set('ntsa', { status: 'pending', readyAt: null }), set('brs')];

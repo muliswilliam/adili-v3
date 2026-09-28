@@ -169,6 +169,8 @@ export function RegistriesPanel({
   const [open, setOpen] = useState(true);
   const [foldOpen, setFoldOpen] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+  // Counts the checks started here (a full check or a Retry); each one waits a fresh minute.
+  const [lookupRound, setLookupRound] = useState(0);
 
   const checking = isChecking(sets);
   const shown = shownSuggestions(sets);
@@ -181,10 +183,11 @@ export function RegistriesPanel({
   const items = itemsOf(statement);
 
   // While a registry has not answered, read the person's sets again. After about a minute, stop
-  // waiting: the registries still pending show as not available now, with Retry.
+  // waiting: the registries still pending show as not available now, with Retry. A new check
+  // (Retry included) starts the minute over, even while another registry is still pending.
   const stopped = useRef(false);
   usePoll({
-    pollKey: checking ? 'checking' : null,
+    pollKey: checking ? lookupRound : null,
     read: () => listDeclarationSuggestions({ data: { declarationId, personKey } }),
     onRead: (result) => {
       if (result?.status !== 'ok') return false;
@@ -230,6 +233,7 @@ export function RegistriesPanel({
         setOpen(true);
         setAnnouncement('');
         setSets((current) => [...supersededBy(current, personKey, systems), ...result.sets]);
+        setLookupRound((round) => round + 1);
       } else if (result.status === 'no-id') {
         setRefusedNoId(true);
       } else {
