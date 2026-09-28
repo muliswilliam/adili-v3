@@ -11,12 +11,7 @@ import {
   parcelMatchKey,
   registrationMatchKey,
 } from '../../src/suggestions/match-keys.js';
-import {
-  mapArdhisasaResult,
-  mapBrsResult,
-  mapKraResult,
-  mapNtsaResult,
-} from '../../src/suggestions/registry-mapping.js';
+import { mapRegistryResult } from '../../src/suggestions/registry-mapping.js';
 import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
 
 function asset(id: string, type: AssetItem['type'], details: AssetItem['details']): AssetItem {
@@ -76,7 +71,7 @@ describe('match keys', () => {
     expect(matchKeysOfItem(asset('e', 'cash', { institution: 'KCB' }))).toEqual([]);
     expect(matchKeysOfItem(salary)).toEqual([]);
     expect(matchKeysOfSpouse({ kraPin: 'A006612874M' })).toEqual(
-      mapKraResult(kra.partial, 'spouse:x')[0]?.matchKeys,
+      mapRegistryResult(kra.partial, 'spouse:x')[0]?.matchKeys,
     );
     expect(matchKeysOfSpouse({})).toEqual([]);
   });
@@ -95,9 +90,9 @@ describe('findMatchingItem', () => {
   ];
 
   it('matches a registry suggestion to the item with the same identifier', () => {
-    const [fielder, dmax] = mapNtsaResult(ntsa.found, 'officer');
-    const [kimumu, nairobi] = mapArdhisasaResult(ardhisasa.found, 'officer');
-    const [agrovet, transporters] = mapBrsResult(brs.found, 'officer');
+    const [fielder, dmax] = mapRegistryResult(ntsa.found, 'officer');
+    const [kimumu, nairobi] = mapRegistryResult(ardhisasa.found, 'officer');
+    const [agrovet, transporters] = mapRegistryResult(brs.found, 'officer');
 
     expect(fielder && findMatchingItem(fielder, items)).toBe(items[1]?.id);
     expect(dmax && findMatchingItem(dmax, items)).toBeNull();
@@ -108,11 +103,13 @@ describe('findMatchingItem', () => {
   });
 
   it('never matches a suggestion without keys, or across identifier kinds', () => {
-    const hint = mapKraResult(kra.found, 'officer').find((each) => each.itemType === 'income-hint');
+    const hint = mapRegistryResult(kra.found, 'officer').find(
+      (each) => each.itemType === 'income-hint',
+    );
     expect(hint && findMatchingItem(hint, items)).toBeNull();
 
     const sameDigits = [asset('x', 'land', { parcelNumber: 'KCA123A' })];
-    const [fielder] = mapNtsaResult(ntsa.found, 'officer');
+    const [fielder] = mapRegistryResult(ntsa.found, 'officer');
     expect(fielder && findMatchingItem(fielder, sameDigits)).toBeNull();
   });
 });

@@ -103,7 +103,7 @@ describe('Zod schemas', () => {
     },
   );
 
-  it('require the kind and explanation of a flagged change', () => {
+  it('requires the kind and explanation of a flagged change', () => {
     const { statement, income } = officerStatement();
     income.change = { changed: true };
 
@@ -185,7 +185,7 @@ describe('item source (spec 05b)', () => {
     expect(saved.assets.some((item) => 'source' in item)).toBe(false);
   });
 
-  it('require the kind, suggestion and time of a source', () => {
+  it('requires the kind, suggestion and time of a source', () => {
     const { statement, land } = officerStatement();
     land.source = { verificationResultId: '0192f1a0-5a11-7000-8000-000000009101' } as never;
 

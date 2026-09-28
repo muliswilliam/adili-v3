@@ -9,8 +9,7 @@ import type { AssetItem, IncomeItem, LiabilityItem, Spouse } from '@adili/forms'
 
 /** "kca 123a", "KCA-123A" → `registration:KCA123A`. */
 export function registrationMatchKey(registration: string): string | null {
-  const normal = registration.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return normal ? `registration:${normal}` : null;
+  return alnumKey('registration', registration);
 }
 
 /**
@@ -28,8 +27,7 @@ export function parcelMatchKey(parcelNumber: string): string | null {
 
 /** "PVT-AB12CD3E" → `company-number:PVTAB12CD3E`. */
 export function companyNumberMatchKey(registrationNumber: string): string | null {
-  const normal = registrationNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return normal ? `company-number:${normal}` : null;
+  return alnumKey('company-number', registrationNumber);
 }
 
 /**
@@ -47,8 +45,7 @@ export function companyNameMatchKey(companyName: string): string | null {
 
 /** "a005231876k" → `kra-pin:A005231876K`. */
 export function kraPinMatchKey(pin: string): string | null {
-  const normal = pin.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return normal ? `kra-pin:${normal}` : null;
+  return alnumKey('kra-pin', pin);
 }
 
 export type StatementItem = AssetItem | IncomeItem | LiabilityItem;
@@ -84,6 +81,12 @@ export function findMatchingItem(
   if (suggestion.matchKeys.length === 0) return null;
   const wanted = new Set(suggestion.matchKeys);
   return items.find((item) => matchKeysOfItem(item).some((key) => wanted.has(key)))?.id ?? null;
+}
+
+/** `<prefix>:<raw upper-cased, letters and digits only>`, or null when nothing is left. */
+function alnumKey(prefix: string, raw: string): string | null {
+  const normal = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return normal ? `${prefix}:${normal}` : null;
 }
 
 function present(key: string | null | undefined): string[] {

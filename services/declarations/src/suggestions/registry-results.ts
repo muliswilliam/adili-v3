@@ -1,8 +1,11 @@
 /**
  * The integration-gateway's uniform verification results for the four registries the declarant
  * can check (spec 05b), as `packages/schemas/internal/integration-gateway.yaml` defines them
- * (`ResultEnvelope`, `KraResult`, `NtsaResult`, `BrsResult`, `ArdhisasaResult`). Hand-written
- * until the gateway contract has a generated client; keep in step with the YAML.
+ * (`ResultEnvelope`, `KraResult`, `NtsaResult`, `BrsResult`, `ArdhisasaResult`).
+ *
+ * This is a hand copy of `integration-gateway.yaml`: keep it in step with the YAML until it is
+ * replaced by a generated client in `packages/clients`, with Zod validation of the gateway's
+ * responses at the boundary (ADR-0013).
  */
 
 export type LookupOutcome = 'found' | 'not-found' | 'unavailable';

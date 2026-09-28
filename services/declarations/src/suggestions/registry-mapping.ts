@@ -1,4 +1,4 @@
-import { COUNTIES } from '@adili/forms';
+import { COUNTIES, type DeclarationSectionKey, type PersonKey } from '@adili/forms';
 
 import {
   companyNameMatchKey,
@@ -9,12 +9,8 @@ import {
 } from './match-keys.js';
 import type {
   ArdhisasaParcel,
-  ArdhisasaResult,
   BrsDirectorship,
-  BrsResult,
-  KraResult,
   KraTaxpayer,
-  NtsaResult,
   NtsaVehicle,
   RegistryResult,
 } from './registry-results.js';
@@ -23,7 +19,9 @@ import type {
  * Pure mapping from the gateway's verification results to suggestions (spec 05b, S3): what a
  * registry holds about one person becomes the item fields the declarant can add with one tap.
  *
- * Field names per item type are the ones the portal reads (`suggestions.ts` in the portal):
+ * Field names per item type are the portal's vocabulary, not declaration.v1 `details`: the
+ * portal's accept mapping (on the FE branch) translates them into the item on Accept. The
+ * `Suggestion.fields` description in `declarations.yaml` lists the same keys:
  * - `vehicle` (NTSA): registration, make, model, year
  * - `land` (ArdhiSasa): parcelNumber, size, location, county (a declaration.v1 county code)
  * - `shareholding` (BRS; the spec's `investment`, which declaration.v1 does not have):
@@ -36,9 +34,6 @@ import type {
  * A registry record with a blank field simply omits it (partial records); a result that is not
  * `found` maps to no suggestions.
  */
-
-/** Where a suggestion lands: a person's financial statement, the bio, or the household. */
-export type SuggestionSectionKey = 'bio' | 'household' | `statement:${string}`;
 
 export interface VehicleFields {
   description?: string;
@@ -75,7 +70,8 @@ export interface IncomeHintFields {
 }
 
 interface Proposed<TType extends string, TFields> {
-  sectionKey: SuggestionSectionKey;
+  /** Where the suggestion lands: a person's financial statement, the bio, or the household. */
+  sectionKey: DeclarationSectionKey;
   itemType: TType;
   fields: TFields;
   /** The registry's identifier for the record plus facts that do not become item fields. */
@@ -91,10 +87,10 @@ export type MappedSuggestion =
   | Proposed<'bio-tax', BioTaxFields>
   | Proposed<'income-hint', IncomeHintFields>;
 
-/** A person's key as declaration.v1 stores it: `officer`, `spouse:<uuid>` or `child:<uuid>`. */
-export type PersonKey = string;
-
-/** The suggestions a registry result yields for the person it was looked up for. */
+/**
+ * The suggestions a registry result yields for the person it was looked up for. A result that is
+ * not `found` yields none, even if it carries records.
+ */
 export function mapRegistryResult(
   result: RegistryResult,
   personKey: PersonKey,
@@ -102,30 +98,31 @@ export function mapRegistryResult(
   if (result.outcome !== 'found') return [];
   switch (result.system) {
     case 'kra':
-      return mapKraResult(result, personKey);
+      return eachRecord(result.taxpayers, mapTaxpayer, personKey);
     case 'ntsa':
-      return mapNtsaResult(result, personKey);
+      return eachRecord(result.vehicles, mapVehicle, personKey);
     case 'brs':
-      return mapBrsResult(result, personKey);
+      return eachRecord(result.directorships, mapDirectorship, personKey);
     case 'ardhisasa':
-      return mapArdhisasaResult(result, personKey);
+      return eachRecord(result.parcels, mapParcel, personKey);
   }
 }
 
-/** NTSA: each vehicle registered to the person → a `vehicle` asset. */
-export function mapNtsaResult(result: NtsaResult, personKey: PersonKey): MappedSuggestion[] {
-  if (result.outcome !== 'found') return [];
-  return result.vehicles.flatMap((vehicle) => {
-    const suggestion = mapVehicle(vehicle, personKey);
-    return suggestion ? [suggestion] : [];
-  });
+/** Maps each record of a found result; a record with nothing to suggest maps to none. */
+function eachRecord<TRecord>(
+  records: readonly TRecord[],
+  map: (record: TRecord, personKey: PersonKey) => MappedSuggestion | MappedSuggestion[] | null,
+  personKey: PersonKey,
+): MappedSuggestion[] {
+  return records.flatMap((record) => map(record, personKey) ?? []);
 }
 
+/** NTSA: each vehicle registered to the person → a `vehicle` asset. */
 function mapVehicle(vehicle: NtsaVehicle, personKey: PersonKey): MappedSuggestion | null {
   const registration = text(vehicle.registrationNumber);
   const make = text(vehicle.make);
   const model = text(vehicle.model);
-  const year = wholeNumber(vehicle.yearOfManufacture);
+  const year = numberAbove0(vehicle.yearOfManufacture, { integer: true });
   if (!registration && !make && !model) return null;
   const makeModel = joined([make, model], ' ');
   return {
@@ -144,24 +141,13 @@ function mapVehicle(vehicle: NtsaVehicle, personKey: PersonKey): MappedSuggestio
 }
 
 /** ArdhiSasa: each parcel registered to the person → a `land` asset. */
-export function mapArdhisasaResult(
-  result: ArdhisasaResult,
-  personKey: PersonKey,
-): MappedSuggestion[] {
-  if (result.outcome !== 'found') return [];
-  return result.parcels.flatMap((parcel) => {
-    const suggestion = mapParcel(parcel, personKey);
-    return suggestion ? [suggestion] : [];
-  });
-}
-
 function mapParcel(parcel: ArdhisasaParcel, personKey: PersonKey): MappedSuggestion | null {
   const parcelNumber = text(parcel.parcelNumber);
   if (!parcelNumber) return null;
   const countyText = text(parcel.county);
   const county = countyCode(countyText);
   const countyName = county ? COUNTIES.find((each) => each.code === county)?.name : undefined;
-  const hectares = positiveNumber(parcel.areaHectares);
+  const hectares = numberAbove0(parcel.areaHectares);
   return {
     sectionKey: statementSection(personKey),
     itemType: 'land',
@@ -186,14 +172,6 @@ function mapParcel(parcel: ArdhisasaParcel, personKey: PersonKey): MappedSuggest
  * shares as BRS records them; shares omitted when BRS holds none). Registrable-interest
  * directorships in paragraph 9 stay the declarant's to enter.
  */
-export function mapBrsResult(result: BrsResult, personKey: PersonKey): MappedSuggestion[] {
-  if (result.outcome !== 'found') return [];
-  return result.directorships.flatMap((directorship) => {
-    const suggestion = mapDirectorship(directorship, personKey);
-    return suggestion ? [suggestion] : [];
-  });
-}
-
 function mapDirectorship(
   directorship: BrsDirectorship,
   personKey: PersonKey,
@@ -209,7 +187,7 @@ function mapDirectorship(
       companyName,
       registrationNumber,
       role: text(directorship.role),
-      shares: nonNegativeNumber(directorship.shares),
+      shares: numberAbove0(directorship.shares, { orZero: true }),
     }),
     sourceRef: compact({
       registrationNumber,
@@ -229,11 +207,6 @@ function mapDirectorship(
  * returns declared income, an `income-hint` for the person's statement carries it in
  * `sourceRef` (a hint to check the salary item, never a value).
  */
-export function mapKraResult(result: KraResult, personKey: PersonKey): MappedSuggestion[] {
-  if (result.outcome !== 'found') return [];
-  return result.taxpayers.flatMap((taxpayer) => mapTaxpayer(taxpayer, personKey));
-}
-
 function mapTaxpayer(taxpayer: KraTaxpayer, personKey: PersonKey): MappedSuggestion[] {
   const kraPin = text(taxpayer.pin).toUpperCase();
   if (!kraPin) return [];
@@ -254,7 +227,10 @@ function mapTaxpayer(taxpayer: KraTaxpayer, personKey: PersonKey): MappedSuggest
       matchKeys: keys(kraPinMatchKey(kraPin)),
     });
   }
-  const declaredIncome = nonNegativeInteger(compliance.annualIncomeDeclaredCents);
+  const declaredIncome = numberAbove0(compliance.annualIncomeDeclaredCents, {
+    integer: true,
+    orZero: true,
+  });
   if (declaredIncome !== undefined) {
     suggestions.push({
       sectionKey: statementSection(personKey),
@@ -267,7 +243,7 @@ function mapTaxpayer(taxpayer: KraTaxpayer, personKey: PersonKey): MappedSuggest
   return suggestions;
 }
 
-function statementSection(personKey: PersonKey): SuggestionSectionKey {
+function statementSection(personKey: PersonKey): DeclarationSectionKey {
   return `statement:${personKey}`;
 }
 
@@ -310,20 +286,14 @@ function joined(parts: string[], separator: string) {
   return parts.filter((part) => part !== '').join(separator);
 }
 
-function wholeNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
-}
-
-function positiveNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
-function nonNegativeNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
-}
-
-function nonNegativeInteger(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+/** A finite number above zero (or zero, with `orZero`; an integer, with `integer`), else undefined. */
+function numberAbove0(
+  value: unknown,
+  { integer = false, orZero = false }: { integer?: boolean; orZero?: boolean } = {},
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  if (integer && !Number.isInteger(value)) return undefined;
+  return value > 0 || (orZero && value === 0) ? value : undefined;
 }
 
 function keys(...candidates: (string | null | undefined)[]): string[] {
