@@ -394,6 +394,48 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       ).rejects.toBeInstanceOf(EmailTaken);
     });
 
+    it('replaces a declarant account left behind for the same OFR by an attempt that rolled back', async () => {
+      const ofr = uniqueOfr();
+      // Not cleaned up by the suite: replacing it deletes it.
+      const leftover = await harness().adapter.createDeclarantUser(
+        declarant(uniqueEmail('leftover'), ofr),
+      );
+      const email = uniqueEmail('reused-ofr');
+
+      const userId = await harness().adapter.createDeclarantUser(declarant(email, ofr));
+      created.push(userId);
+
+      expect(userId).not.toBe(leftover);
+      await expect(harness().adapter.findById(leftover)).resolves.toBeNull();
+      expect(await harness().inspect(userId)).toMatchObject({ email, ofr });
+    });
+
+    it('reports an email taken by another account as EmailTaken even when it also replaced a leftover', async () => {
+      const ofr = uniqueOfr();
+      // Replaced (deleted) before the email is found taken.
+      await harness().adapter.createDeclarantUser(declarant(uniqueEmail('leftover-2'), ofr));
+      const taken = uniqueEmail('taken');
+      await create(reportingOfficer(taken));
+
+      await expect(
+        harness().adapter.createDeclarantUser(declarant(taken, ofr)),
+      ).rejects.toBeInstanceOf(EmailTaken);
+    });
+
+    it('undoes an added tenant only, keeping one another confirm added meanwhile', async () => {
+      const userId = await harness().adapter.createDeclarantUser(declarant(uniqueEmail('undo')));
+      created.push(userId);
+
+      const restore = await harness().adapter.addTenantToUser(userId, 'psc');
+      await harness().adapter.addTenantToUser(userId, 'jsc');
+      await restore?.();
+
+      expect(await harness().inspect(userId)).toMatchObject({
+        tenant: 'tsc',
+        tenants: ['tsc', 'jsc'],
+      });
+    });
+
     it('S15: adds a tenant to the tenants attribute, keeping the first tenant, idempotently, and restores it exactly', async () => {
       const userId = await harness().adapter.createDeclarantUser(declarant(uniqueEmail('S15')));
       created.push(userId);

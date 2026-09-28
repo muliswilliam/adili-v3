@@ -9,6 +9,7 @@ import {
   DECLARANT_REQUIRED_ACTIONS,
   DECLARANT_ROLE,
   EmailTaken,
+  UsernameTaken,
   type ExecuteActionsEmailOptions,
   IdentityProvisioning,
   IdentityUnavailable,
@@ -155,24 +156,30 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   }
 
   async createDeclarantUser(input: CreateDeclarantUserInput): Promise<string> {
-    return this.createUser(
-      {
-        username: input.ofr,
-        email: input.email.trim().toLowerCase(),
-        ...splitName(input.name),
-        enabled: true,
-        emailVerified: true,
-        attributes: {
-          tenant: [input.tenant],
-          tenants: [input.tenant],
-          ofr: [input.ofr],
-          person_id: [input.personId],
-          phone: [input.phone],
-        },
-        requiredActions: DECLARANT_REQUIRED_ACTIONS,
+    const representation = {
+      username: input.ofr,
+      email: input.email.trim().toLowerCase(),
+      ...splitName(input.name),
+      enabled: true,
+      emailVerified: true,
+      attributes: {
+        tenant: [input.tenant],
+        tenants: [input.tenant],
+        ofr: [input.ofr],
+        person_id: [input.personId],
+        phone: [input.phone],
       },
-      DECLARANT_ROLE,
-    );
+      requiredActions: DECLARANT_REQUIRED_ACTIONS,
+    };
+    try {
+      return await this.createUser(representation, DECLARANT_ROLE);
+    } catch (error) {
+      if (!(error instanceof UsernameTaken)) throw error;
+      const leftover = await this.userByUsername(input.ofr);
+      if (leftover?.attributes?.ofr?.[0] !== input.ofr) throw error;
+      await this.deleteUser(leftover.id);
+      return this.createUser(representation, DECLARANT_ROLE);
+    }
   }
 
   async addTenantToUser(userId: string, tenant: string): Promise<Restore | null> {
@@ -180,6 +187,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     const previous = { tenant: user.attributes?.tenant, tenants: user.attributes?.tenants };
     const tenants = previous.tenants ?? previous.tenant ?? [];
     if (tenants.includes(tenant)) return null;
+    const setsTenant = !previous.tenant?.length;
     await this.putUser(userId, {
       ...user,
       attributes: {
@@ -188,19 +196,25 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
         tenants: [...tenants, tenant],
       },
     });
+    // Undoes this change only, on the account as it is then: a tenant another confirm added
+    // meanwhile stays.
     return async () => {
       const current = await this.user(userId);
-      const others = Object.fromEntries(
-        Object.entries(current.attributes ?? {}).filter(
-          ([name]) => name !== 'tenant' && name !== 'tenants',
-        ),
-      );
+      const {
+        tenant: currentTenant,
+        tenants: currentTenants,
+        ...others
+      } = current.attributes ?? {};
+      const keptTenant =
+        setsTenant && currentTenant?.length === 1 && currentTenant[0] === tenant
+          ? undefined
+          : currentTenant;
       await this.putUser(userId, {
         ...current,
         attributes: {
           ...others,
-          ...(previous.tenant === undefined ? {} : { tenant: previous.tenant }),
-          ...(previous.tenants === undefined ? {} : { tenants: previous.tenants }),
+          ...(keptTenant === undefined ? {} : { tenant: keptTenant }),
+          tenants: (currentTenants ?? []).filter((held) => held !== tenant),
         },
       });
     };
@@ -360,21 +374,26 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   }
 
   /**
-   * Creates the account and grants it `role`; returns its id. A 409 (email or username taken)
-   * becomes EmailTaken. No half-provisioned account is left behind when the role grant fails.
+   * Creates the account and grants it `role`; returns its id. A 409 becomes UsernameTaken when an
+   * account has the username (unless the username is the email, as for staff), else EmailTaken.
+   * No half-provisioned account is left behind when the role grant fails.
    */
   private async createUser(
     representation: Omit<UserRepresentation, 'id'>,
     role: string,
   ): Promise<string> {
     const email = String(representation.email);
-    const response = await this.request('POST', '/users', { body: representation }).catch(
-      (error: unknown) => {
-        throw error instanceof KeycloakHttpError && error.status === 409
-          ? new EmailTaken(email)
-          : error;
-      },
-    );
+    const username = String(representation.username);
+    let response: Response;
+    try {
+      response = await this.request('POST', '/users', { body: representation });
+    } catch (error) {
+      if (!(error instanceof KeycloakHttpError && error.status === 409)) throw error;
+      if (username !== email && (await this.userByUsername(username))) {
+        throw new UsernameTaken(username);
+      }
+      throw new EmailTaken(email);
+    }
     const userId = response.headers.get('location')?.split('/').pop();
     if (!userId) {
       throw new IdentityUnavailable('Keycloak created the user without returning its location');
@@ -387,6 +406,16 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       throw error;
     }
     return userId;
+  }
+
+  /** The account whose username is exactly `username` (case-insensitive, as Keycloak's), or null. */
+  private async userByUsername(username: string): Promise<UserRepresentation | null> {
+    const wanted = username.toLowerCase();
+    const response = await this.request('GET', '/users', {
+      query: { username: wanted, exact: 'true', briefRepresentation: 'false' },
+    });
+    const users = (await response.json()) as UserRepresentation[];
+    return users.find((candidate) => candidate.username?.toLowerCase() === wanted) ?? null;
   }
 
   /** The client with this client id (not Keycloak's internal id), or null. */

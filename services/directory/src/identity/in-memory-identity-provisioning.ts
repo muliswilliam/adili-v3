@@ -18,6 +18,7 @@ import {
   type RequiredAction,
   type Restore,
   type StaffProfile,
+  UsernameTaken,
 } from './identity-provisioning.js';
 
 /** Every call made to the fake, in order, with its arguments. */
@@ -221,12 +222,13 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     const failure = this.takeFailure('createDeclarantUser');
     if (failure) return Promise.reject(failure);
     const username = normalise(input.ofr);
-    if (
-      this.byEmail(input.email) ||
-      [...this.users.values()].some((user) => user.username === username)
-    ) {
-      return Promise.reject(new EmailTaken(input.email));
+    const holder = [...this.users.values()].find((user) => user.username === username);
+    if (holder) {
+      // A leftover of an attempt that rolled back is replaced; any other holder is not.
+      if (holder.ofr !== input.ofr) return Promise.reject(new UsernameTaken(username));
+      this.users.delete(holder.userId);
     }
+    if (this.byEmail(input.email)) return Promise.reject(new EmailTaken(input.email));
     const userId = randomUUID();
     this.users.set(userId, {
       userId,
@@ -255,12 +257,16 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     const user = this.users.get(userId);
     if (!user) return Promise.reject(new IdentityUserNotFound(userId));
     if (user.tenants.includes(tenant)) return Promise.resolve(null);
-    const previous = { tenant: user.tenant, tenants: [...user.tenants] };
+    const setsTenant = user.tenant === null;
     user.tenants.push(tenant);
     user.tenant ??= tenant;
-    // Not recorded: an undo is not a call the code under test makes.
+    // Not recorded: an undo is not a call the code under test makes. It takes out this tenant
+    // only, as the account is then.
     return Promise.resolve(() =>
-      this.update(userId, (restored) => Object.assign(restored, previous)),
+      this.update(userId, (restored) => {
+        restored.tenants = restored.tenants.filter((held) => held !== tenant);
+        if (setsTenant && restored.tenant === tenant) restored.tenant = null;
+      }),
     );
   }
 
