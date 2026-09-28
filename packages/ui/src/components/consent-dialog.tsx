@@ -1,6 +1,7 @@
 import { BankIcon } from '@hugeicons/core-free-icons';
 import { type ReactNode, useRef, useState } from 'react';
 
+import { listNames } from '../lib/list-names';
 import { Button } from './button';
 import { CheckboxItem } from './checkbox';
 import {
@@ -20,12 +21,6 @@ import { SOURCE_NAMES } from './source-badge';
 export function maskNationalId(id: string): string {
   const trimmed = id.trim();
   return '•'.repeat(Math.max(0, trimmed.length - 3)) + trimmed.slice(-3);
-}
-
-/** Names in a sentence: "KRA", "KRA and NTSA", "KRA, NTSA, BRS and ArdhiSasa". */
-export function listNames(names: readonly string[]): string {
-  if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names.slice(-1).join('')}`;
 }
 
 /** Every registry a check can ask, by name. */

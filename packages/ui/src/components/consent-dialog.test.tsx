@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ConsentDialog,
   type ConsentDialogProps,
-  listNames,
   maskNationalId,
 } from './consent-dialog';
 
@@ -50,14 +49,6 @@ describe('maskNationalId', () => {
   it('hides all but the last three digits', () => {
     expect(maskNationalId('23456789')).toBe('•••••789');
     expect(maskNationalId(' 12 ')).toBe('12');
-  });
-});
-
-describe('listNames', () => {
-  it('names one, two or more in a sentence', () => {
-    expect(listNames(['KRA'])).toBe('KRA');
-    expect(listNames(['KRA', 'NTSA'])).toBe('KRA and NTSA');
-    expect(listNames(['KRA', 'NTSA', 'BRS', 'ArdhiSasa'])).toBe('KRA, NTSA, BRS and ArdhiSasa');
   });
 });
 

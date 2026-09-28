@@ -38,7 +38,6 @@ export {
   ConsentDialog,
   type ConsentDialogProps,
   type ConsentMessages,
-  listNames,
   maskNationalId,
 } from './components/consent-dialog';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
@@ -196,6 +195,7 @@ export {
   shapeDateText,
 } from './lib/date-input';
 export { formatDate, formatDateTime } from './lib/format-date';
+export { listNames } from './lib/list-names';
 export {
   formatMoney,
   type MoneyInvalidReason,
