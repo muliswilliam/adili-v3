@@ -1,6 +1,9 @@
 /**
  * The 47 counties (Constitution, First Schedule) by the three-digit code `declaration.v1` stores
- * for a location in Kenya.
+ * for a location in Kenya; the schema checks only the code's shape.
+ *
+ * Reference data belongs to `directory` (ADR-0009, ADR-0013). Until it serves counties, this is
+ * the copy the frontend and backend share; replace it with directory's list when that lands.
  */
 export const COUNTIES: readonly { code: string; name: string }[] = [
   { code: '001', name: 'Mombasa' },
@@ -51,24 +54,3 @@ export const COUNTIES: readonly { code: string; name: string }[] = [
   { code: '046', name: 'Nyamira' },
   { code: '047', name: 'Nairobi City' },
 ];
-
-/**
- * Currencies offered for the original amount of a holding outside Kenya (note 13). The schema
- * accepts any ISO 4217 code; these are the ones the form lists first.
- */
-export const CURRENCIES = [
-  'USD',
-  'GBP',
-  'EUR',
-  'UGX',
-  'TZS',
-  'RWF',
-  'ZAR',
-  'AED',
-  'SAR',
-  'INR',
-  'CNY',
-  'CAD',
-  'AUD',
-  'ETB',
-] as const;

@@ -4,7 +4,8 @@
   "issues": [
     {
       "sectionKey": "household",
-      "path": "spouses.items.1.kraPin",
+      "path": "/spouses/items/1/kraPin",
+      "code": "pattern",
       "message": "must match pattern \"^[AP][0-9]{9}[A-Z]$\""
     }
   ],

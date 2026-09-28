@@ -4,7 +4,9 @@
 // instead of producing a validator that is quietly looser than the JSON Schema.
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-type Node = Record<string, Json>;
+/** A JSON Schema, or any schema object inside one. */
+export type JsonSchema = Record<string, Json>;
+type Node = JsonSchema;
 
 export interface ZodModuleOptions {
   /** Name of the root schema, e.g. `DeclarationSchema`. */
@@ -138,7 +140,8 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     }
     let source = `z.string()${bounds(node, 'minLength', 'maxLength')}`;
     if (typeof node.pattern === 'string') {
-      source += `.regex(/${node.pattern.replaceAll('/', '\\/')}/)`;
+      // Ajv compiles patterns with the u flag (unicodeRegExp), so Zod must too or they can differ.
+      source += `.regex(/${node.pattern.replaceAll('/', '\\/')}/u)`;
     }
     return source;
   }
@@ -193,7 +196,10 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
         }
       } else if (key === 'properties') {
         for (const [field, rule] of Object.entries(value as Record<string, Node>)) {
-          lines.push(...countAssertions(field, rule, `${pointer}/properties/${field}`));
+          const at = `${pointer}/properties/${field}`;
+          // The refinement reads `value.<field>.length`, which needs the array to be there.
+          if (!required.has(field)) throw new Error(`${at}: a count needs ${field} to be required`);
+          lines.push(...countAssertions(field, rule, at));
         }
       } else {
         throw new Error(`${pointer}: unsupported ${key}`);

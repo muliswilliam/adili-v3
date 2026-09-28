@@ -9,14 +9,14 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
-import { format } from 'prettier';
+import { format, resolveConfig } from 'prettier';
 
-import { zodModule } from './zod.ts';
+import { zodModule, type ZodModuleOptions } from './zod.ts';
 
 interface Form {
   file: string;
   typeName: string;
-  zod?: Parameters<typeof zodModule>[1];
+  zod?: ZodModuleOptions;
 }
 
 const FORMS: Form[] = [
@@ -48,7 +48,8 @@ const FORMS: Form[] = [
 
 const require = createRequire(import.meta.url);
 const srcDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
-const style = { singleQuote: true, trailingComma: 'all', printWidth: 100 } as const;
+// The repo's Prettier config, so generated files read like the code around them.
+const style = (await resolveConfig(join(srcDir, 'index.ts'))) ?? {};
 
 for (const { file, typeName, zod } of FORMS) {
   const schema = JSON.parse(
@@ -64,7 +65,7 @@ for (const { file, typeName, zod } of FORMS) {
     // Array lengths are the validator's job; tuple types would make partial form state awkward.
     ignoreMinAndMaxItems: true,
     format: true,
-    style: { singleQuote: true, printWidth: 100 },
+    style,
   });
   writeFileSync(join(srcDir, `${file}.gen.ts`), source);
 

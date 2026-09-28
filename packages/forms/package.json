@@ -2,7 +2,7 @@
   "name": "@adili/forms",
   "version": "0.0.0",
   "private": true,
-  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (declaration.v1, form-k.v1), with Zod schemas for the sections of a declaration, shared by the services and the apps.",
+  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (declaration.v1, form-k.v1), with Zod schemas for the capture sections of a declaration, shared by the services and the apps.",
   "type": "module",
   "files": [
     "dist"
@@ -35,6 +35,7 @@
     "json-schema-to-typescript": "^16.0.0",
     "prettier": "^3.9.9",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }

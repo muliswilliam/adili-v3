@@ -4,7 +4,8 @@
   "issues": [
     {
       "sectionKey": "bio",
-      "path": "name.surname",
+      "path": "/name/surname",
+      "code": "required",
       "message": "is required"
     }
   ],

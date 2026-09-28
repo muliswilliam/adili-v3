@@ -4,7 +4,8 @@
   "issues": [
     {
       "sectionKey": "bio",
-      "path": "birth.date",
+      "path": "/birth/date",
+      "code": "format",
       "message": "must match format \"date\""
     }
   ],

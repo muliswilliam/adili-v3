@@ -4,13 +4,9 @@
   "issues": [
     {
       "sectionKey": "bio",
-      "path": "maritalStatusChange.explanation",
+      "path": "/maritalStatusChange/explanation",
+      "code": "required",
       "message": "is required"
-    },
-    {
-      "sectionKey": "bio",
-      "path": "maritalStatusChange",
-      "message": "must match \"then\" schema"
     }
   ],
   "document": {

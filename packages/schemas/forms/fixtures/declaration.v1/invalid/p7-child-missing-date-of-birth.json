@@ -4,7 +4,8 @@
   "issues": [
     {
       "sectionKey": "household",
-      "path": "children.items.2.dateOfBirth",
+      "path": "/children/items/2/dateOfBirth",
+      "code": "required",
       "message": "is required"
     }
   ],
