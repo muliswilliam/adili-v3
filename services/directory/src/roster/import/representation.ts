@@ -66,7 +66,7 @@ export const importCountsSchema = z.object({
   }),
   exitsRecorded: z.number().int().meta({
     description:
-      'Exits confirmed so far (by the reporting officer or the HR system) for records this complete import flagged absent; grows after the import ended',
+      "Exits the import itself recorded. No import records exits today (the reporting officer confirms them, or the HR system calls the exit endpoint), so it is 0. Like every count, fixed when the import ends and equal to roster.import.completed.v1's",
   }),
 });
 export type ImportCounts = z.infer<typeof importCountsSchema>;

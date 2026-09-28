@@ -194,13 +194,11 @@ export const rosterImports = pgTable(
      * (and retried) cannot write alongside its successor.
      */
     stagingAttempt: uuid(),
-    /** Set when the import ends. Its `exitsRecorded` is as at the end; the column is current. */
-    counts: jsonb().$type<ImportCounts>(),
     /**
-     * Exits confirmed for records this import flagged absent, counted as they are confirmed,
-     * mostly after the import ended.
+     * Set when the import ends, from its rows, and never changed after: the snapshot
+     * `roster.import.completed.v1` carries.
      */
-    exitsRecorded: integer().notNull().default(0),
+    counts: jsonb().$type<ImportCounts>(),
     mapping: jsonb().$type<ColumnMapping>(),
     failureCode: text().$type<ImportFailureCode>(),
     failureDetail: text(),

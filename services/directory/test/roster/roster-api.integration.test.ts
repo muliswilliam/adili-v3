@@ -437,7 +437,7 @@ describe('S17 explicit exit', () => {
     expect(problem.errors).toEqual([expect.objectContaining({ path: 'exitDate' })]);
   });
 
-  it('counts the exit on the complete import that flagged the officer', async () => {
+  it('leaves the counts of the import that flagged the officer as they were at its end', async () => {
     await imported([ACHIENG, KIPRONO]);
     const uploadId = api.uploads.add('psc', {
       bytes: `personnel_file_number,full_name,national_id\n${ACHIENG.personnelFileNumber},${ACHIENG.fullName},${ACHIENG.nationalId}\n`,
@@ -454,8 +454,14 @@ describe('S17 explicit exit', () => {
 
     expect((await recordExit(KIPRONO.personnelFileNumber)).statusCode).toBe(200);
 
+    // The counts are a snapshot, as roster.import.completed.v1 carried them: a later exit is the
+    // reporting officer's or the HR system's act, not the import's.
     const after = await api.get(`${IMPORTS}/${complete.id}`, OFFICER);
-    expect(after.json<RosterImport>().counts).toMatchObject({ flaggedAbsent: 1, exitsRecorded: 1 });
+    expect(after.json<RosterImport>().counts).toEqual(complete.counts);
+    const completed = await events('roster.import.completed.v1');
+    expect(completed.find((event) => event.subject === complete.id)?.data).toMatchObject({
+      counts: complete.counts,
+    });
   });
 });
 

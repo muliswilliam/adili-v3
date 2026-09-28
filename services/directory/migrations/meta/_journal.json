@@ -120,6 +120,13 @@
       "when": 1790585019876,
       "tag": "0016_roster_records_state_before_exit",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790585261712,
+      "tag": "0017_roster_imports_counts_snapshot",
+      "breakpoints": true
     }
   ]
 }

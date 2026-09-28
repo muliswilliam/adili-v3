@@ -351,8 +351,7 @@ export function toRosterImport(row: ImportRow): RosterImport {
     totalRows: row.totalRows,
     processedRows: row.processedRows,
     // Parsed for the contract's key order: jsonb stores keys in its own.
-    counts:
-      row.counts && importCountsSchema.parse({ ...row.counts, exitsRecorded: row.exitsRecorded }),
+    counts: row.counts && importCountsSchema.parse(row.counts),
     mapping: row.mapping && columnMappingSchema.parse(row.mapping),
     failure:
       row.failureCode === null ? null : { code: row.failureCode, detail: row.failureDetail ?? '' },

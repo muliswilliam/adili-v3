@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import type { EventPublisher } from '@adili/events';
-import { and, count, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { eventActorOf, type RosterActor } from '../actor.js';
-import { rosterImports, rosterRecords } from '../schema.js';
+import { rosterRecords } from '../schema.js';
 import { adjustRosterSummary } from '../summary.js';
 import { type ExitSource, rosterExitsConfirmed, rosterRecordsKept } from './events.js';
 
@@ -79,7 +79,6 @@ export async function confirmExits(
   if (exited.length > 0) throw new RosterRecordsExited(exited);
   const records = [...found.values()];
 
-  await countExitsOnFlaggingImports(tx, command.tenant, recordIds);
   const source = command.exits.map((exit) => ({ id: exit.recordId, exit_date: exit.exitDate }));
   await tx.execute(sql`
     update roster_records as target set
@@ -169,35 +168,6 @@ export async function keepRecords(
     }),
   );
   return { count: kept.length };
-}
-
-/**
- * Counts the exits of flagged records on the complete import that flagged each (its report's
- * "exits recorded", decision 12), before the exit clears the flag.
- */
-async function countExitsOnFlaggingImports(
-  tx: Transaction,
-  tenant: string,
-  recordIds: readonly string[],
-): Promise<void> {
-  const flaggedBy = await tx
-    .select({ importId: rosterRecords.flaggedByImportId, exits: count() })
-    .from(rosterRecords)
-    .where(
-      and(
-        eq(rosterRecords.tenant, tenant),
-        inArray(rosterRecords.id, [...recordIds]),
-        isNotNull(rosterRecords.flaggedByImportId),
-      ),
-    )
-    .groupBy(rosterRecords.flaggedByImportId);
-  for (const { importId, exits } of flaggedBy) {
-    if (importId === null) continue;
-    await tx
-      .update(rosterImports)
-      .set({ exitsRecorded: sql`${rosterImports.exitsRecorded} + ${exits}` })
-      .where(eq(rosterImports.id, importId));
-  }
 }
 
 interface LockedRecord {
