@@ -7,6 +7,8 @@ import {
 } from '@hugeicons/core-free-icons';
 import type { ComponentProps } from 'react';
 
+import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { formatDate } from '../lib/format-date';
 import { Badge } from './badge';
 import { Icon, type IconProps } from './icon';
@@ -80,6 +82,7 @@ export function SourceBadge({
   describe = describeSource,
   name,
   labelPrefix = 'Source',
+  className,
   ...props
 }: SourceBadgeProps) {
   const sentence = describe({ kind, at, reference });
@@ -92,7 +95,7 @@ export function SourceBadge({
         tabIndex={0}
         aria-label={`${labelPrefix}: ${sentence}`}
         data-source={kind}
-        className="outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(focusRing, className)}
         {...props}
       >
         <Icon icon={SOURCE_ICONS[kind]} />
