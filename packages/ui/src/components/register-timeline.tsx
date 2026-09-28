@@ -11,11 +11,11 @@ import {
   UserCheck01Icon,
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
-import { cva } from 'class-variance-authority';
 import { type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
 import { formatDate, formatDateTime, formatMonth } from '../lib/format-date';
+import { type Tone, toneClassNames } from '../lib/tone';
 import { Icon, type IconProps } from './icon';
 
 /** The kinds of access register entry (access.yaml `RegisterEntry.kind`). */
@@ -35,24 +35,28 @@ export const REGISTER_KINDS = [
 
 export type RegisterKind = (typeof REGISTER_KINDS)[number];
 
-export type RegisterTone = 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'brand';
+/** A decision's outcome (access.yaml `Outcome`). */
+export type RegisterOutcome = 'grant' | 'partial-grant' | 'deny';
 
-/** The console's copy, icon and tint for each kind. Entries can override the copy and tint. */
-export const registerKinds: Record<
-  RegisterKind,
-  { label: string; icon: IconProps['icon']; tone: RegisterTone }
-> = {
+interface EntryMeta {
+  label: string;
+  icon: IconProps['icon'];
+  tone: Tone;
+}
+
+/** The console's copy, icon and tint for each kind; entries can override copy and tint. */
+export const registerKindMeta: Record<RegisterKind, EntryMeta> = {
   received: { label: 'Request received', icon: InboxIcon, tone: 'default' },
   verified: { label: 'Verified', icon: UserCheck01Icon, tone: 'info' },
   notified: { label: 'Declarant notified', icon: Notification03Icon, tone: 'info' },
   representations: { label: 'Representations received', icon: Message01Icon, tone: 'default' },
-  decided: { label: 'Decision recorded', icon: JusticeScale01Icon, tone: 'success' },
+  decided: { label: 'Decision recorded', icon: JusticeScale01Icon, tone: 'default' },
   'package-issued': { label: 'Package issued', icon: PackageIcon, tone: 'success' },
   downloaded: { label: 'Package downloaded', icon: Download04Icon, tone: 'default' },
   expired: { label: 'Download window closed', icon: Timer02Icon, tone: 'warning' },
-  withdrawn: { label: 'Withdrawn by the applicant', icon: Undo02Icon, tone: 'default' },
+  withdrawn: { label: 'Request withdrawn', icon: Undo02Icon, tone: 'default' },
   'cannot-identify': {
-    label: 'Officer could not be identified',
+    label: 'Declarant could not be identified',
     icon: UserRemove01Icon,
     tone: 'destructive',
   },
@@ -63,131 +67,128 @@ export const registerKinds: Record<
   },
 };
 
-export interface RegisterTimelineEntry {
+/** How a `decided` entry reads and is tinted, by its outcome. */
+export const registerOutcomeMeta: Record<RegisterOutcome, Pick<EntryMeta, 'label' | 'tone'>> = {
+  grant: { label: 'Access granted', tone: 'success' },
+  'partial-grant': { label: 'Access partially granted', tone: 'warning' },
+  deny: { label: 'Access denied', tone: 'destructive' },
+};
+
+export interface RegisterEntry {
   id: string;
   kind: RegisterKind;
   /** When it happened, an ISO date-time. */
   at: string;
   /** Who acted, e.g. "Lucy Wambui" or "Mercy Wanjiku Kamau (applicant)"; null for the system. */
   actor?: string | null;
-  /** The request's reference, shown in list density. */
+  /** The request's reference, shown in the list. */
   reference?: string;
-  /** Replaces the kind's label, for copy written for the reader, e.g. the declarant. */
+  /** For `decided`: sets the copy and tint (granted green, partial amber, denied red). */
+  outcome?: RegisterOutcome;
+  /** Replaces the default copy, for words written for the reader, e.g. the declarant. */
   title?: ReactNode;
   /** A line of detail under the actor and time. */
   summary?: ReactNode;
-  /** Replaces the kind's tint, e.g. red for a denial. */
-  tone?: RegisterTone;
+  /** Replaces the default tint. */
+  tone?: Tone;
 }
 
-/** The entry's own title and tone where set, else its kind's. */
-function display(entry: RegisterTimelineEntry) {
-  const kind = registerKinds[entry.kind];
-  return { icon: kind.icon, title: entry.title ?? kind.label, tone: entry.tone ?? kind.tone };
+function display(entry: RegisterEntry) {
+  const kind = registerKindMeta[entry.kind];
+  const outcome =
+    entry.kind === 'decided' && entry.outcome ? registerOutcomeMeta[entry.outcome] : undefined;
+  return {
+    icon: kind.icon,
+    title: entry.title ?? outcome?.label ?? kind.label,
+    tone: entry.tone ?? outcome?.tone ?? kind.tone,
+  };
 }
 
-const toneVariants = cva('grid shrink-0 place-items-center rounded-full', {
-  variants: {
-    tone: {
-      default: 'bg-muted text-secondary-foreground',
-      info: 'bg-info-subtle text-info-subtle-foreground',
-      success: 'bg-success-subtle text-success',
-      warning: 'bg-warning-subtle text-warning',
-      destructive: 'bg-destructive-subtle text-destructive',
-      brand: 'bg-brand-subtle text-brand-subtle-foreground',
-    },
-  },
-});
+const newestFirst = (entries: RegisterEntry[]) =>
+  [...entries].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+
+function EntryIcon({ entry, size }: { entry: RegisterEntry; size: 'sm' | 'md' }) {
+  const { icon, tone } = display(entry);
+  return (
+    <span
+      data-tone={tone}
+      className={cn(
+        'grid shrink-0 place-items-center rounded-full',
+        toneClassNames[tone],
+        size === 'sm' ? 'size-7' : 'size-8',
+      )}
+    >
+      <Icon icon={icon} className={size === 'sm' ? 'size-3.5' : undefined} strokeWidth={2} />
+    </span>
+  );
+}
 
 export interface RegisterTimelineProps {
-  entries: RegisterTimelineEntry[];
+  entries: RegisterEntry[];
   /** Names the list for screen readers. */
   label?: string;
-  /**
-   * `compact`: a vertical timeline for one request, in a card or drawer. `list`: full-width
-   * rows grouped by month, with the reference, for a card without padding (Who accessed my
-   * declaration).
-   */
-  density?: 'compact' | 'list';
-  /** Level of the month headings in list density, to fit the page's outline. */
-  headingLevel?: 2 | 3 | 4;
   className?: string;
 }
 
 /**
- * The access register as an ordered list, newest first: each entry's icon and copy by kind,
- * who acted and when, as a `time` element in Kenyan time.
+ * The access register for one request as a vertical timeline, newest first, for a card or
+ * drawer: each entry's icon and copy by kind, who acted, and when, as a `time` element in
+ * Kenyan time.
  */
 export function RegisterTimeline({
   entries,
   label = 'Access register',
-  density = 'compact',
-  headingLevel = 3,
   className,
 }: RegisterTimelineProps) {
-  const sorted = [...entries].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-
-  if (density === 'list') {
-    return (
-      <RegisterList
-        entries={sorted}
-        label={label}
-        headingLevel={headingLevel}
-        className={className}
-      />
-    );
-  }
-
   return (
     <ol aria-label={label} className={cn('grid', className)}>
-      {sorted.map((entry) => {
-        const shown = display(entry);
-        return (
-          <li
-            key={entry.id}
-            data-kind={entry.kind}
-            className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-2.5 pb-4 before:absolute before:top-[26px] before:bottom-0 before:left-[13px] before:w-[1.5px] before:bg-border last:pb-0 last:before:hidden"
-          >
-            <span
-              data-tone={shown.tone}
-              className={cn(toneVariants({ tone: shown.tone }), 'size-7')}
-            >
-              <Icon icon={shown.icon} className="size-3.5" strokeWidth={2} />
-            </span>
-            <div className="min-w-0">
-              <div className="pt-1 text-sm leading-[1.35] font-medium">{shown.title}</div>
-              <div className="mt-px text-[12.5px] text-muted-foreground">
-                {entry.actor ? `${entry.actor} · ` : null}
-                <time dateTime={entry.at} className="whitespace-nowrap">
-                  {formatDateTime(entry.at)}
-                </time>
-              </div>
-              {entry.summary ? (
-                <div className="mt-[3px] text-[13.5px] text-secondary-foreground">
-                  {entry.summary}
-                </div>
-              ) : null}
+      {newestFirst(entries).map((entry) => (
+        <li
+          key={entry.id}
+          data-kind={entry.kind}
+          className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-2.5 pb-4 before:absolute before:top-[26px] before:bottom-0 before:left-[13px] before:w-[1.5px] before:bg-border last:pb-0 last:before:hidden"
+        >
+          <EntryIcon entry={entry} size="sm" />
+          <div className="min-w-0">
+            <div className="pt-1 text-sm leading-[1.35] font-medium">{display(entry).title}</div>
+            <div className="mt-px text-[12.5px] text-muted-foreground">
+              {entry.actor ? `${entry.actor} · ` : null}
+              <time dateTime={entry.at} className="whitespace-nowrap">
+                {formatDateTime(entry.at)}
+              </time>
             </div>
-          </li>
-        );
-      })}
+            {entry.summary ? (
+              <div className="mt-[3px] text-[13.5px] text-secondary-foreground">
+                {entry.summary}
+              </div>
+            ) : null}
+          </div>
+        </li>
+      ))}
     </ol>
   );
 }
 
-function RegisterList({
+export type HeadingLevel = 2 | 3 | 4;
+
+export interface RegisterListProps extends RegisterTimelineProps {
+  /** Level of the month headings, to fit the page's outline. */
+  headingLevel?: HeadingLevel;
+}
+
+/**
+ * Register entries across requests as full-width rows grouped by month, newest first, with
+ * the reference; for a card without padding (Who accessed my declaration). The date shows;
+ * screen readers hear the full time.
+ */
+export function RegisterList({
   entries,
-  label,
-  headingLevel,
+  label = 'Access register',
+  headingLevel = 3,
   className,
-}: {
-  entries: RegisterTimelineEntry[];
-  label: string;
-  headingLevel: 2 | 3 | 4;
-  className?: string | undefined;
-}) {
-  const months: { month: string; entries: RegisterTimelineEntry[] }[] = [];
-  for (const entry of entries) {
+}: RegisterListProps) {
+  const months: { month: string; entries: RegisterEntry[] }[] = [];
+  for (const entry of newestFirst(entries)) {
     const month = formatMonth(entry.at);
     const last = months.at(-1);
     if (last?.month === month) last.entries.push(entry);
@@ -209,8 +210,8 @@ function RegisterMonth({
   headingLevel,
 }: {
   month: string;
-  entries: RegisterTimelineEntry[];
-  headingLevel: 2 | 3 | 4;
+  entries: RegisterEntry[];
+  headingLevel: HeadingLevel;
 }) {
   const headingId = useId();
   const Heading = `h${String(headingLevel)}` as 'h2' | 'h3' | 'h4';
@@ -223,47 +224,39 @@ function RegisterMonth({
         {month}
       </Heading>
       <ol aria-labelledby={headingId}>
-        {entries.map((entry) => {
-          const shown = display(entry);
-          return (
-            <li
-              key={entry.id}
-              data-kind={entry.kind}
-              className="flex items-start gap-3.5 px-5 py-3.5 not-first:border-t not-first:border-border @min-[700px]:px-6"
+        {entries.map((entry) => (
+          <li
+            key={entry.id}
+            data-kind={entry.kind}
+            className="flex items-start gap-3.5 px-5 py-3.5 not-first:border-t not-first:border-border @min-[700px]:px-6"
+          >
+            <EntryIcon entry={entry} size="md" />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-px">
+              <span className="text-[15px] leading-[1.35] font-medium">{display(entry).title}</span>
+              {entry.actor || entry.reference ? (
+                <span className="text-[13.5px] leading-[1.4] break-words text-muted-foreground">
+                  {entry.actor}
+                  {entry.actor && entry.reference ? ' · ' : null}
+                  {entry.reference ? (
+                    <span className="font-mono text-[12.5px] whitespace-nowrap">
+                      {entry.reference}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              {entry.summary ? (
+                <span className="text-[13.5px] text-secondary-foreground">{entry.summary}</span>
+              ) : null}
+            </div>
+            <time
+              dateTime={entry.at}
+              className="pt-0.5 text-[13px] whitespace-nowrap text-muted-foreground"
             >
-              <span
-                data-tone={shown.tone}
-                className={cn(toneVariants({ tone: shown.tone }), 'size-8')}
-              >
-                <Icon icon={shown.icon} />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-px">
-                <span className="text-[15px] leading-[1.35] font-medium">{shown.title}</span>
-                {entry.actor || entry.reference ? (
-                  <span className="text-[13.5px] leading-[1.4] break-words text-muted-foreground">
-                    {entry.actor}
-                    {entry.actor && entry.reference ? ' · ' : null}
-                    {entry.reference ? (
-                      <span className="font-mono text-[12.5px] whitespace-nowrap">
-                        {entry.reference}
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
-                {entry.summary ? (
-                  <span className="text-[13.5px] text-secondary-foreground">{entry.summary}</span>
-                ) : null}
-              </div>
-              <time
-                dateTime={entry.at}
-                className="pt-0.5 text-[13px] whitespace-nowrap text-muted-foreground"
-              >
-                <span className="sr-only">{formatDateTime(entry.at)}</span>
-                <span aria-hidden="true">{formatDate(entry.at)}</span>
-              </time>
-            </li>
-          );
-        })}
+              <span className="sr-only">{formatDateTime(entry.at)}</span>
+              <span aria-hidden="true">{formatDate(entry.at)}</span>
+            </time>
+          </li>
+        ))}
       </ol>
     </div>
   );

@@ -29,6 +29,7 @@ export {
 export {
   DeadlineChip,
   type DeadlineChipProps,
+  deadlineSoonDays,
   type DeadlineState,
   deadlineStatus,
   type DeadlineStatus,
@@ -63,7 +64,7 @@ export {
   GroundsSelect,
   type GroundsSelectProps,
   REGULATION_24_GROUNDS,
-  regulation24Grounds,
+  groundMeta,
 } from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
 export { controlClassName, Input } from './components/input';
@@ -87,13 +88,17 @@ export {
   type RadioGroupProps,
 } from './components/radio';
 export {
+  type HeadingLevel,
   REGISTER_KINDS,
+  type RegisterEntry,
   type RegisterKind,
-  registerKinds,
+  registerKindMeta,
+  RegisterList,
+  type RegisterListProps,
+  type RegisterOutcome,
+  registerOutcomeMeta,
   RegisterTimeline,
-  type RegisterTimelineEntry,
   type RegisterTimelineProps,
-  type RegisterTone,
 } from './components/register-timeline';
 export {
   formatScope,
@@ -135,6 +140,7 @@ export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export { cn } from './lib/cn';
+export { type Tone, toneClassNames } from './lib/tone';
 export {
   countdownAnnouncement,
   formatClock,
@@ -142,4 +148,10 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { formatCalendarDate, formatDate, formatDateTime, formatMonth } from './lib/format-date';
+export {
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  msUntilKenyanMidnight,
+} from './lib/format-date';

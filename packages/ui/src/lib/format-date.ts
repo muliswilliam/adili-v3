@@ -52,3 +52,12 @@ export function formatMonth(iso: string): string {
   const part = parts(iso, MONTH_PARTS);
   return `${part('month')} ${part('year')}`;
 }
+
+const DAY_MS = 86_400_000;
+// Kenya keeps UTC+3 all year, so its midnight is a fixed offset from UTC.
+const KENYA_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Milliseconds from `now` (epoch ms) to the next midnight in Kenyan time. */
+export function msUntilKenyanMidnight(now: number): number {
+  return DAY_MS - ((now + KENYA_OFFSET_MS) % DAY_MS);
+}

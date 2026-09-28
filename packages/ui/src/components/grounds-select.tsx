@@ -17,7 +17,7 @@ export const REGULATION_24_GROUNDS = [
 export type Ground = (typeof REGULATION_24_GROUNDS)[number];
 
 /** A short label for each ground, and the text of Regulation 24 it cites. */
-export const regulation24Grounds: Record<Ground, { label: string; text: string }> = {
+export const groundMeta: Record<Ground, { label: string; text: string }> = {
   'public-interest': {
     label: 'Against public interest',
     text: '(a) the disclosure of any information contained in the declaration or clarification would be against public interest;',
@@ -109,10 +109,10 @@ export function GroundsSelect({
             />
             <span>
               <span id={labelId} className="text-[14.5px] leading-5 font-medium">
-                {regulation24Grounds[ground].label}
+                {groundMeta[ground].label}
               </span>
               <q id={textId} className="mt-[3px] block text-[13px] text-muted-foreground">
-                {regulation24Grounds[ground].text}
+                {groundMeta[ground].text}
               </q>
             </span>
           </label>

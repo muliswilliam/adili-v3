@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   REGISTER_KINDS,
-  registerKinds,
+  type RegisterEntry,
+  registerKindMeta,
+  RegisterList,
   RegisterTimeline,
-  type RegisterTimelineEntry,
 } from './register-timeline';
 
-const entries: RegisterTimelineEntry[] = [
+const entries: RegisterEntry[] = [
   {
     id: '1',
     kind: 'received',
@@ -61,15 +62,15 @@ describe('RegisterTimeline', () => {
     expect(items).toHaveLength(REGISTER_KINDS.length);
     for (const item of items) {
       const kind = item.dataset.kind as (typeof REGISTER_KINDS)[number];
-      expect(within(item).getByText(registerKinds[kind].label)).toBeDefined();
+      expect(within(item).getByText(registerKindMeta[kind].label)).toBeDefined();
       const icon = item.querySelector('svg');
       expect(icon?.getAttribute('aria-hidden')).toBe('true');
       expect(item.querySelector('[data-tone]')?.getAttribute('data-tone')).toBe(
-        registerKinds[kind].tone,
+        registerKindMeta[kind].tone,
       );
     }
-    expect(registerKinds['cannot-identify']).toMatchObject({
-      label: 'Officer could not be identified',
+    expect(registerKindMeta['cannot-identify']).toMatchObject({
+      label: 'Declarant could not be identified',
       tone: 'destructive',
     });
   });
@@ -115,9 +116,35 @@ describe('RegisterTimeline', () => {
     expect(item.querySelector('[data-tone]')?.getAttribute('data-tone')).toBe('brand');
   });
 
-  describe('list density', () => {
+  it('reads and tints a decision by its outcome', () => {
+    render(
+      <RegisterTimeline
+        entries={[
+          { id: 'g', kind: 'decided', at: '2026-09-03T06:00:00Z', outcome: 'grant' },
+          { id: 'p', kind: 'decided', at: '2026-09-02T06:00:00Z', outcome: 'partial-grant' },
+          { id: 'd', kind: 'decided', at: '2026-09-01T06:00:00Z', outcome: 'deny' },
+          { id: 'x', kind: 'decided', at: '2026-08-31T06:00:00Z' },
+        ]}
+      />,
+    );
+
+    const items = screen.getAllByRole('listitem');
+    expect(
+      items.map((item) => [
+        item.querySelector('.font-medium')?.textContent,
+        item.querySelector('[data-tone]')?.getAttribute('data-tone'),
+      ]),
+    ).toEqual([
+      ['Access granted', 'success'],
+      ['Access partially granted', 'warning'],
+      ['Access denied', 'destructive'],
+      ['Decision recorded', 'default'],
+    ]);
+  });
+
+  describe('RegisterList', () => {
     it('groups entries by month under headings, newest first', () => {
-      render(<RegisterTimeline entries={entries} density="list" />);
+      render(<RegisterList entries={entries} />);
 
       const group = screen.getByRole('group', { name: 'Access register' });
       const headings = within(group).getAllByRole('heading', { level: 3 });
@@ -137,13 +164,13 @@ describe('RegisterTimeline', () => {
     });
 
     it('takes the heading level of the page around it', () => {
-      render(<RegisterTimeline entries={entries} density="list" headingLevel={2} />);
+      render(<RegisterList entries={entries} headingLevel={2} />);
 
       expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(2);
     });
 
     it('shows the reference and the date, with the full time for screen readers', () => {
-      render(<RegisterTimeline entries={entries} density="list" />);
+      render(<RegisterList entries={entries} />);
 
       const received = within(screen.getByRole('list', { name: 'August 2026' })).getByRole(
         'listitem',

@@ -37,7 +37,7 @@ describe('ScopePicker', () => {
     ).toEqual(['years', 'years']);
     const people = screen.getByRole('group', { name: 'People' });
     expect(within(people).getAllByRole('checkbox')).toEqual(
-      ['The officer', 'Spouses', 'Children', 'Clarifications'].map((name) =>
+      ['The declarant', 'Spouses', 'Children', 'Clarifications'].map((name) =>
         within(people).getByRole('checkbox', { name }),
       ),
     );
@@ -45,10 +45,10 @@ describe('ScopePicker', () => {
     expect(within(sections).getAllByRole('checkbox')).toHaveLength(5);
   });
 
-  it('always includes the officer', () => {
+  it('always includes the declarant', () => {
     renderPicker();
 
-    const officer = screen.getByRole('checkbox', { name: 'The officer' });
+    const officer = screen.getByRole('checkbox', { name: 'The declarant' });
     expect(officer).toHaveProperty('checked', true);
     expect(officer.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(officer);
@@ -219,16 +219,16 @@ describe('isSameScope', () => {
 describe('formatScope', () => {
   it('summarises years, people, sections and clarifications', () => {
     expect(formatScope(requested)).toBe(
-      '2025, 2026 · Officer and spouses · Income, assets, liabilities · clarifications',
+      '2025, 2026 · Declarant and spouses · Income, assets, liabilities · clarifications',
     );
     expect(
       formatScope({ ...empty, years: [2026], includeChildren: true, sections: ['bio', 'other'] }),
-    ).toBe('2026 · Officer and children · Personal details, other information');
+    ).toBe('2026 · Declarant and children · Personal details, other information');
     expect(formatScope({ ...requested, includeChildren: true, includeClarifications: false })).toBe(
-      '2025, 2026 · Officer, spouses and children · Income, assets, liabilities',
+      '2025, 2026 · Declarant, spouses and children · Income, assets, liabilities',
     );
     expect(formatScope({ ...empty, years: [2026], sections: ['income'] })).toBe(
-      '2026 · Officer only · Income',
+      '2026 · Declarant only · Income',
     );
   });
 });

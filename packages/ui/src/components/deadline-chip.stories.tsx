@@ -1,15 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { DeadlineChip } from './deadline-chip';
+import { DeadlineChip, deadlineSoonDays } from './deadline-chip';
 
 const DAY_MS = 86_400_000;
 const inDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
 
-// Due soon from the first reminder: 10 days left of 30 for a Form K decision.
 const meta = {
   title: 'Access/DeadlineChip',
   component: DeadlineChip,
-  args: { due: inDays(16), label: 'Decision due', soonDays: 10 },
+  args: { due: inDays(16), label: 'Decision due', soonDays: deadlineSoonDays.decision },
 } satisfies Meta<typeof DeadlineChip>;
 
 export default meta;
@@ -22,10 +21,18 @@ export const DueSoon: Story = { args: { due: inDays(3) } };
 export const DueToday: Story = { args: { due: inDays(0) } };
 
 export const EndsToday: Story = {
-  args: { due: inDays(0), label: 'Download until', soonDays: 3, todayText: 'Ends today' },
+  args: {
+    due: inDays(0),
+    label: 'Download until',
+    soonDays: deadlineSoonDays.download,
+    todayText: 'Ends today',
+  },
 };
 
 export const Late: Story = { args: { due: inDays(-7) } };
+
+/** Past the due time on the day itself, as the server reports. */
+export const LateToday: Story = { args: { due: inDays(0), late: true } };
 
 export const Met: Story = { args: { due: inDays(-7), met: 'Decided 26 Sep' } };
 

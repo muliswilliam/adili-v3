@@ -9,8 +9,8 @@ import { FieldError } from './form-field';
 
 /**
  * What an access request asks for, or a decision grants: declaration years, whether the
- * officer's spouses and children are included, which sections, and clarifications (always false
- * for law-enforcement requests). The officer is always included. The `scope` of `form-k.v1`.
+ * declarant's spouses and children are included, which sections, and clarifications (always false
+ * for law-enforcement requests). The declarant is always included. The `scope` of `form-k.v1`.
  */
 export type Scope = FormKV1['scope'];
 
@@ -46,13 +46,13 @@ export function isSameScope(a: Scope, b: Scope): boolean {
 }
 
 function people(scope: Scope): string {
-  if (scope.includeSpouses && scope.includeChildren) return 'Officer, spouses and children';
-  if (scope.includeSpouses) return 'Officer and spouses';
-  if (scope.includeChildren) return 'Officer and children';
-  return 'Officer only';
+  if (scope.includeSpouses && scope.includeChildren) return 'Declarant, spouses and children';
+  if (scope.includeSpouses) return 'Declarant and spouses';
+  if (scope.includeChildren) return 'Declarant and children';
+  return 'Declarant only';
 }
 
-/** `2025, 2026 · Officer and spouses · Income, assets · clarifications` */
+/** `2025, 2026 · Declarant and spouses · Income, assets · clarifications` */
 export function formatScope(scope: Scope): string {
   const sections = SCOPE_SECTIONS.filter((section) => scope.sections.includes(section))
     .map((section, index) =>
@@ -93,7 +93,7 @@ export interface ScopePickerProps {
 }
 
 /**
- * Chooses the scope of an access request or grant: years, people (the officer, spouses,
+ * Chooses the scope of an access request or grant: years, people (the declarant, spouses,
  * children, and clarifications) and sections, each a fieldset with a legend. Side by side from
  * 760px of its own width, stacked below.
  */
@@ -108,7 +108,7 @@ export function ScopePicker({
   name,
   className,
 }: ScopePickerProps) {
-  const officerId = useId();
+  const declarantId = useId();
 
   function item({
     field,
@@ -182,14 +182,14 @@ export function ScopePicker({
               (a native disabled checkbox greys out) while clicks leave it checked. */}
           <div className="flex gap-3">
             <Checkbox
-              id={officerId}
+              id={declarantId}
               checked
               aria-disabled="true"
               onChange={() => undefined}
               className="mt-px cursor-default"
             />
-            <label htmlFor={officerId} className="cursor-default text-sm leading-5 select-none">
-              The officer
+            <label htmlFor={declarantId} className="cursor-default text-sm leading-5 select-none">
+              The declarant
             </label>
           </div>
           {flag('includeSpouses', 'Spouses')}

@@ -785,9 +785,6 @@ importers:
 
   packages/ui:
     dependencies:
-      '@adili/forms':
-        specifier: workspace:*
-        version: link:../forms
       '@fontsource-variable/inter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -828,6 +825,9 @@ importers:
       '@adili/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@adili/forms':
+        specifier: workspace:*
+        version: link:../forms
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

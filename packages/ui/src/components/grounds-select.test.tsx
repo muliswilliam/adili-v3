@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { type Ground, GroundsSelect, regulation24Grounds } from './grounds-select';
+import { type Ground, GroundsSelect, groundMeta } from './grounds-select';
 
 function renderSelect(props: Partial<Parameters<typeof GroundsSelect>[0]> = {}) {
   const onChange = vi.fn<(grounds: Ground[]) => void>();
@@ -26,7 +26,7 @@ describe('GroundsSelect', () => {
     const ground = screen.getByRole('checkbox', { name: 'Against public interest' });
     const description = document.getElementById(ground.getAttribute('aria-describedby') ?? '');
     expect(description?.tagName).toBe('Q');
-    expect(description?.textContent).toBe(regulation24Grounds['public-interest'].text);
+    expect(description?.textContent).toBe(groundMeta['public-interest'].text);
     expect(description?.textContent).toMatch(/^\(a\) the disclosure/);
   });
 
@@ -56,7 +56,7 @@ describe('GroundsSelect', () => {
   it('toggles from anywhere on the card', () => {
     const onChange = renderSelect();
 
-    fireEvent.click(screen.getByText(regulation24Grounds['prejudice-proceeding'].text));
+    fireEvent.click(screen.getByText(groundMeta['prejudice-proceeding'].text));
 
     expect(onChange).toHaveBeenLastCalledWith(['prejudice-proceeding']);
   });

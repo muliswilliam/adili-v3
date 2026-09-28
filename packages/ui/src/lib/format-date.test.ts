@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatCalendarDate, formatDate, formatDateTime, formatMonth } from './format-date';
+import {
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  msUntilKenyanMidnight,
+} from './format-date';
 
 describe('formatDate', () => {
   it('prints day, short month and year', () => {
@@ -37,5 +43,12 @@ describe('formatMonth', () => {
   it('prints the full month and year in Kenyan time', () => {
     expect(formatMonth('2026-09-26T07:42:00Z')).toBe('September 2026');
     expect(formatMonth('2026-08-31T21:30:00Z')).toBe('September 2026');
+  });
+});
+
+describe('msUntilKenyanMidnight', () => {
+  it('counts to 00:00 in Nairobi, 21:00 UTC', () => {
+    expect(msUntilKenyanMidnight(Date.parse('2026-09-26T20:59:00Z'))).toBe(60_000);
+    expect(msUntilKenyanMidnight(Date.parse('2026-09-26T21:00:00Z'))).toBe(86_400_000);
   });
 });
