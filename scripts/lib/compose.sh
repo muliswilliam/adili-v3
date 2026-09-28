@@ -1,4 +1,5 @@
 # Shared Docker / Podman Compose helper. Source from the other infra scripts.
+# Needs Node (the repo prerequisite) to read the compose config.
 # Override with COMPOSE_BIN, e.g. COMPOSE_BIN="podman compose".
 # shellcheck shell=sh
 
@@ -28,13 +29,23 @@ compose() {
   $(compose_bin) -f "$(compose_file)" "$@"
 }
 
-# One-shot jobs that exit once done. `infra-up.sh` runs them after the long-running services,
-# and `infra-health.sh` leaves them out, so add every new init job here.
-INIT_JOBS="temporal-schema temporal-namespace seaweedfs-buckets openbao-keys"
-
-long_running_services() {
-  compose config --services | JOBS="$INIT_JOBS" awk '
-    BEGIN { n = split(ENVIRON["JOBS"], jobs, " "); for (i = 1; i <= n; i++) skip[jobs[i]] = 1 }
-    !($0 in skip)
+# Compose services, one per line: `init` lists the one-shot jobs labelled `adili.init-job` in the
+# compose file, `long-running` the rest. Fails when `compose config` fails or the list is empty.
+compose_services() {
+  config=$(compose config --format json) || return
+  # shellcheck disable=SC2016 # the program is JavaScript, not shell
+  printf '%s' "$config" | KIND="$1" node -e '
+    let json = "";
+    process.stdin.on("data", (chunk) => (json += chunk)).on("end", () => {
+      const init = process.env.KIND === "init";
+      const names = Object.entries(JSON.parse(json).services)
+        .filter(([, service]) => (service.labels?.["adili.init-job"] === "true") === init)
+        .map(([name]) => name);
+      if (names.length === 0) {
+        console.error(`No ${process.env.KIND} services in the compose file`);
+        process.exit(1);
+      }
+      console.log(names.join("\n"));
+    });
   '
 }

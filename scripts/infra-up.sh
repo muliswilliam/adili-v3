@@ -7,7 +7,8 @@ set -eu
 # shellcheck source=SCRIPTDIR/lib/compose.sh
 . "$(dirname "$0")/lib/compose.sh"
 
-long_running=$(long_running_services)
+init_jobs=$(compose_services init)
+long_running=$(compose_services long-running)
 
 # Pull registry images that are not cached yet. adili/keycloak:dev is built locally, so it is
 # skipped here and `up --pull never` builds it instead of failing on a Hub lookup.
@@ -20,8 +21,8 @@ compose up -d --wait --pull never $long_running
 compose exec -T postgres /bin/sh /docker-entrypoint-initdb.d/10-init-databases.sh
 
 # shellcheck disable=SC2086
-compose up --no-log-prefix $INIT_JOBS
-for job in $INIT_JOBS; do
+compose up --no-log-prefix $init_jobs
+for job in $init_jobs; do
   code=$(compose ps -a --format '{{.ExitCode}}' "$job")
   if [ "$code" != 0 ]; then
     echo "Init job ${job} failed with exit code ${code}" >&2
