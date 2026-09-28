@@ -140,6 +140,7 @@ export {
   describeSource,
   type ItemSourceDetails,
   SOURCE_ICONS,
+  SOURCE_KINDS,
   SOURCE_NAMES,
   SourceBadge,
   type SourceBadgeProps,

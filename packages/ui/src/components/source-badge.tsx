@@ -12,8 +12,10 @@ import { Badge } from './badge';
 import { Icon, type IconProps } from './icon';
 import { Tooltip } from './tooltip';
 
-/** Where a declared item's details came from: a government registry or a document the declarant read in. */
-export type SourceKind = 'kra' | 'ntsa' | 'brs' | 'ardhisasa' | 'document';
+/** Where a declared item's details can come from: a government registry, or a document the declarant read in. */
+export const SOURCE_KINDS = ['kra', 'ntsa', 'brs', 'ardhisasa', 'document'] as const;
+
+export type SourceKind = (typeof SOURCE_KINDS)[number];
 
 /** Display names. Registry names are not translated. */
 export const SOURCE_NAMES: Record<SourceKind, string> = {

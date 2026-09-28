@@ -18,9 +18,9 @@ import {
 import type {
   DeclarationAttachment,
   DocumentKind,
+  RegistrySystem,
   Suggestion,
   SuggestionSet,
-  SuggestionSource,
 } from '../types';
 import { isRecord, json, problem, readJson } from '../../mock-http';
 
@@ -133,7 +133,7 @@ interface Fixture {
   sourceRef: Record<string, unknown>;
 }
 
-const OFFICER: Record<Exclude<SuggestionSource, 'document'>, Fixture[]> = {
+const OFFICER: Record<RegistrySystem, Fixture[]> = {
   kra: [
     {
       itemType: 'bio-tax',
@@ -192,7 +192,7 @@ const OFFICER: Record<Exclude<SuggestionSource, 'document'>, Fixture[]> = {
 /** What a registry answers for a person: suggestions, or `unavailable` (S2). */
 export function registryAnswer(
   personKey: string,
-  source: Exclude<SuggestionSource, 'document'>,
+  source: RegistrySystem,
   attempt: number,
 ): Fixture[] | 'unavailable' {
   if (personKey === 'officer') return OFFICER[source];
@@ -399,7 +399,7 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
   const now = Date.now();
   const at = new Date(now).toISOString();
   state.consents.push({ personKey, at, textVersion: consent.textVersion });
-  const created = (systems as Exclude<SuggestionSource, 'document'>[]).map((source, index) => {
+  const created = (systems as RegistrySystem[]).map((source, index) => {
     const earlier = state.sets.filter(
       (set) => set.personKey === personKey && set.source === source,
     );

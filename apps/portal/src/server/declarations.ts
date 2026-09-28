@@ -2,7 +2,9 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
+import { DOCUMENT_KINDS } from '../declaration/extraction';
 import { isSectionKey, parsePersonKey } from '../declaration/section-key';
+import { REGISTRIES } from '../declaration/suggestions';
 import { getBff } from './bff.server';
 import {
   acceptSuggestion,
@@ -137,7 +139,7 @@ export const requestRegistryLookups = createServerFn({ method: 'POST' })
     z.object({
       declarationId: id,
       personKey,
-      systems: z.array(z.enum(['kra', 'ntsa', 'brs', 'ardhisasa'])).min(1),
+      systems: z.array(z.enum(REGISTRIES)).min(1),
       textVersion: z.string().min(1),
       idempotencyKey: id,
     }),
@@ -186,14 +188,7 @@ export const extractDeclarationAttachment = createServerFn({ method: 'POST' })
     z.object({
       declarationId: id,
       attachmentId: id,
-      documentKindHint: z.enum([
-        'title-deed',
-        'logbook',
-        'payslip',
-        'bank-letter',
-        'share-certificate',
-        'other',
-      ]),
+      documentKindHint: z.enum(DOCUMENT_KINDS),
       targetItemType: z.string().min(1).max(40),
       language: z.enum(['en', 'sw']).optional(),
       idempotencyKey: id,
