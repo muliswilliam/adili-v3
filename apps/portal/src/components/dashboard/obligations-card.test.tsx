@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { startDeclarationFn } from '../../server/declarations';
+import { startMyDeclaration } from '../../server/declarations';
 import type { Obligation } from '../../server/declarations/types';
 import { navigate } from '../declaration/testing-mocks';
 import { CLOSED_REASONS } from './obligations';
@@ -15,7 +15,7 @@ vi.mock('../../server/declarations', async () =>
   (await import('../declaration/testing-mocks')).serverMock(),
 );
 
-const startMock = vi.mocked(startDeclarationFn);
+const startMock = vi.mocked(startMyDeclaration);
 const TSC = { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' };
 
 function obligation(

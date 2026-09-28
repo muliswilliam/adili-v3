@@ -29,9 +29,7 @@ function steps(overrides: Partial<UploadSteps> = {}): UploadSteps {
       Promise.resolve<UploadCheck>({ status: 'clean', sha256: 'a'.repeat(64), size: 8 }),
     ),
     check: vi.fn(() => Promise.resolve<UploadCheck>({ status: 'scanning' })),
-    link: vi.fn(() =>
-      Promise.resolve({ status: 'linked' as const, attachmentId: 'attachment-1', size: 8 }),
-    ),
+    link: vi.fn(() => Promise.resolve({ status: 'linked' as const, size: 8 })),
     wait: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
@@ -50,13 +48,7 @@ describe('uploadAttachment', () => {
       { type: 'progress', id: 'row-1', percent: 50 },
       { type: 'progress', id: 'row-1', percent: 100 },
       { type: 'scanning', id: 'row-1' },
-      {
-        type: 'linked',
-        id: 'row-1',
-        uploadId: UPLOAD_ID,
-        attachmentId: 'attachment-1',
-        size: 8,
-      },
+      { type: 'linked', id: 'row-1', uploadId: UPLOAD_ID, size: 8 },
     ]);
     expect(given.reserve).toHaveBeenCalledWith({
       contentType: 'application/pdf',

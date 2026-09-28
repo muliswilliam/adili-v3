@@ -15,8 +15,8 @@ import { AlertCircleIcon, ArrowRight01Icon, Calendar03Icon } from '@hugeicons/co
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 
-import { OBLIGATION_TYPE_LABELS } from '../declaration/labels';
-import { startDeclarationFn } from '../../server/declarations';
+import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
+import { startMyDeclaration } from '../../server/declarations';
 import type { DeclarationListResult, ObligationsResult } from '../../server/declarations.server';
 import type { Obligation, ObligationStatus } from '../../server/declarations/types';
 import { startAvailability } from './obligations';
@@ -52,7 +52,7 @@ function StartButton({ obligationId }: { obligationId: string }) {
   async function start() {
     setBusy(true);
     setError(null);
-    const result = await startDeclarationFn({ data: { obligationId } }).catch(
+    const result = await startMyDeclaration({ data: { obligationId } }).catch(
       () => ({ status: 'unavailable' }) as const,
     );
     if (result.status === 'started') {

@@ -80,6 +80,8 @@ describe('step machine (S19)', () => {
     expect(
       stepFromPath(`/declarations/d-1/statements/${encodeURIComponent(SPOUSE.slice(10))}`),
     ).toBe(SPOUSE);
+    expect(stepFromPath('/declarations/d-1/statements/cousin:1')).toBeNull();
+    expect(stepFromPath('/declarations/d-1/unknown')).toBeNull();
     expect(stepFromPath('/')).toBeNull();
   });
 

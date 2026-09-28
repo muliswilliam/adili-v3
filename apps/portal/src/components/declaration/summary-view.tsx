@@ -30,18 +30,23 @@ import type { LoadedSummary } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
-import type { Draft, Statement } from './contents';
+import type { Draft, Statement } from '../../declaration/contents';
 import { DiscardDraftButton } from './discard-dialog';
-import { fullName, orUnanswered, UNANSWERED } from './format';
+import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
 import { sourceDetails } from './item-source';
-import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, TYPE_LABELS } from './labels';
+import { statementSectionKey } from '../../declaration/section-key';
+import {
+  EMPLOYMENT_NATURE_LABELS,
+  MARITAL_STATUS_LABELS,
+  TYPE_LABELS,
+} from '../../declaration/labels';
 import {
   directorshipLine,
   dualCitizenshipLine,
   materialChangeLine,
   membershipLine,
   pendingCaseLine,
-} from './other';
+} from '../../declaration/other';
 import {
   relationship,
   STATEMENTS_TITLE,
@@ -207,13 +212,10 @@ function Muted({ children, warning = false }: { children: ReactNode; warning?: b
   );
 }
 
-function BioCard({ summary, document }: { summary: LoadedSummary; document: SummaryDocument }) {
+/** Paragraphs 1-5 (Your details), one card each; they all edit and complete as the bio section. */
+function BioCards({ summary, document }: { summary: LoadedSummary; document: SummaryDocument }) {
   const officer = document.officer ?? {};
   const { declaration } = summary;
-  const birth = [
-    officer.birth?.date ? formatDate(officer.birth.date) : undefined,
-    officer.birth?.place?.trim(),
-  ].filter(Boolean);
   const change = officer.maritalStatusChange;
   const employment = officer.employment ?? {};
   const nature = employment.nature
@@ -221,60 +223,86 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
       ? `Other: ${orUnanswered(employment.natureOther)}`
       : EMPLOYMENT_NATURE_LABELS[employment.nature]
     : UNANSWERED;
-  return (
-    <ParagraphCard
-      paragraphs="Paragraphs 1-5"
-      title={STEP_TITLES.bio}
-      completeness={paragraphCompleteness(declaration.sections, 'bio')}
-      edit={<EditLink declarationId={declaration.id} step="bio" name={STEP_TITLES.bio} />}
-    >
-      <Rows
-        rows={[
-          ['Name', orUnanswered(fullName(officer.name))],
-          ['Date and place of birth', birth.length > 0 ? birth.join(', ') : UNANSWERED],
+  const paragraphs: [number, string, [string, ReactNode][]][] = [
+    [1, 'Name', [['Name', orUnanswered(fullName(officer.name))]]],
+    [
+      2,
+      'Date and place of birth',
+      [
+        ['Date of birth', officer.birth?.date ? formatDate(officer.birth.date) : UNANSWERED],
+        ['Place of birth', orUnanswered(officer.birth?.place)],
+      ],
+    ],
+    [
+      3,
+      'Marital status',
+      [
+        [
+          'Marital status',
+          <>
+            {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : UNANSWERED}
+            {change?.changed ? (
+              <span className="block text-[13px] font-normal text-muted-foreground">
+                Changed since last declaration: {orUnanswered(change.explanation)}
+              </span>
+            ) : null}
+          </>,
+        ],
+      ],
+    ],
+    [
+      4,
+      'Address',
+      [
+        ['Postal address', orUnanswered(officer.address?.postal)],
+        ['Physical address', orUnanswered(officer.address?.physical)],
+      ],
+    ],
+    [
+      5,
+      'Employment',
+      [
+        [
+          'Employer and designation',
+          `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
+        ],
+        ...(
           [
-            'Marital status',
-            <>
-              {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : UNANSWERED}
-              {change?.changed ? (
-                <span className="block text-[13px] font-normal text-muted-foreground">
-                  Changed since last declaration: {orUnanswered(change.explanation)}
-                </span>
-              ) : null}
-            </>,
-          ],
-          ['Postal address', orUnanswered(officer.address?.postal)],
-          ['Physical address', orUnanswered(officer.address?.physical)],
-          [
-            'Employer and designation',
-            `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
-          ],
-          ...(
+            ['Job group', employment.jobGroup?.trim()],
             [
-              ['Job group', employment.jobGroup?.trim()],
-              [
-                'Date of appointment',
-                employment.appointmentDate ? formatDate(employment.appointmentDate) : undefined,
-              ],
-              ['Work station', employment.workStation?.trim()],
-            ] as const
-          ).flatMap(([term, value]): [string, ReactNode][] => (value ? [[term, value]] : [])),
-          ['Nature of employment', nature],
-          [
-            'Responsible Commission',
-            employment.personnelFileNumber ? (
-              <>
-                {declaration.commission.name} · personnel file number{' '}
-                <span className="font-mono">{employment.personnelFileNumber}</span>
-              </>
-            ) : (
-              declaration.commission.name
-            ),
-          ],
-        ]}
-      />
+              'Date of appointment',
+              employment.appointmentDate ? formatDate(employment.appointmentDate) : undefined,
+            ],
+            ['Work station', employment.workStation?.trim()],
+          ] as const
+        ).flatMap(([term, value]): [string, ReactNode][] => (value ? [[term, value]] : [])),
+        ['Nature of employment', nature],
+        [
+          'Responsible Commission',
+          employment.personnelFileNumber ? (
+            <>
+              {declaration.commission.name} · personnel file number{' '}
+              <span className="font-mono">{employment.personnelFileNumber}</span>
+            </>
+          ) : (
+            declaration.commission.name
+          ),
+        ],
+      ],
+    ],
+  ];
+  const completeness = paragraphCompleteness(declaration.sections, 'bio');
+  return paragraphs.map(([number, title, rows]) => (
+    <ParagraphCard
+      key={number}
+      paragraphs={`Paragraph ${String(number)}`}
+      title={title}
+      completeness={completeness}
+      edit={<EditLink declarationId={declaration.id} step="bio" name={title} />}
+    >
+      <Rows rows={rows} />
     </ParagraphCard>
-  );
+  ));
 }
 
 function SpousesCard({ summary, document }: { summary: LoadedSummary; document: SummaryDocument }) {
@@ -490,7 +518,7 @@ function SourcedItems({
 }
 
 function statementKeyOf(statement: Draft<Statement>) {
-  return `statement:${statement.personKey ?? 'officer'}`;
+  return statementSectionKey(statement.personKey ?? 'officer');
 }
 
 function StatementsCard({
@@ -522,7 +550,7 @@ function StatementsCard({
     <ParagraphCard
       paragraphs="Paragraph 8"
       title={STATEMENTS_TITLE}
-      completeness={paragraphCompleteness(declaration.sections, 'statements')}
+      completeness={paragraphCompleteness(declaration.sections, 'statement')}
     >
       <div className="grid gap-1.5">
         <Table caption="Totals per person, KES">
@@ -705,7 +733,7 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
         </Alert>
       )}
 
-      <BioCard summary={summary} document={document} />
+      <BioCards summary={summary} document={document} />
       <SpousesCard summary={summary} document={document} />
       <ChildrenCard summary={summary} document={document} />
       <StatementsCard summary={summary} document={document} />
@@ -718,9 +746,6 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
         <blockquote className="border-l-2 border-border pl-4 text-[15px]">
           "{summary.attestationText}"
         </blockquote>
-        <p className="text-sm text-muted-foreground">
-          You affirm this when you submit. No signature or witness needed.
-        </p>
       </section>
 
       <Card className="flex flex-wrap items-center gap-4 p-5">

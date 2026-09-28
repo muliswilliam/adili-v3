@@ -9,6 +9,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { sectionKind } from '../../declaration/section-key';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { CompletenessBadge } from './completeness-badge';
 import {
@@ -16,20 +17,19 @@ import {
   continueTarget,
   progress,
   relationship,
-  sectionKind,
-  STEP_TITLES,
+  SECTION_KINDS,
   stepLink,
 } from './steps';
 import { useWorkspace } from './workspace';
 
 function sectionRow(section: DeclarationSection) {
   const kind = sectionKind(section.key);
-  if (kind === 'bio') return { number: '1', label: STEP_TITLES.bio, sub: null };
-  if (kind === 'household') return { number: '2', label: STEP_TITLES.household, sub: null };
-  if (kind === 'other') return { number: '4', label: STEP_TITLES.other, sub: null };
+  if (kind === null) return null;
+  const { number, title } = SECTION_KINDS[kind];
+  if (kind !== 'statement') return { number: String(number), label: title, sub: null };
   const you = section.key === 'statement:officer';
   return {
-    number: '3',
+    number: String(number),
     label: `Financial statement: ${you ? 'you' : (section.personName ?? 'unnamed person')}`,
     sub: relationship(section.key),
   };
@@ -124,6 +124,7 @@ export function DeclarationOverview({ footer }: { footer?: ReactNode }) {
         <ol className="divide-y divide-border">
           {sections.map((section) => {
             const row = sectionRow(section);
+            if (!row) return null;
             if (section.completeness === 'archived') {
               return (
                 <Row

@@ -25,7 +25,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
-import { OBLIGATION_TYPE_LABELS } from './labels';
+import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
 import { navEntries, neighbours, type Step, stepForNavEntry, stepLink, stepTitle } from './steps';
 import { useWorkspace } from './workspace';
 import { WorkspaceHeader } from './workspace-header';
@@ -33,6 +33,9 @@ import { WorkspaceHeader } from './workspace-header';
 export const CONFLICT_COPY =
   'This declaration was changed on another device or tab. Reload to continue; your last saved work is kept.';
 export const RELOADED_COPY = 'Reloaded the latest saved version';
+/** A 400 on save: the service refused the section as sent, so the next edit is what saves. */
+export const refusedCopy = (title: string) =>
+  `Your last change to ${title} could not be saved. Check it and correct it to save again.`;
 
 function navSections(sections: ReturnType<typeof navEntries>): SectionNavSection[] {
   return sections.map((entry) => ({
@@ -179,6 +182,15 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
               <Icon icon={RefreshIcon} />
               Reload
             </Button>
+          </Alert>
+        ) : null}
+
+        {!conflict && autosave.rejection ? (
+          <Alert variant="destructive">
+            <Icon icon={AlertCircleIcon} />
+            <AlertDescription>
+              {refusedCopy(stepTitle(sections, autosave.rejection.key))}
+            </AlertDescription>
           </Alert>
         ) : null}
 

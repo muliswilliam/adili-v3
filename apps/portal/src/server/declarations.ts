@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
+import { isSectionKey } from '../declaration/section-key';
 import { getBff } from './bff.server';
 import {
   acceptSuggestion,
@@ -53,16 +54,14 @@ async function asDeclarant<T>(
 }
 
 const id = z.uuid();
-const sectionKey = z
-  .string()
-  .regex(/^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$/);
+const sectionKey = z.string().refine(isSectionKey, 'Not a section key');
 const declarationInput = z.object({ declarationId: id });
 
 export const getMyObligations = createServerFn({ method: 'GET' }).handler(
   (): Promise<ObligationsResult | Unauthenticated> => asDeclarant(listObligations),
 );
 
-export const startDeclarationFn = createServerFn({ method: 'POST' })
+export const startMyDeclaration = createServerFn({ method: 'POST' })
   .validator(z.object({ obligationId: id }))
   .handler(({ data }): Promise<StartResult | Unauthenticated> =>
     asDeclarant((client) => startDeclaration(client, data.obligationId)),
@@ -97,7 +96,7 @@ export const saveDeclarationSection = createServerFn({ method: 'POST' })
     asDeclarant((client) => saveSection(client, data)),
   );
 
-export const discardDeclarationFn = createServerFn({ method: 'POST' })
+export const discardMyDeclaration = createServerFn({ method: 'POST' })
   .validator(declarationInput)
   .handler(({ data }): Promise<DiscardResult | Unauthenticated> =>
     asDeclarant((client) => discardDeclaration(client, data.declarationId)),

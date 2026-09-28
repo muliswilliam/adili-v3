@@ -27,7 +27,7 @@ interface Node {
 const schema = JSON.parse(
   readFileSync(
     fileURLToPath(
-      new URL('../../../node_modules/@adili/schemas/forms/declaration.v1.json', import.meta.url),
+      new URL('../../node_modules/@adili/schemas/forms/declaration.v1.json', import.meta.url),
     ),
     'utf8',
   ),
@@ -44,7 +44,7 @@ function at(node: Node | undefined, ...path: string[]): Node {
 
 const defs = schema.$defs ?? {};
 
-// The section types in contents.ts are hand-written; these fail when the schema moves.
+// The types come from the generated form.gen.ts; these keep the option lists in the form's order.
 describe('declaration.v1 enums', () => {
   it.each([
     ['marital status', at(schema, 'officer', 'maritalStatus').enum, MARITAL_STATUSES],

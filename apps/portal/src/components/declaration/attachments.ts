@@ -1,6 +1,6 @@
 import type { AttachmentListItem } from '@adili/ui';
 
-import type { Attachment, Draft } from './contents';
+import type { Attachment, Draft } from '../../declaration/contents';
 
 /**
  * Documents attached to assets and liabilities (#125): what the browser accepts, and the pure
@@ -62,7 +62,6 @@ export interface UploadRow {
 
 /** What linking told us that the item's attachment reference does not carry. */
 export interface LinkedFile {
-  attachmentId: string;
   size: number;
 }
 
@@ -87,7 +86,7 @@ export type UploadsEvent =
   | { type: 'progress'; id: string; percent: number }
   | { type: 'scanning'; id: string }
   | { type: 'finished'; id: string; outcome: UploadEnd }
-  | { type: 'linked'; id: string; uploadId: string; attachmentId: string; size: number }
+  | { type: 'linked'; id: string; uploadId: string; size: number }
   | { type: 'retry'; id: string }
   | { type: 'dismissed'; id: string }
   | { type: 'unlinked'; uploadId: string };
@@ -146,7 +145,7 @@ export function uploadsReducer(state: UploadsState, event: UploadsEvent): Upload
         ...without,
         linked: {
           ...without.linked,
-          [event.uploadId]: { attachmentId: event.attachmentId, size: event.size },
+          [event.uploadId]: { size: event.size },
         },
       };
     }

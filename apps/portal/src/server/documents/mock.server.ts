@@ -14,7 +14,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 
-import { isRecord, json, problem, readJson } from '../declarations/mock/http';
+import { isRecord, json, problem, readJson } from '../mock-http';
 import type { Upload, UploadPurpose } from './types';
 
 export const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;

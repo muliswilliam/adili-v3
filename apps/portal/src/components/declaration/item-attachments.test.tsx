@@ -19,7 +19,7 @@ import {
 } from '../../server/documents/uploads';
 import type { UploadCheck } from '../../server/documents/uploads.server';
 import { putToPresignedUrl } from './attachment-upload';
-import type { Attachment } from './contents';
+import type { Attachment } from '../../declaration/contents';
 import { markExtractionOff, resetExtractionAvailability } from './extraction-availability';
 import type { ItemAttachmentSlot } from './statement-item-editor';
 import { AttachmentUploadsProvider, ItemAttachments } from './item-attachments';
@@ -54,7 +54,12 @@ const ATTACHMENT_ID = '9a8b7c6d-0000-4000-8000-000000000002';
 const SHA = 'a'.repeat(64);
 const KEY = 'statement:officer';
 
-const deed: Attachment = { uploadId: UPLOAD_ID, fileName: 'deed.pdf', sha256: SHA };
+const deed: Attachment = {
+  attachmentId: ATTACHMENT_ID,
+  uploadId: UPLOAD_ID,
+  fileName: 'deed.pdf',
+  sha256: SHA,
+};
 
 const setAttachmentsSpy = vi.fn();
 
@@ -299,16 +304,52 @@ describe('ItemAttachments (S10)', () => {
     expect(await screen.findByText('Document removed')).toBeDefined();
   });
 
-  it('removes a document linked before this visit from the item', async () => {
+  it('unlinks a document linked before this visit after confirming', async () => {
+    getSectionMock.mockResolvedValue({
+      status: 'ok',
+      etag: '"6"',
+      section: {
+        key: KEY,
+        completeness: 'incomplete',
+        draftVersion: 6,
+        contents: { assets: [{ id: ITEM_ID, attachments: [] }] },
+      },
+    });
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove deed.pdf' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
     await waitFor(() => {
       expect(screen.queryByRole('list', { name: 'Documents for this asset' })).toBeNull();
     });
-    expect(unlinkMock).not.toHaveBeenCalled();
+    expect(unlinkMock).toHaveBeenCalledWith({
+      data: { declarationId: DECLARATION_ID, attachmentId: ATTACHMENT_ID },
+    });
     expect(setAttachmentsSpy).toHaveBeenLastCalledWith([]);
+    expect(await screen.findByText('Document removed')).toBeDefined();
+  });
+
+  it('does not unlink until the removal is confirmed', async () => {
+    renderAttachments([deed]);
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(unlinkMock).not.toHaveBeenCalled();
+    expect(screen.getByText('deed.pdf')).toBeDefined();
+  });
+
+  it('keeps the document when the service cannot unlink it', async () => {
+    unlinkMock.mockResolvedValue({ status: 'unavailable' });
+    renderAttachments([deed]);
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
+    expect(await screen.findByText('The document could not be removed. Try again.')).toBeDefined();
+    expect(screen.getByText('deed.pdf')).toBeDefined();
+    expect(setAttachmentsSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -339,7 +380,7 @@ describe('Read into the form on an attachment (S6, S11)', () => {
     return screen.getByRole('menu');
   }
 
-  it('offers it for a file linked in this visit, whose attachment id is known', async () => {
+  it('offers it for a file linked in this visit', async () => {
     await linked();
     const menu = openMenu();
     expect(
@@ -349,10 +390,16 @@ describe('Read into the form on an attachment (S6, S11)', () => {
     ).toEqual(['Read into the form', 'Remove']);
   });
 
-  it('leaves it out for a file linked before this visit', () => {
+  it("offers it for a file linked before this visit, by its reference's attachment id", async () => {
+    extractMock.mockResolvedValue({ status: 'unavailable' });
     renderAttachments([deed]);
-    expect(screen.queryByRole('button', { name: 'Actions for deed.pdf' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Remove deed.pdf' })).toBeDefined();
+    fireEvent.click(within(openMenu()).getByRole('menuitem', { name: 'Read into the form' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Read into the form' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Read document' }));
+    await waitFor(() => {
+      expect(extractMock).toHaveBeenCalled();
+    });
+    expect(extractMock.mock.calls[0]?.[0].data).toMatchObject({ attachmentId: ATTACHMENT_ID });
   });
 
   it('says it is not enabled once the Commission is known not to read documents', () => {

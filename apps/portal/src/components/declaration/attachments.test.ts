@@ -70,16 +70,15 @@ describe('uploadsReducer', () => {
     },
   );
 
-  it('replaces the row with the linked file and remembers its size and link', () => {
+  it('replaces the row with the linked file and remembers its size', () => {
     const state = uploadsReducer(picked(), {
       type: 'linked',
       id: 'row-1',
       uploadId: 'upload-1',
-      attachmentId: 'attachment-1',
       size: 2048,
     });
     expect(state.rows).toEqual([]);
-    expect(state.linked).toEqual({ 'upload-1': { attachmentId: 'attachment-1', size: 2048 } });
+    expect(state.linked).toEqual({ 'upload-1': { size: 2048 } });
   });
 
   it('uploads a failed file again from 0%', () => {
@@ -109,7 +108,6 @@ describe('uploadsReducer', () => {
       type: 'linked',
       id: 'row-1',
       uploadId: 'upload-1',
-      attachmentId: 'attachment-1',
       size: 2048,
     });
     expect(uploadsReducer(linked, { type: 'unlinked', uploadId: 'upload-1' }).linked).toEqual({});
@@ -119,7 +117,7 @@ describe('uploadsReducer', () => {
 describe('attachmentRows', () => {
   it('lists the item linked files first, then its uploads in progress', () => {
     const state = uploadsReducer(picked(), { type: 'progress', id: 'row-1', percent: 30 });
-    const withLink = { ...state, linked: { 'upload-1': { attachmentId: 'a-1', size: 1_500_000 } } };
+    const withLink = { ...state, linked: { 'upload-1': { size: 1_500_000 } } };
     const rows = attachmentRows(
       ITEM,
       [

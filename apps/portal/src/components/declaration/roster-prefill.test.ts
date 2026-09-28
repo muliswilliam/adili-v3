@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Draft, Officer } from './contents';
+import type { Draft, Officer } from '../../declaration/contents';
 import { isFromRoster, rosterPrefill, rosterValuesOf } from './roster-prefill';
 
 const prefilled: Draft<Officer> = {

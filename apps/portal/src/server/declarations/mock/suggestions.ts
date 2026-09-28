@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Draft, Household, ItemSource } from '../../../components/declaration/contents';
+import type { Draft, Household, ItemSource } from '../../../declaration/contents';
 import { DOCUMENT_KINDS } from '../../../components/declaration/extraction';
-import { type Item, NIL_KEY } from '../../../components/declaration/statement';
+import { type Item, NIL_KEY } from '../../../declaration/statement';
 import {
   categoryOf,
   declaredType,
@@ -21,7 +21,7 @@ import type {
   SuggestionSet,
   SuggestionSource,
 } from '../types';
-import { isRecord, json, problem, readJson } from './http';
+import { isRecord, json, problem, readJson } from '../../mock-http';
 
 /**
  * Registry lookups and suggestions for the declarations mock (spec 05b S1, S2, S4, S5): what

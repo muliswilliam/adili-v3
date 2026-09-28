@@ -32,14 +32,16 @@ import { randomUUID } from 'node:crypto';
 
 import type {
   AssetItem,
+  Attachment,
   Draft,
   Household,
   MaritalStatus,
   Officer,
   PersonName,
   Statement,
-} from '../../components/declaration/contents';
-import { ATTESTATION_TEXT } from '../../components/declaration/contents';
+} from '../../declaration/contents';
+import { ATTESTATION_TEXT } from '../../declaration/contents';
+import { isSectionKey, sectionKind } from '../../declaration/section-key';
 import { mockUpload } from '../documents/mock.server';
 import { bioCompleteness, lockedFieldsChanged } from './mock/bio';
 import type { RuleContext } from './mock/context';
@@ -49,7 +51,7 @@ import {
   householdCompleteness,
   householdPersons,
 } from './mock/household';
-import { isRecord, json, noContent, problem, readJson } from './mock/http';
+import { isRecord, json, noContent, problem, readJson } from '../mock-http';
 import { composeMaterialChanges, otherCompleteness } from './mock/other';
 import { nilConflictsWithItems, statementCompleteness } from './mock/statement';
 import {
@@ -223,11 +225,6 @@ export function mockDeclarationsFetch(request: Request): Promise<Response> {
   return route(request);
 }
 
-const UUID = '[0-9a-f-]{36}';
-const SECTION_KEY = new RegExp(
-  `^(bio|household|other|statement:(officer|spouse:${UUID}|child:${UUID}))$`,
-);
-
 async function route(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const { pathname } = url;
@@ -345,7 +342,7 @@ function completeness(stored: Stored, key: string): DeclarationSection['complete
 }
 
 function personName(stored: Stored, key: string): string | null {
-  if (!key.startsWith('statement:')) return null;
+  if (sectionKind(key) !== 'statement') return null;
   const statement = stored.contents.get(key) as Draft<Statement> | undefined;
   return fullName(statement?.personName) || null;
 }
@@ -556,7 +553,7 @@ function sectionContents(stored: Stored, key: string) {
 
 function getSection(id: string, key: string) {
   const stored = draft(id);
-  if (!stored || !SECTION_KEY.test(key) || !stored.contents.has(key)) {
+  if (!stored || !isSectionKey(key) || !stored.contents.has(key)) {
     return problem(404, 'Not found');
   }
   return json(
@@ -578,7 +575,7 @@ function sameVersion(ifMatch: string, stored: Stored) {
 
 async function saveSection(request: Request, id: string, key: string) {
   const stored = draft(id);
-  if (!stored || !SECTION_KEY.test(key) || !stored.contents.has(key) || stored.archived.has(key)) {
+  if (!stored || !isSectionKey(key) || !stored.contents.has(key) || stored.archived.has(key)) {
     return problem(404, 'Not found');
   }
   const ifMatch = request.headers.get('if-match');
@@ -670,7 +667,7 @@ function syncStatements(stored: Stored, household: Draft<Household>) {
 
 interface ItemWithAttachments {
   id?: string;
-  attachments?: { uploadId: string; fileName: string; sha256: string }[];
+  attachments?: Attachment[];
 }
 
 function findItem(stored: Stored, key: string, itemId: string) {
@@ -695,7 +692,7 @@ async function linkAttachment(request: Request, id: string) {
     return problem(400, 'sectionKey, itemId and uploadId are required');
   }
   const { sectionKey, itemId, uploadId } = body;
-  if (!sectionKey.startsWith('statement:') || !stored.contents.has(sectionKey)) {
+  if (sectionKind(sectionKey) !== 'statement' || !stored.contents.has(sectionKey)) {
     return problem(404, 'Not found');
   }
   const item = findItem(stored, sectionKey, itemId);
@@ -716,7 +713,12 @@ async function linkAttachment(request: Request, id: string) {
   };
   item.attachments = [
     ...(item.attachments ?? []),
-    { uploadId, fileName: attachment.fileName, sha256: attachment.sha256 },
+    {
+      attachmentId: attachment.id,
+      uploadId,
+      fileName: attachment.fileName,
+      sha256: attachment.sha256,
+    },
   ];
   stored.attachments.set(attachment.id, attachment);
   stored.draftVersion += 1;

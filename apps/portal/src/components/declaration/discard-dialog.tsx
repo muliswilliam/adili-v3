@@ -16,7 +16,7 @@ import {
 import { AlertCircleIcon, Delete02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
-import { discardDeclarationFn } from '../../server/declarations';
+import { discardMyDeclaration } from '../../server/declarations';
 
 export const DISCARD_TITLE = 'Discard this draft?';
 export const DISCARD_BODY = 'Everything you entered will be deleted.';
@@ -56,7 +56,7 @@ export function DiscardDraftButton({
   async function discard() {
     setBusy(true);
     setError(null);
-    const result = await discardDeclarationFn({ data: { declarationId } }).catch(
+    const result = await discardMyDeclaration({ data: { declarationId } }).catch(
       () => ({ status: 'unavailable' }) as const,
     );
     if (result.status === 'discarded' || result.status === 'not-found') {

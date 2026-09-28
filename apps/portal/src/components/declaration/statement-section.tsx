@@ -50,7 +50,7 @@ import type {
   LoadedSuggestion,
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
-import type { AssetItem, Draft, Statement } from './contents';
+import type { AssetItem, Draft, Statement } from '../../declaration/contents';
 import {
   AMOUNT_KEY,
   type AnyItem,
@@ -71,16 +71,18 @@ import {
   originalCents,
   statementTotal,
   tabState,
-} from './statement';
-import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
+} from '../../declaration/statement';
+import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from '../../declaration/labels';
 import { readingNotEnabledIn } from './extraction';
 import { markExtractionOff } from './extraction-availability';
-import { fullName } from './format';
+import { fullName } from '../../declaration/format';
 import { sourceDetails } from './item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
-import { liveSections, personKeyOf, relationship, stepLink } from './steps';
+import { personKeyOf } from '../../declaration/section-key';
+import { liveSections, relationship, stepLink } from './steps';
 import { categoryOfItem, withAcceptedItem } from './suggestions';
+import { focusControl, useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';
@@ -176,7 +178,7 @@ export function StatementSection({
     showErrors ? (firstIssue(statement, firstCategoryWithIssues(statement))?.id ?? null) : null,
   );
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
-  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  const { touch, shown } = useShownErrors(showErrors);
   const [badMoney, setBadMoney] = useState<ReadonlyMap<string, MoneyInvalidReason>>(new Map());
   const [removing, setRemoving] = useState<Removing | null>(null);
   const [copying, setCopying] = useState<Draft<AssetItem> | null>(null);
@@ -186,13 +188,10 @@ export function StatementSection({
   const name = fullName(statement.personName);
   const relation = sectionRelationship(key, separated);
 
-  useEffect(() => {
-    if (!showErrors) return;
+  useFocusFirstError(showErrors, () => {
     const first = firstIssue(statement, tab);
-    if (first) focusField(first.id, first.field);
-    // Only when arriving with errors shown.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showErrors]);
+    return first ? itemFieldId(first.id, first.field) : null;
+  });
 
   function itemsOf(category: Category): Item[] {
     return statement[category] ?? [];
@@ -228,7 +227,7 @@ export function StatementSection({
     }
     const message = itemIssues(category, item)[field];
     if (!message) return undefined;
-    return showsErrors(id) || touched.has(`${id}:${field}`) ? message : undefined;
+    return checked.has(id) || shown(`${id}:${field}`) ? message : undefined;
   }
 
   function onEditingChange(category: Category, next: string | null) {
@@ -265,7 +264,7 @@ export function StatementSection({
     const field = ITEM_FIELD_ORDER[category].find((each) => issues[each]) ?? 'description';
     // Once the editor has opened.
     setTimeout(() => {
-      focusField(itemId, field);
+      focusControl(itemFieldId(itemId, field));
     }, 0);
   }
 
@@ -402,10 +401,7 @@ export function StatementSection({
                   }}
                   errorFor={(field) => errorFor(category, item, field)}
                   onTouch={(field) => {
-                    const touchKey = `${item.id ?? ''}:${field}`;
-                    setTouched((current) =>
-                      current.has(touchKey) ? current : new Set([...current, touchKey]),
-                    );
+                    touch(`${item.id ?? ''}:${field}`);
                   }}
                   onMoneyText={(field, problem) => {
                     const moneyKey = `${item.id ?? ''}:${field}`;
@@ -491,12 +487,6 @@ function firstIssue(
     if (field && item.id) return { id: item.id, field };
   }
   return null;
-}
-
-function focusField(itemId: string, field: ItemField) {
-  const element = document.getElementById(itemFieldId(itemId, field));
-  const target = element instanceof HTMLFieldSetElement ? element.querySelector('input') : element;
-  target?.focus();
 }
 
 interface CategoryPanelProps {

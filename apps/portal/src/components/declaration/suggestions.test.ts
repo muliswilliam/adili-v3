@@ -7,8 +7,8 @@ import type {
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
 import { contractEnum } from '../../test/contract';
-import type { Draft, Statement } from './contents';
-import type { Item } from './statement';
+import type { Draft, Statement } from '../../declaration/contents';
+import type { Item } from '../../declaration/statement';
 import {
   categoryOf,
   editFields,

@@ -11,25 +11,24 @@ import {
   Textarea,
 } from '@adili/ui';
 import { Building03Icon, LockIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
-import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from './bio';
-import type { Draft, EmploymentNature, MaritalStatus, Officer } from './contents';
-import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, optionsOf } from './labels';
+import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from '../../declaration/bio';
+import type { Draft, EmploymentNature, MaritalStatus, Officer } from '../../declaration/contents';
+import {
+  EMPLOYMENT_NATURE_LABELS,
+  MARITAL_STATUS_LABELS,
+  optionsOf,
+} from '../../declaration/labels';
 import { isFromRoster, ROSTER_HINT, type RosterField, rosterPrefill } from './roster-prefill';
+import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const ROSTER_NOTE =
   "Wrong? Ask your Commission's reporting officer to correct the roster. Your name cannot be changed here.";
 
 const fieldId = (field: BioField) => `bio-${field}`;
-
-function focusField(field: BioField) {
-  const element = document.getElementById(fieldId(field));
-  const target = element instanceof HTMLFieldSetElement ? element.querySelector('input') : element;
-  target?.focus();
-}
 
 function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commission: string }) {
   const rows: [string, string | undefined][] = [
@@ -94,7 +93,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
   const { declaration } = useWorkspace();
   const { value: officer, update } = useSectionAutosave<Draft<Officer>>(section, etag);
   const [appointmentInvalid, setAppointmentInvalid] = useState(false);
-  const [touched, setTouched] = useState<ReadonlySet<BioField>>(new Set());
+  const { touch, shown } = useShownErrors(showErrors);
   const [birthDateText, setBirthDateText] = useState<{ text: string; invalid: boolean }>({
     text: '',
     invalid: false,
@@ -108,20 +107,13 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
   function error(field: BioField) {
     const issue = issues[field];
     if (!issue) return undefined;
-    return issue.kind === 'invalid' || showErrors || touched.has(field) ? issue.message : undefined;
+    return issue.kind === 'invalid' || shown(field) ? issue.message : undefined;
   }
 
-  function touch(field: BioField) {
-    setTouched((current) => (current.has(field) ? current : new Set([...current, field])));
-  }
-
-  useEffect(() => {
-    if (!showErrors) return;
+  useFocusFirstError(showErrors, () => {
     const first = BIO_FIELD_ORDER.find((field) => issues[field]);
-    if (first) focusField(first);
-    // Only when arriving with errors shown.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showErrors]);
+    return first ? fieldId(first) : null;
+  });
 
   // The roster's values as this page load read them; kept while the declarant edits (S8).
   const [roster] = useState(() =>

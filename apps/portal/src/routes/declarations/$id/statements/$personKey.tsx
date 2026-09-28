@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 
-import type { Draft, Household, PersonName } from '../../../../components/declaration/contents';
-import { fullName } from '../../../../components/declaration/format';
+import type { Draft, Household, PersonName } from '../../../../declaration/contents';
+import { fullName } from '../../../../declaration/format';
 import type { RegistryPerson } from '../../../../components/declaration/registries-panel';
 import {
   loadSectionFor,

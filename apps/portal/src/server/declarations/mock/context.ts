@@ -1,9 +1,4 @@
-import type {
-  Draft,
-  Household,
-  Officer,
-  Statement,
-} from '../../../components/declaration/contents';
+import type { Draft, Household, Officer, Statement } from '../../../declaration/contents';
 import type { CompletenessIssue, SectionKey } from '../types';
 
 /** What a section's completeness rules can see of the rest of the draft. */

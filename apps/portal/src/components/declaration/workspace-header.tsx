@@ -2,7 +2,7 @@ import { formatDate, Icon, Tooltip } from '@adili/ui';
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
 
 import type { Declaration } from '../../server/declarations/types';
-import { OBLIGATION_TYPE_LABELS } from './labels';
+import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
 
 export const HEADER_COPY = {
   statementDate: 'The date your financial position is declared as at.',

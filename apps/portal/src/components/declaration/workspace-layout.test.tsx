@@ -171,16 +171,21 @@ describe('WorkspaceLayout', () => {
     });
   });
 
-  it('says it could not save when the service refuses the section', async () => {
+  it('says why beside the section when the service refuses it', async () => {
     saveMock.mockResolvedValue({ status: 'rejected', code: 'identity-locked-field' });
     renderWorkspace(<Editor />, { step: 'bio' });
 
     await edit();
 
+    // One of the spec's four states: not saved, and sent again with the next edit.
     await waitFor(() => {
-      expect(saveStatus()[0]?.textContent).toBe('Could not save');
+      expect(saveStatus()[0]?.textContent).toBe('Could not save, retrying');
     });
-    expect(saveStatus()[0]?.closest('[data-status]')?.getAttribute('data-status')).toBe('rejected');
+    expect(
+      screen.getByText(
+        'Your last change to Your details could not be saved. Check it and correct it to save again.',
+      ),
+    ).toBeDefined();
     // The refused edit is not saved, so leaving still asks first.
     expect(leavePrompted()).toBe(true);
   });

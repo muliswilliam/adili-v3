@@ -47,8 +47,8 @@ import type {
   LoadedSuggestionSet,
   RegistrySystem,
 } from '../../server/declarations.server';
-import type { Draft, Statement } from './contents';
-import type { AnyItem, Item } from './statement';
+import type { Draft, Statement } from '../../declaration/contents';
+import type { AnyItem, Item } from '../../declaration/statement';
 import { type AcceptInput, useAcceptSuggestion } from './suggestion-accept';
 import {
   categoryOf,
@@ -70,7 +70,7 @@ import {
   valuesAt,
   withSuggestion,
 } from './suggestions';
-import { TYPE_LABELS } from './labels';
+import { TYPE_LABELS } from '../../declaration/labels';
 import { useWorkspace } from './workspace';
 
 /**

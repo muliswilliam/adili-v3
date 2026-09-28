@@ -25,8 +25,8 @@ import {
   type HeldResult,
   type HeldWrite,
 } from './autosave';
-import type { Draft, Household } from './contents';
-import { renamesPerson } from './household';
+import type { Draft, Household } from '../../declaration/contents';
+import { renamesPerson } from '../../declaration/household';
 
 /**
  * The declaration workspace's shared state: the draft's header and section completeness, the

@@ -6,7 +6,7 @@ import { getDeclarationSection, saveDeclarationSection } from '../../server/decl
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { resetExtractionAvailability, useExtractionEnabled } from './extraction-availability';
-import { ITEM_MESSAGES } from './statement';
+import { ITEM_MESSAGES } from '../../declaration/statement';
 import type { ItemAttachmentSlot } from './statement-item-editor';
 import {
   NIL_BLOCKED_COPY,

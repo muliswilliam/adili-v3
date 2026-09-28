@@ -28,6 +28,7 @@
  */
 import { maskContact } from '@adili/ui';
 
+import { json } from '../mock-http';
 import type {
   DeclarantProfile,
   IdentifyDeclarant,
@@ -258,16 +259,7 @@ export function resetOnboardingMock() {
   nextOfr = FIRST_OFR;
 }
 
-function json(status: number, body: unknown, headers: Record<string, string> = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'content-type': status >= 400 ? 'application/problem+json' : 'application/json',
-      ...headers,
-    },
-  });
-}
-
+/** The onboarding problem shape: the code is also in the type URL. */
 function problem(
   status: number,
   code: OnboardingProblem['code'],

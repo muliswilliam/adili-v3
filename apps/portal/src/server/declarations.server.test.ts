@@ -356,12 +356,33 @@ describe('attachments (S10)', () => {
     ).toEqual({ status: 'refused' });
 
     if (linked.status !== 'linked') return;
-    expect(
-      await unlinkAttachment(client(), {
+    // The item's reference carries the link's id, so a later visit can unlink it.
+    const assets = async () => {
+      const section = await loadSection(client(), declaration.id, 'statement:officer');
+      if (section.status !== 'ok') throw new Error(section.status);
+      return section.section.contents.assets;
+    };
+    expect(await assets()).toEqual([
+      expect.objectContaining({
+        id: itemId,
+        attachments: [
+          {
+            attachmentId: linked.attachment.id,
+            uploadId: linked.attachment.uploadId,
+            fileName: 'deed.pdf',
+            sha256: linked.attachment.sha256,
+          },
+        ],
+      }),
+    ]);
+    const unlink = () =>
+      unlinkAttachment(client(), {
         declarationId: declaration.id,
         attachmentId: linked.attachment.id,
-      }),
-    ).toEqual({ status: 'unlinked' });
+      });
+    expect(await unlink()).toEqual({ status: 'unlinked' });
+    expect(await assets()).toEqual([expect.objectContaining({ id: itemId, attachments: [] })]);
+    expect(await unlink()).toEqual({ status: 'not-found' });
   });
 });
 

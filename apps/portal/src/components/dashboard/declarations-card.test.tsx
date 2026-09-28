@@ -3,7 +3,7 @@ import { ToastProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { discardDeclarationFn } from '../../server/declarations';
+import { discardMyDeclaration } from '../../server/declarations';
 import type { DeclarationListResult } from '../../server/declarations.server';
 import type { DeclarationListItem } from '../../server/declarations/types';
 import { DISCARD_TITLE } from '../declaration/discard-dialog';
@@ -17,7 +17,7 @@ vi.mock('../../server/declarations', async () =>
   (await import('../declaration/testing-mocks')).serverMock(),
 );
 
-const discardMock = vi.mocked(discardDeclarationFn);
+const discardMock = vi.mocked(discardMyDeclaration);
 
 const TSC = { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' };
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };

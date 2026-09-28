@@ -3,7 +3,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { cloneElement, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { discardDeclarationFn } from '../../server/declarations';
+import { discardMyDeclaration } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { SUBMIT_NEXT_RELEASE } from './summary';
@@ -36,7 +36,7 @@ vi.mock('@tanstack/react-router', async () => {
 });
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
 
-const discardMock = vi.mocked(discardDeclarationFn);
+const discardMock = vi.mocked(discardMyDeclaration);
 
 const SPOUSE = 'spouse:5f0c2b8e-1d2a-4c3b-9e4f-5a6b7c8d9e0f';
 const CHILD = 'child:7b2e4d0a-3f4c-4e5d-9a6b-7c8d9e0f1a2b';
@@ -199,7 +199,11 @@ describe('SummaryView', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Summary' })).toBeTruthy();
     expect(screen.getByText('Everything is complete.')).toBeTruthy();
     for (const [title, paragraph] of [
-      ['Your details', 'Paragraphs 1-5'],
+      ['Name', 'Paragraph 1'],
+      ['Date and place of birth', 'Paragraph 2'],
+      ['Marital status', 'Paragraph 3'],
+      ['Address', 'Paragraph 4'],
+      ['Employment', 'Paragraph 5'],
       ['Spouses', 'Paragraph 6'],
       ['Dependent children', 'Paragraph 7'],
       ['Financial statements', 'Paragraph 8'],
@@ -210,24 +214,31 @@ describe('SummaryView', () => {
     }
   });
 
-  it('shows your details with Edit links naming the section', () => {
+  it('shows your details one paragraph a card, each editing Your details', () => {
     renderSummary();
 
-    const bio = card('Your details');
-    expect(valueOf(bio, 'Name')).toBe('Mwangi Njoroge Kamau');
-    expect(valueOf(bio, 'Date and place of birth')).toBe('2 Apr 1980, Nyeri');
-    expect(valueOf(bio, 'Marital status')).toBe(
+    expect(valueOf(card('Name'), 'Name')).toBe('Mwangi Njoroge Kamau');
+    expect(valueOf(card('Date and place of birth'), 'Date of birth')).toBe('2 Apr 1980');
+    expect(valueOf(card('Date and place of birth'), 'Place of birth')).toBe('Nyeri');
+    expect(valueOf(card('Marital status'), 'Marital status')).toBe(
       'MarriedChanged since last declaration: Married in April 2025.',
     );
-    expect(valueOf(bio, 'Employer and designation')).toBe('Nyeri High School · Deputy Principal');
-    expect(valueOf(bio, 'Nature of employment')).toBe('Permanent');
-    expect(within(bio).queryByText('Job group')).toBeNull();
-    expect(valueOf(bio, 'Responsible Commission')).toBe(
+    const employment = card('Employment');
+    expect(valueOf(employment, 'Employer and designation')).toBe(
+      'Nyeri High School · Deputy Principal',
+    );
+    expect(valueOf(employment, 'Nature of employment')).toBe('Permanent');
+    expect(within(employment).queryByText('Job group')).toBeNull();
+    expect(valueOf(employment, 'Responsible Commission')).toBe(
       'Teachers Service Commission · personnel file number TSC/999999',
     );
-    expect(within(bio).getByRole('link', { name: 'Edit Your details' }).getAttribute('href')).toBe(
-      `/declarations/${DECLARATION_ID}/bio`,
-    );
+    for (const title of ['Name', 'Date and place of birth', 'Marital status', 'Address']) {
+      expect(
+        within(card(title))
+          .getByRole('link', { name: `Edit ${title}` })
+          .getAttribute('href'),
+      ).toBe(`/declarations/${DECLARATION_ID}/bio`);
+    }
   });
 
   it('S8: shows the HR fields the roster pre-filled', () => {
@@ -245,10 +256,10 @@ describe('SummaryView', () => {
     };
     renderSummary(summaryOf({ document: document as unknown as LoadedSummary['document'] }));
 
-    const bio = card('Your details');
-    expect(valueOf(bio, 'Job group')).toBe('D3 (T-Scale 13)');
-    expect(valueOf(bio, 'Date of appointment')).toBe('2 Sep 2026');
-    expect(valueOf(bio, 'Work station')).toBe('Eldoret, Uasin Gishu');
+    const employment = card('Employment');
+    expect(valueOf(employment, 'Job group')).toBe('D3 (T-Scale 13)');
+    expect(valueOf(employment, 'Date of appointment')).toBe('2 Sep 2026');
+    expect(valueOf(employment, 'Work station')).toBe('Eldoret, Uasin Gishu');
   });
 
   it('shows the household from the summary document', () => {
@@ -413,7 +424,7 @@ describe('SummaryView', () => {
         .getAttribute('href'),
     ).toBe(`/declarations/${DECLARATION_ID}/other?errors=true`);
     expect(screen.queryByText('Everything is complete.')).toBeNull();
-    expect(within(card('Your details')).getByText('Incomplete')).toBeTruthy();
+    expect(within(card('Name')).getByText('Incomplete')).toBeTruthy();
     expect(within(card('Spouses')).getByText('Not started')).toBeTruthy();
     expect(screen.getByText(SUBMIT_NEXT_RELEASE)).toBeTruthy();
   });
@@ -446,13 +457,14 @@ describe('SummaryView', () => {
       ),
     );
 
-    expect(valueOf(card('Your details'), 'Postal address')).toBe('Not answered');
+    expect(valueOf(card('Address'), 'Postal address')).toBe('Not answered');
+    expect(valueOf(card('Date and place of birth'), 'Date of birth')).toBe('Not answered');
     expect(within(card('Spouses')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Dependent children')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Financial statements')).getAllByText('Not answered yet.')).toHaveLength(3);
     expect(valueOf(card('Other information'), 'Material changes')).toBe('None flagged.');
     expect(valueOf(card('Other information'), 'Dual citizenship')).toBe('Not answered');
-    expect(within(card('Your details')).queryByText('-')).toBeNull();
+    expect(within(card('Employment')).queryByText('-')).toBeNull();
   });
 
   it('shows a child not included at the statement date', () => {

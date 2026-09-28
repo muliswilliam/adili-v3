@@ -1,8 +1,4 @@
-import type {
-  Draft,
-  MaterialChangeEntry,
-  OtherInformation,
-} from '../../../components/declaration/contents';
+import type { Draft, MaterialChangeEntry, OtherInformation } from '../../../declaration/contents';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 

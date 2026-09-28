@@ -115,7 +115,7 @@ describe('autosave reducer (S19)', () => {
     expect(recovered).toMatchObject({ status: 'saved', failures: 0 });
   });
 
-  it('holds a 400 as rejected until that section is edited again', () => {
+  it('holds a 400 until that section is edited again', () => {
     const rejected = run(
       start,
       { type: 'edit', key: 'bio', contents: 1 },
@@ -123,9 +123,10 @@ describe('autosave reducer (S19)', () => {
       { type: 'send' },
       { type: 'rejected', code: 'identity-locked-field' },
     );
-    // The refused contents are kept, and still count as unsaved work.
+    // The refused contents are kept, and still count as unsaved work: not saved, sent again
+    // with the next edit.
     expect(rejected).toMatchObject({
-      status: 'rejected',
+      status: 'retrying',
       rejection: { key: 'bio', code: 'identity-locked-field', contents: 1 },
     });
     expect(hasUnsavedWork(rejected)).toBe(true);

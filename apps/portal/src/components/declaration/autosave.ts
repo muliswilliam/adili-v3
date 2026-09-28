@@ -17,12 +17,14 @@ export const MAX_RETRY_MS = 30_000;
 /**
  * - `saved`: nothing waiting.
  * - `saving`: edits waiting or a PUT in flight.
- * - `retrying`: the last PUT failed on the network or the service; it will be tried again.
+ * - `retrying`: the last PUT failed; it will be tried again. After a failure on the network or
+ *   the service that happens on a timer. After a 400 (the service refused a section, see
+ *   `rejection`) it happens with that section's next edit, since sending the same contents again
+ *   would be refused again; the workspace says why beside the section. The spec has four save
+ *   states and this is the one that stays true: the edit is not saved, and it will be sent again.
  * - `conflict`: 412, the draft changed elsewhere. Editing stops until a reload.
- * - `rejected`: 400, the service refused a section. Retrying won't help; the next edit will.
- *   The refused contents are kept and count as unsaved work until that section saves.
  */
-export type AutosaveStatus = 'saved' | 'saving' | 'retrying' | 'conflict' | 'rejected';
+export type AutosaveStatus = 'saved' | 'saving' | 'retrying' | 'conflict';
 
 export interface PendingSave {
   contents: unknown;
@@ -40,7 +42,10 @@ export interface AutosaveState {
   inFlight: { key: string; contents: unknown } | null;
   /** Failed attempts in a row, for the backoff. */
   failures: number;
-  /** The section, code and refused contents of the last 400, while status is `rejected`. */
+  /**
+   * The section, code and refused contents of the last 400, until that section is edited or
+   * saved. The refused contents are kept and count as unsaved work.
+   */
   rejection: { key: string; code: string | null; contents: unknown } | null;
 }
 
@@ -97,7 +102,7 @@ export function hasUnsavedWork(state: AutosaveState): boolean {
 }
 
 function settledStatus(state: AutosaveState): AutosaveStatus {
-  if (state.rejection) return 'rejected';
+  if (state.rejection) return 'retrying';
   return idle(state) ? 'saved' : 'saving';
 }
 
@@ -171,7 +176,7 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
         failures: 0,
         rejection: { key: state.inFlight.key, code: event.code, contents: state.inFlight.contents },
       };
-      return { ...next, status: 'rejected' };
+      return { ...next, status: 'retrying' };
     }
     case 'adopt-etag':
       return idle(state) && event.version > state.version

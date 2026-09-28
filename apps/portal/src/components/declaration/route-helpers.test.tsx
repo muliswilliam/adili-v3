@@ -9,6 +9,7 @@ import {
   loginHref,
   requireDeclarationId,
   SectionUnavailable,
+  settleLoad,
   statementKey,
 } from './route-helpers';
 
@@ -48,6 +49,24 @@ describe('workspace route helpers', () => {
       href: '/auth/login?returnTo=%2Fdeclarations%2Fd-1%2Fbio',
       reloadDocument: true,
     });
+  });
+
+  it('settles any loader result the same way', () => {
+    expect(() => settleLoad({ status: 'unauthenticated' }, '/declarations/d-1/summary')).toThrow();
+    expect(() => settleLoad({ status: 'not-found' }, '/declarations/d-1/summary')).toThrow(
+      'not found',
+    );
+    expect(settleLoad({ status: 'unavailable' }, '/declarations/d-1/summary')).toEqual({
+      status: 'unavailable',
+    });
+  });
+
+  it('404s a section the draft does not have', async () => {
+    vi.mocked(getDeclarationSection).mockResolvedValue({ status: 'not-found' });
+
+    await expect(
+      loadSectionFor('9d3c2b1a-0f4e-4d5c-8b7a-6f5e4d3c2b1a', 'bio', '/declarations/d-1/household'),
+    ).rejects.toThrow('not found');
   });
 
   it('renders the unavailable and not-found states', () => {

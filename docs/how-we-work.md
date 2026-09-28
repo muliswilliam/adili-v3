@@ -70,10 +70,10 @@ One branch, one PR per spec. The skill reads the epic + tickets as a task graph,
 **2. Area-scoped runs (FE devs, or when splitting a spec)**
 
 ```
-/implement-spec #<epic> frontend tickets only (area:frontend). Build against the generated client from packages/schemas/internal/<service>.yaml with MSW handlers as the fake backend.
+/implement-spec #<epic> frontend tickets only (area:frontend). Build against the generated client from packages/schemas/internal/<service>.yaml with an in-memory mock of the service as the fake backend.
 ```
 
-Same for `backend tickets only (area:backend, area:contract)`. FE and BE branches touch disjoint trees (`apps/` + `packages/ui` vs `services/` + `packages/*`), so they merge independently. FE PRs ship with MSW so they are demoable alone.
+Same for `backend tickets only (area:backend, area:contract)`. FE and BE branches touch disjoint trees (`apps/` + `packages/ui` vs `services/` + `packages/*`), so they merge independently. FE PRs ship with that mock so they are demoable alone: a `server/<service>/mock.server.ts` in the app that answers the generated client's requests in memory (the `fetch` the client is built with), switched on by an env flag (`DIRECTORY_MOCK`, `DECLARATIONS_MOCK`) in development and tests only and left out of production builds. The directory, declarations and documents mocks in the portal are the examples to copy (`server/mockable-client.server.ts`, `server/mock-http.ts`).
 
 **3. Single-ticket runs**
 

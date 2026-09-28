@@ -38,8 +38,15 @@ import { Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
-import { BIO_MESSAGES } from './bio';
-import type { Child, Draft, Household, MaritalStatus, OccupationSector, Spouse } from './contents';
+import { BIO_MESSAGES } from '../../declaration/bio';
+import type {
+  Child,
+  Draft,
+  Household,
+  MaritalStatus,
+  OccupationSector,
+  Spouse,
+} from '../../declaration/contents';
 import {
   childInclusion,
   type HouseholdIssue,
@@ -49,9 +56,14 @@ import {
   personTitle,
   spouseState,
   statementsNeeded,
-} from './household';
-import { MARITAL_STATUS_LABELS, OCCUPATION_SECTOR_LABELS, optionsOf } from './labels';
+} from '../../declaration/household';
+import {
+  MARITAL_STATUS_LABELS,
+  OCCUPATION_SECTOR_LABELS,
+  optionsOf,
+} from '../../declaration/labels';
 import { relationship, stepLink } from './steps';
+import { useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const HOUSEHOLD_COPY = {
@@ -139,7 +151,7 @@ export function HouseholdSection({
   const [editing, setEditing] = useState<string | null>(() =>
     showErrors ? firstItemWithIssue(issues) : null,
   );
-  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  const { touch: touchKey, shown } = useShownErrors(showErrors);
   const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
   const [badDates, setBadDates] = useState<ReadonlySet<string>>(new Set());
   const [removal, setRemoval] = useState<PendingRemoval | null>(null);
@@ -158,8 +170,7 @@ export function HouseholdSection({
   }
 
   function touch(id: string, field: PersonField) {
-    const key = `${id}:${field}`;
-    setTouched((current) => (current.has(key) ? current : new Set([...current, key])));
+    touchKey(`${id}:${field}`);
   }
 
   function itemIssues(id: string | undefined) {
@@ -172,9 +183,9 @@ export function HouseholdSection({
     }
     const found = itemIssues(id).find((candidate) => candidate.field === field);
     if (!found) return undefined;
-    const shown =
-      found.kind === 'invalid' || showErrors || visited.has(id) || touched.has(`${id}:${field}`);
-    return shown ? found.message : undefined;
+    return found.kind === 'invalid' || visited.has(id) || shown(`${id}:${field}`)
+      ? found.message
+      : undefined;
   }
 
   function setBadDate(key: string, invalid: boolean) {

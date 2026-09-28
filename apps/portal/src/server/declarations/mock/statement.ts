@@ -1,4 +1,4 @@
-import type { Draft, Statement } from '../../../components/declaration/contents';
+import type { Draft, Statement } from '../../../declaration/contents';
 import {
   CATEGORIES,
   type Item,
@@ -6,8 +6,8 @@ import {
   itemFieldPath,
   itemIssues,
   NIL_KEY,
-} from '../../../components/declaration/statement';
-import { CATEGORY_WORDS } from '../../../components/declaration/labels';
+} from '../../../declaration/statement';
+import { CATEGORY_WORDS } from '../../../declaration/labels';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 

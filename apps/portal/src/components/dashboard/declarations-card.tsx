@@ -19,7 +19,7 @@ import { AlertCircleIcon, ArrowRight01Icon, File01Icon } from '@hugeicons/core-f
 import { Link, useRouter } from '@tanstack/react-router';
 
 import { DISCARDED_TOAST, DiscardDraftButton } from '../declaration/discard-dialog';
-import { OBLIGATION_TYPE_LABELS } from '../declaration/labels';
+import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
 import type { DeclarationListResult } from '../../server/declarations.server';
 import type { DeclarationListItem, DeclarationStatus } from '../../server/declarations/types';
 
