@@ -242,6 +242,8 @@ interface MockSession {
 }
 
 const sessions = new Map<string, MockSession>();
+/** Answers of confirm and resend-password-email by session and Idempotency-Key, for replays. */
+const idempotentAnswers = new Map<string, { status: number; body: string | null }>();
 const misses = new Map<string, { count: number; blockedUntil: number }>();
 /** Records onboarded through the mock, so identifying again reports already-onboarded. */
 const onboarded = new Set<RosterRecord>();
@@ -251,6 +253,7 @@ let nextOfr = FIRST_OFR;
 /** Clears sessions, rate-limit counters and onboarded records; for tests. */
 export function resetOnboardingMock() {
   sessions.clear();
+  idempotentAnswers.clear();
   misses.clear();
   onboarded.clear();
   nextOfr = FIRST_OFR;
@@ -558,6 +561,44 @@ function secondsUntilPasswordEmail({ passwordEmailAt }: MockSession): number {
   return wait > 0 ? Math.ceil(wait / 1000) : 0;
 }
 
+/**
+ * The directory's Idempotency-Key handling on confirm and resend-password-email: the header is
+ * required, a 2xx or 4xx answer is kept, and a retry with the same key gets it back.
+ */
+async function idempotent(
+  request: Request,
+  sessionId: string,
+  run: () => Response,
+): Promise<Response> {
+  const key = request.headers.get('idempotency-key');
+  if (!key) {
+    return json(400, {
+      type: 'idempotency-key-missing',
+      title: 'Idempotency-Key required',
+      status: 400,
+    });
+  }
+  const scope = `${sessionId}:${key}`;
+  const stored = idempotentAnswers.get(scope);
+  if (stored) {
+    return new Response(stored.body, {
+      status: stored.status,
+      headers: {
+        'content-type': stored.status >= 400 ? 'application/problem+json' : 'application/json',
+        'idempotent-replayed': 'true',
+      },
+    });
+  }
+  const response = run();
+  if (response.status < 500) {
+    idempotentAnswers.set(scope, {
+      status: response.status,
+      body: response.body ? await response.clone().text() : null,
+    });
+  }
+  return response;
+}
+
 export async function mockDirectoryFetch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -594,8 +635,12 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
     const entry = liveSession(sessionId, secret);
     if (entry instanceof Response) return entry;
     const channel = stepMatch[3] as OtpChannel | undefined;
-    if (stepMatch[2] === 'confirm') return confirm(entry);
-    if (stepMatch[2] === 'resend-password-email') return resendPasswordEmail(entry);
+    if (stepMatch[2] === 'confirm') {
+      return idempotent(request, sessionId, () => confirm(entry));
+    }
+    if (stepMatch[2] === 'resend-password-email') {
+      return idempotent(request, sessionId, () => resendPasswordEmail(entry));
+    }
     if (stepMatch[2] === 'contacts') {
       const body = (await request.json()) as { channel: OtpChannel; value: string };
       return provide(entry, body.channel, body.value);

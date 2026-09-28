@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { withTenant } from '@adili/data-access';
 import { hasValidCheckCharacter } from '@adili/numbering';
 import { asc, eq } from 'drizzle-orm';
@@ -96,6 +98,23 @@ function confirm(session: { id: string; secret: string }) {
 
 function resendPasswordEmail(session: { id: string; secret: string }) {
   return onSession(api, 'POST', session.id, '/resend-password-email', session.secret);
+}
+
+/** A POST on the session with this Idempotency-Key (none if null), as the portal sends it. */
+function postWithKey(
+  session: { id: string; secret: string },
+  path: '/confirm' | '/resend-password-email',
+  idempotencyKey: string | null,
+  secret = session.secret,
+) {
+  return api.anonymous({
+    method: 'POST',
+    url: `/v1/onboarding/sessions/${session.id}${path}`,
+    headers: {
+      'x-onboarding-secret': secret,
+      ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
+    },
+  });
 }
 
 async function events(type?: string) {
@@ -610,6 +629,91 @@ describe('S16 transaction boundaries', () => {
     expect(contractErrors(componentSchema('OnboardingProblem'), response.json())).toEqual([]);
     await expectNothingChanged(session);
   });
+});
+
+describe('retrying confirm and resend (Idempotency-Key, ADR-013 §7.5)', () => {
+  it('replays the first answer to a retry of confirm with the same key, creating one account', async () => {
+    const session = await atConfirm(tscRecord);
+    const key = randomUUID();
+
+    const first = await postWithKey(session, '/confirm', key);
+    const retry = await postWithKey(session, '/confirm', key);
+
+    expect(first.statusCode, first.body).toBe(200);
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+    expect(await allPersons()).toHaveLength(1);
+    expect(api.identity.calls('createDeclarantUser')).toHaveLength(1);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(1);
+    expect(await events('declarant.onboarded.v1')).toHaveLength(1);
+  });
+
+  it('runs a new submission (another key) against the session as it now is', async () => {
+    const session = await atConfirm(tscRecord);
+    await postWithKey(session, '/confirm', randomUUID());
+
+    const again = await postWithKey(session, '/confirm', randomUUID());
+
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ code: 'wrong-step' });
+  });
+
+  it('never replays a stored answer to a caller without the secret', async () => {
+    const session = await atConfirm(tscRecord);
+    const key = randomUUID();
+    await postWithKey(session, '/confirm', key);
+
+    const guessed = await postWithKey(session, '/confirm', key, 'not-the-secret');
+
+    expect(guessed.statusCode).toBe(404);
+    expect(guessed.headers['idempotent-replayed']).toBeUndefined();
+  });
+
+  it('does not keep a 503, so a retry with the same key runs the check again', async () => {
+    const session = await atConfirm(tscRecord);
+    const key = randomUUID();
+    api.iprs.failNext();
+
+    const unavailable = await postWithKey(session, '/confirm', key);
+    const retry = await postWithKey(session, '/confirm', key);
+
+    expect(unavailable.statusCode).toBe(503);
+    expect(retry.statusCode, retry.body).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBeUndefined();
+    expect(retry.json()).toMatchObject({ outcome: 'account-created' });
+  });
+
+  it('replays a resent set-password email instead of sending another', async () => {
+    const session = await atConfirm(tscRecord);
+    await confirm(session);
+    api.clock.advance(60 * SECOND);
+    const key = randomUUID();
+
+    const first = await postWithKey(session, '/resend-password-email', key);
+    const retry = await postWithKey(session, '/resend-password-email', key);
+    const another = await postWithKey(session, '/resend-password-email', randomUUID());
+
+    expect(first.statusCode).toBe(202);
+    expect(retry.statusCode).toBe(202);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(2);
+    expect(another.statusCode).toBe(429);
+    expect(another.json()).toMatchObject({ code: 'resend-cooldown' });
+  });
+
+  it.each(['/confirm', '/resend-password-email'] as const)(
+    'refuses %s without a key',
+    async (path) => {
+      const session = await atConfirm(tscRecord);
+
+      const response = await postWithKey(session, path, null);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
+      expect(api.iprs.calls()).toEqual([]);
+    },
+  );
 });
 
 describe('confirm against a changing roster', () => {

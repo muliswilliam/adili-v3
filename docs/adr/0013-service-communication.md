@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27)
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)
@@ -99,6 +99,10 @@ Deviations from the rules above, each narrow, with the reason and the controls t
 So the header chooses among the tenants a trusted service may act for; it never grants access by itself. Today: documents' `GET /internal/v1/uploads/{id}/download` (`ActingTenantGuard`), called by the directory (`HttpRosterUploads`). Token exchange (§5) replaces this once system work carries an originating user or tenant claim.
 
 **8.2 No `Idempotency-Key` on endpoints that return a secret (§7.5).** Creating, rotating and revoking a Commission's HR-system API credential (directory `/v1/commissions/{slug}/roster/api-credential`) take no key: the idempotency store keeps the response for replay, and the create and rotate responses carry the client secret, which the platform must never store. Retries stay safe without it: create is refused with 409 while a credential exists (a retry after a lost response is told to rotate or revoke), rotate issues a fresh secret (the lost one is useless), and revoke of a revoked credential is 404, leaving the same end state.
+
+**8.3 No `Idempotency-Key` on the onboarding steps before confirm (§7.5, spec 03).** The public onboarding API (directory `/v1/onboarding`, no bearer token) takes a key on the two steps whose effect cannot be told apart from a second one: confirm (creates the account) and resend-password-email (sends an email). There the key belongs to the session and the secret presented (a keyed hash of both, `SessionIdempotencyKey`), since there is no token `sub`, so only the secret's holder gets a stored answer back. The other steps take none:
+- identify (`POST /v1/onboarding/sessions`) returns the session secret, which the idempotency store must not keep (as in 8.2). A retry just opens a fresh session (the lost one lapses at its expiry, 30 minutes), and it is rate limited per client IP and per Commission;
+- verify, resend and provide-contact (`/otp/{channel}/verify`, `/otp/{channel}/resend`, `/contacts`) each move the session's state machine one step, scoped by the session id and secret. A replay is refused by the state check (409 `wrong-step` once the step is done), by the one-minute resend cooldown (429 `resend-cooldown`), or counts as one more attempt against the code's five, never as a second effect.
 
 ## Alternatives considered
 

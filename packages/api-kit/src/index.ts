@@ -36,6 +36,7 @@ export {
   IDEMPOTENT_REPLAYED_HEADER,
   IdempotencyInterceptor,
   RequireIdempotencyKey,
+  type RequireIdempotencyKeyOptions,
 } from './idempotency/idempotency.interceptor.js';
 export {
   IdempotencyModule,

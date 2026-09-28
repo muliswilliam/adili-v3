@@ -2069,12 +2069,19 @@ paths:
       tags:
         - onboarding
       summary: Confirm roster details, run the IPRS check and create or link the account
-      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`).'
+      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`). Idempotent per Idempotency-Key: a retry gets the first answer back.'
       operationId: confirmOnboarding
       parameters:
         - name: sessionId
           required: true
           in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
           schema:
             type: string
             format: uuid
@@ -2122,6 +2129,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
@@ -2163,12 +2176,19 @@ paths:
       tags:
         - onboarding
       summary: Send the set-password email again
-      description: Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`).
+      description: 'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.'
       operationId: resendSetPasswordEmail
       parameters:
         - name: sessionId
           required: true
           in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
           schema:
             type: string
             format: uuid
@@ -2212,6 +2232,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: Problem code `resend-cooldown` with `retryAfterSeconds`
           content:

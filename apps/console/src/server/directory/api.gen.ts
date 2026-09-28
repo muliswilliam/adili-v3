@@ -551,7 +551,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm roster details, run the IPRS check and create or link the account
-         * @description Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`).
+         * @description Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`). Idempotent per Idempotency-Key: a retry gets the first answer back.
          */
         post: operations["confirmOnboarding"];
         delete?: never;
@@ -571,7 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Send the set-password email again
-         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`).
+         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
          */
         post: operations["resendSetPasswordEmail"];
         delete?: never;
@@ -3821,6 +3821,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
             };
@@ -3873,6 +3875,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
             429: {
                 headers: {
@@ -3914,6 +3925,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
             };
@@ -3962,6 +3975,15 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
