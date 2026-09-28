@@ -114,7 +114,8 @@ jobs:
       # Keycloak's realm sends email to host `mailpit`, as in infra/compose.
       mailpit:
         image: axllent/mailpit:v1.31.2
-        ports: ['8025:8025']
+        # 1025: SMTP for the notifications service the stack suite starts on the runner.
+        ports: ['8025:8025', '1025:1025']
         options: >-
           --health-cmd "/mailpit readyz" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
@@ -146,9 +147,11 @@ jobs:
       - name: Start Keycloak with the realm import
         run: |
           docker run -d --name keycloak --network ${{ job.services.mailpit.network }} -p 8080:8080 \
+            --add-host host.docker.internal:host-gateway \
             -e KC_HOSTNAME=http://localhost:8080 -e KC_DB=dev-file \
+            -e ADILI_NOTIFICATIONS_URL=http://host.docker.internal:4010 \
             -v "$PWD/infra/compose/keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro" \
-            -v "$PWD/infra/compose/keycloak/vault:/opt/keycloak/vault:ro" \
+            -v "$PWD/infra/compose/keycloak/vault-dev:/opt/keycloak/vault:ro" \
             adili/keycloak:dev start-dev --import-realm
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
@@ -167,6 +170,45 @@ jobs:
           timeout 180 sh -c 'until curl -sf "$TEST_KEYCLOAK_ISSUER_URL/.well-known/openid-configuration" >/dev/null; do sleep 2; done' \
             || { docker logs keycloak; exit 1; }
       - run: pnpm test:integration
+      # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications
+      # service, the SMS mock and Mailpit, as a user drives it.
+      - uses: astral-sh/setup-uv@v6
+      - name: Start the mocks
+        working-directory: mocks
+        env:
+          DATABASE_URL: postgres://mocks:mocks_dev@localhost:5432/mocks
+          UV_ENV_FILE: .env.example
+        run: |
+          uv sync --locked
+          uv run python manage.py migrate -v0
+          uv run python manage.py seed_demo
+          nohup uv run python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/mocks.log" 2>&1 &
+          timeout 60 sh -c 'until curl -sf http://localhost:8000/health >/dev/null; do sleep 1; done'
+      - name: Start notifications
+        working-directory: services/notifications
+        env:
+          PORT: '4010'
+          DATABASE_URL: postgres://adili_notifications:adili_notifications_dev@localhost:5432/adili_notifications
+          RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
+          SMS_GATEWAY_URL: http://localhost:8000/sms
+          LOG_LEVEL: info
+        # The committed local defaults fill in the rest; the job's environment takes precedence.
+        run: |
+          node --env-file=.env.example --import @swc-node/register/esm-register src/db/migrate.ts
+          nohup node --env-file=.env.example --import @swc-node/register/esm-register src/main.ts \
+            > "$RUNNER_TEMP/notifications.log" 2>&1 &
+          timeout 60 sh -c 'until curl -sf http://localhost:4010/health/live >/dev/null; do sleep 1; done' \
+            || { cat "$RUNNER_TEMP/notifications.log"; exit 1; }
+      - name: Sign-in stack tests (S22, S23)
+        env:
+          TEST_KEYCLOAK_URL: http://localhost:8080
+          TEST_MOCKS_URL: http://localhost:8000
+        run: pnpm --filter @adili/keycloak-extension test:stack
+      - name: Stack logs
+        if: failure()
+        run: |
+          docker logs keycloak 2>&1 | tail -200
+          tail -200 "$RUNNER_TEMP/notifications.log" "$RUNNER_TEMP/mocks.log" || true
 
   python:
     name: Python mocks (ruff, mypy, pytest)

@@ -28,7 +28,8 @@ class OtpChallengeTest {
 
     @Test
     void issuesSixDigitCodesThatVerifyOnce() {
-        String code = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String code = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, code);
 
         assertTrue(code.matches("\\d{6}"), code);
         assertEquals(Channel.SMS, challenge().channel().orElseThrow());
@@ -38,14 +39,16 @@ class OtpChallengeTest {
 
     @Test
     void keepsOnlyAKeyedHashOfTheCode() {
-        String code = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String code = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, code);
 
         assertFalse(store.values().stream().anyMatch(value -> value.contains(code)), store.toString());
     }
 
     @Test
     void countsWrongCodesAndLocksOnTheFifth() {
-        String code = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String code = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, code);
         String wrong = code.equals("000000") ? "111111" : "000000";
 
         for (int left = 4; left >= 1; left--) {
@@ -57,7 +60,8 @@ class OtpChallengeTest {
 
     @Test
     void rejectsACodePastItsLifetimeWithoutCountingAnAttempt() {
-        String code = challenge().issue(Channel.EMAIL, OtpChallenge.newCode());
+        String code = OtpChallenge.newCode();
+        challenge().issue(Channel.EMAIL, code);
         now = now.plus(Duration.ofMinutes(10));
 
         assertEquals(new OtpChallenge.Verification.Expired(), challenge().verify(code));
@@ -66,7 +70,8 @@ class OtpChallengeTest {
 
     @Test
     void acceptsACodeJustBeforeItExpires() {
-        String code = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String code = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, code);
         now = now.plus(Duration.ofMinutes(10)).minusMillis(1);
 
         assertEquals(new OtpChallenge.Verification.Valid(), challenge().verify(code));
@@ -82,22 +87,24 @@ class OtpChallengeTest {
 
     @Test
     void firstSendNeedsNoCooldownThenResendWaitsSixtySeconds() {
-        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canResend());
+        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSendAgain());
         challenge().issue(Channel.SMS, OtpChallenge.newCode());
 
-        assertEquals(OtpChallenge.SendDecision.COOLDOWN, challenge().canResend());
+        assertEquals(OtpChallenge.SendDecision.COOLDOWN, challenge().canSendAgain());
         assertEquals(Optional.of(now.plusSeconds(60)), challenge().resendAvailableAt());
 
         now = now.plusSeconds(60);
-        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canResend());
+        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSendAgain());
         assertEquals(Optional.empty(), challenge().resendAvailableAt());
     }
 
     @Test
     void aNewCodeReplacesTheOldOne() {
-        String first = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String first = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, first);
         now = now.plusSeconds(60);
-        String second = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String second = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, second);
 
         if (!first.equals(second)) {
             assertEquals(new OtpChallenge.Verification.Invalid(4), challenge().verify(first));
@@ -111,21 +118,23 @@ class OtpChallengeTest {
         assertEquals(3, challenge().resendsLeft());
         for (int left = 2; left >= 0; left--) {
             now = now.plusSeconds(60);
-            assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canResend());
+            assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSendAgain());
             challenge().issue(Channel.SMS, OtpChallenge.newCode());
             assertEquals(left, challenge().resendsLeft());
         }
 
         now = now.plusSeconds(60);
-        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canResend());
-        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSwitchChannel());
+        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSendAgain());
+        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSendAgain());
     }
 
     @Test
-    void switchingChannelSkipsTheCooldownButCountsAsAResend() {
+    void switchingChannelWaitsOutTheCooldownAndCountsAsAResend() {
         challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        assertEquals(OtpChallenge.SendDecision.COOLDOWN, challenge().canSendAgain());
 
-        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSwitchChannel());
+        now = now.plusSeconds(60);
+        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSendAgain());
         challenge().issue(Channel.EMAIL, OtpChallenge.newCode());
 
         assertEquals(Channel.EMAIL, challenge().channel().orElseThrow());
@@ -134,11 +143,13 @@ class OtpChallengeTest {
 
     @Test
     void wrongCodesCountAcrossResends() {
-        String code = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String code = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, code);
         String wrong = code.equals("000000") ? "111111" : "000000";
         challenge().verify(wrong);
         now = now.plusSeconds(60);
-        String next = challenge().issue(Channel.SMS, OtpChallenge.newCode());
+        String next = OtpChallenge.newCode();
+        challenge().issue(Channel.SMS, next);
 
         assertEquals(4, challenge().attemptsLeft());
         assertNotEquals(null, next);
@@ -171,13 +182,13 @@ class OtpChallengeTest {
         assertEquals(3, challenge().resendsLeft());
 
         for (int i = 0; i < 3; i++) {
-            assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSwitchChannel());
+            assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSendAgain());
             challenge().recordFailedSend();
         }
 
         assertEquals(0, challenge().resendsLeft());
-        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canResend());
-        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSwitchChannel());
+        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSendAgain());
+        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSendAgain());
     }
 
     @Test
@@ -185,7 +196,7 @@ class OtpChallengeTest {
         challenge().recordFailedSend();
 
         assertEquals(Optional.empty(), challenge().resendAvailableAt());
-        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canResend());
+        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSendAgain());
     }
 
     @Test

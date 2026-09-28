@@ -44,6 +44,13 @@ public final class AdiliOtpAuthenticator implements Authenticator {
     static final String ACTION_SEND_SMS = "send-sms";
     static final String ACTION_SEND_EMAIL = "send-email";
 
+    /** Page attributes and their values beyond the plain state (see adili-otp.ts). */
+    static final String ATTRIBUTE_OTP_ERROR = "otpError";
+    static final String OTP_ERROR_INVALID = "invalid";
+    static final String OTP_ERROR_EXPIRED = "expired";
+    static final String ATTRIBUTE_SEND_FAILED = "sendFailed";
+    static final String SEND_FAILED_BOTH = "both";
+
     static final String MESSAGE_TOO_MANY_ATTEMPTS = "adiliOtpTooManyAttempts";
     static final String MESSAGE_TOO_MANY_RESENDS = "adiliOtpTooManyResends";
 
@@ -88,9 +95,9 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         SignIn signIn = new SignIn(context, setup.apply(context));
         MultivaluedMap<String, String> form = context.getHttpRequest().getDecodedFormParameters();
         switch (Optional.ofNullable(form.getFirst(FIELD_ACTION)).orElse(ACTION_VERIFY)) {
-            case ACTION_RESEND -> signIn.resend(signIn.current());
-            case ACTION_SEND_SMS -> signIn.switchTo(Channel.SMS);
-            case ACTION_SEND_EMAIL -> signIn.switchTo(Channel.EMAIL);
+            case ACTION_RESEND -> signIn.sendAgain(signIn.current());
+            case ACTION_SEND_SMS -> signIn.sendAgain(Channel.SMS);
+            case ACTION_SEND_EMAIL -> signIn.sendAgain(Channel.EMAIL);
             default -> signIn.verify(form.getFirst(FIELD_CODE));
         }
     }
@@ -132,56 +139,52 @@ public final class AdiliOtpAuthenticator implements Authenticator {
 
         void verify(String code) {
             Channel current = current();
-            OtpChallenge.Verification result = challenge.verify(code);
-            if (result instanceof OtpChallenge.Verification.Valid) {
-                context.getEvent().detail("otp_channel", current.wireName());
-                context.success();
-            } else if (result instanceof OtpChallenge.Verification.Invalid) {
-                context.getEvent().user(context.getUser()).error(Errors.INVALID_USER_CREDENTIALS);
-                // Counts towards the realm's brute-force protection like a wrong password.
-                context.failureChallenge(
-                        AuthenticationFlowError.INVALID_CREDENTIALS,
-                        page(current).setAttribute("otpError", "invalid").createForm(FORM));
-            } else if (result instanceof OtpChallenge.Verification.Expired) {
-                // Not a guess: neither an attempt here nor a brute-force failure.
-                context.getEvent().user(context.getUser()).error(Errors.EXPIRED_CODE);
-                context.challenge(page(current).setAttribute("otpError", "expired").createForm(FORM));
-            } else if (result instanceof OtpChallenge.Verification.Locked) {
-                context.getEvent().user(context.getUser()).error(Errors.INVALID_USER_CREDENTIALS);
-                // The last wrong code ends the sign-in instead of failing it, so count it here.
-                if (context.getRealm().isBruteForceProtected()) {
-                    context.getProtector().failedLogin(
-                            context.getRealm(), context.getUser(), context.getConnection(), context.getUriInfo(),
-                            Set.of(AdiliOtpAuthenticatorFactory.REFERENCE_CATEGORY));
+            switch (challenge.verify(code)) {
+                case OtpChallenge.Verification.Valid valid -> {
+                    context.getEvent().detail("otp_channel", current.wireName());
+                    context.success();
                 }
-                restart(MESSAGE_TOO_MANY_ATTEMPTS);
-            } else {
-                context.challenge(codePage(current));
+                case OtpChallenge.Verification.Invalid invalid -> {
+                    context.getEvent().user(context.getUser()).error(Errors.INVALID_USER_CREDENTIALS);
+                    // Counts towards the realm's brute-force protection like a wrong password.
+                    context.failureChallenge(
+                            AuthenticationFlowError.INVALID_CREDENTIALS,
+                            page(current).setAttribute(ATTRIBUTE_OTP_ERROR, OTP_ERROR_INVALID).createForm(FORM));
+                }
+                case OtpChallenge.Verification.Expired expired -> {
+                    // Not a guess: neither an attempt here nor a brute-force failure.
+                    context.getEvent().user(context.getUser()).error(Errors.EXPIRED_CODE);
+                    context.challenge(
+                            page(current).setAttribute(ATTRIBUTE_OTP_ERROR, OTP_ERROR_EXPIRED).createForm(FORM));
+                }
+                case OtpChallenge.Verification.Locked locked -> {
+                    context.getEvent().user(context.getUser()).error(Errors.INVALID_USER_CREDENTIALS);
+                    // The last wrong code ends the sign-in instead of failing it, so count it here.
+                    if (context.getRealm().isBruteForceProtected()) {
+                        context.getProtector().failedLogin(
+                                context.getRealm(), context.getUser(), context.getConnection(), context.getUriInfo(),
+                                Set.of(AdiliOtpAuthenticatorFactory.REFERENCE_CATEGORY));
+                    }
+                    restart(MESSAGE_TOO_MANY_ATTEMPTS);
+                }
+                case OtpChallenge.Verification.NoCode none -> context.challenge(codePage(current));
             }
         }
 
-        void resend(Channel channel) {
-            switch (challenge.canResend()) {
-                case ALLOWED -> send(channel);
-                // The page disables the button during the cooldown; a stale page just shows it again.
-                case COOLDOWN -> context.challenge(codePage(channel));
-                case EXHAUSTED -> restart(MESSAGE_TOO_MANY_RESENDS);
-            }
-        }
-
-        void switchTo(Channel channel) {
+        /**
+         * A new code on `channel`: "Resend code", "Send it by email (or SMS) instead", or trying
+         * again after a failed send. All wait out the same cooldown and use up a resend.
+         */
+        void sendAgain(Channel channel) {
             if (contacts.destination(channel).isEmpty()) {
                 // A forged request: the page offers only channels the user has.
                 context.challenge(codePage(current()));
                 return;
             }
-            if (challenge.channel().equals(Optional.of(channel)) && !failedChannels().contains(channel)) {
-                // Asking again for the channel that has a code is a resend, cooldown included.
-                resend(channel);
-                return;
-            }
-            switch (challenge.canSwitchChannel()) {
-                case ALLOWED, COOLDOWN -> send(channel);
+            switch (challenge.canSendAgain()) {
+                case ALLOWED -> send(channel);
+                // The page disables these during the cooldown; a stale page just shows it again.
+                case COOLDOWN -> context.challenge(codePage(current()));
                 case EXHAUSTED -> restart(MESSAGE_TOO_MANY_RESENDS);
             }
         }
@@ -241,8 +244,9 @@ public final class AdiliOtpAuthenticator implements Authenticator {
         }
 
         private Response sendFailedPage(Channel channel, Set<Channel> failed) {
-            String sendFailed = failed.containsAll(EnumSet.allOf(Channel.class)) ? "both" : channel.wireName();
-            return page(channel).setAttribute("sendFailed", sendFailed).createForm(FORM);
+            String sendFailed =
+                    failed.containsAll(EnumSet.allOf(Channel.class)) ? SEND_FAILED_BOTH : channel.wireName();
+            return page(channel).setAttribute(ATTRIBUTE_SEND_FAILED, sendFailed).createForm(FORM);
         }
 
         /** The code page for the current state; callers add error attributes before building. */

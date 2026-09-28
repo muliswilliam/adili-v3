@@ -79,10 +79,10 @@ public final class OtpChallenge {
     }
 
     /**
-     * Records `code` (see {@link #newCode()}) as sent on `channel` and returns it. Call only after
-     * the code went out, so a failed send never replaces a working code.
+     * Records `code` (see {@link #newCode()}) as sent on `channel`. Call only after the code went
+     * out, so a failed send never replaces a working code.
      */
-    public String issue(Channel channel, String code) {
+    public void issue(Channel channel, String code) {
         Instant now = clock.get();
         byte[] key = new byte[32];
         RANDOM.nextBytes(key);
@@ -92,7 +92,6 @@ public final class OtpChallenge {
         notes.set(CHANNEL, channel.name());
         notes.set(LAST_SENT_AT, Long.toString(now.toEpochMilli()));
         notes.set(SENDS, Integer.toString(sends() + 1));
-        return code;
     }
 
     /**
@@ -137,8 +136,12 @@ public final class OtpChallenge {
         return left <= 0 ? new Verification.Locked() : new Verification.Invalid(left);
     }
 
-    /** "Resend code": a new code on the same channel, after the cooldown. */
-    public SendDecision canResend() {
+    /**
+     * Whether a new code may go out now: "Resend code", "Send it by email (or SMS) instead", or
+     * trying again after a failed send. Every new code waits out the cooldown after the last one
+     * that went out (a failed send starts none) and uses up a resend.
+     */
+    public SendDecision canSendAgain() {
         if (sends() == 0) {
             return SendDecision.ALLOWED;
         }
@@ -146,14 +149,6 @@ public final class OtpChallenge {
             return SendDecision.EXHAUSTED;
         }
         return resendAvailableAt().isPresent() ? SendDecision.COOLDOWN : SendDecision.ALLOWED;
-    }
-
-    /**
-     * "Send it by email (or SMS) instead", or trying a channel again after its send failed. No
-     * cooldown, since the user did not get the last code, but it uses up a resend.
-     */
-    public SendDecision canSwitchChannel() {
-        return sends() > 0 && resendsLeft() <= 0 ? SendDecision.EXHAUSTED : SendDecision.ALLOWED;
     }
 
     /** When "Resend code" starts working; empty when it works now. */

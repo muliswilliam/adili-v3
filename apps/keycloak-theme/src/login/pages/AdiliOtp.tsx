@@ -95,6 +95,8 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
   const { msg, msgStr } = i18n;
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
+  // One cooldown for every new code: resend and switching channel alike.
+  const [secondsLeft] = useCountdown(secondsUntil(resendAvailableAt));
   const form = useRef<HTMLFormElement>(null);
   const other = CHANNELS[channel].other;
 
@@ -182,14 +184,15 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
 
       <form action={url.loginAction} method="post" className="grid gap-2 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <ResendButton i18n={i18n} resendAvailableAt={resendAvailableAt} disabled={checking} />
+          <ResendButton i18n={i18n} secondsLeft={secondsLeft} disabled={checking} />
           {alternativeDestination ? (
             <Button
               type="submit"
               variant="link"
               name={OTP_FIELDS.action}
               value={CHANNELS[other].send}
-              disabled={checking}
+              disabled={checking || secondsLeft > 0}
+              className="disabled:text-muted-foreground disabled:no-underline disabled:opacity-100"
             >
               {msg(CHANNELS[other].switchTo)}
             </Button>
@@ -215,15 +218,14 @@ function CodeEntry({ kcContext, i18n, doUseDefaultCss, classes }: AdiliOtpProps)
  */
 function ResendButton({
   i18n,
-  resendAvailableAt,
+  secondsLeft,
   disabled,
 }: {
   i18n: I18n;
-  resendAvailableAt: string | undefined;
+  secondsLeft: number;
   disabled: boolean;
 }) {
   const { msg, msgStr } = i18n;
-  const [secondsLeft] = useCountdown(secondsUntil(resendAvailableAt));
   const describeWait = useCallback(
     (seconds: number) =>
       seconds === 0 ? msgStr('adiliOtpResendReady') : msgStr('adiliOtpResendWait', String(seconds)),

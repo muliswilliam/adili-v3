@@ -128,8 +128,9 @@ services:
     ports: ['8080:8080']
     volumes:
       - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
-      # Development secrets for the file vault (realm expressions such as ${vault.keycloak-extension-secret}).
-      - ./keycloak/vault:/opt/keycloak/vault:ro
+      # Development-only secrets for the file vault, never deployed (realm expressions such as
+      # ${vault.keycloak-extension-secret}). Deployments mount their own.
+      - ./keycloak/vault-dev:/opt/keycloak/vault:ro
     healthcheck:
       <<: *healthcheck-defaults
       start_period: 30s

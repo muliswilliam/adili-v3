@@ -125,27 +125,35 @@ describe('S22: declarant sign-in with a one-time code', () => {
   });
 
   it('sends the code by email instead when asked, through Mailpit', async () => {
-    const { browser, page } = await signInWithPassword(DECLARANT);
-    const before = await latestEmail(MAILPIT, DECLARANT.email, /sign-in code/);
+    const admin = await adminToken();
+    // Switching channel waits out the resend cooldown; a second is enough to show it.
+    const restore = await changeConfig(admin, 'adili-otp', { resendCooldownSeconds: '1' });
+    try {
+      const { browser, page } = await signInWithPassword(DECLARANT);
+      const before = await latestEmail(MAILPIT, DECLARANT.email, /sign-in code/);
+      await humanPause();
 
-    const emailPage = await post(browser, page, { action: 'send-email' });
+      const emailPage = await post(browser, page, { action: 'send-email' });
 
-    expect(context(emailPage)).toMatchObject({
-      pageId: 'login-adili-otp.ftl',
-      channel: 'email',
-      maskedDestination: 'd***@demo.adili.go.ke',
-      alternativeDestination: '07** *** 001',
-      resendsLeft: 2,
-    });
-    const email = await waitForNew(
-      () => latestEmail(MAILPIT, DECLARANT.email, /sign-in code/),
-      before,
-    );
-    const code = /\b(\d{6})\b/.exec(email.subject)?.[1];
-    expect(code).toBeDefined();
+      expect(context(emailPage)).toMatchObject({
+        pageId: 'login-adili-otp.ftl',
+        channel: 'email',
+        maskedDestination: 'd***@demo.adili.go.ke',
+        alternativeDestination: '07** *** 001',
+        resendsLeft: 2,
+      });
+      const email = await waitForNew(
+        () => latestEmail(MAILPIT, DECLARANT.email, /sign-in code/),
+        before,
+      );
+      const code = /\b(\d{6})\b/.exec(email.subject)?.[1];
+      expect(code).toBeDefined();
 
-    const done = await post(browser, emailPage, { action: 'verify', otp: code ?? '' });
-    expect(done.location).toMatch(new RegExp(`^${REDIRECT_URI}\\?`));
+      const done = await post(browser, emailPage, { action: 'verify', otp: code ?? '' });
+      expect(done.location).toMatch(new RegExp(`^${REDIRECT_URI}\\?`));
+    } finally {
+      await restore();
+    }
   });
 
   it('holds "Resend code" for the cooldown', async () => {
@@ -156,11 +164,16 @@ describe('S22: declarant sign-in with a one-time code', () => {
     expect(resendAvailableAt - Date.now()).toBeGreaterThan(50_000);
 
     const again = await post(browser, page, { action: 'resend' });
-    // Asking for SMS again while the SMS code is live is the same resend.
+    // Asking for SMS again, or for email instead, waits out the same cooldown.
     const sameChannel = await post(browser, again, { action: 'send-sms' });
+    const otherChannel = await post(browser, sameChannel, { action: 'send-email' });
 
-    for (const response of [again, sameChannel]) {
-      expect(context(response)).toMatchObject({ pageId: 'login-adili-otp.ftl', resendsLeft: 3 });
+    for (const response of [again, sameChannel, otherChannel]) {
+      expect(context(response)).toMatchObject({
+        pageId: 'login-adili-otp.ftl',
+        channel: 'sms',
+        resendsLeft: 3,
+      });
     }
     expect(await latestSmsCode(MOCKS, DECLARANT.phone)).toEqual(first);
   });
@@ -216,7 +229,9 @@ describe('S22: declarant sign-in with a one-time code', () => {
     expect(signedIn.location).toMatch(new RegExp(`^${REDIRECT_URI}\\?`));
 
     // Let the code step (LoA 2) lapse while the password (LoA 1) holds: a step-up.
-    const restoreMaxAge = await setLoa2MaxAge(admin, 2);
+    const restoreMaxAge = await changeConfig(admin, 'conditional-level-of-authentication', {
+      'loa-max-age': '2',
+    });
     try {
       await new Promise((resolve) => setTimeout(resolve, 3_000));
       const beforeStepUp = await latestSmsCode(MOCKS, DECLARANT.phone);
@@ -343,27 +358,35 @@ async function createDeclarant(
   return userId;
 }
 
-/** Sets the LoA 2 (code) max age in seconds and returns how to put it back. */
-async function setLoa2MaxAge(token: string, seconds: number): Promise<() => Promise<void>> {
+/**
+ * Changes the config of an execution in the `adili otp` flow (by provider id) and returns how to
+ * put it back, so a case can shorten a lifetime or cooldown without waiting it out.
+ */
+async function changeConfig(
+  token: string,
+  providerId: string,
+  changes: Record<string, string>,
+): Promise<() => Promise<void>> {
   const executions = (await (
     await adminFetch(token, `/authentication/flows/${encodeURIComponent('adili otp')}/executions`)
   ).json()) as { authenticationConfig?: string; providerId?: string }[];
   const configId = executions.find(
-    (execution) => execution.providerId === 'conditional-level-of-authentication',
+    (execution) => execution.providerId === providerId,
   )?.authenticationConfig;
-  if (!configId) throw new Error('adili otp has no level-of-authentication condition');
-  const config = (await (await adminFetch(token, `/authentication/config/${configId}`)).json()) as {
+  if (!configId) throw new Error(`adili otp has no configured ${providerId}`);
+  const original = (await (
+    await adminFetch(token, `/authentication/config/${configId}`)
+  ).json()) as {
     config: Record<string, string>;
   };
-  const original = config.config['loa-max-age'] ?? '300';
-  const put = (value: string) =>
+  const put = (config: Record<string, string>) =>
     adminFetch(token, `/authentication/config/${configId}`, {
       method: 'PUT',
-      body: JSON.stringify({ ...config, config: { ...config.config, 'loa-max-age': value } }),
+      body: JSON.stringify({ ...original, config }),
     });
-  await put(String(seconds));
+  await put({ ...original.config, ...changes });
   return async () => {
-    await put(original);
+    await put(original.config);
   };
 }
 
