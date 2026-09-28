@@ -73,6 +73,10 @@ const { cyclesToOpen, openCyclePage, recordCycleOpened } = proxyActivities<Cycle
  *
  * An obligation's dates never change: a corrected appointment or exit date supersedes it (a new
  * obligation with its own workflow, the old one cancelled), so there is no re-planning signal.
+ *
+ * It does not continue as new (ADR-003 §5): its history is bounded whatever the obligation's
+ * life (one load, at most three status changes, one activity per reminder offset, a few
+ * signals), a few dozen events. The escalation ladder (spec 08) is where that changes.
  */
 export async function filingObligation({
   obligationId,
