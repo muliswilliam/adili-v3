@@ -137,6 +137,7 @@ export function ClarificationDetailView({
     setRaising(false);
     if (!result.ok) {
       toast({ title: failureText(result.error), urgency: 'assertive' });
+      if (isStale(result.error)) await router.invalidate();
       return;
     }
     toast({ title: 'Further clarification saved as a draft' });

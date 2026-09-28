@@ -294,4 +294,19 @@ describe('ClarificationDetailView: actions (S15)', () => {
     expect(screen.getByText('This clarification has changed. Reload to see it.')).toBeTruthy();
     expect(invalidate).toHaveBeenCalled();
   });
+
+  it('reloads when a follow-up is refused because the page is out of date', async () => {
+    renderDetail(await detailOf(CASES.mine, K.late));
+    followUpMock.mockResolvedValue({
+      ok: false,
+      error: { kind: 'problem', problem: { type: 'about:blank', title: 'Forbidden', status: 403 } },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Raise follow-up' }));
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Only the officer holding the case can do this.')).toBeTruthy();
+    expect(invalidate).toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });
