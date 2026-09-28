@@ -287,8 +287,8 @@ jobs:
       - name: External contracts match the mocks
         run: uv run python manage.py export_contracts && git diff --exit-code ../packages/schemas
 
-  # One job for all affected services: the builds share the runner's layer cache (the pruned
-  # context, the pnpm store) instead of each exporting ~200 MB to the Actions cache.
+  # One job for all affected services: the builds share the runner's pnpm store instead of each
+  # exporting ~200 MB of layers to the Actions cache.
   images:
     name: Service images
     runs-on: ubuntu-latest
@@ -305,6 +305,10 @@ jobs:
             echo "::group::$service"
             docker build -f infra/docker/service.Dockerfile --build-arg SERVICE="$service" \
               -t "adili/$service:ci" . || failed="$failed $service"
+            # Kept layers filled the runner's disk after six builds. Pruning only regular layers
+            # keeps the pnpm store cache mount for the next build.
+            docker image rm "adili/$service:ci" > /dev/null 2>&1 || true
+            docker builder prune -af --filter type=regular > /dev/null
             echo '::endgroup::'
           done
           if [ -n "$failed" ]; then
