@@ -11,6 +11,8 @@ import {
 
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
+// The same joining serves aria-labelledby too.
+import { describedBy as joinIds } from '../lib/use-field-ids';
 import { FieldError } from './form-field';
 import { Icon } from './icon';
 
@@ -77,12 +79,6 @@ export function matchesAccept(file: File, accept: string[]): boolean {
 
 function acceptRules(accept: string[]) {
   return accept.map((entry) => entry.trim()).filter((rule) => rule !== '');
-}
-
-/** Space-separated ids for an aria attribute, or undefined when there are none. */
-function joinIds(...ids: (string | undefined)[]): string | undefined {
-  const joined = ids.filter(Boolean).join(' ');
-  return joined === '' ? undefined : joined;
 }
 
 const NODE_ERROR = Symbol('node error');
