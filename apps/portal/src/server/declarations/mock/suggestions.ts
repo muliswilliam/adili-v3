@@ -9,6 +9,8 @@ import {
   declaredType,
   findMatch,
   REGISTRIES,
+  type SuggestionKind,
+  suggestionKind,
   suggestionPatch,
   suggestionTitle,
 } from '../../../components/declaration/suggestions';
@@ -217,7 +219,7 @@ function statementItems(stored: SuggestionDraft, sectionKey: string, itemType: s
 }
 
 function suggestionSection(personKey: string, itemType: string) {
-  if (itemType !== 'bio-tax') return `statement:${personKey}`;
+  if (suggestionKind(itemType).target !== 'tax') return `statement:${personKey}`;
   return personKey === 'officer' ? 'bio' : 'household';
 }
 
@@ -228,34 +230,32 @@ interface ReadField {
   page: number;
 }
 
-/** What "reading" a document finds, per target item type (S6). */
+/** What "reading" a document finds, per family of target item type (S6). */
+const READINGS: Partial<Record<SuggestionKind['key'], ReadField[]>> = {
+  vehicle: [
+    { name: 'registration', value: 'KCB 782M', confidence: 0.97, page: 1 },
+    { name: 'make', value: 'Toyota', confidence: 0.93, page: 1 },
+    { name: 'model', value: 'Premio', confidence: 0.72, page: 1 },
+    { name: 'year', value: 2015, confidence: 0.41, page: 2 },
+  ],
+  land: [
+    { name: 'parcelNumber', value: 'Nakuru/Njoro/1187', confidence: 0.95, page: 1 },
+    { name: 'size', value: '1.2 acres', confidence: 0.52, page: 1 },
+    { name: 'location', value: 'Njoro', confidence: 0.8, page: 2 },
+    { name: 'county', value: '032', confidence: 0.9, page: 1 },
+  ],
+  shares: [
+    { name: 'companyName', value: 'Kerio Valley Dairies Ltd', confidence: 0.91, page: 1 },
+    { name: 'shares', value: 1200, confidence: 0.48, page: 1 },
+  ],
+};
+
+const OTHER_READING: ReadField[] = [
+  { name: 'description', value: 'Loan from Kenya Commercial Bank', confidence: 0.55, page: 1 },
+];
+
 function reading(targetItemType: string): ReadField[] {
-  const type = declaredType(targetItemType);
-  if (type === 'vehicle') {
-    return [
-      { name: 'registration', value: 'KCB 782M', confidence: 0.97, page: 1 },
-      { name: 'make', value: 'Toyota', confidence: 0.93, page: 1 },
-      { name: 'model', value: 'Premio', confidence: 0.72, page: 1 },
-      { name: 'year', value: 2015, confidence: 0.41, page: 2 },
-    ];
-  }
-  if (type === 'land' || type === 'building') {
-    return [
-      { name: 'parcelNumber', value: 'Nakuru/Njoro/1187', confidence: 0.95, page: 1 },
-      { name: 'size', value: '1.2 acres', confidence: 0.52, page: 1 },
-      { name: 'location', value: 'Njoro', confidence: 0.8, page: 2 },
-      { name: 'county', value: '032', confidence: 0.9, page: 1 },
-    ];
-  }
-  if (type === 'shareholding' || type === 'securities') {
-    return [
-      { name: 'companyName', value: 'Kerio Valley Dairies Ltd', confidence: 0.91, page: 1 },
-      { name: 'shares', value: 1200, confidence: 0.48, page: 1 },
-    ];
-  }
-  return [
-    { name: 'description', value: 'Loan from Kenya Commercial Bank', confidence: 0.55, page: 1 },
-  ];
+  return READINGS[suggestionKind(targetItemType).key] ?? OTHER_READING;
 }
 
 /** A `document` set, read (or not) once its time has come (S6). */
@@ -471,7 +471,8 @@ export async function acceptSuggestion(
   };
 
   let itemId: string;
-  if (suggestion.itemType === 'bio-tax') {
+  const fillsTax = suggestionKind(suggestion.itemType).target === 'tax';
+  if (fillsTax) {
     const spouse = suggestion.personKey.startsWith('spouse:')
       ? person(stored, suggestion.personKey)
       : undefined;
@@ -522,7 +523,7 @@ export async function acceptSuggestion(
 
   suggestion.status = 'accepted';
   suggestion.acceptedItemId = itemId;
-  const etag = commit(suggestion.itemType === 'bio-tax' ? 'household' : suggestion.sectionKey);
+  const etag = commit(fillsTax ? 'household' : suggestion.sectionKey);
   const accepted: Suggestion = { ...suggestion };
   return json(200, { suggestion: accepted, itemId, etag }, { ETag: etag });
 }

@@ -2,7 +2,7 @@ import { Card, CardIcon, formatDate, Icon } from '@adili/ui';
 import { BankIcon } from '@hugeicons/core-free-icons';
 
 import type { LoadedSuggestionSet } from '../../server/declarations.server';
-import { complianceText, latestSets, maskKraPin } from './suggestions';
+import { complianceText, latestSets, maskKraPin, suggestionKind } from './suggestions';
 
 /**
  * What KRA answered about the officer's PIN in their last registry check, as the line under Your
@@ -12,7 +12,9 @@ import { complianceText, latestSets, maskKraPin } from './suggestions';
 export function kraLineText(sets: LoadedSuggestionSet[]): string | null {
   const set = latestSets(sets).kra;
   const suggestion = set?.suggestions.find(
-    (each) => each.itemType === 'bio-tax' && (each.status === 'new' || each.status === 'accepted'),
+    (each) =>
+      suggestionKind(each.itemType).target === 'tax' &&
+      (each.status === 'new' || each.status === 'accepted'),
   );
   const pin = suggestion?.fields.kraPin;
   if (!set || typeof pin !== 'string' || pin.trim() === '') return null;

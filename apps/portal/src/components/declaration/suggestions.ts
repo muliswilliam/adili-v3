@@ -2,6 +2,7 @@ import type { RegistryStatus, RegistryStatusEntry } from '@adili/ui';
 import { SOURCE_NAMES } from '@adili/ui';
 
 import type {
+  DocumentKind,
   JsonObject,
   LoadedSuggestion,
   LoadedSuggestionSet,
@@ -76,55 +77,6 @@ export function sharesText(value: unknown): string {
   return /^\d[\d,]*$/.test(shares) ? `${shares} shares` : shares;
 }
 
-/** The declaration.v1 item type a suggestion adds: BRS's `investment` is a shareholding. */
-export function declaredType(itemType: string): string {
-  return itemType === 'investment' ? 'shareholding' : itemType;
-}
-
-/** The statement category an item type belongs to, or null (e.g. `bio-tax`). */
-export function categoryOf(itemType: string): Category | null {
-  const type = declaredType(itemType);
-  if ((ASSET_TYPES as readonly string[]).includes(type)) return 'assets';
-  if ((INCOME_TYPES as readonly string[]).includes(type)) return 'income';
-  if ((LIABILITY_TYPES as readonly string[]).includes(type)) return 'liabilities';
-  return null;
-}
-
-/** The item type in words, e.g. "Vehicle"; "KRA PIN" for `bio-tax`. */
-export function typeWord(itemType: string): string {
-  if (itemType === 'bio-tax') return 'KRA PIN';
-  const category = categoryOf(itemType);
-  return (category && TYPE_LABELS[category][declaredType(itemType)]) ?? 'Suggestion';
-}
-
-/**
- * The card's title, composed from the fields because the contract has none (gap 4):
- * "KCA 123A · Toyota Fielder 2016", "Uasin Gishu/Kimumu/2231 · 0.5 acres",
- * "Rift Valley Agrovet Ltd · 500 shares", "KRA PIN A00•••••76K · Compliance: Compliant".
- * Falls back to the item type in words when the fields say nothing usable.
- */
-export function suggestionTitle({ itemType, fields }: SuggestionLike): string {
-  const type = declaredType(itemType);
-  let title = '';
-  if (type === 'vehicle') {
-    const model = joined([text(fields.make), text(fields.model), text(fields.year)], ' ');
-    title = joined([text(fields.registration), model], ' · ');
-  } else if (type === 'land' || type === 'building') {
-    title = joined([text(fields.parcelNumber), text(fields.size)], ' · ');
-  } else if (type === 'shareholding' || type === 'securities') {
-    const holding = sharesText(fields.shares) || text(fields.role);
-    title = joined([text(fields.companyName), holding], ' · ');
-  } else if (type === 'bio-tax') {
-    const pin = text(fields.kraPin);
-    const compliance = complianceText(fields.complianceStatus);
-    title = joined(
-      [pin ? `KRA PIN ${maskKraPin(pin)}` : '', compliance ? `Compliance: ${compliance}` : ''],
-      ' · ',
-    );
-  }
-  return title || text(fields.description) || typeWord(itemType);
-}
-
 /** One item field a suggestion fills: its path in the item, label, value and how it reads. */
 export interface PatchEntry {
   /** Dotted path in the item, e.g. `details.registration`; `kraPin` on a spouse. */
@@ -138,57 +90,226 @@ function entry(path: string, label: string, value: string, display = value): Pat
   return value === '' ? [] : [{ path, label, value, display }];
 }
 
+/** A field "Edit and add" offers, in suggestion field names. */
+export interface EditField {
+  key: string;
+  label: string;
+}
+
+type Fields = Record<string, unknown>;
+
+/**
+ * How the portal reads one family of suggestions: the card's title, the item fields accepting
+ * fills, the field that identifies a matching item, what "Edit and add" offers and which
+ * document kind "Read into the form" offers first.
+ */
+export interface SuggestionKind {
+  key: 'vehicle' | 'land' | 'shares' | 'bank' | 'tax' | 'other';
+  /** `tax` fills a person's tax fields (`bio-tax`) rather than adding a statement item. */
+  target: 'item' | 'tax';
+  /** The title from the fields, or '' when they say nothing usable. */
+  title: (fields: Fields) => string;
+  /** The item fields it fills, before the description. */
+  patch: (fields: Fields) => PatchEntry[];
+  /** The description it adds when the declarant gives none; absent when it adds none. */
+  description?: (fields: Fields) => string;
+  /** The item field that identifies a matching item, or null when items are not matched. */
+  identifier: string | null;
+  editFields: EditField[];
+  documentKind: DocumentKind;
+}
+
+const none = () => '';
+
+const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
+  vehicle: {
+    key: 'vehicle',
+    target: 'item',
+    title: (fields) =>
+      joined(
+        [
+          text(fields.registration),
+          joined([text(fields.make), text(fields.model), text(fields.year)], ' '),
+        ],
+        ' · ',
+      ),
+    patch: (fields) => [
+      ...entry('details.registration', 'Registration', text(fields.registration)),
+      ...entry(
+        'details.makeModel',
+        'Make and model',
+        joined([joined([text(fields.make), text(fields.model)], ' '), text(fields.year)], ', '),
+      ),
+    ],
+    description: (fields) => joined([text(fields.make), text(fields.model)], ' '),
+    identifier: 'details.registration',
+    editFields: [
+      { key: 'registration', label: 'Registration' },
+      { key: 'make', label: 'Make' },
+      { key: 'model', label: 'Model' },
+      { key: 'year', label: 'Year' },
+    ],
+    documentKind: 'logbook',
+  },
+  land: {
+    key: 'land',
+    target: 'item',
+    title: (fields) => joined([text(fields.parcelNumber), text(fields.size)], ' · '),
+    patch: (fields) => {
+      const county = text(fields.county);
+      return [
+        ...entry('details.parcelNumber', 'Parcel or plot number', text(fields.parcelNumber)),
+        ...entry('details.size', 'Size', text(fields.size)),
+        ...entry('location.detail', 'Location', text(fields.location)),
+        ...entry('location.county', 'County', county, countyName(county) ?? county),
+      ];
+    },
+    description: (fields) => {
+      const location = text(fields.location);
+      return location ? `Land in ${location}` : '';
+    },
+    identifier: 'details.parcelNumber',
+    editFields: [
+      { key: 'parcelNumber', label: 'Parcel or plot number' },
+      { key: 'size', label: 'Size' },
+      { key: 'location', label: 'Location' },
+    ],
+    documentKind: 'title-deed',
+  },
+  shares: {
+    key: 'shares',
+    target: 'item',
+    title: (fields) =>
+      joined([text(fields.companyName), sharesText(fields.shares) || text(fields.role)], ' · '),
+    patch: (fields) => [
+      ...entry('details.issuer', 'Company or issuer', text(fields.companyName)),
+      ...entry('details.quantityOrPercent', 'Number or percentage', sharesText(fields.shares)),
+    ],
+    description: (fields) => {
+      const company = text(fields.companyName);
+      return company ? `Shares in ${company}` : '';
+    },
+    identifier: 'details.issuer',
+    editFields: [
+      { key: 'companyName', label: 'Company' },
+      { key: 'shares', label: 'Number or percentage' },
+    ],
+    documentKind: 'share-certificate',
+  },
+  bank: {
+    key: 'bank',
+    target: 'item',
+    title: none,
+    patch: () => [],
+    description: none,
+    identifier: null,
+    editFields: [],
+    documentKind: 'bank-letter',
+  },
+  tax: {
+    key: 'tax',
+    target: 'tax',
+    title: (fields) => {
+      const pin = text(fields.kraPin);
+      const compliance = complianceText(fields.complianceStatus);
+      return joined(
+        [pin ? `KRA PIN ${maskKraPin(pin)}` : '', compliance ? `Compliance: ${compliance}` : ''],
+        ' · ',
+      );
+    },
+    patch: (fields) => {
+      const pin = text(fields.kraPin);
+      return entry('kraPin', 'KRA PIN', pin, maskKraPin(pin));
+    },
+    identifier: null,
+    editFields: [],
+    documentKind: 'other',
+  },
+  other: {
+    key: 'other',
+    target: 'item',
+    title: none,
+    patch: () => [],
+    description: none,
+    identifier: null,
+    editFields: [],
+    documentKind: 'other',
+  },
+};
+
+/**
+ * Each suggestion item type the portal knows: its family and, where it differs, the
+ * declaration.v1 item type it adds (BRS's `investment` is a `shareholding`, which declaration.v1
+ * has). Any other type is read as `other` and added as itself.
+ */
+const ITEM_TYPES: Record<string, { kind: SuggestionKind['key']; declared?: string }> = {
+  vehicle: { kind: 'vehicle' },
+  land: { kind: 'land' },
+  building: { kind: 'land' },
+  shareholding: { kind: 'shares' },
+  securities: { kind: 'shares' },
+  investment: { kind: 'shares', declared: 'shareholding' },
+  'bank-account': { kind: 'bank' },
+  mortgage: { kind: 'bank' },
+  loan: { kind: 'bank' },
+  guarantee: { kind: 'bank' },
+  'bio-tax': { kind: 'tax' },
+};
+
+/** How a suggestion of this item type reads; `other` for types the portal has no rules for. */
+export function suggestionKind(itemType: string | undefined): SuggestionKind {
+  return KINDS[(itemType === undefined ? undefined : ITEM_TYPES[itemType]?.kind) ?? 'other'];
+}
+
+/** The declaration.v1 item type a suggestion adds: BRS's `investment` is a shareholding. */
+export function declaredType(itemType: string): string {
+  return ITEM_TYPES[itemType]?.declared ?? itemType;
+}
+
+/** The statement category an item type belongs to, or null (e.g. `bio-tax`). */
+export function categoryOf(itemType: string): Category | null {
+  const type = declaredType(itemType);
+  if ((ASSET_TYPES as readonly string[]).includes(type)) return 'assets';
+  if ((INCOME_TYPES as readonly string[]).includes(type)) return 'income';
+  if ((LIABILITY_TYPES as readonly string[]).includes(type)) return 'liabilities';
+  return null;
+}
+
+/** The item type in words, e.g. "Vehicle"; "KRA PIN" for `bio-tax`. */
+export function typeWord(itemType: string): string {
+  if (suggestionKind(itemType).target === 'tax') return 'KRA PIN';
+  const category = categoryOf(itemType);
+  return (category && TYPE_LABELS[category][declaredType(itemType)]) ?? 'Suggestion';
+}
+
+/**
+ * The card's title, composed from the fields because the contract has none (gap 4):
+ * "KCA 123A · Toyota Fielder 2016", "Uasin Gishu/Kimumu/2231 · 0.5 acres",
+ * "Rift Valley Agrovet Ltd · 500 shares", "KRA PIN A00•••••76K · Compliance: Compliant".
+ * Falls back to the item type in words when the fields say nothing usable.
+ */
+export function suggestionTitle({ itemType, fields }: SuggestionLike): string {
+  return suggestionKind(itemType).title(fields) || text(fields.description) || typeWord(itemType);
+}
+
 /**
  * What accepting the suggestion writes into the item (or, for `bio-tax`, the spouse), in the
  * order the card lists it. Value fields stay empty: the declarant enters them. The mock writes
  * exactly these paths, so "Fills: …" on a matching card is what applying fills.
  */
 export function suggestionPatch({ itemType, fields }: SuggestionLike): PatchEntry[] {
-  const type = declaredType(itemType);
-  const edited = text(fields.description);
-  const description = (derived: string) => entry('description', 'Description', edited || derived);
-
-  if (type === 'vehicle') {
-    const makeModel = joined([text(fields.make), text(fields.model)], ' ');
-    return [
-      ...entry('details.registration', 'Registration', text(fields.registration)),
-      ...entry('details.makeModel', 'Make and model', joined([makeModel, text(fields.year)], ', ')),
-      ...description(makeModel),
-    ];
-  }
-  if (type === 'land' || type === 'building') {
-    const county = text(fields.county);
-    const location = text(fields.location);
-    return [
-      ...entry('details.parcelNumber', 'Parcel or plot number', text(fields.parcelNumber)),
-      ...entry('details.size', 'Size', text(fields.size)),
-      ...entry('location.detail', 'Location', location),
-      ...entry('location.county', 'County', county, countyName(county) ?? county),
-      ...description(location ? `Land in ${location}` : ''),
-    ];
-  }
-  if (type === 'shareholding' || type === 'securities') {
-    const company = text(fields.companyName);
-    return [
-      ...entry('details.issuer', 'Company or issuer', company),
-      ...entry('details.quantityOrPercent', 'Number or percentage', sharesText(fields.shares)),
-      ...description(company ? `Shares in ${company}` : ''),
-    ];
-  }
-  if (type === 'bio-tax') {
-    const pin = text(fields.kraPin);
-    return entry('kraPin', 'KRA PIN', pin, maskKraPin(pin));
-  }
-  return description('');
+  const kind = suggestionKind(itemType);
+  const patch = kind.patch(fields);
+  if (!kind.description) return patch;
+  return [
+    ...patch,
+    ...entry('description', 'Description', text(fields.description) || kind.description(fields)),
+  ];
 }
 
 /** The field that identifies an item of this type, used to match suggestions to items. */
 export function identifierPath(itemType: string): string | null {
-  const type = declaredType(itemType);
-  if (type === 'vehicle') return 'details.registration';
-  if (type === 'land' || type === 'building') return 'details.parcelNumber';
-  if (type === 'shareholding' || type === 'securities') return 'details.issuer';
-  return null;
+  return suggestionKind(itemType).identifier;
 }
 
 /** Identifiers compare without case, spaces or separators: "kca-123 a" is "KCA123A". */
@@ -398,33 +519,9 @@ export function categoryOfItem(statement: Draft<Statement>, itemId: string): Cat
   return null;
 }
 
-/** The fields "Edit and add" offers per item type, in suggestion field names. */
-export const EDIT_FIELDS: Record<string, { key: string; label: string }[]> = {
-  vehicle: [
-    { key: 'registration', label: 'Registration' },
-    { key: 'make', label: 'Make' },
-    { key: 'model', label: 'Model' },
-    { key: 'year', label: 'Year' },
-  ],
-  land: [
-    { key: 'parcelNumber', label: 'Parcel or plot number' },
-    { key: 'size', label: 'Size' },
-    { key: 'location', label: 'Location' },
-  ],
-  shareholding: [
-    { key: 'companyName', label: 'Company' },
-    { key: 'shares', label: 'Number or percentage' },
-  ],
-};
-
 /** The editable fields for a suggestion's type, then Description. */
-export function editFields(itemType: string): { key: string; label: string }[] {
-  const type = declaredType(itemType);
-  return [
-    ...(EDIT_FIELDS[type === 'building' ? 'land' : type === 'securities' ? 'shareholding' : type] ??
-      []),
-    { key: 'description', label: 'Description' },
-  ];
+export function editFields(itemType: string): EditField[] {
+  return [...suggestionKind(itemType).editFields, { key: 'description', label: 'Description' }];
 }
 
 /** The text an edit field starts with: the suggestion's field, or the description it would add. */

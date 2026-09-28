@@ -62,6 +62,7 @@ import {
   registryEntries,
   type ShownSuggestion,
   shownSuggestions,
+  suggestionKind,
   suggestionPatch,
   suggestionTitle,
   supersededBy,
@@ -340,7 +341,7 @@ export function RegistriesPanel({
     } as const;
     const fields = previewFields(suggestion);
 
-    if (suggestion.itemType === 'bio-tax') {
+    if (suggestionKind(suggestion.itemType).target === 'tax') {
       const acceptedAs = 'applied' as const;
       if (isOfficer) {
         // declaration.v1 has no KRA fields for the officer (contract gap 6): shown, not applied.

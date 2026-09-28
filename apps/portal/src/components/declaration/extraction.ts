@@ -7,10 +7,10 @@ import type {
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
 import {
-  declaredType,
   editFields,
   type PatchEntry,
   readPath,
+  suggestionKind,
   suggestionPatch,
 } from './suggestions';
 
@@ -85,12 +85,7 @@ export const FAILURE_REASONS = {
 
 /** The kind to offer first for an item of this type. */
 export function defaultKind(itemType: string | undefined): DocumentKind {
-  const type = declaredType(itemType ?? '');
-  if (type === 'vehicle') return 'logbook';
-  if (type === 'land' || type === 'building') return 'title-deed';
-  if (type === 'shareholding' || type === 'securities') return 'share-certificate';
-  if (['bank-account', 'mortgage', 'loan', 'guarantee'].includes(type)) return 'bank-letter';
-  return 'other';
+  return suggestionKind(itemType).documentKind;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
