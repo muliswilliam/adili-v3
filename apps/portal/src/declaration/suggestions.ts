@@ -438,6 +438,20 @@ export function isChecking(sets: LoadedSuggestionSet[]): boolean {
   return Object.values(latestSets(sets)).some((set) => set.status === 'pending');
 }
 
+/**
+ * The sets as the panel shows them once it stops waiting (after about a minute): each registry
+ * still pending reads as unavailable, so the strip offers Retry and a new check can start. Only
+ * what is shown changes; the service answers for those registries on a later read.
+ */
+export function stopWaiting(sets: LoadedSuggestionSet[]): LoadedSuggestionSet[] {
+  const waiting = new Set(
+    Object.values(latestSets(sets))
+      .filter((set) => set.status === 'pending')
+      .map((set) => set.id),
+  );
+  return sets.map((set) => (waiting.has(set.id) ? { ...set, status: 'unavailable' } : set));
+}
+
 /** When the person's registries were last asked, or null if never. */
 export function lastChecked(sets: LoadedSuggestionSet[]): string | null {
   const times = Object.values(latestSets(sets)).map((set) => set.readyAt ?? set.requestedAt);

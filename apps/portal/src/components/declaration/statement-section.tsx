@@ -137,7 +137,12 @@ export interface StatementSectionProps {
    * Check registries for this person (#312): who they are and their suggestion sets as loaded.
    * No panel is shown when omitted.
    */
-  registries?: { person: RegistryPerson; sets: LoadedSuggestionSet[]; pollMs?: number };
+  registries?: {
+    person: RegistryPerson;
+    sets: LoadedSuggestionSet[];
+    pollMs?: number;
+    pollLimit?: number;
+  };
 }
 
 interface Removing {
@@ -317,6 +322,7 @@ export function StatementSection({
           person={registries.person}
           initialSets={registries.sets}
           pollMs={registries.pollMs}
+          pollLimit={registries.pollLimit}
           statement={statement}
           disabled={disabled}
           onAccepted={({ itemId, section: fresh }) => {

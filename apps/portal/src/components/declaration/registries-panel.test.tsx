@@ -135,9 +135,14 @@ function renderPanel({
   section = statement(),
   person = officer,
   sets = [] as LoadedSuggestionSet[],
+  pollLimit = undefined as number | undefined,
 } = {}) {
   return renderWorkspace(
-    <StatementSection section={section} etag={'"1"'} registries={{ person, sets, pollMs: 5 }} />,
+    <StatementSection
+      section={section}
+      etag={'"1"'}
+      registries={{ person, sets, pollMs: 5, pollLimit }}
+    />,
     {
       step: section.key,
       declaration: sampleDeclaration({ sections: sections({}, householdSections) }),
@@ -270,6 +275,47 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
     expect(listMock).toHaveBeenCalledWith({
       data: { declarationId: DECLARATION_ID, personKey: `spouse:${SPOUSE_ID}` },
     });
+  });
+
+  it('stops waiting after the last read: registries still pending can be retried', async () => {
+    const pending = (source: LoadedSuggestionSet['source']) =>
+      set(source, { status: 'pending', readyAt: null });
+    lookupsMock.mockResolvedValue({
+      status: 'started',
+      sets: [pending('kra'), pending('ntsa'), pending('brs'), pending('ardhisasa')],
+    });
+    listMock.mockResolvedValue({
+      status: 'ok',
+      sets: [set('kra'), pending('ntsa'), set('brs'), pending('ardhisasa')],
+    });
+    renderPanel({ pollLimit: 3 });
+
+    fireEvent.click(within(registries()).getByRole('button', { name: 'Check registries' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'I request this check' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => {
+      expect(statusOf('NTSA')).toBe('Not available nowRetry');
+    });
+    expect(listMock).toHaveBeenCalledTimes(3);
+    expect(statusOf('KRA')).toBe('Nothing found');
+    expect(statusOf('ArdhiSasa')).toBe('Not available nowRetry');
+    expect(within(registries()).queryByText('Checking…', { selector: 'p' })).toBeNull();
+    expect(within(registries()).getByRole('button', { name: 'Check again' })).toHaveProperty(
+      'disabled',
+      false,
+    );
+    await waitFor(() => {
+      expect(announced()).toBe(
+        'Registry check stopped for Mwangi Njoroge Kamau: some registries did not answer. You can retry them.',
+      );
+    });
+
+    // Retrying one goes through consent, like any check.
+    fireEvent.click(within(strip()).getByRole('button', { name: 'Retry NTSA' }));
+    expect(await screen.findByRole('dialog', { name: 'Check registries' })).toBeTruthy();
+    expect(lookupsMock).toHaveBeenCalledTimes(1);
   });
 
   it('leaves the masked ID out of the consent text for the officer', async () => {

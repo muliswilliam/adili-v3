@@ -62,6 +62,7 @@ import {
   registryEntries,
   type ShownSuggestion,
   shownSuggestions,
+  stopWaiting,
   suggestionKind,
   suggestionPatch,
   suggestionTitle,
@@ -93,6 +94,8 @@ export const REGISTRY_COPY = {
   hide: 'Hide registry suggestions',
   show: 'Show registry suggestions',
   finished: (name: string) => `Registry check finished for ${name}`,
+  stoppedWaiting: (name: string) =>
+    `Registry check stopped for ${name}: some registries did not answer. You can retry them.`,
   dismissedFold: (count: number) => `Dismissed (${String(count)})`,
   dismissedAnnounce: (title: string) => `Dismissed ${title}`,
   addValue: (type: string) => `${type} · add the value yourself`,
@@ -116,9 +119,9 @@ export const REGISTRY_COPY = {
   add: 'Add',
 } as const;
 
-/** How often a pending check is read again, and for how long at most (about a minute). */
+/** How often a pending check is read again, and how many times at most (about a minute). */
 export const REGISTRY_POLL_MS = 1_000;
-const POLL_LIMIT = 60;
+export const REGISTRY_POLL_LIMIT = 60;
 
 export interface RegistryPerson {
   /** Full name, for the consent text and announcements. */
@@ -145,6 +148,7 @@ export interface RegistriesPanelProps {
   /** Go to the item (or the Household entry) an accepted suggestion added. */
   onView: (suggestion: LoadedSuggestion) => void;
   pollMs?: number;
+  pollLimit?: number;
 }
 
 type Busy = Record<string, 'saving' | 'refreshing'>;
@@ -180,6 +184,7 @@ export function RegistriesPanel({
   onAccepted,
   onView,
   pollMs = REGISTRY_POLL_MS,
+  pollLimit = REGISTRY_POLL_LIMIT,
 }: RegistriesPanelProps) {
   const { declaration } = useWorkspace();
   const { toast } = useToast();
@@ -211,19 +216,26 @@ export function RegistriesPanel({
   const toReview = shown.filter((each) => each.suggestion.status === 'new').length;
   const items = itemsOf(statement);
 
-  // While a registry has not answered, read the person's sets again.
+  // While a registry has not answered, read the person's sets again. After about a minute, stop
+  // waiting: the registries still pending show as not available now, with Retry.
   const polls = useRef(0);
+  const stopped = useRef(false);
   useEffect(() => {
     if (!checking) {
       polls.current = 0;
       return;
     }
-    if (polls.current >= POLL_LIMIT) return;
     const timer = setTimeout(() => {
+      if (polls.current >= pollLimit) {
+        stopped.current = true;
+        setSets(stopWaiting);
+        return;
+      }
       polls.current += 1;
+      // Always a new array, so the next read is scheduled even when nothing changed.
       void listDeclarationSuggestions({ data: { declarationId, personKey } })
         .then((result) => {
-          setSets((current) => (result.status === 'ok' ? result.sets : [...current]));
+          setSets((current) => [...(result.status === 'ok' ? result.sets : current)]);
         })
         .catch(() => {
           setSets((current) => [...current]);
@@ -232,12 +244,19 @@ export function RegistriesPanel({
     return () => {
       clearTimeout(timer);
     };
-  }, [checking, sets, declarationId, personKey, pollMs]);
+  }, [checking, sets, declarationId, personKey, pollMs, pollLimit]);
 
-  // Say when the last registry has answered.
+  // Say when the last registry has answered, or when the panel stopped waiting for them.
   const wasChecking = useRef(checking);
   useEffect(() => {
-    if (wasChecking.current && !checking) setAnnouncement(REGISTRY_COPY.finished(person.name));
+    if (wasChecking.current && !checking) {
+      setAnnouncement(
+        stopped.current
+          ? REGISTRY_COPY.stoppedWaiting(person.name)
+          : REGISTRY_COPY.finished(person.name),
+      );
+      stopped.current = false;
+    }
     wasChecking.current = checking;
   }, [checking, person.name]);
 

@@ -20,6 +20,7 @@ import {
   REGISTRIES,
   registryEntries,
   shownSuggestions,
+  stopWaiting,
   suggestionPatch,
   suggestionTitle,
   supersededBy,
@@ -321,6 +322,22 @@ describe('a person’s registry check', () => {
       'new',
     ]);
     expect(supersededBy(sets, 'spouse:x', ['ntsa'])[0]?.suggestions[0]?.status).toBe('new');
+  });
+
+  it('shows the registries still pending as unavailable once it stops waiting', () => {
+    const sets = [
+      set({ id: 'kra-1', source: 'kra', status: 'pending', readyAt: null }),
+      set({ id: 'ntsa-1', status: 'ready' }),
+      set({ id: 'land-1', source: 'ardhisasa', status: 'pending', readyAt: null }),
+    ];
+    const next = stopWaiting(sets);
+    expect(registryEntries(next).map(({ id, status }) => [id, status])).toEqual([
+      ['kra', 'unavailable'],
+      ['ntsa', 'nothing-found'],
+      ['brs', 'not-checked'],
+      ['ardhisasa', 'unavailable'],
+    ]);
+    expect(isChecking(next)).toBe(false);
   });
 
   it('puts an accepted or dismissed suggestion back into its set', () => {
