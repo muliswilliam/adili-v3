@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ToastProvider } from '@adili/ui';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -121,5 +122,50 @@ describe('RecordDetail', () => {
       within(latest).getByText(/Identity is locked once the officer has onboarded/),
     ).toBeTruthy();
     expect(within(first).getByText('Created')).toBeTruthy();
+  });
+
+  it('explains a failed identity check and marks it in the heading and status', () => {
+    render(
+      <RecordDetail
+        record={{ ...record(), identityMismatchAt: '2026-09-24T11:20:00Z' } as RosterRecord}
+        readOnly={false}
+      />,
+    );
+    const callout = screen.getByText('Identity check failed on 24 Sep 2026, 14:20.');
+    expect(callout.closest('[role="status"]')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Name or national ID does not match the national register. Correct it in your next import.',
+      ),
+    ).toBeTruthy();
+    const status = screen.getByRole('region', { name: 'Status' });
+    expect(within(status).getByText('Identity check')).toBeTruthy();
+    expect(screen.getAllByText('Identity check failed')).toHaveLength(2);
+  });
+
+  it('shows the officer reference and onboarded date of an onboarded officer', () => {
+    render(
+      <ToastProvider>
+        <RecordDetail
+          record={
+            {
+              ...record({ state: 'onboarded' }),
+              ofr: 'OFR-0482913-H',
+              onboardedAt: '2026-09-26T07:42:00Z',
+            } as RosterRecord
+          }
+          readOnly={false}
+        />
+      </ToastProvider>,
+    );
+    const status = screen.getByRole('region', { name: 'Status' });
+    expect(within(status).getByText('OFR-0482913-H')).toBeTruthy();
+    expect(within(status).getByRole('button', { name: 'Copy officer reference' })).toBeTruthy();
+    expect(within(status).getByText('26 Sep 2026, 10:42')).toBeTruthy();
+  });
+
+  it('says nothing about identity checks while none has failed', () => {
+    render(<RecordDetail record={record()} readOnly={false} />);
+    expect(screen.queryByText(/Identity check/)).toBeNull();
   });
 });

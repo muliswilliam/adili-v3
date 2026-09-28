@@ -21,8 +21,14 @@ import type { RosterRecord } from '../../server/directory/client';
 import { formatPhone } from '../commissions/phone';
 import { formatDate, formatDateTime } from '../format';
 import { Page, PageHead, SectionCard } from '../page';
+import { IdentityMismatchBadge, IdentityMismatchCallout } from './identity-mismatch';
 import { messages as m } from './messages';
-import { isIdentityLocked, LockedChip } from './record-onboarding';
+import {
+  isIdentityLocked,
+  LockedChip,
+  OnboardingStatusItems,
+  recordOnboarding,
+} from './record-onboarding';
 import { isFlagged, recordImport } from './record-imports';
 import { ImportOutcomeBadge, NotInLatestImportBadge, RecordStateBadge } from './roster-badges';
 
@@ -45,6 +51,7 @@ export function RecordDetail({
   readOnly: boolean;
 }) {
   const flagged = isFlagged(record);
+  const mismatchAt = recordOnboarding(record).identityMismatchAt;
   return (
     <Page>
       {banner}
@@ -55,10 +62,12 @@ export function RecordDetail({
           </span>
           <RecordStateBadge state={record.state} />
           {flagged ? <NotInLatestImportBadge /> : null}
+          {mismatchAt ? <IdentityMismatchBadge /> : null}
         </div>
       </PageHead>
-      {flagged || record.state === 'exited' ? (
+      {mismatchAt || flagged || record.state === 'exited' ? (
         <div className="mb-5 grid gap-3">
+          {mismatchAt ? <IdentityMismatchCallout at={mismatchAt} /> : null}
           {flagged ? (
             <Alert variant="warning" role="status">
               <Icon icon={Flag02Icon} />
@@ -162,6 +171,7 @@ function StatusCard({ record }: { record: RosterRecord }) {
         <DescriptionItem term={m.absentFromLatest}>
           {isFlagged(record) ? <NotInLatestImportBadge /> : m.no}
         </DescriptionItem>
+        <OnboardingStatusItems record={recordOnboarding(record)} />
         <DescriptionItem term={m.exitDate}>
           {record.exitDate ? (
             <time dateTime={record.exitDate}>{formatDate(record.exitDate)}</time>

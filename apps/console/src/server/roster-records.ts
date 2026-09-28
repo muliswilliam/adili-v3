@@ -22,6 +22,7 @@ export const listRosterRecordsInput = z.object({
   search: z.string().max(200).optional(),
   state: z.enum(RECORD_STATES).optional(),
   flagged: z.literal(true).optional(),
+  identityMismatch: z.literal(true).optional(),
   cursor: z.string().min(1).nullable().optional(),
   limit: z.number().int().min(1).max(200).optional(),
 });

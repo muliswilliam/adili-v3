@@ -18,6 +18,21 @@ export interface RosterRecordOnboarding {
   identityMismatchAt: string | null;
 }
 
+/**
+ * The onboarding fields of a record from the directory. Fields the contract does not list yet
+ * (#76) read as not set, so the screens show them as soon as the directory sends them.
+ */
+export function recordOnboarding(
+  record: Pick<RosterRecordOnboarding, 'state'> & Partial<Omit<RosterRecordOnboarding, 'state'>>,
+): RosterRecordOnboarding {
+  return {
+    state: record.state,
+    ofr: record.ofr ?? null,
+    onboardedAt: record.onboardedAt ?? null,
+    identityMismatchAt: record.identityMismatchAt ?? null,
+  };
+}
+
 /** Full name and national ID can no longer be changed by an import once the declarant onboarded. */
 export function isIdentityLocked(record: Pick<RosterRecordOnboarding, 'state'>): boolean {
   return record.state === 'onboarded';

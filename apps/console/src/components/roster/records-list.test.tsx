@@ -192,6 +192,35 @@ describe('RecordsList', () => {
     expect(onSearchChange).toHaveBeenCalledWith({ flagged: true });
   });
 
+  it('turns "Identity check failed" on and off', () => {
+    const { onSearchChange } = renderList({ search: { flagged: true } });
+    const chip = screen.getByRole('button', { name: /Identity check failed/ });
+    expect(chip.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(chip);
+    expect(onSearchChange).toHaveBeenCalledWith({ flagged: true, identityMismatch: true });
+  });
+
+  it('shows the identity-mismatch filter as on', () => {
+    const { onSearchChange } = renderList({ search: { identityMismatch: true } });
+    const chip = screen.getByRole('button', { name: /Identity check failed/ });
+    expect(chip.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(chip);
+    expect(onSearchChange).toHaveBeenCalledWith({});
+  });
+
+  it('marks records whose identity check failed', () => {
+    renderList({
+      result: page([
+        { ...record(), identityMismatchAt: '2026-09-24T11:20:00Z' } as RosterRecordListItem,
+        record({ id: '0191f8d2-0000-7000-8000-000000000002', fullName: 'Brian Kiprono' }),
+      ]),
+    });
+    const flagged = within(table()).getByRole('row', { name: /Achieng Otieno/ });
+    const clear = within(table()).getByRole('row', { name: /Brian Kiprono/ });
+    expect(within(flagged).getByText('Identity check failed')).toBeTruthy();
+    expect(within(clear).queryByText('Identity check failed')).toBeNull();
+  });
+
   it('clears every filter at once', () => {
     const { onSearchChange } = renderList({ search: { search: 'Otieno', flagged: true } });
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));

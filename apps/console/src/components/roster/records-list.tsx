@@ -25,8 +25,10 @@ import type {
 } from '../../server/directory/client';
 import { LoadError, NoAccess } from '../load-error';
 import { SearchBox } from '../search-box';
+import { IdentityMismatchBadge, IdentityMismatchFilterChip } from './identity-mismatch';
 import { messages as m } from './messages';
 import { isFlagged } from './record-imports';
+import { recordOnboarding } from './record-onboarding';
 import {
   appendPage,
   hasRecordFilters,
@@ -35,6 +37,7 @@ import {
   RECORD_STATES,
   type RecordsSearch,
   toggleFlagged,
+  toggleIdentityMismatch,
 } from './records-query';
 import { MaskedNationalId, NotInLatestImportBadge, RecordStateBadge } from './roster-badges';
 
@@ -65,8 +68,9 @@ export interface RecordsListProps {
 }
 
 /**
- * The roster records card (spec 02 FE-6): search, state filter and "Flagged only" on top, then
- * the records ordered by name with masked national IDs, and "Load more" for the next page.
+ * The roster records card (spec 02 FE-6): search, state filter, "Flagged only" and "Identity
+ * check failed" (spec 03 S25) on top, then the records ordered by name with masked national IDs,
+ * and "Load more" for the next page.
  */
 export function RecordsList(props: RecordsListProps) {
   const { result, search } = props;
@@ -148,6 +152,13 @@ function Toolbar({ search, onSearchChange, flaggedCount, result }: RecordsListPr
       >
         {m.flaggedOnly}
       </FilterChip>
+      <IdentityMismatchFilterChip
+        pressed={search.identityMismatch === true}
+        disabled={disabled}
+        onPressedChange={() => {
+          onSearchChange(toggleIdentityMismatch(search));
+        }}
+      />
       {hasRecordFilters(search) ? (
         <Button
           type="button"
@@ -304,6 +315,7 @@ function StateBadges({ record }: { record: RosterRecordListItem }) {
     <span className="flex flex-wrap items-center gap-1.5">
       <RecordStateBadge state={record.state} />
       {isFlagged(record) ? <NotInLatestImportBadge /> : null}
+      {recordOnboarding(record).identityMismatchAt ? <IdentityMismatchBadge /> : null}
     </span>
   );
 }
