@@ -1,6 +1,6 @@
 import type { Database } from '@adili/data-access';
 import { type EventPublisher, type NewEvent } from '@adili/events';
-import { and, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { DeclarationsSchema } from '../db/schema.js';
@@ -16,7 +16,13 @@ import {
   planObligations,
 } from './engine.js';
 import { obligationCreated, obligationReminderSent, obligationStatusChanged } from './events.js';
-import { filingObligations, obligationReminders, rosterSnapshots } from './schema.js';
+import {
+  cycleCalendar,
+  filingObligations,
+  obligationReminders,
+  rosterSnapshots,
+  tenantPolicyCache,
+} from './schema.js';
 import { noChanges, type ObligationChanges } from './workflows.js';
 
 export type Transaction = Parameters<Parameters<Database<DeclarationsSchema>['transaction']>[0]>[0];
@@ -35,6 +41,25 @@ export interface ReconcileContext {
 export interface PageContext extends ReconcileContext {
   /** The import or exit batch pulled; null for a single record. */
   syncedFrom: string | null;
+}
+
+/**
+ * What the tenant's stored snapshots are reconciled against when no directory event brings a
+ * policy (the cycle opening, the sweep): its cached policy and the calendar. Null when the tenant
+ * has no cached policy (no roster ingested).
+ */
+export async function storedReconcileContext(
+  tx: Transaction,
+  tenant: string,
+  today: CivilDate,
+): Promise<ReconcileContext | null> {
+  const [cached] = await tx
+    .select({ id: tenantPolicyCache.policyVersionId, rules: tenantPolicyCache.policy })
+    .from(tenantPolicyCache)
+    .where(eq(tenantPolicyCache.tenant, tenant));
+  if (!cached) return null;
+  const calendar = await tx.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
+  return { tenant, policy: cached, calendar, today };
 }
 
 /** Rows per multi-row insert, well under Postgres' 65,535 parameters per statement. */

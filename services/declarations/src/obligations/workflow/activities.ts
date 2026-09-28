@@ -7,6 +7,7 @@ import {
   REMINDER_ATTEMPTS,
   type ReminderRequest,
   type SendReminderResult,
+  type SweepResult,
 } from './contract.js';
 import { type ChannelProgress, ObligationSteps } from './obligation-steps.js';
 import { ObligationsSweep } from './sweep.js';
@@ -56,12 +57,12 @@ export class ObligationActivities {
     });
   }
 
-  /** The hourly sweep: starts the workflows missing; returns how many. */
-  sweepObligations(): Promise<number> {
+  /** The hourly sweep: starts the workflows missing, cancels what exits no longer owe. */
+  sweepObligations(): Promise<SweepResult> {
     const context = Context.current();
     return this.sweep.run({
-      progress: (started) => {
-        context.heartbeat(started);
+      progress: (done) => {
+        context.heartbeat(done);
       },
     });
   }

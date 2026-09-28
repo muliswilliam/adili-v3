@@ -1,20 +1,25 @@
 import {
+  Inject,
   Injectable,
   Logger,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { InjectTemporalClient } from '@adili/temporal';
 import { type Client, ScheduleAlreadyRunning, ScheduleOverlapPolicy } from '@temporalio/client';
-import { and, asc, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 
+import { Clock } from '../../clock.js';
 import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
-import { PLATFORM_CONTEXT } from '../system-context.js';
-import { filingObligations } from '../schema.js';
+import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
+import { reconcileSnapshots, storedReconcileContext } from '../apply-page.js';
+import { nairobiDate } from '../dates.js';
+import { filingObligations, rosterSnapshots } from '../schema.js';
 import { ObligationWorkflows } from '../workflows.js';
-import { OBLIGATIONS_SWEEP_WORKFLOW } from './contract.js';
+import { OBLIGATIONS_SWEEP_WORKFLOW, type SweepResult } from './contract.js';
 import type { obligationsSweep } from './workflows.js';
 
 /** Obligations started per round of the sweep. */
@@ -35,23 +40,39 @@ export function sweepScheduleId(taskQueue: string): string {
 const SCHEDULE_RETRY_MS = 60_000;
 
 /**
- * The reconciliation sweep: starts the workflow of every open obligation that has none
- * (`workflow_started_at` null), the obligations whose start after commit was lost to a crash or a
- * Temporal outage. Round by round, oldest first; an obligation it cannot start ends the run
- * (thrown), to be tried again next hour.
+ * The reconciliation sweep (spec 04):
+ *
+ * - starts the workflow of every open obligation that has none (`workflow_started_at` null), the
+ *   obligations whose start after commit was lost to a crash or a Temporal outage. Round by round,
+ *   oldest first; an obligation it cannot start ends the run (thrown), to be tried again next hour;
+ * - cancels the `upcoming` obligations of exited declarants that the engine no longer owes (a
+ *   reconciliation lost between an exit and its obligations), and signals their workflows. It
+ *   creates nothing: finals come with the exit's own ingest.
  */
 @Injectable()
 export class ObligationsSweep {
   constructor(
     @InjectDatabase() private readonly db: Database<DeclarationsSchema>,
+    @Inject(EventPublisher) private readonly events: EventPublisher,
     private readonly workflows: ObligationWorkflows,
+    private readonly clock: Clock,
   ) {}
 
-  /** Returns how many workflows it started. */
   async run({
     graceMs = DEFAULT_GRACE_MS,
     progress = () => undefined,
-  }: { graceMs?: number; progress?: (started: number) => void } = {}): Promise<number> {
+  }: { graceMs?: number; progress?: (done: number) => void } = {}): Promise<SweepResult> {
+    const started = await this.startMissing(graceMs, progress);
+    const cancelled = await this.cancelExited((done) => {
+      progress(started + done);
+    });
+    return { started, cancelled };
+  }
+
+  private async startMissing(
+    graceMs: number,
+    progress: (started: number) => void,
+  ): Promise<number> {
     let started = 0;
     let previous: string | undefined;
     for (;;) {
@@ -85,6 +106,58 @@ export class ObligationsSweep {
       started += rows.length;
       progress(started);
       if (rows.length < BATCH) return started;
+    }
+  }
+
+  /**
+   * Pages through the exited declarants that still have an upcoming obligation, by roster record
+   * id, and lets the engine cancel what they no longer owe, one tenant at a time.
+   */
+  private async cancelExited(progress: (cancelled: number) => void): Promise<number> {
+    const today = nairobiDate(this.clock.now());
+    let cancelled = 0;
+    let after: string | undefined;
+    for (;;) {
+      const rows = await withTenant(this.db, PLATFORM_CONTEXT, (tx) =>
+        tx
+          .selectDistinct({
+            rosterRecordId: rosterSnapshots.rosterRecordId,
+            tenant: rosterSnapshots.tenant,
+          })
+          .from(rosterSnapshots)
+          .innerJoin(
+            filingObligations,
+            eq(filingObligations.rosterRecordId, rosterSnapshots.rosterRecordId),
+          )
+          .where(
+            and(
+              eq(rosterSnapshots.state, 'exited'),
+              eq(filingObligations.status, 'upcoming'),
+              after === undefined ? undefined : gt(rosterSnapshots.rosterRecordId, after),
+            ),
+          )
+          .orderBy(asc(rosterSnapshots.rosterRecordId))
+          .limit(BATCH),
+      );
+      for (const [tenant, group] of Map.groupBy(rows, (row) => row.tenant)) {
+        const changes = await withTenant(this.db, systemContext(tenant), async (tx) => {
+          const context = await storedReconcileContext(tx, tenant, today);
+          if (!context) return null;
+          return reconcileSnapshots(
+            tx,
+            this.events,
+            context,
+            group.map((row) => row.rosterRecordId),
+            (operation) => operation.kind === 'cancel',
+          );
+        });
+        if (!changes || changes.cancelled.length === 0) continue;
+        cancelled += changes.cancelled.length;
+        await this.workflows.apply(tenant, changes);
+      }
+      progress(cancelled);
+      after = rows.at(-1)?.rosterRecordId;
+      if (rows.length < BATCH) return cancelled;
     }
   }
 }

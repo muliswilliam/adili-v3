@@ -27,6 +27,7 @@ import {
   personLinkedSignal,
   REMINDER_ATTEMPTS,
   stateQuery,
+  type SweepResult,
 } from './contract.js';
 import { type ObligationSchedule, timeline, type TimelineStep } from './timeline.js';
 
@@ -197,9 +198,10 @@ export async function filingObligation({
 
 /**
  * The hourly reconciliation sweep (started by the sweep schedule, `sweepScheduleId`): starts the
- * workflow of every open obligation that has none. Returns how many it started.
+ * workflow of every open obligation that has none, and cancels the upcoming obligations exited
+ * declarants no longer owe. Returns how many of each.
  */
-export async function obligationsSweep(): Promise<number> {
+export async function obligationsSweep(): Promise<SweepResult> {
   return sweepObligations();
 }
 

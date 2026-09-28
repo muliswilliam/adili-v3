@@ -49,6 +49,14 @@ export interface ReminderRequest {
 /** What became of a reminder; `not-open` when the obligation no longer takes reminders (no row). */
 export type SendReminderResult = ReminderOutcome | 'not-open';
 
+/** What a run of the reconciliation sweep did. */
+export interface SweepResult {
+  /** Workflows started for open obligations that had none. */
+  started: number;
+  /** Upcoming obligations of exited declarants cancelled. */
+  cancelled: number;
+}
+
 /** Why a workflow ended. */
 export type FilingObligationEnd = 'cancelled' | 'filed' | 'missing';
 

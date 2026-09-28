@@ -6,14 +6,14 @@ import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
 import { Clock } from '../../clock.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { DirectoryClient } from '../../directory/directory-client.js';
-import { reconcileSnapshots, type ReconcileContext, type Transaction } from '../apply-page.js';
+import { reconcileSnapshots, storedReconcileContext, type Transaction } from '../apply-page.js';
 import { nairobiDate } from '../dates.js';
 import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engine.js';
 import { cycleOpened } from '../events.js';
 import { obligationPolicyOf } from '../roster-ingest.js';
 import { systemContext } from '../system-context.js';
 import { cycleCalendar, cycleOpenings, rosterSnapshots, tenantPolicyCache } from '../schema.js';
-import { hasChanges, ObligationWorkflows } from '../workflows.js';
+import { hasChanges, noChanges, ObligationWorkflows } from '../workflows.js';
 import type { CycleOpened, CycleOpeningPage, CycleOpeningPageRequest } from './contract.js';
 
 /** Roster snapshots per page, as the directory pulls. */
@@ -75,17 +75,12 @@ export class CycleOpening {
     { tenant, cycleYear, cursor }: CycleOpeningPageRequest,
     progress: () => void = () => undefined,
   ): Promise<CycleOpeningPage> {
-    const cached = await this.cachedPolicy(tenant);
-    if (!cached) return { created: 0, nextCursor: null };
-    const context: ReconcileContext = {
-      tenant,
-      policy: { id: cached.policyVersionId, rules: cached.rules },
-      calendar: await this.calendar(),
-      today: nairobiDate(this.clock.now()),
-    };
     const cycleKey = `biennial:${String(cycleYear)}`;
+    const today = nairobiDate(this.clock.now());
 
     const { ids, changes } = await withTenant(this.db, systemContext(tenant), async (tx) => {
+      const context = await storedReconcileContext(tx, tenant, today);
+      if (!context) return { ids: [], changes: noChanges() };
       const page = await activeSnapshots(tx, tenant, cursor);
       const applied = await reconcileSnapshots(
         tx,

@@ -4,7 +4,7 @@ import { withTenant } from '@adili/data-access';
 import { eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { filingObligations } from '../../src/db/schema.js';
+import { filingObligations, rosterSnapshots } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/obligations/apply-page.js';
 import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
@@ -137,9 +137,9 @@ describe('workflow starts after commit', () => {
     expect(await unstarted()).toHaveLength(2);
 
     api.temporal.down = false;
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toBe(2);
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 2, cancelled: 0 });
     expect(await unstarted()).toEqual([]);
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toBe(0);
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 0, cancelled: 0 });
     expect(api.temporal.startedIds().sort()).toEqual(
       (await obligations()).map((row) => row.id).sort(),
     );
@@ -159,10 +159,55 @@ describe('workflow starts after commit', () => {
     api.temporal.closed.add(closed?.id ?? '');
 
     // Just created: left to the start that follows the commit.
-    await expect(api.sweep.run()).resolves.toBe(0);
+    await expect(api.sweep.run()).resolves.toEqual({ started: 0, cancelled: 0 });
 
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toBe(2);
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 2, cancelled: 0 });
     expect(api.temporal.startedIds().sort()).toEqual([open?.id, closed?.id].sort());
     expect(await unstarted()).toEqual([{ id: cancelled?.id }]);
+  });
+
+  it("cancels an exited declarant's upcoming biennial the engine no longer owes, and signals its workflow", async () => {
+    const leaving = rosterRecord('psc');
+    const staying = rosterRecord('psc', { exitDate: '2027-12-15', state: 'exited' });
+    await importRecords([leaving, staying]);
+    // The exit reached the snapshot but its reconciliation was lost (a crash mid-way).
+    await asPlatform((tx) =>
+      tx
+        .update(rosterSnapshots)
+        .set({ state: 'exited', exitDate: '2027-09-01' })
+        .where(eq(rosterSnapshots.rosterRecordId, leaving.id)),
+    );
+    const signalled = api.temporal.signals.length;
+
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 0, cancelled: 1 });
+
+    const rows = await asPlatform((tx) =>
+      tx
+        .select({
+          rosterRecordId: filingObligations.rosterRecordId,
+          id: filingObligations.id,
+          type: filingObligations.type,
+          status: filingObligations.status,
+          cancelReason: filingObligations.cancelReason,
+        })
+        .from(filingObligations),
+    );
+    const biennialOf = (id: string) =>
+      rows.find((row) => row.rosterRecordId === id && row.type === 'biennial');
+    expect(biennialOf(leaving.id)).toMatchObject({
+      status: 'cancelled',
+      cancelReason: 'exited-before-statement-date',
+    });
+    // Exits after the statement date keep the biennial; the sweep creates nothing (no final).
+    expect(biennialOf(staying.id)).toMatchObject({ status: 'upcoming' });
+    expect(rows.filter((row) => row.rosterRecordId === leaving.id)).toHaveLength(1);
+    expect(api.temporal.signals.slice(signalled)).toEqual([
+      {
+        workflowId: biennialOf(leaving.id)?.id,
+        signal: 'cancel',
+        args: ['exited-before-statement-date'],
+      },
+    ]);
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 0, cancelled: 0 });
   });
 });
