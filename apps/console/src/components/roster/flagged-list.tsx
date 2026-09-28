@@ -489,11 +489,17 @@ function nameLink(recordLink: FlaggedListProps['recordLink'], record: RosterReco
   return <span className={NAME_LINK}>{recordLink(record)}</span>;
 }
 
-const IMPORT_LINK =
-  'underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-hidden [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
+/**
+ * `focusRing` from `@adili/ui` (packages/ui/src/lib/focus.ts) set on the link inside, since the
+ * app renders the anchor. Tailwind needs the full class names, so it is spelled out: keep it in
+ * step with `focusRing`.
+ */
+const CHILD_LINK_FOCUS_RING =
+  '[&_a]:rounded-sm [&_a]:outline-hidden [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
 
-const NAME_LINK =
-  'font-medium underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-hidden [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
+const IMPORT_LINK = `underline decoration-input underline-offset-[3px] hover:decoration-foreground ${CHILD_LINK_FOCUS_RING}`;
+
+const NAME_LINK = `font-medium ${IMPORT_LINK}`;
 
 /** When the record was flagged, linked to the flagging import's report when it names one. */
 function flaggedIn(

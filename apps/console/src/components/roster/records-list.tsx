@@ -29,7 +29,7 @@ import { goToSignIn } from '../sign-in-redirect';
 import { IdentityMismatchBadge } from './identity-mismatch';
 import { messages as m } from './messages';
 import { isFlagged } from './record-imports';
-import { hasIdentityMismatch } from './record-onboarding';
+import { recordOnboarding } from './record-onboarding';
 import {
   appendPage,
   hasRecordFilters,
@@ -307,7 +307,7 @@ function StateBadges({ record }: { record: RosterRecordListItem }) {
     <span className="flex flex-wrap items-center gap-1.5">
       <RecordStateBadge state={record.state} />
       {isFlagged(record) ? <NotInLatestImportBadge /> : null}
-      {hasIdentityMismatch(record) ? <IdentityMismatchBadge /> : null}
+      {recordOnboarding(record).identityMismatchAt ? <IdentityMismatchBadge /> : null}
     </span>
   );
 }
