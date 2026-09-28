@@ -1,5 +1,9 @@
 import {
   type ActivationEmailOptions,
+  ApiClientExists,
+  ApiClientNotFound,
+  type ApiClientSecret,
+  type CreateApiClientInput,
   type CreateStaffUserInput,
   EmailTaken,
   IdentityProvisioning,
@@ -13,9 +17,14 @@ import {
 export interface KeycloakIdentityOptions {
   /** Realm issuer, e.g. `http://localhost:8080/realms/adili`; admin and token URLs derive from it. */
   issuerUrl: string;
-  /** Confidential client with a service account holding realm-management user roles. */
+  /**
+   * Confidential client with a service account holding the realm-management user and client
+   * roles (`manage-users`, `manage-clients` and their view and query roles).
+   */
   clientId: string;
   clientSecret: string;
+  /** Audience of API client tokens: the one services verify (`OIDC_AUDIENCE`). */
+  audience?: string;
   /** Per-request timeout. */
   timeoutMs?: number;
   /** Replaceable for tests. */
@@ -30,6 +39,13 @@ interface UserRepresentation {
   lastName?: string;
   enabled?: boolean;
   attributes?: Record<string, string[]>;
+  [field: string]: unknown;
+}
+
+interface ClientRepresentation {
+  id: string;
+  clientId: string;
+  enabled?: boolean;
   [field: string]: unknown;
 }
 
@@ -65,9 +81,15 @@ export const INVITED_ROLE_ATTRIBUTE = 'invitedRole';
 const TOKEN_EXPIRY_MARGIN_MS = 30_000;
 
 /**
+ * Client scope every API client token carries besides its own: `sub` (the service account)
+ * and the other basic claims TokenVerifier relies on.
+ */
+const BASIC_CLIENT_SCOPE = 'basic';
+
+/**
  * Keycloak Admin REST adapter. Authenticates with client credentials as the `directory`
  * service client; the realm import grants its service account `manage-users`,
- * `view-users` and `query-users`.
+ * `view-users`, `query-users`, `manage-clients`, `view-clients` and `query-clients`.
  */
 export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   private readonly adminUrl: string;
@@ -75,6 +97,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   private readonly defaultRole: string;
   private readonly tokenUrl: string;
   private readonly timeoutMs: number;
+  private readonly audience: string;
   private readonly fetch: typeof fetch;
   private token: { value: string; expiresAt: number } | null = null;
 
@@ -88,6 +111,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     this.defaultRole = `default-roles-${issuer.realm}`;
     this.tokenUrl = `${issuer.base}/realms/${issuer.realm}/protocol/openid-connect/token`;
     this.timeoutMs = options.timeoutMs ?? 5_000;
+    this.audience = options.audience ?? 'adili-api';
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
@@ -211,6 +235,94 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       userId,
       timeoutMs: ACTIVATION_EMAIL_TIMEOUT_MS,
     });
+  }
+
+  async createApiClient(input: CreateApiClientInput): Promise<ApiClientSecret> {
+    const response = await this.request('POST', '/clients', {
+      body: {
+        clientId: input.clientId,
+        name: `API client of ${input.tenant}`,
+        enabled: true,
+        protocol: 'openid-connect',
+        publicClient: false,
+        clientAuthenticatorType: 'client-secret',
+        serviceAccountsEnabled: true,
+        standardFlowEnabled: false,
+        implicitFlowEnabled: false,
+        directAccessGrantsEnabled: false,
+        frontchannelLogout: false,
+        defaultClientScopes: [BASIC_CLIENT_SCOPE, ...input.scopes],
+        optionalClientScopes: [],
+        protocolMappers: [
+          {
+            name: 'tenant',
+            protocol: 'openid-connect',
+            protocolMapper: 'oidc-hardcoded-claim-mapper',
+            config: {
+              'claim.name': 'tenant',
+              'claim.value': input.tenant,
+              'jsonType.label': 'String',
+              'access.token.claim': 'true',
+              'id.token.claim': 'false',
+              'userinfo.token.claim': 'false',
+              'introspection.token.claim': 'true',
+            },
+          },
+          {
+            name: `${this.audience} audience`,
+            protocol: 'openid-connect',
+            protocolMapper: 'oidc-audience-mapper',
+            config: {
+              'included.custom.audience': this.audience,
+              'access.token.claim': 'true',
+              'id.token.claim': 'false',
+              'introspection.token.claim': 'true',
+            },
+          },
+        ],
+      },
+    }).catch((error: unknown) => {
+      throw error instanceof KeycloakHttpError && error.status === 409
+        ? new ApiClientExists(input.clientId)
+        : error;
+    });
+    const id = response.headers.get('location')?.split('/').pop();
+    if (!id) {
+      throw new IdentityUnavailable('Keycloak created the client without returning its location');
+    }
+    try {
+      return { clientId: input.clientId, secret: await this.clientSecret(id) };
+    } catch (error) {
+      // Nobody could use a client whose secret was never seen; the caller creates it again.
+      await this.request('DELETE', `/clients/${id}`).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async rotateApiClientSecret(clientId: string): Promise<ApiClientSecret> {
+    const client = await this.client(clientId);
+    if (!client) throw new ApiClientNotFound(clientId);
+    const response = await this.request('POST', `/clients/${client.id}/client-secret`);
+    return { clientId, secret: secretOf(await response.json()) };
+  }
+
+  async disableApiClient(clientId: string): Promise<void> {
+    const client = await this.client(clientId);
+    if (client && client.enabled !== false) {
+      await this.request('PUT', `/clients/${client.id}`, { body: { ...client, enabled: false } });
+    }
+  }
+
+  /** The client with this client id (not Keycloak's internal id), or null. */
+  private async client(clientId: string): Promise<ClientRepresentation | null> {
+    const response = await this.request('GET', '/clients', { query: { clientId } });
+    const clients = (await response.json()) as ClientRepresentation[];
+    return clients.find((candidate) => candidate.clientId === clientId) ?? null;
+  }
+
+  private async clientSecret(id: string): Promise<string> {
+    const response = await this.request('GET', `/clients/${id}/client-secret`);
+    return secretOf(await response.json());
   }
 
   private async grantRealmRole(userId: string, role: string): Promise<void> {
@@ -380,6 +492,14 @@ function withProfile(user: UserRepresentation, profile: Profile): UserRepresenta
     lastName: profile.lastName ?? '',
     attributes,
   };
+}
+
+function secretOf(credential: unknown): string {
+  const { value } = credential as { value?: unknown };
+  if (typeof value !== 'string' || !value) {
+    throw new IdentityUnavailable('Keycloak returned a client credential without a secret');
+  }
+  return value;
 }
 
 /** First word is the given name, the rest the family name ("Otieno Odhiambo"). */

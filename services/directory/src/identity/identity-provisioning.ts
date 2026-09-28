@@ -1,7 +1,8 @@
 /**
  * Identity provisioning: the directory's only seam onto the identity provider (Keycloak).
- * Staff accounts are created, activated and retired through this interface; the Keycloak
- * adapter is used in every environment and the in-memory adapter in API tests.
+ * Staff accounts are created, activated and retired through this interface, and so are the API
+ * clients Commissions' HR systems authenticate with; the Keycloak adapter is used in every
+ * environment and the in-memory adapter in API tests.
  */
 
 /** Keycloak required actions a staff account must complete before first use. */
@@ -48,6 +49,26 @@ export interface StaffProfile {
   phone: string;
 }
 
+/**
+ * A machine client of one tenant (spec #27): a confidential OAuth client that obtains tokens with
+ * the client credentials grant. Its tokens carry the `tenant` claim, the `adili-api` audience and
+ * `scopes` in the `scope` claim, and no user.
+ */
+export interface CreateApiClientInput {
+  /** Tenant key; every token of the client carries it as the `tenant` claim. */
+  tenant: string;
+  /** OAuth client id, unique in the realm, e.g. `roster-psc-3f9a2c1d`. */
+  clientId: string;
+  /** Client scopes granted to every token, e.g. `roster:write`. They must exist in the realm. */
+  scopes: readonly string[];
+}
+
+/** A client secret as issued. Shown to the caller once; the directory does not store it. */
+export interface ApiClientSecret {
+  clientId: string;
+  secret: string;
+}
+
 /** Puts back what a change replaced. */
 export type Restore = () => Promise<void>;
 
@@ -86,6 +107,24 @@ export class IdentityUserNotFound extends Error {
 
   constructor(readonly userId: string) {
     super(`No account with id ${userId}`);
+  }
+}
+
+/** An API client with the requested client id already exists. */
+export class ApiClientExists extends Error {
+  override readonly name = 'ApiClientExists';
+
+  constructor(readonly clientId: string) {
+    super(`An API client ${clientId} already exists`);
+  }
+}
+
+/** No API client has the given client id (for example, it was deleted in Keycloak by hand). */
+export class ApiClientNotFound extends Error {
+  override readonly name = 'ApiClientNotFound';
+
+  constructor(readonly clientId: string) {
+    super(`No API client ${clientId}`);
   }
 }
 
@@ -134,4 +173,24 @@ export abstract class IdentityProvisioning {
    * @throws IdentityUserNotFound
    */
   abstract sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void>;
+
+  /**
+   * Creates an enabled API client of `tenant` with a generated secret (see CreateApiClientInput)
+   * and returns the secret.
+   * @throws ApiClientExists when a client with that client id exists, enabled or not.
+   */
+  abstract createApiClient(input: CreateApiClientInput): Promise<ApiClientSecret>;
+
+  /**
+   * Replaces the client's secret with a new one and returns it. The previous secret stops
+   * working at once; tokens already issued stay valid until they expire.
+   * @throws ApiClientNotFound
+   */
+  abstract rotateApiClientSecret(clientId: string): Promise<ApiClientSecret>;
+
+  /**
+   * Disables the client: it obtains no more tokens (tokens already issued stay valid until they
+   * expire). Idempotent: a client that is already disabled, or does not exist, is not an error.
+   */
+  abstract disableApiClient(clientId: string): Promise<void>;
 }

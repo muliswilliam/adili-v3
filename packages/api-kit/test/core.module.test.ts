@@ -13,7 +13,7 @@ import {
   type Principal,
   Public,
   ReadinessCheck,
-  RequireScopes,
+  Scopes,
   TokenVerifier,
 } from '../src/index.js';
 
@@ -51,7 +51,7 @@ class TestController {
     return principal;
   }
 
-  @RequireScopes('messages')
+  @Scopes('messages')
   @Get('v1/messages')
   messages() {
     return { ok: true };
@@ -164,7 +164,36 @@ describe('CoreModule', () => {
       roles: ['reviewer'],
       scopes: [],
       clientId: 'console',
+      name: null,
+      issuedAt: null,
     });
+  });
+
+  it('names the caller from the name claim, else the preferred username', async () => {
+    const named = await signToken({ name: 'Fatuma Wanjiru', preferred_username: 'fatuma' });
+    const unnamed = await signToken({ preferred_username: 'service-account-roster-psc' });
+    const me = async (token: string) =>
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/v1/me',
+          headers: { authorization: `Bearer ${token}` },
+        })
+      ).json<{ name: string | null }>().name;
+
+    expect(await me(named)).toBe('Fatuma Wanjiru');
+    expect(await me(unnamed)).toBe('service-account-roster-psc');
+  });
+
+  it('reads when the token was issued from the iat claim', async () => {
+    const token = await signToken({ iat: 1_790_000_000 });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.json()).toMatchObject({ issuedAt: 1_790_000_000 });
   });
 
   it('parses scopes from the space-separated scope claim', async () => {

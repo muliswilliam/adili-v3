@@ -9,6 +9,7 @@ import {
   commissions,
   type DirectorySchema,
   reportingOfficerAssignments,
+  rosterApiCredentials,
   tenantPolicyVersions,
 } from '../../src/db/schema.js';
 
@@ -72,4 +73,32 @@ export async function givenCommissions(
       }
     }
   });
+}
+
+export interface ApiCredentialFixture {
+  tenant: string;
+  /** The credential's client id: `azp` of the HR system's tokens. */
+  clientId: string;
+  rotatedAt?: Date;
+  revokedAt?: Date;
+}
+
+/**
+ * Arranges a Commission's HR-system credential as the credential endpoints leave it, so tokens
+ * with its client id and the Commission's tenant are accepted (or refused once rotated or
+ * revoked after they were issued).
+ */
+export async function givenApiCredential(
+  db: Database<DirectorySchema>,
+  fixture: ApiCredentialFixture,
+): Promise<void> {
+  await withTenant(db, { tenant: fixture.tenant, subject: 'test' }, (tx) =>
+    tx.insert(rosterApiCredentials).values({
+      tenant: fixture.tenant,
+      keycloakClientId: fixture.clientId,
+      createdBy: 'officer',
+      rotatedAt: fixture.rotatedAt ?? null,
+      revokedAt: fixture.revokedAt ?? null,
+    }),
+  );
 }

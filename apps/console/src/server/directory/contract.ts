@@ -53,3 +53,12 @@ export const OFFICER_CATEGORY_CODES = [
 export const ALL_CATEGORY_CODES_LISTED: OfficerCategoryCode extends (typeof OFFICER_CATEGORY_CODES)[number]
   ? true
   : never = true;
+
+/** `StartBatchImport.rows`: an HR system's batch holds 1 to this many rows. */
+export const ROSTER_BATCH_MAX_ROWS = 1000;
+
+/**
+ * Default per-client budgets of the roster API (`x-rate-limit` on its operations), in requests
+ * per minute: `write` for starting imports and recording exits, `read` for imports and rows.
+ */
+export const ROSTER_API_RATE_LIMITS = { write: 120, read: 600 } as const;

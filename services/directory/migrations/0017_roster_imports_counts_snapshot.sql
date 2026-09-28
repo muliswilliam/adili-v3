@@ -1,0 +1,1 @@
+ALTER TABLE "roster_imports" DROP COLUMN "exits_recorded";

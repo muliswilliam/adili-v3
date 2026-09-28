@@ -70,7 +70,6 @@ describe('IdentifyStep', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain("Teachers Service Commission's roster");
-    // Focus moves in an effect after the alert renders.
     await waitFor(() => {
       expect(document.activeElement).toBe(alert);
     });

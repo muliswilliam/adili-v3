@@ -9,10 +9,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   type BaseEnv,
   CoreModule,
+  createOpenApiDocument,
   CurrentPrincipal,
   notFoundIfInvisible,
   type Principal,
   Roles,
+  Scopes,
   TokenVerifier,
 } from '../src/index.js';
 
@@ -51,6 +53,28 @@ class ThingsController {
   }
 }
 
+@Controller('v1/rosters')
+@Roles('platform-admin')
+class RostersController {
+  @Get('officer-or-client')
+  @Roles('reporting-officer')
+  @Scopes('roster:write')
+  both() {
+    return { ok: true };
+  }
+
+  @Get('client')
+  @Scopes('roster:write', 'roster:read')
+  client() {
+    return { ok: true };
+  }
+
+  @Get('admin')
+  admin() {
+    return { ok: true };
+  }
+}
+
 describe('Roles and notFoundIfInvisible', () => {
   let app: NestFastifyApplication;
   let signToken: (claims: Record<string, unknown>) => Promise<string>;
@@ -69,7 +93,7 @@ describe('Roles and notFoundIfInvisible', () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [CoreModule.forRoot({ serviceName: 'test', config })],
-      controllers: [ThingsController],
+      controllers: [ThingsController, RostersController],
     })
       .overrideProvider(TokenVerifier)
       .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
@@ -84,8 +108,8 @@ describe('Roles and notFoundIfInvisible', () => {
     await app.close();
   });
 
-  async function get(url: string, roles: string[], tenant = 'psc') {
-    const token = await signToken({ tenant, realm_access: { roles } });
+  async function get(url: string, roles: string[], tenant = 'psc', scope?: string) {
+    const token = await signToken({ tenant, realm_access: { roles }, scope });
     return app.inject({ method: 'GET', url, headers: { authorization: `Bearer ${token}` } });
   }
 
@@ -120,5 +144,57 @@ describe('Roles and notFoundIfInvisible', () => {
     expect(invisible.statusCode).toBe(404);
     expect(missing.statusCode).toBe(404);
     expect(invisible.json()).toEqual({ ...missing.json(), instance: '/v1/things/b' });
+  });
+
+  describe('with scopes', () => {
+    const client = (url: string, scope: string) => get(url, [], 'psc', scope);
+
+    it('admits a role holder or a scope holder where both are accepted', async () => {
+      expect((await get('/v1/rosters/officer-or-client', ['reporting-officer'])).statusCode).toBe(
+        200,
+      );
+      expect(
+        (await client('/v1/rosters/officer-or-client', 'profile roster:write')).statusCode,
+      ).toBe(200);
+    });
+
+    it('refuses a token with neither the role nor the scope with 403 problem details', async () => {
+      const response = await get('/v1/rosters/officer-or-client', ['declarant'], 'psc', 'profile');
+
+      expect(response.statusCode).toBe(403);
+      expect(response.headers['content-type']).toContain('application/problem+json');
+      expect(response.json()).toMatchObject({ status: 403, title: 'Forbidden' });
+    });
+
+    it('admits a token carrying any one of the scopes', async () => {
+      expect((await client('/v1/rosters/client', 'roster:read')).statusCode).toBe(200);
+      expect((await client('/v1/rosters/client', 'roster')).statusCode).toBe(403);
+    });
+
+    it('does not read scopes as roles or roles as scopes', async () => {
+      expect((await get('/v1/rosters/client', ['roster:write'])).statusCode).toBe(403);
+      expect((await client('/v1/rosters/officer-or-client', 'reporting-officer')).statusCode).toBe(
+        403,
+      );
+    });
+
+    it('lets a route-level @Scopes replace the controller roles', async () => {
+      expect((await get('/v1/rosters/client', ['platform-admin'])).statusCode).toBe(403);
+      expect((await get('/v1/rosters/admin', ['platform-admin'])).statusCode).toBe(200);
+    });
+
+    it('documents the combined rule as the 403 response', () => {
+      const { paths } = createOpenApiDocument(app, { name: 'test', description: 'test' });
+      const forbidden = (path: string) =>
+        (paths[path]?.get?.responses['403'] as { description: string } | undefined)?.description;
+
+      expect(forbidden('/v1/rosters/officer-or-client')).toBe(
+        'Requires one of the roles: reporting-officer, or one of the scopes: roster:write',
+      );
+      expect(forbidden('/v1/rosters/client')).toBe(
+        'Requires one of the scopes: roster:write, roster:read',
+      );
+      expect(forbidden('/v1/rosters/admin')).toBe('Requires one of the roles: platform-admin');
+    });
   });
 });

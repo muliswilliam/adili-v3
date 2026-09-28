@@ -11,6 +11,16 @@ export interface Principal {
   scopes: readonly string[];
   /** OAuth client that obtained the token (`azp`). */
   clientId: string | null;
+  /**
+   * Display name for audit fields ("created by"): the `name` claim, else `preferred_username`
+   * (a service account's is `service-account-<client id>`). Never used for access decisions.
+   */
+  name: string | null;
+  /**
+   * When the token was issued (`iat`), in seconds since the epoch; null when it has none. Lets a
+   * service refuse tokens issued before a credential was rotated or revoked.
+   */
+  issuedAt: number | null;
 }
 
 /**
@@ -35,4 +45,10 @@ export const principalSchema = z.object({
     .string()
     .nullable()
     .meta({ description: 'OAuth client that obtained the token (`azp`)' }),
+  name: z.string().nullable().meta({
+    description: 'Display name: the `name` claim, else `preferred_username`',
+  }),
+  issuedAt: z.int().nullable().meta({
+    description: 'When the token was issued (`iat`), in seconds since the epoch',
+  }),
 }) satisfies z.ZodType<Principal>;

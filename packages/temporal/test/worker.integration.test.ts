@@ -86,6 +86,30 @@ describe('TemporalWorkerModule against compose Temporal', () => {
     expect(result).toBe('Habari, Amina');
   });
 
+  it('runs workflows under Node watch mode, as dev scripts do', async () => {
+    // `node --watch` sets this for the process it runs; on recent Node (nodejs/node#62368) each
+    // workflow thread then posts its module loads to the thread's `message` listeners.
+    const previous = process.env.WATCH_REPORT_DEPENDENCIES;
+    process.env.WATCH_REPORT_DEPENDENCIES = '1';
+    try {
+      const taskQueue = `worker-test-${randomUUID()}`;
+      app = await createApp({ taskQueue });
+      await app.init();
+      const client = app.get<Client>(TEMPORAL_CLIENT);
+
+      const result = await client.workflow.execute(greetNow, {
+        taskQueue,
+        workflowId: randomUUID(),
+        args: ['Wanjiku'],
+      });
+
+      expect(result).toBe('Habari, Wanjiku');
+    } finally {
+      if (previous === undefined) delete process.env.WATCH_REPORT_DEPENDENCIES;
+      else process.env.WATCH_REPORT_DEPENDENCIES = previous;
+    }
+  });
+
   it('reports down until the worker is polling, then up', async () => {
     app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
     const readiness = app.get(TemporalWorkerReadinessCheck);
