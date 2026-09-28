@@ -20,6 +20,7 @@ export {
   type Database,
   type DatabaseOptions,
   runMigrations,
+  switchTenant,
   type TenantContext,
   withTenant,
 } from './database.js';
