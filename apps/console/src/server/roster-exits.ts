@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { commissionSlug } from './commission-slug';
 import { asViewer } from './as-viewer.server';
 import {
   callDirectory,
@@ -10,15 +11,13 @@ import {
   type KeepResult,
 } from './directory/client';
 
-/** The viewer's own Commission: roster routes carry no slug, the session's tenant names it. */
-const slug = z.string().min(1).max(40);
 /** A calendar date as the date input gives it; the directory checks it is not in the future. */
 const date = z.iso.date();
 /** The directory takes up to 1,000 records per call. */
 const recordIds = z.array(z.uuid()).min(1).max(1000);
 
 export const confirmRosterExitsInput = z.object({
-  slug,
+  slug: commissionSlug,
   /** One per dialog submission, reused on retry (spec 02). */
   idempotencyKey: z.uuid(),
   exits: z.object({
@@ -52,7 +51,7 @@ export const confirmRosterExits = createServerFn({ method: 'POST' })
   );
 
 export const keepRosterRecordsInput = z.object({
-  slug,
+  slug: commissionSlug,
   idempotencyKey: z.uuid(),
   recordIds,
 });

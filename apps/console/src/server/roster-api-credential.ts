@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { commissionSlug } from './commission-slug';
 import { asViewer } from './as-viewer.server';
 import {
   callDirectory,
@@ -17,7 +18,7 @@ export const getRosterApiEndpoints = createServerFn({ method: 'GET' }).handler(
 );
 
 /** The viewer's own Commission: roster routes carry no slug, the session's tenant names it. */
-const commissionInput = z.object({ slug: z.string().min(1).max(40) });
+const commissionInput = z.object({ slug: commissionSlug });
 
 /**
  * `GET /v1/commissions/{slug}/roster/api-credential`: the HR-system credential's metadata (never
