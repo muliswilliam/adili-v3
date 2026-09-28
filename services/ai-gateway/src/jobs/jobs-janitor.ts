@@ -10,7 +10,7 @@ import { and, asc, gt, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 
 import { type Job, jobs, type schema } from '../db/schema.js';
 import { JobExecutor } from './job-executor.js';
-import { JobStarter } from './job-starter.js';
+import { JobWorkflows } from './job-workflows.js';
 import { LIVE_STATUSES } from './job-states.js';
 
 export const JANITOR_OPTIONS = Symbol('JANITOR_OPTIONS');
@@ -39,7 +39,7 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
 
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
-    private readonly starter: JobStarter,
+    private readonly workflows: JobWorkflows,
     private readonly executor: JobExecutor,
     @Inject(JANITOR_OPTIONS) private readonly options: JanitorOptions,
   ) {}
@@ -98,10 +98,10 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
   /** Never throws: one job that cannot be recovered now is retried on the next sweep. */
   private async recover(job: Pick<Job, 'id' | 'status'>): Promise<void> {
     try {
-      const state = await this.starter.state(job.id);
+      const state = await this.workflows.state(job.id);
       if (state === 'running') return;
       if (state === 'missing' && job.status === 'queued') {
-        await this.starter.start(job.id);
+        await this.workflows.start(job.id);
         return;
       }
       // The workflow ended or vanished without finishing the job; nothing will finish it now.

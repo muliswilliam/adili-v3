@@ -30,11 +30,11 @@ import {
 import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
 
-import { TERMINAL_STATUSES } from './job-states.js';
+import { isTerminal } from './job-states.js';
 import type { JobView } from './job-view.js';
 import { JobsService } from './jobs.service.js';
 
-const MAX_KEY_LENGTH = 255;
+const idempotencyKey = z.uuid();
 
 /**
  * Internal: not routed by the public entrypoint.
@@ -64,7 +64,8 @@ export class JobsController {
   @ApiHeader({
     name: 'Idempotency-Key',
     required: true,
-    description: 'Client-generated key, unique per logical request; reuse on retry',
+    description: 'Client-generated UUID, unique per logical request; reuse on retry',
+    schema: { type: 'string', format: 'uuid' },
   })
   @ApiOkResponse({ description: 'The job has finished (within the wait window, or before)' })
   @ApiAcceptedResponse({
@@ -81,7 +82,7 @@ export class JobsController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<JobView> {
     const { job, replayed } = await this.jobs.run(task, body, caller, readKey(key));
-    void reply.status(TERMINAL_STATUSES.has(job.status) ? HttpStatus.OK : HttpStatus.ACCEPTED);
+    void reply.status(isTerminal(job.status) ? HttpStatus.OK : HttpStatus.ACCEPTED);
     if (replayed) void reply.header(IDEMPOTENT_REPLAYED_HEADER, 'true');
     return job;
   }
@@ -107,11 +108,13 @@ export class JobsController {
 }
 
 function readKey(header: string | undefined): string {
-  if (header && header.length <= MAX_KEY_LENGTH) return header;
+  const key = idempotencyKey.safeParse(header);
+  if (key.success) return key.data;
   throw new ProblemException({
     type: 'idempotency-key-missing',
     title: 'Idempotency-Key required',
     status: HttpStatus.BAD_REQUEST,
-    detail: `Send one Idempotency-Key header of 1 to ${MAX_KEY_LENGTH} characters, unique per logical request, and reuse it on retry.`,
+    detail:
+      'Send one Idempotency-Key header holding a UUID, unique per logical request, and reuse it on retry. A key derived from the request can be a name-based UUID (v5).',
   });
 }

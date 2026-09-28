@@ -54,5 +54,5 @@ export {
   schemaRef,
   toOpenApiSchemas,
 } from './openapi.js';
-export { canonicalJson } from './idempotency/request-hash.js';
+export { canonicalJson } from './canonical-json.js';
 export { ZodValidationPipe } from './zod-validation.pipe.js';

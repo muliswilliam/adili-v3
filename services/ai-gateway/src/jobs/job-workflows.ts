@@ -8,9 +8,9 @@ import {
 
 import type { AiJobInput, aiJob } from './workflows.js';
 
-export const JOB_STARTER_OPTIONS = Symbol('JOB_STARTER_OPTIONS');
+export const JOB_WORKFLOWS_OPTIONS = Symbol('JOB_WORKFLOWS_OPTIONS');
 
-export interface JobStarterOptions {
+export interface JobWorkflowsOptions {
   taskQueue: string;
   /** Longest a single execution attempt may take. */
   attemptTimeoutMs: number;
@@ -19,12 +19,12 @@ export interface JobStarterOptions {
 /** Whether a job's workflow runs, has ended, or does not exist (never started, or purged). */
 export type WorkflowState = 'running' | 'closed' | 'missing';
 
-/** Starts and observes the `aiJob` workflow of a job; one workflow per job, keyed by the job id. */
+/** The `aiJob` workflow of each job (one per job, keyed by the job id): starts it, reads its state, waits for its end. */
 @Injectable()
-export class JobStarter {
+export class JobWorkflows {
   constructor(
     @InjectTemporalClient() private readonly client: Client,
-    @Inject(JOB_STARTER_OPTIONS) private readonly options: JobStarterOptions,
+    @Inject(JOB_WORKFLOWS_OPTIONS) private readonly options: JobWorkflowsOptions,
   ) {}
 
   /** Idempotent: starting a job whose workflow already runs does nothing. */

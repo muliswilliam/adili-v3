@@ -219,6 +219,15 @@ describe('task jobs', () => {
       expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
     });
 
+    it('requires the Idempotency-Key to be a UUID', async () => {
+      const response = await runTask('summarize-declaration', taskRequest(freshInput()), {
+        key: 'review-case-42-v3',
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
+    });
+
     it('creates one job for concurrent equal requests', async () => {
       const input = freshInput();
       await recordSuccess(input);

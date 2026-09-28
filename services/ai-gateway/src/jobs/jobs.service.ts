@@ -10,8 +10,8 @@ import { hashJson } from '../hashing.js';
 import { findTask } from '../tasks/registry.js';
 import { gateAdmits } from './classification-gate.js';
 import { jobFinished } from './events.js';
-import { JobStarter } from './job-starter.js';
-import { CACHEABLE_STATUSES, TERMINAL_STATUSES } from './job-states.js';
+import { JobWorkflows } from './job-workflows.js';
+import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
 import { Routing } from './routing.js';
 import { taskRequestSchema } from './task-request.js';
@@ -31,7 +31,7 @@ export class JobsService {
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly routing: Routing,
-    private readonly starter: JobStarter,
+    private readonly workflows: JobWorkflows,
     private readonly events: EventPublisher,
   ) {}
 
@@ -161,12 +161,12 @@ export class JobsService {
    */
   private async startAndWait(job: Job, waitSeconds: number): Promise<JobView> {
     if (job.status === 'queued') {
-      await this.starter.start(job.id);
+      await this.workflows.start(job.id);
     }
-    if (TERMINAL_STATUSES.has(job.status) || waitSeconds === 0) {
+    if (isTerminal(job.status) || waitSeconds === 0) {
       return toJobView(job);
     }
-    await this.starter.waitForEnd(job.id, waitSeconds * 1000);
+    await this.workflows.waitForEnd(job.id, waitSeconds * 1000);
     return toJobView((await this.find(job.id, job.caller)) ?? job);
   }
 

@@ -1,3 +1,5 @@
+import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
+
 /** Contract enums of the job state machine: queued → running → succeeded | failed | blocked. */
 
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'blocked'] as const;
@@ -10,11 +12,16 @@ export const LIVE_STATUSES = ['queued', 'running'] as const;
 export const CACHEABLE_STATUSES = [...LIVE_STATUSES, 'succeeded'] as const;
 
 /** Statuses a job never leaves. */
-export const TERMINAL_STATUSES: ReadonlySet<JobStatus> = new Set([
-  'succeeded',
-  'failed',
-  'blocked',
-]);
+export type TerminalStatus = Exclude<JobStatus, (typeof LIVE_STATUSES)[number]>;
+
+export function isTerminal(status: JobStatus): status is TerminalStatus {
+  return !(LIVE_STATUSES as readonly JobStatus[]).includes(status);
+}
+
+/** `status in ('a', 'b')` for a partial index predicate; the values are constants, not input. */
+export function statusIn(column: SQL.Aliased | AnyColumn, statuses: readonly JobStatus[]): SQL {
+  return sql`${column} in (${sql.raw(statuses.map((status) => `'${status}'`).join(', '))})`;
+}
 
 /**
  * Why a job failed or was blocked:

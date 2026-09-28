@@ -17,6 +17,7 @@ import {
   JOB_REASONS,
   JOB_STATUSES,
   LIVE_STATUSES,
+  statusIn,
 } from '../jobs/job-states.js';
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { TASK_NAMES } from '../tasks/task.js';
@@ -93,14 +94,10 @@ export const jobs = pgTable(
     uniqueIndex('jobs_cache_idx')
       .on(table[CACHE_KEY[0]], ...CACHE_KEY.slice(1).map((column) => table[column]))
       .where(
-        sql`${table.status} in (${sql.raw(CACHEABLE_STATUSES.map((status) => `'${status}'`).join(', '))}) and ${table.outputPurgedAt} is null`,
+        sql`${statusIn(table.status, CACHEABLE_STATUSES)} and ${table.outputPurgedAt} is null`,
       ),
     // The janitor's scans: live jobs past the grace period, and outputs past retention.
-    index('jobs_live_idx')
-      .on(table.id)
-      .where(
-        sql`${table.status} in (${sql.raw(LIVE_STATUSES.map((status) => `'${status}'`).join(', '))})`,
-      ),
+    index('jobs_live_idx').on(table.id).where(statusIn(table.status, LIVE_STATUSES)),
     index('jobs_output_retention_idx')
       .on(table.finishedAt)
       .where(sql`${table.output} is not null`),

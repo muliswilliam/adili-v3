@@ -17,8 +17,8 @@ export const envSchema = baseEnvSchema
     RABBITMQ_URL: z.url(),
     TEMPORAL_ADDRESS: z.string().min(1),
     TEMPORAL_NAMESPACE: z.string().min(1),
-    /** Temporal task queue this service's job worker polls. */
-    AI_TASK_QUEUE: z.string().min(1).default('ai-gateway'),
+    /** Temporal task queue this service's activities and job workflows run on (ADR-013 §4). */
+    AI_TASK_QUEUE: z.string().min(1).default('ai'),
     /** Model for every task until the routing table (spec 07c BE-3) lands. */
     AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
     /**

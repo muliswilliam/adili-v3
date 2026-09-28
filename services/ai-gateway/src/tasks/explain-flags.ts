@@ -11,7 +11,7 @@ export const explainFlags = defineTask({
     flags: z.array(flagInput).min(1),
     itemContext: z.array(z.object({ ref: sourceRef, context: jsonObject })).meta({
       description:
-        'Minimal context for referenced items (type, description, values); minimised by the gateway',
+        'Minimal context for referenced items (type, description, values); minimised once minimisation lands (spec 07c BE-3)',
     }),
     language,
   }),

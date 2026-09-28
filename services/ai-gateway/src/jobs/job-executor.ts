@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from 'node:timers/promises';
+
 import { Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -5,7 +7,12 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
-import type { ModelProvider, StructuredResult, Usage } from '../providers/port.js';
+import {
+  type ModelProvider,
+  type StructuredResult,
+  totalInputTokens,
+  type Usage,
+} from '../providers/port.js';
 import { InjectModelProvider } from '../providers/providers.module.js';
 import { inputLanguage } from '../tasks/common.js';
 import { buildProviderRequest } from '../tasks/provider-request.js';
@@ -23,6 +30,23 @@ type Outcome =
 interface AttemptMetrics {
   usage: Usage | null;
   latencyMs: number;
+}
+
+const NO_CALL: AttemptMetrics = { usage: null, latencyMs: 0 };
+const FINISH_RETRY_DELAYS_MS = [250, 1000, 4000];
+
+/** Runs `write`, retrying briefly on failure; rethrows once the pauses are spent. */
+async function retried(write: () => Promise<void>): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await write();
+      return;
+    } catch (error) {
+      const delay = FINISH_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) throw error;
+      await sleep(delay);
+    }
+  }
 }
 
 /**
@@ -50,24 +74,22 @@ export class JobExecutor {
     }
     // Checked again here, against the provider this process will actually contact.
     if (!gateAdmits(job.dataClass, this.provider.providerClass)) {
-      await this.finish(
-        job,
-        { status: 'blocked', reason: 'policy' },
-        { usage: null, latencyMs: 0 },
-      );
+      await this.finish(job, { status: 'blocked', reason: 'policy' }, NO_CALL);
       return;
     }
     const request = buildProviderRequest(task, job.promptVersion, job.input, job.model);
     const startedAt = performance.now();
     const result = await this.provider.generateStructured(request);
     const metrics = { usage: result.usage, latencyMs: Math.round(performance.now() - startedAt) };
-    await this.finish(job, this.outcome(job, task, result), metrics);
+    // The call is paid for: a database blip while recording it must not send the job back to
+    // the workflow's retry, which would call the provider again.
+    await retried(() => this.finish(job, this.outcome(job, task, result), metrics));
   }
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */
   async fail(jobId: string, reason: JobReason): Promise<void> {
     const [job] = await this.db.select().from(jobs).where(eq(jobs.id, jobId));
-    if (job) await this.finish(job, { status: 'failed', reason }, { usage: null, latencyMs: 0 });
+    if (job) await this.finish(job, { status: 'failed', reason }, NO_CALL);
   }
 
   /** Marks the job running; undefined when it has already ended (a late retry, a replay). */
@@ -124,11 +146,7 @@ export class JobExecutor {
           outputHash: output && hashJson(output),
           input: null,
           ...(metrics.usage && {
-            // All input the provider processed, whether served from its prompt cache or not.
-            tokensIn:
-              metrics.usage.inputTokens +
-              metrics.usage.cacheReadTokens +
-              metrics.usage.cacheWriteTokens,
+            tokensIn: totalInputTokens(metrics.usage),
             tokensOut: metrics.usage.outputTokens,
           }),
           latencyMs: metrics.latencyMs,

@@ -1,7 +1,7 @@
 import type { NewEvent } from '@adili/events';
 
 import type { Job } from '../db/schema.js';
-import type { JobReason, JobStatus } from './job-states.js';
+import { isTerminal, type JobReason, type TerminalStatus } from './job-states.js';
 
 /**
  * Events announcing a finished job (spec 07c). Hashes and counts only: never the input, the
@@ -13,7 +13,7 @@ export const AI_JOB_COMPLETED = 'ai.job.completed.v1';
 export const AI_JOB_FAILED = 'ai.job.failed.v1';
 export const AI_JOB_BLOCKED = 'ai.job.blocked.v1';
 
-const FINISHED_EVENTS: Record<Exclude<JobStatus, 'queued' | 'running'>, string> = {
+const FINISHED_EVENTS: Record<TerminalStatus, string> = {
   succeeded: AI_JOB_COMPLETED,
   failed: AI_JOB_FAILED,
   blocked: AI_JOB_BLOCKED,
@@ -40,7 +40,7 @@ export interface AiJobFinishedData extends Record<string, unknown> {
 
 /** `ai.job.completed.v1`, `failed.v1` or `blocked.v1` for a job that has just ended. */
 export function jobFinished(job: Job): NewEvent<AiJobFinishedData> {
-  if (job.status === 'queued' || job.status === 'running') {
+  if (!isTerminal(job.status)) {
     throw new Error(`Job ${job.id} has not finished`);
   }
   return {

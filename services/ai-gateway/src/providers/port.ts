@@ -51,6 +51,11 @@ export interface Usage {
   cacheWriteTokens: number;
 }
 
+/** All input the provider processed, whether served from its prompt cache or not. */
+export function totalInputTokens(usage: Usage): number {
+  return usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens;
+}
+
 interface ResultBase {
   /** Model that actually served the request. */
   model: string;

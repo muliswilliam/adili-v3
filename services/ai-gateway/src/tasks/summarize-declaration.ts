@@ -16,7 +16,8 @@ export const summarizeDeclaration = defineTask({
   input: z.object({
     kind: z.literal('summarize-declaration'),
     document: jsonObject.meta({
-      description: 'declaration.v1 document (minimised by the gateway before any provider call)',
+      description:
+        'declaration.v1 document. Identifiers will be minimised before any provider call once minimisation lands (spec 07c BE-3)',
     }),
     previousDocument: jsonObject.nullable(),
     changes: z.array(changeInput),
