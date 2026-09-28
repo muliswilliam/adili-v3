@@ -4,7 +4,7 @@ import { and, count, eq, isNotNull, or, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterImportRows, rosterImports } from '../schema.js';
+import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
 import { refreshRosterSummary } from '../summary.js';
 import { rosterImportCompleted, rosterImportFailed } from './events.js';
 import type { ImportCounts } from './representation.js';
@@ -13,7 +13,8 @@ import type { ImportRef, ImportResult } from './workflow-contract.js';
 
 /**
  * Ends an import in one transaction: writes its counts (tallied from its rows, so they are right
- * however often chunks were retried), its state and completion time, refreshes the tenant's
+ * however often chunks were retried), its state and completion time, deletes the stored rows of
+ * an API batch never staged, refreshes the tenant's
  * roster summary and records `roster.import.completed.v1` or `roster.import.failed.v1`.
  *
  * Idempotent: an import that has already ended (or does not exist) is left as it is and no
@@ -50,6 +51,8 @@ export async function finaliseImport(
         failureDetail: result.state === 'failed' ? result.failure.detail : null,
       })
       .where(eq(rosterImports.id, ref.importId));
+    // An API batch never staged (the import failed first) is not kept: its rows are personal data.
+    await tx.delete(rosterImportBatches).where(eq(rosterImportBatches.importId, ref.importId));
 
     // Chunks applied before a failure changed records too, so the summary is refreshed either way.
     if (result.state === 'completed') {

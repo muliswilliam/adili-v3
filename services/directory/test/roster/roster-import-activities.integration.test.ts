@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import {
   outbox,
+  rosterImportBatches,
   rosterImportRows,
   rosterImports,
   rosterRecords,
@@ -270,6 +271,40 @@ describe('finalise', () => {
       failureCode: 'internal',
       counts: { created: 3, rejected: 1 },
     });
+  });
+});
+
+describe('finalise an API batch', () => {
+  it('deletes the batch rows of an import that failed before staging them', async () => {
+    const [row] = await asPlatform((tx) =>
+      tx
+        .insert(rosterImports)
+        .values({
+          tenant: 'psc',
+          channel: 'api',
+          declaredComplete: false,
+          format: 'json',
+          startedByKind: 'client',
+          startedBy: 'roster-psc-0a1b2c3d',
+        })
+        .returning({ id: rosterImports.id }),
+    );
+    const ref = { importId: row?.id ?? '', tenant: 'psc' };
+    await asPlatform((tx) =>
+      tx.insert(rosterImportBatches).values({
+        importId: ref.importId,
+        tenant: 'psc',
+        rows: [{ personnelFileNumber: 'PSC/1', fullName: 'Achieng Otieno' }],
+      }),
+    );
+
+    await finaliseImport(api.db, events, ref, {
+      state: 'failed',
+      failure: { code: 'internal', detail: 'The file could not be staged.' },
+    });
+
+    expect(await asPlatform((tx) => tx.select().from(rosterImportBatches))).toEqual([]);
+    expect(await importRow(ref)).toMatchObject({ state: 'failed' });
   });
 });
 

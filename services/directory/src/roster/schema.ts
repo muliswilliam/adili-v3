@@ -269,7 +269,9 @@ export const rosterImportRows = pgTable(
 
 /**
  * The rows of an API batch (spec #27, channel `api`) as the HR system sent them, from the start
- * of the import until staging has copied them into `roster_import_rows`, which deletes them.
+ * of the import until staging has copied them into `roster_import_rows` or the import ends,
+ * either of which deletes them; the purge deletes any left 30 days after the import ended (or
+ * started, if it never ended).
  */
 export const rosterImportBatches = pgTable('roster_import_batches', {
   importId: uuid()
