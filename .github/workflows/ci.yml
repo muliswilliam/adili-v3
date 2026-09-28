@@ -183,7 +183,11 @@ jobs:
           uv sync --locked
           uv run python manage.py migrate -v0
           uv run python manage.py seed_demo
-          nohup uv run python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/mocks.log" 2>&1 &
+          # The venv's python, not `uv run`: a uv process left running holds uv's cache lock, and
+          # setup-uv's post-job cache prune then times out. It reads the same defaults itself.
+          (database_url="$DATABASE_URL"; set -a; . ./.env.example; DATABASE_URL="$database_url"; set +a
+            nohup .venv/bin/python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/mocks.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/mocks.pid")
           timeout 60 sh -c 'until curl -sf http://localhost:8000/health >/dev/null; do sleep 1; done'
       - name: Start notifications
         working-directory: services/notifications
@@ -198,6 +202,7 @@ jobs:
           node --env-file=.env.example --import @swc-node/register/esm-register src/db/migrate.ts
           nohup node --env-file=.env.example --import @swc-node/register/esm-register src/main.ts \
             > "$RUNNER_TEMP/notifications.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/notifications.pid"
           timeout 60 sh -c 'until curl -sf http://localhost:4010/health/live >/dev/null; do sleep 1; done' \
             || { cat "$RUNNER_TEMP/notifications.log"; exit 1; }
       - name: Sign-in stack tests (S22, S23)
@@ -210,6 +215,12 @@ jobs:
         run: |
           docker logs keycloak 2>&1 | tail -200
           tail -200 "$RUNNER_TEMP/notifications.log" "$RUNNER_TEMP/mocks.log" || true
+      - name: Stop the mocks and notifications
+        if: always()
+        run: |
+          for name in mocks notifications; do
+            [ -f "$RUNNER_TEMP/$name.pid" ] && kill "$(cat "$RUNNER_TEMP/$name.pid")" 2>/dev/null || true
+          done
 
   python:
     name: Python mocks (ruff, mypy, pytest)
