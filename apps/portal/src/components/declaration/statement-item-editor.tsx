@@ -7,13 +7,14 @@ import {
   Input,
   MoneyInput,
   type MoneyInvalidReason,
+  PercentInput,
   SegmentedChoice,
   Select,
   SelectItem,
   Textarea,
 } from '@adili/ui';
 import { LockIcon } from '@hugeicons/core-free-icons';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import type { AssetItem, Attachment, Draft, Location, Money } from '../../declaration/contents';
 import {
@@ -496,11 +497,13 @@ export function ItemEditor({
             <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4 sm:grid-cols-2">
               <FormField label={shareLabel} error={errorFor('share')} controlId={fid('share')}>
                 <PercentInput
-                  value={any.joint.sharePercent}
+                  value={any.joint.sharePercent ?? null}
+                  placeholder="50"
                   onBlur={() => {
                     onTouch('share');
                   }}
-                  onValueChange={(sharePercent) => {
+                  onValueChange={(share) => {
+                    const sharePercent = share ?? undefined;
                     set((current) => ({
                       ...current,
                       joint: { ...current.joint, isJoint: true, sharePercent },
@@ -603,40 +606,6 @@ export function ItemEditor({
             disabled,
           })
         : null}
-    </div>
-  );
-}
-
-/** A whole-number percentage with a "%" after it. Other props go to the input. */
-function PercentInput({
-  value,
-  onValueChange,
-  ...props
-}: Omit<ComponentProps<'input'>, 'value' | 'onChange'> & {
-  value: number | undefined;
-  onValueChange: (value: number | undefined) => void;
-}) {
-  return (
-    <div className="relative">
-      <Input
-        {...props}
-        inputMode="numeric"
-        autoComplete="off"
-        maxLength={3}
-        placeholder="50"
-        className="pr-9 tabular-nums"
-        value={value === undefined ? '' : String(value)}
-        onChange={(event) => {
-          const digits = event.target.value.replace(/\D/g, '');
-          onValueChange(digits === '' ? undefined : Number(digits));
-        }}
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[13.5px] font-semibold text-muted-foreground"
-      >
-        %
-      </span>
     </div>
   );
 }
