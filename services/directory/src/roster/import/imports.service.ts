@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  type ProblemDetails,
+  ProblemException,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { InjectTemporalClient } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
@@ -14,7 +19,6 @@ import { rosterActorOf } from '../actor.js';
 import { isHrSystem } from '../api-credential/hr-system-access.js';
 import type { RawRosterRow } from '../row-validation.js';
 import { rosterImportBatches, rosterImports } from '../schema.js';
-import { RosterFileError } from '../sheet.js';
 import { decodeImportCursor, encodeImportCursor } from './cursors.js';
 import { rowsRetainedUntil } from './import-rows-purge.js';
 import { previewRosterFile } from './preview.js';
@@ -29,12 +33,8 @@ import {
   type StartBatchImportBody,
   type StartFileImportBody,
 } from './representation.js';
-import {
-  DocumentsUnavailable,
-  RosterUploads,
-  UploadNotClean,
-  UploadNotFound,
-} from './roster-uploads.js';
+import { RosterUploads } from './roster-uploads.js';
+import { type UploadFailureKind, uploadFailureOf } from './upload-failure.js';
 import type { rosterImport } from './workflows.js';
 
 type ImportRow = typeof rosterImports.$inferSelect;
@@ -302,42 +302,45 @@ export class RosterImportsService {
 
   /** Maps failures to read an upload to the problems callers receive; others pass through. */
   private asProblem(error: unknown): unknown {
-    if (error instanceof UploadNotFound) {
-      return new ProblemException({
-        type: 'upload-not-found',
-        title: 'Upload not found',
-        status: HttpStatus.NOT_FOUND,
-        detail: 'This Commission has no roster upload with that id.',
-      });
-    }
-    if (error instanceof UploadNotClean) {
-      return new ProblemException({
-        type: 'upload-not-clean',
-        title: 'Upload not clean',
-        status: HttpStatus.CONFLICT,
-        detail: 'The upload has not passed its checks, so it cannot be imported.',
-      });
-    }
-    if (error instanceof RosterFileError) {
-      return new ProblemException({
-        type: 'unreadable-file',
-        title: 'Unreadable file',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: error.message,
-      });
-    }
-    if (error instanceof DocumentsUnavailable) {
+    const failure = uploadFailureOf(error);
+    if (!failure) return error;
+    if (failure.kind === 'unavailable') {
       this.logger.warn({ err: error }, 'Documents unavailable for a roster upload');
-      return new ProblemException({
-        type: 'documents-unavailable',
-        title: 'Documents unavailable',
-        status: HttpStatus.BAD_GATEWAY,
-        detail: 'The uploaded file cannot be read right now. Try again shortly.',
-      });
     }
-    return error;
+    return new ProblemException(UPLOAD_PROBLEMS[failure.kind](failure.detail));
   }
 }
+
+/** The problems callers receive for an upload that cannot be read. */
+const UPLOAD_PROBLEMS: Record<
+  UploadFailureKind,
+  (detail: string) => Omit<ProblemDetails, 'instance'>
+> = {
+  'not-found': () => ({
+    type: 'upload-not-found',
+    title: 'Upload not found',
+    status: HttpStatus.NOT_FOUND,
+    detail: 'This Commission has no roster upload with that id.',
+  }),
+  'not-clean': () => ({
+    type: 'upload-not-clean',
+    title: 'Upload not clean',
+    status: HttpStatus.CONFLICT,
+    detail: 'The upload has not passed its checks, so it cannot be imported.',
+  }),
+  unreadable: (detail) => ({
+    type: 'unreadable-file',
+    title: 'Unreadable file',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail,
+  }),
+  unavailable: () => ({
+    type: 'documents-unavailable',
+    title: 'Documents unavailable',
+    status: HttpStatus.BAD_GATEWAY,
+    detail: 'The uploaded file cannot be read right now. Try again shortly.',
+  }),
+};
 
 /** Who started an import (decision 10): a user, or an HR system by its client id. */
 function startedBy(

@@ -9,8 +9,8 @@ import type { ColumnMapping } from '../header-mapping.js';
 import { type ParsedRosterRow, parseRosterFile } from '../roster-file.js';
 import { createRowValidator } from '../row-validation.js';
 import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
-import { RosterFileError } from '../sheet.js';
-import { type RosterUploads, UploadNotClean, UploadNotFound } from './roster-uploads.js';
+import type { RosterUploads } from './roster-uploads.js';
+import { type UploadFailureKind, uploadFailureOf } from './upload-failure.js';
 import type { ImportFailure, ImportRef, StageResult } from './workflow-contract.js';
 
 /** Accepted rows applied per `applyChunk`, each chunk in one transaction. */
@@ -99,9 +99,10 @@ export async function stageImport(
     for await (const row of source.rows) await writer.add(row);
     await writer.flush();
   } catch (error) {
-    if (!(error instanceof RosterFileError)) throw error;
+    const failure = importFailureOf(error);
+    if (!failure) throw error;
     await recordUnimportable(db, claim, source.mapping);
-    return { outcome: 'failed', failure: { code: 'parse-error', detail: error.message } };
+    return { outcome: 'failed', failure };
   }
 
   const chunkCount = Math.ceil(writer.accepted / CHUNK_SIZE);
@@ -187,32 +188,36 @@ async function openSource(
     }
     return { ok: true, mapping: file.mapping, rows: file.rows };
   } catch (error) {
-    if (error instanceof UploadNotFound) {
-      return {
-        ok: false,
-        mapping: null,
-        failure: {
-          code: 'upload-missing',
-          detail: 'The uploaded file is no longer available. Upload it again.',
-        },
-      };
-    }
-    if (error instanceof UploadNotClean) {
-      return {
-        ok: false,
-        mapping: null,
-        failure: {
-          code: 'upload-not-clean',
-          detail: 'The uploaded file has not passed its checks. Upload it again.',
-        },
-      };
-    }
-    if (error instanceof RosterFileError) {
-      return { ok: false, mapping: null, failure: { code: 'parse-error', detail: error.message } };
-    }
-    throw error;
+    const failure = importFailureOf(error);
+    if (!failure) throw error;
+    return { ok: false, mapping: null, failure };
   }
 }
+
+/**
+ * How an upload that cannot be read fails the import, or undefined when the error does not fail
+ * it: documents being unavailable is not the file's fault, so the activity retries.
+ */
+function importFailureOf(error: unknown): ImportFailure | undefined {
+  const failure = uploadFailureOf(error);
+  if (!failure || failure.kind === 'unavailable') return undefined;
+  return IMPORT_FAILURES[failure.kind](failure.detail);
+}
+
+const IMPORT_FAILURES: Record<
+  Exclude<UploadFailureKind, 'unavailable'>,
+  (detail: string) => ImportFailure
+> = {
+  'not-found': () => ({
+    code: 'upload-missing',
+    detail: 'The uploaded file is no longer available. Upload it again.',
+  }),
+  'not-clean': () => ({
+    code: 'upload-not-clean',
+    detail: 'The uploaded file has not passed its checks. Upload it again.',
+  }),
+  unreadable: (detail) => ({ code: 'parse-error', detail }),
+};
 
 /**
  * The rows of an API batch, as stored when the import started, validated in order like a file's
