@@ -15,6 +15,7 @@ import {
 import { LockIcon } from '@hugeicons/core-free-icons';
 import type { ComponentProps, ReactNode } from 'react';
 
+import type { JsonObject } from '../../server/declarations.server';
 import type { AssetItem, Attachment, Draft, Location, Money } from './contents';
 import {
   AMOUNT_KEY,
@@ -45,6 +46,14 @@ export interface ItemAttachmentSlot {
   setAttachments: (next: Attachment[]) => void;
   /** Editing is off, e.g. after a conflict. */
   disabled: boolean;
+  /** The item's type, e.g. `vehicle`: what a document read into the form is read as (#316). */
+  itemType?: string | undefined;
+  /** The item as on screen, to show what reading a document into it would change. */
+  item?: unknown;
+  /** Takes the item an accept added or filled, from the section as read back (#316). */
+  onAccepted?: (itemId: string, contents: JsonObject) => void;
+  /** Reading documents is known to be off for this Commission (#316). */
+  extractionOff?: boolean;
 }
 
 export type RenderAttachments = (slot: ItemAttachmentSlot) => ReactNode;
@@ -601,6 +610,8 @@ export function ItemEditor({
               set((current) => ({ ...current, attachments }));
             },
             disabled,
+            itemType: any.type,
+            item,
           })
         : null}
     </div>

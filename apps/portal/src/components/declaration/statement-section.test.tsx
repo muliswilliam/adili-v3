@@ -6,6 +6,7 @@ import { getDeclarationSection, saveDeclarationSection } from '../../server/decl
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { ITEM_MESSAGES } from './statement';
+import type { ItemAttachmentSlot } from './statement-item-editor';
 import {
   NIL_BLOCKED_COPY,
   NIL_COPY,
@@ -669,5 +670,65 @@ describe('StatementSection: attachment slot', () => {
         disabled: false,
       }),
     );
+  });
+
+  it('gives the slot what Read into the form needs and merges the item it adds', () => {
+    let slot: ItemAttachmentSlot | undefined;
+    const renderAttachments = (given: ItemAttachmentSlot) => {
+      slot = given;
+      return null;
+    };
+    renderStatement(statement({ assets: [land] }), { renderAttachments });
+    openTab(/^Assets/);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Land: Quarter-acre residential plot, Kapsoya' }),
+    );
+    expect(slot).toMatchObject({ itemType: 'land', item: land, extractionOff: false });
+
+    const added = {
+      id: 'a0000000-0000-4000-8000-00000000000b',
+      type: 'land',
+      description: 'Land in Njoro',
+      details: { parcelNumber: 'Nakuru/Njoro/1187' },
+      location: { inKenya: true },
+      change: { changed: false },
+      joint: { isJoint: false },
+      source: { kind: 'document', suggestionId: land.id, at: '2026-09-26T07:31:00Z' },
+    };
+    act(() => {
+      slot?.onAccepted?.(added.id, { assets: [land, added] });
+    });
+    expect(screen.getByRole('button', { name: 'Edit Land: Land in Njoro' })).toBeTruthy();
+  });
+
+  it('tells the slot reading is off when a document set said so', () => {
+    let slot: ItemAttachmentSlot | undefined;
+    renderStatement(statement({ assets: [land] }), {
+      renderAttachments: (given) => {
+        slot = given;
+        return null;
+      },
+      registries: {
+        person: { name: 'Mwangi Kamau', firstName: 'Mwangi', nationalId: null, hasId: true },
+        sets: [
+          {
+            id: 'b0000000-0000-4000-8000-000000000001',
+            personKey: 'officer',
+            source: 'document',
+            status: 'not-enabled',
+            requestedAt: '2026-09-26T07:30:00Z',
+            readyAt: '2026-09-26T07:30:00Z',
+            verificationResultId: null,
+            aiJobId: null,
+            suggestions: [],
+          },
+        ],
+      },
+    });
+    openTab(/^Assets/);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Land: Quarter-acre residential plot, Kapsoya' }),
+    );
+    expect(slot?.extractionOff).toBe(true);
   });
 });

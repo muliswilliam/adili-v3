@@ -73,6 +73,7 @@ import {
   tabState,
 } from './statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
+import { extractionOff } from './extraction';
 import { fullName } from './format';
 import { sourceDetails } from './item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
@@ -267,6 +268,19 @@ export function StatementSection({
     }, 0);
   }
 
+  // Attachments can be read into the form (#316): the item that adds or fills is merged in.
+  const readingOff = extractionOff(registries?.sets ?? []);
+  const withReading: RenderAttachments | undefined = renderAttachments
+    ? (slot) =>
+        renderAttachments({
+          ...slot,
+          extractionOff: readingOff,
+          onAccepted: (itemId, contents) => {
+            update((current) => withAcceptedItem(current, contents, itemId));
+          },
+        })
+    : undefined;
+
   function confirmRemove() {
     if (!removing) return;
     const id = removing.item.id ?? '';
@@ -377,7 +391,7 @@ export function StatementSection({
                   sectionKey={key}
                   disabled={disabled}
                   shareLabel={isOfficer ? 'My share' : `${firstName || 'Their'}'s share`}
-                  renderAttachments={renderAttachments}
+                  renderAttachments={withReading}
                   onChange={(next) => {
                     updateItem(category, item.id ?? '', next);
                   }}
