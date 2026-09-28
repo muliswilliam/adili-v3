@@ -5,7 +5,12 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
-import { rosterImportRows, rosterImports, rosterRecords } from '../../src/db/schema.js';
+import {
+  rosterImportBatches,
+  rosterImportRows,
+  rosterImports,
+  rosterRecords,
+} from '../../src/db/schema.js';
 import {
   ImportRowsJanitor,
   purgeExpiredImportRows,
@@ -526,6 +531,44 @@ describe('row retention', () => {
     const kept = (await api.get(`${IMPORTS}/${old.id}`, OFFICER)).json<RosterImport>();
     expect(kept).toMatchObject({ state: 'completed', counts: { rejected: 7 } });
     expect(await purgeExpiredImportRows(api.db)).toBe(0);
+  });
+
+  it('purges an API batch left behind by an import that never ended, 30 days after it started', async () => {
+    const stuck = async (tenant: string, daysAgo: number) => {
+      const [inserted] = await asPlatform((tx) =>
+        tx
+          .insert(rosterImports)
+          .values({
+            tenant,
+            channel: 'api',
+            declaredComplete: false,
+            format: 'json',
+            state: 'processing',
+            startedAt: new Date(Date.now() - daysAgo * DAY),
+            startedByKind: 'client',
+            startedBy: `roster-${tenant}-0a1b2c3d`,
+          })
+          .returning({ id: rosterImports.id }),
+      );
+      const importId = required(inserted).id;
+      await asPlatform((tx) =>
+        tx.insert(rosterImportBatches).values({
+          importId,
+          tenant,
+          rows: [{ personnelFileNumber: 'X/1', fullName: 'Achieng Otieno' }],
+        }),
+      );
+      return importId;
+    };
+    const old = await stuck('psc', 31);
+    const recent = await stuck('tsc', 29);
+
+    expect(await purgeExpiredImportRows(api.db)).toBe(1);
+    const left = await asPlatform((tx) =>
+      tx.select({ importId: rosterImportBatches.importId }).from(rosterImportBatches),
+    );
+    expect(left).toEqual([{ importId: recent }]);
+    expect(left).not.toContainEqual({ importId: old });
   });
 
   it('answers 410 for the rows and report of an import past its retention', async () => {

@@ -1,8 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 
+import { ownTenantContext } from '../../commissions/access.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { rosterActorOf } from '../actor.js';
 import { readRosterRecord } from '../records/records.service.js';
@@ -36,7 +37,7 @@ export class RosterExitsService {
 
   /** Exits the records, each on its own date or the batch's. */
   async confirm(principal: Principal, slug: string, body: ConfirmExitsBody): Promise<ExitsResult> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    const context = ownTenantContext(principal, slug);
     const exits = body.records.map(({ recordId, exitDate }) => ({
       recordId,
       // The body schema requires the batch date whenever a record has none.
@@ -46,7 +47,7 @@ export class RosterExitsService {
       body.records.map(({ recordId }, index) => [recordId, `records.${index}.recordId`]),
     );
     try {
-      return await withTenant(this.db, { tenant: slug, subject: principal.subject }, (tx) =>
+      return await withTenant(this.db, context, (tx) =>
         confirmExits(tx, this.events, {
           tenant: slug,
           exits,
@@ -71,10 +72,10 @@ export class RosterExitsService {
     fileNumber: string,
     body: RecordRosterExitBody,
   ): Promise<RosterRecord> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    const context = ownTenantContext(principal, slug);
     const actor = rosterActorOf(principal);
     try {
-      return await withTenant(this.db, { tenant: slug, subject: principal.subject }, async (tx) => {
+      return await withTenant(this.db, context, async (tx) => {
         const recordId = await recordIdByFileNumber(tx, slug, fileNumber);
         if (recordId === undefined) throw new RosterRecordsNotFound([fileNumber]);
         await confirmExits(tx, this.events, {
@@ -110,12 +111,12 @@ export class RosterExitsService {
 
   /** Clears the absent flag of the records. */
   async keep(principal: Principal, slug: string, body: KeepRosterRecordsBody): Promise<KeepResult> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    const context = ownTenantContext(principal, slug);
     const paths = new Map(
       body.recordIds.map((recordId, index) => [recordId, `recordIds.${index}`]),
     );
     try {
-      return await withTenant(this.db, { tenant: slug, subject: principal.subject }, (tx) =>
+      return await withTenant(this.db, context, (tx) =>
         keepRecords(tx, this.events, {
           tenant: slug,
           recordIds: body.recordIds,

@@ -34,6 +34,14 @@ export {
   type DataTableSelection,
 } from './components/data-table';
 export {
+  DeadlineChip,
+  type DeadlineChipProps,
+  deadlineSoonDays,
+  type DeadlineState,
+  deadlineStatus,
+  type DeadlineStatus,
+} from './components/deadline-chip';
+export {
   DescriptionItem,
   type DescriptionItemProps,
   DescriptionList,
@@ -58,6 +66,13 @@ export {
 } from './components/file-drop-zone';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
+export {
+  type Ground,
+  GroundsSelect,
+  type GroundsSelectProps,
+  REGULATION_24_GROUNDS,
+  groundMeta,
+} from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
@@ -80,6 +95,30 @@ export {
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  type HeadingLevel,
+  REGISTER_KINDS,
+  type RegisterEntry,
+  type RegisterKind,
+  registerKindMeta,
+  RegisterList,
+  type RegisterListProps,
+  type RegisterOutcome,
+  registerOutcomeMeta,
+  RegisterTimeline,
+  type RegisterTimelineProps,
+} from './components/register-timeline';
+export {
+  formatScope,
+  isSameScope,
+  isScopeWithin,
+  type Scope,
+  SCOPE_SECTIONS,
+  ScopePicker,
+  type ScopePickerProps,
+  type ScopeSection,
+  scopeSectionLabels,
+} from './components/scope-picker';
 export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
@@ -109,6 +148,7 @@ export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export { cn } from './lib/cn';
+export { type Tone, toneClassNames } from './lib/tone';
 export {
   countdownAnnouncement,
   formatClock,
@@ -116,4 +156,10 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { formatDate, formatDateTime } from './lib/format-date';
+export {
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  msUntilKenyanMidnight,
+} from './lib/format-date';

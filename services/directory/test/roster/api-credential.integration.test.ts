@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox, rosterApiCredentials } from '../../src/db/schema.js';
@@ -23,6 +24,8 @@ const OFFICER: Caller = {
   roles: ['reporting-officer'],
   name: 'Fatuma Wanjiru',
 };
+/** The officer as credential events name them. */
+const ACTOR = { kind: 'user', id: 'officer-1' };
 const TOKEN_ENDPOINT = 'http://localhost:8080/realms/adili/protocol/openid-connect/token';
 
 interface Credential {
@@ -152,7 +155,7 @@ describe('S18 credential lifecycle', () => {
       source: 'adili/directory',
       subject: clientId,
       tenant: 'tsc',
-      data: { action: 'created', clientId },
+      data: { action: 'created', clientId, actor: ACTOR },
     });
   });
 
@@ -186,10 +189,35 @@ describe('S18 credential lifecycle', () => {
     expect(body.rotatedAt).toEqual(expect.any(String));
     expect(api.identity.apiClient(first.clientId)?.secret).toBe(body.secret);
     expect((await credentialEvents()).map((event) => event.envelope.data)).toEqual([
-      { action: 'created', clientId: first.clientId },
-      { action: 'rotated', clientId: first.clientId },
+      { action: 'created', clientId: first.clientId, actor: ACTOR },
+      { action: 'rotated', clientId: first.clientId, actor: ACTOR },
     ]);
     expect((await get()).json<Credential>().rotatedAt).toBe(body.rotatedAt);
+  });
+
+  it('stamps rotatedAt when the identity provider has rotated the secret, not before', async () => {
+    await created();
+    const identity = api.identity;
+    const rotateSecret = identity.rotateApiClientSecret.bind(identity);
+    let rotatedBy = Number.POSITIVE_INFINITY;
+    // A slow identity provider: tokens of the old secret can be minted until it answers.
+    identity.rotateApiClientSecret = async (clientId) => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const secret = await rotateSecret(clientId);
+      // By the database's clock, which stamps rotatedAt; in whole milliseconds, as the API has it.
+      const { rows } = await api.db.execute<{ ms: string }>(
+        sql`select floor(extract(epoch from clock_timestamp()) * 1000) as ms`,
+      );
+      rotatedBy = Number(rows[0]?.ms);
+      return secret;
+    };
+    try {
+      const body = (await rotate()).json<CredentialWithSecret>();
+
+      expect(new Date(body.rotatedAt ?? 0).getTime()).toBeGreaterThanOrEqual(rotatedBy);
+    } finally {
+      identity.rotateApiClientSecret = rotateSecret;
+    }
   });
 
   it('revokes: 204, the client is disabled, revokedAt set, and the revoked event', async () => {
@@ -204,8 +232,8 @@ describe('S18 credential lifecycle', () => {
     expect(metadata).toMatchObject({ clientId, revokedAt: expect.any(String) as unknown });
     expect(contractErrors(okResponse(CONTRACT_PATH, 'get'), metadata)).toEqual([]);
     expect((await credentialEvents()).map((event) => event.envelope.data)).toEqual([
-      { action: 'created', clientId },
-      { action: 'revoked', clientId },
+      { action: 'created', clientId, actor: ACTOR },
+      { action: 'revoked', clientId, actor: ACTOR },
     ]);
   });
 

@@ -14,6 +14,11 @@ vi.mock('../../server/roster-exits', () => ({
   keepRosterRecords: (...args: unknown[]) => keepRosterRecords(...args) as unknown,
 }));
 
+const goToSignIn = vi.fn();
+vi.mock('../sign-in-redirect', () => ({
+  goToSignIn: (...args: unknown[]) => goToSignIn(...args) as unknown,
+}));
+
 const base = {
   id: '0191f8d2-0000-7000-8000-000000000001',
   fullName: 'Achieng Otieno',
@@ -33,6 +38,7 @@ function renderActions(record: Partial<Parameters<typeof RecordActions>[0]['reco
 beforeEach(() => {
   invalidate.mockReset();
   keepRosterRecords.mockReset();
+  goToSignIn.mockReset();
 });
 
 describe('RecordActions', () => {
@@ -51,6 +57,15 @@ describe('RecordActions', () => {
       data: { slug: 'psc', idempotencyKey: expect.any(String) as string, recordIds: [base.id] },
     });
     expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('sends a signed-out officer to sign in, back to this page with its query', async () => {
+    keepRosterRecords.mockResolvedValue({ ok: false, error: { kind: 'unauthenticated' } });
+    renderActions({ absentFromLatestImport: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as still employed' }));
+    await vi.waitFor(() => {
+      expect(goToSignIn).toHaveBeenCalledWith();
+    });
   });
 
   it('opens the confirm exit dialog for this officer', () => {

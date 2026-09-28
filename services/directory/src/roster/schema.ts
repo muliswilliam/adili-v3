@@ -18,7 +18,7 @@ import {
 import { commissions } from '../commissions/schema.js';
 import type { ColumnMapping } from './header-mapping.js';
 import type { ImportCounts, ImportFailureCode } from './import/representation.js';
-import type { NormalisedRosterRow, RawRosterRow, RowError } from './row-validation.js';
+import type { NormalisedRosterRow, RawRosterRow, RowError, RowNote } from './row-validation.js';
 
 /**
  * The roster of each Commission (spec #27): its records, reporting entities, imports with their
@@ -39,6 +39,10 @@ export type RosterRecordState = (typeof ROSTER_RECORD_STATES)[number];
 
 export const IMPORT_CHANNELS = ['file', 'api'] as const;
 export type ImportChannel = (typeof IMPORT_CHANNELS)[number];
+
+/** Who changes a roster: a user, or a Commission's HR system (`RosterActor`). */
+export const ROSTER_ACTOR_KINDS = ['user', 'client'] as const;
+export type RosterActorKind = (typeof ROSTER_ACTOR_KINDS)[number];
 
 export const IMPORT_STATES = ['pending', 'processing', 'completed', 'failed'] as const;
 export type ImportState = (typeof IMPORT_STATES)[number];
@@ -106,6 +110,12 @@ export const rosterRecords = pgTable(
     phone: text(),
     state: text({ enum: ROSTER_RECORD_STATES }).notNull().default('not_onboarded'),
     exitDate: date({ mode: 'string' }),
+    /**
+     * The state an exited record had before its exit, which re-activation restores: an officer
+     * who had onboarded is onboarded again, and keeps the identity lock. Null while not exited
+     * (and for exits recorded before it was kept, when no record could have onboarded yet).
+     */
+    stateBeforeExit: text({ enum: ['not_onboarded', 'onboarded'] }),
     /** Not in the latest complete import; the reporting officer confirms the exit or keeps it. */
     absentFromLatestImport: boolean().notNull().default(false),
     flaggedByImportId: uuid().references((): AnyPgColumn => rosterImports.id),
@@ -133,9 +143,19 @@ export const rosterRecords = pgTable(
       sql`lower(${table.personnelFileNumber})`,
     ),
     index('roster_records_tenant_national_id_idx').on(table.tenant, table.nationalId),
+    /** The same national ID on other Commissions' rosters (import notes, transfers). */
+    index('roster_records_national_id_idx').on(table.nationalId),
     /** The records list's order and keyset cursor. */
     index('roster_records_tenant_full_name_id_idx').on(table.tenant, table.fullName, table.id),
-    index('roster_records_tenant_state_idx').on(table.tenant, table.state),
+    /**
+     * Covers `recomputeRosterSummary`'s aggregate, which reads only these columns of the tenant's
+     * records (an index-only scan), and lookups by state.
+     */
+    index('roster_records_tenant_summary_idx').on(
+      table.tenant,
+      table.state,
+      table.absentFromLatestImport,
+    ),
     index('roster_records_tenant_flagged_idx')
       .on(table.tenant)
       .where(sql`${table.absentFromLatestImport}`),
@@ -148,6 +168,10 @@ export const rosterRecords = pgTable(
     check(
       'roster_records_exit_date_check',
       sql`${table.state} = 'exited' or ${table.exitDate} is null`,
+    ),
+    check(
+      'roster_records_state_before_exit_check',
+      sql`${table.stateBeforeExit} is null or (${table.state} = 'exited' and ${table.stateBeforeExit} in ('not_onboarded', 'onboarded'))`,
     ),
   ],
 );
@@ -178,17 +202,21 @@ export const rosterImports = pgTable(
     processedRows: integer().notNull().default(0),
     /** Chunks of accepted rows to apply; null until staging finishes. */
     chunkCount: integer(),
-    /** Set when the import ends. Its `exitsRecorded` is as at the end; the column is current. */
-    counts: jsonb().$type<ImportCounts>(),
     /**
-     * Exits confirmed for records this import flagged absent, counted as they are confirmed,
-     * mostly after the import ended.
+     * The staging attempt that owns the import's staged rows: each attempt claims it when it
+     * starts over, and writes only while it still holds it, so an attempt Temporal gave up on
+     * (and retried) cannot write alongside its successor.
      */
-    exitsRecorded: integer().notNull().default(0),
+    stagingAttempt: uuid(),
+    /**
+     * Set when the import ends, from its rows, and never changed after: the snapshot
+     * `roster.import.completed.v1` carries.
+     */
+    counts: jsonb().$type<ImportCounts>(),
     mapping: jsonb().$type<ColumnMapping>(),
     failureCode: text().$type<ImportFailureCode>(),
     failureDetail: text(),
-    startedByKind: text({ enum: ['user', 'client'] }).notNull(),
+    startedByKind: text({ enum: ROSTER_ACTOR_KINDS }).notNull(),
     /** `sub` of the user, or the OAuth client id of an HR system. */
     startedBy: text().notNull(),
     /** Display name when it started (token `name`; client id for HR systems). */
@@ -242,6 +270,8 @@ export const rosterImportRows = pgTable(
     normalised: jsonb().$type<NormalisedRosterRow>(),
     status: text({ enum: IMPORT_ROW_STATUSES }).notNull(),
     errors: jsonb().$type<RowError[]>().notNull().default([]),
+    /** Set when an accepted row is applied, e.g. its national ID is on another roster too. */
+    notes: jsonb().$type<RowNote[]>().notNull().default([]),
     /** Chunk an accepted row is applied in; null for rows rejected when staged. */
     chunkIndex: integer(),
     outcome: text({ enum: IMPORT_ROW_OUTCOMES }),
@@ -269,13 +299,15 @@ export const rosterImportRows = pgTable(
 
 /**
  * The rows of an API batch (spec #27, channel `api`) as the HR system sent them, from the start
- * of the import until staging has copied them into `roster_import_rows`, which deletes them.
+ * of the import until staging has copied them into `roster_import_rows` or the import ends,
+ * either of which deletes them; the purge deletes any left 30 days after the import ended (or
+ * started, if it never ended).
  */
 export const rosterImportBatches = pgTable('roster_import_batches', {
   importId: uuid()
     .primaryKey()
     .references(() => rosterImports.id, { onDelete: 'cascade' }),
-  /** Denormalised from the import for RLS. */
+  /** Denormalised from the import for RLS (policy in migration 0014). */
   tenant: text().notNull(),
   rows: jsonb().$type<RawRosterRow[]>().notNull(),
 });

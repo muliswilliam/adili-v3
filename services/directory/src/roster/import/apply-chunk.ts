@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import type { NormalisedRosterRow, RowError } from '../row-validation.js';
+import type { NormalisedRosterRow, RowError, RowNote } from '../row-validation.js';
 import {
   type ImportChannel,
   type ImportRowOutcome,
@@ -12,6 +12,7 @@ import {
   rosterImports,
   rosterRecords,
 } from '../schema.js';
+import { recomputeRosterSummary } from '../summary.js';
 import { IMPORT_SUBJECT } from './staging.js';
 import type { ChunkCounts, ImportRef } from './workflow-contract.js';
 
@@ -30,12 +31,22 @@ interface RecordValues {
   phone: string | null;
 }
 
-type ExistingRecord = RecordValues & { id: string; state: typeof rosterRecords.$inferSelect.state };
+type ExistingRecord = RecordValues & {
+  id: string;
+  state: typeof rosterRecords.$inferSelect.state;
+  stateBeforeExit: typeof rosterRecords.$inferSelect.stateBeforeExit;
+};
 
 /** What applying one row does to the roster. */
 type Decision =
   | { kind: 'create'; values: RecordValues }
-  | { kind: 'update'; recordId: string; values: RecordValues }
+  /** `reactivates`: the state an exited record goes back to; null for a record not exited. */
+  | {
+      kind: 'update';
+      recordId: string;
+      values: RecordValues;
+      reactivates: 'not_onboarded' | 'onboarded' | null;
+    }
   | { kind: 'unchanged'; recordId: string }
   | { kind: 'locked'; recordId: string; errors: RowError[] };
 
@@ -43,8 +54,9 @@ type Decision =
  * Applies one chunk of an import's accepted rows in one transaction: creates reporting entities
  * named for the first time, creates or updates records by personnel file number (case-insensitive),
  * rejects rows that would change an onboarded record's identity (`identity-locked`), re-activates
- * exited records, marks every record with a row as seen in this import, and marks the rows
- * applied with their outcome.
+ * exited records, marks every record with a row as seen in this import, moves the roster summary
+ * by what changed, and marks the rows applied with their outcome, noting national IDs that are
+ * on another Commission's roster too.
  *
  * Idempotent: only rows not yet applied are applied, and the import row is locked first, so a
  * re-run (after a crash, or racing a straggling attempt) applies nothing twice and returns zeros.
@@ -97,6 +109,7 @@ export async function applyChunk(
       );
       return {
         rowNumber: row.rowNumber,
+        nationalId: values.nationalId,
         decision: decide(values, existing.get(fileNumberKey(values.personnelFileNumber))),
       };
     });
@@ -120,21 +133,29 @@ export async function applyChunk(
         decision.kind === 'unchanged' || decision.kind === 'locked' ? [decision.recordId] : [],
       ),
     );
+    await recomputeRosterSummary(tx, ref.tenant);
+    const elsewhere = await nationalIdsOnOtherRosters(
+      tx,
+      decisions.flatMap(({ nationalId, decision }) =>
+        decision.kind === 'locked' ? [] : [nationalId],
+      ),
+    );
 
     const counts: ChunkCounts = { ...NOTHING_APPLIED };
-    const outcomes = decisions.map(({ rowNumber, decision }) => {
+    const outcomes = decisions.map(({ rowNumber, nationalId, decision }) => {
+      const notes = elsewhere.has(nationalId) ? [NATIONAL_ID_ON_ANOTHER_ROSTER] : [];
       switch (decision.kind) {
         case 'create': {
           counts.created += 1;
           const recordId = requireId(created, fileNumberKey(decision.values.personnelFileNumber));
-          return rowOutcome(rowNumber, 'created', recordId);
+          return rowOutcome(rowNumber, 'created', recordId, notes);
         }
         case 'update':
           counts.updated += 1;
-          return rowOutcome(rowNumber, 'updated', decision.recordId);
+          return rowOutcome(rowNumber, 'updated', decision.recordId, notes);
         case 'unchanged':
           counts.unchanged += 1;
-          return rowOutcome(rowNumber, 'unchanged', decision.recordId);
+          return rowOutcome(rowNumber, 'unchanged', decision.recordId, notes);
         case 'locked':
           counts.rejected += 1;
           return {
@@ -143,6 +164,7 @@ export async function applyChunk(
             outcome: null,
             record_id: decision.recordId,
             errors: decision.errors,
+            notes: [],
           };
       }
     });
@@ -152,9 +174,16 @@ export async function applyChunk(
         outcome = source.outcome,
         record_id = source.record_id,
         errors = source.errors,
+        notes = source.notes,
         applied_at = now()
-      from jsonb_to_recordset(${JSON.stringify(outcomes)}::jsonb)
-        as source(row_number integer, status text, outcome text, record_id uuid, errors jsonb)
+      from jsonb_to_recordset(${JSON.stringify(outcomes)}::jsonb) as source(
+        row_number integer,
+        status text,
+        outcome text,
+        record_id uuid,
+        errors jsonb,
+        notes jsonb
+      )
       where target.import_id = ${ref.importId} and target.row_number = source.row_number
     `);
     await tx
@@ -167,19 +196,29 @@ export async function applyChunk(
 
 /**
  * The decision for one row. A row for an onboarded record may not change its identity (national
- * ID, full name); the row is rejected whole and the record keeps every field. A row for an
- * exited record re-activates it (`updateRecords`), so it is an update even with the same values.
+ * ID, full name); the row is rejected whole and the record keeps every field. That holds for an
+ * exited record that had onboarded too, since re-activating it restores `onboarded`. A row for
+ * an exited record re-activates it (`updateRecords`), so it is an update even with the same
+ * values.
  */
 function decide(values: RecordValues, existing: ExistingRecord | undefined): Decision {
   if (!existing) return { kind: 'create', values };
-  if (existing.state === 'exited') return { kind: 'update', recordId: existing.id, values };
-  if (existing.state === 'onboarded') {
+  if (activeState(existing) === 'onboarded') {
     const errors = identityChanges(existing, values);
     if (errors.length > 0) return { kind: 'locked', recordId: existing.id, errors };
   }
+  if (existing.state === 'exited') {
+    return { kind: 'update', recordId: existing.id, values, reactivates: activeState(existing) };
+  }
   return sameValues(existing, values)
     ? { kind: 'unchanged', recordId: existing.id }
-    : { kind: 'update', recordId: existing.id, values };
+    : { kind: 'update', recordId: existing.id, values, reactivates: null };
+}
+
+/** The record's state, or for an exited record the state a re-activation gives it back. */
+function activeState(record: ExistingRecord): 'not_onboarded' | 'onboarded' {
+  if (record.state === 'exited') return record.stateBeforeExit ?? 'not_onboarded';
+  return record.state;
 }
 
 function identityChanges(existing: RecordValues, values: RecordValues): RowError[] {
@@ -231,8 +270,49 @@ function recordValues(row: NormalisedRosterRow, reportingEntityId: string | null
   };
 }
 
-function rowOutcome(rowNumber: number, outcome: ImportRowOutcome, recordId: string) {
-  return { row_number: rowNumber, status: 'accepted', outcome, record_id: recordId, errors: [] };
+function rowOutcome(
+  rowNumber: number,
+  outcome: ImportRowOutcome,
+  recordId: string,
+  notes: RowNote[],
+) {
+  return {
+    row_number: rowNumber,
+    status: 'accepted',
+    outcome,
+    record_id: recordId,
+    errors: [],
+    notes,
+  };
+}
+
+/**
+ * The same national ID on another Commission's roster is allowed (people transfer; slice 03
+ * resolves who the declarant is) and noted on the row, without naming the other Commission.
+ */
+const NATIONAL_ID_ON_ANOTHER_ROSTER: RowNote = {
+  field: 'nationalId',
+  code: 'national-id-on-another-roster',
+  message:
+    "This national ID is also on another Commission's roster. That is allowed, for officers who moved; the row was applied.",
+};
+
+/**
+ * Which of the national IDs are on another Commission's roster, through a database function that
+ * sees other rosters for the length of its query and answers with one boolean per ID asked about
+ * (migration 0020); it takes the importing tenant from this transaction's context, which it
+ * leaves as it was.
+ */
+async function nationalIdsOnOtherRosters(
+  tx: Transaction,
+  nationalIds: string[],
+): Promise<Set<string>> {
+  if (nationalIds.length === 0) return new Set();
+  const { rows } = await tx.execute<{ found: boolean[] }>(sql`
+    select roster_national_ids_on_other_rosters(${sql.param(nationalIds)}::text[]) as found
+  `);
+  const found = rows[0]?.found ?? [];
+  return new Set(nationalIds.filter((_, index) => found[index] === true));
 }
 
 /** Personnel file numbers identify records case-insensitively. */
@@ -295,6 +375,7 @@ async function recordsByFileNumber(
     .select({
       id: rosterRecords.id,
       state: rosterRecords.state,
+      stateBeforeExit: rosterRecords.stateBeforeExit,
       personnelFileNumber: rosterRecords.personnelFileNumber,
       fullName: rosterRecords.fullName,
       nationalId: rosterRecords.nationalId,
@@ -342,7 +423,8 @@ async function createRecords(
 
 /**
  * Writes the rows' values to their records in one statement. An exited record is re-activated:
- * back to `not_onboarded` without its exit date (spec #27; slice 03 onboards it again).
+ * back to the state it had before its exit (`onboarded` stays onboarded, spec #27), without its
+ * exit date.
  */
 async function updateRecords(
   tx: Transaction,
@@ -374,7 +456,11 @@ async function updateRecords(
       appointment_date = source.appointment_date,
       email = source.email,
       phone = source.phone,
-      state = case when target.state = 'exited' then 'not_onboarded' else target.state end,
+      state = case
+        when target.state = 'exited' then coalesce(target.state_before_exit, 'not_onboarded')
+        else target.state
+      end,
+      state_before_exit = null,
       exit_date = case when target.state = 'exited' then null else target.exit_date end,
       source = ${channel},
       last_seen_import_id = ${ref.importId},

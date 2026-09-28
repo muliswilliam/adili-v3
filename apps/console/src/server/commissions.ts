@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { commissionSlug } from './commission-slug';
 import { asViewer } from './as-viewer.server';
 import {
   type AssignReportingOfficer,
@@ -33,7 +34,7 @@ export const listCommissions = createServerFn({ method: 'GET' })
 
 /** `GET /v1/commissions/{slug}`: 404 problem when missing or not visible to the viewer. */
 export const getCommission = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: z.string().min(1).max(40) }))
+  .validator(z.object({ slug: commissionSlug }))
   .handler(({ data }): Promise<DirectoryResult<Commission>> =>
     asViewer((client) =>
       callDirectory(() =>
@@ -78,7 +79,7 @@ export const createCommission = createServerFn({ method: 'POST' })
   );
 
 export const assignReportingOfficerInput = z.object({
-  slug: z.string().min(1).max(40),
+  slug: commissionSlug,
   /** One per dialog submission, reused on retry (spec 01). */
   idempotencyKey: z.uuid(),
   // Loose bounds only: the directory validates and its 400 problem maps back to the dialog.
@@ -116,7 +117,7 @@ export const assignReportingOfficer = createServerFn({ method: 'POST' })
  * an invited officer (202, no body). No Idempotency-Key: repeating it only sends another email.
  */
 export const resendInvitation = createServerFn({ method: 'POST' })
-  .validator(z.object({ slug: z.string().min(1).max(40) }))
+  .validator(z.object({ slug: commissionSlug }))
   .handler(({ data }): Promise<DirectoryResult<null>> =>
     asViewer(async (client) => {
       const result = await callDirectory(() =>

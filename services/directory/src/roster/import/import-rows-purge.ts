@@ -9,7 +9,7 @@ import { sql } from 'drizzle-orm';
 
 import { PLATFORM_TENANT } from '../../commissions/access.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterImportRows, rosterImports } from '../schema.js';
+import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
 
 /** Staged rows (the report) are kept this long after their import ends (spec #27). */
 export const IMPORT_ROWS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -33,15 +33,24 @@ export interface PurgeOptions {
 
 /**
  * Deletes the staged rows of every import that ended more than 30 days before `now`, in
- * batches so a 436,000-row import does not hold one long transaction. Imports themselves (the
- * history, with their counts) are kept. Idempotent; returns the number of rows deleted.
+ * batches so a 436,000-row import does not hold one long transaction, and the stored API batch
+ * of any import that ended, or started and never ended, that long ago (a batch is normally gone
+ * once its import is staged or ends). Imports themselves (the history, with their counts) are
+ * kept. Idempotent; returns the number of staged rows and batches deleted.
  */
 export async function purgeExpiredImportRows(
   db: Database<DirectorySchema>,
   { now = new Date(), batchSize = 10_000 }: PurgeOptions = {},
 ): Promise<number> {
   const cutoff = new Date(now.getTime() - IMPORT_ROWS_RETENTION_MS);
-  let purged = 0;
+  const batches = await withTenant(db, { tenant: PLATFORM_TENANT, subject: PURGE_SUBJECT }, (tx) =>
+    tx.execute(sql`
+      delete from ${rosterImportBatches} batches
+      using ${rosterImports} imports
+      where imports.id = batches.import_id
+        and coalesce(imports.completed_at, imports.started_at) < ${cutoff.toISOString()}`),
+  );
+  let purged = batches.rowCount ?? 0;
   for (;;) {
     const result = await withTenant(db, { tenant: PLATFORM_TENANT, subject: PURGE_SUBJECT }, (tx) =>
       tx.execute(sql`

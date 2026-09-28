@@ -64,9 +64,14 @@ export function reportFileName(uploadedName: string | null): string {
   return `${stem === '' ? 'roster-import' : stem}-rejected-rows.csv`;
 }
 
-/** The console's own route that fetches an import's rejected rows CSV (a server route). */
-export function reportCsvUrl(importId: string): string {
-  return `/roster/imports/${importId}/report.csv`;
+/**
+ * The console's own route that fetches an import's rejected rows CSV (a server route): under the
+ * viewer's own roster, or under Commission `slug`'s page for platform admins.
+ */
+export function reportCsvUrl(importId: string, slug?: string): string {
+  return slug === undefined
+    ? `/roster/imports/${importId}/report.csv`
+    : `/commissions/${slug}/imports/${importId}/report.csv`;
 }
 
 /**

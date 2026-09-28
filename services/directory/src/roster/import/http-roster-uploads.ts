@@ -1,28 +1,21 @@
-import { ACTING_TENANT_HEADER, type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
-import { z } from 'zod';
+import { type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
+import createClient, { type Client } from 'openapi-fetch';
 
+import type { paths } from './documents-api.gen.js';
 import {
   DocumentsUnavailable,
   type OpenedRosterUpload,
   type RosterUpload,
   RosterUploads,
   rosterFormatOf,
+  type UploadRef,
   UploadNotClean,
   UploadNotFound,
 } from './roster-uploads.js';
+import { uploadDownloadSchema } from './upload-download.js';
 
 /** The scope the directory's service token needs for documents' internal API (decision 2). */
 export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
-
-/** `UploadDownload` of packages/schemas/internal/documents.yaml, the fields read here. */
-const uploadDownload = z.object({
-  id: z.string(),
-  purpose: z.string(),
-  downloadUrl: z.url(),
-  size: z.number().int(),
-  fileName: z.string().nullable(),
-  detectedType: z.string(),
-});
 
 export interface HttpRosterUploadsOptions {
   /** Base URL of the documents service, e.g. `http://localhost:4006`. */
@@ -44,27 +37,37 @@ export interface HttpRosterUploadsOptions {
 }
 
 /**
- * Reads roster uploads through the documents service's internal API: the directory's own token
- * (client credentials, `documents:internal`) with the tenant in `X-Acting-Tenant`; documents
- * checks the upload is that tenant's. The file is then streamed from the presigned URL.
+ * Reads roster uploads through the documents service's internal API, with the client generated
+ * from its contract (packages/schemas/internal/documents.yaml → documents-api.gen.ts via
+ * `pnpm generate:api`) and its answers validated at the boundary (`uploadDownloadSchema`): the
+ * directory's own token (client credentials, `documents:internal`) with the tenant in
+ * `X-Acting-Tenant`; documents checks the upload is that tenant's. The file is then streamed from
+ * the presigned URL.
  */
 export class HttpRosterUploads extends RosterUploads {
   private readonly fetch: typeof fetch;
-  private readonly baseUrl: string;
+  private readonly documents: Client<paths>;
 
   constructor(private readonly options: HttpRosterUploadsOptions) {
     super();
     this.fetch = options.fetch ?? globalThis.fetch;
-    this.baseUrl = options.documentsUrl.replace(/\/$/, '');
+    const fetchImpl = this.fetch;
+    const timeoutMs = options.timeoutMs ?? 5_000;
+    this.documents = createClient<paths>({
+      baseUrl: options.documentsUrl.replace(/\/$/, ''),
+      headers: { accept: 'application/json' },
+      fetch: (request) =>
+        fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) })),
+    });
   }
 
-  async describe(tenant: string, uploadId: string): Promise<RosterUpload> {
-    const { upload } = await this.download(tenant, uploadId);
+  async describe(ref: UploadRef): Promise<RosterUpload> {
+    const { upload } = await this.download(ref);
     return upload;
   }
 
-  async open(tenant: string, uploadId: string): Promise<OpenedRosterUpload> {
-    const { upload, downloadUrl } = await this.download(tenant, uploadId);
+  async open(ref: UploadRef): Promise<OpenedRosterUpload> {
+    const { upload, downloadUrl } = await this.download(ref);
     const abort = new AbortController();
     const headersTimer = setTimeout(() => {
       abort.abort(new Error('Object storage sent no headers in time'));
@@ -88,36 +91,35 @@ export class HttpRosterUploads extends RosterUploads {
   }
 
   /** Asks documents for a download URL, retrying once with a fresh token after a 401. */
-  private async download(
-    tenant: string,
-    uploadId: string,
-  ): Promise<{ upload: RosterUpload; downloadUrl: string }> {
-    let response = await this.requestDownload(tenant, uploadId);
-    if (response.status === 401) {
+  private async download(ref: UploadRef): Promise<{ upload: RosterUpload; downloadUrl: string }> {
+    let answer = await this.requestDownload(ref);
+    if (answer.response.status === 401) {
       this.options.tokens.invalidate();
-      response = await this.requestDownload(tenant, uploadId);
+      answer = await this.requestDownload(ref);
     }
-    if (response.status === 404) throw new UploadNotFound(uploadId);
-    if (response.status === 409) throw new UploadNotClean(uploadId);
-    if (!response.ok) {
-      throw new DocumentsUnavailable(`Documents answered ${response.status}`);
-    }
-    const parsed = uploadDownload.safeParse(await response.json().catch(() => undefined));
+    const { data, response } = answer;
+    if (response.status === 404) throw new UploadNotFound(ref.uploadId);
+    if (response.status === 409) throw new UploadNotClean(ref.uploadId);
+    if (!data) throw new DocumentsUnavailable(`Documents answered ${String(response.status)}`);
+    const parsed = uploadDownloadSchema.safeParse(data);
     if (!parsed.success) {
-      throw new DocumentsUnavailable('Documents answered without a valid UploadDownload');
+      throw new DocumentsUnavailable('Documents answered a download that breaks its contract', {
+        cause: parsed.error,
+      });
     }
-    const body = parsed.data;
-    const format = rosterFormatOf(body.detectedType);
-    if (body.purpose !== 'roster-import' || format === undefined) {
-      throw new UploadNotFound(uploadId);
+    const upload = parsed.data;
+    const format = rosterFormatOf(upload.detectedType);
+    // Only roster imports are rosters.
+    if (upload.purpose !== 'roster-import' || format === undefined) {
+      throw new UploadNotFound(ref.uploadId);
     }
     return {
-      upload: { id: body.id, fileName: body.fileName, format, size: body.size },
-      downloadUrl: body.downloadUrl,
+      upload: { id: upload.id, fileName: upload.fileName, format, size: upload.size },
+      downloadUrl: upload.downloadUrl,
     };
   }
 
-  private async requestDownload(tenant: string, uploadId: string): Promise<Response> {
+  private async requestDownload({ tenant, uploadId }: UploadRef) {
     let token: string;
     try {
       token = await this.options.tokens.token();
@@ -130,13 +132,10 @@ export class HttpRosterUploads extends RosterUploads {
       throw error;
     }
     try {
-      return await this.fetch(
-        `${this.baseUrl}/internal/v1/uploads/${encodeURIComponent(uploadId)}/download`,
-        {
-          headers: { authorization: `Bearer ${token}`, [ACTING_TENANT_HEADER]: tenant },
-          signal: AbortSignal.timeout(this.options.timeoutMs ?? 5_000),
-        },
-      );
+      return await this.documents.GET('/internal/v1/uploads/{id}/download', {
+        params: { path: { id: uploadId }, header: { 'X-Acting-Tenant': tenant } },
+        headers: { authorization: `Bearer ${token}` },
+      });
     } catch (error) {
       throw new DocumentsUnavailable('The documents service is unreachable', { cause: error });
     }

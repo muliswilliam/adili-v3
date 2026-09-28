@@ -1,10 +1,11 @@
 import type { Principal } from '@adili/api-kit';
 
 import { REPORTING_OFFICER_ROLE } from '../commissions/access.js';
+import type { RosterActorKind } from './schema.js';
 
 /** Who changed a roster: a user, or a Commission's HR system (API channel). */
 export interface RosterActor {
-  kind: 'user' | 'client';
+  kind: RosterActorKind;
   /** The user's `sub`, or the HR system's OAuth client id. */
   id: string;
   /** Display name at the time (decision 10): the token's name for users, the client id for HR systems. */
@@ -21,4 +22,32 @@ export function rosterActorOf(principal: Principal): RosterActor {
     return { kind: 'user', id: principal.subject, name: principal.name };
   }
   return { kind: 'client', id: principal.clientId, name: principal.clientId };
+}
+
+/** The actor who started an import, as `roster_imports` stores it. */
+export interface StartedByColumns {
+  startedByKind: RosterActor['kind'];
+  startedBy: string;
+  startedByName: string | null;
+}
+
+export function startedByColumns(actor: RosterActor): StartedByColumns {
+  return { startedByKind: actor.kind, startedBy: actor.id, startedByName: actor.name };
+}
+
+export function startedByOf(row: StartedByColumns): RosterActor {
+  return { kind: row.startedByKind, id: row.startedBy, name: row.startedByName };
+}
+
+/**
+ * The actor as roster events carry it (user story 47: each roster change names who made it):
+ * kind and id, no display name.
+ */
+export interface EventActor extends Record<string, unknown> {
+  kind: RosterActor['kind'];
+  id: string;
+}
+
+export function eventActorOf(actor: Pick<RosterActor, 'kind' | 'id'>): EventActor {
+  return { kind: actor.kind, id: actor.id };
 }

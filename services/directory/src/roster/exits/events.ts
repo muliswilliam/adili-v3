@@ -1,6 +1,5 @@
-import type { NewEvent } from '@adili/events';
-
-import type { RosterActor } from '../actor.js';
+import { tenantEvent } from '../../tenant-event.js';
+import type { EventActor } from '../actor.js';
 
 /**
  * Events about exits and flags on a roster (spec #27), recorded in the transaction of the change
@@ -10,12 +9,6 @@ import type { RosterActor } from '../actor.js';
 
 /** Where an exit was recorded: the console (reporting officer) or an HR system's API call. */
 export type ExitSource = 'console' | 'api';
-
-/** The actor as events carry it: no display name. */
-export interface EventActor extends Record<string, unknown> {
-  kind: RosterActor['kind'];
-  id: string;
-}
 
 export const ROSTER_EXITS_CONFIRMED = 'roster.exits.confirmed.v1';
 
@@ -29,12 +22,10 @@ export interface RosterExitsConfirmedData extends Record<string, unknown> {
 }
 
 /** Records were exited together; the subject is the batch. */
-export function rosterExitsConfirmed(
-  slug: string,
-  data: RosterExitsConfirmedData,
-): NewEvent<RosterExitsConfirmedData> {
-  return { type: ROSTER_EXITS_CONFIRMED, subject: data.batchId, tenant: slug, data };
-}
+export const rosterExitsConfirmed = tenantEvent<RosterExitsConfirmedData>(
+  ROSTER_EXITS_CONFIRMED,
+  (data) => data.batchId,
+);
 
 export const ROSTER_RECORDS_KEPT = 'roster.records.kept.v1';
 
@@ -46,9 +37,7 @@ export interface RosterRecordsKeptData extends Record<string, unknown> {
 }
 
 /** Flagged records were kept (their officers are still employed); the subject is the Commission. */
-export function rosterRecordsKept(
-  slug: string,
-  data: RosterRecordsKeptData,
-): NewEvent<RosterRecordsKeptData> {
-  return { type: ROSTER_RECORDS_KEPT, subject: slug, tenant: slug, data };
-}
+export const rosterRecordsKept = tenantEvent<RosterRecordsKeptData>(
+  ROSTER_RECORDS_KEPT,
+  (_data, slug) => slug,
+);

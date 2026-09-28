@@ -99,6 +99,62 @@
       "when": 1790549822200,
       "tag": "0013_roster_api_batches_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790582572743,
+      "tag": "0014_roster_import_batches_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790583140044,
+      "tag": "0015_roster_import_staging_attempt",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790585019876,
+      "tag": "0016_roster_records_state_before_exit",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790585261712,
+      "tag": "0017_roster_imports_counts_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790585373084,
+      "tag": "0018_roster_import_rows_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790585373638,
+      "tag": "0019_roster_national_ids_on_other_rosters",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790588183142,
+      "tag": "0020_roster_national_ids_lookup_definer",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790588535210,
+      "tag": "0021_roster_records_summary_index",
+      "breakpoints": true
     }
   ]
 }

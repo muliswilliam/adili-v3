@@ -25,7 +25,7 @@ const IDENTITY_UNAVAILABLE =
 
 /**
  * The Commission's HR-system credential (spec #27): reporting officer of the Commission only.
- * No Idempotency-Key: a stored response would store the secret.
+ * No Idempotency-Key: a stored response would store the secret (recorded exception, ADR-013 §8.2).
  */
 @ApiTags('roster')
 @Controller('v1/commissions/:slug/roster/api-credential')

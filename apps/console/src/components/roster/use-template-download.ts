@@ -1,5 +1,6 @@
 import { useToast } from '@adili/ui';
 
+import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
 import { downloadRosterTemplate, type RosterTemplateFormat } from './template-download';
 
@@ -12,7 +13,7 @@ export function useTemplateDownload(returnTo: string) {
   return async (format: RosterTemplateFormat) => {
     const outcome = await downloadRosterTemplate(format);
     if (outcome === 'unauthenticated') {
-      window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
+      goToSignIn(returnTo);
     } else if (outcome === 'failed') {
       toast({ title: m.templateError, urgency: 'assertive' });
     }

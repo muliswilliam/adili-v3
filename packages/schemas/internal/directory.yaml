@@ -612,7 +612,7 @@ paths:
       tags:
         - roster
       summary: Start importing a clean roster upload, or a batch of rows
-      description: "Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`). At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key."
+      description: "Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`); an HR system sending `channel: file` gets 403, as files are the reporting officer's. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key."
       operationId: startRosterImport
       parameters:
         - name: slug
@@ -2762,9 +2762,12 @@ components:
         flaggedAbsent:
           type: integer
           description: Records flagged as absent from this complete import
+        noted:
+          type: integer
+          description: Accepted rows with notes (`notes` on the import's rows), e.g. a national ID also on another Commission's roster, which is allowed
         exitsRecorded:
           type: integer
-          description: Exits confirmed so far (by the reporting officer or the HR system) for records this complete import flagged absent; grows after the import ended
+          description: Exits the import itself recorded. No import records exits today (the reporting officer confirms them, or the HR system calls the exit endpoint), so it is 0. Like every count, fixed when the import ends and equal to roster.import.completed.v1's
       required:
         - accepted
         - created
@@ -2772,6 +2775,7 @@ components:
         - unchanged
         - rejected
         - flaggedAbsent
+        - noted
         - exitsRecorded
     RosterImport:
       type: object
@@ -3212,6 +3216,37 @@ components:
           items:
             $ref: '#/components/schemas/RowError'
           description: Why the row was rejected; empty if not
+        notes:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                enum:
+                  - personnelFileNumber
+                  - fullName
+                  - nationalId
+                  - designation
+                  - jobGroup
+                  - reportingEntity
+                  - appointmentDate
+                  - email
+                  - phone
+                description: The roster field the note is about
+              code:
+                type: string
+                enum:
+                  - national-id-on-another-roster
+                description: "`national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed"
+              message:
+                type: string
+                description: The note, in English
+            required:
+              - field
+              - code
+              - message
+          description: Things to know about an accepted row, set when it is applied; they did not stop it
         outcome:
           anyOf:
             - type: string
@@ -3232,6 +3267,7 @@ components:
         - status
         - raw
         - errors
+        - notes
         - outcome
         - recordId
     RosterImportRowPage:

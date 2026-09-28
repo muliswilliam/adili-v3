@@ -14,10 +14,13 @@ vi.mock('@tanstack/react-router', () => ({
     ...props
   }: {
     to: string;
-    params: { importId: string };
+    params: { importId: string; slug?: string };
     children: ReactNode;
   }) => (
-    <a href={to.replace('$importId', params.importId)} {...props}>
+    <a
+      href={to.replace('$importId', params.importId).replace('$slug', params.slug ?? '$slug')}
+      {...props}
+    >
       {children}
     </a>
   ),
@@ -39,6 +42,7 @@ const completed: RosterImport = {
     unchanged: 47_916,
     rejected: 31,
     flaggedAbsent: 14,
+    noted: 0,
     exitsRecorded: 0,
   },
   mapping: null,
@@ -85,6 +89,15 @@ describe('ImportHistoryResults', () => {
       .map((cell) => cell.textContent);
     expect(cells).toEqual(['File', 'Yes', 'Completed', '58', '312', '31', '14', 'Grace Muthoni']);
     expect(within(row).getByText('psc-roster-2026-09-25.xlsx')).toBeTruthy();
+  });
+
+  it("links each import to its report on the Commission's page when given its slug", () => {
+    render(<ImportHistoryResults items={[completed]} slug="psc" />);
+    const table = screen.getByRole('table', { name: 'Imports, newest first' });
+
+    expect(within(rowOf(table, '25 Sep 2026, 14:12')).getByRole('link').getAttribute('href')).toBe(
+      `/commissions/psc/imports/${completed.id}`,
+    );
   });
 
   it('shows a running HR system batch with its progress and no counts yet', () => {

@@ -67,21 +67,32 @@ export interface CleanUpload {
   size: number;
 }
 
+/**
+ * Why the documents service refused a file for good: not a CSV or XLSX file, a CSV not saved as
+ * UTF-8, or too big.
+ */
+export type UploadRejectionReason = 'type' | 'encoding' | 'size';
+
 /** How uploading a roster file ended. */
 export type UploadOutcome =
   | { kind: 'clean'; upload: CleanUpload }
   | { kind: 'infected' }
-  /** The documents service found the bytes are not a CSV or XLSX file, or too big. */
-  | { kind: 'rejected'; reason: 'type' | 'size' }
+  | { kind: 'rejected'; reason: UploadRejectionReason }
   /** Expired, interrupted, missing, timed out or refused: worth trying again. */
   | { kind: 'failed' }
   | { kind: 'unauthenticated' }
   | { kind: 'aborted' };
 
+/** Each call names its Idempotency-Key: one per logical request, reused if it is retried. */
 export interface UploadDeps {
-  createUpload: (input: CreateRosterUploadInput) => Promise<DocumentsResult<UploadReservation>>;
+  createUpload: (
+    input: CreateRosterUploadInput,
+    idempotencyKey: string,
+  ) => Promise<DocumentsResult<UploadReservation>>;
   putFile: typeof putFile;
-  completeUpload: (id: string) => Promise<DocumentsResult<Upload>>;
+  completeUpload: (id: string, idempotencyKey: string) => Promise<DocumentsResult<Upload>>;
+  /** New Idempotency-Keys; `crypto.randomUUID` in the app. */
+  newKey?: () => string;
 }
 
 export interface UploadEvents {
@@ -108,7 +119,9 @@ export function outcomeOf(upload: Upload, file: Pick<File, 'name' | 'size'>): Up
     case 'infected':
       return { kind: 'infected' };
     case 'rejected':
-      return upload.rejection === 'type' || upload.rejection === 'size'
+      return upload.rejection === 'type' ||
+        upload.rejection === 'encoding' ||
+        upload.rejection === 'size'
         ? { kind: 'rejected', reason: upload.rejection }
         : { kind: 'failed' };
     default:
@@ -133,8 +146,9 @@ export async function uploadRosterFile(
       ? { kind: 'unauthenticated' }
       : { kind: 'failed' };
 
+  const newKey = deps.newKey ?? (() => crypto.randomUUID());
   const reservation = await deps
-    .createUpload({ contentType, declaredSize: file.size, fileName: file.name })
+    .createUpload({ contentType, declaredSize: file.size, fileName: file.name }, newKey())
     .catch(() => null);
   if (signal?.aborted) return { kind: 'aborted' };
   if (!reservation) return { kind: 'failed' };
@@ -155,7 +169,7 @@ export async function uploadRosterFile(
   if (put === 'failed') return { kind: 'failed' };
 
   events.onScanning?.();
-  const completed = await deps.completeUpload(reservation.data.id).catch(() => null);
+  const completed = await deps.completeUpload(reservation.data.id, newKey()).catch(() => null);
   if (signal?.aborted) return { kind: 'aborted' };
   if (!completed) return { kind: 'failed' };
   if (!completed.ok) return failed(completed);

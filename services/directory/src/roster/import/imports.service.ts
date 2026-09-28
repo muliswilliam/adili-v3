@@ -1,19 +1,24 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  type ProblemDetails,
+  ProblemException,
+} from '@adili/api-kit';
+import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { InjectTemporalClient } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
-import { canSeeCommission, tenantContextOf } from '../../commissions/access.js';
+import { canSeeCommission, ownTenantContext, tenantContextOf } from '../../commissions/access.js';
 import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterActorOf } from '../actor.js';
+import { rosterActorOf, startedByColumns, startedByOf } from '../actor.js';
+import { isHrSystem } from '../api-credential/hr-system-access.js';
 import type { RawRosterRow } from '../row-validation.js';
 import { rosterImportBatches, rosterImports } from '../schema.js';
-import { RosterFileError } from '../sheet.js';
 import { decodeImportCursor, encodeImportCursor } from './cursors.js';
 import { rowsRetainedUntil } from './import-rows-purge.js';
 import { previewRosterFile } from './preview.js';
@@ -28,12 +33,8 @@ import {
   type StartBatchImportBody,
   type StartFileImportBody,
 } from './representation.js';
-import {
-  DocumentsUnavailable,
-  RosterUploads,
-  UploadNotClean,
-  UploadNotFound,
-} from './roster-uploads.js';
+import { RosterUploads } from './roster-uploads.js';
+import { type UploadFailureKind, uploadFailureOf } from './upload-failure.js';
 import type { rosterImport } from './workflows.js';
 
 type ImportRow = typeof rosterImports.$inferSelect;
@@ -56,17 +57,30 @@ export class RosterImportsService {
     @InjectTemporalClient() private readonly temporal: Client,
   ) {}
 
-  /** Starts importing a clean roster upload of the caller's Commission. See `start`. */
+  /**
+   * Starts importing a clean roster upload of the caller's Commission. See `start`. Files are the
+   * reporting officer's: an HR system sends batches only (spec #27 matrix), so its token gets 403.
+   */
   async startFile(
     principal: Principal,
     slug: string,
     body: StartFileImportBody,
   ): Promise<RosterImport> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
-    const upload = await this.uploads.describe(slug, body.uploadId).catch((error: unknown) => {
-      throw this.asProblem(error);
-    });
-    return this.start(principal, slug, {
+    const context = ownTenantContext(principal, slug);
+    if (isHrSystem(principal)) {
+      throw new ProblemException({
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: HttpStatus.FORBIDDEN,
+        detail: 'An HR system imports rows inline (channel `api`), not uploaded files.',
+      });
+    }
+    const upload = await this.uploads
+      .describe({ tenant: slug, uploadId: body.uploadId })
+      .catch((error: unknown) => {
+        throw this.asProblem(error);
+      });
+    return this.start(principal, context, {
       channel: 'file',
       declaredComplete: body.declaredComplete,
       uploadId: upload.id,
@@ -86,47 +100,49 @@ export class RosterImportsService {
     slug: string,
     body: StartBatchImportBody,
   ): Promise<RosterImport> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
     return this.start(
       principal,
-      slug,
+      ownTenantContext(principal, slug),
       { channel: 'api', declaredComplete: false, uploadId: null, fileName: null, format: 'json' },
       body.rows,
     );
   }
 
   /**
-   * Records the import as `pending` (with the batch's rows, for an API batch) and starts its
-   * workflow before the transaction ends. No import is left pending without a workflow (which
-   * would block the tenant's imports); a workflow whose import then fails to be saved finds
-   * none and ends (staging retries briefly, for the transaction to land).
+   * Records the import as `pending` (with the batch's rows, for an API batch), then starts its
+   * workflow once that has committed, so the workflow always finds its import. When the workflow
+   * cannot be started the import is withdrawn (503, nothing imported, safe to retry); an import
+   * left pending anyway (a crash between the two) gets its workflow when the next import of the
+   * tenant runs into it.
    * 409 `import-in-progress` while another import of the tenant is pending or processing.
    */
   private async start(
     principal: Principal,
-    slug: string,
+    context: TenantContext,
     source: Pick<ImportRow, 'channel' | 'declaredComplete' | 'uploadId' | 'fileName' | 'format'>,
     batchRows?: RawRosterRow[],
   ): Promise<RosterImport> {
+    const slug = context.tenant;
+    let row: ImportRow;
     try {
-      return await withTenant(this.db, { tenant: slug, subject: principal.subject }, async (tx) => {
+      row = await withTenant(this.db, context, async (tx) => {
         await requireCommission(tx, slug);
-        const [row] = await tx
+        const [inserted] = await tx
           .insert(rosterImports)
-          .values({ tenant: slug, ...source, ...startedBy(principal) })
+          .values({ tenant: slug, ...source, ...startedByColumns(rosterActorOf(principal)) })
           .returning();
-        if (!row) throw new Error('insert returned no row');
+        if (!inserted) throw new Error('insert returned no row');
         if (batchRows) {
           await tx
             .insert(rosterImportBatches)
-            .values({ importId: row.id, tenant: slug, rows: batchRows });
+            .values({ importId: inserted.id, tenant: slug, rows: batchRows });
         }
-        await this.startWorkflow(row);
-        return toRosterImport(row);
+        return inserted;
       });
     } catch (error) {
       if (violatedUniqueConstraint(error) === 'roster_imports_one_in_progress_key') {
-        const running = await this.runningImportId(slug, principal);
+        const running = await this.runningImport(context);
+        if (running?.state === 'pending') await this.recoverPending(running);
         throw new ProblemException(
           {
             type: 'import-in-progress',
@@ -135,10 +151,55 @@ export class RosterImportsService {
             detail:
               'Another roster import for this Commission is still running. Start this one when it has finished.',
           },
-          running === null ? {} : { importId: running },
+          running === undefined ? {} : { importId: running.id },
         );
       }
       throw error;
+    }
+
+    try {
+      await this.ensureWorkflow(row);
+    } catch (error) {
+      this.logger.error({ err: error }, `Could not start the workflow of roster import ${row.id}`);
+      const started = await this.withdraw(row, context);
+      if (started) return toRosterImport(started);
+      throw new ProblemException({
+        type: 'import-unavailable',
+        title: 'Imports unavailable',
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        detail: 'Imports cannot start right now, so nothing was imported. Try again shortly.',
+      });
+    }
+    return toRosterImport(row);
+  }
+
+  /**
+   * Deletes an import whose workflow could not be started (its batch rows go with it), unless
+   * the workflow did start after all (the start's outcome was lost) and has picked it up: then
+   * returns it as it is now.
+   */
+  private async withdraw(row: ImportRow, context: TenantContext): Promise<ImportRow | undefined> {
+    return withTenant(this.db, context, async (tx) => {
+      const deleted = await tx
+        .delete(rosterImports)
+        .where(and(eq(rosterImports.id, row.id), eq(rosterImports.state, 'pending')))
+        .returning({ id: rosterImports.id });
+      if (deleted.length > 0) return undefined;
+      const [current] = await tx.select().from(rosterImports).where(eq(rosterImports.id, row.id));
+      return current;
+    });
+  }
+
+  /**
+   * Starts the workflow of a pending import whose start was cut short, so it cannot block the
+   * tenant's imports forever. A no-op while its workflow runs. Best effort: the caller answers
+   * 409 either way.
+   */
+  private async recoverPending(row: ImportRow): Promise<void> {
+    try {
+      await this.ensureWorkflow(row);
+    } catch (error) {
+      this.logger.warn({ err: error }, `Could not recover roster import ${row.id}`);
     }
   }
 
@@ -201,9 +262,9 @@ export class RosterImportsService {
     slug: string,
     body: PreviewRosterImportBody,
   ): Promise<RosterImportPreview> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    const { tenant } = ownTenantContext(principal, slug);
     try {
-      const upload = await this.uploads.open(slug, body.uploadId);
+      const upload = await this.uploads.open({ tenant, uploadId: body.uploadId });
       return { uploadId: upload.id, ...(await previewRosterFile(upload)) };
     } catch (error) {
       throw this.asProblem(error);
@@ -211,88 +272,75 @@ export class RosterImportsService {
   }
 
   /** The tenant's pending or processing import, if it has not ended in the meantime. */
-  private async runningImportId(slug: string, principal: Principal): Promise<string | null> {
-    const [running] = await withTenant(
-      this.db,
-      { tenant: slug, subject: principal.subject },
-      (tx) =>
-        tx
-          .select({ id: rosterImports.id })
-          .from(rosterImports)
-          .where(
-            and(
-              eq(rosterImports.tenant, slug),
-              inArray(rosterImports.state, ['pending', 'processing']),
-            ),
+  private async runningImport(context: TenantContext): Promise<ImportRow | undefined> {
+    const [running] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select()
+        .from(rosterImports)
+        .where(
+          and(
+            eq(rosterImports.tenant, context.tenant),
+            inArray(rosterImports.state, ['pending', 'processing']),
           ),
+        ),
     );
-    return running?.id ?? null;
+    return running;
   }
 
-  private async startWorkflow(row: ImportRow): Promise<void> {
-    try {
-      await this.temporal.workflow.start<typeof rosterImport>(ROSTER_IMPORT_WORKFLOW, {
-        taskQueue: config.TEMPORAL_TASK_QUEUE,
-        workflowId: row.id,
-        args: [{ importId: row.id, tenant: row.tenant }],
-      });
-    } catch (error) {
-      this.logger.error({ err: error }, `Could not start the workflow of roster import ${row.id}`);
-      throw new ProblemException({
-        type: 'import-unavailable',
-        title: 'Imports unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'Imports cannot start right now, so nothing was imported. Try again shortly.',
-      });
-    }
+  /**
+   * Starts the import's workflow (workflow id = import id), or leaves the one already running:
+   * safe to repeat. A workflow that ended while its import is still pending is run again.
+   */
+  private async ensureWorkflow(row: ImportRow): Promise<void> {
+    await this.temporal.workflow.start<typeof rosterImport>(ROSTER_IMPORT_WORKFLOW, {
+      taskQueue: config.TEMPORAL_TASK_QUEUE,
+      workflowId: row.id,
+      workflowIdConflictPolicy: 'USE_EXISTING',
+      args: [{ importId: row.id, tenant: row.tenant }],
+    });
   }
 
   /** Maps failures to read an upload to the problems callers receive; others pass through. */
   private asProblem(error: unknown): unknown {
-    if (error instanceof UploadNotFound) {
-      return new ProblemException({
-        type: 'upload-not-found',
-        title: 'Upload not found',
-        status: HttpStatus.NOT_FOUND,
-        detail: 'This Commission has no roster upload with that id.',
-      });
-    }
-    if (error instanceof UploadNotClean) {
-      return new ProblemException({
-        type: 'upload-not-clean',
-        title: 'Upload not clean',
-        status: HttpStatus.CONFLICT,
-        detail: 'The upload has not passed its checks, so it cannot be imported.',
-      });
-    }
-    if (error instanceof RosterFileError) {
-      return new ProblemException({
-        type: 'unreadable-file',
-        title: 'Unreadable file',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: error.message,
-      });
-    }
-    if (error instanceof DocumentsUnavailable) {
+    const failure = uploadFailureOf(error);
+    if (!failure) return error;
+    if (failure.kind === 'unavailable') {
       this.logger.warn({ err: error }, 'Documents unavailable for a roster upload');
-      return new ProblemException({
-        type: 'documents-unavailable',
-        title: 'Documents unavailable',
-        status: HttpStatus.BAD_GATEWAY,
-        detail: 'The uploaded file cannot be read right now. Try again shortly.',
-      });
     }
-    return error;
+    return new ProblemException(UPLOAD_PROBLEMS[failure.kind](failure.detail));
   }
 }
 
-/** Who started an import (decision 10): a user, or an HR system by its client id. */
-function startedBy(
-  principal: Principal,
-): Pick<ImportRow, 'startedByKind' | 'startedBy' | 'startedByName'> {
-  const actor = rosterActorOf(principal);
-  return { startedByKind: actor.kind, startedBy: actor.id, startedByName: actor.name };
-}
+/** The problems callers receive for an upload that cannot be read. */
+const UPLOAD_PROBLEMS: Record<
+  UploadFailureKind,
+  (detail: string) => Omit<ProblemDetails, 'instance'>
+> = {
+  'not-found': () => ({
+    type: 'upload-not-found',
+    title: 'Upload not found',
+    status: HttpStatus.NOT_FOUND,
+    detail: 'This Commission has no roster upload with that id.',
+  }),
+  'not-clean': () => ({
+    type: 'upload-not-clean',
+    title: 'Upload not clean',
+    status: HttpStatus.CONFLICT,
+    detail: 'The upload has not passed its checks, so it cannot be imported.',
+  }),
+  unreadable: (detail) => ({
+    type: 'unreadable-file',
+    title: 'Unreadable file',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail,
+  }),
+  unavailable: () => ({
+    type: 'documents-unavailable',
+    title: 'Documents unavailable',
+    status: HttpStatus.BAD_GATEWAY,
+    detail: 'The uploaded file cannot be read right now. Try again shortly.',
+  }),
+};
 
 export function toRosterImport(row: ImportRow): RosterImport {
   return {
@@ -305,12 +353,13 @@ export function toRosterImport(row: ImportRow): RosterImport {
     totalRows: row.totalRows,
     processedRows: row.processedRows,
     // Parsed for the contract's key order: jsonb stores keys in its own.
-    counts:
-      row.counts && importCountsSchema.parse({ ...row.counts, exitsRecorded: row.exitsRecorded }),
+    // Imports that ended before `noted` existed have none: nothing was noted then.
+    counts: row.counts && importCountsSchema.parse({ noted: 0, ...(row.counts as object) }),
     mapping: row.mapping && columnMappingSchema.parse(row.mapping),
     failure:
       row.failureCode === null ? null : { code: row.failureCode, detail: row.failureDetail ?? '' },
-    startedBy: { kind: row.startedByKind, id: row.startedBy, name: row.startedByName },
+    // Who started it (decision 10): a user, or an HR system by its client id.
+    startedBy: startedByOf(row),
     startedAt: row.startedAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,
     rowsRetainedUntil: rowsRetainedUntil(row.completedAt)?.toISOString() ?? null,

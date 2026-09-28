@@ -28,6 +28,7 @@ import { type SyntheticEvent, useId, useReducer, useRef, useState } from 'react'
 
 import type { ExitsResult } from '../../server/directory/client';
 import { confirmRosterExits } from '../../server/roster-exits';
+import { goToSignIn } from '../sign-in-redirect';
 import {
   checkExits,
   type ExitDateErrors,
@@ -117,9 +118,7 @@ export function ConfirmExitsDialogContent({
     }
     const failure = exitsFailure(officers, result.error);
     if (failure.kind === 'sign-in') {
-      window.location.assign(
-        `/auth/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`,
-      );
+      goToSignIn();
       return;
     }
     if (failure.kind === 'stale') {

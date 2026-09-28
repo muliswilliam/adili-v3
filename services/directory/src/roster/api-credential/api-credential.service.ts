@@ -6,10 +6,12 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
+import { ownTenantContext } from '../../commissions/access.js';
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
 import type { DirectorySchema } from '../../db/schema.js';
+import { eventActorOf, rosterActorOf } from '../actor.js';
 import {
   ApiClientNotFound,
   IdentityProvisioning,
@@ -73,7 +75,7 @@ export class ApiCredentialService {
           scopes: [ROSTER_WRITE_SCOPE],
         });
         issued = { row, secret };
-        await this.record(tx, slug, 'created', clientId);
+        await this.record(tx, principal, slug, 'created', clientId);
         return withSecret(row, secret);
       });
     } catch (error) {
@@ -93,12 +95,14 @@ export class ApiCredentialService {
       return await this.inTenant(principal, slug, async (tx) => {
         const current = await this.active(tx, slug);
         const { secret } = await this.identity.rotateApiClientSecret(current.keycloakClientId);
+        // The time the rotation took effect, not the transaction's start (`now()`): tokens of
+        // the old secret can be minted until the identity provider has rotated it.
         const [row] = await tx
           .update(rosterApiCredentials)
-          .set({ rotatedAt: sql`now()` })
+          .set({ rotatedAt: sql`clock_timestamp()` })
           .where(eq(rosterApiCredentials.tenant, slug))
           .returning();
-        await this.record(tx, slug, 'rotated', current.keycloakClientId);
+        await this.record(tx, principal, slug, 'rotated', current.keycloakClientId);
         return withSecret(row ?? current, secret);
       });
     } catch (error) {
@@ -117,9 +121,9 @@ export class ApiCredentialService {
         await this.identity.disableApiClient(current.keycloakClientId);
         await tx
           .update(rosterApiCredentials)
-          .set({ revokedAt: sql`now()` })
+          .set({ revokedAt: sql`clock_timestamp()` })
           .where(eq(rosterApiCredentials.tenant, slug));
-        await this.record(tx, slug, 'revoked', current.keycloakClientId);
+        await this.record(tx, principal, slug, 'revoked', current.keycloakClientId);
       });
     } catch (error) {
       throw asProblem(
@@ -138,8 +142,7 @@ export class ApiCredentialService {
     slug: string,
     work: (tx: Transaction) => Promise<T>,
   ): Promise<T> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
-    return withTenant(this.db, { tenant: slug, subject: principal.subject }, work);
+    return withTenant(this.db, ownTenantContext(principal, slug), work);
   }
 
   /**
@@ -193,11 +196,19 @@ export class ApiCredentialService {
 
   private async record(
     tx: Transaction,
+    principal: Principal,
     slug: string,
     action: ApiCredentialAction,
     clientId: string,
   ): Promise<void> {
-    await this.events.record(tx, apiCredentialChanged(slug, { action, clientId }));
+    await this.events.record(
+      tx,
+      apiCredentialChanged(slug, {
+        action,
+        clientId,
+        actor: eventActorOf(rosterActorOf(principal)),
+      }),
+    );
   }
 }
 

@@ -9,6 +9,7 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../../src/roster/import/roster-uploads.js';
+import { componentSchema, contractErrors } from '../support/contract.js';
 
 /**
  * The documents adapter against a stub documents service and object store on a local port:
@@ -16,6 +17,7 @@ import {
  */
 const UPLOAD_ID = '0199a000-0000-7000-8000-00000000abcd';
 const CSV = 'text/csv';
+const REF = { tenant: 'psc', uploadId: UPLOAD_ID };
 const FILE = 'personnel_file_number,full_name,national_id\nPSC/1,Jane Doe,12345678\n';
 
 type Handler = (request: IncomingMessage) => {
@@ -55,25 +57,33 @@ beforeEach(() => {
 });
 
 /** Documents answering the download request with `download`, and storage serving FILE. */
-function documents(download: Partial<{ status: number; body: unknown }> = {}): Handler {
+function documents(
+  download: Partial<{ status: number; body: unknown; raw: string }> = {},
+): Handler {
   return (request) => {
     if (request.url?.startsWith('/files/')) return { status: 200, raw: FILE };
     return {
       status: download.status ?? 200,
-      body: download.body ?? {
-        id: UPLOAD_ID,
-        purpose: 'roster-import',
-        state: 'clean',
-        downloadUrl: `${baseUrl}/files/${UPLOAD_ID}`,
-        expiresAt: '2026-09-28T10:05:00.000Z',
-        sha256: 'ab'.repeat(32),
-        size: FILE.length,
-        fileName: 'roster.csv',
-        detectedType: CSV,
-      },
+      raw: download.raw,
+      body: download.body ?? uploadDownload(),
     };
   };
 }
+
+/** Documents' answer to the download request for UPLOAD_ID, as its contract describes it. */
+const uploadDownload = (): Record<string, unknown> => ({
+  id: UPLOAD_ID,
+  purpose: 'roster-import',
+  state: 'clean',
+  downloadUrl: `${baseUrl}/files/${UPLOAD_ID}`,
+  expiresAt: '2026-09-28T10:05:00.000Z',
+  sha256: 'ab'.repeat(32),
+  size: FILE.length,
+  fileName: 'roster.csv',
+  detectedType: CSV,
+});
+
+const UPLOAD_DOWNLOAD = componentSchema('UploadDownload');
 
 function adapter(
   tokens = ['token-1', 'token-2'],
@@ -104,7 +114,7 @@ describe('HttpRosterUploads', () => {
   it('asks documents with its token acting for the tenant, then streams the file', async () => {
     const { uploads } = adapter();
 
-    const upload = await uploads.open('psc', UPLOAD_ID);
+    const upload = await uploads.open(REF);
 
     expect(upload).toMatchObject({
       id: UPLOAD_ID,
@@ -124,7 +134,7 @@ describe('HttpRosterUploads', () => {
   it('describes an upload without downloading it', async () => {
     const { uploads } = adapter();
 
-    expect(await uploads.describe('psc', UPLOAD_ID)).toMatchObject({ format: 'csv' });
+    expect(await uploads.describe(REF)).toMatchObject({ format: 'csv' });
     expect(requests).toHaveLength(1);
   });
 
@@ -140,7 +150,7 @@ describe('HttpRosterUploads', () => {
       },
     });
 
-    expect(await adapter().uploads.describe('psc', UPLOAD_ID)).toMatchObject({ format: 'xlsx' });
+    expect(await adapter().uploads.describe(REF)).toMatchObject({ format: 'xlsx' });
   });
 
   it('retries once with a fresh token after a 401', async () => {
@@ -149,7 +159,7 @@ describe('HttpRosterUploads', () => {
     handler = (request) => (++calls === 1 ? { status: 401 } : ok(request));
     const { uploads, invalidations } = adapter();
 
-    await uploads.describe('psc', UPLOAD_ID);
+    await uploads.describe(REF);
 
     expect(invalidations()).toBe(1);
     expect(requests.map((request) => request.headers.authorization)).toEqual([
@@ -163,7 +173,7 @@ describe('HttpRosterUploads', () => {
     ['409', { status: 409 }, UploadNotClean],
     ['500', { status: 500 }, DocumentsUnavailable],
     ['401 twice', { status: 401 }, DocumentsUnavailable],
-    ['a body that is not an UploadDownload', { body: { id: UPLOAD_ID } }, DocumentsUnavailable],
+    ['a body that is not JSON', { raw: '<html>Bad gateway</html>' }, DocumentsUnavailable],
     [
       'an upload for another purpose',
       {
@@ -181,7 +191,24 @@ describe('HttpRosterUploads', () => {
   ])('maps %s', async (_case, download, error) => {
     handler = documents(download);
 
-    await expect(adapter().uploads.describe('psc', UPLOAD_ID)).rejects.toBeInstanceOf(error);
+    await expect(adapter().uploads.describe(REF)).rejects.toBeInstanceOf(error);
+  });
+
+  it("stubs documents' answer as its contract describes it", () => {
+    expect(contractErrors(UPLOAD_DOWNLOAD, uploadDownload(), 'documents')).toEqual([]);
+  });
+
+  it.each([
+    ['without a download URL', { downloadUrl: undefined }],
+    ['with a size that is not a number', { size: '12' }],
+    ['with an id that is not a UUID', { id: 'upload-1' }],
+    ['with a file name that is not a string', { fileName: 12 }],
+  ])('refuses an answer %s, which breaks the contract, as unavailable', async (_case, change) => {
+    const body = { ...uploadDownload(), ...change };
+    expect(contractErrors(UPLOAD_DOWNLOAD, body, 'documents')).not.toEqual([]);
+    handler = documents({ body });
+
+    await expect(adapter().uploads.describe(REF)).rejects.toBeInstanceOf(DocumentsUnavailable);
   });
 
   describe('reading a large file', () => {
@@ -216,7 +243,7 @@ describe('HttpRosterUploads', () => {
       slowStorage(8, 25);
       const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 100 });
 
-      const upload = await uploads.open('psc', UPLOAD_ID);
+      const upload = await uploads.open(REF);
 
       // 8 chunks x 25 ms is well past both timeouts in total.
       expect(await text(upload.body)).toContain('row 7');
@@ -226,7 +253,7 @@ describe('HttpRosterUploads', () => {
       slowStorage(3, 5);
       const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 50 });
 
-      const upload = await uploads.open('psc', UPLOAD_ID);
+      const upload = await uploads.open(REF);
       let read = '';
       for await (const chunk of upload.body) {
         read += Buffer.from(chunk).toString('utf8');
@@ -244,7 +271,7 @@ describe('HttpRosterUploads', () => {
           : ok(request);
       const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 50 });
 
-      const upload = await uploads.open('psc', UPLOAD_ID);
+      const upload = await uploads.open(REF);
 
       await expect(text(upload.body)).rejects.toBeInstanceOf(DocumentsUnavailable);
     });
@@ -255,7 +282,7 @@ describe('HttpRosterUploads', () => {
         request.url?.startsWith('/files/') ? { status: 200, stream: () => undefined } : ok(request);
       const { uploads } = adapter(undefined, { headersTimeoutMs: 50 });
 
-      await expect(uploads.open('psc', UPLOAD_ID)).rejects.toBeInstanceOf(DocumentsUnavailable);
+      await expect(uploads.open(REF)).rejects.toBeInstanceOf(DocumentsUnavailable);
     });
   });
 
@@ -263,9 +290,7 @@ describe('HttpRosterUploads', () => {
     const ok = documents();
     handler = (request) => (request.url?.startsWith('/files/') ? { status: 403 } : ok(request));
 
-    await expect(adapter().uploads.open('psc', UPLOAD_ID)).rejects.toBeInstanceOf(
-      DocumentsUnavailable,
-    );
+    await expect(adapter().uploads.open(REF)).rejects.toBeInstanceOf(DocumentsUnavailable);
   });
 
   it('reports an unreachable documents service as unavailable', async () => {
@@ -274,6 +299,6 @@ describe('HttpRosterUploads', () => {
       tokens: { token: () => Promise.resolve('token'), invalidate: () => undefined },
     });
 
-    await expect(uploads.describe('psc', UPLOAD_ID)).rejects.toBeInstanceOf(DocumentsUnavailable);
+    await expect(uploads.describe(REF)).rejects.toBeInstanceOf(DocumentsUnavailable);
   });
 });

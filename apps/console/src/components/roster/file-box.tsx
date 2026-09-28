@@ -28,7 +28,7 @@ export function FileBox({
       <span
         aria-hidden="true"
         className={cn(
-          'grid size-10 shrink-0 place-items-center rounded-[10px] text-[11px] font-bold tracking-[0.02em]',
+          'grid size-10 shrink-0 place-items-center rounded-lg text-[11px] font-bold tracking-[0.02em]',
           format === 'csv'
             ? 'bg-info-subtle text-info-subtle-foreground'
             : 'bg-success-subtle text-success',

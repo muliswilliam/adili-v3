@@ -2,11 +2,11 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { RECORD_STATES, rosterRecordsQuery } from '../components/roster/records-query';
+import { commissionSlug } from './commission-slug';
 import { asViewer } from './as-viewer.server';
 import {
   callDirectory,
   type DirectoryResult,
-  type RosterImportPage,
   type RosterRecord,
   type RosterRecordPage,
 } from './directory/client';
@@ -15,10 +15,9 @@ import {
  * The Commission whose roster to read: the session's tenant on roster routes, the path's slug on
  * a Commission's pages (platform admins, EACC).
  */
-const slug = z.string().min(1).max(40);
 
 export const listRosterRecordsInput = z.object({
-  slug,
+  slug: commissionSlug,
   search: z.string().max(200).optional(),
   state: z.enum(RECORD_STATES).optional(),
   flagged: z.literal(true).optional(),
@@ -52,25 +51,12 @@ export const listRosterRecords = createServerFn({ method: 'GET' })
  * so the directory audits the read) and the imports that touched the record.
  */
 export const getRosterRecord = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug, recordId: z.uuid() }))
+  .validator(z.object({ slug: commissionSlug, recordId: z.uuid() }))
   .handler(({ data }): Promise<DirectoryResult<RosterRecord>> =>
     asViewer((client) =>
       callDirectory(() =>
         client.GET('/v1/commissions/{slug}/roster/records/{recordId}', {
           params: { path: { slug: data.slug, recordId: data.recordId } },
-        }),
-      ),
-    ),
-  );
-
-/** `GET /v1/commissions/{slug}/roster/imports`: the newest imports first. */
-export const listRecentRosterImports = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug, limit: z.number().int().min(1).max(100) }))
-  .handler(({ data }): Promise<DirectoryResult<RosterImportPage>> =>
-    asViewer((client) =>
-      callDirectory(() =>
-        client.GET('/v1/commissions/{slug}/roster/imports', {
-          params: { path: { slug: data.slug }, query: { limit: data.limit } },
         }),
       ),
     ),

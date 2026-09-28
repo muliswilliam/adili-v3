@@ -4,8 +4,9 @@ import { and, count, eq, isNotNull, or, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterImportRows, rosterImports } from '../schema.js';
-import { refreshRosterSummary } from '../summary.js';
+import { eventActorOf, startedByOf } from '../actor.js';
+import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
+import { recomputeRosterSummary } from '../summary.js';
 import { rosterImportCompleted, rosterImportFailed } from './events.js';
 import type { ImportCounts } from './representation.js';
 import { IMPORT_SUBJECT } from './staging.js';
@@ -13,7 +14,8 @@ import type { ImportRef, ImportResult } from './workflow-contract.js';
 
 /**
  * Ends an import in one transaction: writes its counts (tallied from its rows, so they are right
- * however often chunks were retried), its state and completion time, refreshes the tenant's
+ * however often chunks were retried), its state and completion time, deletes the stored rows of
+ * an API batch never staged, refreshes the tenant's
  * roster summary and records `roster.import.completed.v1` or `roster.import.failed.v1`.
  *
  * Idempotent: an import that has already ended (or does not exist) is left as it is and no
@@ -31,12 +33,16 @@ export async function finaliseImport(
         state: rosterImports.state,
         channel: rosterImports.channel,
         declaredComplete: rosterImports.declaredComplete,
+        startedByKind: rosterImports.startedByKind,
+        startedBy: rosterImports.startedBy,
+        startedByName: rosterImports.startedByName,
       })
       .from(rosterImports)
       .where(and(eq(rosterImports.id, ref.importId), eq(rosterImports.tenant, ref.tenant)))
       .for('update');
     if (!current || current.state === 'completed' || current.state === 'failed') return;
 
+    const actor = eventActorOf(startedByOf(current));
     const counts = await tally(tx, ref.importId, {
       flaggedAbsent: result.state === 'completed' ? (result.flaggedAbsent ?? 0) : 0,
     });
@@ -50,10 +56,12 @@ export async function finaliseImport(
         failureDetail: result.state === 'failed' ? result.failure.detail : null,
       })
       .where(eq(rosterImports.id, ref.importId));
+    // An API batch never staged (the import failed first) is not kept: its rows are personal data.
+    await tx.delete(rosterImportBatches).where(eq(rosterImportBatches.importId, ref.importId));
 
-    // Chunks applied before a failure changed records too, so the summary is refreshed either way.
+    // Records the import as the latest in the summary; after a failure, recounts all the same.
     if (result.state === 'completed') {
-      await refreshRosterSummary(tx, ref.tenant, {
+      await recomputeRosterSummary(tx, ref.tenant, {
         id: ref.importId,
         declaredComplete: current.declaredComplete,
       });
@@ -64,15 +72,17 @@ export async function finaliseImport(
           channel: current.channel,
           declaredComplete: current.declaredComplete,
           counts,
+          actor,
         }),
       );
     } else {
-      await refreshRosterSummary(tx, ref.tenant);
+      await recomputeRosterSummary(tx, ref.tenant);
       await events.record(
         tx,
         rosterImportFailed(ref.tenant, {
           importId: ref.importId,
           failureCode: result.failure.code,
+          actor,
         }),
       );
     }
@@ -94,6 +104,7 @@ async function tally(
       status: rosterImportRows.status,
       outcome: rosterImportRows.outcome,
       rows: count(),
+      noted: sql<number>`count(*) filter (where jsonb_array_length(${rosterImportRows.notes}) > 0)::int`,
     })
     .from(rosterImportRows)
     .where(
@@ -110,11 +121,13 @@ async function tally(
     unchanged: 0,
     rejected: 0,
     flaggedAbsent: extra.flaggedAbsent,
+    noted: 0,
     exitsRecorded: 0,
   };
-  for (const { status, outcome, rows } of groups) {
+  for (const { status, outcome, rows, noted } of groups) {
     counts[status] += rows;
     if (outcome !== null) counts[outcome] += rows;
+    counts.noted += noted;
   }
   return counts;
 }

@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { importRunning } from '../components/roster/import-report';
+import { commissionSlug } from './commission-slug';
 import { asViewer } from './as-viewer.server';
 import {
   callDirectory,
@@ -18,9 +20,6 @@ export const IMPORT_HISTORY_PAGE_SIZE = 20;
 /** Rejected rows per page of an import's report (spec 02). */
 export const REJECTED_ROWS_PAGE_SIZE = 50;
 
-/** The viewer's own Commission: roster routes carry no slug, the session's tenant names it. */
-const slug = z.string().min(1).max(40);
-
 /** What the wizard's column check shows about a clean upload. */
 export interface RosterUploadCheck {
   preview: RosterImportPreview;
@@ -37,7 +36,7 @@ export interface RosterUploadCheck {
  * Commission's roster summary, whose emptiness sets the "complete roster" default.
  */
 export const checkRosterUpload = createServerFn({ method: 'POST' })
-  .validator(z.object({ slug, uploadId: z.uuid() }))
+  .validator(z.object({ slug: commissionSlug, uploadId: z.uuid() }))
   .handler(({ data }): Promise<DirectoryResult<RosterUploadCheck>> =>
     asViewer(async (client) => {
       const [preview, commission] = await Promise.all([
@@ -67,7 +66,7 @@ export const checkRosterUpload = createServerFn({ method: 'POST' })
 export const startRosterImport = createServerFn({ method: 'POST' })
   .validator(
     z.object({
-      slug,
+      slug: commissionSlug,
       idempotencyKey: z.uuid(),
       uploadId: z.uuid(),
       declaredComplete: z.boolean(),
@@ -93,7 +92,7 @@ export const startRosterImport = createServerFn({ method: 'POST' })
 
 /** `GET /v1/commissions/{slug}/roster/imports/{importId}`: progress, mapping and counts. */
 export const getRosterImport = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug, importId: z.uuid() }))
+  .validator(z.object({ slug: commissionSlug, importId: z.uuid() }))
   .handler(({ data }): Promise<DirectoryResult<RosterImport>> =>
     asViewer((client) =>
       callDirectory(() =>
@@ -109,7 +108,7 @@ export const getRosterImport = createServerFn({ method: 'GET' })
  * processing. At most one runs per tenant, and it is among the newest.
  */
 export const findRunningRosterImport = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug }))
+  .validator(z.object({ slug: commissionSlug }))
   .handler(({ data }): Promise<DirectoryResult<RosterImport | null>> =>
     asViewer(async (client) => {
       const page = await callDirectory(() =>
@@ -118,16 +117,14 @@ export const findRunningRosterImport = createServerFn({ method: 'GET' })
         }),
       );
       if (!page.ok) return page;
-      const running = page.data.items.find(
-        (item) => item.state === 'pending' || item.state === 'processing',
-      );
+      const running = page.data.items.find(importRunning);
       return { ok: true, data: running ?? null };
     }),
   );
 
 /** `GET /v1/commissions/{slug}/roster/imports`: one page of the import history, newest first. */
 export const listRosterImports = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug, cursor: z.string().max(500).optional() }))
+  .validator(z.object({ slug: commissionSlug, cursor: z.string().max(500).optional() }))
   .handler(({ data }): Promise<DirectoryResult<RosterImportPage>> =>
     asViewer((client) =>
       callDirectory(() =>
@@ -147,7 +144,9 @@ export const listRosterImports = createServerFn({ method: 'GET' })
  * rows are purged, 30 days after the import ended.
  */
 export const listRejectedRows = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug, importId: z.uuid(), cursor: z.string().max(500).optional() }))
+  .validator(
+    z.object({ slug: commissionSlug, importId: z.uuid(), cursor: z.string().max(500).optional() }),
+  )
   .handler(({ data }): Promise<DirectoryResult<RosterImportRowPage>> =>
     asViewer((client) =>
       callDirectory(() =>

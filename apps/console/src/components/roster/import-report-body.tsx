@@ -2,12 +2,13 @@ import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
 import {
   AlertCircleIcon,
   Flag02Icon,
+  InformationCircleIcon,
   MinusSignIcon,
   PencilEdit02Icon,
   Tick02Icon,
   UserAdd01Icon,
 } from '@hugeicons/core-free-icons';
-import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 
 import type {
   DirectoryResult,
@@ -16,6 +17,7 @@ import type {
   RosterImportRowPage,
 } from '../../server/directory/client';
 import { formatNumber } from '../format';
+import { goToSignIn } from '../sign-in-redirect';
 import { rowsPurged } from './import-report';
 import { messages as m } from './messages';
 import { RejectedRows } from './rejected-rows';
@@ -37,8 +39,9 @@ const TILES = [
 
 /**
  * What an ended import did (wizard step 5 and the import report): the five counts, a warning
- * with the way to review them when officers were flagged as absent, then the rejected rows with
- * their CSV, or that none were rejected. Nothing while the import has no counts.
+ * with the way to review them when officers were flagged as absent, a note when some are on
+ * another Commission's roster too, then the rejected rows with their CSV, or that none were
+ * rejected. Nothing while the import has no counts.
  */
 export function ImportReportBody({
   imp,
@@ -46,6 +49,8 @@ export function ImportReportBody({
   returnTo,
   initialRows,
   rowsPager,
+  reportCsvUrl,
+  reviewFlagged,
 }: {
   imp: RosterImport;
   /** Reads a page of the import's rejected rows (`listRejectedRows` in the app). */
@@ -56,6 +61,10 @@ export function ImportReportBody({
   initialRows?: DirectoryResult<RosterImportRowPage>;
   /** Keeps the page of rejected rows on show in the URL; otherwise in component state. */
   rowsPager?: RejectedRowsPager;
+  /** Where the console serves the rejected rows CSV (`reportCsvUrl`). */
+  reportCsvUrl: string;
+  /** The way to review the officers flagged as absent (a link button); null when the viewer may not. */
+  reviewFlagged: ReactNode;
 }) {
   const counts = imp.counts;
   if (!counts) return null;
@@ -81,12 +90,22 @@ export function ImportReportBody({
         <Alert variant="warning" role="status" className="mt-4">
           <Icon icon={Flag02Icon} />
           <AlertTitle>{m.flaggedTitle(counts.flaggedAbsent)}</AlertTitle>
-          <AlertDescription>
-            {m.flaggedText}
-            <Button asChild variant="secondary" size="sm" className="mt-2.5 flex w-fit">
-              <Link to="/roster/flagged">{m.reviewFlaggedButton}</Link>
-            </Button>
-          </AlertDescription>
+          {/* The call to review only for viewers who may: EACC reads the count alone. */}
+          {reviewFlagged ? (
+            <AlertDescription>
+              {m.flaggedText}
+              <Button asChild variant="secondary" size="sm" className="mt-2.5 flex w-fit">
+                {reviewFlagged}
+              </Button>
+            </AlertDescription>
+          ) : null}
+        </Alert>
+      ) : null}
+      {counts.noted > 0 ? (
+        <Alert variant="info" role="status" className="mt-4">
+          <Icon icon={InformationCircleIcon} />
+          <AlertTitle>{m.notedTitle(counts.noted)}</AlertTitle>
+          <AlertDescription>{m.notedText}</AlertDescription>
         </Alert>
       ) : null}
       {counts.rejected === 0 ? (
@@ -101,6 +120,7 @@ export function ImportReportBody({
           returnTo={returnTo}
           initialRows={initialRows}
           rowsPager={rowsPager}
+          reportCsvUrl={reportCsvUrl}
         />
       )}
     </>
@@ -113,12 +133,14 @@ function ImportRejectedRows({
   returnTo,
   initialRows,
   rowsPager,
+  reportCsvUrl,
 }: {
   imp: RosterImport;
   readRows: RejectedRowsDeps['read'];
   returnTo: string;
   initialRows?: DirectoryResult<RosterImportRowPage>;
   rowsPager?: RejectedRowsPager;
+  reportCsvUrl: string;
 }) {
   // Past the retention date the directory has purged the rows (410): say so without asking.
   const purged = rowsPurged(imp);
@@ -127,12 +149,12 @@ function ImportRejectedRows({
     {
       read: readRows,
       onUnauthenticated: () => {
-        window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
+        goToSignIn(returnTo);
       },
     },
     { initial: initialRows, pager: rowsPager },
   );
-  const { downloading, download } = useReportDownload(imp, returnTo);
+  const { downloading, download } = useReportDownload(imp, reportCsvUrl, returnTo);
   return (
     <RejectedRows
       imp={imp}

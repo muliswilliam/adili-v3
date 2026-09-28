@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 import type { Transaction } from '../commissions/commissions.service.js';
 import type { RosterSummary } from '../commissions/representation.js';
@@ -46,13 +46,20 @@ export interface CompletedImport {
 
 /**
  * Recomputes the tenant's roster summary from its records and stores it, in the caller's
- * transaction, so the summary changes atomically with the roster (spec #27). A full count of the
- * tenant's records: run once per import, when it ends (the records its chunks changed count from
- * then on); changes to a known set of records adjust the summary instead (`adjustRosterSummary`).
- * `completedImport` also records the import as the latest one (and as the latest complete one
- * when declared complete); its time is the transaction's.
+ * transaction, so the summary changes atomically with the roster (spec #27: recomputed by SQL in
+ * the same transaction as the change). Every change to a tenant's records calls it after the
+ * change: import chunks, flagging, exits and keeps, and the import's end. One aggregate over the
+ * tenant's records (about 30 ms at 436,000, TSC's size, on the covering index
+ * `roster_records_tenant_summary_idx`). `completedImport` also records the import as the latest
+ * one (and as the latest complete one when declared complete); its time is the transaction's.
+ *
+ * The summary row is locked before counting, so concurrent changes store their counts in turn,
+ * each counted after the ones before it committed: a count taken before a change committed never
+ * overwrites one that includes it. Lock order is the same everywhere: callers lock the records
+ * they change, then this locks the summary row and counts without locking records, so two
+ * changes cannot deadlock.
  */
-export async function refreshRosterSummary(
+export async function recomputeRosterSummary(
   tx: Transaction,
   tenant: string,
   completedImport?: CompletedImport,
@@ -60,6 +67,14 @@ export async function refreshRosterSummary(
   const importId = completedImport?.id ?? null;
   const completeAt = completedImport?.declaredComplete ? sql`now()` : sql`null::timestamptz`;
   const importAt = completedImport ? sql`now()` : sql`null::timestamptz`;
+  // A row to lock even for the tenant's first count (a concurrent first insert is waited for).
+  await tx.execute(sql`
+    insert into roster_summaries (tenant, expected, onboarded, flagged, updated_at)
+    values (${tenant}, 0, 0, 0, now())
+    on conflict (tenant) do nothing
+  `);
+  await tx.execute(sql`select 1 from roster_summaries where tenant = ${tenant} for update`);
+  // A statement of its own after the lock: its snapshot includes whatever the lock waited for.
   await tx.execute(sql`
     insert into roster_summaries
       (tenant, expected, onboarded, flagged, last_import_id, last_import_at, last_complete_import_at, updated_at)
@@ -84,36 +99,4 @@ export async function refreshRosterSummary(
         coalesce(excluded.last_complete_import_at, roster_summaries.last_complete_import_at),
       updated_at = excluded.updated_at
   `);
-}
-
-/** How a change to some records moves the summary's counts. */
-export interface RosterSummaryDelta {
-  expected: number;
-  onboarded: number;
-  flagged: number;
-}
-
-/**
- * Moves the tenant's roster summary by `delta`, in the caller's transaction, for a change to
- * records the caller has locked and whose before and after it knows (exits, keeps): the cost of
- * the change, not of the roster. Without a summary row yet, counts the records instead. While an
- * import is running, records its chunks changed are counted when it ends, so the counts may be
- * off until then; its full count puts them right.
- */
-export async function adjustRosterSummary(
-  tx: Transaction,
-  tenant: string,
-  delta: RosterSummaryDelta,
-): Promise<void> {
-  const adjusted = await tx
-    .update(rosterSummaries)
-    .set({
-      expected: sql`greatest(0, ${rosterSummaries.expected} + ${delta.expected})`,
-      onboarded: sql`greatest(0, ${rosterSummaries.onboarded} + ${delta.onboarded})`,
-      flagged: sql`greatest(0, ${rosterSummaries.flagged} + ${delta.flagged})`,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(rosterSummaries.tenant, tenant))
-    .returning({ tenant: rosterSummaries.tenant });
-  if (adjusted.length === 0) await refreshRosterSummary(tx, tenant);
 }

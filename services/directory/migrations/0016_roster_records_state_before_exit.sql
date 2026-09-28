@@ -1,0 +1,2 @@
+ALTER TABLE "roster_records" ADD COLUMN "state_before_exit" text;--> statement-breakpoint
+ALTER TABLE "roster_records" ADD CONSTRAINT "roster_records_state_before_exit_check" CHECK ("roster_records"."state_before_exit" is null or ("roster_records"."state" = 'exited' and "roster_records"."state_before_exit" in ('not_onboarded', 'onboarded')));

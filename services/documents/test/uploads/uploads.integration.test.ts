@@ -1,11 +1,11 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { uploads } from '../../src/db/schema.js';
+import { outbox, uploads } from '../../src/db/schema.js';
 import { CSV, XLSX } from '../../src/uploads/purposes.js';
 import type {
   Upload,
@@ -13,7 +13,12 @@ import type {
   UploadReservation,
 } from '../../src/uploads/representation.js';
 import { UploadsService } from '../../src/uploads/uploads.service.js';
-import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
+import {
+  componentSchema,
+  contractErrors,
+  contractOperation,
+  okResponse,
+} from '../support/contract.js';
 import { type Caller, type DocumentsApi, startDocumentsApi } from '../support/documents-api.js';
 import { EICAR, fixture, PNG } from '../support/files.js';
 
@@ -243,6 +248,19 @@ describe('S3 refused files', () => {
     expect(await objectStatus('quarantine', `roster-import/${reservation.id}`)).toBe(404);
   });
 
+  it('rejects a CSV that is not UTF-8 with encoding, so the officer can save it as CSV UTF-8', async () => {
+    const reservation = await upload(
+      Buffer.from('personnel_file_number,full_name\nPSC/1,Ren\xe9 Otieno\n', 'latin1'),
+    );
+
+    expect((await complete(reservation.id)).json()).toMatchObject({
+      state: 'rejected',
+      rejection: 'encoding',
+      detectedType: null,
+    });
+    expect(await objectStatus('quarantine', `roster-import/${reservation.id}`)).toBe(404);
+  });
+
   it('rejects a CSV declared as XLSX with type', async () => {
     const reservation = await upload(fixture('roster.csv'), XLSX);
 
@@ -287,6 +305,60 @@ describe('S3 refused files', () => {
 
     expect(again.statusCode).toBe(409);
     expect(again.json<Problem>().type).toBe('upload-completed');
+  });
+});
+
+describe('Idempotency-Key (ADR-013 §7.5)', () => {
+  const request = {
+    purpose: 'roster-import',
+    contentType: CSV,
+    declaredSize: 10,
+    fileName: 'Roster 2026.csv',
+  };
+
+  it('replays a create retried with its key instead of reserving a second upload', async () => {
+    const idempotencyKey = randomUUID();
+
+    const first = await api.post('/v1/uploads', request, OFFICER, { idempotencyKey });
+    const retry = await api.post('/v1/uploads', request, OFFICER, { idempotencyKey });
+
+    expect(first.statusCode).toBe(201);
+    expect(retry.statusCode).toBe(201);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json<UploadReservation>().id).toBe(first.json<UploadReservation>().id);
+  });
+
+  it('replays a completion retried with its key: the final state, not a 409', async () => {
+    const reservation = await upload(fixture('roster.csv'));
+    const idempotencyKey = randomUUID();
+    const path = `/v1/uploads/${reservation.id}/complete`;
+
+    const first = await api.post(path, undefined, OFFICER, { idempotencyKey });
+    const retry = await api.post(path, undefined, OFFICER, { idempotencyKey });
+
+    expect(first.json<Upload>()).toMatchObject({ state: 'clean' });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json<Upload>()).toEqual(first.json<Upload>());
+  });
+
+  it('requires the key on create and complete', async () => {
+    const reservation = await reserve(fixture('roster.csv'));
+
+    const create = await api.post('/v1/uploads', request, OFFICER, { idempotencyKey: null });
+    const completion = await api.post(
+      `/v1/uploads/${reservation.id}/complete`,
+      undefined,
+      OFFICER,
+      {
+        idempotencyKey: null,
+      },
+    );
+
+    for (const response of [create, completion]) {
+      expect(response.statusCode).toBe(400);
+      expect(response.json<Problem>().type).toBe('idempotency-key-missing');
+    }
   });
 });
 
@@ -337,6 +409,26 @@ describe('internal download', () => {
   beforeAll(async () => {
     clean = await upload(bytes);
     await complete(clean.id);
+  });
+
+  it('is an audited read of the document (ADR-008)', async () => {
+    expect(contractOperation('/internal/v1/uploads/{id}/download', 'get')).toMatchObject({
+      'x-audited-read': { action: 'upload.download.issued', resource: 'upload' },
+    });
+
+    expect((await download(clean.id)).statusCode).toBe(200);
+
+    const audited = await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'));
+    expect(audited.at(-1)?.envelope).toMatchObject({
+      source: 'adili/documents',
+      // The tenant the service acted for, whose document it read.
+      tenant: 'psc',
+      data: {
+        action: 'upload.download.issued',
+        resource: { type: 'upload', params: { id: clean.id } },
+        outcome: 'success',
+      },
+    });
   });
 
   it('returns a 5-minute presigned GET of the clean bytes to a service acting for the tenant', async () => {

@@ -4,10 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import type { Commission, RosterSummary } from '../../src/commissions/representation.js';
-import { rosterRecords } from '../../src/db/schema.js';
+import { outbox, rosterRecords } from '../../src/db/schema.js';
 import type { RosterImport } from '../../src/roster/import/representation.js';
 import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
-import { refreshRosterSummary } from '../../src/roster/summary.js';
+import { recomputeRosterSummary } from '../../src/roster/summary.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenApiCredential, givenCommissions } from '../support/fixtures.js';
@@ -92,7 +92,7 @@ async function givenRecord(
       .where(
         and(eq(rosterRecords.tenant, tenant), eq(rosterRecords.personnelFileNumber, fileNumber)),
       );
-    await refreshRosterSummary(tx, tenant);
+    await recomputeRosterSummary(tx, tenant);
   });
 }
 
@@ -192,6 +192,31 @@ describe('S20 visibility', () => {
     const response = await api.get(`${records('tsc')}/${recordId('TSC/0001')}`, PLATFORM_ADMIN);
     expect(response.statusCode).toBe(200);
     expect(response.json<RosterRecord>().nationalId).toBe('56789012');
+  });
+
+  it('records every read of a record in the audit trail (user story 43)', async () => {
+    const recordIdOfTsc = recordId('TSC/0001');
+
+    expect((await api.get(`${records('tsc')}/${recordIdOfTsc}`, PLATFORM_ADMIN)).statusCode).toBe(
+      200,
+    );
+
+    const audited = (
+      await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
+    ).map((row) => row.envelope);
+    expect(audited.at(-1)).toMatchObject({
+      source: 'adili/directory',
+      tenant: 'tsc',
+      data: {
+        action: 'roster.record.viewed',
+        resource: { type: 'roster-record', params: { slug: 'tsc', recordId: recordIdOfTsc } },
+        actor: { tenant: 'platform', roles: ['platform-admin'] },
+        outcome: 'success',
+        request: { method: 'GET', route: '/v1/commissions/:slug/roster/records/:recordId' },
+      },
+    });
+    // Ids only: no personal data from the record.
+    expect(JSON.stringify(audited)).not.toContain('56789012');
   });
 
   it('answers 404 to a platform admin for a record of another Commission or none', async () => {

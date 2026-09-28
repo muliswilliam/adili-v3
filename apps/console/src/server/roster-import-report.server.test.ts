@@ -48,7 +48,7 @@ describe('rosterImportReportResponse', () => {
         }),
     );
 
-    const response = await rosterImportReportResponse(request(), IMPORT_ID, deps);
+    const response = await rosterImportReportResponse(request(), { importId: IMPORT_ID }, deps);
 
     expect(requests[0]?.url).toBe(
       `http://directory.test/v1/commissions/psc/roster/imports/${IMPORT_ID}/report.csv`,
@@ -65,6 +65,21 @@ describe('rosterImportReportResponse', () => {
     );
   });
 
+  it("reads a Commission's CSV by its slug, for platform admins on its page", async () => {
+    const { deps, requests } = depsAnswering(() => new Response('csv'), { tenant: 'platform' });
+
+    const response = await rosterImportReportResponse(
+      request(),
+      { importId: IMPORT_ID, slug: 'tsc' },
+      deps,
+    );
+
+    expect(response.status).toBe(200);
+    expect(requests[0]?.url).toBe(
+      `http://directory.test/v1/commissions/tsc/roster/imports/${IMPORT_ID}/report.csv`,
+    );
+  });
+
   it('passes a refusal through, e.g. purged rows', async () => {
     const problem = { type: 'import-rows-purged', title: 'Gone', status: 410 };
     const { deps } = depsAnswering(
@@ -75,7 +90,7 @@ describe('rosterImportReportResponse', () => {
         }),
     );
 
-    const response = await rosterImportReportResponse(request(), IMPORT_ID, deps);
+    const response = await rosterImportReportResponse(request(), { importId: IMPORT_ID }, deps);
 
     expect(response.status).toBe(410);
     expect(await response.json()).toEqual(problem);
@@ -84,7 +99,7 @@ describe('rosterImportReportResponse', () => {
   it('asks a signed-out user to sign in', async () => {
     const { deps, requests } = depsAnswering(() => new Response(''), { accessToken: null });
 
-    const response = await rosterImportReportResponse(request(), IMPORT_ID, deps);
+    const response = await rosterImportReportResponse(request(), { importId: IMPORT_ID }, deps);
 
     expect(response.status).toBe(401);
     expect(requests).toHaveLength(0);
@@ -93,8 +108,12 @@ describe('rosterImportReportResponse', () => {
   it('finds nothing without a Commission or with a malformed id', async () => {
     const { deps, requests } = depsAnswering(() => new Response(''), { tenant: null });
 
-    expect((await rosterImportReportResponse(request(), IMPORT_ID, deps)).status).toBe(404);
-    expect((await rosterImportReportResponse(request(), 'not-a-uuid', deps)).status).toBe(404);
+    expect(
+      (await rosterImportReportResponse(request(), { importId: IMPORT_ID }, deps)).status,
+    ).toBe(404);
+    expect(
+      (await rosterImportReportResponse(request(), { importId: 'not-a-uuid' }, deps)).status,
+    ).toBe(404);
     expect(requests).toHaveLength(0);
   });
 
@@ -103,6 +122,8 @@ describe('rosterImportReportResponse', () => {
       throw new TypeError('fetch failed');
     });
 
-    expect((await rosterImportReportResponse(request(), IMPORT_ID, deps)).status).toBe(502);
+    expect(
+      (await rosterImportReportResponse(request(), { importId: IMPORT_ID }, deps)).status,
+    ).toBe(502);
   });
 });

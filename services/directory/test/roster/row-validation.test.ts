@@ -64,6 +64,25 @@ describe('createRowValidator', () => {
     ]);
   });
 
+  it('lets only accepted rows claim their keys, so a corrected re-entry is accepted', () => {
+    const validate = createRowValidator();
+
+    // Rejected for its name: neither its file number nor its national ID is imported.
+    expect(validate({ ...base, fullName: 'J' }, 2).status).toBe('rejected');
+    expect(validate(base, 3)).toMatchObject({ status: 'accepted', errors: [] });
+    // Rejected as a duplicate of row 3: its new national ID is not claimed either.
+    expect(validate({ ...base, nationalId: '87654321' }, 4).errors).toEqual([
+      {
+        field: 'personnelFileNumber',
+        code: 'duplicate-in-file',
+        message: 'Same file number as row 3',
+      },
+    ]);
+    expect(validate({ ...base, personnelFileNumber: 'A2', nationalId: '87654321' }, 5).status).toBe(
+      'accepted',
+    );
+  });
+
   it('does not let a malformed value claim a key', () => {
     const validate = createRowValidator();
 

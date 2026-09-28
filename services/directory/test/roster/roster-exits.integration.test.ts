@@ -11,7 +11,7 @@ import type { ExitsResult, KeepResult } from '../../src/roster/exits/representat
 import type { RosterImport } from '../../src/roster/import/representation.js';
 import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
 import { todayInNairobi } from '../../src/roster/row-validation.js';
-import { refreshRosterSummary } from '../../src/roster/summary.js';
+import { recomputeRosterSummary } from '../../src/roster/summary.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -113,7 +113,12 @@ const storedRecords = () =>
   );
 
 const events = async (type: string) =>
-  (await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox))
+  (
+    await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .orderBy(outbox.id)
+  )
     .filter((event) => event.type === type)
     .map((event) => event.envelope);
 
@@ -530,12 +535,62 @@ describe('S13 import row for an exited officer', () => {
     expect(reactivated.imports[0]).toMatchObject({ importId: back.id, outcome: 'updated' });
     expect(await summary()).toMatchObject({ expectedDeclarants: 4, flagged: 1 });
   });
+
+  /** Wanjiru onboarded (slice 03 sets it; a fixture here), then exited. */
+  async function givenOnboardedWanjiruExited(): Promise<string> {
+    const { ids } = await givenTwoFlagged();
+    const wanjiru = idOf(ids, 'PSC/0003');
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, async (tx) => {
+      await tx
+        .update(rosterRecords)
+        .set({ state: 'onboarded' })
+        .where(eq(rosterRecords.id, wanjiru));
+      await recomputeRosterSummary(tx, 'psc');
+    });
+    await confirmExits({ records: [{ recordId: wanjiru }], exitDate: daysAgo(10) });
+    expect(await summary()).toMatchObject({ expectedDeclarants: 3, onboardedDeclarants: 0 });
+    return wanjiru;
+  }
+
+  it('gives an officer who had onboarded their onboarded state back', async () => {
+    const wanjiru = await givenOnboardedWanjiruExited();
+
+    const back = await importRoster([ROW.wanjiru.replace(',Officer', ',Senior Officer')], false);
+
+    expect(back.counts).toMatchObject({ updated: 1, rejected: 0 });
+    expect(await record(wanjiru)).toMatchObject({
+      state: 'onboarded',
+      exitDate: null,
+      designation: 'Senior Officer',
+    });
+    expect(await summary()).toMatchObject({ expectedDeclarants: 4, onboardedDeclarants: 1 });
+  });
+
+  it('keeps the identity lock of an exited officer who had onboarded', async () => {
+    const wanjiru = await givenOnboardedWanjiruExited();
+
+    const back = await importRoster(['PSC/0003,Wanjiru Kamau,99999999,Officer'], false);
+
+    expect(back.counts).toMatchObject({ updated: 0, rejected: 1 });
+    const [row] = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx.select().from(rosterImportRows).where(eq(rosterImportRows.importId, back.id)),
+    );
+    expect(row).toMatchObject({
+      status: 'rejected',
+      recordId: wanjiru,
+      errors: [expect.objectContaining({ field: 'nationalId', code: 'identity-locked' })],
+    });
+    // The row was rejected whole: the officer stays exited, with the national ID they had.
+    const stored = (await storedRecords()).find((item) => item.id === wanjiru);
+    expect(stored).toMatchObject({ state: 'exited', nationalId: '34567890' });
+    expect(await summary()).toMatchObject({ expectedDeclarants: 3, onboardedDeclarants: 0 });
+  });
 });
 
 describe('roster summary after exits and keeps', () => {
   const recount = () =>
     withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
-      refreshRosterSummary(tx, 'psc'),
+      recomputeRosterSummary(tx, 'psc'),
     );
 
   const storedSummary = () =>

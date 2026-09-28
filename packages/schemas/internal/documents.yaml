@@ -17,6 +17,14 @@ paths:
       summary: Reserve an upload and get a presigned PUT to quarantine
       description: "The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
       operationId: createUpload
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -38,6 +46,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
           description: Your roles do not allow uploads for this purpose
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -83,6 +97,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Final state after scanning
@@ -98,6 +119,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
           description: Problem type `upload-completed` (already clean, infected or rejected), `upload-expired`, or `upload-completing` (another request is completing it).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -160,6 +187,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: upload.download.issued
+        resource: upload
   /internal/v1/documents/issue:
     post:
       tags:
@@ -314,9 +344,11 @@ components:
       type: string
       enum:
         - type
+        - encoding
         - size
         - missing
         - timeout
+      description: 'Why a rejected upload was refused: `type` the bytes are not the declared type; `encoding` a CSV that is not UTF-8 text (save it as CSV UTF-8); `size` over the limit or not the declared size; `missing` nothing was uploaded; `timeout` the checks did not finish'
     CreateUpload:
       type: object
       properties:

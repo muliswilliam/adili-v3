@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import ExcelJS from 'exceljs';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
@@ -72,10 +72,14 @@ async function startImport(content: string, declaredComplete = true): Promise<Ro
 }
 
 /** Polls the import like the console does until it has ended. */
-async function untilEnded(id: string, caller: Caller = OFFICER): Promise<RosterImport> {
+async function untilEnded(
+  id: string,
+  caller: Caller = OFFICER,
+  imports = IMPORTS,
+): Promise<RosterImport> {
   const deadline = Date.now() + 25_000;
   for (;;) {
-    const response = await api.get(`${IMPORTS}/${id}`, caller);
+    const response = await api.get(`${imports}/${id}`, caller);
     expect(response.statusCode, response.body).toBe(200);
     const body = response.json<RosterImport>();
     if (body.state === 'completed' || body.state === 'failed') return body;
@@ -214,6 +218,7 @@ describe('S4 file import', () => {
             channel: 'file',
             declaredComplete: true,
             counts: done.counts,
+            actor: { kind: 'user', id: 'officer-psc' },
           },
         }) as unknown,
       },
@@ -295,7 +300,11 @@ describe('S5 missing required column', () => {
       expect.objectContaining({
         type: 'roster.import.failed.v1',
         tenant: 'psc',
-        data: { importId: done.id, failureCode: 'missing-columns' },
+        data: {
+          importId: done.id,
+          failureCode: 'missing-columns',
+          actor: { kind: 'user', id: 'officer-psc' },
+        },
       }),
     ]);
   });
@@ -382,6 +391,119 @@ describe('S10 identity lock', () => {
 
     expect(done.counts).toMatchObject({ updated: 1, rejected: 0 });
     expect((await records())[0]?.nationalId).toBe('99887766');
+  });
+});
+
+describe('national ID on another roster', () => {
+  const TSC_OFFICER: Caller = { sub: 'officer-tsc', tenant: 'tsc', roles: ['reporting-officer'] };
+
+  /** tsc's roster: Kiprono (still there) and Wanjiru (exited, a transfer already resolved). */
+  async function givenTscRoster(): Promise<void> {
+    const tsc = '/v1/commissions/tsc/roster';
+    const uploadId = api.uploads.add('tsc', {
+      bytes: csv(
+        ['TSC/1,Kiprono Kipchumba,12345678', 'TSC/2,Wanjiru Kamau,34567890'],
+        'personnel_file_number,full_name,national_id',
+      ),
+    });
+    const started = await api.post(
+      `${tsc}/imports`,
+      { channel: 'file', uploadId, declaredComplete: true },
+      TSC_OFFICER,
+    );
+    expect(started.statusCode, started.body).toBe(202);
+    const done = await untilEnded(started.json<RosterImport>().id, TSC_OFFICER, `${tsc}/imports`);
+    expect(done.counts).toMatchObject({ created: 2, noted: 0 });
+    const page = (await api.get(`${tsc}/records?search=TSC/2`, TSC_OFFICER)).json<{
+      items: { id: string }[];
+    }>();
+    const exit = await api.post(
+      `${tsc}/exits`,
+      { records: [{ recordId: page.items[0]?.id }], exitDate: '2026-01-15' },
+      TSC_OFFICER,
+    );
+    expect(exit.statusCode, exit.body).toBe(200);
+  }
+
+  it('applies the row and notes it, without naming the other Commission', async () => {
+    await givenTscRoster();
+
+    const done = await importFile(csv(ROWS));
+
+    expect(done.counts).toMatchObject({ accepted: 3, created: 3, rejected: 0, noted: 1 });
+    const response = await api.get(`${IMPORTS}/${done.id}/rows`, OFFICER);
+    expect(response.statusCode, response.body).toBe(200);
+    expect(contractErrors(okResponse(`${IMPORT_PATH}/rows`, 'get'), response.json())).toEqual([]);
+    const rows = response.json<{ items: { rowNumber: number; notes: unknown[] }[] }>().items;
+    expect(rows.map((row) => [row.rowNumber, row.notes])).toEqual([
+      [2, []],
+      [
+        3,
+        [
+          {
+            field: 'nationalId',
+            code: 'national-id-on-another-roster',
+            message: expect.any(String) as string,
+          },
+        ],
+      ],
+      // Wanjiru has exited tsc's roster: nothing to note.
+      [4, []],
+    ]);
+    expect(response.body).not.toMatch(/tsc|Teachers/i);
+    // Allowed: both rosters keep the officer.
+    expect((await records()).filter((record) => record.nationalId === '12345678')).toHaveLength(2);
+  });
+
+  it("looks at other rosters without leaving the importing tenant's context", async () => {
+    await givenTscRoster();
+
+    const seen = await withTenant(api.db, { tenant: 'psc', subject: 'test' }, async (tx) => {
+      const { rows: found } = await tx.execute(
+        sql`select roster_national_ids_on_other_rosters(array['12345678', '34567890', '1', '12345678']) as found`,
+      );
+      const { rows: context } = await tx.execute<{ tenant: string }>(
+        sql`select current_setting('app.tenant') as tenant`,
+      );
+      const visible = await tx.select().from(rosterRecords);
+      return { found, context: context[0]?.tenant, visible };
+    });
+
+    // One boolean per ID asked about, in order, and nothing else of the other roster.
+    expect(seen).toEqual({
+      found: [{ found: [true, false, false, true] }],
+      context: 'psc',
+      visible: [],
+    });
+  });
+
+  it('answers only in a Commission context, and only for other Commissions', async () => {
+    await givenTscRoster();
+    const lookup = (tenant: string) =>
+      withTenant(api.db, { tenant, subject: 'test' }, async (tx) => {
+        const { rows } = await tx.execute<{ found: boolean[] }>(
+          sql`select roster_national_ids_on_other_rosters(array['12345678']) as found`,
+        );
+        return rows[0]?.found;
+      });
+
+    // tsc's own officer is not "on another roster" for tsc.
+    expect(await lookup('tsc')).toEqual([false]);
+    await expect(lookup('platform')).rejects.toThrow();
+  });
+
+  it('runs as its owner with a pinned search path, and PUBLIC may not call it', async () => {
+    const { rows } = await api.db.execute(sql`
+      select p.prosecdef as definer,
+        p.proconfig = array['search_path=pg_catalog, ' || current_schema() || ', pg_temp']
+          as "searchPathPinned",
+        has_function_privilege('public', p.oid, 'execute') as "publicCanExecute"
+      from pg_proc as p
+      where p.proname = 'roster_national_ids_on_other_rosters'
+        and p.pronamespace = current_schema()::regnamespace
+    `);
+
+    expect(rows).toEqual([{ definer: true, searchPathPinned: true, publicCanExecute: false }]);
   });
 });
 

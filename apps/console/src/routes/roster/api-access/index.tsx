@@ -43,7 +43,7 @@ import {
 import { ROSTER_WRITE_SCOPE } from '../../../components/roster/api-docs';
 import { CredentialField } from '../../../components/roster/credential-field';
 import { messages as m } from '../../../components/roster/messages';
-import { signInRedirect } from '../../../components/sign-in-redirect';
+import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
 import type {
   DirectoryError,
   DirectoryResult,
@@ -149,7 +149,7 @@ function Credentials({
   };
 
   const signIn = () => {
-    window.location.assign(`/auth/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
+    goToSignIn(PAGE_PATH);
   };
 
   /** Handles a failed action; returns the message to show in its dialog, if it stays open. */

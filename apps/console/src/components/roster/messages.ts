@@ -19,6 +19,11 @@ export const en = {
   templateXlsx: 'Excel template (.xlsx)',
   templateError: 'The template could not be downloaded. Try again.',
   importRoster: 'Import roster',
+  runningBanner: (processed: number, total: number) =>
+    `An import is running: ${formatNumber(processed)} of ${formatNumber(total)} rows`,
+  runningBannerReading: 'An import is running: reading the file',
+  viewRunningImport: 'View import',
+  waitForImport: 'Wait for the current import to finish',
   summaryCards: 'Roster summary',
   expectedDeclarants: 'Expected declarants',
   onboarded: 'Onboarded',
@@ -193,6 +198,9 @@ export const en = {
   infectedTitle: 'This file failed the security scan and was not imported.',
   infectedText: 'Scan the source computer and export the file again.',
   rejectedType: 'This is not a CSV or Excel file.',
+  rejectedEncoding: 'This CSV is not saved as UTF-8.',
+  rejectedEncodingText:
+    'In Excel, choose Save As > CSV UTF-8 (Comma delimited), then upload the file again.',
   rejectedSize: 'The file is over 50 MB.',
   uploadFailed: 'The upload did not complete. Try again.',
   retryUpload: 'Try again',
@@ -296,6 +304,10 @@ export const en = {
   flaggedTitle: (count: number) =>
     `${formatNumber(count)} ${count === 1 ? 'officer was' : 'officers were'} not in this file.`,
   flaggedText: 'Review them to confirm exits.',
+  notedTitle: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'officer is' : 'officers are'} also on another Commission's roster.`,
+  notedText:
+    'That is allowed: officers move between Commissions. They were imported as usual; nothing to do.',
   importAnother: 'Import another file',
   // Rejected rows (step 5 and the import report)
   rejectedRowsTitle: 'Rejected rows',

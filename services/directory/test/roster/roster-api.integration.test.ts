@@ -141,7 +141,12 @@ const recordExit = (
 ) => api.post(exitPath(fileNumber, slug), { exitDate }, caller);
 
 const events = async (type: string) =>
-  (await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox))
+  (
+    await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .orderBy(outbox.id)
+  )
     .filter((event) => event.type === type)
     .map((event) => event.envelope);
 
@@ -211,7 +216,11 @@ describe('S15 batch import', () => {
     expect(await events('roster.import.completed.v1')).toEqual([
       expect.objectContaining({
         tenant: 'psc',
-        data: expect.objectContaining({ importId: started.id, channel: 'api' }) as unknown,
+        data: expect.objectContaining({
+          importId: started.id,
+          channel: 'api',
+          actor: { kind: 'client', id: PSC_CLIENT },
+        }) as unknown,
       }),
     ]);
   });
@@ -321,6 +330,19 @@ describe('S16 tenant, scope and batch shape', () => {
     expectProblem(await api.get(`${ROSTER}/summary`, noScope), 403);
   });
 
+  it('403s an HR system starting a file import, and records nothing', async () => {
+    const response = await api.post(
+      IMPORTS,
+      { channel: 'file', uploadId: randomUUID(), declaredComplete: false },
+      PSC_HR,
+      { idempotencyKey: randomUUID() },
+    );
+
+    expectProblem(response, 403);
+    const history = await api.get(IMPORTS, OFFICER);
+    expect(history.json<RosterImportPage>().items).toEqual([]);
+  });
+
   it('400s 1,001 rows, and no rows', async () => {
     const tooMany = expectProblem(await pushBatch(manyRows(1001)), 400);
     expect(contractErrors(componentSchema('RosterBatchProblem'), tooMany)).toEqual([]);
@@ -428,7 +450,7 @@ describe('S17 explicit exit', () => {
     expect(problem.errors).toEqual([expect.objectContaining({ path: 'exitDate' })]);
   });
 
-  it('counts the exit on the complete import that flagged the officer', async () => {
+  it('leaves the counts of the import that flagged the officer as they were at its end', async () => {
     await imported([ACHIENG, KIPRONO]);
     const uploadId = api.uploads.add('psc', {
       bytes: `personnel_file_number,full_name,national_id\n${ACHIENG.personnelFileNumber},${ACHIENG.fullName},${ACHIENG.nationalId}\n`,
@@ -445,8 +467,14 @@ describe('S17 explicit exit', () => {
 
     expect((await recordExit(KIPRONO.personnelFileNumber)).statusCode).toBe(200);
 
+    // The counts are a snapshot, as roster.import.completed.v1 carried them: a later exit is the
+    // reporting officer's or the HR system's act, not the import's.
     const after = await api.get(`${IMPORTS}/${complete.id}`, OFFICER);
-    expect(after.json<RosterImport>().counts).toMatchObject({ flaggedAbsent: 1, exitsRecorded: 1 });
+    expect(after.json<RosterImport>().counts).toEqual(complete.counts);
+    const completed = await events('roster.import.completed.v1');
+    expect(completed.find((event) => event.subject === complete.id)?.data).toMatchObject({
+      counts: complete.counts,
+    });
   });
 });
 
@@ -469,6 +497,17 @@ describe('credential enforcement', () => {
 
     expectProblem(await api.get(`${ROSTER}/summary`, { ...PSC_HR, iat: issuedAt }), 401);
     expect((await api.get(`${ROSTER}/summary`, PSC_HR)).statusCode).toBe(200);
+  });
+
+  it('401s tokens issued in the second of the rotation, which may be of the old secret', async () => {
+    const second = Math.floor(Date.now() / 1000) - 60;
+    await withTenant(api.db, { tenant: 'psc', subject: 'test' }, (tx) =>
+      tx.update(rosterApiCredentials).set({ rotatedAt: new Date(second * 1000 + 500) }),
+    );
+
+    expectProblem(await api.get(`${ROSTER}/summary`, { ...PSC_HR, iat: second }), 401);
+    const next = await api.get(`${ROSTER}/summary`, { ...PSC_HR, iat: second + 1 });
+    expect(next.statusCode).toBe(200);
   });
 
   it('401s roster:write tokens of a client that is not a credential of the tenant', async () => {

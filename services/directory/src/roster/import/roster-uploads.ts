@@ -1,5 +1,11 @@
 import type { RosterFileFormat } from '../roster-file.js';
 
+/** An upload read on behalf of a tenant: documents answers only for the tenant's own uploads. */
+export interface UploadRef {
+  tenant: string;
+  uploadId: string;
+}
+
 /** A clean roster upload as the documents service describes it. */
 export interface RosterUpload {
   id: string;
@@ -54,10 +60,10 @@ export abstract class RosterUploads {
   /**
    * The upload's metadata. Throws `UploadNotFound`, `UploadNotClean` or `DocumentsUnavailable`.
    */
-  abstract describe(tenant: string, uploadId: string): Promise<RosterUpload>;
+  abstract describe(ref: UploadRef): Promise<RosterUpload>;
 
   /** The upload's metadata and bytes. Throws like `describe`. */
-  abstract open(tenant: string, uploadId: string): Promise<OpenedRosterUpload>;
+  abstract open(ref: UploadRef): Promise<OpenedRosterUpload>;
 }
 
 const FORMATS: Record<string, RosterFileFormat> = {

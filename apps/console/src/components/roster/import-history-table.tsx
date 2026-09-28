@@ -46,12 +46,22 @@ export function StartedBy({ startedBy }: { startedBy: RosterImport['startedBy'] 
   );
 }
 
-function ReportLink({ imp }: { imp: RosterImport }) {
+/**
+ * The row's link to the import's report: on the viewer's own roster, or on Commission `slug`'s
+ * page (platform admins and EACC).
+ */
+function ReportLink({ imp, slug }: { imp: RosterImport; slug?: string }) {
   return (
     <TableRowLink asChild>
-      <Link to="/roster/imports/$importId" params={{ importId: imp.id }}>
-        {formatDateTime(imp.startedAt)}
-      </Link>
+      {slug === undefined ? (
+        <Link to="/roster/imports/$importId" params={{ importId: imp.id }}>
+          {formatDateTime(imp.startedAt)}
+        </Link>
+      ) : (
+        <Link to="/commissions/$slug/imports/$importId" params={{ slug, importId: imp.id }}>
+          {formatDateTime(imp.startedAt)}
+        </Link>
+      )}
     </TableRowLink>
   );
 }
@@ -119,7 +129,7 @@ function Header() {
   );
 }
 
-function HistoryTable({ items }: { items: readonly RosterImport[] }) {
+function HistoryTable({ items, slug }: { items: readonly RosterImport[]; slug?: string }) {
   return (
     <Table caption={m.historyCaption}>
       <Header />
@@ -130,7 +140,7 @@ function HistoryTable({ items }: { items: readonly RosterImport[] }) {
             <TableRow key={imp.id}>
               <TableHead scope="row" className="min-w-[220px] font-normal whitespace-normal">
                 <span className="font-medium">
-                  <ReportLink imp={imp} />
+                  <ReportLink imp={imp} slug={slug} />
                 </span>
                 {subtitle ? (
                   <span className="block max-w-[260px] truncate text-[13px] text-muted-foreground">
@@ -169,7 +179,7 @@ function HistoryTable({ items }: { items: readonly RosterImport[] }) {
 }
 
 /** Below 900px each import is a card: when and what, its badges, then the counts. */
-function HistoryCards({ items }: { items: readonly RosterImport[] }) {
+function HistoryCards({ items, slug }: { items: readonly RosterImport[]; slug?: string }) {
   return (
     <ul aria-label={m.historyCaption}>
       {items.map((imp) => {
@@ -181,7 +191,7 @@ function HistoryCards({ items }: { items: readonly RosterImport[] }) {
           >
             <div className="min-w-0 leading-snug">
               <span className="font-medium">
-                <ReportLink imp={imp} />
+                <ReportLink imp={imp} slug={slug} />
               </span>
               {subtitle ? (
                 <span className="block truncate text-[13px] text-muted-foreground">{subtitle}</span>
@@ -232,14 +242,24 @@ function HistoryCards({ items }: { items: readonly RosterImport[] }) {
   );
 }
 
-export function ImportHistoryResults({ items }: { items: readonly RosterImport[] }) {
+/**
+ * A page of the import history: a table from 900px, cards below. Rows link to their reports on
+ * the viewer's own roster, or with `slug` on that Commission's page.
+ */
+export function ImportHistoryResults({
+  items,
+  slug,
+}: {
+  items: readonly RosterImport[];
+  slug?: string;
+}) {
   return (
     <>
       <div className="hidden min-[900px]:block">
-        <HistoryTable items={items} />
+        <HistoryTable items={items} slug={slug} />
       </div>
       <div className="min-[900px]:hidden">
-        <HistoryCards items={items} />
+        <HistoryCards items={items} slug={slug} />
       </div>
     </>
   );

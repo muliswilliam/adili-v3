@@ -9,8 +9,10 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
+  RequireIdempotencyKey,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
@@ -39,6 +41,7 @@ export class UploadsController {
   constructor(private readonly uploads: UploadsService) {}
 
   @Post()
+  @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'createUpload',
     summary: 'Reserve an upload and get a presigned PUT to quarantine',
@@ -77,6 +80,7 @@ export class UploadsController {
   }
 
   @Post(':id/complete')
+  @RequireIdempotencyKey()
   @ApiUploadIdParam()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -111,6 +115,7 @@ export class InternalUploadsController {
   constructor(private readonly uploads: UploadsService) {}
 
   @Get(':id/download')
+  @AuditedRead({ action: 'upload.download.issued', resource: 'upload' })
   @ApiUploadIdParam()
   @ApiOperation({
     operationId: 'getUploadDownload',

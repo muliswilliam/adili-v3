@@ -4,6 +4,12 @@
   "tasks": {
     "test": {
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/mocks/demo/rosters/*.csv"]
+    },
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/internal/documents.yaml"]
+    },
+    "typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/internal/documents.yaml"]
     }
   }
 }

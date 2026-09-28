@@ -1,7 +1,8 @@
 /**
  * Header naming the tenant a service acts for when it calls another service's internal API
  * with its own token. The callee trusts it only for tokens carrying the scope that grants that
- * internal API (e.g. `documents:internal`), and still checks the resource belongs to the tenant.
+ * internal API (e.g. `documents:internal`), and still checks the resource belongs to the tenant:
+ * internal routes only, the recorded exception to "tenant from token claims" in ADR-013 §8.1.
  */
 export const ACTING_TENANT_HEADER = 'x-acting-tenant';
 

@@ -18,17 +18,36 @@ env:
   TURBO_CACHE_DIR: .turbo
 
 jobs:
-  typescript:
-    name: TypeScript (lint, typecheck, test, build)
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
+    outputs:
+      packaging: ${{ steps.plan.outputs.packaging }}
+      keycloak: ${{ steps.plan.outputs.keycloak }}
+      integration: ${{ steps.plan.outputs.integration }}
+      python: ${{ steps.plan.outputs.python }}
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+        with:
+          # History back to the base commit, for the diff and Turborepo's affected packages.
+          fetch-depth: 0
+      - id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/ci-plan.mjs "$BASE" | tee -a "$GITHUB_OUTPUT"
+
+  typescript:
+    name: TypeScript (lint, typecheck, test, build, contracts)
+    runs-on: ubuntu-latest
+    needs: plan
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
@@ -37,31 +56,14 @@ jobs:
             turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
-      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks' --cache-dir=.turbo
+      # One task per vCPU (2 on this runner): more starves the test suites, whose timeouts then
+      # fire on tests that take milliseconds locally.
+      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks' --cache-dir=.turbo --concurrency=2
       - run: pnpm deps:check
       # Typecheck and build regenerate these (route trees, clients generated from the committed
       # contracts), so a stale committed copy shows up as a diff.
       - name: Generated files are committed
         run: git diff --exit-code -- '*.gen.ts'
-
-  contracts:
-    name: Contracts (Redocly, JSON Schema, drift)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-contracts-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-contracts-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-contracts-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
       - name: Lint OpenAPI (internal + external)
         run: pnpm --filter @adili/schemas lint:openapi
       - name: Meta-validate form JSON Schemas
@@ -70,15 +72,33 @@ jobs:
       # committed packages/schemas/internal/<service>.yaml (directory, documents).
       - name: Internal contracts match the services
         run: pnpm contracts:drift
+      # What the image does after the build (infra/docker/service.Dockerfile), on this job's
+      # install: a production install per service, whose code must load without dev packages.
+      - name: Services package for production
+        if: needs.plan.outputs.packaging != '[]'
+        env:
+          SERVICES: ${{ needs.plan.outputs.packaging }}
+        run: |
+          for service in $(echo "$SERVICES" | jq -r '.[]'); do
+            echo "::group::$service"
+            pnpm --filter "@adili/$service" deploy --prod --legacy "$RUNNER_TEMP/deploy/$service"
+            node --experimental-import-meta-resolve scripts/check-deploy-imports.mjs \
+              "$RUNNER_TEMP/deploy/$service"
+            rm -rf "$RUNNER_TEMP/deploy/$service"
+            echo '::endgroup::'
+          done
 
   keycloak:
     name: Keycloak
+    needs: plan
+    if: needs.plan.outputs.keycloak == 'true' || needs.plan.outputs.integration == 'true'
     uses: ./.github/workflows/keycloak.yml
 
   integration:
     name: Integration (Postgres, Valkey, RabbitMQ, OpenBao, Temporal, Keycloak)
     runs-on: ubuntu-latest
-    needs: keycloak
+    needs: [plan, keycloak]
+    if: needs.plan.outputs.integration == 'true'
     services:
       # As in infra/compose: `postgres` is the superuser and the init script (run below) creates
       # the non-superuser roles, so row-level security applies to the tests as to the services.
@@ -114,7 +134,8 @@ jobs:
       # Keycloak's realm sends email to host `mailpit`, as in infra/compose.
       mailpit:
         image: axllent/mailpit:v1.31.2
-        ports: ['8025:8025']
+        # 1025: SMTP for the notifications service the stack suite starts on the runner.
+        ports: ['8025:8025', '1025:1025']
         options: >-
           --health-cmd "/mailpit readyz" --health-interval 5s --health-timeout 5s --health-retries 20
       # Scans documents uploads (spec 02). The first start downloads the signature database,
@@ -156,10 +177,14 @@ jobs:
       - name: Start Keycloak with the realm import
         run: |
           docker run -d --name keycloak --network ${{ job.services.mailpit.network }} -p 8080:8080 \
+            --add-host host.docker.internal:host-gateway \
             -e KC_HOSTNAME=http://localhost:8080 -e KC_DB=dev-file \
+            -e ADILI_NOTIFICATIONS_URL=http://host.docker.internal:4010 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin_dev \
             -v "$PWD/infra/compose/keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro" \
+            -v "$PWD/infra/compose/keycloak/vault-dev:/opt/keycloak/vault:ro" \
             adili/keycloak:dev start-dev --import-realm
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -190,10 +215,65 @@ jobs:
           timeout 180 sh -c 'until curl -sf "$TEST_KEYCLOAK_ISSUER_URL/.well-known/openid-configuration" >/dev/null; do sleep 2; done' \
             || { docker logs keycloak; exit 1; }
       - run: pnpm test:integration
+      # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications
+      # service, the SMS mock and Mailpit, as a user drives it.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          # The default globs walk the whole checkout, node_modules included (minutes here).
+          cache-dependency-glob: mocks/uv.lock
+      - name: Start the mocks
+        working-directory: mocks
+        env:
+          DATABASE_URL: postgres://mocks:mocks_dev@localhost:5432/mocks
+          UV_ENV_FILE: .env.example
+        run: |
+          uv sync --locked
+          uv run python manage.py migrate -v0
+          uv run python manage.py seed_demo
+          # The venv's python, not `uv run`: a uv process left running holds uv's cache lock, and
+          # setup-uv's post-job cache prune then times out. It reads the same defaults itself.
+          (database_url="$DATABASE_URL"; set -a; . ./.env.example; DATABASE_URL="$database_url"; set +a
+            nohup .venv/bin/python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/mocks.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/mocks.pid")
+          timeout 60 sh -c 'until curl -sf http://localhost:8000/health >/dev/null; do sleep 1; done'
+      - name: Start notifications
+        working-directory: services/notifications
+        env:
+          PORT: '4010'
+          DATABASE_URL: postgres://adili_notifications:adili_notifications_dev@localhost:5432/adili_notifications
+          RABBITMQ_URL: amqp://adili:adili_dev@localhost:5672
+          SMS_GATEWAY_URL: http://localhost:8000/sms
+          LOG_LEVEL: info
+        # The committed local defaults fill in the rest; the job's environment takes precedence.
+        run: |
+          node --env-file=.env.example --import @swc-node/register/esm-register src/db/migrate.ts
+          nohup node --env-file=.env.example --import @swc-node/register/esm-register src/main.ts \
+            > "$RUNNER_TEMP/notifications.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/notifications.pid"
+          timeout 60 sh -c 'until curl -sf http://localhost:4010/health/live >/dev/null; do sleep 1; done' \
+            || { cat "$RUNNER_TEMP/notifications.log"; exit 1; }
+      - name: Sign-in stack tests (S22, S23)
+        env:
+          TEST_KEYCLOAK_URL: http://localhost:8080
+          TEST_MOCKS_URL: http://localhost:8000
+        run: pnpm --filter @adili/keycloak-extension test:stack
+      - name: Stack logs
+        if: failure()
+        run: |
+          docker logs keycloak 2>&1 | tail -200
+          tail -200 "$RUNNER_TEMP/notifications.log" "$RUNNER_TEMP/mocks.log" || true
+      - name: Stop the mocks and notifications
+        if: always()
+        run: |
+          for name in mocks notifications; do
+            [ -f "$RUNNER_TEMP/$name.pid" ] && kill "$(cat "$RUNNER_TEMP/$name.pid")" 2>/dev/null || true
+          done
 
   python:
     name: Python mocks (ruff, mypy, pytest)
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.python == 'true'
     defaults:
       run:
         working-directory: mocks
@@ -223,52 +303,38 @@ jobs:
       - name: External contracts match the mocks
         run: uv run python manage.py export_contracts && git diff --exit-code ../packages/schemas
 
-  images:
-    name: Image ${{ matrix.service }}
+  # Every service builds from the same Dockerfile, so one image checks it end to end; the
+  # TypeScript job packages each affected service the way the image does.
+  image:
+    name: Service image (${{ fromJson(needs.plan.outputs.packaging)[0] }})
     runs-on: ubuntu-latest
-    needs: typescript
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - directory
-          - declarations
-          - review
-          - access
-          - reporting
-          - documents
-          - verification-api
-          - ai-gateway
-          - integration-gateway
-          - notifications
-          - audit
+    needs: [plan, typescript]
+    if: needs.plan.outputs.packaging != '[]'
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: infra/docker/service.Dockerfile
-          build-args: SERVICE=${{ matrix.service }}
-          push: false
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - env:
+          SERVICE: ${{ fromJson(needs.plan.outputs.packaging)[0] }}
+        run: docker build -f infra/docker/service.Dockerfile --build-arg SERVICE="$SERVICE" .
 
   ci-passed:
     name: CI passed
     if: always()
-    needs: [typescript, contracts, keycloak, integration, python]
+    needs: [plan, typescript, keycloak, integration, python, image]
     runs-on: ubuntu-latest
     steps:
+      # Plan skips the jobs a change does not need; a skipped job passes only if Plan did.
       - name: Require every gate
+        env:
+          NEEDS: ${{ toJson(needs) }}
         run: |
           set -eu
-          echo '${{ toJson(needs) }}'
-          for job in typescript contracts keycloak integration python; do
-            result=$(echo '${{ toJson(needs) }}' | jq -r --arg job "$job" '.[$job].result')
+          for job in plan typescript keycloak integration python image; do
+            result=$(echo "$NEEDS" | jq -r --arg job "$job" '.[$job].result')
             echo "$job: $result"
-            if [ "$result" != success ]; then
-              echo "Required job $job did not succeed" >&2
-              exit 1
-            fi
+            case "$job:$result" in
+              *:success) ;;
+              plan:*|typescript:*) echo "Required job $job did not succeed" >&2; exit 1 ;;
+              *:skipped) ;;
+              *) echo "Required job $job did not succeed" >&2; exit 1 ;;
+            esac
           done

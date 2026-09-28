@@ -25,6 +25,7 @@ import type {
 } from '../../server/directory/client';
 import { LoadError, NoAccess } from '../load-error';
 import { SearchBox } from '../search-box';
+import { goToSignIn } from '../sign-in-redirect';
 import { IdentityMismatchBadge, IdentityMismatchFilterChip } from './identity-mismatch';
 import { messages as m } from './messages';
 import { isFlagged } from './record-imports';
@@ -244,9 +245,7 @@ function Results({
     }));
     setLoadingMore(false);
     if (!page.ok && page.error.kind === 'unauthenticated') {
-      window.location.assign(
-        `/auth/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`,
-      );
+      goToSignIn();
       return;
     }
     if (page.ok) setLoaded((current) => (current ? appendPage(current, page.data) : page.data));

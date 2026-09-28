@@ -44,7 +44,7 @@ export function MenuItem({ className, ...props }: ComponentProps<typeof MenuPrim
   return (
     <MenuPrimitive.Item
       className={cn(
-        'flex h-9 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-sm whitespace-nowrap outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-muted [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+        'flex h-9 cursor-default items-center gap-2.5 rounded-md px-2.5 text-sm whitespace-nowrap outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-muted [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
         className,
       )}
       {...props}

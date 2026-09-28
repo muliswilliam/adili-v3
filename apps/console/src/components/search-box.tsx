@@ -1,6 +1,6 @@
 import { cn, Icon, Input } from '@adili/ui';
 import { Search01Icon } from '@hugeicons/core-free-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 /** Wait this long after the last keystroke before searching (spec 01). */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -40,15 +40,17 @@ export function SearchBox({
     if (value.trim() !== applied) onSearch(value.trim());
   };
 
+  // The latest `applied` and `onSearch`, so the timer restarts on keystrokes only.
+  const applyLatest = useEffectEvent((value: string) => {
+    apply(value);
+  });
   useEffect(() => {
     const timer = setTimeout(() => {
-      apply(text);
+      applyLatest(text);
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       clearTimeout(timer);
     };
-    // Restart the timer on keystrokes only; `apply` changes with every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
 
   return (

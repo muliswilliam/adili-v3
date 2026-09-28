@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Card,
+  CardIcon,
   Icon,
   type IconProps,
   Menu,
@@ -22,12 +23,11 @@ import {
   Key01Icon,
   LeftToRightListBulletIcon,
   Search01Icon,
-  Upload04Icon,
   UserCheck01Icon,
   UserGroupIcon,
   Xls02Icon,
 } from '@hugeicons/core-free-icons';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
@@ -37,10 +37,15 @@ import { Page, PageHead } from '../../components/page';
 import { type CredentialState, credentialState } from '../../components/roster/api-credential';
 import { onboardedPercent, toOnboard } from '../../components/roster/coverage';
 import { messages as m } from '../../components/roster/messages';
+import { importRunning } from '../../components/roster/import-report';
+import { ImportRosterButton } from '../../components/roster/import-roster-button';
 import { type NextStep, nextSteps } from '../../components/roster/next-steps';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
+import { RunningImportBanner } from '../../components/roster/running-import-banner';
 import { Tile, TileValue } from '../../components/roster/tile';
+import { useImportPolling } from '../../components/roster/use-import-polling';
 import { useTemplateDownload } from '../../components/roster/use-template-download';
+import { goToSignIn } from '../../components/sign-in-redirect';
 import type {
   Commission,
   DirectoryResult,
@@ -48,7 +53,7 @@ import type {
   RosterSummary,
 } from '../../server/directory/client';
 import { getRosterApiCredential } from '../../server/roster-api-credential';
-import { getRosterImport } from '../../server/roster-imports';
+import { findRunningRosterImport, getRosterImport } from '../../server/roster-imports';
 
 interface OverviewData {
   commission: DirectoryResult<Commission>;
@@ -56,6 +61,8 @@ interface OverviewData {
   lastImport: DirectoryResult<RosterImport> | null;
   /** For the reporting officer's "Connect your HR system" step; null when unknown. */
   credential: CredentialState | null;
+  /** The import still running, if any (or null when that could not be read). */
+  running: RosterImport | null;
 }
 
 export const Route = createFileRoute('/roster/')({
@@ -64,12 +71,15 @@ export const Route = createFileRoute('/roster/')({
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
-    if (!slug) return { commission: noCommission, lastImport: null, credential: null };
-    const [layout, credential] = await Promise.all([
+    if (!slug) {
+      return { commission: noCommission, lastImport: null, credential: null, running: null };
+    }
+    const [layout, credential, running] = await Promise.all([
       // The layout loads the Commission (and signs in again when the session ended).
       parentMatchPromise,
       // Credentials are the reporting officer's alone; the directory refuses anyone else.
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
+      findRunningRosterImport({ data: { slug } }),
     ]);
     const commission = layout.loaderData?.commission ?? noCommission;
     const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
@@ -80,6 +90,7 @@ export const Route = createFileRoute('/roster/')({
       commission,
       lastImport,
       credential: credential?.ok ? credentialState(credential.data) : null,
+      running: running.ok ? running.data : null,
     };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
@@ -95,10 +106,13 @@ const noCommission: DirectoryResult<Commission> = {
 
 function RosterOverview() {
   const data = Route.useLoaderData();
-  const { workspace } = Route.useRouteContext();
+  const { workspace, tenant } = Route.useRouteContext();
+  const running = useRunningImport(tenant ?? null, data?.running ?? null);
   if (!data || !workspace) return null;
   const readOnly = workspace.readOnly;
   const result = data.commission;
+  const banner = running ? <RunningImportBanner imp={running} /> : null;
+  const importButton = readOnly ? null : <ImportRosterButton running={running !== null} />;
 
   if (!result.ok) {
     return (
@@ -114,7 +128,8 @@ function RosterOverview() {
     return (
       <Page>
         <OverviewHead commissionName={commission.name} readOnly={readOnly} />
-        <NoRoster readOnly={readOnly} />
+        {banner}
+        <NoRoster readOnly={readOnly} importButton={importButton} />
       </Page>
     );
   }
@@ -126,10 +141,11 @@ function RosterOverview() {
         actions={
           <>
             <TemplateMenu />
-            {readOnly ? null : <ImportButton />}
+            {importButton}
           </>
         }
       />
+      {banner}
       <SummaryTiles roster={roster} />
       <nav aria-label={m.links} className="mt-4 flex flex-wrap gap-2">
         <Button asChild variant="secondary" size="sm">
@@ -198,7 +214,7 @@ function OverviewHead({
 }
 
 /** The no-roster state (the prototype's `.empty` in a card, larger than a list's EmptyState). */
-function NoRoster({ readOnly }: { readOnly: boolean }) {
+function NoRoster({ readOnly, importButton }: { readOnly: boolean; importButton: ReactNode }) {
   return (
     <Card className="p-0 sm:p-0">
       <div className="flex flex-col items-center px-5 pt-12 pb-10 text-center">
@@ -214,7 +230,7 @@ function NoRoster({ readOnly }: { readOnly: boolean }) {
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2.5">
           <TemplateMenu />
-          {readOnly ? null : <ImportButton />}
+          {importButton}
         </div>
       </div>
     </Card>
@@ -247,16 +263,24 @@ function TemplateMenu() {
   );
 }
 
-/** The way into the import wizard. */
-function ImportButton() {
-  return (
-    <Button asChild>
-      <Link to="/roster/import">
-        <Icon icon={Upload04Icon} />
-        {m.importRoster}
-      </Link>
-    </Button>
-  );
+/**
+ * The import still running, kept current every 2 seconds while it runs; null once it ended (the
+ * overview's data is then read again, for the counts it changed) or when none runs.
+ */
+function useRunningImport(slug: string | null, loaded: RosterImport | null): RosterImport | null {
+  const router = useRouter();
+  const polling = useImportPolling(slug && loaded ? loaded.id : null, {
+    read: (importId) => getRosterImport({ data: { slug: slug ?? '', importId } }),
+    onUnauthenticated: () => {
+      goToSignIn('/roster');
+    },
+    onEnded: () => {
+      void router.invalidate({ filter: (match) => match.routeId === '/roster/' });
+    },
+  });
+  if (!loaded || polling.error === 'not-found') return null;
+  const current = polling.imp ?? loaded;
+  return importRunning(current) ? current : null;
 }
 
 function SummaryTiles({ roster }: { roster: RosterSummary }) {
@@ -417,12 +441,9 @@ const STEP_LINK =
 function StepBody({ step, label }: { step: NextStep; label: string }) {
   return (
     <>
-      <span
-        aria-hidden="true"
-        className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-muted text-secondary-foreground [&_svg]:size-[17px]"
-      >
+      <CardIcon className="mb-0 size-8 shrink-0 [&_svg]:size-[17px]">
         <Icon icon={STEP_ICONS[step.kind]} />
-      </span>
+      </CardIcon>
       <span className="min-w-0 flex-1">{label}</span>
       <Icon icon={ArrowRight01Icon} className="size-[17px] text-muted-foreground" />
     </>

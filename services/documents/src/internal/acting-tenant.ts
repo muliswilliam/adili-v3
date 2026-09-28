@@ -27,7 +27,7 @@ type InternalRequest = AuthenticatedRequest & { actingTenant?: string };
 /**
  * Admits service tokens carrying `documents:internal` and reads the tenant they act for from
  * `X-Acting-Tenant`. The header is trusted only because of the scope: a user token never gets
- * past this guard, whatever headers it sends (decision 2 of spec #27; ADR-013 §5).
+ * past this guard, whatever headers it sends (the recorded exception in ADR-013 §8.1).
  */
 @Injectable()
 export class ActingTenantGuard implements CanActivate {

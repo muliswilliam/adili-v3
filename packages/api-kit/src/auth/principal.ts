@@ -23,6 +23,14 @@ export interface Principal {
   issuedAt: number | null;
 }
 
+/**
+ * The calling service: its OAuth client (`azp`), else the token subject. Services key what
+ * they keep for a caller (messages, jobs) by it, so only that caller can read it back.
+ */
+export function callerOf(principal: Principal): string {
+  return principal.clientId ?? principal.subject;
+}
+
 /** `Principal` for API documentation, e.g. a service's `/v1/me`. */
 export const principalSchema = z.object({
   subject: z.string().meta({ description: 'Keycloak user or service-account ID (`sub`)' }),

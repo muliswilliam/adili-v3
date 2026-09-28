@@ -95,6 +95,10 @@ describe('WizardUploadStep', () => {
 
   it.each([
     ['type', 'This is not a CSV or Excel file.'],
+    [
+      'encoding',
+      'This CSV is not saved as UTF-8.In Excel, choose Save As > CSV UTF-8 (Comma delimited)',
+    ],
     ['size', 'The file is over 50 MB.'],
   ] as const)('explains a file the service rejected for its %s', (reason, text) => {
     renderStep({ phase: 'rejected', file, reason });

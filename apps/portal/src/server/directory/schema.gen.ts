@@ -211,7 +211,7 @@ export interface paths {
         put?: never;
         /**
          * Start importing a clean roster upload, or a batch of rows
-         * @description Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`). At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key.
+         * @description Reporting officer of the Commission, with an upload (`channel: file`); the Commission's HR system (`roster:write`), with up to 1,000 rows inline (`channel: api`); an HR system sending `channel: file` gets 403, as files are the reporting officer's. At most one import may be pending or processing per Commission. Returns 202 with the import `pending`; poll `getRosterImport` for progress, counts and the failure reason, and `listRosterImportRows` for rejected rows. A batch is rejected with 400 only for its shape (row count, value types); rows that break the row rules are rejected in the report, like a file's. Idempotent per Idempotency-Key.
          */
         post: operations["startRosterImport"];
         delete?: never;
@@ -1033,7 +1033,9 @@ export interface components {
             rejected: number;
             /** @description Records flagged as absent from this complete import */
             flaggedAbsent: number;
-            /** @description Exits confirmed so far (by the reporting officer or the HR system) for records this complete import flagged absent; grows after the import ended */
+            /** @description Accepted rows with notes (`notes` on the import's rows), e.g. a national ID also on another Commission's roster, which is allowed */
+            noted: number;
+            /** @description Exits the import itself recorded. No import records exits today (the reporting officer confirms them, or the HR system calls the exit endpoint), so it is 0. Like every count, fixed when the import ends and equal to roster.import.completed.v1's */
             exitsRecorded: number;
         };
         RosterImport: {
@@ -1230,6 +1232,21 @@ export interface components {
             };
             /** @description Why the row was rejected; empty if not */
             errors: components["schemas"]["RowError"][];
+            /** @description Things to know about an accepted row, set when it is applied; they did not stop it */
+            notes: {
+                /**
+                 * @description The roster field the note is about
+                 * @enum {string}
+                 */
+                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+                /**
+                 * @description `national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed
+                 * @enum {string}
+                 */
+                code: "national-id-on-another-roster";
+                /** @description The note, in English */
+                message: string;
+            }[];
             /** @description What applying the row did to its record; null until applied, and for rejected rows */
             outcome: ("created" | "updated" | "unchanged") | null;
             /** @description The record the row applied to, or whose identity lock rejected it */

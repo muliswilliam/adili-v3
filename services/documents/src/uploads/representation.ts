@@ -9,7 +9,10 @@ import { UPLOAD_REJECTIONS, UPLOAD_STATES } from './schema.js';
  */
 
 export const uploadStateSchema = z.enum(UPLOAD_STATES);
-export const uploadRejectionSchema = z.enum(UPLOAD_REJECTIONS);
+export const uploadRejectionSchema = z.enum(UPLOAD_REJECTIONS).meta({
+  description:
+    'Why a rejected upload was refused: `type` the bytes are not the declared type; `encoding` a CSV that is not UTF-8 text (save it as CSV UTF-8); `size` over the limit or not the declared size; `missing` nothing was uploaded; `timeout` the checks did not finish',
+});
 
 export const createUploadBody = z.object({
   purpose: uploadPurposeSchema,
