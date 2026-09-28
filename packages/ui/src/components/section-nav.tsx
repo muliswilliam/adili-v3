@@ -127,7 +127,7 @@ export function SectionNav({
                             onSelect(sub.id);
                           }}
                           className={cn(
-                            'flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13.5px] text-secondary-foreground outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring',
+                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13.5px] text-secondary-foreground outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring',
                             subCurrent &&
                               'bg-card font-medium text-foreground shadow-card hover:bg-card',
                           )}
