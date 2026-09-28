@@ -113,7 +113,7 @@ const COMPLETE_DOCUMENT = {
           joint: { isJoint: true, sharePercent: 50 },
           location: { inKenya: true },
           change: { changed: true, kind: 'acquisition', explanation: 'Bought in 2026.' },
-          attachments: [{ uploadId: 'u1', fileName: 'title-deed.pdf', sha256: 'x' }],
+          attachments: [{ attachmentId: 'a1', uploadId: 'u1', fileName: 'title-deed.pdf', sha256: 'x' }],
         },
       ],
       liabilitiesNil: true,

@@ -121,8 +121,8 @@ describe('attachmentRows', () => {
     const rows = attachmentRows(
       ITEM,
       [
-        { uploadId: 'upload-1', fileName: 'logbook.pdf', sha256: 'a'.repeat(64) },
-        { uploadId: 'upload-2', fileName: 'old.pdf', sha256: 'b'.repeat(64) },
+        { attachmentId: 'attachment-1', uploadId: 'upload-1', fileName: 'logbook.pdf', sha256: 'a'.repeat(64) },
+        { attachmentId: 'attachment-2', uploadId: 'upload-2', fileName: 'old.pdf', sha256: 'b'.repeat(64) },
       ],
       withLink,
     );
