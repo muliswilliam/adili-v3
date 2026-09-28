@@ -1,6 +1,6 @@
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
-export { type Principal, principalSchema } from './auth/principal.js';
+export { callerOf, type Principal, principalSchema } from './auth/principal.js';
 export { Public } from './auth/public.decorator.js';
 export { RequireScopes, ScopesGuard } from './auth/require-scopes.decorator.js';
 export { notFoundIfInvisible, Roles, RolesGuard } from './auth/roles.js';
@@ -54,4 +54,5 @@ export {
   schemaRef,
   toOpenApiSchemas,
 } from './openapi.js';
+export { canonicalJson } from './canonical-json.js';
 export { ZodValidationPipe } from './zod-validation.pipe.js';
