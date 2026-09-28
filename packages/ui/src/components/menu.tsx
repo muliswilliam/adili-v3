@@ -1,5 +1,5 @@
 import * as MenuPrimitive from '@radix-ui/react-dropdown-menu';
-import { type ComponentProps, createContext, useContext, useRef } from 'react';
+import { type ComponentProps, createContext, useContext, useMemo, useRef } from 'react';
 
 import { cn } from '../lib/cn';
 import { Icon, type IconProps } from './icon';
@@ -29,16 +29,19 @@ const PendingContext = createContext<PendingAction | null>(null);
  */
 export function Menu(props: ComponentProps<typeof MenuPrimitive.Root>) {
   const held = useRef<(() => void) | null>(null);
-  const pending: PendingAction = {
-    hold: (action) => {
-      held.current = action;
-    },
-    take: () => {
-      const action = held.current;
-      held.current = null;
-      return action;
-    },
-  };
+  const pending = useMemo<PendingAction>(
+    () => ({
+      hold: (action) => {
+        held.current = action;
+      },
+      take: () => {
+        const action = held.current;
+        held.current = null;
+        return action;
+      },
+    }),
+    [],
+  );
   return (
     <PendingContext value={pending}>
       <MenuPrimitive.Root {...props} />
