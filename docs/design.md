@@ -73,6 +73,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-control-hover` | *derived* | hovered controls (the ring darkens to `input`) |
 | `shadow-control-focus` | `.input:focus` | focused controls: 1px ink ring and a 4px 8% halo |
 | `shadow-control-error`, `-error-focus` | `[aria-invalid]` | invalid controls (`aria-invalid`): 1.5px red ring |
+| `shadow-control-selected` | `.gr:has(input:checked)` | a chosen option card (radio cards, grounds): 1.5px ink ring |
 | `shadow-card` | `--shadow-card` | cards |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
@@ -132,9 +133,17 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `FilterChip` | `.chip`, `.chip.on` | 32px pill toggle, 13.5px medium, with an optional icon and count; ink when pressed, a control ring when not; state in `aria-pressed` |
 | `Spinner` | `.spinner` | 18px ring in the current text colour, spinning (still when reduced motion is set); decorative |
 | `StatusMark` | state icon on login outcome pages | 56px circle with a 28px icon above an outcome or error title; tones `success`, `warning`, `destructive`, `neutral` on their soft fills |
+| `DeadlineChip` | `.dlc` in `10-access` | a `Badge` for an access clock (a decision, the representation window, a download window; not a filing obligation's due date), 12.5px semibold tabular: days left (`default`), due soon and due today (`warning`), late (`destructive`) or met with a tick (`success`). Due soon starts at the clock's first reminder, from `deadlineSoonDays` (decision 10, representations 2, law enforcement 4); `late` takes the server's flag, late even on the due day after the due time. A `time` element; screen readers hear the label, date and days left ("Decision due 12 Oct 2026, 3 days left"). Days count in Kenyan calendar days (`deadlineStatus`) and move on at midnight. |
+| `ScopePicker` | `.scope` in `10-access` | Years, People and Sections fieldsets (card fill, `shadow-control`, 12.5px uppercase legends), side by side from 760px of its own width. The declarant is always included. `restrictTo` disables what was not requested ("Not requested") so a partial grant can only narrow; errors ring the group red. `Scope` is `form-k.v1`'s scope, as is access.yaml's. `formatScope`, `isScopeWithin` and `isSameScope` go with it. |
+| `GroundsSelect` | `.grounds`, `.gr` in `10-access` | a card per Regulation 24 ground, toggled from anywhere on it; checked cards take `shadow-control-selected`. The checkbox is named by the short label and described by the quoted regulation text. The kit's legend tooltip is a hint under the legend, since it says when grounds are required. |
+| `RegisterTimeline`, `RegisterList` | `.timeline.reg` in `10-access`; `.rt` in `declarant-profile` | the access register newest first, icon, copy and tint per `RegisterEntry.kind`; a `decided` entry reads and tints by its `outcome` (granted, partially granted, denied). Entries can override title and tone for the declarant's copy. `RegisterTimeline`: vertical timeline for one request in a card. `RegisterList`: flush rows grouped by month headings with the reference, the date shown and the full time read out. |
 | `CodeBlock` | `.code` in `02-roster.prototype.html` (API documentation) | 12px-radius `code` panel, 12.5px mono at 1.65 line height, 14 × 16px padding; lines keep their breaks and scroll sideways, so the block is a focusable, labelled group. `CodeKeyword`, `CodeString` and `CodeComment` mark its parts |
 
-Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
+Shared helpers live next to the components: `formatDate`, `formatDateTime`, `formatMonth` and `formatCalendarDate` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
+
+## Storybook
+
+`pnpm --filter @adili/ui storybook` serves every `src/**/*.stories.tsx` on port 6006, with the accessibility panel; `build-storybook` writes a static copy. `src/stories.test.tsx` renders every story in the unit tests, so a story cannot break silently. Stories cover each state a ticket lists (the access primitives so far).
 
 ## Dark theme
 

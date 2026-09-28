@@ -1,0 +1,54 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
+
+import { type Scope, ScopePicker, type ScopePickerProps } from './scope-picker';
+
+const nothing: Scope = {
+  years: [],
+  includeSpouses: false,
+  includeChildren: false,
+  sections: [],
+  includeClarifications: false,
+};
+
+const requested: Scope = {
+  years: [2026],
+  includeSpouses: false,
+  includeChildren: false,
+  sections: ['income', 'assets', 'liabilities'],
+  includeClarifications: false,
+};
+
+function Controlled({ value: initial, ...props }: ScopePickerProps) {
+  const [value, setValue] = useState(initial);
+  return <ScopePicker {...props} value={value} onChange={setValue} />;
+}
+
+const meta = {
+  title: 'Access/ScopePicker',
+  component: ScopePicker,
+  args: { value: nothing, onChange: () => undefined, years: [2025, 2026] },
+  render: (args) => <Controlled {...args} />,
+} satisfies Meta<typeof ScopePicker>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+/** Form K: everything on offer, clarifications included. */
+export const Full: Story = {};
+
+/** Law-enforcement requests do not cover clarifications. */
+export const LawEnforcement: Story = { args: { clarifications: false } };
+
+/** A partial grant: only what was requested can be granted. */
+export const RestrictedToRequest: Story = {
+  args: { value: requested, restrictTo: requested },
+};
+
+export const Validation: Story = {
+  args: {
+    errors: { years: 'Choose at least one year.', sections: 'Choose at least one section.' },
+  },
+};
+
+export const Disabled: Story = { args: { value: requested, disabled: true } };

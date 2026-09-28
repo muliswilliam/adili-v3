@@ -1,0 +1,38 @@
+{
+  "name": "@adili/forms",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (form-k.v1), shared by the services and the apps.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "node ./scripts/generate-types.ts",
+    "build": "pnpm generate && tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adili/schemas": "workspace:*",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@adili/eslint-config": "workspace:*",
+    "@adili/tsconfig": "workspace:*",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.11.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  }
+}
