@@ -21,12 +21,23 @@ ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so lo
 
 ## Staff provisioning (spec 06)
 
-- `directory` is a confidential client with only a service account. The directory service uses it on the Admin REST API to create staff accounts, grant and revoke roles and send the activation email. Its service account has realm-management `manage-users`, `view-users` and `query-users` (not `view-realm`).
+- `directory` is a confidential client with only a service account. The directory service uses it on the Admin REST API to create staff accounts, grant and revoke roles and send the activation email. Its service account has realm-management `manage-users`, `view-users` and `query-users` (not `view-realm`), plus the client roles below.
 - `smtpServer` sends to Mailpit (`mailpit:1025`); execute-actions email fails without it.
 - `emailTheme: adili` is the activation email in `apps/keycloak-theme/src/email`, so the stock Keycloak image cannot import this realm. Use `adili/keycloak:dev` (compose builds it; CI builds it in the Keycloak workflow).
 - The user profile declares the admin-only attributes `commissionName` and `invitedRole`, which the activation email reads. The unmanaged attribute policy is `ADMIN_VIEW`, so an undeclared attribute cannot be written.
 - The login theme reads `ADILI_CONSOLE_URL` (default `http://localhost:3020`) and `ADILI_PORTAL_URL` (default `http://localhost:3010`) from Keycloak's environment. Keycloak renders an expired or already used emailed link without a client, so its page offers sign-in (or a new link) there. Set both to the apps' public origins in every deployment.
 - New staff get the required actions `VERIFY_EMAIL`, `UPDATE_PASSWORD` and `CONFIGURE_TOTP`; the activation link completes them in that realm's priority order (TOTP, then password). Their later sign-ins go through `adili staff totp`.
+
+## HR-system API clients (spec 27)
+
+- The directory creates one confidential client per Commission's credential (`roster-<slug>-<hex>`) with only a service account, the default client scopes `basic` and `roster:write`, a hard-coded `tenant` claim and the `adili-api` audience. Rotating regenerates the secret; revoking disables the client. For that the `directory` service account also has realm-management `manage-clients`, `view-clients` and `query-clients`.
+- `roster:write` is a realm client scope, included in the token's `scope` claim and in no client's defaults except those API clients.
+- Listing `clientScopes` in the file replaces Keycloak's built-in scopes, so the file lists them all (as Keycloak 26.7 creates them) plus Adili's own (`roster:write`, `documents:internal`, `messages`, `iprs`), and the realm defaults. `pnpm keycloak:check` fails when a client names a scope the file does not list. Keycloak's own clients (`account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console`) are created before the scopes on import and so get no default scopes; Adili uses none of them (the account console is off, `accountThemeImplementation: 'none'`, and admins use the master realm).
+
+## Service-to-service calls (spec 27)
+
+- The directory calls the documents service's internal API (`/internal/v1/uploads/{id}/download`) with its own client credentials token and the header `X-Acting-Tenant: <slug>` (`ServiceTokenClient` and `ACTING_TENANT_HEADER` in `packages/api-kit`). Documents trusts the header only for tokens with scope `documents:internal`, and answers 404 for uploads of another tenant.
+- So the `directory` client has the default client scope `documents:internal` (a realm client scope in the token's `scope` claim) and the `adili-api` audience mapper services verify. Its service account holds no realm roles beyond `default-roles-adili`, so the token passes no role check.
 
 ## Adili OTP authenticator (#79)
 
@@ -37,8 +48,8 @@ ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so lo
 - The client secret is `${vault.keycloak-extension-secret}`, read from Keycloak's file vault. Compose mounts `vault-dev/` at `/opt/keycloak/vault`: development-only secrets matching the realm file's development client secrets, committed like them for local use and never deployed (ADR-012 keeps real secrets out of the repo). Deployments mount their own `adili_keycloak-extension-secret` file there.
 - A send that fails (notifications down, provider refused) shows the send-failed page with the other channel, or "try again" once both have failed. SMS goes to the `phone` attribute, email to the account email.
 
-`messages` and `iprs` are realm client scopes for service-to-service calls; `directory` has both. `attributes.CreateDefaultClientScopes` keeps Keycloak's built-in scopes, which declaring `clientScopes` would otherwise drop.
+`messages` and `iprs` are realm client scopes for service-to-service calls, listed with the others above; each adds the `adili-api` audience. `directory` has both.
 
 After pulling a change to the extension or the theme, rebuild the image (`docker compose -f infra/compose/docker-compose.yml build keycloak`) and recreate the realm.
 
-Passkeys are enabled as an optional required action (`webauthn-register`). They are not on the browser flow.
+Passkeys are enabled as an optional required action (`webauthn-register`). They are not on the browser flow yet: passkey sign-in is #403.

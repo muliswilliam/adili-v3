@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)
@@ -49,6 +49,7 @@ flowchart LR
   - timeout 2s (configurable per call), deadlines propagated
   - retries only for idempotent requests (GET, or POST with `Idempotency-Key`), exponential backoff with jitter, max 2
   - circuit breaker per downstream (cockatiel)
+- **Not built yet:** the shared resilient client does not exist. The first synchronous hop (directory → documents, spec #27) uses the generated client with a per-call timeout and one retry after a 401 with a fresh token; its file reads run in Temporal activities, whose retries cover transient failures. Retries with backoff and the circuit breaker land in `packages/api-kit` with the next service that calls another synchronously, and the directory adopts them then.
 - **Depth limit:** at most **one synchronous hop** from a service (BFF → service → one dependency). Deeper chains become events or Temporal.
 - **Hot reference data** (tenants, org tree, policies, numbering schemes, reference data from `directory`) is **cached locally**: Valkey plus in-process cache, invalidated by `directory.*.changed.v1` events. Services don't call `directory` on every request.
 
@@ -82,6 +83,20 @@ flowchart LR
 3. No synchronous call chains longer than one hop from a service.
 4. No sensitive financial data in events, logs or trace attributes.
 5. Every command endpoint accepts an `Idempotency-Key`.
+
+### 8. Recorded exceptions
+
+Deviations from the rules above, each narrow, with the reason and the controls that keep it safe. Add new ones here; do not widen these.
+
+**8.1 Acting tenant in a header on internal routes (§5).** A service doing system work for a tenant (the directory reading a Commission's roster upload from documents inside an import workflow) has no user token to exchange. It calls with its own client credentials token and names the tenant in `X-Acting-Tenant` (`ACTING_TENANT_HEADER` in `packages/api-kit`). The callee trusts the header only when all of these hold:
+- the route is under `/internal/v1`, which the public entrypoint never routes;
+- the verified token carries the service scope for that internal API (e.g. `documents:internal`), which only named service clients get; a user token is refused whatever headers it sends;
+- the resource is still checked against the named tenant: another tenant's resource is 404, as if it did not exist;
+- the header is validated as a tenant key, never `platform`.
+
+So the header chooses among the tenants a trusted service may act for; it never grants access by itself. Today: documents' `GET /internal/v1/uploads/{id}/download` (`ActingTenantGuard`), called by the directory (`HttpRosterUploads`). Token exchange (§5) replaces this once system work carries an originating user or tenant claim.
+
+**8.2 No `Idempotency-Key` on endpoints that return a secret (§7.5).** Creating, rotating and revoking a Commission's HR-system API credential (directory `/v1/commissions/{slug}/roster/api-credential`) take no key: the idempotency store keeps the response for replay, and the create and rotate responses carry the client secret, which the platform must never store. Retries stay safe without it: create is refused with 409 while a credential exists (a retry after a lost response is told to rotate or revoke), rotate issues a fresh secret (the lost one is useless), and revoke of a revoked credential is 404, leaving the same end state.
 
 ## Alternatives considered
 

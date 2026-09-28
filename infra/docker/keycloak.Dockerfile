@@ -2,6 +2,7 @@
 # Keycloak with the Adili login and email themes (apps/keycloak-theme) and the Adili OTP
 # authenticator (apps/keycloak-extension) installed:
 #   docker build -f infra/docker/keycloak.Dockerfile -t adili/keycloak .
+# Keep in step with .nvmrc (CI reads it).
 ARG NODE_VERSION=24
 # Keep in step with keycloak.version in apps/keycloak-extension/pom.xml.
 ARG KEYCLOAK_VERSION=26.7.4

@@ -4,7 +4,7 @@ import {
   CurrentPrincipal,
   type Principal,
   ProblemException,
-  RequireScopes,
+  Scopes,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import type { FastifyReply } from 'fastify';
@@ -16,7 +16,7 @@ import { IprsLookupService } from './iprs-lookup.service.js';
 /** Internal: not routed by the public entrypoint. Callers are services with the iprs scope. */
 @ApiTags('internal')
 @ApiBearerAuth()
-@RequireScopes('iprs')
+@Scopes('iprs')
 @Controller('internal/v1/iprs')
 export class IprsController {
   constructor(private readonly iprs: IprsLookupService) {}

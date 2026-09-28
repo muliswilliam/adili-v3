@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Checks that the Adili realm file still has the roles, BFF clients, authentication flows (with
-// the adili-otp authenticator), service clients and scopes, and staff provisioning setup
-// (directory service client, SMTP, email theme, user profile attributes) specs 03, 04 and 06 require.
-// Demo users are optional (#371 seeds them).
+// the adili-otp authenticator), staff provisioning setup (directory service client, SMTP, email
+// theme, user profile attributes), service clients and scopes (messages and iprs; the
+// keycloak-extension client) and API client setup (roster:write client scope; documents:internal
+// and the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are
+// optional (#371 seeds them).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -143,27 +145,6 @@ if (!actions.has('VERIFY_EMAIL')) fail('onboarding execute-actions needs VERIFY_
 if (realm.emailTheme !== 'adili') fail('emailTheme must be adili (activation email)');
 if (!realm.smtpServer?.host) fail('smtpServer is required for execute-actions emails');
 
-// Service scopes: each puts the adili-api audience on the token and names the internal API.
-if (realm.attributes?.CreateDefaultClientScopes !== 'true') {
-  fail(
-    'attributes.CreateDefaultClientScopes must be true, or declaring clientScopes drops the defaults',
-  );
-}
-const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
-for (const name of ['messages', 'iprs']) {
-  const scope = scopes.get(name);
-  if (!scope) {
-    fail(`missing client scope ${name}`);
-    continue;
-  }
-  const audience = (scope.protocolMappers ?? []).some(
-    (mapper) =>
-      mapper.protocolMapper === 'oidc-audience-mapper' &&
-      mapper.config?.['included.custom.audience'] === 'adili-api',
-  );
-  if (!audience) fail(`client scope ${name} must add the adili-api audience`);
-}
-
 const extension = clients.get('keycloak-extension');
 if (!extension) {
   fail('missing keycloak-extension client (adili-otp sends codes with it)');
@@ -190,8 +171,84 @@ if (!directory) {
   }
   const account = (realm.users ?? []).find((user) => user.serviceAccountClientId === 'directory');
   const granted = new Set(account?.clientRoles?.['realm-management'] ?? []);
-  for (const role of ['manage-users', 'view-users', 'query-users']) {
+  // Users for staff provisioning (spec 06), clients for HR-system credentials (spec 27).
+  for (const role of [
+    'manage-users',
+    'view-users',
+    'query-users',
+    'manage-clients',
+    'view-clients',
+    'query-clients',
+  ]) {
     if (!granted.has(role)) fail(`directory service account needs realm-management ${role}`);
+  }
+}
+
+// Client scopes. A realm file that lists clientScopes gets none of Keycloak's
+// built-in ones, so every scope a client (or the realm default) names must be
+// listed here too.
+const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
+
+// Service scopes: each puts the adili-api audience on the token and names the internal API.
+for (const name of ['messages', 'iprs']) {
+  const scope = scopes.get(name);
+  if (!scope) {
+    fail(`missing client scope ${name}`);
+    continue;
+  }
+  const audience = (scope.protocolMappers ?? []).some(
+    (mapper) =>
+      mapper.protocolMapper === 'oidc-audience-mapper' &&
+      mapper.config?.['included.custom.audience'] === 'adili-api',
+  );
+  if (!audience) fail(`client scope ${name} must add the adili-api audience`);
+}
+
+const rosterWrite = scopes.get('roster:write');
+if (!rosterWrite) {
+  fail('missing client scope roster:write (HR-system API clients, spec 27)');
+} else {
+  if (rosterWrite.protocol !== 'openid-connect') fail('roster:write must be an OIDC scope');
+  if (rosterWrite.attributes?.['include.in.token.scope'] !== 'true') {
+    fail('roster:write must be included in the token scope claim');
+  }
+}
+// The directory's own token calls the documents internal API (spec 27 decision 2): it
+// needs the documents:internal scope by default and the adili-api audience services verify.
+const documentsInternal = scopes.get('documents:internal');
+if (!documentsInternal) {
+  fail('missing client scope documents:internal (service-to-service, spec 27)');
+} else if (documentsInternal.attributes?.['include.in.token.scope'] !== 'true') {
+  fail('documents:internal must be included in the token scope claim');
+}
+if (directory) {
+  if (!directory.defaultClientScopes?.includes('documents:internal')) {
+    fail('directory must get client scope documents:internal by default');
+  }
+  const audience = (directory.protocolMappers ?? []).some(
+    (mapper) =>
+      mapper.protocolMapper === 'oidc-audience-mapper' &&
+      mapper.config?.['included.custom.audience'] === 'adili-api' &&
+      mapper.config?.['access.token.claim'] === 'true',
+  );
+  if (!audience) fail('directory tokens need the adili-api audience mapper');
+}
+// API clients the directory creates get `basic` (the `sub` claim) with their own scope.
+if (!scopes.has('basic')) fail('missing client scope basic (API client tokens need sub)');
+const referenced = [
+  ...(realm.defaultDefaultClientScopes ?? []).map((name) => ['realm default', name]),
+  ...(realm.defaultOptionalClientScopes ?? []).map((name) => ['realm optional', name]),
+  ...(realm.clients ?? []).flatMap((client) =>
+    [...(client.defaultClientScopes ?? []), ...(client.optionalClientScopes ?? [])].map((name) => [
+      client.clientId,
+      name,
+    ]),
+  ),
+];
+if (realm.clientScopes) {
+  for (const [owner, name] of referenced) {
+    if (!scopes.has(name))
+      fail(`${owner} names client scope ${name}, which is not in clientScopes`);
   }
 }
 

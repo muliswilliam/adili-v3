@@ -1,4 +1,5 @@
 {
-  "extends": "./tsconfig.json",
-  "exclude": ["src/**/*.test.ts"]
+  "extends": "@adili/tsconfig/node-library.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"]
 }

@@ -30,10 +30,10 @@ describe('PROBLEM_COPY', () => {
   });
 
   it('states the rate-limit wait in whole minutes', () => {
-    expect(problemMessage('rate-limited', { retryAfterSeconds: 61 })).toBe(
+    expect(problemMessage('rate-limit-exceeded', { retryAfterSeconds: 61 })).toBe(
       'Too many attempts. Try again in 2 minutes.',
     );
-    expect(problemMessage('rate-limited', { retryAfterSeconds: 20 })).toBe(
+    expect(problemMessage('rate-limit-exceeded', { retryAfterSeconds: 20 })).toBe(
       'Too many attempts. Try again in 1 minute.',
     );
     expect(minutesFrom(0)).toBe(1);

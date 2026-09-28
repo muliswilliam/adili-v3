@@ -1,0 +1,1 @@
+ALTER TABLE "roster_imports" ADD COLUMN "staging_attempt" uuid;

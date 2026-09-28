@@ -1,0 +1,9 @@
+personnelFileNumber,fullName,nationalId,designation,jobGroup,reportingEntity,employerCode,appointmentDate,email,phone,dateOfBirth,sex,placeOfBirth,kraPin,annualIncome
+TSC/004512,Achieng Mary Otieno,23456781,Senior Teacher,C3,"Moi Girls High School, Eldoret",TSC,2009-01-07,mary.otieno@tsc.go.ke,+254712000101,1981-06-02,F,Homa Bay,A002345678B,1560000.00
+TSC/017733,Kamau Peter Njoroge,26113094,Deputy Principal,D2,Alliance High School,TSC,2007-05-02,peter.njoroge@tsc.go.ke,+254712000102,1979-02-11,M,Murang'a,A002611309C,2040000.00
+TSC/052209,Chebet Faith Jerono,31270458,Teacher,C1,Kapsabet Boys High School,TSC,2016-01-11,faith.jerono@tsc.go.ke,+254712000103,1990-12-19,F,Nandi,A003127045D,960000.00
+TSC/008841,Mwangi John Kariuki,24890317,Principal,D5,Maseno School,TSC,2003-09-01,john.kariuki@tsc.go.ke,+254712000104,1975-08-30,M,Nyeri,A002489031E,2760000.00
+TSC/064120,Wafula Grace Nekesa,33058726,Teacher,C2,Kakamega Primary School,TSC,2019-05-06,grace.nekesa@tsc.go.ke,+254712000105,1993-04-07,F,Bungoma,A003305872F,1080000.00
+TSC/031456,Omondi Brian Ouma,29467183,Senior Teacher,C4,Kisumu Day High School,TSC,2012-01-09,brian.ouma@tsc.go.ke,+254712000106,1985-10-15,M,Kisumu,A002946718G,1680000.00
+TSC/045987,Njeri Esther Wambui,30815642,Curriculum Support Officer,C5,TSC County Office Kiambu,TSC,2014-07-01,esther.wambui@tsc.go.ke,+254712000107,1987-01-25,F,Kiambu,A003081564H,1800000.00
+TSC/070318,Hassan Ali Abdi,35102967,Teacher,C1,Garissa High School,TSC,2021-01-04,ali.abdi@tsc.go.ke,+254712000108,1995-03-12,M,Garissa,A003510296J,900000.00

@@ -2,13 +2,14 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-from hr.push import push_demo_roster
+from hr.push import PushError, push_demo_roster
 
 
 class Command(BaseCommand):
     help = (
-        "Push the demo PSC roster batch and one exit to the directory "
-        "(spec 02 #54). Needs DIRECTORY_API_URL and DIRECTORY_HR_TOKEN."
+        "Push the demo PSC roster batch, wait for its report, and record one exit "
+        "(spec 02 #54), authenticating with the console-created API credential "
+        "(DIRECTORY_HR_CLIENT_ID, DIRECTORY_HR_CLIENT_SECRET)."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -21,7 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         try:
             results = push_demo_roster(dry_run=options["dry_run"])
-        except (ConnectionError, FileNotFoundError) as error:
+        except (ConnectionError, FileNotFoundError, PushError) as error:
             raise CommandError(str(error)) from error
         for result in results:
             self.stdout.write(f"{result.status or 'dry-run'} {result.url}")

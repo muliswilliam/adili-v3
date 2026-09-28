@@ -6,17 +6,19 @@ import addFormats from 'ajv-formats';
 import { parse } from 'yaml';
 
 /**
- * Validates response bodies against the committed contract
- * (packages/schemas/internal/directory.yaml), so tests fail when the API drifts from it.
+ * Validates bodies against the committed contracts (packages/schemas/internal/directory.yaml, and
+ * documents.yaml for what the directory reads from documents), so tests fail when an API drifts
+ * from its contract.
  */
-const CONTRACT_ID = 'directory.yaml';
-const contractPath = createRequire(import.meta.url).resolve(
-  '@adili/schemas/internal/directory.yaml',
-);
+type Contract = 'directory' | 'documents';
 
 const ajv = new Ajv2020({ strict: false, allErrors: true });
 addFormats.default(ajv);
-ajv.addSchema(parse(readFileSync(contractPath, 'utf8')) as object, CONTRACT_ID);
+const resolve = createRequire(import.meta.url).resolve;
+for (const contract of ['directory', 'documents'] satisfies Contract[]) {
+  const path = resolve(`@adili/schemas/internal/${contract}.yaml`);
+  ajv.addSchema(parse(readFileSync(path, 'utf8')) as object, `${contract}.yaml`);
+}
 
 /**
  * JSON pointer of the success response body of an operation, e.g. `('/v1/commissions', 'get')`
@@ -31,9 +33,16 @@ export function componentSchema(name: string): string {
   return `/components/schemas/${name}`;
 }
 
-/** The validation errors of `body` against the schema at `pointer`; empty when it conforms. */
-export function contractErrors(pointer: string, body: unknown): string[] {
-  const validate = ajv.compile({ $ref: `${CONTRACT_ID}#${pointer}` });
+/**
+ * The validation errors of `body` against the schema at `pointer` of `contract` (the directory's
+ * by default); empty when it conforms.
+ */
+export function contractErrors(
+  pointer: string,
+  body: unknown,
+  contract: Contract = 'directory',
+): string[] {
+  const validate = ajv.compile({ $ref: `${contract}.yaml#${pointer}` });
   if (validate(body)) return [];
   return (validate.errors ?? []).map((error) => `${error.instancePath || '/'} ${error.message}`);
 }

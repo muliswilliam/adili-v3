@@ -18,6 +18,13 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export {
+  CodeBlock,
+  type CodeBlockProps,
+  CodeComment,
+  CodeKeyword,
+  CodeString,
+} from './components/code-block';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export {
@@ -63,6 +70,7 @@ export {
   maskEmail,
   maskPhone,
 } from './components/masked-contact';
+export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';

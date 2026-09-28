@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           # The check is a plain node script. setup-node@v5 otherwise looks
           # for pnpm because package.json pins packageManager.
           package-manager-cache: false

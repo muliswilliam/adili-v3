@@ -3,10 +3,18 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/internal/directory.yaml"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/documents.yaml"
+      ]
     },
     "typecheck": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/internal/directory.yaml"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/documents.yaml"
+      ]
     }
   }
 }

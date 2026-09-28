@@ -24,7 +24,7 @@ import {
   IDEMPOTENT_REPLAYED_HEADER,
   type Principal,
   ProblemException,
-  RequireScopes,
+  Scopes,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import type { FastifyReply } from 'fastify';
@@ -46,7 +46,7 @@ const idempotencyKey = z.uuid();
  */
 @ApiTags('internal')
 @ApiBearerAuth()
-@RequireScopes('ai')
+@Scopes('ai')
 @Controller('internal/v1')
 export class JobsController {
   constructor(private readonly jobs: JobsService) {}

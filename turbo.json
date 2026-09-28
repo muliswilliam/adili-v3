@@ -32,7 +32,10 @@
         "TEST_TEMPORAL_NAMESPACE",
         "TEST_VALKEY_URL",
         "TEST_KEYCLOAK_ISSUER_URL",
-        "TEST_MAILPIT_URL"
+        "TEST_MAILPIT_URL",
+        "TEST_S3_ENDPOINT",
+        "TEST_CLAMAV_HOST",
+        "TEST_CLAMAV_PORT"
       ]
     },
     "db:generate": {

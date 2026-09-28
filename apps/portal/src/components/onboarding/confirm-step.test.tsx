@@ -152,7 +152,6 @@ describe('ConfirmStep', () => {
     expect(alert.textContent).toContain(
       'The national register is not responding. Wait a few minutes and try again.',
     );
-    // Focus moves in an effect after the alert renders.
     await waitFor(() => {
       expect(document.activeElement).toBe(alert);
     });
@@ -175,7 +174,7 @@ describe('ConfirmStep', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Your account could not be created. Try again.');
-    // Focus moves in an effect after the alert renders.
+    // Focus moves in an effect after the alert renders; under load that is a tick later.
     await waitFor(() => {
       expect(document.activeElement).toBe(alert);
     });
