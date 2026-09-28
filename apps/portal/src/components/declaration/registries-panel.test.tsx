@@ -319,6 +319,31 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
     expect(lookupsMock).toHaveBeenCalledTimes(1);
   });
 
+  it('shows a registry still pending after the time limit as unavailable, and asks it again on reload', async () => {
+    // As the page loaded them: NTSA had not answered yet.
+    const loaded = [set('kra'), set('ntsa', { status: 'pending', readyAt: null }), set('brs')];
+    listMock.mockResolvedValue({ status: 'ok', sets: loaded });
+    const first = renderPanel({ sets: loaded, pollLimit: 2 });
+
+    expect(statusOf('NTSA')).toBe('Checking…');
+    await waitFor(() => {
+      expect(statusOf('NTSA')).toBe('Not available nowRetry');
+    });
+    expect(listMock).toHaveBeenCalledTimes(2);
+
+    // A reload mounts the panel again with the same sets: NTSA is pending, so it is read again.
+    first.unmount();
+    renderPanel({ sets: loaded });
+
+    expect(statusOf('NTSA')).toBe('Checking…');
+    await waitFor(() => {
+      expect(listMock.mock.calls.length).toBeGreaterThan(2);
+    });
+    expect(listMock).toHaveBeenLastCalledWith({
+      data: { declarationId: DECLARATION_ID, personKey: 'officer' },
+    });
+  });
+
   it('leaves the masked ID out of the consent text for the officer', async () => {
     renderPanel();
 
