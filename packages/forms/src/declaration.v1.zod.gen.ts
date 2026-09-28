@@ -136,6 +136,7 @@ export const MaritalStatusChangeSchema = z
   });
 
 export const AttachmentSchema = z.strictObject({
+  attachmentId: z.guid(),
   uploadId: z.guid(),
   fileName: z.string().max(255),
   sha256: z.string().regex(/^[0-9a-f]{64}$/u),

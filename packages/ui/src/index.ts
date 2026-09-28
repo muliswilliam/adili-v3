@@ -1,4 +1,12 @@
 export { Alert, AlertDescription, AlertTitle, type AlertProps } from './components/alert';
+export {
+  type AttachmentListItem,
+  AttachmentList,
+  type AttachmentListProps,
+  type AttachmentMessages,
+  type AttachmentStatus,
+  formatFileSize,
+} from './components/attachment-list';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export { Button, type ButtonProps, buttonVariants } from './components/button';
 export {
@@ -34,12 +42,15 @@ export {
 } from './components/code-block';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
+export { CountrySelect, type CountrySelectProps } from './components/country-select';
+export { CountySelect, type CountySelectProps } from './components/county-select';
 export {
   DataTable,
   type DataTableColumn,
   type DataTableProps,
   type DataTableSelection,
 } from './components/data-table';
+export { DateInput, type DateInputProps } from './components/date-input';
 export {
   DeadlineChip,
   type DeadlineChipProps,
@@ -93,8 +104,10 @@ export {
   maskPhone,
 } from './components/masked-contact';
 export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
+export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
+export { PercentInput, type PercentInputProps } from './components/percent-input';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export {
   RadioCard,
@@ -115,6 +128,12 @@ export {
   RegisterTimeline,
   type RegisterTimelineProps,
 } from './components/register-timeline';
+export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
+export {
+  SaveIndicator,
+  type SaveIndicatorProps,
+  type SaveStatus,
+} from './components/save-indicator';
 export {
   formatScope,
   isSameScope,
@@ -126,6 +145,17 @@ export {
   type ScopeSection,
   scopeSectionLabels,
 } from './components/scope-picker';
+export {
+  SectionNav,
+  type SectionNavProps,
+  type SectionNavSection,
+  type SectionStatus,
+} from './components/section-nav';
+export {
+  SegmentedChoice,
+  type SegmentedChoiceOption,
+  type SegmentedChoiceProps,
+} from './components/segmented-choice';
 export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
@@ -165,6 +195,12 @@ export {
 } from './lib/countdown';
 export { focusRing, focusRingInset } from './lib/focus';
 export {
+  daysInMonth,
+  formatDayMonthYear,
+  parseDayMonthYear,
+  shapeDateText,
+} from './lib/date-input';
+export {
   formatCalendarDate,
   formatDate,
   formatDateTime,
@@ -172,3 +208,11 @@ export {
   msUntilKenyanMidnight,
 } from './lib/format-date';
 export { formatNumber } from './lib/format-number';
+export {
+  formatMoney,
+  type MoneyInvalidReason,
+  type MoneyParseResult,
+  parseMoney,
+  shapeMoneyText,
+} from './lib/money';
+export { COUNTIES, COUNTRIES } from './lib/places';

@@ -77,6 +77,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-control-error`, `-error-focus` | `[aria-invalid]` | invalid controls (`aria-invalid`): 1.5px red ring |
 | `shadow-control-selected` | `.gr:has(input:checked)` | a chosen option card (radio cards, grounds): 1.5px ink ring |
 | `shadow-card` | `--shadow-card` | cards |
+| `shadow-card-editing` | *derived* | the item card open for editing in a `Repeater`: 1.5px ink ring and a soft lift |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
 
@@ -86,6 +87,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
 | `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
+| `rounded-item` | 14px | | `Repeater` item cards and their add button |
 | `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
 
 Dialogs use 20px (22px at the top of the phone sheet), as in the kit.
@@ -135,6 +137,16 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `FilterChip` | `.chip`, `.chip.on` | 32px pill toggle, 13.5px medium, with an optional icon and count; ink when pressed, a control ring when not; state in `aria-pressed` |
 | `Spinner` | `.spinner` | 18px ring in the current text colour, spinning (still when reduced motion is set); decorative |
 | `StatusMark` | state icon on login outcome pages | 56px circle with a 28px icon above an outcome or error title; tones `success`, `warning`, `destructive`, `neutral` on their soft fills |
+| `AttachmentList` | `.att-list`, `.att`, `.att-add` in the declaration screens | one row per file with a 36px icon tile, the 14px medium name and a 12.5px status line: uploading (`ProgressBar` `sm`), scanning (`Spinner`), attached, infected, rejected and failed, each in text with an icon. An add button opens the file picker; removing an attached file asks first. Finishing is announced politely. |
+| `CountrySelect` | `.select` (country) in the declaration screens | `Combobox` over the ISO 3166-1 countries, matched by name or two-letter code; the value is the alpha-2 code. `exclude` drops countries already chosen. |
+| `CountySelect` | `.select` (county) in the declaration screens | `Combobox` over Kenya's 47 counties, alphabetical; the value is the official county code (`047` for Nairobi City). The lists behind both selects live in `lib/places.ts`. |
+| `DateInput` | `.input` with the date picker in the declaration screens | `Input` typed as DD/MM/YYYY with slashes added as you type and impossible dates refused; a 36px ghost calendar button opens a 296px `shadow-pop` picker (12px radius, month and year selects, 36px days, the chosen day ink). The picker is optional and closes on Esc. |
+| `MoneyInput` | `.money` in the declaration screens | `Input` with the currency (13.5px semibold muted) inside on the left, linked as a description. Stores integer cents; thousands separators appear as you type, two decimals at most. A minus sign stays in the field and is reported invalid (reason `negative`), so the form shows a field error rather than changing the amount. |
+| `PercentInput` | the joint share in the declaration screens | `Input` with a `%` (13.5px semibold muted) inside on the right, hidden from screen readers. A whole number, three digits at most; anything but digits is dropped as you type. The form checks the range and shows the field error. |
+| `Repeater` | `.rep`, `.rep-item`, `.rep-add` in the declaration screens | a list of `rounded-item` `shadow-card` cards, each a 38px `muted` icon tile, a 15px medium title, an optional description and aside, and edit, duplicate and remove actions named after the item. The open card takes `shadow-card-editing`. The add button is a 48px dashed `input` bar that turns ink on `brand-faint` on hover. |
+| `SaveIndicator` | `.save` in the declaration header | 13px muted status with an icon: `saving` (`Spinner`), `saved` (green cloud tick), `retrying` (warning text), `conflict` (destructive medium text with a `Reload` button, announced assertively). Text and icon, never colour alone. |
+| `SectionNav` | `.dnav` sidebar in the declaration screens | ordered list of sections with 24px status circles (done is a tick on `success-subtle`) and an optional 12px muted detail line; sub-sections hang off a 1.5px rule with 13.5px items. The current one has `aria-current="page"`; completeness is also in text for screen readers. |
+| `SegmentedChoice` | `.seg` in the declaration screens | native radios in a fieldset shown as 40px `shadow-control` buttons, 10px radius (`rounded-lg`), 6px apart; the chosen one is ink. Arrow keys move between options. |
 | `Chart` | none (derived) | `figure` with a 14px medium caption, hidden from assistive tech because the data table carries the same title. `bar` draws one horizontal 8px track per series under each category label, value text on the right; `line` draws a 192px plot with hairline grid, 2px lines and 8px points. Series take `brand`, `info`, `foreground`, `muted-foreground`, never a status colour. Suppressed (`null`) and missing values are never plotted: bars show `suppressedLabel` or `missingLabel`, lines leave a plain break with nothing joining it, and a long line labels at most four categories (always the latest). The data table is always there for assistive tech; `showTable` puts it on screen. |
 | `DeadlineChip` | `.dlc` in `10-access` | a `Badge` for an access clock (a decision, the representation window, a download window; not a filing obligation's due date), 12.5px semibold tabular: days left (`default`), due soon and due today (`warning`), late (`destructive`) or met with a tick (`success`). Due soon starts at the clock's first reminder, from `deadlineSoonDays` (decision 10, representations 2, law enforcement 4); `late` takes the server's flag, late even on the due day after the due time. A `time` element; screen readers hear the label, date and days left ("Decision due 12 Oct 2026, 3 days left"). Days count in Kenyan calendar days (`deadlineStatus`) and move on at midnight. |
 | `ScopePicker` | `.scope` in `10-access` | Years, People and Sections fieldsets (card fill, `shadow-control`, 12.5px uppercase legends), side by side from 760px of its own width. The declarant is always included. `restrictTo` disables what was not requested ("Not requested") so a partial grant can only narrow; errors ring the group red. `Scope` is `form-k.v1`'s scope, as is access.yaml's. `formatScope`, `isScopeWithin` and `isSameScope` go with it. |
@@ -171,6 +183,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 | Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `packages/ui/prototype/kit.css` | applied |
 | Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | `apps/console/prototype/01-commissions.prototype.html` | tokens only |
 | Get started (Identify) | [#66](https://github.com/muliswilliam/adili-v3/issues/66) | `apps/portal/prototype/declarant-journey.prototype.html` (`gs-*` screens) | built from the Figma frame `onboarding-step-1` with a national ID field the frame lacks; glow colours sampled; prototype pass pending |
+| Declaration capture (overview, bio, household, statements, other information, summary) | [#108](https://github.com/muliswilliam/adili-v3/issues/108) | `apps/portal/prototype/declarant-journey.prototype.html` (`decl-*` screens) | built from the prototype; the header line follows the spec ("{Type} declaration · {Commission}") rather than the prototype sidebar |
 
 Add a row when a screen's design pass starts, and flip the status when it merges.
 

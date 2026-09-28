@@ -203,6 +203,10 @@ export interface ItemSource {
   at: string;
 }
 export interface Attachment {
+  /**
+   * The link's id, set by the declarations service when it links the upload; unlinking takes it
+   */
+  attachmentId: string;
   uploadId: string;
   fileName: string;
   sha256: string;

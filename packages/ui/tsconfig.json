@@ -1,4 +1,4 @@
 {
   "extends": "@adili/tsconfig/react-app.json",
-  "include": ["src", ".storybook/*.ts", "vitest.config.ts", "vitest.setup.ts"]
+  "include": ["src", ".storybook/*.ts", "vitest.config.ts", "vitest.icons.ts", "vitest.setup.ts"]
 }

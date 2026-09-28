@@ -258,6 +258,9 @@ importers:
       jsdom:
         specifier: ^30.1.1
         version: 30.1.1
+      json-schema-to-typescript:
+        specifier: ^16.0.0
+        version: 16.0.0
       nitro:
         specifier: 3.0.260903-beta
         version: 3.0.260903-beta

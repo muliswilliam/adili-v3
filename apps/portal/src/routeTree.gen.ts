@@ -15,6 +15,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthRecoverRouteImport } from './routes/auth/recover'
+import { Route as DeclarationsIdRouteRouteImport } from './routes/declarations/$id/route'
 import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
 import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email'
 import { Route as GetStartedConfirmRouteImport } from './routes/get-started/confirm'
@@ -23,6 +24,13 @@ import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/ide
 import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
 import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
 import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
+import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
+import { Route as DeclarationsIdIndexRouteImport } from './routes/declarations/$id/index'
+import { Route as DeclarationsIdBioRouteImport } from './routes/declarations/$id/bio'
+import { Route as DeclarationsIdHouseholdRouteImport } from './routes/declarations/$id/household'
+import { Route as DeclarationsIdOtherRouteImport } from './routes/declarations/$id/other'
+import { Route as DeclarationsIdSummaryRouteImport } from './routes/declarations/$id/summary'
+import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +60,11 @@ const AuthLogoutRoute = AuthLogoutRouteImport.update({
 const AuthRecoverRoute = AuthRecoverRouteImport.update({
   id: '/auth/recover',
   path: '/auth/recover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeclarationsIdRouteRoute = DeclarationsIdRouteRouteImport.update({
+  id: '/declarations/$id',
+  path: '/declarations/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GetStartedIndexRoute = GetStartedIndexRouteImport.update({
@@ -94,10 +107,47 @@ const GetStartedVerifyPhoneRoute = GetStartedVerifyPhoneRouteImport.update({
   path: '/verify-phone',
   getParentRoute: () => GetStartedRouteRoute,
 } as any)
+const ApiMockUploadsIdRoute = ApiMockUploadsIdRouteImport.update({
+  id: '/api/mock-uploads/$id',
+  path: '/api/mock-uploads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeclarationsIdIndexRoute = DeclarationsIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DeclarationsIdRouteRoute,
+} as any)
+const DeclarationsIdBioRoute = DeclarationsIdBioRouteImport.update({
+  id: '/bio',
+  path: '/bio',
+  getParentRoute: () => DeclarationsIdRouteRoute,
+} as any)
+const DeclarationsIdHouseholdRoute = DeclarationsIdHouseholdRouteImport.update({
+  id: '/household',
+  path: '/household',
+  getParentRoute: () => DeclarationsIdRouteRoute,
+} as any)
+const DeclarationsIdOtherRoute = DeclarationsIdOtherRouteImport.update({
+  id: '/other',
+  path: '/other',
+  getParentRoute: () => DeclarationsIdRouteRoute,
+} as any)
+const DeclarationsIdSummaryRoute = DeclarationsIdSummaryRouteImport.update({
+  id: '/summary',
+  path: '/summary',
+  getParentRoute: () => DeclarationsIdRouteRoute,
+} as any)
+const DeclarationsIdStatementsPersonKeyRoute =
+  DeclarationsIdStatementsPersonKeyRouteImport.update({
+    id: '/statements/$personKey',
+    path: '/statements/$personKey',
+    getParentRoute: () => DeclarationsIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -110,6 +160,13 @@ export interface FileRoutesByFullPath {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/declarations/$id/bio': typeof DeclarationsIdBioRoute
+  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
+  '/declarations/$id/other': typeof DeclarationsIdOtherRoute
+  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
+  '/declarations/$id/': typeof DeclarationsIdIndexRoute
+  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,11 +182,19 @@ export interface FileRoutesByTo {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/get-started': typeof GetStartedIndexRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/declarations/$id/bio': typeof DeclarationsIdBioRoute
+  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
+  '/declarations/$id/other': typeof DeclarationsIdOtherRoute
+  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
+  '/declarations/$id': typeof DeclarationsIdIndexRoute
+  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -142,12 +207,20 @@ export interface FileRoutesById {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/declarations/$id/bio': typeof DeclarationsIdBioRoute
+  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
+  '/declarations/$id/other': typeof DeclarationsIdOtherRoute
+  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
+  '/declarations/$id/': typeof DeclarationsIdIndexRoute
+  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/get-started'
+    | '/declarations/$id'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -160,6 +233,13 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/get-started/'
+    | '/api/mock-uploads/$id'
+    | '/declarations/$id/bio'
+    | '/declarations/$id/household'
+    | '/declarations/$id/other'
+    | '/declarations/$id/summary'
+    | '/declarations/$id/'
+    | '/declarations/$id/statements/$personKey'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -175,10 +255,18 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/get-started'
+    | '/api/mock-uploads/$id'
+    | '/declarations/$id/bio'
+    | '/declarations/$id/household'
+    | '/declarations/$id/other'
+    | '/declarations/$id/summary'
+    | '/declarations/$id'
+    | '/declarations/$id/statements/$personKey'
   id:
     | '__root__'
     | '/'
     | '/get-started'
+    | '/declarations/$id'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -191,15 +279,24 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/get-started/'
+    | '/api/mock-uploads/$id'
+    | '/declarations/$id/bio'
+    | '/declarations/$id/household'
+    | '/declarations/$id/other'
+    | '/declarations/$id/summary'
+    | '/declarations/$id/'
+    | '/declarations/$id/statements/$personKey'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
+  DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthRecoverRoute: typeof AuthRecoverRoute
+  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -244,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/recover'
       fullPath: '/auth/recover'
       preLoaderRoute: typeof AuthRecoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/declarations/$id': {
+      id: '/declarations/$id'
+      path: '/declarations/$id'
+      fullPath: '/declarations/$id'
+      preLoaderRoute: typeof DeclarationsIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/get-started/': {
@@ -302,6 +406,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport
       parentRoute: typeof GetStartedRouteRoute
     }
+    '/api/mock-uploads/$id': {
+      id: '/api/mock-uploads/$id'
+      path: '/api/mock-uploads/$id'
+      fullPath: '/api/mock-uploads/$id'
+      preLoaderRoute: typeof ApiMockUploadsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/declarations/$id/': {
+      id: '/declarations/$id/'
+      path: '/'
+      fullPath: '/declarations/$id/'
+      preLoaderRoute: typeof DeclarationsIdIndexRouteImport
+      parentRoute: typeof DeclarationsIdRouteRoute
+    }
+    '/declarations/$id/bio': {
+      id: '/declarations/$id/bio'
+      path: '/bio'
+      fullPath: '/declarations/$id/bio'
+      preLoaderRoute: typeof DeclarationsIdBioRouteImport
+      parentRoute: typeof DeclarationsIdRouteRoute
+    }
+    '/declarations/$id/household': {
+      id: '/declarations/$id/household'
+      path: '/household'
+      fullPath: '/declarations/$id/household'
+      preLoaderRoute: typeof DeclarationsIdHouseholdRouteImport
+      parentRoute: typeof DeclarationsIdRouteRoute
+    }
+    '/declarations/$id/other': {
+      id: '/declarations/$id/other'
+      path: '/other'
+      fullPath: '/declarations/$id/other'
+      preLoaderRoute: typeof DeclarationsIdOtherRouteImport
+      parentRoute: typeof DeclarationsIdRouteRoute
+    }
+    '/declarations/$id/summary': {
+      id: '/declarations/$id/summary'
+      path: '/summary'
+      fullPath: '/declarations/$id/summary'
+      preLoaderRoute: typeof DeclarationsIdSummaryRouteImport
+      parentRoute: typeof DeclarationsIdRouteRoute
+    }
+    '/declarations/$id/statements/$personKey': {
+      id: '/declarations/$id/statements/$personKey'
+      path: '/statements/$personKey'
+      fullPath: '/declarations/$id/statements/$personKey'
+      preLoaderRoute: typeof DeclarationsIdStatementsPersonKeyRouteImport
+      parentRoute: typeof DeclarationsIdRouteRoute
+    }
   }
 }
 
@@ -331,13 +484,37 @@ const GetStartedRouteRouteWithChildren = GetStartedRouteRoute._addFileChildren(
   GetStartedRouteRouteChildren,
 )
 
+interface DeclarationsIdRouteRouteChildren {
+  DeclarationsIdBioRoute: typeof DeclarationsIdBioRoute
+  DeclarationsIdHouseholdRoute: typeof DeclarationsIdHouseholdRoute
+  DeclarationsIdOtherRoute: typeof DeclarationsIdOtherRoute
+  DeclarationsIdSummaryRoute: typeof DeclarationsIdSummaryRoute
+  DeclarationsIdIndexRoute: typeof DeclarationsIdIndexRoute
+  DeclarationsIdStatementsPersonKeyRoute: typeof DeclarationsIdStatementsPersonKeyRoute
+}
+
+const DeclarationsIdRouteRouteChildren: DeclarationsIdRouteRouteChildren = {
+  DeclarationsIdBioRoute: DeclarationsIdBioRoute,
+  DeclarationsIdHouseholdRoute: DeclarationsIdHouseholdRoute,
+  DeclarationsIdOtherRoute: DeclarationsIdOtherRoute,
+  DeclarationsIdSummaryRoute: DeclarationsIdSummaryRoute,
+  DeclarationsIdIndexRoute: DeclarationsIdIndexRoute,
+  DeclarationsIdStatementsPersonKeyRoute:
+    DeclarationsIdStatementsPersonKeyRoute,
+}
+
+const DeclarationsIdRouteRouteWithChildren =
+  DeclarationsIdRouteRoute._addFileChildren(DeclarationsIdRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GetStartedRouteRoute: GetStartedRouteRouteWithChildren,
+  DeclarationsIdRouteRoute: DeclarationsIdRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthRecoverRoute: AuthRecoverRoute,
+  ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
