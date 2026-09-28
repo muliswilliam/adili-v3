@@ -1,16 +1,5 @@
+import { Badge, Button, FileDropZone, Icon, ProgressBar, Spinner } from '@adili/ui';
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Badge,
-  Button,
-  FileDropZone,
-  Icon,
-  ProgressBar,
-  Spinner,
-} from '@adili/ui';
-import {
-  AlertCircleIcon,
   ArrowLeft01Icon,
   RefreshIcon,
   Shield01Icon,
@@ -22,6 +11,7 @@ import { formatFileSize } from '../format';
 import { FileBox } from './file-box';
 import type { UploadState } from './import-wizard';
 import { messages as m } from './messages';
+import { ProblemAlert } from './problem-alert';
 import { ROSTER_FILE_ACCEPT, ROSTER_FILE_MAX_BYTES } from './roster-file';
 import type { UploadRejectionReason } from './upload';
 import { WizardCard, WizardFoot, WizardSection, WizardTitle } from './wizard-card';
@@ -172,9 +162,9 @@ function UploadProgress({
               {m.failedScan}
             </Badge>,
           )}
-          <Failure title={m.infectedTitle} text={m.infectedText}>
+          <ProblemAlert title={m.infectedTitle} text={m.infectedText}>
             {chooseAnother}
-          </Failure>
+          </ProblemAlert>
         </div>
       );
     case 'rejected':
@@ -182,7 +172,7 @@ function UploadProgress({
       return (
         <div className="grid gap-3.5">
           {box(<Badge variant="destructive">{m.notUploaded}</Badge>)}
-          <Failure
+          <ProblemAlert
             title={upload.phase === 'failed' ? m.uploadFailed : REJECTED_TITLE[upload.reason]}
             text={
               upload.phase === 'rejected' && upload.reason === 'encoding'
@@ -197,7 +187,7 @@ function UploadProgress({
               </Button>
             ) : null}
             {chooseAnother}
-          </Failure>
+          </ProblemAlert>
         </div>
       );
   }
@@ -226,16 +216,5 @@ export function PassedScan() {
       <Icon icon={Shield01Icon} />
       {m.passedScan}
     </Badge>
-  );
-}
-
-function Failure({ title, text, children }: { title: string; text?: string; children: ReactNode }) {
-  return (
-    <Alert variant="destructive">
-      <Icon icon={AlertCircleIcon} />
-      <AlertTitle>{title}</AlertTitle>
-      {text ? <AlertDescription>{text}</AlertDescription> : null}
-      <div className="mt-2.5 flex flex-wrap gap-2">{children}</div>
-    </Alert>
   );
 }

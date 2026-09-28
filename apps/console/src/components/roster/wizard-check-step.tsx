@@ -1,7 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
   Badge,
   Button,
   CheckboxItem,
@@ -16,7 +13,6 @@ import {
   Tooltip,
 } from '@adili/ui';
 import {
-  AlertCircleIcon,
   ArrowLeft01Icon,
   Cancel01Icon,
   Clock01Icon,
@@ -27,12 +23,13 @@ import {
   Tick02Icon,
   Upload04Icon,
 } from '@hugeicons/core-free-icons';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment } from 'react';
 
 import type { RosterImportPreview } from '../../server/directory/client';
 import { type CheckFailure, type MappingRow, mappingRows, type StartFailure } from './column-check';
 import { FileBox } from './file-box';
 import { messages as m } from './messages';
+import { ProblemAlert } from './problem-alert';
 import type { CleanUpload } from './upload';
 import { WizardCard, WizardFoot, WizardSection, WizardTitle } from './wizard-card';
 import { ColumnName } from './wizard-template-step';
@@ -344,7 +341,7 @@ function MissingAlert({
   onUploadAgain: () => void;
 }) {
   return (
-    <Problem
+    <ProblemAlert
       title={columns.length === 1 ? m.missingTitle : m.missingTitleMany}
       text={
         <>
@@ -355,7 +352,7 @@ function MissingAlert({
       }
     >
       <UploadAgain onClick={onUploadAgain} />
-    </Problem>
+    </ProblemAlert>
   );
 }
 
@@ -365,6 +362,18 @@ function UploadAgain({ onClick }: { onClick: () => void }) {
       <Icon icon={Upload04Icon} />
       {m.uploadAgain}
     </Button>
+  );
+}
+
+/**
+ * The clean upload is gone (expired, or purged) by the time the columns were checked or the
+ * import started: the file has to be uploaded again either way.
+ */
+function UploadGone({ onUploadAgain }: { onUploadAgain: () => void }) {
+  return (
+    <ProblemAlert title={m.uploadGoneTitle} text={m.uploadGoneText}>
+      <UploadAgain onClick={onUploadAgain} />
+    </ProblemAlert>
   );
 }
 
@@ -381,25 +390,21 @@ function CheckFailed({
 }) {
   switch (failure) {
     case 'upload-gone':
-      return (
-        <Problem title={m.uploadGoneTitle} text={m.uploadGoneText}>
-          <UploadAgain onClick={onBack} />
-        </Problem>
-      );
+      return <UploadGone onUploadAgain={onBack} />;
     case 'unreadable':
       return (
-        <Problem title={m.unreadableTitle} text={detail ?? m.unreadableText}>
+        <ProblemAlert title={m.unreadableTitle} text={detail ?? m.unreadableText}>
           <UploadAgain onClick={onBack} />
-        </Problem>
+        </ProblemAlert>
       );
     case 'failed':
       return (
-        <Problem title={m.checkFailedTitle} text={m.checkFailedText}>
+        <ProblemAlert title={m.checkFailedTitle} text={m.checkFailedText}>
           <Button variant="secondary" size="sm" onClick={onRetry}>
             <Icon icon={RefreshIcon} />
             {m.tryAgain}
           </Button>
-        </Problem>
+        </ProblemAlert>
       );
   }
 }
@@ -416,44 +421,19 @@ function StartFailed({
   switch (failure) {
     case 'running':
       return (
-        <Problem title={m.runningTitle} text={m.runningText}>
+        <ProblemAlert title={m.runningTitle} text={m.runningText}>
           <Button variant="secondary" size="sm" onClick={onViewRunning}>
             {m.viewProgress}
           </Button>
-        </Problem>
+        </ProblemAlert>
       );
     case 'processing':
-      return <Problem icon={Clock01Icon} title={m.processingTitle} text={m.processingText} />;
+      return <ProblemAlert icon={Clock01Icon} title={m.processingTitle} text={m.processingText} />;
     case 'limited':
-      return <Problem icon={Clock01Icon} title={m.limitedTitle} text={m.limitedText} />;
+      return <ProblemAlert icon={Clock01Icon} title={m.limitedTitle} text={m.limitedText} />;
     case 'upload-gone':
-      return (
-        <Problem title={m.uploadGoneTitle} text={m.uploadGoneText}>
-          <UploadAgain onClick={onBack} />
-        </Problem>
-      );
+      return <UploadGone onUploadAgain={onBack} />;
     case 'failed':
-      return <Problem title={m.startFailedTitle} text={m.startFailedText} />;
+      return <ProblemAlert title={m.startFailedTitle} text={m.startFailedText} />;
   }
-}
-
-function Problem({
-  icon = AlertCircleIcon,
-  title,
-  text,
-  children,
-}: {
-  icon?: typeof AlertCircleIcon;
-  title: string;
-  text: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <Alert variant="destructive">
-      <Icon icon={icon} />
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{text}</AlertDescription>
-      {children ? <div className="mt-2.5 flex flex-wrap gap-2">{children}</div> : null}
-    </Alert>
-  );
 }
