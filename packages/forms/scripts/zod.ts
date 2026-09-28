@@ -6,7 +6,6 @@
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 /** A JSON Schema, or any schema object inside one. */
 export type JsonSchema = Record<string, Json>;
-type Node = JsonSchema;
 
 export interface ZodModuleOptions {
   /** Name of the root schema, e.g. `DeclarationSchema`. */
@@ -51,10 +50,10 @@ const FORMATS: Record<string, string> = {
   uuid: 'z.guid()',
 };
 
-export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): string {
+export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOptions): string {
   const used = new Set<string>();
   const constants: string[] = [];
-  const defs = (schema.$defs ?? {}) as Record<string, Node>;
+  const defs = (schema.$defs ?? {}) as Record<string, JsonSchema>;
 
   function name(pointer: string, kind: 'enum' | 'const'): string | undefined {
     const found = names[pointer];
@@ -63,7 +62,7 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     return found;
   }
 
-  function expression(node: Node, pointer: string): string {
+  function expression(node: JsonSchema, pointer: string): string {
     const unknown = Object.keys(node).filter((key) => !KNOWN.has(key));
     if (unknown.length > 0) throw new Error(`${pointer}: unsupported ${unknown.join(', ')}`);
 
@@ -74,7 +73,7 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
       : `${base}.superRefine((value, ctx) => {\n${checks.join('\n')}\n})`;
   }
 
-  function baseExpression(node: Node, pointer: string): string {
+  function baseExpression(node: JsonSchema, pointer: string): string {
     if (typeof node.$ref === 'string') {
       const match = /^#\/\$defs\/(\w+)$/.exec(node.$ref);
       if (!match?.[1] || !(match[1] in defs)) throw new Error(`${pointer}: unknown ${node.$ref}`);
@@ -117,8 +116,8 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     }
   }
 
-  function objectExpression(node: Node, pointer: string): string {
-    const properties = (node.properties ?? {}) as Record<string, Node>;
+  function objectExpression(node: JsonSchema, pointer: string): string {
+    const properties = (node.properties ?? {}) as Record<string, JsonSchema>;
     const required = new Set((node.required ?? []) as string[]);
     const fields = Object.entries(properties).map(([key, property]) => {
       const source = expression(property, `${pointer}/properties/${key}`);
@@ -129,19 +128,23 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     throw new Error(`${pointer}: additionalProperties must be false or absent`);
   }
 
-  function stringExpression(node: Node, pointer: string): string {
+  function stringExpression(node: JsonSchema, pointer: string): string {
     if (typeof node.format === 'string') {
       const source = FORMATS[node.format];
       if (!source) throw new Error(`${pointer}: unsupported format ${node.format}`);
-      if (node.pattern !== undefined || node.minLength !== undefined) {
-        throw new Error(`${pointer}: a format with a pattern or length is not supported`);
+      // A format schema (z.iso.date() and the like) takes no further bounds; refuse rather than drop them.
+      for (const bound of ['pattern', 'minLength', 'maxLength']) {
+        if (node[bound] !== undefined) {
+          throw new Error(`${pointer}: a format with ${bound} is not supported`);
+        }
       }
       return source;
     }
     let source = `z.string()${bounds(node, 'minLength', 'maxLength')}`;
     if (typeof node.pattern === 'string') {
       // Ajv compiles patterns with the u flag (unicodeRegExp), so Zod must too or they can differ.
-      source += `.regex(/${node.pattern.replaceAll('/', '\\/')}/u)`;
+      // Escape only the slashes a regex literal would end on; an escaped one stays as it is.
+      source += `.regex(/${node.pattern.replace(/(?<!\\)\//gu, '\\/')}/u)`;
     }
     return source;
   }
@@ -149,10 +152,10 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
   // `if: { properties: { flag: { const } } }` with `then`/`else` of `required` or item counts, as
   // the forms use them for flagged changes, joint shares and nil categories. As in JSON Schema,
   // the condition also holds when the flag is absent.
-  function conditionals(node: Node, pointer: string): string[] {
-    const branches: [Node, string][] = [];
+  function conditionals(node: JsonSchema, pointer: string): string[] {
+    const branches: [JsonSchema, string][] = [];
     if (node.if !== undefined) branches.push([node, pointer]);
-    for (const [index, entry] of ((node.allOf ?? []) as Node[]).entries()) {
+    for (const [index, entry] of ((node.allOf ?? []) as JsonSchema[]).entries()) {
       const extra = Object.keys(entry).filter((key) => !['if', 'then', 'else'].includes(key));
       if (extra.length > 0 || entry.if === undefined) {
         throw new Error(`${pointer}/allOf/${index}: only if/then/else is supported in allOf`);
@@ -162,17 +165,17 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     // A required field is always there by the time a refinement runs.
     const required = new Set((node.required ?? []) as string[]);
     return branches.map(([branch, at]) => {
-      const condition = conditionSource(branch.if as Node, required, `${at}/if`);
-      const then = assertions(branch.then as Node | undefined, required, `${at}/then`);
-      const otherwise = assertions(branch.else as Node | undefined, required, `${at}/else`);
+      const condition = conditionSource(branch.if as JsonSchema, required, `${at}/if`);
+      const then = assertions(branch.then as JsonSchema | undefined, required, `${at}/then`);
+      const otherwise = assertions(branch.else as JsonSchema | undefined, required, `${at}/else`);
       return otherwise
         ? `if (${condition}) {\n${then}\n} else {\n${otherwise}\n}`
         : `if (${condition}) {\n${then}\n}`;
     });
   }
 
-  function conditionSource(condition: Node, required: Set<string>, pointer: string): string {
-    const entries = Object.entries((condition.properties ?? {}) as Record<string, Node>);
+  function conditionSource(condition: JsonSchema, required: Set<string>, pointer: string): string {
+    const entries = Object.entries((condition.properties ?? {}) as Record<string, JsonSchema>);
     const [only] = entries;
     if (Object.keys(condition).join() !== 'properties' || entries.length !== 1 || !only) {
       throw new Error(`${pointer}: only a single { properties: { key: { const } } } is supported`);
@@ -184,7 +187,11 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     return required.has(key) ? equals : `value.${key} === undefined || ${equals}`;
   }
 
-  function assertions(branch: Node | undefined, required: Set<string>, pointer: string): string {
+  function assertions(
+    branch: JsonSchema | undefined,
+    required: Set<string>,
+    pointer: string,
+  ): string {
     if (branch === undefined) return '';
     const lines: string[] = [];
     for (const [key, value] of Object.entries(branch)) {
@@ -195,7 +202,7 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
           );
         }
       } else if (key === 'properties') {
-        for (const [field, rule] of Object.entries(value as Record<string, Node>)) {
+        for (const [field, rule] of Object.entries(value as Record<string, JsonSchema>)) {
           const at = `${pointer}/properties/${field}`;
           // The refinement reads `value.<field>.length`, which needs the array to be there.
           if (!required.has(field)) throw new Error(`${at}: a count needs ${field} to be required`);
@@ -208,7 +215,7 @@ export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): 
     return lines.join('\n');
   }
 
-  function countAssertions(field: string, rule: Node, pointer: string): string[] {
+  function countAssertions(field: string, rule: JsonSchema, pointer: string): string[] {
     return Object.entries(rule).map(([key, limit]) => {
       if (key === 'minItems' && typeof limit === 'number') {
         return `if (value.${field}.length < ${limit}) ctx.addIssue({ code: 'custom', path: [${JSON.stringify(field)}], message: 'must NOT have fewer than ${limit} items' });`;
@@ -257,11 +264,11 @@ function refsIn(node: Json): string[] {
   );
 }
 
-function docComment(node: Node): string {
+function docComment(node: JsonSchema): string {
   return typeof node.description === 'string' ? `/** ${node.description} */\n` : '';
 }
 
-function bounds(node: Node, min: string, max: string): string {
+function bounds(node: JsonSchema, min: string, max: string): string {
   let source = '';
   if (typeof node[min] === 'number') source += `.min(${node[min]})`;
   if (typeof node[max] === 'number') source += `.max(${node[max]})`;

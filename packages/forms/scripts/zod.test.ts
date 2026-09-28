@@ -22,6 +22,18 @@ describe('zodModule', () => {
     expect(source).toContain(String.raw`z.string().regex(/^\p{Lu}\//u)`);
   });
 
+  it('escapes a slash in a pattern once, even when it is already escaped', () => {
+    const source = generate({ type: 'string', pattern: String.raw`^a/b\/c$` });
+
+    expect(source).toContain(String.raw`z.string().regex(/^a\/b\/c$/u)`);
+  });
+
+  it.each(['maxLength', 'minLength'])('refuses a format with %s, which Zod would drop', (bound) => {
+    expect(() => generate({ type: 'string', format: 'date', [bound]: 10 })).toThrow(
+      `#: a format with ${bound} is not supported`,
+    );
+  });
+
   it('refuses a count on an optional array, which a refinement cannot read', () => {
     expect(() =>
       generate({

@@ -73,6 +73,13 @@ function toFieldProblem(error: ErrorObject): FieldProblem {
   return { segments, code, message: error.message ?? 'is invalid' };
 }
 
+/** A JSON pointer (RFC 6901) to the field the segments name; empty for the root. */
+export function jsonPointer(segments: readonly string[]): string {
+  return segments
+    .map((segment) => `/${segment.replaceAll('~', '~0').replaceAll('/', '~1')}`)
+    .join('');
+}
+
 function unescapePointer(segment: string): string {
   return segment.replaceAll('~1', '/').replaceAll('~0', '~');
 }

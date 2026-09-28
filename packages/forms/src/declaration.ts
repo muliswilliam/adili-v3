@@ -8,12 +8,13 @@ import {
   type FieldProblem,
   formValidator,
   type FormValidationError,
+  jsonPointer,
 } from './validate.js';
 
-const problems = compileFieldProblems(schema);
+const declarationProblems = compileFieldProblems(schema);
 
 /** Validates a declaration (the First Schedule, paragraphs 1-9) against `declaration.v1`. */
-export const validateDeclaration = formValidator<DeclarationV1>(problems);
+export const validateDeclaration = formValidator<DeclarationV1>(declarationProblems);
 
 /** `officer` or `spouse:<id>` / `child:<id>`: whose financial statement (paragraph 8) it is. */
 export type PersonKey = 'officer' | `spouse:${string}` | `child:${string}`;
@@ -114,7 +115,7 @@ export function sectionContents(document: DeclarationV1): [DeclarationSectionKey
 /** Validates a declaration and places every problem on its capture section and field. */
 export function declarationIssues(document: unknown): DeclarationProblems {
   const found: DeclarationProblems = { issues: [], declaration: [] };
-  for (const problem of problems(document)) {
+  for (const problem of declarationProblems(document)) {
     // A failed if/then/else is also reported on the field it requires; that report is enough.
     if (problem.code === 'if') continue;
     const issue = toIssue(problem, document);
@@ -128,7 +129,7 @@ function toIssue({ segments, code, message }: FieldProblem, document: unknown) {
   const [head, ...rest] = segments;
   const at = (sectionKey: DeclarationSectionKey, inside: string[]): DeclarationIssue => ({
     sectionKey,
-    path: inside.map((segment) => `/${escapePointer(segment)}`).join(''),
+    path: jsonPointer(inside),
     code,
     message,
   });
@@ -151,8 +152,4 @@ function statementPersonKey(document: unknown, index: number): PersonKey | undef
   return typeof personKey === 'string' && PERSON_KEY.test(personKey)
     ? (personKey as PersonKey)
     : undefined;
-}
-
-function escapePointer(segment: string): string {
-  return segment.replaceAll('~', '~0').replaceAll('/', '~1');
 }

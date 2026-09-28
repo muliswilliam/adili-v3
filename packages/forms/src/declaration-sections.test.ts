@@ -5,6 +5,8 @@ import {
   ASSET_TYPES,
   CHANGE_KINDS,
   COUNTIES,
+  COUNTRIES,
+  CURRENCIES,
   DeclarationSchema,
   DECLARATION_TYPES,
   declarationIssues,
@@ -21,13 +23,13 @@ import {
   sectionSchema,
 } from './index.js';
 import { biennialHousehold, invalidDeclarations, validDeclarations } from './test/fixtures.js';
+import { jsonPointer } from './validate.js';
 
 const defs = schema.$defs;
 const officer = schema.properties.officer.properties;
 
 /** Zod's issue path as the JSON pointer declarationIssues reports. */
-const pointer = (path: PropertyKey[]) =>
-  path.map((segment) => `/${String(segment).replaceAll('~', '~0').replaceAll('/', '~1')}`).join('');
+const pointer = (path: PropertyKey[]) => jsonPointer(path.map(String));
 
 /** A fresh biennial and parts of its officer's statement, which edit that declaration. */
 function officerStatement() {
@@ -73,6 +75,29 @@ describe('declaration.v1 enumerations', () => {
     );
     expect(COUNTIES.filter((county) => !pattern.test(county.code))).toEqual([]);
     expect(COUNTIES.at(-1)).toEqual({ code: '047', name: 'Nairobi City' });
+  });
+
+  it('lists the ISO 3166-1 countries once each, each one the schema accepts', () => {
+    const pattern = new RegExp(defs.Location.properties.country.pattern, 'u');
+    const codes = COUNTRIES.map((country) => country.code);
+
+    expect(COUNTRIES).toHaveLength(249);
+    expect(new Set(codes).size).toBe(codes.length);
+    expect(codes.filter((code) => !pattern.test(code))).toEqual([]);
+    expect(COUNTRIES).toContainEqual({ code: 'KE', name: 'Kenya' });
+    expect(COUNTRIES.filter((country) => !country.name)).toEqual([]);
+  });
+
+  it('lists the current ISO 4217 currencies once each, each one the schema accepts', () => {
+    const pattern = new RegExp(defs.Money.properties.original.properties.currency.pattern, 'u');
+    const codes = CURRENCIES.map((currency) => currency.code);
+
+    expect(CURRENCIES.length).toBeGreaterThan(150);
+    expect(new Set(codes).size).toBe(codes.length);
+    expect(codes.filter((code) => !pattern.test(code))).toEqual([]);
+    expect(CURRENCIES).toContainEqual({ code: 'USD', name: 'US Dollar' });
+    expect(codes).toContain('KES');
+    expect(CURRENCIES.filter((currency) => !currency.name)).toEqual([]);
   });
 });
 

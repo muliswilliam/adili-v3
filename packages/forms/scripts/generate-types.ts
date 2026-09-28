@@ -73,7 +73,10 @@ for (const { file, typeName, zod } of FORMS) {
     const module = zodModule(schema, zod);
     writeFileSync(
       join(srcDir, `${file}.zod.gen.ts`),
-      await format(`${banner('zod.ts')}\n\n${module}\n`, { ...style, parser: 'typescript' }),
+      await format(`${banner('generate-types.ts')}\n\n${module}\n`, {
+        ...style,
+        parser: 'typescript',
+      }),
     );
   }
 }
