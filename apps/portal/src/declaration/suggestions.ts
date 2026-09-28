@@ -8,6 +8,7 @@ import type {
 } from '../server/declarations.server';
 import type { DocumentKind, RegistrySystem } from '../server/declarations/types';
 import {
+  allOf,
   ASSET_TYPES,
   type Draft,
   INCOME_TYPES,
@@ -37,7 +38,13 @@ import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
  * the mock writes on accept), and each registry's status in a person's check.
  */
 
-export const REGISTRIES: readonly RegistrySystem[] = ['kra', 'ntsa', 'brs', 'ardhisasa'];
+/** Every registry the contract names, in the order the panel shows them. */
+export const REGISTRIES: readonly RegistrySystem[] = allOf<RegistrySystem>()([
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+]);
 
 /** A suggestion as the rules need it; the mock passes its stored ones. */
 export interface SuggestionLike {
