@@ -7,7 +7,7 @@ import { PLATFORM_TENANT } from '../../commissions/access.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { onboardingSessions } from '../schema.js';
 import { TERMINAL_STATES } from '../session-state.js';
-import { OnboardingSessions } from '../sessions.repository.js';
+import { ONBOARDING_SUBJECT, OnboardingSessions } from '../sessions.repository.js';
 
 const BATCH_SIZE = 500;
 
@@ -33,7 +33,7 @@ export class OnboardingSessionSweeper {
       const now = this.clock.now();
       const count = await withTenant(
         this.db,
-        { tenant: PLATFORM_TENANT, subject: 'onboarding-sweep' },
+        { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT },
         async (tx) => {
           const expired = await tx
             .select()

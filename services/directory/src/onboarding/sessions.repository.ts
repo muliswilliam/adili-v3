@@ -33,6 +33,7 @@ import {
   type OnboardingState,
   type OtpChannel,
   pendingChannel,
+  resendAvailableAt,
   showsDetails,
   type TerminalState,
 } from './session-state.js';
@@ -248,10 +249,7 @@ export class OnboardingSessions {
             channel,
             resendAvailableAt: otp
               ? new Date(
-                  Math.max(
-                    otp.lastSentAt.getTime() + ONBOARDING_TIMING.resendCooldownMs,
-                    now.getTime(),
-                  ),
+                  Math.max(resendAvailableAt(otp.lastSentAt).getTime(), now.getTime()),
                 ).toISOString()
               : null,
             resendsLeft: ONBOARDING_TIMING.otpResends - (otp?.resends ?? 0),
@@ -305,8 +303,8 @@ export class OnboardingSessions {
  */
 function passwordEmailAvailableAt(session: SessionRow, now: Date): string | null {
   if (session.state !== 'confirmed' || session.passwordEmailSentAt === null) return null;
-  const availableAt = session.passwordEmailSentAt.getTime() + ONBOARDING_TIMING.resendCooldownMs;
-  return availableAt > now.getTime() ? new Date(availableAt).toISOString() : null;
+  const availableAt = resendAvailableAt(session.passwordEmailSentAt);
+  return availableAt > now ? availableAt.toISOString() : null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -330,6 +328,20 @@ export function sessionNotFound(): ProblemException {
 /** 410: the session ended or ran out of time; the portal clears its cookie and starts over. */
 export function sessionEnded(): ProblemException {
   return ProblemException.fromCode('session-expired');
+}
+
+/**
+ * 429 `resend-cooldown`, with `retryAfterSeconds`, while the minute after the last send (of a
+ * code or the set-password email) is not up.
+ */
+export function refuseDuringCooldown(lastSentAt: Date | null, now: Date): void {
+  if (lastSentAt === null) return;
+  const waitMs = resendAvailableAt(lastSentAt).getTime() - now.getTime();
+  if (waitMs > 0) {
+    throw ProblemException.fromCode('resend-cooldown', {
+      extensions: { retryAfterSeconds: Math.ceil(waitMs / 1000) },
+    });
+  }
 }
 
 /** 409 `wrong-step`: the session is not at the step asked for (e.g. another tab moved it on). */

@@ -22,7 +22,12 @@ import { IprsLookup, IprsUnavailable } from '../iprs/iprs-lookup.js';
 import { namesMatch } from '../iprs/name-rule.js';
 import { reject, Rejection } from '../rejection.js';
 import type { OnboardingConfirmResult } from '../representation.js';
-import { extendedExpiry, type OnboardingOutcome, OTP_CHANNELS } from '../session-state.js';
+import {
+  extendedExpiry,
+  type IprsOutcome,
+  type OnboardingOutcome,
+  OTP_CHANNELS,
+} from '../session-state.js';
 import {
   OnboardingSessions,
   sessionEnded,
@@ -36,12 +41,11 @@ type RosterRecord = Pick<
   'id' | 'state' | 'fullName' | 'nationalId'
 >;
 
-type IprsVerdict = 'match' | 'mismatch' | 'not-found';
-
 /** What a confirm committed, and the set-password email it still has to send. */
 interface Confirmed {
   result: OnboardingConfirmResult;
-  setPasswordEmailTo?: string;
+  /** The Keycloak user id of the new account whose set-password email is still to send. */
+  setPasswordEmailFor?: string;
 }
 
 /** The record changed between the IPRS check and the lock: check it again. */
@@ -95,8 +99,8 @@ export class ConfirmService {
       const verdict = await this.lookUp(sessionId, record);
       const confirmed = await this.decide(sessionId, secret, record, verdict);
       if (confirmed === RECHECK) continue;
-      if (confirmed.setPasswordEmailTo) {
-        await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailTo);
+      if (confirmed.setPasswordEmailFor) {
+        await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailFor);
       }
       return confirmed.result;
     }
@@ -122,7 +126,7 @@ export class ConfirmService {
   }
 
   /** Whether IPRS knows the record's national ID under the record's names. */
-  private async lookUp(sessionId: string, record: RosterRecord): Promise<IprsVerdict> {
+  private async lookUp(sessionId: string, record: RosterRecord): Promise<IprsOutcome> {
     try {
       const person = await this.iprs.find(record.nationalId);
       if (!person) return 'not-found';
@@ -139,7 +143,7 @@ export class ConfirmService {
     sessionId: string,
     secret: string | undefined,
     checked: RosterRecord,
-    verdict: IprsVerdict,
+    verdict: IprsOutcome,
   ): Promise<Confirmed | typeof RECHECK> {
     // What the identity provider did, to undo if the transaction does not commit.
     const undo: Restore[] = [];
@@ -178,7 +182,7 @@ export class ConfirmService {
   private async mismatch(
     { tx, session, now }: SessionContext,
     record: RosterRecord,
-    iprsOutcome: 'mismatch' | 'not-found',
+    iprsOutcome: Exclude<IprsOutcome, 'match'>,
   ): Promise<OnboardingConfirmResult> {
     await tx
       .update(rosterRecords)
@@ -286,7 +290,7 @@ export class ConfirmService {
     );
     return {
       result: { outcome, session: await this.sessions.view(tx, ended, now) },
-      ...(outcome === 'account-created' ? { setPasswordEmailTo: person.keycloakUserId } : {}),
+      ...(outcome === 'account-created' ? { setPasswordEmailFor: person.keycloakUserId } : {}),
     };
   }
 

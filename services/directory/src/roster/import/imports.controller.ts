@@ -32,6 +32,7 @@ import {
 import { z } from 'zod';
 
 import { REPORTING_OFFICER_ROLE } from '../../commissions/access.js';
+import { ROSTER_OVERVIEW_ROLES } from '../access.js';
 import { HrSystemAccess } from '../api-credential/hr-system-access.js';
 import { RECORD_READ_ROLES } from '../records/access.js';
 import { RosterImportRowsService } from './import-rows.service.js';
@@ -50,15 +51,6 @@ import {
   type RosterImportRowPage,
   type StartRosterImportBody,
 } from './representation.js';
-
-/** Roles that read a Commission's imports (spec #27 authorisation matrix). */
-export const IMPORT_READ_ROLES = [
-  REPORTING_OFFICER_ROLE,
-  'commission-admin',
-  'platform-admin',
-  'eacc-analyst',
-  'eacc-supervisor',
-] as const;
 
 const NOT_VISIBLE = 'Not found: another Commission, or the Commission does not exist';
 const UPLOAD_PROBLEMS = {
@@ -84,7 +76,7 @@ export class RosterImportsController {
   ) {}
 
   @Get()
-  @Roles(...IMPORT_READ_ROLES)
+  @Roles(...ROSTER_OVERVIEW_ROLES)
   @HrSystemAccess('roster-read')
   @ApiOperation({
     operationId: 'listRosterImports',
@@ -178,7 +170,7 @@ export class RosterImportsController {
   }
 
   @Get(':importId')
-  @Roles(...IMPORT_READ_ROLES)
+  @Roles(...ROSTER_OVERVIEW_ROLES)
   @HrSystemAccess('roster-read')
   @ApiParam({ name: 'importId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({

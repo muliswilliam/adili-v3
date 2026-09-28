@@ -8,7 +8,7 @@ import {
   schemaRef,
 } from '@adili/api-kit';
 
-import { IMPORT_READ_ROLES } from '../../roster/import/imports.controller.js';
+import { ROSTER_OVERVIEW_ROLES } from '../../roster/access.js';
 import { OnboardingFailures } from './onboarding-failures.js';
 import type { OnboardingFailuresView } from './representation.js';
 
@@ -19,7 +19,7 @@ export class OnboardingFailuresController {
   constructor(private readonly failures: OnboardingFailures) {}
 
   @Get()
-  @Roles(...IMPORT_READ_ROLES)
+  @Roles(...ROSTER_OVERVIEW_ROLES)
   @ApiOperation({
     operationId: 'getOnboardingFailures',
     summary: 'Failed onboarding attempts against the Commission in the last 24 hours',

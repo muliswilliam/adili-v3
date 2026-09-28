@@ -20,6 +20,7 @@ import {
 } from '../session-state.js';
 import {
   OnboardingSessions,
+  refuseDuringCooldown,
   sessionEnded,
   type SessionContext,
   type SessionRow,
@@ -120,13 +121,7 @@ export class OnboardingCodesService {
         const { tx, session, now } = context;
         if (pendingChannel(session.state) !== channel) throw wrongStep();
         const otp = await currentOtp(tx, session, channel);
-        const waitMs =
-          otp.lastSentAt.getTime() + ONBOARDING_TIMING.resendCooldownMs - now.getTime();
-        if (waitMs > 0) {
-          throw ProblemException.fromCode('resend-cooldown', {
-            extensions: { retryAfterSeconds: Math.ceil(waitMs / 1000) },
-          });
-        }
+        refuseDuringCooldown(otp.lastSentAt, now);
         if (otp.resends >= ONBOARDING_TIMING.otpResends) return this.exhausted(context);
         const commission = await commissionOfSession(tx, session);
         await issue(tx, session, channel, {

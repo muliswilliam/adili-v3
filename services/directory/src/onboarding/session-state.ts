@@ -111,6 +111,11 @@ export const ONBOARDING_TIMING = {
   otpResends: 3,
 } as const;
 
+/** When something last sent at `lastSentAt` (a code, the set-password email) may be sent again. */
+export function resendAvailableAt(lastSentAt: Date): Date {
+  return new Date(lastSentAt.getTime() + ONBOARDING_TIMING.resendCooldownMs);
+}
+
 /** When a session created at `now` expires. */
 export function initialExpiry(now: Date): Date {
   return new Date(now.getTime() + ONBOARDING_TIMING.sessionTtlMs);
