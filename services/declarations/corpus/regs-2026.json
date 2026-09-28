@@ -1,0 +1,213 @@
+{
+  "source": "regs",
+  "title": "Conflict of Interest Regulations, 2026 (Legal Notice 53 of 2026)",
+  "frbr": "/akn/ke/act/ln/2026/53/eng@2026-03-26",
+  "effectiveFrom": "2026-03-26",
+  "passages": [
+    {
+      "citation": "Regs r.1",
+      "title": "Citation",
+      "text": "These Regulations may be cited as the Conflict of Interest Regulations, 2026.",
+      "tags": ["definition"]
+    },
+    {
+      "citation": "Regs r.2",
+      "title": "Interpretation",
+      "text": "In these Regulations, unless the context otherwise requires— “Act” means the Conflict of Interest Act, 2025 (No. 11 of 2025); “gift” means anything that confers a benefit to the recipient without payment or other consideration; “recuse” means to remove oneself from any discussion, decision, debate or vote on a particular matter due to conflict of interest but does not include abstention; and “value of gift” means the prevailing or fair market value of a gift at the time and the place it is presented or received.",
+      "tags": ["definition", "gifts", "recusal"]
+    },
+    {
+      "citation": "Regs r.3",
+      "title": "Objects of the Regulations",
+      "text": "The object of these Regulations is to outline the procedures, structures and systems for the prevention, management, detection and investigation of matters relating to conflict of interest.",
+      "tags": ["conflict-of-interest"]
+    },
+    {
+      "citation": "Regs r.4",
+      "title": "Delegation of powers or functions of the Commission",
+      "text": "(1) A delegation of the powers or functions of the Commission under section 7(c) of the Act shall specify— (a) the reporting authority, person or body to which the power or function is delegated; (b) the power or function that is delegated; (c) the extent of the power or function that is delegated; (d) the period within which the delegated power or function is to be exercised; (e) the manner in which the delegated power or function is to be exercised; (f) the manner in which the reporting authority, person or body shall report to the Commission in respect to the performance of the delegated power or function; (g) the category of public officers in respect of whom the delegated power or function will be exercised; and (h) any other direction that the Commission may deem appropriate.",
+      "tags": ["responsible-commission"]
+    },
+    {
+      "citation": "Regs r.5",
+      "title": "Other responsible Commissions",
+      "text": "For purposes of section 32(15) of the Act, the following shall be the responsible Commissions for public officers for which no responsible Commission is specified in section 32— (a) the Ethics and Anti-Corruption Commission shall be the responsible commission for staff of the Commission below the rank of Deputy Director; (b) the Commission for University Education, established under the Universities Act (Cap. 210) shall be the responsible commission for officers and employees of a public university, including the members of the council of a public university other than members who are appointed to the council by virtue of an office held within the public service for whom the Public Service Commission is the responsible Commission; (c) the Board of Directors of the Central Bank of Kenya shall be the responsible Commission for officers and employees of— (i) the Central Bank of Kenya; and (ii) banks and financial institutions licensed under the Banking Act (Cap. 488) that are state corporations. (d) a constitutional commission specified in Article 248(2) of the Constitution shall be the responsible Commission in respect of its employees; (e) the Public Service Commission shall be the responsible Commission for the employees of the Office of the Director of Public Prosecutions, employees of the Office of the Controller of Budget and employees of the Office of the Auditor General; and (f) the Public Service Commission shall be the responsible Commission for a public officer, employee or member of a reporting entity for which a responsible Commission is not specified under the Act or these Regulations.",
+      "tags": ["responsible-commission", "bio"]
+    },
+    {
+      "citation": "Regs r.6",
+      "title": "Disclosure of conflict of interest",
+      "text": "A public officer shall, for the purposes of section 9 (b) of the Act, disclose details of any private interest of the public officer that affects his or her official duties in Form A set out in the Schedule.",
+      "tags": ["conflict-of-interest"]
+    },
+    {
+      "citation": "Regs r.7",
+      "title": "When a disclosure of conflict of interest should be made",
+      "text": "(1) Where a public officer is present at a meeting or any other proceeding where a private interest that is likely to result in a conflict of interest is to be discussed, the public officer shall declare the interest at the beginning of the meeting or at any time before the issue is deliberated upon. (2) Where a public officer, prior to a meeting, proceeding or discussion, is aware that he has a conflict of interest in any matter, he shall declare the conflict of interest and notify the reporting authority. (3) A public officer who becomes aware of a conflict of interest after a meeting, proceeding or discussion, shall, before the minutes of the transaction in question are confirmed, declare the conflict of interest and notify the reporting authority. (4) A reporting authority who receives a declaration of conflict of interest and a notification under paragraph (2) or (3) shall take remedial action to avert or redress the conflict of interest.",
+      "tags": ["conflict-of-interest"]
+    },
+    {
+      "citation": "Regs r.8",
+      "title": "Gifts",
+      "text": "(1) For purposes of section 16(2)(d) of the Act, the value of a gift that a public officer may receive shall not exceed twenty thousand shillings. (2) A public officer shall not receive a gift offered by the same donor more than twice in a financial year. (3) Any gift received by a public officer that is not within the category of gifts that are exempted under section 16(2) shall be deemed as a gift to the State and shall be surrendered to the reporting authority of the public officer. (4) A gift that is surrendered to the reporting authority under paragraph (3) may be utilized by the reporting entity or disposed of in accordance with the Public Procurement and Asset Disposal Act (Cap. 412C). (5) A person who contravenes paragraph (2) commits an offence and shall on conviction be liable to a fine not exceeding twenty thousand shillings or a term of imprisonment not exceeding six months or to both.",
+      "tags": ["gifts"]
+    },
+    {
+      "citation": "Regs r.9",
+      "title": "Declaration of gifts and other benefits",
+      "text": "For purposes of section 16(3) and (4) of the Act, a public officer who receives a gift or benefit or whose relative receives a gift or benefit shall, irrespective of its monetary value, declare the gift or benefit received to the reporting entity in Form B set out in the Schedule.",
+      "tags": ["gifts"]
+    },
+    {
+      "citation": "Regs r.10",
+      "title": "Register of gifts received",
+      "text": "A reporting authority shall, for purposes of section 17(a) of the Act, maintain a register of gifts received by any person serving in the reporting entity in Form C set out in the Schedule.",
+      "tags": ["gifts"]
+    },
+    {
+      "citation": "Regs r.11",
+      "title": "Register of gifts given",
+      "text": "A reporting authority shall, for purposes of section 17(b) of the Act, maintain a register of gifts given by the reporting entity to any person in Form D set out in the Schedule.",
+      "tags": ["gifts"]
+    },
+    {
+      "citation": "Regs r.12",
+      "title": "Exceptional circumstances for accepting complimentary treatment",
+      "text": "(1) A public officer or a member of his family or relative may accept complimentary treatment under the following exceptional circumstances— (a) if the complimentary treatment is offered in the normal course of business and is appropriate to the position and responsibility of the public officer; (b) if the complimentary treatment is not intended to influence a decision of the public officer; (c) if the complimentary treatment is in the interest of the public entity; (d) if the complimentary treatment is given or received with utmost transparency; (e) if the complimentary treatment offered is available to any person or class of persons to which the public officer belongs; and (f) if the complimentary treatment does not cause a conflict of interest or has no potential of causing a conflict of interest. (2) A public officer or a member of his family or relative may accept complimentary treatment in paragraph (1) if the value of the complimentary treatment does not exceed twenty thousand shillings and the complimentary treatment is not offered by the same person more than twice in a financial year.",
+      "tags": ["gifts"]
+    },
+    {
+      "citation": "Regs r.13",
+      "title": "Declaration of complimentary treatment",
+      "text": "(1) For purposes of section 18(3) and (4) of the Act, a public officer who accepts any complimentary treatment or whose relative accepts any complimentary treatment shall declare the complimentary treatment accepted to the reporting entity in Form E set out in the Schedule. (2) A reporting authority shall maintain a register of complimentary treatment given to a public officer or his relative in Form F set out in the Schedule.",
+      "tags": ["gifts"]
+    },
+    {
+      "citation": "Regs r.14",
+      "title": "Permission to engage in other gainful employment",
+      "text": "(1) A public officer who seeks to engage in other gainful employment which is not prohibited under the Act shall seek permission from the reporting authority in writing. (2) The reporting authority shall consider a request for permission to engage in any other gainful employment and communicate the decision in writing within fourteen days from the receipt of the request. (3) A public officer shall, for purposes of section 23(2) of the Act, declare any engagement in other gainful employment to the reporting authority and the Commission in Form G set out in the Schedule. (4) A reporting authority shall maintain a register of other gainful employment undertaken by a public officer in Form H set out in the Schedule.",
+      "tags": ["employment"]
+    },
+    {
+      "citation": "Regs r.15",
+      "title": "Interpretation of incompatible gainful employment",
+      "text": "Any other gainful employment is inherently incompatible with the official duties of the public officer if# (a) the nature of such employment requires the officer to undertake duties during the official working hours of the reporting entity; (b) the employment is full time, whether in a public entity or private entity; or (c) the entity offering the other gainful employment has a material, current and direct contractual relationship with the reporting entity.",
+      "tags": ["employment"],
+      "notes": "The \"if#\" is as published in Legal Notice 53 of 2026; the intended character is presumably a dash."
+    },
+    {
+      "citation": "Regs r.16",
+      "title": "Register of conflict of interest",
+      "text": "The reporting authority of a reporting entity shall, for purposes of section 24 of the Act, maintain a register of conflict of interest in Form I set out in the Schedule.",
+      "tags": ["registrable-interest"]
+    },
+    {
+      "citation": "Regs r.17",
+      "title": "Threshold for reporting securities",
+      "text": "For purposes of registering an interest in the securities in a company, enterprise or undertaking, a public officer shall declare an interest that exceeds ten percent of the aggregate nominal value or market value of the company, enterprise or undertaking.",
+      "tags": ["registrable-interest", "assets"]
+    },
+    {
+      "citation": "Regs r.18",
+      "title": "Inspection of a register of conflict of interest",
+      "text": "(1) Any person who seeks to inspect the register of conflict of interest of a reporting entity shall make a request in writing to the reporting authority of the entity. (2) The reporting authority shall within seven days of receipt of the request specify the time and place where the register may be inspected.",
+      "tags": ["registrable-interest", "access"]
+    },
+    {
+      "citation": "Regs r.19",
+      "title": "Duty to recuse",
+      "text": "(1) A public officer who recuses himself or herself in accordance with section 30(1) of the Act shall declare the recusal in Form J set out in the Schedule. (2) For purposes of section 30(2)(a) of the Act, minutes shall include proceedings, accounts or reports of the transaction in question.",
+      "tags": ["recusal"]
+    },
+    {
+      "citation": "Regs r.20",
+      "title": "Declaration of income assets and liabilities",
+      "text": "(1) A responsible Commission shall, in relation to declaration of income, assets and liabilities submitted in accordance with section 31 of the Act, undertake the following functions with regard to the declarations made by public officers— (a) analyse and verify the accuracy of the income, assets and liabilities in any declaration; (b) compare and contrast any information obtained from other sources with the information contained in the declaration of a particular public officer or category of public officers for purposes of analysis, inspection, evaluation and verification; (c) refer to the Commission, any cases of undeclared or unexplained assets liable for forfeiture; and (d) develop an information and communications technology system to process and manage the declarations. (2) A responsible Commission shall refer to the Commission a report relating to a public officer who fails to submit a declaration of income, assets and liabilities or to respond to a request for a clarification for at least two consecutive declaration cycles for investigation and possible recommendation for prosecution.",
+      "tags": ["declaration", "clarification", "administrative-action"]
+    },
+    {
+      "citation": "Regs r.21",
+      "title": "Declaration of material change",
+      "text": "A material change shall, for purposes of section 31(4) of the Act, be specified by the declarant in paragraph 9 of the declaration form set out in the First Schedule to the Act.",
+      "tags": ["material-change", "other"]
+    },
+    {
+      "citation": "Regs r.22",
+      "title": "Access to declarations",
+      "text": "(1) A person may, for purposes of section 36 of the Act, apply to the responsible Commission to access information contained in a declaration or clarification made under the Act in Form K set out in the Schedule. (2) The responsible Commission shall notify the concerned public officer in writing of the application made under paragraph (1). (3) The responsible Commission shall— (a) where it grants the request for access, notify the applicant in writing of the scope, procedure and manner of access; or (b) where it does not grant the request for access, notify the applicant in writing and give reasons for the decision.",
+      "tags": ["access"]
+    },
+    {
+      "citation": "Regs r.23",
+      "title": "Access to a disclosure by law enforcement agencies",
+      "text": "(1) For purposes of section 36(2) of the Act, a law enforcement agency that seeks to have access to a disclosure, declaration or compliance report made by a public officer shall— (a) make a request in writing to the responsible Commission disclosing the reason for access; and (b) not be required to fill Form K set out in the Schedule. (2) The responsible Commission shall notify the concerned public officer in writing of the request made under paragraph (1). (3) For purposes of this regulation, a law enforcement agency means— (a) a public entity that is undertaking an investigation pursuant to the Constitution or any written law; or (b) a responsible Commission specified in the Act or these Regulations.",
+      "tags": ["access"]
+    },
+    {
+      "citation": "Regs r.24",
+      "title": "Grounds for denial of access to a declaration",
+      "text": "A responsible Commission may decline an application to access a declaration or clarification on the grounds that— (a) the disclosure of any information contained in the declaration or clarification would be against public interest; (b) the access to the information contained in the declaration or clarification may prejudice an ongoing proceeding or investigation by the responsible Commission or a law enforcement agency; (c) the request is frivolous, vexatious or scandalous; or (d) the reason for the access of the information contained in the declaration or clarification does not promote the objectives of the Act.",
+      "tags": ["access"]
+    },
+    {
+      "citation": "Regs r.25",
+      "title": "Compliance reports",
+      "text": "(1) Every reporting entity shall, within six months after the end of the financial year, file compliance reports with the Commission in Form L set out in the Schedule. (2) Every responsible Commission shall— (a) in relation to a two-year declaration, file a compliance report with the Commission in Form M set out in the Schedule by the 31st July of the year following the declaration year; and (b) in relation to initial and final declarations, file a compliance report with the Commission in Form M set out in the Schedule by the 31st July following the end of the financial year. (3) The compliance reports under paragraph (1) or (2) may be filed electronically",
+      "tags": ["compliance-report", "deadline"]
+    },
+    {
+      "citation": "Regs r.26",
+      "title": "Lodging of complaints",
+      "text": "(1) A person may pursuant to section 41(1) lodge a complaint to the reporting authority or the Commission— (a) in person; (b) in writing; (c) by email; (d) by telephone; (e) through any anonymous reporting system that may be established by a reporting authority or the Commission; or (f) through a third party or agent. (2) A reporting authority or the Commission shall maintain a register of complaints received pursuant to section 41 of the Act in Form N set out in the Schedule. (3) Upon receipt of a complaint, the reporting authority or the Commission may, if it is of the opinion that the complaint does not have sufficient details, request for more information from the complainant.",
+      "tags": ["complaints"]
+    },
+    {
+      "citation": "Regs r.27",
+      "title": "Concurrent investigations",
+      "text": "(1) Where it is established that the Commission and a reporting authority have commenced investigations on the same complaint, the entity that received the complaint first shall conduct the investigation. (2) Where the subject of the complaint is a reporting authority or a public officer above the rank of the reporting authority, the investigation shall be conducted by the Commission. (3) Where an investigation is conducted by a reporting authority other than the Commission pursuant to paragraph (1), the result of the investigation shall be reported to the Commission. (4) Upon receipt of the results of the investigations under paragraph (3), the Commission may undertake further investigations and make recommendations in accordance section 44 (1) of the Act.",
+      "tags": ["complaints"]
+    },
+    {
+      "citation": "Regs r.28",
+      "title": "Protection of complainants and witnesses",
+      "text": "(1) A person shall not be subjected to harassment, discrimination, reprisal, victimization or any other form of unfair treatment for lodging a complaint with a reporting authority or the Commission or for testifying in a court of law. (2) A witness may be provided with special protection as provided under the Witness Protection Act (Cap. 79). (3) A person who contravenes paragraph (1) shall be subject to administrative action by the reporting authority in addition to any other action provided in any written law.",
+      "tags": ["complaints"]
+    },
+    {
+      "citation": "Regs r.29",
+      "title": "Summoning of witnesses",
+      "text": "(1) The Commission or a reporting authority may summon any person to appear before it for purposes of giving evidence or providing any information or exhibit in the possession or under the control of that person. (2) The summons issued under paragraph (1) shall be in writing. (3) A person who fails to comply with summons issued by the Commission commits an offence and is liable on conviction to a fine not exceeding twenty thousand shillings or to imprisonment for a term not exceeding six months, or both.",
+      "tags": ["complaints", "offence"]
+    },
+    {
+      "citation": "Regs r.30",
+      "title": "Conclusion of an investigation against a public officer",
+      "text": "(1) Upon conclusion of an investigation under the Act or these Regulations, the Commission or a reporting authority shall prepare an investigation report containing— (a) a summary of the complaint; (b) details of the investigation undertaken and evidence obtained; (c) the findings; and (d) recommendations. (2) Where on conclusion of an investigation it is established that the allegation has not been proved— (a) the results thereof shall be communicated to the public officer in writing within fourteen days; and (b) where the public officer has been suspended pending investigations, the officer shall be reinstated. (3) Where on conclusion of an investigation it is established that the allegation has been proved— (a) the results thereof shall be communicated to the public officer in writing; and (b) appropriate disciplinary action or other administrative action shall be taken. (4) Disciplinary action or other administrative action against a public officer may include— (a) recovery of any irregularly obtained benefits; (b) an order for the cessation of any action that constitutes further violation of the provisions of the Act or these Regulations; (c) a compliance order to make good any violation committed; (d) warning or caution; (e) suspension; (f) censure; (g) surcharge; (h) surrender of prohibited gift or other benefit; (i) dismissal; or (j) any other appropriate action against such public officer.",
+      "tags": ["administrative-action", "complaints"]
+    },
+    {
+      "citation": "Regs r.31",
+      "title": "Suspension pending investigation",
+      "text": "(1) For purposes of section 43 of the Act, a public officer may be suspended from office pending investigation if the officer is likely to— (a) conceal, alter, destroy, remove records, documents or evidence; (b) intimidate, threaten or otherwise interfere with witnesses; (c) influence investigations; or (d) interfere with investigations in any other manner. (2) An application for an order under section 43(4) of the Act shall be a miscellaneous application made before the High Court through a Notice of Motion.",
+      "tags": ["administrative-action"]
+    },
+    {
+      "citation": "Regs r.32",
+      "title": "Application under section 44(2) of the Act",
+      "text": "An application for an order under section 44(2) of the Act shall be a miscellaneous application made through a Notice of Motion.",
+      "tags": ["administrative-action"]
+    },
+    {
+      "citation": "Regs r.33",
+      "title": "Electronic submission of information",
+      "text": "Any report, declaration or other information required to be made under the Act and these Regulations may be made or submitted in electronic format.",
+      "tags": ["submission"]
+    },
+    {
+      "citation": "Regs r.34",
+      "title": "Revocation of Legal Notice No. 120 of 2003 and No. 179 of 2011",
+      "text": "The Public Officer Ethics Regulations (L.N. 120/2003) and the Public Officer Ethics (Management, Verification and Access to Financial Declarations) Regulations (L.N. 179/2011) are revoked.",
+      "tags": ["declaration"]
+    }
+  ]
+}

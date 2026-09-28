@@ -1,0 +1,445 @@
+{
+  "source": "act",
+  "title": "Conflict of Interest Act, 2025 (Act No. 11 of 2025)",
+  "frbr": "/akn/ke/act/2025/11/eng@2025-08-05",
+  "effectiveFrom": "2025-08-19",
+  "passages": [
+    {
+      "citation": "Act s.30",
+      "title": "Duty to recuse",
+      "text": "(1) A public officer shall recuse himself or herself from any discussion, decision, debate or vote on any matter in respect of which the public officer would be in conflict of interest. (2) Where a public officer recuses himself or herself under subsection (1)— (a) the recusal shall be recorded in the minutes of the transaction in question; and (b) a reporting entity shall, within sixty days after a day on which a recusal took place, transmit a declaration of the recusal to the Commission in the prescribed form.",
+      "tags": ["recusal", "conflict-of-interest"]
+    },
+    {
+      "citation": "Act s.31",
+      "title": "Declaration of income, assets and liabilities by public officers",
+      "text": "(1) Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities and the income, assets and liabilities of his or her spouse and dependent children under the age of eighteen years. (2) The declaration referred to under subsection (1), shall be in the Form set out in the First Schedule. (3) Notwithstanding the generality of subsection (1), a public officer shall in a periodical or final declaration provide information on any material change in, or changes affecting any of the categories of income, assets or liabilities in the schedule of mandatory declarations that have occurred within the two-year period prior to the declaration. (4) For purposes of this section, “material change” means— (a) at least twenty-five percent increase or decrease in the value of an income, asset or liability; (b) the disposal or acquisition of an asset or liability; (c) changes in marital status; (d) appointment to or changes in directorships; (e) changes in membership in companies or partnerships and other legal entities howsoever established; or (f) changes in membership in social associations, societies, clubs, foundations or trusts.",
+      "tags": [
+        "declaration",
+        "household",
+        "spouse",
+        "dependent-child",
+        "statement",
+        "income",
+        "assets",
+        "liabilities",
+        "material-change",
+        "other"
+      ]
+    },
+    {
+      "citation": "Act s.32",
+      "title": "Determination of responsible Commission",
+      "text": "(1) This section determines what body is the responsible Commission for a public officer for the purposes of this Act. (2) The committee of the National Assembly responsible for the ethics of members is the responsible Commission for— (a) the Cabinet; (b) Members of the National Assembly; (c) the Director of Public Prosecutions; (d) the Secretary to the Cabinet; (e) members of the Judicial Service Commission; (f) members of commissions and independent offices specified under Chapter Fifteen of the Constitution; and (g) members of the Ethics and Anti-Corruption Commission and staff of the Commission holding the rank of Deputy Director and above. (3) The committee of the Senate responsible for the ethics of members is the responsible Commission for Senators. (4) The committee of a county assembly responsible for the ethics of members is the responsible Commission for— (a) its respective county executive committee; (b) members of the county assembly; and (c) members and the secretary of its respective County Public Service Board. (5) The Public Service Commission is the responsible Commission for— (a) principal secretaries; (b) high commissioners, ambassadors and diplomatic and consular representatives; (c) public officers in respect of which it exercises appointive and disciplinary control, including advisors and personal staff; and (d) public officers who are officers, employees or members of state corporations that are public bodies. (6) A County Public Service Board is the responsible Commission for— (a) public officers in respect of which it exercises appointive and disciplinary control, including advisors and personal staff; and (b) public officers who are officers, employees or members of county corporations and entities that are public bodies. (7) The Judicial Service Commission is the responsible Commission for judges, magistrates and the public officers in respect of which it exercises disciplinary control. (8) The Parliamentary Service Commission is the responsible Commission for the public officers in respect of which it exercises disciplinary control. (9) A County Assembly Service Board is the responsible Commission for the public officers in respect of which it exercises disciplinary control. (10) The Teachers Service Commission established under the Teachers Service Commission Act (Cap. 212) is the responsible Commission for teachers registered under that Act. (11) The Defence Council established under Article 241(5) of the Constitution is the responsible Commission for members of the Kenya Defence Forces. (12) The National Intelligence Service Council established under the National Intelligence Service Act (Cap. 206) is the responsible Commission for members of the National Intelligence Service established under that Act. (13) The National Police Service Commission is the responsible Commission for members of the National Police Service. (14) The Witness Protection Advisory Board established under the Witness Protection Act shall be the responsible commission for the members of the Witness Protection Agency established under that Act. (15) The responsible Commission for a public officer for which no responsible Commission is otherwise specified under this section is the commission, committee or other body prescribed by regulations. (16) A body that is the responsible Commission for a public officer by virtue of exercising disciplinary control over that public officer remains the responsible Commission notwithstanding the delegation of any disciplinary powers with respect to that public officer.",
+      "tags": ["responsible-commission", "bio"]
+    },
+    {
+      "citation": "Act s.33",
+      "title": "Certain delegations by Public Service Commission",
+      "text": "(1) Subject to subsection (2), the Public Service Commission may, by notice in the Gazette delegate to another person or body any of its powers and functions in relation to declarations of income, assets and liabilities and enforcement of the code of conduct and with respect to specified classes of public officers over which it is the responsible Commission. (2) The Public Service Commission may delegate powers and functions only with respect to public officers in a job group below job group “M” or its equivalent.",
+      "tags": ["responsible-commission"]
+    },
+    {
+      "citation": "Act s.34",
+      "title": "Timelines for declaration",
+      "text": "(1) A public officer shall, within thirty days of appointment as a public officer, submit an initial declaration relating to his or her financial affairs for the period of one year prior to appointment. (2) Every public officer shall, once every two years within the period of service, submit a declaration relating to the financial affairs of the public officer as at first day of November of the declaration year, and such declaration shall be made within the month of December next following. (3) A public officer shall, within thirty days after ceasing to be a public officer, submit a final declaration relating to his financial affairs as at the date he ceases to be a public officer.",
+      "tags": ["deadline", "initial", "biennial", "final", "statement-date", "income-period"]
+    },
+    {
+      "citation": "Act s.35",
+      "title": "Clarification",
+      "text": "(1) Upon receipt of the declaration made under section 31, a responsible Commission shall analyse the declaration to ascertain— (a) whether the declaration raises possible issues of conflict of interest; (b) whether on the face of it, the declaration contains any discrepancy or inconsistency; and (c) its completeness and correctness. (2) The responsible Commission may, within six months of receipt of a declaration, request, in writing, for clarification from the public officer who submitted the declaration under section 31. (3) A public officer from whom clarification is sought under sub section (2) shall, within thirty days of receipt of the request, provide the clarification to the Commission. (4) A request for clarification may include a requirement that— (a) the omitted information be provided; or (b) any discrepancy or inconsistency, including a discrepancy or inconsistency arising out of the omission, be explained or corrected. (5) The responsible Commission may verify any information provided in the declaration.",
+      "tags": ["clarification", "deadline"]
+    },
+    {
+      "citation": "Act s.36",
+      "title": "Access to declarations",
+      "text": "(1) Subject to subsection (2), the contents of a declaration or clarification under this Act shall be accessible to any person upon application to the responsible Commission in the prescribed manner if the applicant shows to the satisfaction of the responsible Commission that he or she has a legitimate interest and good cause in furtherance of the objectives of this Act, in such declaration or clarification. (2) Notwithstanding subsection (1), a law enforcement agency shall, after due process, have access to the disclosures and compliance reports made by a public officer under this Act. (3) The responsible Commission shall, before making an affirmative decision under this section, grant the affected party an opportunity to make representations on the matter. (4) Any person who— (a) publishes or in any way makes public any information obtained under this section without prior permission of the responsible Commission; or (b) knowingly republishes or otherwise disseminates discloses to another person information to which this section relates where— (i) such information was disclosed to himself or herself or to some other person; or (ii) such information was obtained contravention of this Act, commits an offence and shall on conviction be liable to a fine not exceeding one million shillings or to imprisonment for a term not exceeding two years, or both.",
+      "tags": ["access", "confidentiality"]
+    },
+    {
+      "citation": "Act s.37",
+      "title": "Retention of information",
+      "text": "The responsible Commission shall keep information collected under this Act concerning a person for at least five years after the person ceases to be a public officer.",
+      "tags": ["confidentiality"]
+    },
+    {
+      "citation": "Act s.38",
+      "title": "Failure to submit information",
+      "text": "A public officer who fails to submit any information required under this Act, within the prescribed period, commits an offence.",
+      "tags": ["offence", "deadline"]
+    },
+    {
+      "citation": "Act s.39",
+      "title": "False information",
+      "text": "A public officer who submits information that the public officer knows, or ought to know, is false or misleading, commits an offence.",
+      "tags": ["offence", "declaration"]
+    },
+    {
+      "citation": "Act s.40",
+      "title": "Publication of administrative mechanisms",
+      "text": "The Commission shall, within twelve months after the commencement of this Act, develop and publish in the Gazette, administrative mechanisms for the implementation of the requirements of this Part.",
+      "tags": ["administrative-action"]
+    },
+    {
+      "citation": "Act s.2 \"accounting officer\"",
+      "title": "Meaning of \"accounting officer\"",
+      "text": "“accounting officer” has the meaning assigned to it under section 2 of the Public Finance Management Act (Cap. 412A);",
+      "tags": ["definition", "responsible-commission"]
+    },
+    {
+      "citation": "Act s.2 \"Commission\"",
+      "title": "Meaning of \"Commission\"",
+      "text": "“Commission” means the Ethics and Anti-Corruption Commission established under section 3 of the Ethics and Anti-Corruption Commission Act (Cap. 7H);",
+      "tags": ["definition", "responsible-commission"]
+    },
+    {
+      "citation": "Act s.2 \"complimentary treatment\"",
+      "title": "Meaning of \"complimentary treatment\"",
+      "text": "“complimentary treatment” means a treat offered free of charge as a favour or out of courtesy by a person who has significant official dealings with a public entity and includes offers for travel, holiday, hospitality, training, scholarship or medical treatment;",
+      "tags": ["definition", "gifts"]
+    },
+    {
+      "citation": "Act s.2 \"conflict of interest\"",
+      "title": "Meaning of \"conflict of interest\"",
+      "text": "\"conflict of interest’ means a conflict between the public duty and private interests of a public official, in which the public official has private capacity interests that could improperly influence the performance of his or her official duties and responsibilities;",
+      "tags": ["definition", "conflict-of-interest"]
+    },
+    {
+      "citation": "Act s.2 \"family\"",
+      "title": "Meaning of \"family\"",
+      "text": "“family” means— (a) the spouse, dependent child or parent of a public officer; (b) a dependent child of the spouse of a public officer; and (c) a parent of the spouse of a public officer.",
+      "tags": ["definition", "household", "spouse", "dependent-child"]
+    },
+    {
+      "citation": "Act s.2 \"gainful employment\"",
+      "title": "Meaning of \"gainful employment\"",
+      "text": "“gainful employment” means work that a person pursues and performs for money or other form of compensation or remuneration;",
+      "tags": ["definition", "income", "employment"]
+    },
+    {
+      "citation": "Act s.2 \"official duty\"",
+      "title": "Meaning of \"official duty\"",
+      "text": "“official duty” means any task that a public officer is mandated to perform within the specific scope of his or her employment as defined by a contract of employment, an Act of Parliament or the Constitution;",
+      "tags": ["definition", "conflict-of-interest"]
+    },
+    {
+      "citation": "Act s.2 \"private interest\"",
+      "title": "Meaning of \"private interest\"",
+      "text": "\"private interest” means a personal benefit, privilege, exemption or advantage that a public officer or a person affiliated to a public officer may gain from the office that the public officer holds and which may influence the judgement of the public officer in the exercise of a public duty, but does not include interest in a decision or matter that— (a) is of general application; (b) affects a public officer as a member of a broad class of persons; or (c) concerns the remuneration or benefits received by virtue of being a public officer;",
+      "tags": ["definition", "conflict-of-interest"]
+    },
+    {
+      "citation": "Act s.2 \"public officer\"",
+      "title": "Meaning of \"public officer\"",
+      "text": "“public officer” has the meaning assigned to it by Article 260 of the Constitution;",
+      "tags": ["definition", "bio"]
+    },
+    {
+      "citation": "Act s.2 \"registrable interests\"",
+      "title": "Meaning of \"registrable interests\"",
+      "text": "“registrable interests” means the interests set out in the Second Schedule;",
+      "tags": ["definition", "registrable-interest", "other"]
+    },
+    {
+      "citation": "Act s.2 \"relative\"",
+      "title": "Meaning of \"relative\"",
+      "text": "“relative” means a person who is related to a public officer by birth, marriage, adoption or affinity;",
+      "tags": ["definition", "household"]
+    },
+    {
+      "citation": "Act s.2 \"reporting authority\"",
+      "title": "Meaning of \"reporting authority\"",
+      "text": "“reporting authority” in relation to a public officer, means an office or body that is responsible for the public officer for the purposes of this Act and includes an accounting officer, a person who exercises executive control over the resources of the entity or any office or entity exercising a function delegated by the Commission;",
+      "tags": ["definition", "responsible-commission"]
+    },
+    {
+      "citation": "Act s.2 \"reporting entity\"",
+      "title": "Meaning of \"reporting entity\"",
+      "text": "“reporting entity” means— (a) a state organ; (b) the national government or any organ or department of the national government; (c) a county government or any organ or department of a county government; (d) a state corporation within the meaning of State Corporations Act (Cap. 446); (e) a public school within the meaning of the Basic Education Act (Cap. 211); (f) a public university within the meaning of the Universities Act (Cap. 210); (g) a company owned by the national government or a county government; (h) a body that uses public assets in any form of contractual undertakings including public private partnerships; (i) a company in which the national or county government has controlling shares in accordance with section 125 of the Companies Act; (j) a college or other educational institution maintained or assisted out of public funds; (k) an entity which renders a service involving the collection or administration of a levy, fee or funds authorized by legislation; (l) any entity that uses public money in the delivery of government programmes or services, whether for profit or not;",
+      "tags": ["definition", "bio", "responsible-commission"]
+    },
+    {
+      "citation": "Act s.2 \"responsible Commission\"",
+      "title": "Meaning of \"responsible Commission\"",
+      "text": "“responsible Commission” in relation to a public officer, means the entity determined under section 32 to be the responsible Commission in relation to a public officer;",
+      "tags": ["definition", "responsible-commission", "bio"]
+    },
+    {
+      "citation": "Act s.2 \"significant official dealing\"",
+      "title": "Meaning of \"significant official dealing\"",
+      "text": "“significant official dealing” means an engagement with an entity by a public officer at a level which, in ordinary circumstances, and taking into account the totality of the circumstances, would be construed as capable of influencing the decision of the public officer in relation to the entity, including— (a) engagement as an employee or agent of an entity; (b) undertaking a consultancy for or on behalf of an entity; (c) rendering of advice to an entity, whether directly or indirectly, and whether formally requested or not; (d) any dealing with an entity in a contractual relationship for supply of goods, services or works; or (e) any engagement where the public officer exercises regulatory or oversight functions over the affairs of the entity, in whatever form;",
+      "tags": ["definition", "conflict-of-interest"]
+    },
+    {
+      "citation": "Act s.2 \"undeclared asset\"",
+      "title": "Meaning of \"undeclared asset\"",
+      "text": "“undeclared asset” means any asset that is not disclosed in the prescribed manner in any declaration year;",
+      "tags": ["definition", "assets", "declaration"]
+    },
+    {
+      "citation": "Act s.2 \"unexplained asset\"",
+      "title": "Meaning of \"unexplained asset\"",
+      "text": "“unexplained asset” means an asset of a person whose value is disproportionate to his or her known sources of income at or around that time and for which there is no satisfactory explanation; and",
+      "tags": ["definition", "assets", "income"]
+    },
+    {
+      "citation": "Act s.2 \"windfall gain\"",
+      "title": "Meaning of \"windfall gain\"",
+      "text": "\"windfall gain” includes unexpected income which may result from inheritance, lottery prizes, gambling winnings, payroll bonuses, proceeds from insurance claims, settlement from lawsuits, discoveries from treasure hunting or bounty rewards.",
+      "tags": ["definition", "income"]
+    },
+    {
+      "citation": "Act First Schedule, introduction",
+      "title": "Declaration of income, assets and liabilities",
+      "text": "The attention of all public officers is drawn to their obligation to declare their Income, Assets and Liabilities under the Conflict of Interest Act (No. ..................). Public officials are advised to familiarize themselves with the provisions of the Act and the applicable Code of Conduct and Ethics for their respective reporting entity.",
+      "tags": ["declaration"]
+    },
+    {
+      "citation": "Act First Schedule, guidelines",
+      "title": "Guidelines on the completion of the declaration",
+      "text": "A public officer should read these guidelines carefully and follow the instructions in the form before completing it. When completing the form, a public officer shall write legibly, type or print the required information.",
+      "tags": ["declaration"]
+    },
+    {
+      "citation": "Act First Schedule, note 1",
+      "title": "Guideline 1",
+      "text": "Where the responsible Commission has a web application for filing the declaration, a public officer may fill and submit the declaration online. In such a case, a physical signature or delivery acknowledgment slip will not be necessary.",
+      "tags": ["submission"]
+    },
+    {
+      "citation": "Act First Schedule, note 2",
+      "title": "Guideline 2",
+      "text": "The declaration is for the income, assets and liabilities of a public official, his spouse or spouses and his dependent children under the age of 18 years.",
+      "tags": ["household", "spouse", "dependent-child"]
+    },
+    {
+      "citation": "Act First Schedule, note 3",
+      "title": "Guideline 3",
+      "text": "All public officers are required to complete and submit their declarations to their responsible Commission, unless their responsible Commission has delegated its functions to another body.",
+      "tags": ["responsible-commission", "submission"]
+    },
+    {
+      "citation": "Act First Schedule, note 4",
+      "title": "Guideline 4",
+      "text": "The obligation to make declarations applies to all state and public officers including those on leave, under disciplinary action, secondment and overseas assignments, unless the Attorney General has granted a dispensation exempting an officer or a certain category of public official from filing their declarations, for reasons to be published in the Gazette.",
+      "tags": ["declaration"]
+    },
+    {
+      "citation": "Act First Schedule, note 5",
+      "title": "Guideline 5",
+      "text": "The responsibility of ensuring that a declaration has been received by the appropriate reporting authority or its agent lies on the public officer. Provided that where the officer sends the form under confidential cover directly to the responsible Commission, the officer should label the envelope with the words “Declaration of Incomes, Assets and Liabilities”. The organization and job group of the officer should also be indicated on the envelope.",
+      "tags": ["submission"]
+    },
+    {
+      "citation": "Act First Schedule, note 6",
+      "title": "Guideline 6",
+      "text": "A public officer is required to complete an initial declaration within thirty days of appointment and the statement date of the declaration will be the date the officer became a public officer.",
+      "tags": ["initial", "statement-date", "deadline"]
+    },
+    {
+      "citation": "Act First Schedule, note 7",
+      "title": "Guideline 7",
+      "text": "A public officer is required to make a biennial declaration on or before the 31st day of December every other year or as may be provided for under the Act. The statement date for the biennial declaration will be 1st of November of the year in which the declaration is required.",
+      "tags": ["biennial", "statement-date", "deadline"]
+    },
+    {
+      "citation": "Act First Schedule, note 8",
+      "title": "Guideline 8",
+      "text": "A public officer is required to make a final declaration within thirty days of ceasing to be a public officer. The statement date of the final declaration shall be the date the public official ceased to be a public official.",
+      "tags": ["final", "statement-date", "deadline"]
+    },
+    {
+      "citation": "Act First Schedule, note 9",
+      "title": "Guideline 9",
+      "text": "A person submitting a declaration or providing a clarification shall ensure that the declaration or clarification is correct to the best of their knowledge.",
+      "tags": ["declaration", "clarification"]
+    },
+    {
+      "citation": "Act First Schedule, note 10",
+      "title": "Guideline 10",
+      "text": "If space on the form is not adequate, additional information may be included on separate sheets, while clearly indicating the number and paragraph being continued.",
+      "tags": ["declaration"]
+    },
+    {
+      "citation": "Act First Schedule, note 11",
+      "title": "Guideline 11",
+      "text": "For each form submitted, there will be an acknowledgment slip issued by the responsible Commission or its agent.",
+      "tags": ["submission"]
+    },
+    {
+      "citation": "Act First Schedule, note 12",
+      "title": "Guideline 12",
+      "text": "Where a declaration is submitted electronically in accordance with the regulations made under this Act or administrative procedures adopted by the responsible Commission or any other competent authority, the declaration shall be valid notwithstanding the absence of a signature or acknowledgement stamp or receipt or slip.",
+      "tags": ["submission"]
+    },
+    {
+      "citation": "Act First Schedule, note 13",
+      "title": "Guideline 13",
+      "text": "Income, assets and liabilities that a public officer may have outside Kenya, should be declared. Joint assets, properties, personal and business accounts within and outside Kenya should also be declared.",
+      "tags": ["foreign", "joint", "assets", "income", "liabilities", "statement"]
+    },
+    {
+      "citation": "Act First Schedule, note 14",
+      "title": "Guideline 14",
+      "text": "Where a public officer has contravened the provisions of the Code of Conduct and Ethics relating to the declaration of Income, Assets and Liabilities, appropriate disciplinary action will be taken by the responsible Commission, or other appropriate authority, in accordance with the applicable disciplinary procedures.",
+      "tags": ["administrative-action"]
+    },
+    {
+      "citation": "Act First Schedule, para. 1",
+      "title": "Name of public officer",
+      "text": "1. Name of public officer (Surname) (First name) (Other names)",
+      "tags": ["bio"]
+    },
+    {
+      "citation": "Act First Schedule, para. 2",
+      "title": "Birth information",
+      "text": "2. Birth information (a) Date of birth (b) Place of birth",
+      "tags": ["bio"]
+    },
+    {
+      "citation": "Act First Schedule, para. 3",
+      "title": "Marital status",
+      "text": "3. Marital status:",
+      "tags": ["bio", "household", "spouse"]
+    },
+    {
+      "citation": "Act First Schedule, para. 4",
+      "title": "Address",
+      "text": "4. Address (a) Postal address: (b) Physical address:",
+      "tags": ["bio"]
+    },
+    {
+      "citation": "Act First Schedule, para. 5",
+      "title": "Employment information",
+      "text": "5. Employment information: (a) Designation (b) Name of employer (c) Nature of employment (permanent, temporary, contract, etc.)",
+      "tags": ["bio", "employment"]
+    },
+    {
+      "citation": "Act First Schedule, para. 6",
+      "title": "Names of spouse or spouses",
+      "text": "6. Names of spouse or spouses (Surname) (First name) (Other names)",
+      "tags": ["household", "spouse"]
+    },
+    {
+      "citation": "Act First Schedule, para. 7",
+      "title": "Names of dependent children under the age of 18 years",
+      "text": "7. Names of dependent children under the age of 18 years:",
+      "tags": ["household", "dependent-child"]
+    },
+    {
+      "citation": "Act First Schedule, para. 8",
+      "title": "Financial statement",
+      "text": "8. Financial statement for _______________________(A separate statement is required for the officer and each spouse and dependent child under the age of 18 years. Additional sheets should be added as required.) (a) Statement date: (b) Income, including emoluments, for periods from __________________ to ____________________(Including, but not limited to, salary and emoluments and.income from investments. The period is from the previous statement date to the current statement date. For an initial declaration, the period is the year ending on the statement date.) Description Approximate amount (c) Assets (as of the statement date)(Including, but not limited to, land, buildings, vehicles, investments and financial obligations owed to the person for whom the statement is made.) Description (include location of asset where applicable) Approximate value (c) Liabilities (as of the statement date) Description Approximate amount",
+      "tags": ["statement", "statement-date", "income-period", "income", "assets", "liabilities"]
+    },
+    {
+      "citation": "Act First Schedule, para. 9",
+      "title": "Other information that may be useful or relevant",
+      "text": "9. Other information that may be useful or relevant:",
+      "tags": ["other", "material-change", "registrable-interest"]
+    },
+    {
+      "citation": "Act First Schedule, solemn declaration",
+      "title": "Solemn declaration",
+      "text": "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.",
+      "tags": ["submission", "declaration"]
+    },
+    {
+      "citation": "Act Second Schedule",
+      "title": "Registrable interests",
+      "text": "For purposes of section 24(2) the following are categories of income, assets and liabilities which a public official must declare—",
+      "tags": ["registrable-interest", "other"]
+    },
+    {
+      "citation": "Act Second Schedule, item 1",
+      "title": "Registrable interest 1",
+      "text": "Directorships in public or private companies, whether or not remunerated directly or indirectly.",
+      "tags": ["registrable-interest", "other", "directorship"]
+    },
+    {
+      "citation": "Act Second Schedule, item 2",
+      "title": "Registrable interest 2",
+      "text": "Remunerated employment (including office, trade, profession or vocation which is remunerated or which the State officer has any pecuniary interest).",
+      "tags": ["registrable-interest", "other", "employment", "income"]
+    },
+    {
+      "citation": "Act Second Schedule, item 3",
+      "title": "Registrable interest 3",
+      "text": "Securities (shares, bonds, debentures or any other similar holding) in a company or enterprise or undertaking the aggregate nominal or market value of which exceeds a prescribed value while the state officer was in office.",
+      "tags": ["registrable-interest", "other", "assets"]
+    },
+    {
+      "citation": "Act Second Schedule, item 4",
+      "title": "Registrable interest 4",
+      "text": "Contracts for supply of goods and services.",
+      "tags": ["registrable-interest", "other"]
+    },
+    {
+      "citation": "Act Second Schedule, item 5",
+      "title": "Registrable interest 5",
+      "text": "Plans or expectations for or offers of future employment.",
+      "tags": ["registrable-interest", "other", "employment"]
+    },
+    {
+      "citation": "Act Second Schedule, item 6",
+      "title": "Registrable interest 6",
+      "text": "Public affairs advice and services to clients.",
+      "tags": ["registrable-interest", "other", "income"]
+    },
+    {
+      "citation": "Act Second Schedule, item 7",
+      "title": "Registrable interest 7",
+      "text": "Shareholdings (amounting or not amounting to a controlling interest).",
+      "tags": ["registrable-interest", "other", "assets"]
+    },
+    {
+      "citation": "Act Second Schedule, item 8",
+      "title": "Registrable interest 8",
+      "text": "Land and property.",
+      "tags": ["registrable-interest", "other", "assets"]
+    },
+    {
+      "citation": "Act Second Schedule, item 9",
+      "title": "Registrable interest 9",
+      "text": "Sponsorship (from companies, trade unions, professional bodies, charities, universities or other organizations or individuals).",
+      "tags": ["registrable-interest", "other", "income"]
+    },
+    {
+      "citation": "Act Second Schedule, item 10",
+      "title": "Registrable interest 10",
+      "text": "Travel facilities and overseas visits (made by a State officer or the State officer’s spouse or child substantially catered for by the office of the State officer).",
+      "tags": ["registrable-interest", "other"]
+    },
+    {
+      "citation": "Act Second Schedule, item 11",
+      "title": "Registrable interest 11",
+      "text": "Gifts, benefits and hospitality (to a State officer or the State officer’s spouse or partner or child or any other material benefit of a prescribed value, from a company, organization or person within Kenya or overseas, which relates substantially to the membership of a state office to a state office or Parliament or County Assembly).",
+      "tags": ["registrable-interest", "other", "gifts"]
+    },
+    {
+      "citation": "Act Second Schedule, item 12",
+      "title": "Registrable interest 12",
+      "text": "Miscellaneous financial interests (not falling within the above categories but which a reasonable member of the public would think might influence the conduct of a State Officer in his or her office).",
+      "tags": ["registrable-interest", "other", "income", "assets"]
+    },
+    {
+      "citation": "Act Second Schedule, item 13",
+      "title": "Registrable interest 13",
+      "text": "Non-financial interests (which may reasonably be thought to affect the way a member discharges the duties in a State Office (such as unremunerated directorships; membership of public bodies such hospital trusts, governining bodies of universities, colleges or schools, and other spheres of government; trusteeships, etc.).",
+      "tags": ["registrable-interest", "other", "membership"]
+    },
+    {
+      "citation": "Act Second Schedule, item 14",
+      "title": "Registrable interest 14",
+      "text": "Pending civil and criminal cases touching on the State officer or business associate or firm.",
+      "tags": ["registrable-interest", "other", "pending-cases"]
+    },
+    {
+      "citation": "Act Second Schedule, item 15",
+      "title": "Registrable interest 15",
+      "text": "Possession of dual citizenship or pending applications for dual citizenship and the status of such application.",
+      "tags": ["registrable-interest", "other", "dual-citizenship"]
+    }
+  ]
+}
