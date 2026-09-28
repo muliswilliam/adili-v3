@@ -10,6 +10,8 @@ const base = {
   OIDC_CLIENT_SECRET: 'secret',
   VALKEY_URL: 'redis://localhost:56379',
   DIRECTORY_API_URL: 'http://localhost:4001',
+  DECLARATIONS_API_URL: 'http://localhost:4002',
+  DOCUMENTS_API_URL: 'http://localhost:4006',
 };
 
 describe('portal env', () => {
