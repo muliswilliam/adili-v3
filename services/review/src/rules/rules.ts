@@ -2,6 +2,7 @@ import type { ChangeFlag, DeclarationV1, MaterialChangeEntry } from '@adili/form
 
 import {
   CATEGORIES,
+  compositeKey,
   type Category,
   match,
   type MatchedPair,
@@ -170,7 +171,7 @@ function nilAfterPopulated(previous: DeclarationV1, current: DeclarationV1): Nil
 }
 
 const categoryKey = ({ personKey, category }: { personKey: string; category: Category }) =>
-  JSON.stringify([personKey, category]);
+  compositeKey(personKey, category);
 
 /**
  * Growth in total assets since the previous version against total income for the period: medium
@@ -205,7 +206,8 @@ function foreignHoldings(current: DeclarationV1): Flag[] {
 function jointShares(current: DeclarationV1): Flag[] {
   const joint = placedItems(current).flatMap((placed) =>
     placed.category === 'assets' && 'joint' in placed.item && placed.item.joint.isJoint
-      ? [{ placed, sharePercent: placed.item.joint.sharePercent ?? 0 }]
+      ? // A valid joint asset always has a share; a missing one counts as 0 and so shows as not adding up.
+        [{ placed, sharePercent: placed.item.joint.sharePercent ?? 0 }]
       : [],
   );
   const groups = Map.groupBy(joint, ({ placed }) => normalise(placed.item.description));

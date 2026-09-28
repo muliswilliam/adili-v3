@@ -1,4 +1,6 @@
-export type Severity = 'info' | 'low' | 'medium' | 'high';
+/** review.yaml `Severity`, lowest first. */
+export const SEVERITIES = ['info', 'low', 'medium', 'high'] as const;
+export type Severity = (typeof SEVERITIES)[number];
 
 /**
  * The wording of each deterministic flag (review.yaml `RuleId`), shared by the console and the

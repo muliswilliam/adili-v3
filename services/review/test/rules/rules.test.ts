@@ -7,12 +7,14 @@ import { parse } from 'yaml';
 
 import {
   band,
+  BANDS,
   type Flag,
   match,
   RULES,
   runRules,
   type RulesInput,
   score,
+  SEVERITIES,
 } from '../../src/rules/index.js';
 import {
   asset,
@@ -39,11 +41,32 @@ function versions(edit: (current: { officer: ReturnType<typeof statement> }) => 
   return { previous, current: declaration([officer]) };
 }
 
-/** Every input the tests run, so the evidence test below covers all of them. */
-const runs: RulesInput[] = [];
+/**
+ * Runs the rules and checks, on every run in this file, that no evidence carries an amount or a
+ * description from either version: evidence is percentages, counts, dates and codes only.
+ */
 function run(input: RulesInput): Flag[] {
-  runs.push(input);
-  return runRules(input);
+  const flags = runRules(input);
+  const amounts = new Set<number>();
+  const texts = new Set<string>();
+  for (const document of [input.current, input.previous]) {
+    for (const s of document?.statements ?? []) {
+      for (const item of [...s.income, ...s.assets, ...s.liabilities]) {
+        texts.add(item.description);
+        const money =
+          'amount' in item ? item.amount : 'value' in item ? item.value : item.outstanding;
+        if (money.kesCents > 0) {
+          amounts.add(money.kesCents);
+          amounts.add(Math.round(money.kesCents / 100));
+        }
+      }
+    }
+  }
+  const leaked = flags
+    .flatMap((flag) => Object.values(flag.evidence).flat())
+    .filter((value) => (typeof value === 'number' ? amounts.has(value) : texts.has(String(value))));
+  expect(leaked, 'evidence carries an amount or description').toEqual([]);
+  return flags;
 }
 
 /** Flags as `ruleId severity`, for compact tables. */
@@ -455,40 +478,6 @@ describe('runRules', () => {
   });
 });
 
-describe('evidence', () => {
-  // Runs after every test above, over every input they ran.
-  it('never carries an amount or a description, over every fixture run in this file', () => {
-    expect(runs.length).toBeGreaterThan(20);
-    for (const { current, previous } of runs) {
-      const amounts = new Set<number>();
-      const texts = new Set<string>();
-      for (const document of [current, previous]) {
-        for (const s of document?.statements ?? []) {
-          for (const item of [...s.income, ...s.assets, ...s.liabilities]) {
-            texts.add(item.description);
-            const money =
-              'amount' in item ? item.amount : 'value' in item ? item.value : item.outstanding;
-            if (money.kesCents > 0) {
-              amounts.add(money.kesCents);
-              amounts.add(Math.round(money.kesCents / 100));
-            }
-          }
-        }
-      }
-
-      const values = runRules({ current, previous }).flatMap((flag) =>
-        Object.values(flag.evidence).flat(),
-      );
-
-      expect(
-        values.filter((value) =>
-          typeof value === 'number' ? amounts.has(value) : texts.has(String(value)),
-        ),
-      ).toEqual([]);
-    }
-  });
-});
-
 describe('score and band', () => {
   it.each([
     [[], 0, 'low'],
@@ -512,7 +501,11 @@ describe('RULES registry', () => {
         join(dirname(require.resolve('@adili/schemas/package.json')), 'internal/review.yaml'),
         'utf8',
       ),
-    ) as { components: { schemas: { RuleId: { enum: string[] } } } };
+    ) as {
+      components: {
+        schemas: Record<'RuleId' | 'Severity' | 'PriorityBand', { enum: string[] }>;
+      };
+    };
     // The epic's deterministic rules; the contract also lists 07b's registry checks.
     const deterministic = [
       'completeness-residual',
@@ -529,6 +522,8 @@ describe('RULES registry', () => {
     ];
 
     expect(Object.keys(RULES)).toEqual(deterministic);
+    expect([...SEVERITIES]).toEqual(contract.components.schemas.Severity.enum);
+    expect([...BANDS]).toEqual(contract.components.schemas.PriorityBand.enum);
     expect(
       deterministic.filter((id) => !contract.components.schemas.RuleId.enum.includes(id)),
     ).toEqual([]);

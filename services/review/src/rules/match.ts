@@ -1,4 +1,11 @@
-import type { AssetItem, DeclarationV1, IncomeItem, LiabilityItem } from '@adili/forms';
+import type {
+  AssetItem,
+  DeclarationSectionKey,
+  DeclarationV1,
+  IncomeItem,
+  LiabilityItem,
+  PersonKey,
+} from '@adili/forms';
 
 export type Category = 'income' | 'assets' | 'liabilities';
 export type Item = IncomeItem | AssetItem | LiabilityItem;
@@ -34,8 +41,14 @@ export function normalise(description: string): string {
 }
 
 /** A statement's key in the draft and review contracts. */
-export function statementSectionKey(personKey: string): string {
-  return `statement:${personKey}`;
+// The person key comes from a statement the schema has validated against its PersonKey pattern.
+export function statementSectionKey(personKey: string): DeclarationSectionKey {
+  return `statement:${personKey as PersonKey}`;
+}
+
+/** One key from several parts, for maps and sets; parts cannot run into each other. */
+export function compositeKey(...parts: string[]): string {
+  return JSON.stringify(parts);
 }
 
 /** Every item of a declaration, in document order. */
@@ -60,11 +73,11 @@ export function valueOf(item: Item): number {
 
 /** What makes two items the same thing: their type and normalised description. */
 export function sameItemKey(item: Item): string {
-  return JSON.stringify([item.type, normalise(item.description)]);
+  return compositeKey(item.type, normalise(item.description));
 }
 
 const matchKey = ({ personKey, category, item }: PlacedItem) =>
-  JSON.stringify([personKey, category, sameItemKey(item)]);
+  compositeKey(personKey, category, sameItemKey(item));
 
 /**
  * Pairs the items of two versions (spec 07a, BE-1). Items have no identity across cycles, so a
