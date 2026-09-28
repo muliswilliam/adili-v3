@@ -48,11 +48,11 @@ describe('ScopePicker', () => {
   it('always includes the declarant', () => {
     renderPicker();
 
-    const officer = screen.getByRole('checkbox', { name: 'The declarant' });
-    expect(officer).toHaveProperty('checked', true);
-    expect(officer.getAttribute('aria-disabled')).toBe('true');
-    fireEvent.click(officer);
-    expect(officer).toHaveProperty('checked', true);
+    const declarant = screen.getByRole('checkbox', { name: 'The declarant' });
+    expect(declarant).toHaveProperty('checked', true);
+    expect(declarant.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(declarant);
+    expect(declarant).toHaveProperty('checked', true);
   });
 
   it('adds and removes years in order', () => {
