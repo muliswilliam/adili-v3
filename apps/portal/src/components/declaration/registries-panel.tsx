@@ -356,7 +356,7 @@ export function RegistriesPanel({
           match={match}
           // The spouse's KRA PIN is already there: applying would change nothing, and there is
           // no item to mark with the source, so there is no Apply.
-          messages={{ add: REGISTRY_COPY.apply, nothingToFill: () => REGISTRY_COPY.pinOnFile }}
+          messages={{ add: REGISTRY_COPY.apply, nothingToFill: () => REGISTRY_COPY.nothingToFill }}
           onAdd={
             match
               ? undefined

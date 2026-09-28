@@ -57,7 +57,7 @@ export const COPY = {
     officerTax: en('Shown in Your details'),
     spouseTax: en((first: string) => `Adds to ${first}'s details in Household`),
     theirKraPin: en((first: string) => `${first}'s KRA PIN`),
-    pinOnFile: en('Nothing to fill.'),
+    nothingToFill: en('Nothing to fill.'),
     apply: en('Apply'),
     added: en('Added. Enter its value.'),
     addedEdited: en('Added'),
