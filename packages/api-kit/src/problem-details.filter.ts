@@ -22,18 +22,32 @@ export interface ProblemDetails {
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 
 /**
+ * Extension members of a problem type (RFC 9457 §3.2), rendered next to the standard members,
+ * e.g. the id of the import that blocks another. Document them in the contract with a schema
+ * extending `ProblemDetails`. They cannot override a standard member.
+ */
+export type ProblemExtensions = Record<string, unknown>;
+
+/**
  * An HTTP error with a specific problem type, e.g. `idempotency-key-reused`.
  * Rendered as-is by ProblemDetailsFilter; `instance` is filled in from the request.
  */
 export class ProblemException extends HttpException {
-  constructor(readonly problem: Omit<ProblemDetails, 'instance'>) {
+  constructor(
+    readonly problem: Omit<ProblemDetails, 'instance'>,
+    readonly extensions: ProblemExtensions = {},
+  ) {
     super(problem, problem.status);
   }
 }
 
 /** Maps any thrown value to the RFC 9457 problem the client receives. */
-export function toProblemDetails(exception: unknown, instance: string): ProblemDetails {
-  return { ...toProblem(exception), instance };
+export function toProblemDetails(
+  exception: unknown,
+  instance: string,
+): ProblemDetails & ProblemExtensions {
+  const extensions = exception instanceof ProblemException ? exception.extensions : {};
+  return { ...extensions, ...toProblem(exception), instance };
 }
 
 /** Renders every HTTP error as RFC 9457 problem details. */

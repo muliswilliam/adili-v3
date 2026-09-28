@@ -40,7 +40,7 @@ export function IdentifyStep({ commission }: { commission: OnboardingCommission 
 
   const blocked = secondsLeft > 0;
   // The rate-limit message goes once the wait is over.
-  const shownProblem = problem?.code === 'rate-limited' && !blocked ? null : problem;
+  const shownProblem = problem?.code === 'rate-limit-exceeded' && !blocked ? null : problem;
 
   // Move focus to a failure so screen reader and keyboard users land on it.
   useEffect(() => {
@@ -72,7 +72,7 @@ export function IdentifyStep({ commission }: { commission: OnboardingCommission 
         return;
       }
       setProblem(result);
-      if (result.code === 'rate-limited') {
+      if (result.code === 'rate-limit-exceeded') {
         startCountdown(result.retryAfterSeconds ?? 60);
       }
     } catch {
@@ -180,10 +180,10 @@ function ProblemAlert({
     );
   }
 
-  if (problem.code === 'rate-limited' || problem.code === 'no-roster') {
+  if (problem.code === 'rate-limit-exceeded' || problem.code === 'no-roster') {
     return (
       <Alert {...shared} variant="warning">
-        <Icon icon={problem.code === 'rate-limited' ? Clock01Icon : AlertCircleIcon} />
+        <Icon icon={problem.code === 'rate-limit-exceeded' ? Clock01Icon : AlertCircleIcon} />
         <AlertDescription>
           {problemMessage(problem.code, {
             commissionName,

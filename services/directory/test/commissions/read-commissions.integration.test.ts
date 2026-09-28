@@ -230,7 +230,7 @@ describe('response shapes', () => {
 });
 
 describe('demo seed', () => {
-  it('creates psc and eacc with policy version 1 and can run again', async () => {
+  it('creates psc, tsc and eacc with policy version 1 and can run again', async () => {
     await api.reset();
 
     await seedDemoCommissions(api.db);
@@ -240,6 +240,7 @@ describe('demo seed', () => {
     expect(page.items.map((item) => [item.slug, item.name])).toEqual([
       ['eacc', 'Ethics and Anti-Corruption Commission'],
       ['psc', 'Public Service Commission'],
+      ['tsc', 'Teachers Service Commission'],
     ]);
     const psc = (await api.get('/v1/commissions/psc', PSC_REVIEWER)).json<{
       policyVersion: number;
@@ -251,5 +252,9 @@ describe('demo seed', () => {
       'regs-r5-e',
       'regs-r5-f',
     ]);
+    const tsc = (await api.get('/v1/commissions/tsc', PLATFORM_ADMIN)).json<{
+      categories: { code: string }[];
+    }>();
+    expect(tsc.categories.map((category) => category.code)).toEqual(['act-s32-10']);
   });
 });

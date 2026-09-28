@@ -1,16 +1,16 @@
 export {
+  AUDIT_READ,
+  type AuditReadData,
+  AuditedReadInterceptor,
+} from './audited-read.interceptor.js';
+export {
   createEnvelope,
   type EventEnvelope,
   eventEnvelopeSchema,
   type NewEvent,
 } from './envelope.js';
-export {
-  EventPublisher,
-  EventsModule,
-  type EventsModuleOptions,
-  OutboxRelay,
-  RabbitMqReadinessCheck,
-} from './events.module.js';
+export { EventPublisher, type EventsModuleOptions } from './event-publisher.js';
+export { EventsModule, OutboxRelay, RabbitMqReadinessCheck } from './events.module.js';
 export { consumeOnce } from './inbox.js';
 export { OnEvent, RmqAckInterceptor } from './on-event.decorator.js';
 export { eventsSchema, inbox, outbox } from './schema.js';

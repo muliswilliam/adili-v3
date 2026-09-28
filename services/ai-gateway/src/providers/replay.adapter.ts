@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { hashJson } from '../hashing.js';
 import type {
   BatchItem,
   BatchItemOutcome,
@@ -10,6 +10,7 @@ import type {
   GenerateResult,
   ModelProvider,
   ProviderCapabilities,
+  ProviderClass,
   StreamEvent,
   StructuredRequest,
   StructuredResult,
@@ -24,27 +25,9 @@ interface Fixture<TResponse> {
   response: TResponse;
 }
 
-/** Canonical JSON: sorted keys, `undefined` dropped, so equal requests hash equally. */
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(canonical);
-  }
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, v]) => v !== undefined)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([k, v]) => [k, canonical(v)]),
-    );
-  }
-  return value;
-}
-
 /** Identifies a recorded response: SHA-256 over the operation and the canonical neutral request. */
-export function requestHash(operation: Operation, request: GenerateRequest): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonical({ operation, request })))
-    .digest('hex');
+export function fixtureKey(operation: Operation, request: GenerateRequest): string {
+  return hashJson({ operation, request });
 }
 
 export class ReplayFixtureMissingError extends Error {
@@ -86,6 +69,8 @@ const ALL_CAPABILITIES: ProviderCapabilities = {
 export class ReplayAdapter implements ModelProvider {
   readonly name = 'replay';
   readonly capabilities: ProviderCapabilities;
+  /** Replays never leave the process; recording sends requests wherever the inner provider does. */
+  readonly providerClass: ProviderClass;
   private readonly inner: ModelProvider | undefined;
   /** Replayed batches never leave the process; their items are resolved from fixtures on poll. */
   private readonly replayBatches = new Map<string, BatchItem[]>();
@@ -96,6 +81,7 @@ export class ReplayAdapter implements ModelProvider {
     }
     this.inner = options.mode === 'record' ? options.inner : undefined;
     this.capabilities = this.inner?.capabilities ?? ALL_CAPABILITIES;
+    this.providerClass = this.inner?.providerClass ?? 'self-hosted';
   }
 
   generate(request: GenerateRequest): Promise<GenerateResult> {
@@ -138,10 +124,7 @@ export class ReplayAdapter implements ModelProvider {
     }
     // Fail at submission, like a provider rejecting a bad batch, rather than on a later poll.
     await Promise.all(items.map((item) => this.read('generateStructured', item.request)));
-    const batchId = `replay-${createHash('sha256')
-      .update(JSON.stringify(canonical(items)))
-      .digest('hex')
-      .slice(0, 24)}`;
+    const batchId = `replay-${hashJson(items).slice(0, 24)}`;
     this.replayBatches.set(batchId, items);
     return { batchId };
   }
@@ -236,7 +219,7 @@ export class ReplayAdapter implements ModelProvider {
     operation: Operation,
     request: GenerateRequest,
   ): Promise<TResponse> {
-    const hash = requestHash(operation, request);
+    const hash = fixtureKey(operation, request);
     const path = this.path(hash);
     let raw: string;
     try {
@@ -256,7 +239,7 @@ export class ReplayAdapter implements ModelProvider {
     response: unknown,
   ): Promise<void> {
     const fixture: Fixture<unknown> = { version: 1, operation, request, response };
-    await this.writeFile(this.path(requestHash(operation, request)), fixture);
+    await this.writeFile(this.path(fixtureKey(operation, request)), fixture);
   }
 
   private async writeFile(path: string, content: unknown): Promise<void> {

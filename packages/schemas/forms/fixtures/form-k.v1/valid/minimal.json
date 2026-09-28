@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "form-k.v1",
+  "responsibleCommission": "psc",
+  "partI": {
+    "name": "Daniel Otieno",
+    "identityDocument": { "kind": "passport", "number": "AK123456", "country": "UG" },
+    "postalAddress": "P.O. Box 7062, Kampala",
+    "physicalAddress": "Plot 12, Kampala Road, Kampala",
+    "telephone": "+256772123456",
+    "email": "d.otieno@example.org",
+    "occupation": "Researcher"
+  },
+  "partII": {
+    "name": "Anne Njeri Mutua",
+    "entity": "Ministry of Lands and Physical Planning",
+    "workStation": ""
+  },
+  "partIII": {
+    "informationSought": "The officer's declared income for 2026.",
+    "reason": "Academic research on income declarations in the land sector.",
+    "otherInformation": ""
+  },
+  "partIV": {
+    "text": "I declare that the information I have given above is true, complete and correct to the best of my knowledge.",
+    "declaredAt": "2026-09-20T08:15:00Z"
+  },
+  "scope": {
+    "years": [2026],
+    "includeSpouses": false,
+    "includeChildren": false,
+    "sections": ["income"],
+    "includeClarifications": false
+  }
+}

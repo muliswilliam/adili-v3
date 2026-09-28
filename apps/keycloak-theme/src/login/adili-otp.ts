@@ -22,10 +22,15 @@ export type AdiliOtpAttributes = {
   alternativeDestination?: string;
   /** Wrong codes left before the sign-in stops (5 to start). */
   attemptsLeft: number;
-  /** ISO-8601 instant from which "Resend code" works (last send + 60 s). Absent: now. */
+  /**
+   * ISO-8601 instant from which a new code can be asked for (last code sent + 60 s): "Resend code"
+   * and "Send it by email (or SMS) instead" alike. Absent: now.
+   */
   resendAvailableAt?: string;
   /** New codes left (3 to start). At 0, a resend ends the sign-in. */
   resendsLeft: number;
+  /** How long a code works, in whole minutes (the authenticator's configured lifetime). */
+  codeLifetimeMinutes: number;
   /**
    * The last send failed: `sms` or `email` for that channel only (the page offers the other),
    * `both` when neither worked. Absent when the code went out.

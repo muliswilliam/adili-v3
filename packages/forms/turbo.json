@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/forms/*.json"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "build"]
+    },
+    "lint": {
+      "dependsOn": ["^build", "build"]
+    },
+    "test": {
+      "dependsOn": ["^build", "build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/forms/**/*.json"]
+    }
+  }
+}

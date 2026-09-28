@@ -1,0 +1,222 @@
+{
+  "description": "Section 2 (biennial): an action taken that is not on the ladder (S14)",
+  "errors": ["partII.biennial.nonFilers.0.actionTaken"],
+  "issues": [
+    {
+      "sectionKey": "biennial",
+      "path": "/nonFilers/0/actionTaken",
+      "code": "enum",
+      "message": "must be equal to one of the allowed values"
+    }
+  ],
+  "document": {
+    "schemaVersion": "form-m.v1",
+    "partI": {
+      "commissionName": "Public Service Commission",
+      "issuerCode": "PSC",
+      "contactDetails": "Director, Compliance and Quality Assurance, +254 20 2223901",
+      "physicalAddress": "Commission House, Harambee Avenue, Nairobi",
+      "emailAddress": "compliance@publicservice.go.ke",
+      "period": {
+        "from": "2027-07-01",
+        "to": "2028-06-30",
+        "financialYearStart": 2027
+      }
+    },
+    "partII": {
+      "initial": {
+        "expected": 12,
+        "declared": 10,
+        "notDeclared": 2,
+        "nonFilers": [
+          {
+            "name": "Peter Kamau Njoroge",
+            "designation": "Assistant Director, Human Resource",
+            "identifier": "PF-2027-000341",
+            "date": "2027-09-01",
+            "actionTaken": "notice-to-comply",
+            "complied": "pending",
+            "remarks": "Notice issued 12 October 2027",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100001"
+          },
+          {
+            "name": "Aisha Mohamed Abdi",
+            "designation": "Senior Legal Officer",
+            "identifier": "PF-2028-000017",
+            "date": "2028-05-20",
+            "actionTaken": "none",
+            "complied": "no",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100002"
+          }
+        ]
+      },
+      "biennial": {
+        "expected": 100,
+        "declared": 95,
+        "notDeclared": 5,
+        "nonFilers": [
+          {
+            "name": "John Otieno Ouma",
+            "designation": "Deputy Director, Procurement",
+            "identifier": "PF-2003-001184",
+            "date": "2003-02-10",
+            "actionTaken": "suspended",
+            "complied": "yes",
+            "remarks": "Filed on 28 February 2028 after a warning",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100003"
+          },
+          {
+            "name": "Mary Wanjiru Githinji",
+            "designation": "Principal Accountant",
+            "identifier": "PF-2011-004512",
+            "date": "2011-06-01",
+            "actionTaken": "none",
+            "complied": "no",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100004"
+          },
+          {
+            "name": "Hassan Ali Farah",
+            "designation": "Chief Driver",
+            "identifier": "PF-1998-000203",
+            "date": "1998-03-15",
+            "actionTaken": "none",
+            "complied": "no",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100005"
+          },
+          {
+            "name": "Grace Achieng Odhiambo",
+            "designation": "Records Management Officer",
+            "identifier": "PF-2016-002277",
+            "date": "2016-08-22",
+            "actionTaken": "none",
+            "complied": "no",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100006"
+          },
+          {
+            "name": "Samuel Kiprono Rotich",
+            "designation": "ICT Officer",
+            "identifier": "PF-2019-003390",
+            "date": "2019-01-07",
+            "actionTaken": "none",
+            "complied": "no",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100007"
+          }
+        ]
+      },
+      "final": {
+        "expected": 4,
+        "declared": 3,
+        "notDeclared": 1,
+        "nonFilers": [
+          {
+            "name": "Esther Nyambura Mwangi",
+            "designation": "Director, Finance",
+            "identifier": "PF-1995-000061",
+            "date": "2028-03-31",
+            "actionTaken": "none",
+            "complied": "no",
+            "remarks": "Retired; contacted at last known address",
+            "obligationId": "0192f1a0-5a11-7000-8000-000000100008"
+          }
+        ]
+      },
+      "clarifications": {
+        "items": [
+          {
+            "name": "John Otieno Ouma",
+            "designation": "Deputy Director, Procurement",
+            "identifier": "PF-2003-001184",
+            "natureInGeneralTerms": "Source of funds for a vehicle acquired during the period",
+            "statusOfCompliance": "resolved",
+            "clarificationReference": "CLR-PSC-2027-0000004-3"
+          },
+          {
+            "name": "Mary Wanjiru Githinji",
+            "designation": "Principal Accountant",
+            "identifier": "PF-2011-004512",
+            "natureInGeneralTerms": "Value of land declared against registry records",
+            "statusOfCompliance": "responded",
+            "clarificationReference": "CLR-PSC-2027-0000011-8"
+          },
+          {
+            "name": "Daniel Mutua Kilonzo",
+            "designation": "Senior Economist",
+            "identifier": "PF-2014-001902",
+            "natureInGeneralTerms": "Income from consultancy not listed",
+            "statusOfCompliance": "pending",
+            "clarificationReference": "CLR-PSC-2028-0000002-6"
+          },
+          {
+            "name": "Faith Chebet Koech",
+            "designation": "Human Resource Officer",
+            "identifier": "PF-2020-000488",
+            "natureInGeneralTerms": "Shareholding in a supplier company",
+            "statusOfCompliance": "overdue",
+            "clarificationReference": "CLR-PSC-2028-0000005-1"
+          },
+          {
+            "name": "Ibrahim Hussein Noor",
+            "designation": "Legal Officer",
+            "identifier": "PF-2018-002751",
+            "natureInGeneralTerms": "Joint ownership share of a commercial building",
+            "statusOfCompliance": "withdrawn",
+            "clarificationReference": "CLR-PSC-2028-0000007-9"
+          },
+          {
+            "name": "Lucy Wairimu Kariuki",
+            "designation": "Supply Chain Officer",
+            "identifier": "PF-2021-000915",
+            "natureInGeneralTerms": "Bank account held outside Kenya",
+            "statusOfCompliance": "resolved",
+            "clarificationReference": "CLR-PSC-2028-0000009-2"
+          }
+        ]
+      },
+      "accessRequests": {
+        "received": 7,
+        "granted": 4,
+        "declined": 3,
+        "declineReasons": [
+          {
+            "reason": "prejudice-proceeding",
+            "count": 2
+          },
+          {
+            "reason": "frivolous-vexatious",
+            "count": 1
+          }
+        ],
+        "dataUnavailable": false
+      },
+      "complaints": {
+        "registerMaintained": true,
+        "items": [
+          {
+            "name": "John Otieno Ouma",
+            "designation": "Deputy Director, Procurement",
+            "identifier": "PF-2003-001184",
+            "nature": "Alleged conflict of interest in a tender evaluation",
+            "status": "Referred to EACC on 14 March 2028"
+          }
+        ]
+      }
+    },
+    "partIII": {
+      "compiledBy": {
+        "name": "Rose Adhiambo Were",
+        "designation": "Deputy Director, Compliance",
+        "date": "2028-07-08"
+      },
+      "confirmedBy": {
+        "name": "Dr. Mercy Wanjiku Kamau",
+        "designation": "Commission Secretary",
+        "date": "2028-07-15"
+      }
+    },
+    "meta": {
+      "compiledAt": "2028-07-01T06:00:00+03:00",
+      "reference": "RPT-PSC-2027-0000001-4",
+      "source": "hosted"
+    }
+  }
+}

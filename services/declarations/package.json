@@ -6,7 +6,8 @@
   "type": "module",
   "files": [
     "dist",
-    "migrations"
+    "migrations",
+    "corpus"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -23,6 +24,7 @@
     "@adili/cache": "workspace:*",
     "@adili/data-access": "workspace:*",
     "@adili/events": "workspace:*",
+    "@adili/forms": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
     "@nestjs/common": "^12.1.0",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
+    "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@nestjs/testing": "^12.1.0",
     "@swc-node/register": "^1.12.1",
@@ -45,6 +48,7 @@
     "eslint": "^10.11.0",
     "typescript": "~6.0.3",
     "unplugin-swc": "^2.0.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }

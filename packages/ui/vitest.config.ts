@@ -5,6 +5,7 @@ import { hugeiconsPerIcon } from './vitest.icons';
 export default defineConfig({
   plugins: [hugeiconsPerIcon()],
   test: {
+    isolate: false,
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./vitest.setup.ts'],

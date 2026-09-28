@@ -1,6 +1,5 @@
 import type { DeepPartial } from 'keycloakify/tools/DeepPartial';
 
-import { en } from './i18n';
 import type { KcContext } from './KcContext';
 import { getKcContextMock } from './mock';
 
@@ -35,20 +34,36 @@ const fieldError = (fields: string[], text: string) => ({
   },
 });
 
+/**
+ * Notices as Keycloak renders them: the text from the theme's bundle (i18n.ts), not the key.
+ * Keycloakify cannot resolve bundle keys outside a page, so the stories repeat the copy.
+ */
+const notices = {
+  expiredCode:
+    'Your sign-in took too long. For your security we started again. Enter your details once more.',
+  otpTooManyAttempts:
+    'Too many wrong codes. For your security we stopped this sign-in. Sign in again to get a new code.',
+  otpTooManyResends:
+    'Too many codes requested. You asked for a new code too many times. Sign in again to start over.',
+  accountDisabled:
+    "Your account is disabled. Contact your Commission's reporting officer and quote your officer reference.",
+  accountUpdated: 'Your password is set.',
+} as const;
+
 export const stories = {
   // Sign in, with the notices other pages send back to it
   login: story('login.ftl'),
   'login-timeout': story('login.ftl', () => ({
-    message: { type: 'info', summary: en.expiredCodeMessage },
+    message: { type: 'info', summary: notices.expiredCode },
   })),
   'login-otp-locked': story('login.ftl', () => ({
-    message: { type: 'warning', summary: en.adiliOtpTooManyAttempts },
+    message: { type: 'warning', summary: notices.otpTooManyAttempts },
   })),
   'login-otp-resends': story('login.ftl', () => ({
-    message: { type: 'warning', summary: en.adiliOtpTooManyResends },
+    message: { type: 'warning', summary: notices.otpTooManyResends },
   })),
   'login-disabled': story('login.ftl', () => ({
-    message: { type: 'error', summary: en.accountDisabledMessage },
+    message: { type: 'error', summary: notices.accountDisabled },
   })),
   'reset-password': story('login-reset-password.ftl'),
 
@@ -122,12 +137,12 @@ export const stories = {
   'actions-done': story('info.ftl', () => ({
     messageHeader: undefined,
     pageRedirectUri: 'http://localhost:3000/',
-    message: { type: 'success', summary: en.accountUpdatedMessage },
+    message: { type: 'success', summary: notices.accountUpdated },
   })),
   'actions-done-staff': story('info.ftl', () => ({
     ...staffWithUrl,
     messageHeader: undefined,
-    message: { type: 'success', summary: en.accountUpdatedMessage },
+    message: { type: 'success', summary: notices.accountUpdated },
   })),
   'link-expired': story('error.ftl', () => ({
     message: { type: 'error', summary: 'Action expired. Please start again.' },
@@ -149,11 +164,11 @@ export const stories = {
     },
   })),
   'account-disabled': story('error.ftl', () => ({
-    message: { type: 'error', summary: en.accountDisabledMessage },
+    message: { type: 'error', summary: notices.accountDisabled },
   })),
   'account-disabled-staff': story('error.ftl', () => ({
     ...staffWithUrl,
-    message: { type: 'error', summary: en.accountDisabledMessage },
+    message: { type: 'error', summary: notices.accountDisabled },
   })),
   error: story('error.ftl', () => ({
     message: {
