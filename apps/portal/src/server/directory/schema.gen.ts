@@ -4,2887 +4,2934 @@
  */
 
 export interface paths {
-    "/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The signed-in user, tenant and roles, as seen by the platform
-         * @description Any authenticated caller. Reads the verified access token; the BFFs use it to decide what a user may open.
-         */
-        get: operations["getMe"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/v1/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Responsible Commissions
-         * @description platform-admin, eacc-analyst and eacc-supervisor see every Commission. Other staff see only their own tenant's Commission.
-         */
-        get: operations["listCommissions"];
-        put?: never;
-        /**
-         * Create a Responsible Commission and provision its workspace
-         * @description platform-admin only. Idempotent per Idempotency-Key.
-         */
-        post: operations["createCommission"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * The signed-in user, tenant and roles, as seen by the platform
+     * @description Any authenticated caller. Reads the verified access token; the BFFs use it to decide what a user may open.
+     */
+    get: operations['getMe'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * One Commission with its reporting officer and roster summary
-         * @description platform-admin, eacc-analyst and eacc-supervisor read any Commission; other staff only their own tenant's. Answers 404 for Commissions the caller may not see.
-         */
-        get: operations["getCommission"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Responsible Commissions
+     * @description platform-admin, eacc-analyst and eacc-supervisor see every Commission. Other staff see only their own tenant's Commission.
+     */
+    get: operations['listCommissions'];
+    put?: never;
+    /**
+     * Create a Responsible Commission and provision its workspace
+     * @description platform-admin only. Idempotent per Idempotency-Key.
+     */
+    post: operations['createCommission'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/reporting-officer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Assign or replace the Commission's reporting officer
-         * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account with the name and phone as entered, grants the reporting-officer role (enabling the account if it was disabled) and, once the assignment is recorded, sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role (and is disabled when it holds no other role). Assigning the current officer again corrects their name and phone in place: an activated officer stays activated and gets no email; an invited one gets their activation email again. Idempotent per Idempotency-Key.
-         */
-        put: operations["assignReportingOfficer"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * One Commission with its reporting officer and roster summary
+     * @description platform-admin, eacc-analyst and eacc-supervisor read any Commission; other staff only their own tenant's. Answers 404 for Commissions the caller may not see.
+     */
+    get: operations['getCommission'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/reporting-officer': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/reporting-officer/resend-invitation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send the activation email again
-         * @description platform-admin only. Allowed while the current assignment is `invited`; Keycloak sends a new activation link valid for 72 hours. No Idempotency-Key: a repeated request only sends another email.
-         */
-        post: operations["resendReportingOfficerInvitation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Assign or replace the Commission's reporting officer
+     * @description platform-admin only. Creates (or reuses, same tenant) the Keycloak staff account with the name and phone as entered, grants the reporting-officer role (enabling the account if it was disabled) and, once the assignment is recorded, sends exactly one activation email. If a current (not replaced) assignment exists it is marked `replaced` with `replacedBy` set to the new assignment, and the previous account loses the reporting-officer role (and is disabled when it holds no other role). Assigning the current officer again corrects their name and phone in place: an activated officer stays activated and gets no email; an invited one gets their activation email again. Idempotent per Idempotency-Key.
+     */
+    put: operations['assignReportingOfficer'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/reporting-officer/resend-invitation': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/reference/officer-categories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Statutory categories of public officers (Act s.32, Regs r.5)
-         * @description Any staff role. Reference data for the create form, in statutory order.
-         */
-        get: operations["listOfficerCategories"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Send the activation email again
+     * @description platform-admin only. Allowed while the current assignment is `invited`; Keycloak sends a new activation link valid for 72 hours. No Idempotency-Key: a repeated request only sends another email.
+     */
+    post: operations['resendReportingOfficerInvitation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/reference/officer-categories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/roster/template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Roster template with column notes and a sample row */
-        get: operations["getRosterTemplate"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Statutory categories of public officers (Act s.32, Regs r.5)
+     * @description Any staff role. Reference data for the create form, in statutory order.
+     */
+    get: operations['listOfficerCategories'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/roster/template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Expected, onboarded and flagged counts and the last import */
-        get: operations["getRosterSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Roster template with column notes and a sample row */
+    get: operations['getRosterTemplate'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/imports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Import history, newest first */
-        get: operations["listRosterImports"];
-        put?: never;
-        /**
-         * Start an import from a clean upload or an inline batch
-         * @description reporting-officer of the tenant (file or batch) or a roster:write client of the tenant
-         *     (batch only). At most one import may be processing per tenant. Returns 202; poll the
-         *     import resource for progress and the report. Idempotent per Idempotency-Key.
-         */
-        post: operations["startRosterImport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Expected, onboarded and flagged counts and the last import */
+    get: operations['getRosterSummary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/imports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/imports/{importId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        /** One import with progress, mapping and counts */
-        get: operations["getRosterImport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Import history, newest first */
+    get: operations['listRosterImports'];
+    put?: never;
+    /**
+     * Start an import from a clean upload or an inline batch
+     * @description reporting-officer of the tenant (file or batch) or a roster:write client of the tenant
+     *     (batch only). At most one import may be processing per tenant. Returns 202; poll the
+     *     import resource for progress and the report. Idempotent per Idempotency-Key.
+     */
+    post: operations['startRosterImport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/imports/{importId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        importId: components['parameters']['ImportId'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/imports/{importId}/rows": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        /** Staged rows of an import, filterable by status */
-        get: operations["listRosterImportRows"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** One import with progress, mapping and counts */
+    get: operations['getRosterImport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/imports/{importId}/rows': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        importId: components['parameters']['ImportId'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/imports/{importId}/report.csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        /** Rejected rows as CSV with reason columns appended */
-        get: operations["getRosterImportReportCsv"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Staged rows of an import, filterable by status */
+    get: operations['listRosterImportRows'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/imports/{importId}/report.csv': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        importId: components['parameters']['ImportId'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Roster records with masked national IDs */
-        get: operations["listRosterRecords"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Rejected rows as CSV with reason columns appended */
+    get: operations['getRosterImportReportCsv'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/records': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/records/{recordId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        /** One roster record in full, with its import history */
-        get: operations["getRosterRecord"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Roster records with masked national IDs */
+    get: operations['listRosterRecords'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/records/{recordId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        recordId: string;
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/exits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Confirm exits for flagged (or any non-exited) records */
-        post: operations["confirmRosterExits"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** One roster record in full, with its import history */
+    get: operations['getRosterRecord'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/exits': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/records/{fileNumber}/exit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                /** @description Personnel file number (HR systems address records by it) */
-                fileNumber: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Record one officer's exit by personnel file number (HR systems) */
-        post: operations["recordRosterExit"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Confirm exits for flagged (or any non-exited) records */
+    post: operations['confirmRosterExits'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/records/{fileNumber}/exit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        /** @description Personnel file number (HR systems address records by it) */
+        fileNumber: string;
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/keep": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Clear the absent flag: these officers are still employed */
-        post: operations["keepRosterRecords"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Record one officer's exit by personnel file number (HR systems) */
+    post: operations['recordRosterExit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/keep': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/api-credential": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Metadata of the Commission's HR-system credential (never the secret) */
-        get: operations["getRosterApiCredential"];
-        put?: never;
-        /** Create the credential; the secret is returned once */
-        post: operations["createRosterApiCredential"];
-        /** Revoke the credential; the HR system loses access immediately */
-        delete: operations["revokeRosterApiCredential"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Clear the absent flag: these officers are still employed */
+    post: operations['keepRosterRecords'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/api-credential': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/roster/api-credential/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Issue a new secret; the previous one stops working immediately */
-        post: operations["rotateRosterApiCredential"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Metadata of the Commission's HR-system credential (never the secret) */
+    get: operations['getRosterApiCredential'];
+    put?: never;
+    /** Create the credential; the secret is returned once */
+    post: operations['createRosterApiCredential'];
+    /** Revoke the credential; the HR system loses access immediately */
+    delete: operations['revokeRosterApiCredential'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/roster/api-credential/rotate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/commissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Active Responsible Commissions a declarant can choose from */
-        get: operations["listOnboardingCommissions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Issue a new secret; the previous one stops working immediately */
+    post: operations['rotateRosterApiCredential'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/commissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/onboarding/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Match personnel file number and national ID against a Commission's roster
-         * @description Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
-         *     same `no-match` problem. On success the response carries the session and, once only,
-         *     the session secret the BFF stores in an httpOnly cookie.
-         */
-        post: operations["identifyDeclarant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Active Responsible Commissions a declarant can choose from */
+    get: operations['listOnboardingCommissions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        /** Current step, masked contacts and roster details to confirm */
-        get: operations["getOnboardingSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Match personnel file number and national ID against a Commission's roster
+     * @description Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
+     *     same `no-match` problem. On success the response carries the session and, once only,
+     *     the session secret the BFF stores in an httpOnly cookie.
+     */
+    post: operations['identifyDeclarant'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions/{sessionId}': {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}/contacts": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Supply an email or phone when the roster record has none */
-        post: operations["provideOnboardingContact"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Current step, masked contacts and roster details to confirm */
+    get: operations['getOnboardingSession'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions/{sessionId}/contacts': {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Verify the 6-digit code for a channel */
-        post: operations["verifyOnboardingOtp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Supply an email or phone when the roster record has none */
+    post: operations['provideOnboardingContact'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify': {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+        channel: components['parameters']['OtpChannelParam'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send a new code (60-second cooldown, at most 3 per channel) */
-        post: operations["resendOnboardingOtp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Verify the 6-digit code for a channel */
+    post: operations['verifyOnboardingOtp'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend': {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+        channel: components['parameters']['OtpChannelParam'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}/confirm": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Confirm roster details, run the IPRS check and create or link the account */
-        post: operations["confirmOnboarding"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Send a new code (60-second cooldown, at most 3 per channel) */
+    post: operations['resendOnboardingOtp'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions/{sessionId}/confirm': {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}/resend-password-email": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send the Keycloak set-password email again */
-        post: operations["resendSetPasswordEmail"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Confirm roster details, run the IPRS check and create or link the account */
+    post: operations['confirmOnboarding'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/sessions/{sessionId}/resend-password-email': {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
     };
-    "/v1/onboarding/applicants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification) */
-        post: operations["startApplicantOnboarding"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Send the Keycloak set-password email again */
+    post: operations['resendSetPasswordEmail'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/onboarding/applicants': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/law-enforcement/agencies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Registered law-enforcement agencies (reference data) */
-        get: operations["listAgencies"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification) */
+    post: operations['startApplicantOnboarding'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/law-enforcement/agencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/law-enforcement/agencies/{code}/officers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        /** Provisioned officer accounts for an agency (platform-admin) */
-        get: operations["listAgencyOfficers"];
-        put?: never;
-        /** Provision a law-enforcement officer account (platform-admin); one activation email */
-        post: operations["provisionAgencyOfficer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Registered law-enforcement agencies (reference data) */
+    get: operations['listAgencies'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/law-enforcement/agencies/{code}/officers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
     };
-    "/v1/law-enforcement/officers/{officerId}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                officerId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Disable a law-enforcement officer account (platform-admin) */
-        post: operations["revokeAgencyOfficer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Provisioned officer accounts for an agency (platform-admin) */
+    get: operations['listAgencyOfficers'];
+    put?: never;
+    /** Provision a law-enforcement officer account (platform-admin); one activation email */
+    post: operations['provisionAgencyOfficer'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/law-enforcement/officers/{officerId}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        officerId: string;
+      };
+      cookie?: never;
     };
-    "/v1/me/declarant": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The signed-in declarant's person, OFR, Commissions and verified contacts */
-        get: operations["getMyDeclarantProfile"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Disable a law-enforcement officer account (platform-admin) */
+    post: operations['revokeAgencyOfficer'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/me/declarant': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/persons": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Look up account metadata by officer reference (helpdesk, platform-admin) */
-        get: operations["findPersonByOfr"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** The signed-in declarant's person, OFR, Commissions and verified contacts */
+    get: operations['getMyDeclarantProfile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/persons': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/policy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Current policy version and history for a Commission */
-        get: operations["getTenantPolicy"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Look up account metadata by officer reference (helpdesk, platform-admin) */
+    get: operations['findPersonByOfr'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/policy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/policy/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a new policy version (only obligationsStartDate is editable in this slice)
-         * @description commission-admin of the tenant or platform-admin. Other fields are copied from the current version.
-         */
-        post: operations["createTenantPolicyVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Current policy version and history for a Commission */
+    get: operations['getTenantPolicy'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/policy/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/internal/v1/commissions/{slug}/policy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Current policy version for a Commission (services) */
-        get: operations["internalGetTenantPolicy"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Create a new policy version (only obligationsStartDate is editable in this slice)
+     * @description commission-admin of the tenant or platform-admin. Other fields are copied from the current version.
+     */
+    post: operations['createTenantPolicyVersion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/commissions/{slug}/policy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/internal/v1/commissions/{slug}/roster/records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Roster records touched by an import or an exit batch (services) */
-        get: operations["internalListRosterRecords"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Current policy version for a Commission (services) */
+    get: operations['internalGetTenantPolicy'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/commissions/{slug}/roster/records': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/internal/v1/commissions/{slug}/roster/records/{recordId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        /** One roster record (services) */
-        get: operations["internalGetRosterRecord"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Roster records touched by an import or an exit batch (services) */
+    get: operations['internalListRosterRecords'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/commissions/{slug}/roster/records/{recordId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        recordId: string;
+      };
+      cookie?: never;
     };
-    "/internal/v1/persons/{personId}/contacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                personId: string;
-            };
-            cookie?: never;
-        };
-        /** Verified contacts of a person (notifications) */
-        get: operations["internalGetPersonContacts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** One roster record (services) */
+    get: operations['internalGetRosterRecord'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/persons/{personId}/contacts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        personId: string;
+      };
+      cookie?: never;
     };
+    /** Verified contacts of a person (notifications) */
+    get: operations['internalGetPersonContacts'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        Principal: {
-            /** @description Keycloak user or service-account ID (`sub`) */
-            subject: string;
-            /** @description Responsible Commission (or `eacc` / `platform`) the caller acts for */
-            tenant: string | null;
-            /** @description Realm roles from the token */
-            roles: string[];
-            /** @description OAuth scopes granted to the token (`scope`), e.g. `messages` for service clients */
-            scopes: string[];
-            /** @description OAuth client that obtained the token (`azp`) */
-            clientId: string | null;
-        };
-        /**
-         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
-         * @example psc
-         * @example tsc
-         * @example cpsb047
-         * @example naeth
-         */
-        Slug: string;
-        /** @enum {string} */
-        CommissionType: "hosted" | "federated";
-        /**
-         * @description One paragraph of Act s.32 or Regs r.5
-         * @enum {string}
-         */
-        OfficerCategoryCode: "act-s32-2" | "act-s32-3" | "act-s32-4" | "act-s32-5" | "act-s32-6" | "act-s32-7" | "act-s32-8" | "act-s32-9" | "act-s32-10" | "act-s32-11" | "act-s32-12" | "act-s32-13" | "act-s32-14" | "regs-r5-a" | "regs-r5-b" | "regs-r5-c" | "regs-r5-d" | "regs-r5-e" | "regs-r5-f";
-        OfficerCategory: {
-            code: components["schemas"]["OfficerCategoryCode"];
-            /** @example Act s.32(10) */
-            citation: string;
-            /** @example Registered teachers */
-            description: string;
-        };
-        CreateCommission: {
-            slug: components["schemas"]["Slug"];
-            /** @example Teachers Service Commission */
-            name: string;
-            type: components["schemas"]["CommissionType"];
-            categories: components["schemas"]["OfficerCategoryCode"][];
-        };
-        AssignReportingOfficer: {
-            name: string;
-            /** Format: email */
-            email: string;
-            /**
-             * @description E.164
-             * @example +254712345678
-             */
-            phone: string;
-        };
-        /**
-         * @description `invited` once assigned; `activated` when the officer's account first makes an authenticated request to the directory (in practice the console's `/v1/me` after their first sign-in); `replaced` when another officer takes over.
-         * @enum {string}
-         */
-        ReportingOfficerState: "invited" | "activated" | "replaced";
-        ReportingOfficer: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** Format: email */
-            email: string;
-            phone: string;
-            state: components["schemas"]["ReportingOfficerState"];
-            /** Format: date-time */
-            invitedAt: string;
-            /** @description First authenticated request of the officer's account; null until then */
-            activatedAt: string | null;
-        };
-        RosterSummary: {
-            /** @enum {string} */
-            status: "none" | "imported";
-            expectedDeclarants: number;
-            onboardedDeclarants: number;
-            flagged: number;
-            lastImportAt: string | null;
-            lastImportId: string | null;
-        };
-        Commission: {
-            /** Format: uuid */
-            id: string;
-            slug: components["schemas"]["Slug"];
-            /**
-             * @description slug upper-cased
-             * @example TSC
-             */
-            issuerCode: string;
-            name: string;
-            type: components["schemas"]["CommissionType"];
-            categories: components["schemas"]["OfficerCategory"][];
-            /** @enum {string} */
-            status: "active";
-            /** @description Current policy version; 1 after provisioning */
-            policyVersion: number;
-            /** @description Current assignment (`invited` or `activated`); null when none */
-            reportingOfficer: components["schemas"]["ReportingOfficer"] | null;
-            roster: components["schemas"]["RosterSummary"];
-            /** Format: date-time */
-            createdAt: string;
-        };
-        CommissionPage: {
-            items: components["schemas"]["Commission"][];
-            /** @description Pass as `cursor` for the next page; null on the last page */
-            nextCursor: string | null;
-            /** @description Commissions matching the filters across all pages */
-            total: number;
-        };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            detail?: string;
-            instance?: string;
-            /** @description Field-level errors; `path` is the dotted request field */
-            errors?: {
-                path: string;
-                message: string;
-            }[];
-        };
-        /** @enum {string} */
-        ImportChannel: "file" | "api";
-        /** @enum {string} */
-        ImportState: "pending" | "processing" | "completed" | "failed";
-        /** @enum {string} */
-        ImportFailureCode: "missing-columns" | "upload-not-clean" | "parse-error" | "storage-error" | "internal";
-        /** @enum {string} */
-        RosterRecordState: "not_onboarded" | "onboarded" | "exited";
-        /** @description One roster row as accepted from the template or an API batch (pre-normalisation) */
-        RosterRowInput: {
-            personnelFileNumber: string;
-            fullName: string;
-            /** @description Digits after stripping spaces, 5 to 10 */
-            nationalId: string;
-            designation?: string | null;
-            jobGroup?: string | null;
-            reportingEntity?: string | null;
-            /** @description ISO date preferred; DD/MM/YYYY and DD-MM-YYYY accepted */
-            appointmentDate?: string | null;
-            /** Format: email */
-            email?: string | null;
-            /** @description Local (07…, 01…) or international; normalised to E.164 */
-            phone?: string | null;
-        };
-        StartFileImport: {
-            /** @constant */
-            channel: "file";
-            /**
-             * Format: uuid
-             * @description A clean upload with purpose roster-import (documents service)
-             */
-            uploadId: string;
-            /** @description True when the file is the complete roster; absent officers get flagged */
-            declaredComplete: boolean;
-        };
-        StartBatchImport: {
-            /** @constant */
-            channel: "api";
-            rows: components["schemas"]["RosterRowInput"][];
-        };
-        ColumnMapping: {
-            matched: {
-                source: string;
-                field: string;
-            }[];
-            ignored: string[];
-            /** @description Optional template columns not present */
-            missing: string[];
-        };
-        ImportCounts: {
-            accepted: number;
-            created: number;
-            updated: number;
-            unchanged: number;
-            rejected: number;
-            flaggedAbsent: number;
-        };
-        RosterImport: {
-            /** Format: uuid */
-            id: string;
-            channel: components["schemas"]["ImportChannel"];
-            declaredComplete: boolean;
-            state: components["schemas"]["ImportState"];
-            fileName: string | null;
-            /** @enum {string|null} */
-            format: "csv" | "xlsx" | "json" | null;
-            /** @description Null until staging finishes */
-            totalRows: number | null;
-            processedRows: number;
-            counts: components["schemas"]["ImportCounts"] | null;
-            mapping: components["schemas"]["ColumnMapping"] | null;
-            failure: {
-                code: components["schemas"]["ImportFailureCode"];
-                detail: string;
-            } | null;
-            startedBy: {
-                /** @enum {string} */
-                kind: "user" | "client";
-                id: string;
-            };
-            /** Format: date-time */
-            startedAt: string;
-            /** Format: date-time */
-            completedAt: string | null;
-        };
-        RowError: {
-            field: string;
-            /** @enum {string} */
-            code: "required" | "format" | "too-long" | "future-date" | "duplicate-in-file" | "identity-locked";
-            message: string;
-        };
-        RosterImportRow: {
-            rowNumber: number;
-            /** @enum {string} */
-            status: "accepted" | "rejected";
-            raw: {
-                [key: string]: string;
-            };
-            errors: components["schemas"]["RowError"][];
-            /** @enum {string|null} */
-            outcome: "created" | "updated" | "unchanged" | null;
-            /** Format: uuid */
-            recordId: string | null;
-        };
-        ReportingEntityRef: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-        };
-        RosterRecordListItem: {
-            /** Format: uuid */
-            id: string;
-            personnelFileNumber: string;
-            fullName: string;
-            /** @description All but the last three digits replaced, e.g. •••••123 */
-            nationalIdMasked: string;
-            designation: string | null;
-            jobGroup: string | null;
-            reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
-            state: components["schemas"]["RosterRecordState"];
-            absentFromLatestImport: boolean;
-        };
-        RosterRecord: components["schemas"]["RosterRecordListItem"] & {
-            /** @description Full value; reads are audited */
-            nationalId: string;
-            /** Format: date */
-            appointmentDate: string | null;
-            email: string | null;
-            phone: string | null;
-            /** Format: date */
-            exitDate: string | null;
-            source: components["schemas"]["ImportChannel"];
-            /** Format: uuid */
-            flaggedByImportId: string | null;
-            /** Format: uuid */
-            firstSeenImportId: string | null;
-            /** Format: uuid */
-            lastSeenImportId: string | null;
-            /** @description Imports that touched this record, newest first */
-            imports: {
-                /** Format: uuid */
-                importId: string;
-                /** Format: date-time */
-                startedAt: string;
-                /** @enum {string} */
-                outcome: "created" | "updated" | "unchanged";
-            }[];
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        ConfirmExits: {
-            records: {
-                /** Format: uuid */
-                recordId: string;
-                /**
-                 * Format: date
-                 * @description Overrides the batch exitDate for this record
-                 */
-                exitDate?: string;
-            }[];
-            /**
-             * Format: date
-             * @description Default exit date for records without their own; required unless every record has one
-             */
-            exitDate?: string;
-        };
-        ExitsResult: {
-            /** Format: uuid */
-            batchId: string;
-            count: number;
-        };
-        RosterApiCredential: {
-            /** @example roster-psc */
-            clientId: string;
-            /** Format: date-time */
-            createdAt: string;
-            createdBy: string;
-            /** Format: date-time */
-            rotatedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
-            /** Format: date-time */
-            lastUsedAt: string | null;
-        };
-        RosterApiCredentialWithSecret: components["schemas"]["RosterApiCredential"] & {
-            /** @description Shown once; the platform does not store it */
-            secret: string;
-            /** Format: uri */
-            tokenEndpoint: string;
-            /** @constant */
-            scope: "roster:write";
-        };
-        /**
-         * @description Officer reference (ADR-011), permanent and person-level
-         * @example OFR-0482913-L
-         */
-        Ofr: string;
-        /** @enum {string} */
-        OtpChannel: "email" | "phone";
-        OnboardingCommission: {
-            slug: components["schemas"]["Slug"];
-            issuerCode: string;
-            name: string;
-            hasRoster: boolean;
-        };
-        IdentifyDeclarant: {
-            commission: components["schemas"]["Slug"];
-            personnelFileNumber: string;
-            /** @description Digits after stripping spaces, 5 to 10 */
-            nationalId: string;
-        };
-        /** @enum {string} */
-        OnboardingState: "identified" | "email-contact-required" | "email-pending" | "email-verified" | "phone-contact-required" | "phone-pending" | "phone-verified" | "confirmed" | "identity-mismatch" | "expired";
-        MaskedContact: {
-            /** @description e.g. j***@moe.go.ke or 07** *** 123 */
-            masked: string;
-            /** @enum {string} */
-            source: "roster" | "declarant";
-            verified: boolean;
-        };
-        OnboardingSession: {
-            /** Format: uuid */
-            id: string;
-            state: components["schemas"]["OnboardingState"];
-            commission: components["schemas"]["OnboardingCommission"];
-            contacts: {
-                email: components["schemas"]["MaskedContact"] | null;
-                phone: components["schemas"]["MaskedContact"] | null;
-            };
-            /** @description Roster details shown at the confirm step; null before phone-verified */
-            details: {
-                fullName: string;
-                personnelFileNumber: string;
-                designation: string | null;
-                reportingEntity: string | null;
-            } | null;
-            /** @description Resend availability for the channel currently pending */
-            otp: {
-                channel: components["schemas"]["OtpChannel"] | null;
-                /** Format: date-time */
-                resendAvailableAt: string | null;
-                resendsLeft: number;
-                attemptsLeft: number;
-            };
-            /** @description Set when state is confirmed */
-            outcome?: components["schemas"]["OnboardingOutcome"] | null;
-            ofr?: components["schemas"]["Ofr"] | null;
-            /** Format: date-time */
-            expiresAt: string;
-        };
-        Agency: {
-            /**
-             * @example DCI
-             * @example ODPP
-             * @example ARA
-             * @example FRC
-             */
-            code: string;
-            name: string;
-            legalBasis: string;
-        };
-        LeaOfficerAccount: {
-            /** Format: uuid */
-            id: string;
-            agencyCode: string;
-            name: string;
-            /** Format: email */
-            email: string;
-            /** @enum {string} */
-            state: "invited" | "activated" | "revoked";
-            /** Format: date-time */
-            invitedAt: string;
-            /** Format: date-time */
-            activatedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
-        };
-        OnboardingSessionCreated: components["schemas"]["OnboardingSession"] & {
-            /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
-            secret: string;
-        };
-        /** @enum {string} */
-        OnboardingOutcome: "account-created" | "linked-existing-account" | "identity-mismatch";
-        OnboardingConfirmResult: {
-            outcome: components["schemas"]["OnboardingOutcome"];
-            session: components["schemas"]["OnboardingSession"];
-        };
-        OnboardingProblem: components["schemas"]["ProblemDetails"] & {
-            /** @enum {string} */
-            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limited";
-            attemptsLeft?: number;
-            retryAfterSeconds?: number;
-            /** @description Present for already-onboarded */
-            links?: {
-                /** Format: uri */
-                signIn?: string;
-                /** Format: uri */
-                recoverAccess?: string;
-            };
-        };
-        DeclarantProfile: {
-            /** Format: uuid */
-            personId: string;
-            ofr: components["schemas"]["Ofr"];
-            fullName: string;
-            contacts: {
-                email: string | null;
-                phone: string | null;
-            };
-            commissions: {
-                slug: components["schemas"]["Slug"];
-                name: string;
-                personnelFileNumber: string;
-                /** Format: uuid */
-                rosterRecordId: string;
-                state: components["schemas"]["RosterRecordState"];
-                /** Format: date-time */
-                onboardedAt: string | null;
-            }[];
-        };
-        PersonSummary: {
-            /** Format: uuid */
-            personId: string;
-            ofr: components["schemas"]["Ofr"];
-            fullName: string;
-            commissions: components["schemas"]["Slug"][];
-            /** Format: date-time */
-            createdAt: string;
-        };
-        TenantPolicyVersion: {
-            /** Format: uuid */
-            id: string;
-            version: number;
-            /** Format: date-time */
-            effectiveFrom: string;
-            /**
-             * Format: date
-             * @description Initial-declaration obligations are created only for appointments on or after this date
-             */
-            obligationsStartDate: string;
-            initialDueAfterAppointmentDays: number;
-            biennial: {
-                /** @description Month-day, e.g. 11-01 */
-                statementDate: string;
-                /** @description Month-day, e.g. 12-31 */
-                dueDate: string;
-            };
-            finalDueAfterExitDays: number;
-            reminderOffsetsDays: number[];
-            clarification: {
-                issueWindowMonths: number;
-                replyWindowDays: number;
-            };
-            /** @description Month-day, e.g. 07-31 */
-            formMDue: string;
-            createdBy: string;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        TenantPolicyHistory: {
-            current: components["schemas"]["TenantPolicyVersion"];
-            previous: components["schemas"]["TenantPolicyVersion"][];
-        };
-        InternalRosterRecord: components["schemas"]["RosterRecord"] & {
-            tenant: components["schemas"]["Slug"];
-            /** Format: uuid */
-            personId: string | null;
-            ofr: components["schemas"]["Ofr"] | null;
-            /** Format: date-time */
-            onboardedAt: string | null;
-        };
+  schemas: {
+    Principal: {
+      /** @description Keycloak user or service-account ID (`sub`) */
+      subject: string;
+      /** @description Responsible Commission (or `eacc` / `platform`) the caller acts for */
+      tenant: string | null;
+      /** @description Realm roles from the token */
+      roles: string[];
+      /** @description OAuth scopes granted to the token (`scope`), e.g. `messages` for service clients */
+      scopes: string[];
+      /** @description OAuth client that obtained the token (`azp`) */
+      clientId: string | null;
     };
-    responses: {
-        /** @description Problem code `rate-limited`; RateLimit-* headers present */
-        RateLimited: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["OnboardingProblem"];
-            };
-        };
-        /** @description Problem code `session-expired`; the cookie is cleared */
-        SessionEnded: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["OnboardingProblem"];
-            };
-        };
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Request failed validation */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
+    /**
+     * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
+     * @example psc
+     * @example tsc
+     * @example cpsb047
+     * @example naeth
+     */
+    Slug: string;
+    /** @enum {string} */
+    CommissionType: 'hosted' | 'federated';
+    /**
+     * @description One paragraph of Act s.32 or Regs r.5
+     * @enum {string}
+     */
+    OfficerCategoryCode:
+      | 'act-s32-2'
+      | 'act-s32-3'
+      | 'act-s32-4'
+      | 'act-s32-5'
+      | 'act-s32-6'
+      | 'act-s32-7'
+      | 'act-s32-8'
+      | 'act-s32-9'
+      | 'act-s32-10'
+      | 'act-s32-11'
+      | 'act-s32-12'
+      | 'act-s32-13'
+      | 'act-s32-14'
+      | 'regs-r5-a'
+      | 'regs-r5-b'
+      | 'regs-r5-c'
+      | 'regs-r5-d'
+      | 'regs-r5-e'
+      | 'regs-r5-f';
+    OfficerCategory: {
+      code: components['schemas']['OfficerCategoryCode'];
+      /** @example Act s.32(10) */
+      citation: string;
+      /** @example Registered teachers */
+      description: string;
     };
-    parameters: {
-        Slug: components["schemas"]["Slug"];
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        IdempotencyKey: string;
-        ImportId: string;
-        SessionId: string;
-        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-        OnboardingSecret: string;
-        OtpChannelParam: components["schemas"]["OtpChannel"];
+    CreateCommission: {
+      slug: components['schemas']['Slug'];
+      /** @example Teachers Service Commission */
+      name: string;
+      type: components['schemas']['CommissionType'];
+      categories: components['schemas']['OfficerCategoryCode'][];
     };
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    AssignReportingOfficer: {
+      name: string;
+      /** Format: email */
+      email: string;
+      /**
+       * @description E.164
+       * @example +254712345678
+       */
+      phone: string;
+    };
+    /**
+     * @description `invited` once assigned; `activated` when the officer's account first makes an authenticated request to the directory (in practice the console's `/v1/me` after their first sign-in); `replaced` when another officer takes over.
+     * @enum {string}
+     */
+    ReportingOfficerState: 'invited' | 'activated' | 'replaced';
+    ReportingOfficer: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      /** Format: email */
+      email: string;
+      phone: string;
+      state: components['schemas']['ReportingOfficerState'];
+      /** Format: date-time */
+      invitedAt: string;
+      /** @description First authenticated request of the officer's account; null until then */
+      activatedAt: string | null;
+    };
+    RosterSummary: {
+      /** @enum {string} */
+      status: 'none' | 'imported';
+      expectedDeclarants: number;
+      onboardedDeclarants: number;
+      flagged: number;
+      lastImportAt: string | null;
+      lastImportId: string | null;
+    };
+    Commission: {
+      /** Format: uuid */
+      id: string;
+      slug: components['schemas']['Slug'];
+      /**
+       * @description slug upper-cased
+       * @example TSC
+       */
+      issuerCode: string;
+      name: string;
+      type: components['schemas']['CommissionType'];
+      categories: components['schemas']['OfficerCategory'][];
+      /** @enum {string} */
+      status: 'active';
+      /** @description Current policy version; 1 after provisioning */
+      policyVersion: number;
+      /** @description Current assignment (`invited` or `activated`); null when none */
+      reportingOfficer: components['schemas']['ReportingOfficer'] | null;
+      roster: components['schemas']['RosterSummary'];
+      /** Format: date-time */
+      createdAt: string;
+    };
+    CommissionPage: {
+      items: components['schemas']['Commission'][];
+      /** @description Pass as `cursor` for the next page; null on the last page */
+      nextCursor: string | null;
+      /** @description Commissions matching the filters across all pages */
+      total: number;
+    };
+    ProblemDetails: {
+      type: string;
+      title: string;
+      status: number;
+      detail?: string;
+      instance?: string;
+      /** @description Field-level errors; `path` is the dotted request field */
+      errors?: {
+        path: string;
+        message: string;
+      }[];
+    };
+    /** @enum {string} */
+    ImportChannel: 'file' | 'api';
+    /** @enum {string} */
+    ImportState: 'pending' | 'processing' | 'completed' | 'failed';
+    /** @enum {string} */
+    ImportFailureCode:
+      'missing-columns' | 'upload-not-clean' | 'parse-error' | 'storage-error' | 'internal';
+    /** @enum {string} */
+    RosterRecordState: 'not_onboarded' | 'onboarded' | 'exited';
+    /** @description One roster row as accepted from the template or an API batch (pre-normalisation) */
+    RosterRowInput: {
+      personnelFileNumber: string;
+      fullName: string;
+      /** @description Digits after stripping spaces, 5 to 10 */
+      nationalId: string;
+      designation?: string | null;
+      jobGroup?: string | null;
+      reportingEntity?: string | null;
+      /** @description ISO date preferred; DD/MM/YYYY and DD-MM-YYYY accepted */
+      appointmentDate?: string | null;
+      /** Format: email */
+      email?: string | null;
+      /** @description Local (07…, 01…) or international; normalised to E.164 */
+      phone?: string | null;
+    };
+    StartFileImport: {
+      /** @constant */
+      channel: 'file';
+      /**
+       * Format: uuid
+       * @description A clean upload with purpose roster-import (documents service)
+       */
+      uploadId: string;
+      /** @description True when the file is the complete roster; absent officers get flagged */
+      declaredComplete: boolean;
+    };
+    StartBatchImport: {
+      /** @constant */
+      channel: 'api';
+      rows: components['schemas']['RosterRowInput'][];
+    };
+    ColumnMapping: {
+      matched: {
+        source: string;
+        field: string;
+      }[];
+      ignored: string[];
+      /** @description Optional template columns not present */
+      missing: string[];
+    };
+    ImportCounts: {
+      accepted: number;
+      created: number;
+      updated: number;
+      unchanged: number;
+      rejected: number;
+      flaggedAbsent: number;
+    };
+    RosterImport: {
+      /** Format: uuid */
+      id: string;
+      channel: components['schemas']['ImportChannel'];
+      declaredComplete: boolean;
+      state: components['schemas']['ImportState'];
+      fileName: string | null;
+      /** @enum {string|null} */
+      format: 'csv' | 'xlsx' | 'json' | null;
+      /** @description Null until staging finishes */
+      totalRows: number | null;
+      processedRows: number;
+      counts: components['schemas']['ImportCounts'] | null;
+      mapping: components['schemas']['ColumnMapping'] | null;
+      failure: {
+        code: components['schemas']['ImportFailureCode'];
+        detail: string;
+      } | null;
+      startedBy: {
+        /** @enum {string} */
+        kind: 'user' | 'client';
+        id: string;
+      };
+      /** Format: date-time */
+      startedAt: string;
+      /** Format: date-time */
+      completedAt: string | null;
+    };
+    RowError: {
+      field: string;
+      /** @enum {string} */
+      code:
+        | 'required'
+        | 'format'
+        | 'too-long'
+        | 'future-date'
+        | 'duplicate-in-file'
+        | 'identity-locked';
+      message: string;
+    };
+    RosterImportRow: {
+      rowNumber: number;
+      /** @enum {string} */
+      status: 'accepted' | 'rejected';
+      raw: {
+        [key: string]: string;
+      };
+      errors: components['schemas']['RowError'][];
+      /** @enum {string|null} */
+      outcome: 'created' | 'updated' | 'unchanged' | null;
+      /** Format: uuid */
+      recordId: string | null;
+    };
+    ReportingEntityRef: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    RosterRecordListItem: {
+      /** Format: uuid */
+      id: string;
+      personnelFileNumber: string;
+      fullName: string;
+      /** @description All but the last three digits replaced, e.g. •••••123 */
+      nationalIdMasked: string;
+      designation: string | null;
+      jobGroup: string | null;
+      reportingEntity: components['schemas']['ReportingEntityRef'] | null;
+      state: components['schemas']['RosterRecordState'];
+      absentFromLatestImport: boolean;
+    };
+    RosterRecord: components['schemas']['RosterRecordListItem'] & {
+      /** @description Full value; reads are audited */
+      nationalId: string;
+      /** Format: date */
+      appointmentDate: string | null;
+      email: string | null;
+      phone: string | null;
+      /** Format: date */
+      exitDate: string | null;
+      source: components['schemas']['ImportChannel'];
+      /** Format: uuid */
+      flaggedByImportId: string | null;
+      /** Format: uuid */
+      firstSeenImportId: string | null;
+      /** Format: uuid */
+      lastSeenImportId: string | null;
+      /** @description Imports that touched this record, newest first */
+      imports: {
+        /** Format: uuid */
+        importId: string;
+        /** Format: date-time */
+        startedAt: string;
+        /** @enum {string} */
+        outcome: 'created' | 'updated' | 'unchanged';
+      }[];
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    ConfirmExits: {
+      records: {
+        /** Format: uuid */
+        recordId: string;
+        /**
+         * Format: date
+         * @description Overrides the batch exitDate for this record
+         */
+        exitDate?: string;
+      }[];
+      /**
+       * Format: date
+       * @description Default exit date for records without their own; required unless every record has one
+       */
+      exitDate?: string;
+    };
+    ExitsResult: {
+      /** Format: uuid */
+      batchId: string;
+      count: number;
+    };
+    RosterApiCredential: {
+      /** @example roster-psc */
+      clientId: string;
+      /** Format: date-time */
+      createdAt: string;
+      createdBy: string;
+      /** Format: date-time */
+      rotatedAt: string | null;
+      /** Format: date-time */
+      revokedAt: string | null;
+      /** Format: date-time */
+      lastUsedAt: string | null;
+    };
+    RosterApiCredentialWithSecret: components['schemas']['RosterApiCredential'] & {
+      /** @description Shown once; the platform does not store it */
+      secret: string;
+      /** Format: uri */
+      tokenEndpoint: string;
+      /** @constant */
+      scope: 'roster:write';
+    };
+    /**
+     * @description Officer reference (ADR-011), permanent and person-level
+     * @example OFR-0482913-L
+     */
+    Ofr: string;
+    /** @enum {string} */
+    OtpChannel: 'email' | 'phone';
+    OnboardingCommission: {
+      slug: components['schemas']['Slug'];
+      issuerCode: string;
+      name: string;
+      hasRoster: boolean;
+    };
+    IdentifyDeclarant: {
+      commission: components['schemas']['Slug'];
+      personnelFileNumber: string;
+      /** @description Digits after stripping spaces, 5 to 10 */
+      nationalId: string;
+    };
+    /** @enum {string} */
+    OnboardingState:
+      | 'identified'
+      | 'email-contact-required'
+      | 'email-pending'
+      | 'email-verified'
+      | 'phone-contact-required'
+      | 'phone-pending'
+      | 'phone-verified'
+      | 'confirmed'
+      | 'identity-mismatch'
+      | 'expired';
+    MaskedContact: {
+      /** @description e.g. j***@moe.go.ke or 07** *** 123 */
+      masked: string;
+      /** @enum {string} */
+      source: 'roster' | 'declarant';
+      verified: boolean;
+    };
+    OnboardingSession: {
+      /** Format: uuid */
+      id: string;
+      state: components['schemas']['OnboardingState'];
+      commission: components['schemas']['OnboardingCommission'];
+      contacts: {
+        email: components['schemas']['MaskedContact'] | null;
+        phone: components['schemas']['MaskedContact'] | null;
+      };
+      /** @description Roster details shown at the confirm step; null before phone-verified */
+      details: {
+        fullName: string;
+        personnelFileNumber: string;
+        designation: string | null;
+        reportingEntity: string | null;
+      } | null;
+      /** @description Resend availability for the channel currently pending */
+      otp: {
+        channel: components['schemas']['OtpChannel'] | null;
+        /** Format: date-time */
+        resendAvailableAt: string | null;
+        resendsLeft: number;
+        attemptsLeft: number;
+      };
+      /** @description Set when state is confirmed */
+      outcome?: components['schemas']['OnboardingOutcome'] | null;
+      ofr?: components['schemas']['Ofr'] | null;
+      /** Format: date-time */
+      expiresAt: string;
+    };
+    Agency: {
+      /**
+       * @example DCI
+       * @example ODPP
+       * @example ARA
+       * @example FRC
+       */
+      code: string;
+      name: string;
+      legalBasis: string;
+    };
+    LeaOfficerAccount: {
+      /** Format: uuid */
+      id: string;
+      agencyCode: string;
+      name: string;
+      /** Format: email */
+      email: string;
+      /** @enum {string} */
+      state: 'invited' | 'activated' | 'revoked';
+      /** Format: date-time */
+      invitedAt: string;
+      /** Format: date-time */
+      activatedAt: string | null;
+      /** Format: date-time */
+      revokedAt: string | null;
+    };
+    OnboardingSessionCreated: components['schemas']['OnboardingSession'] & {
+      /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
+      secret: string;
+    };
+    /** @enum {string} */
+    OnboardingOutcome: 'account-created' | 'linked-existing-account' | 'identity-mismatch';
+    OnboardingConfirmResult: {
+      outcome: components['schemas']['OnboardingOutcome'];
+      session: components['schemas']['OnboardingSession'];
+    };
+    OnboardingProblem: components['schemas']['ProblemDetails'] & {
+      /** @enum {string} */
+      code:
+        | 'no-match'
+        | 'already-onboarded'
+        | 'no-roster'
+        | 'otp-invalid'
+        | 'otp-expired'
+        | 'resend-cooldown'
+        | 'session-expired'
+        | 'iprs-unavailable'
+        | 'identity-unavailable'
+        | 'rate-limited';
+      attemptsLeft?: number;
+      retryAfterSeconds?: number;
+      /** @description Present for already-onboarded */
+      links?: {
+        /** Format: uri */
+        signIn?: string;
+        /** Format: uri */
+        recoverAccess?: string;
+      };
+    };
+    DeclarantProfile: {
+      /** Format: uuid */
+      personId: string;
+      ofr: components['schemas']['Ofr'];
+      fullName: string;
+      contacts: {
+        email: string | null;
+        phone: string | null;
+      };
+      commissions: {
+        slug: components['schemas']['Slug'];
+        name: string;
+        personnelFileNumber: string;
+        /** Format: uuid */
+        rosterRecordId: string;
+        state: components['schemas']['RosterRecordState'];
+        /** Format: date-time */
+        onboardedAt: string | null;
+      }[];
+    };
+    PersonSummary: {
+      /** Format: uuid */
+      personId: string;
+      ofr: components['schemas']['Ofr'];
+      fullName: string;
+      commissions: components['schemas']['Slug'][];
+      /** Format: date-time */
+      createdAt: string;
+    };
+    TenantPolicyVersion: {
+      /** Format: uuid */
+      id: string;
+      version: number;
+      /** Format: date-time */
+      effectiveFrom: string;
+      /**
+       * Format: date
+       * @description Initial-declaration obligations are created only for appointments on or after this date
+       */
+      obligationsStartDate: string;
+      initialDueAfterAppointmentDays: number;
+      biennial: {
+        /** @description Month-day, e.g. 11-01 */
+        statementDate: string;
+        /** @description Month-day, e.g. 12-31 */
+        dueDate: string;
+      };
+      finalDueAfterExitDays: number;
+      reminderOffsetsDays: number[];
+      clarification: {
+        issueWindowMonths: number;
+        replyWindowDays: number;
+      };
+      /** @description Month-day, e.g. 07-31 */
+      formMDue: string;
+      createdBy: string;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    TenantPolicyHistory: {
+      current: components['schemas']['TenantPolicyVersion'];
+      previous: components['schemas']['TenantPolicyVersion'][];
+    };
+    InternalRosterRecord: components['schemas']['RosterRecord'] & {
+      tenant: components['schemas']['Slug'];
+      /** Format: uuid */
+      personId: string | null;
+      ofr: components['schemas']['Ofr'] | null;
+      /** Format: date-time */
+      onboardedAt: string | null;
+    };
+  };
+  responses: {
+    /** @description Problem code `rate-limited`; RateLimit-* headers present */
+    RateLimited: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['OnboardingProblem'];
+      };
+    };
+    /** @description Problem code `session-expired`; the cookie is cleared */
+    SessionEnded: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['OnboardingProblem'];
+      };
+    };
+    /** @description Not found, or not visible to the caller */
+    NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Request failed validation */
+    ValidationProblem: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Caller lacks the required role */
+    Forbidden: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+  };
+  parameters: {
+    Slug: components['schemas']['Slug'];
+    /** @description Client-generated UUID, unique per logical request; reuse on retry */
+    IdempotencyKey: string;
+    ImportId: string;
+    SessionId: string;
+    /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+    OnboardingSecret: string;
+    OtpChannelParam: components['schemas']['OtpChannel'];
+  };
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getMe: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Verified identity from the access token */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Principal"];
-                };
-            };
-            /** @description Missing, expired or invalid access token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  getMe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    listCommissions: {
-        parameters: {
-            query?: {
-                /** @description Case-insensitive match on name or slug; blank means no search */
-                search?: string;
-                type?: "hosted" | "federated";
-                /** @description Filter by current reporting officer state; `none` means no assignment yet */
-                reportingOfficer?: "none" | "invited" | "activated";
-                /** @description `nextCursor` of the previous page; omit for the first page */
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Verified identity from the access token */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Page of Commissions ordered by name */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CommissionPage"];
-                };
-            };
-            /** @description Query failed validation, or the cursor is unknown */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['Principal'];
         };
+      };
+      /** @description Missing, expired or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    createCommission: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateCommission"];
-            };
-        };
-        responses: {
-            /** @description Commission created with policy version 1 */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Commission"];
-                };
-            };
-            /** @description Request failed validation */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `commission-exists`: the tenant key or name is taken; `errors[].path` names `slug` and/or `name`. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  listCommissions: {
+    parameters: {
+      query?: {
+        /** @description Case-insensitive match on name or slug; blank means no search */
+        search?: string;
+        type?: 'hosted' | 'federated';
+        /** @description Filter by current reporting officer state; `none` means no assignment yet */
+        reportingOfficer?: 'none' | 'invited' | 'activated';
+        /** @description `nextCursor` of the previous page; omit for the first page */
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    getCommission: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["schemas"]["Slug"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Page of Commissions ordered by name */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The Commission */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Commission"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['CommissionPage'];
         };
+      };
+      /** @description Query failed validation, or the cursor is unknown */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    assignReportingOfficer: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
-            };
-            path: {
-                slug: components["schemas"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignReportingOfficer"];
-            };
-        };
-        responses: {
-            /** @description Commission with the new assignment in state `invited`, or with the current one corrected */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Commission"];
-                };
-            };
-            /** @description Request failed validation */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Commission not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account in another tenant (or in none). Problem type `reporting-officer-busy`: another change to this Commission's reporting officer is still in progress; try again shortly. Either way nothing changed and the current officer keeps access. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned and identity changes already made were undone, so the current officer keeps access. Problem type `invitation-not-sent`: the officer was assigned but the activation email was not sent; resend the invitation. Both are safe to retry with the same Idempotency-Key. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  createCommission: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
     };
-    resendReportingOfficerInvitation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["schemas"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Email requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Requires one of the roles: platform-admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Commission not found, or problem type `reporting-officer-not-assigned`: it has no reporting officer. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `reporting-officer-activated`: the officer has already activated, so there is nothing to resend. Problem type `reporting-officer-account-missing`: the officer's account no longer exists in the identity provider; replace the officer. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `identity-unavailable`: the identity provider failed, no email was sent. Safe to retry. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCommission'];
+      };
     };
-    listOfficerCategories: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Commission created with policy version 1 */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Seeded list, stable order */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OfficerCategory"][];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['Commission'];
         };
+      };
+      /** @description Request failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires one of the roles: platform-admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `commission-exists`: the tenant key or name is taken; `errors[].path` names `slug` and/or `name`. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getRosterTemplate: {
-        parameters: {
-            query: {
-                format: "csv" | "xlsx";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The template file */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
+  };
+  getCommission: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['schemas']['Slug'];
+      };
+      cookie?: never;
     };
-    getRosterSummary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The Commission */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The summary */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterSummary"];
-                };
-            };
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': components['schemas']['Commission'];
         };
+      };
+      /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    listRosterImports: {
-        parameters: {
-            query?: {
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of imports */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["RosterImport"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
+  };
+  assignReportingOfficer: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': string;
+      };
+      path: {
+        slug: components['schemas']['Slug'];
+      };
+      cookie?: never;
     };
-    startRosterImport: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StartFileImport"] | components["schemas"]["StartBatchImport"];
-            };
-        };
-        responses: {
-            /** @description Import accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterImport"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Another import is processing, or the upload is not clean */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Rate limit exceeded (RateLimit-* headers present) */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssignReportingOfficer'];
+      };
     };
-    getRosterImport: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description Commission with the new assignment in state `invited`, or with the current one corrected */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The import */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterImport"];
-                };
-            };
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': components['schemas']['Commission'];
         };
+      };
+      /** @description Request failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires one of the roles: platform-admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Commission not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account in another tenant (or in none). Problem type `reporting-officer-busy`: another change to this Commission's reporting officer is still in progress; try again shortly. Either way nothing changed and the current officer keeps access. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `identity-unavailable`: the identity provider failed, nothing was assigned and identity changes already made were undone, so the current officer keeps access. Problem type `invitation-not-sent`: the officer was assigned but the activation email was not sent; resend the invitation. Both are safe to retry with the same Idempotency-Key. */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    listRosterImportRows: {
-        parameters: {
-            query?: {
-                status?: "accepted" | "rejected";
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of rows in row-number order */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["RosterImportRow"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
+  };
+  resendReportingOfficerInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['schemas']['Slug'];
+      };
+      cookie?: never;
     };
-    getRosterImportReportCsv: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                importId: components["parameters"]["ImportId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Email requested */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description CSV stream */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-            404: components["responses"]["NotFound"];
+        content?: never;
+      };
+      /** @description Requires one of the roles: platform-admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Commission not found, or problem type `reporting-officer-not-assigned`: it has no reporting officer. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `reporting-officer-activated`: the officer has already activated, so there is nothing to resend. Problem type `reporting-officer-account-missing`: the officer's account no longer exists in the identity provider; replace the officer. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `identity-unavailable`: the identity provider failed, no email was sent. Safe to retry. */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    listRosterRecords: {
-        parameters: {
-            query?: {
-                /** @description File number prefix, name fragment, or a full national ID */
-                search?: string;
-                state?: components["schemas"]["RosterRecordState"];
-                flagged?: boolean;
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of records ordered by full name */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["RosterRecordListItem"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  listOfficerCategories: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    getRosterRecord: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Seeded list, stable order */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterRecord"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': components['schemas']['OfficerCategory'][];
         };
+      };
+      /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    confirmRosterExits: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConfirmExits"];
-            };
-        };
-        responses: {
-            /** @description Records now exited */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExitsResult"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  getRosterTemplate: {
+    parameters: {
+      query: {
+        format: 'csv' | 'xlsx';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    recordRosterExit: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                slug: components["parameters"]["Slug"];
-                /** @description Personnel file number (HR systems address records by it) */
-                fileNumber: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The template file */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: date */
-                    exitDate: string;
-                };
-            };
+        content: {
+          'text/csv': string;
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': string;
         };
-        responses: {
-            /** @description The exited record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterRecord"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Already exited */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+      };
+      403: components['responses']['Forbidden'];
     };
-    keepRosterRecords: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    recordIds: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description Count of records updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        count: number;
-                    };
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  getRosterSummary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    getRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The summary */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Metadata, or null when none was created */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterApiCredential"] | null;
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': components['schemas']['RosterSummary'];
         };
+      };
+      404: components['responses']['NotFound'];
     };
-    createRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Credential with secret */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterApiCredentialWithSecret"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description A credential already exists; rotate or revoke it */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  listRosterImports: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    revokeRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Page of imports */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Revoked */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': {
+            items: components['schemas']['RosterImport'][];
+            nextCursor: string | null;
+          };
         };
+      };
+      404: components['responses']['NotFound'];
     };
-    rotateRosterApiCredential: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Credential with the new secret */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RosterApiCredentialWithSecret"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  startRosterImport: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    listOnboardingCommissions: {
-        parameters: {
-            query?: {
-                search?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Commissions with roster availability */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingCommission"][];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-        };
+    requestBody: {
+      content: {
+        'application/json':
+          components['schemas']['StartFileImport'] | components['schemas']['StartBatchImport'];
+      };
     };
-    identifyDeclarant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Import accepted */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IdentifyDeclarant"];
-            };
+        content: {
+          'application/json': components['schemas']['RosterImport'];
         };
-        responses: {
-            /** @description Session created; first OTP sent or a contact is required */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSessionCreated"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            /** @description Problem code `no-match` */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            /** @description Problem code `already-onboarded` or `no-roster` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            429: components["responses"]["RateLimited"];
+      };
+      400: components['responses']['ValidationProblem'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Another import is processing, or the upload is not clean */
+      409: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Rate limit exceeded (RateLimit-* headers present) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getOnboardingSession: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The session */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSession"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            410: components["responses"]["SessionEnded"];
-        };
+  };
+  getRosterImport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        importId: components['parameters']['ImportId'];
+      };
+      cookie?: never;
     };
-    provideOnboardingContact: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The import */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    channel: components["schemas"]["OtpChannel"];
-                    value: string;
-                };
-            };
+        content: {
+          'application/json': components['schemas']['RosterImport'];
         };
-        responses: {
-            /** @description Contact accepted and OTP sent */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSession"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            404: components["responses"]["NotFound"];
-            /** @description Session is not waiting for this contact */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            410: components["responses"]["SessionEnded"];
-        };
+      };
+      404: components['responses']['NotFound'];
     };
-    verifyOnboardingOtp: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    code: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Verified; session advanced */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSession"];
-                };
-            };
-            /** @description Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not waiting for this channel */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            410: components["responses"]["SessionEnded"];
-        };
+  };
+  listRosterImportRows: {
+    parameters: {
+      query?: {
+        status?: 'accepted' | 'rejected';
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        importId: components['parameters']['ImportId'];
+      };
+      cookie?: never;
     };
-    resendOnboardingOtp: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Page of rows in row-number order */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description New code sent */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not waiting for this channel */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            410: components["responses"]["SessionEnded"];
-            /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
+        content: {
+          'application/json': {
+            items: components['schemas']['RosterImportRow'][];
+            nextCursor: string | null;
+          };
         };
+      };
+      404: components['responses']['NotFound'];
     };
-    confirmOnboarding: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Outcome of the confirmation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingConfirmResult"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not at the confirm step */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            410: components["responses"]["SessionEnded"];
-            /** @description Problem code `identity-unavailable`: account could not be created; nothing changed */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            /** @description Problem code `iprs-unavailable`: try again later; session unchanged */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-        };
+  };
+  getRosterImportReportCsv: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        importId: components['parameters']['ImportId'];
+      };
+      cookie?: never;
     };
-    resendSetPasswordEmail: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description CSV stream */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Email requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not in the confirmed state with a new account */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            /** @description Problem code `resend-cooldown` */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
+        content: {
+          'text/csv': string;
         };
+      };
+      404: components['responses']['NotFound'];
     };
-    startApplicantOnboarding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    identityDocument: {
-                        /** @enum {string} */
-                        kind: "national-id" | "passport";
-                        number: string;
-                        country?: string;
-                    };
-                    names: {
-                        surname: string;
-                        firstName: string;
-                        otherNames?: string;
-                    };
-                    phone: string;
-                    /** Format: email */
-                    email?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Session created; phone OTP sent */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSessionCreated"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            /** @description Problem code `identity-mismatch` (IPRS) or `already-registered` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            429: components["responses"]["RateLimited"];
-        };
+  };
+  listRosterRecords: {
+    parameters: {
+      query?: {
+        /** @description File number prefix, name fragment, or a full national ID */
+        search?: string;
+        state?: components['schemas']['RosterRecordState'];
+        flagged?: boolean;
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    listAgencies: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Page of records ordered by full name */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Agencies */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Agency"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
+        content: {
+          'application/json': {
+            items: components['schemas']['RosterRecordListItem'][];
+            nextCursor: string | null;
+          };
         };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
     };
-    listAgencyOfficers: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Officers */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaOfficerAccount"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
+  };
+  getRosterRecord: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        recordId: string;
+      };
+      cookie?: never;
     };
-    provisionAgencyOfficer: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                code: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The record */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                    /** Format: email */
-                    email: string;
-                    phone: string;
-                };
-            };
+        content: {
+          'application/json': components['schemas']['RosterRecord'];
         };
-        responses: {
-            /** @description Provisioned */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaOfficerAccount"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description Email belongs to an account in another tenant */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
     };
-    revokeAgencyOfficer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                officerId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Revoked */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaOfficerAccount"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  confirmRosterExits: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    getMyDeclarantProfile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Profile */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarantProfile"];
-                };
-            };
-            /** @description The caller is not an onboarded declarant */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfirmExits'];
+      };
     };
-    findPersonByOfr: {
-        parameters: {
-            query: {
-                ofr: components["schemas"]["Ofr"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Records now exited */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Account metadata without roster contents */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PersonSummary"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': components['schemas']['ExitsResult'];
         };
+      };
+      400: components['responses']['ValidationProblem'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
     };
-    getTenantPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current version and previous versions */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantPolicyHistory"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  recordRosterExit: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        slug: components['parameters']['Slug'];
+        /** @description Personnel file number (HR systems address records by it) */
+        fileNumber: string;
+      };
+      cookie?: never;
     };
-    createTenantPolicyVersion: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: date */
+          exitDate: string;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: date */
-                    obligationsStartDate: string;
-                };
-            };
-        };
-        responses: {
-            /** @description New version in force */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantPolicyVersion"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+      };
     };
-    internalGetTenantPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description The exited record */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Current version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantPolicyVersion"];
-                };
-            };
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': components['schemas']['RosterRecord'];
         };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Already exited */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    internalListRosterRecords: {
-        parameters: {
-            query?: {
-                importId?: string;
-                exitBatchId?: string;
-                state?: components["schemas"]["RosterRecordState"];
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of full records */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["InternalRosterRecord"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
+  };
+  keepRosterRecords: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    internalGetRosterRecord: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          recordIds: string[];
         };
-        requestBody?: never;
-        responses: {
-            /** @description The record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InternalRosterRecord"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
+      };
     };
-    internalGetPersonContacts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                personId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Count of records updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Contacts, null where none is verified */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        personId: string;
-                        email: string | null;
-                        phone: string | null;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
+        content: {
+          'application/json': {
+            count: number;
+          };
         };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
     };
+  };
+  getRosterApiCredential: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Metadata, or null when none was created */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RosterApiCredential'] | null;
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  createRosterApiCredential: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Credential with secret */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RosterApiCredentialWithSecret'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      /** @description A credential already exists; rotate or revoke it */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  revokeRosterApiCredential: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Revoked */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  rotateRosterApiCredential: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Credential with the new secret */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RosterApiCredentialWithSecret'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  listOnboardingCommissions: {
+    parameters: {
+      query?: {
+        search?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Commissions with roster availability */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingCommission'][];
+        };
+      };
+      400: components['responses']['ValidationProblem'];
+    };
+  };
+  identifyDeclarant: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['IdentifyDeclarant'];
+      };
+    };
+    responses: {
+      /** @description Session created; first OTP sent or a contact is required */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingSessionCreated'];
+        };
+      };
+      400: components['responses']['ValidationProblem'];
+      /** @description Problem code `no-match` */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      /** @description Problem code `already-onboarded` or `no-roster` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      429: components['responses']['RateLimited'];
+    };
+  };
+  getOnboardingSession: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The session */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingSession'];
+        };
+      };
+      404: components['responses']['NotFound'];
+      410: components['responses']['SessionEnded'];
+    };
+  };
+  provideOnboardingContact: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          channel: components['schemas']['OtpChannel'];
+          value: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Contact accepted and OTP sent */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingSession'];
+        };
+      };
+      400: components['responses']['ValidationProblem'];
+      404: components['responses']['NotFound'];
+      /** @description Session is not waiting for this contact */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      410: components['responses']['SessionEnded'];
+    };
+  };
+  verifyOnboardingOtp: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+        channel: components['parameters']['OtpChannelParam'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          code: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Verified; session advanced */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingSession'];
+        };
+      };
+      /** @description Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired` */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      404: components['responses']['NotFound'];
+      /** @description Session is not waiting for this channel */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      410: components['responses']['SessionEnded'];
+    };
+  };
+  resendOnboardingOtp: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+        channel: components['parameters']['OtpChannelParam'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description New code sent */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      404: components['responses']['NotFound'];
+      /** @description Session is not waiting for this channel */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      410: components['responses']['SessionEnded'];
+      /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+    };
+  };
+  confirmOnboarding: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Outcome of the confirmation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingConfirmResult'];
+        };
+      };
+      404: components['responses']['NotFound'];
+      /** @description Session is not at the confirm step */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      410: components['responses']['SessionEnded'];
+      /** @description Problem code `identity-unavailable`: account could not be created; nothing changed */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      /** @description Problem code `iprs-unavailable`: try again later; session unchanged */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+    };
+  };
+  resendSetPasswordEmail: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+        'X-Onboarding-Secret': components['parameters']['OnboardingSecret'];
+      };
+      path: {
+        sessionId: components['parameters']['SessionId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Email requested */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      404: components['responses']['NotFound'];
+      /** @description Session is not in the confirmed state with a new account */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      /** @description Problem code `resend-cooldown` */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+    };
+  };
+  startApplicantOnboarding: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          identityDocument: {
+            /** @enum {string} */
+            kind: 'national-id' | 'passport';
+            number: string;
+            country?: string;
+          };
+          names: {
+            surname: string;
+            firstName: string;
+            otherNames?: string;
+          };
+          phone: string;
+          /** Format: email */
+          email?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Session created; phone OTP sent */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingSessionCreated'];
+        };
+      };
+      400: components['responses']['ValidationProblem'];
+      /** @description Problem code `identity-mismatch` (IPRS) or `already-registered` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['OnboardingProblem'];
+        };
+      };
+      429: components['responses']['RateLimited'];
+    };
+  };
+  listAgencies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Agencies */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Agency'][];
+        };
+      };
+      403: components['responses']['Forbidden'];
+    };
+  };
+  listAgencyOfficers: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Officers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LeaOfficerAccount'][];
+        };
+      };
+      403: components['responses']['Forbidden'];
+    };
+  };
+  provisionAgencyOfficer: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          name: string;
+          /** Format: email */
+          email: string;
+          phone: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Provisioned */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LeaOfficerAccount'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      /** @description Email belongs to an account in another tenant */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  revokeAgencyOfficer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        officerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Revoked */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LeaOfficerAccount'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  getMyDeclarantProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Profile */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DeclarantProfile'];
+        };
+      };
+      /** @description The caller is not an onboarded declarant */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  findPersonByOfr: {
+    parameters: {
+      query: {
+        ofr: components['schemas']['Ofr'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Account metadata without roster contents */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PersonSummary'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  getTenantPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current version and previous versions */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantPolicyHistory'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  createTenantPolicyVersion: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: date */
+          obligationsStartDate: string;
+        };
+      };
+    };
+    responses: {
+      /** @description New version in force */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantPolicyVersion'];
+        };
+      };
+      400: components['responses']['ValidationProblem'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  internalGetTenantPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current version */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TenantPolicyVersion'];
+        };
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
+  internalListRosterRecords: {
+    parameters: {
+      query?: {
+        importId?: string;
+        exitBatchId?: string;
+        state?: components['schemas']['RosterRecordState'];
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Page of full records */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: components['schemas']['InternalRosterRecord'][];
+            nextCursor: string | null;
+          };
+        };
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
+  internalGetRosterRecord: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+        recordId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The record */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InternalRosterRecord'];
+        };
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
+  internalGetPersonContacts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        personId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Contacts, null where none is verified */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** Format: uuid */
+            personId: string;
+            email: string | null;
+            phone: string | null;
+          };
+        };
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
 }

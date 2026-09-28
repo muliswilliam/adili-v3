@@ -12,6 +12,8 @@ import {
   discardDeclaration,
   dismissSuggestion,
   type DismissOutcome,
+  extractAttachment,
+  type ExtractResult,
   linkAttachment,
   type LinkResult,
   listDeclarations,
@@ -178,4 +180,26 @@ export const dismissDeclarationSuggestion = createServerFn({ method: 'POST' })
   )
   .handler(({ data }): Promise<DismissOutcome | Unauthenticated> =>
     asDeclarant((client) => dismissSuggestion(client, data)),
+  );
+
+export const extractDeclarationAttachment = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      declarationId: id,
+      attachmentId: id,
+      documentKindHint: z.enum([
+        'title-deed',
+        'logbook',
+        'payslip',
+        'bank-letter',
+        'share-certificate',
+        'other',
+      ]),
+      targetItemType: z.string().min(1).max(40),
+      language: z.enum(['en', 'sw']).optional(),
+      idempotencyKey: id,
+    }),
+  )
+  .handler(({ data }): Promise<ExtractResult | Unauthenticated> =>
+    asDeclarant((client) => extractAttachment(client, data)),
   );

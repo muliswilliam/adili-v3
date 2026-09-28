@@ -472,3 +472,60 @@ export function dismissSuggestion(
     return response.status === 404 ? notFound : unavailable;
   });
 }
+
+/** What the declarant says a document is, as `extractAttachment` takes it. */
+export type DocumentKind =
+  'title-deed' | 'logbook' | 'payslip' | 'bank-letter' | 'share-certificate' | 'other';
+
+export interface ExtractAttachmentInput {
+  declarationId: string;
+  attachmentId: string;
+  documentKindHint: DocumentKind;
+  /** The declaration.v1 item type the fields are for, e.g. `vehicle`. */
+  targetItemType: string;
+  language?: 'en' | 'sw';
+  /** One per logical request; reuse it when retrying the same request. */
+  idempotencyKey: string;
+}
+
+export type ExtractResult =
+  | { status: 'started'; set: LoadedSuggestionSet }
+  /** 409 `not-enabled`: the Commission has no AI policy for documents. */
+  | { status: 'not-enabled' }
+  /** Any other 409 (e.g. the attachment is not clean) or 400. */
+  | { status: 'refused'; code: string | null }
+  | NotFound
+  | Unavailable;
+
+/**
+ * `POST /v1/declarations/{id}/attachments/{attachmentId}/extract`: asks for a linked document to
+ * be read into fields. Answers a `document` set, usually `pending`: poll `listSuggestions` until
+ * it is `ready` (one suggestion), `failed` or `not-enabled`.
+ */
+export function extractAttachment(
+  client: DeclarationsClient,
+  input: ExtractAttachmentInput,
+): Promise<ExtractResult> {
+  return attempt(async () => {
+    const { data, error, response } = await client.POST(
+      '/v1/declarations/{declarationId}/attachments/{attachmentId}/extract',
+      {
+        params: {
+          path: { declarationId: input.declarationId, attachmentId: input.attachmentId },
+          header: { 'Idempotency-Key': input.idempotencyKey },
+        },
+        body: {
+          documentKindHint: input.documentKindHint,
+          targetItemType: input.targetItemType,
+          ...(input.language ? { language: input.language } : {}),
+        },
+      },
+    );
+    if (data) return { status: 'started', set: loadedSet(data) };
+    if (response.status === 409 || response.status === 400) {
+      const code = problemCode(error);
+      return code === 'not-enabled' ? { status: 'not-enabled' } : { status: 'refused', code };
+    }
+    return response.status === 404 ? notFound : unavailable;
+  });
+}

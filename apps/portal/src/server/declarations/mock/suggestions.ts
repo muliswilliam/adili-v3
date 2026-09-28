@@ -11,7 +11,7 @@ import {
   suggestionPatch,
   suggestionTitle,
 } from '../../../components/declaration/suggestions';
-import type { Suggestion, SuggestionSet, SuggestionSource } from '../types';
+import type { DeclarationAttachment, Suggestion, SuggestionSet, SuggestionSource } from '../types';
 import { isRecord, json, problem, readJson } from './http';
 
 /**
@@ -27,6 +27,12 @@ import { isRecord, json, problem, readJson } from './http';
  * - A suggestion whose identifier equals an item's in the statement gets `matchItemId` (S4).
  * - A re-run supersedes the person's `new` suggestions from the registries asked, and does not
  *   suggest again what was accepted or dismissed (S5).
+ * - Extraction (S6): reading a linked attachment answers a `pending` `document` set that is
+ *   `ready` on a later list call, with one suggestion in the portal's convention (contract gap
+ *   3): `fields` = {name: value}, `sourceRef` = {documentKind, fields: [{name, confidence,
+ *   page}], warnings}. Every reading has a Low field and an unreadable page. A file name with
+ *   "blurred" fails; `setExtractionEnabled(false)` (or `DECLARATIONS_MOCK_AI=off`) is a
+ *   Commission without an AI policy, answering 409 `not-enabled`.
  * - Accept follows the section save path: `If-Match` (428, 412), then writes the fields (new
  *   item, or the matching item's empty fields unless `overwrite`) with `source` on the item and
  *   bumps the draft version. A spouse's KRA PIN goes to Household; the officer has no KRA
@@ -38,7 +44,27 @@ interface StoredSet extends SuggestionSet {
   resolveAt: number;
   /** Earlier sets for the same person and registry: a retry can answer differently. */
   attempt: number;
+  /** For a `document` set: what was asked to be read. */
+  extraction?: Extraction;
 }
+
+interface Extraction {
+  attachment: DeclarationAttachment;
+  documentKind: DocumentKind;
+  targetItemType: string;
+}
+
+type DocumentKind =
+  'title-deed' | 'logbook' | 'payslip' | 'bank-letter' | 'share-certificate' | 'other';
+
+const DOCUMENT_KINDS = new Set<string>([
+  'title-deed',
+  'logbook',
+  'payslip',
+  'bank-letter',
+  'share-certificate',
+  'other',
+]);
 
 export interface SuggestionState {
   sets: StoredSet[];
@@ -62,6 +88,14 @@ export interface SuggestionDraft {
 
 let lookupDelay = 1_200;
 
+const aiByDefault = () => process.env.DECLARATIONS_MOCK_AI !== 'off';
+let extractionEnabled = aiByDefault();
+
+/** A Commission with (true) or without (false) an AI policy for documents (S6). */
+export function setExtractionEnabled(enabled: boolean) {
+  extractionEnabled = enabled;
+}
+
 /** How long registries take to answer; 0 answers at once (tests). */
 export function setLookupDelay(ms: number) {
   lookupDelay = ms;
@@ -69,6 +103,7 @@ export function setLookupDelay(ms: number) {
 
 export function resetSuggestionsMock() {
   lookupDelay = 1_200;
+  extractionEnabled = aiByDefault();
 }
 
 interface Fixture {
@@ -191,11 +226,86 @@ function suggestionSection(personKey: string, itemType: string) {
   return personKey === 'officer' ? 'bio' : 'household';
 }
 
-/** Answers the sets whose time has come (S1, S2, S5). */
+interface ReadField {
+  name: string;
+  value: string | number;
+  confidence: number;
+  page: number;
+}
+
+/** What "reading" a document finds, per target item type (S6). */
+function reading(targetItemType: string): ReadField[] {
+  const type = declaredType(targetItemType);
+  if (type === 'vehicle') {
+    return [
+      { name: 'registration', value: 'KCB 782M', confidence: 0.97, page: 1 },
+      { name: 'make', value: 'Toyota', confidence: 0.93, page: 1 },
+      { name: 'model', value: 'Premio', confidence: 0.72, page: 1 },
+      { name: 'year', value: 2015, confidence: 0.41, page: 2 },
+    ];
+  }
+  if (type === 'land' || type === 'building') {
+    return [
+      { name: 'parcelNumber', value: 'Nakuru/Njoro/1187', confidence: 0.95, page: 1 },
+      { name: 'size', value: '1.2 acres', confidence: 0.52, page: 1 },
+      { name: 'location', value: 'Njoro', confidence: 0.8, page: 2 },
+      { name: 'county', value: '032', confidence: 0.9, page: 1 },
+    ];
+  }
+  if (type === 'shareholding' || type === 'securities') {
+    return [
+      { name: 'companyName', value: 'Kerio Valley Dairies Ltd', confidence: 0.91, page: 1 },
+      { name: 'shares', value: 1200, confidence: 0.48, page: 1 },
+    ];
+  }
+  return [
+    { name: 'description', value: 'Loan from Kenya Commercial Bank', confidence: 0.55, page: 1 },
+  ];
+}
+
+/** A `document` set, read (or not) once its time has come (S6). */
+function resolveExtraction(stored: SuggestionDraft, set: StoredSet, now: number) {
+  const { extraction } = set;
+  if (!extraction) return;
+  set.readyAt = new Date(now).toISOString();
+  if (/blurred/i.test(extraction.attachment.fileName)) {
+    set.status = 'failed';
+    return;
+  }
+  const found = reading(extraction.targetItemType);
+  const sectionKey = extraction.attachment.sectionKey;
+  const suggestion = {
+    itemType: declaredType(extraction.targetItemType),
+    fields: Object.fromEntries(found.map((field) => [field.name, field.value])),
+  };
+  set.status = 'ready';
+  set.suggestions.push({
+    id: randomUUID(),
+    setId: set.id,
+    personKey: set.personKey,
+    sectionKey,
+    ...suggestion,
+    sourceRef: {
+      documentKind: extraction.documentKind,
+      fields: found.map(({ name, confidence, page }) => ({ name, confidence, page })),
+      warnings: ['Page 3 could not be read.'],
+    },
+    confidence: Math.min(...found.map((field) => field.confidence)),
+    matchItemId: findMatch(suggestion, statementItems(stored, sectionKey, suggestion.itemType)),
+    status: 'new',
+    acceptedItemId: null,
+  });
+}
+
+/** Answers the sets whose time has come (S1, S2, S5, S6). */
 function resolveDue(stored: SuggestionDraft, now = Date.now()) {
   const state = stored.suggestions;
   for (const set of state.sets) {
-    if (set.status !== 'pending' || set.resolveAt > now || set.source === 'document') continue;
+    if (set.status !== 'pending' || set.resolveAt > now) continue;
+    if (set.source === 'document') {
+      resolveExtraction(stored, set, now);
+      continue;
+    }
     const answer = registryAnswer(set.personKey, set.source, set.attempt);
     set.readyAt = new Date(now).toISOString();
     if (answer === 'unavailable') {
@@ -361,6 +471,7 @@ export async function acceptSuggestion(
     kind: set.source,
     suggestionId: suggestion.id,
     ...(set.verificationResultId ? { verificationResultId: set.verificationResultId } : {}),
+    ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
     at: new Date().toISOString(),
   };
 
@@ -439,4 +550,59 @@ export async function dismissSuggestion(
   }
   if (suggestion.status === 'new') suggestion.status = 'dismissed';
   return json(200, { ...suggestion });
+}
+
+/**
+ * `POST /v1/declarations/{id}/attachments/{attachmentId}/extract` (S6). Answers a `pending`
+ * `document` set that a later list call finds read; it is never read in the same request.
+ */
+export async function requestExtraction(
+  request: Request,
+  stored: SuggestionDraft,
+  attachment: DeclarationAttachment | undefined,
+) {
+  const state = stored.suggestions;
+  if (!attachment) return problem(404, 'Not found');
+  const key = request.headers.get('idempotency-key');
+  if (!key) return problem(400, 'Idempotency-Key is required');
+  const replay = state.requests.get(key);
+  const earlier = replay && state.sets.find((set) => set.id === replay[0]);
+  if (earlier) return json(202, view(earlier));
+
+  const body = await readJson(request);
+  if (
+    !isRecord(body) ||
+    typeof body.documentKindHint !== 'string' ||
+    !DOCUMENT_KINDS.has(body.documentKindHint) ||
+    typeof body.targetItemType !== 'string' ||
+    body.targetItemType === ''
+  ) {
+    return problem(400, 'documentKindHint and targetItemType are required');
+  }
+  if (!extractionEnabled) {
+    return problem(409, 'Reading documents is not enabled for this Commission', 'not-enabled');
+  }
+
+  const now = Date.now();
+  const set: StoredSet = {
+    id: randomUUID(),
+    personKey: attachment.sectionKey.slice('statement:'.length),
+    source: 'document',
+    status: 'pending',
+    requestedAt: new Date(now).toISOString(),
+    readyAt: null,
+    verificationResultId: null,
+    aiJobId: randomUUID(),
+    suggestions: [],
+    resolveAt: now + lookupDelay,
+    attempt: 0,
+    extraction: {
+      attachment,
+      documentKind: body.documentKindHint as DocumentKind,
+      targetItemType: body.targetItemType,
+    },
+  };
+  state.sets.push(set);
+  state.requests.set(key, [set.id]);
+  return json(202, view(set));
 }

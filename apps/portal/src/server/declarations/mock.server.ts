@@ -21,10 +21,12 @@
  * with items answers 400 `nil-conflicts-with-items` (S4, S8). Household saves create, archive
  * and restore statements (S5). Completeness rules per section live in `./mock/*.ts`.
  *
- * Registry lookups, suggestions, accept and dismiss (spec 05b) live in `./mock/suggestions.ts`.
+ * Registry lookups, document extraction, suggestions, accept and dismiss (spec 05b) live in
+ * `./mock/suggestions.ts`.
  *
  * Tests can make the next saves fail (`failNextSaves`), simulate an edit on another device
- * (`editElsewhere`) or make registries answer at once (`setLookupDelay(0)`).
+ * (`editElsewhere`), make registries answer at once (`setLookupDelay(0)`) or play a Commission
+ * without AI (`setExtractionEnabled(false)`).
  */
 import { randomUUID } from 'node:crypto';
 
@@ -55,6 +57,7 @@ import {
   dismissSuggestion,
   listSuggestions,
   newSuggestionState,
+  requestExtraction,
   requestLookups,
   resetSuggestionsMock,
   type SuggestionState,
@@ -193,7 +196,7 @@ interface Stored {
   suggestions: SuggestionState;
 }
 
-export { setLookupDelay } from './mock/suggestions';
+export { setExtractionEnabled, setLookupDelay } from './mock/suggestions';
 
 const store = new Map<string, Stored>();
 let failingSaves = 0;
@@ -249,6 +252,13 @@ async function route(request: Request): Promise<Response> {
   const attachment = /^\/v1\/declarations\/([^/]+)\/attachments\/([^/]+)$/.exec(path);
   if (method === 'DELETE' && attachment?.[1] && attachment[2]) {
     return unlinkAttachment(attachment[1], attachment[2]);
+  }
+
+  const extract = /^\/v1\/declarations\/([^/]+)\/attachments\/([^/]+)\/extract$/.exec(path);
+  if (method === 'POST' && extract?.[1] && extract[2]) {
+    const stored = draft(extract[1]);
+    if (!stored) return problem(404, 'Not found');
+    return requestExtraction(request, stored, stored.attachments.get(extract[2]));
   }
 
   const lookups = /^\/v1\/declarations\/([^/]+)\/suggestions\/lookups$/.exec(path);

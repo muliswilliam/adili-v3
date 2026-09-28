@@ -6,6 +6,8 @@ import type { Item } from '../../../components/declaration/statement';
 import {
   acceptSuggestion,
   dismissSuggestion,
+  extractAttachment,
+  linkAttachment,
   listSuggestions,
   loadDeclaration,
   loadSection,
@@ -21,9 +23,12 @@ import {
   MOCK_OBLIGATIONS,
   mockDeclarationsFetch,
   resetDeclarationsMock,
+  setExtractionEnabled,
   setLookupDelay,
 } from '../mock.server';
 import type { paths } from '../schema.gen';
+import { mockDocumentsFetch, resetDocumentsMock } from '../../documents/mock.server';
+import type { paths as documentPaths } from '../../documents/schema.gen';
 import { registryAnswer } from './suggestions';
 
 const client = createClient<paths>({
@@ -109,6 +114,7 @@ function byRegistration(found: LoadedSuggestionSet[], registration: string) {
 
 beforeEach(() => {
   resetDeclarationsMock();
+  resetDocumentsMock();
   setLookupDelay(0);
 });
 
@@ -429,5 +435,155 @@ describe('listing', () => {
     expect(await listSuggestions(client, { declarationId: crypto.randomUUID() })).toEqual({
       status: 'not-found',
     });
+  });
+});
+
+const documents = createClient<documentPaths>({
+  baseUrl: 'http://documents.test',
+  fetch: mockDocumentsFetch,
+});
+
+/** A vehicle in the officer's statement with `fileName` linked to it. */
+async function attached(fileName: string) {
+  const { declarationId, etag } = await start();
+  const itemId = crypto.randomUUID();
+  const saved = await saveSection(client, {
+    declarationId,
+    sectionKey: 'statement:officer',
+    ifMatch: etag,
+    contents: { assets: [{ id: itemId, type: 'vehicle', description: 'Car' }] },
+  });
+  if (saved.status !== 'saved') throw new Error(saved.status);
+  const { data } = await documents.POST('/v1/uploads', {
+    body: {
+      purpose: 'declaration-attachment',
+      contentType: 'application/pdf',
+      declaredSize: 2048,
+      fileName,
+    },
+  });
+  if (!data) throw new Error('no reservation');
+  await documents.POST('/v1/uploads/{id}/complete', { params: { path: { id: data.id } } });
+  const linked = await linkAttachment(client, {
+    declarationId,
+    sectionKey: 'statement:officer',
+    itemId,
+    uploadId: data.id,
+  });
+  if (linked.status !== 'linked') throw new Error(linked.status);
+  return { declarationId, itemId, attachmentId: linked.attachment.id };
+}
+
+function extract(declarationId: string, attachmentId: string, idempotencyKey?: string) {
+  return extractAttachment(client, {
+    declarationId,
+    attachmentId,
+    documentKindHint: 'logbook',
+    targetItemType: 'vehicle',
+    idempotencyKey: idempotencyKey ?? crypto.randomUUID(),
+  });
+}
+
+describe('reading a document (S6)', () => {
+  it('answers a pending document set that a later read finds ready', async () => {
+    const { declarationId, attachmentId } = await attached('logbook-KCB782M.pdf');
+    const started = await extract(declarationId, attachmentId);
+    if (started.status !== 'started') throw new Error(started.status);
+    expect(started.set).toMatchObject({
+      source: 'document',
+      status: 'pending',
+      personKey: 'officer',
+      suggestions: [],
+      aiJobId: expect.any(String) as string,
+    });
+
+    const found = await sets(declarationId);
+    const set = found.find((each) => each.id === started.set.id);
+    expect(set?.status).toBe('ready');
+    const [suggestion] = set?.suggestions ?? [];
+    expect(suggestion).toMatchObject({
+      sectionKey: 'statement:officer',
+      itemType: 'vehicle',
+      status: 'new',
+      fields: { registration: 'KCB 782M', make: 'Toyota', model: 'Premio', year: 2015 },
+      sourceRef: {
+        documentKind: 'logbook',
+        warnings: ['Page 3 could not be read.'],
+      },
+      confidence: 0.41,
+    });
+    expect(suggestion?.sourceRef.fields).toContainEqual({
+      name: 'year',
+      confidence: 0.41,
+      page: 2,
+    });
+  });
+
+  it('replays a request with the same idempotency key', async () => {
+    const { declarationId, attachmentId } = await attached('logbook.pdf');
+    const key = crypto.randomUUID();
+    const first = await extract(declarationId, attachmentId, key);
+    const again = await extract(declarationId, attachmentId, key);
+    if (first.status !== 'started' || again.status !== 'started') throw new Error('not started');
+    expect(again.set.id).toBe(first.set.id);
+  });
+
+  it('adds the read item with a document source and its AI job', async () => {
+    const { declarationId, attachmentId, itemId } = await attached('logbook.pdf');
+    const started = await extract(declarationId, attachmentId);
+    if (started.status !== 'started') throw new Error(started.status);
+    const set = (await sets(declarationId)).find((each) => each.id === started.set.id);
+    const suggestion = set?.suggestions[0];
+    if (!suggestion) throw new Error('nothing read');
+    const outcome = await acceptSuggestion(client, {
+      declarationId,
+      suggestionId: suggestion.id,
+      ifMatch: await etagOf(declarationId),
+      fields: { ...suggestion.fields, year: '2016' },
+      applyToItemId: itemId,
+    });
+    if (outcome.status !== 'accepted') throw new Error(outcome.status);
+    const section = await loadSection(client, declarationId, 'statement:officer');
+    if (section.status !== 'ok') throw new Error(section.status);
+    expect(section.section.contents.assets).toContainEqual(
+      expect.objectContaining({
+        id: itemId,
+        description: 'Car',
+        details: { registration: 'KCB 782M', makeModel: 'Toyota Premio, 2016' },
+        source: expect.objectContaining({
+          kind: 'document',
+          suggestionId: suggestion.id,
+          aiJobId: started.set.aiJobId,
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('fails a document it cannot read', async () => {
+    const { declarationId, attachmentId } = await attached('blurred-deed.pdf');
+    const started = await extract(declarationId, attachmentId);
+    if (started.status !== 'started') throw new Error(started.status);
+    const set = (await sets(declarationId)).find((each) => each.id === started.set.id);
+    expect(set).toMatchObject({ status: 'failed', suggestions: [] });
+  });
+
+  it('answers not-enabled for a Commission without AI', async () => {
+    setExtractionEnabled(false);
+    const { declarationId, attachmentId } = await attached('logbook.pdf');
+    expect(await extract(declarationId, attachmentId)).toEqual({ status: 'not-enabled' });
+  });
+
+  it('answers 404 for an unknown attachment and refuses a missing kind', async () => {
+    const { declarationId, attachmentId } = await attached('logbook.pdf');
+    expect(await extract(declarationId, crypto.randomUUID())).toEqual({ status: 'not-found' });
+    expect(
+      await extractAttachment(client, {
+        declarationId,
+        attachmentId,
+        documentKindHint: 'passport' as 'other',
+        targetItemType: 'vehicle',
+        idempotencyKey: crypto.randomUUID(),
+      }),
+    ).toEqual({ status: 'refused', code: null });
   });
 });

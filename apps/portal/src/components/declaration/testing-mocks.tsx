@@ -57,5 +57,6 @@ export function serverMock() {
     listDeclarationSuggestions: vi.fn(),
     acceptDeclarationSuggestion: vi.fn(),
     dismissDeclarationSuggestion: vi.fn(),
+    extractDeclarationAttachment: vi.fn(),
   };
 }
