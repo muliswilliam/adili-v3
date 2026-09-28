@@ -1,7 +1,9 @@
 import { type ReactNode, useId } from 'react';
 
-/** Space-separated ids for aria-describedby, or undefined when there are none. */
-export function describedBy(...ids: (string | undefined)[]): string | undefined {
+/**
+ * Space-separated ids for aria-describedby or aria-labelledby, or undefined when there are none.
+ */
+export function joinIds(...ids: (string | undefined)[]): string | undefined {
   const joined = ids.filter(Boolean).join(' ');
   return joined === '' ? undefined : joined;
 }
@@ -28,6 +30,6 @@ export function useFieldIds({ id, hint, error, ownDescribedBy }: FieldIdsOptions
     id: fieldId,
     hintId,
     errorId,
-    describedBy: describedBy(ownDescribedBy, hintId, errorId),
+    describedBy: joinIds(ownDescribedBy, hintId, errorId),
   };
 }

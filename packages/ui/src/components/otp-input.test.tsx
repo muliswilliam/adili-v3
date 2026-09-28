@@ -239,6 +239,71 @@ describe('OtpInput', () => {
     expect(onComplete).toHaveBeenCalledWith('123456');
   });
 
+  describe('finds the code in pasted text', () => {
+    it.each([
+      ['Your Adili code: 123456. It expires in 10 minutes', '123456'],
+      ['123 456', '123456'],
+      ['123-456', '123456'],
+      ['Your code is 482 913', '482913'],
+      ['Code 482913. Call 0712 345 678 for help', '482913'],
+    ])('completes with the code in %j', (text, expected) => {
+      const onChange = vi.fn();
+      const onComplete = vi.fn();
+      render(<ControlledOtp onChange={onChange} onComplete={onComplete} />);
+
+      paste(1, text);
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith(expected);
+      expect(boxValues().join('')).toBe(expected);
+    });
+
+    it.each([['0712 345 678'], ['1234567'], ['Code 123456 ref 654321'], ['+254 712 345 678']])(
+      'ignores %j, which holds no single code',
+      (text) => {
+        const onChange = vi.fn();
+        render(<ControlledOtp onChange={onChange} />);
+
+        paste(1, text);
+
+        expect(onChange).not.toHaveBeenCalled();
+        expect(boxValues()).toEqual(['', '', '', '', '', '']);
+      },
+    );
+  });
+
+  it('completes when the phone autofills the whole SMS into the first box', () => {
+    const onComplete = vi.fn();
+    render(<ControlledOtp onComplete={onComplete} />);
+
+    fireEvent.change(box(1), {
+      target: { value: 'Your Adili code: 123456. It expires in 10 minutes' },
+    });
+
+    expect(onComplete).toHaveBeenCalledWith('123456');
+    expect(boxValues()).toEqual(['1', '2', '3', '4', '5', '6']);
+  });
+
+  it('uses the autofilled code when it lands beside a digit already in the box', () => {
+    const onComplete = vi.fn();
+    render(<ControlledOtp value="4" onComplete={onComplete} />);
+
+    // The keyboard's code chip inserts at the caret, which sits after the old digit.
+    fireEvent.change(box(1), { target: { value: '4123456' } });
+
+    expect(onComplete).toHaveBeenCalledWith('123456');
+    expect(boxValues()).toEqual(['1', '2', '3', '4', '5', '6']);
+  });
+
+  it('uses the autofilled code when it lands before a digit already in the box', () => {
+    const onComplete = vi.fn();
+    render(<ControlledOtp value="4" onComplete={onComplete} />);
+
+    fireEvent.change(box(1), { target: { value: '6543214' } });
+
+    expect(onComplete).toHaveBeenCalledWith('654321');
+  });
+
   it('ignores a paste with no digits', () => {
     const onChange = vi.fn();
     render(<ControlledOtp onChange={onChange} />);
@@ -267,6 +332,21 @@ describe('OtpInput', () => {
     expect(document.activeElement).toBe(box(1));
     fireEvent.keyDown(box(1), { key: 'End' });
     expect(document.activeElement).toBe(box(4));
+  });
+
+  it('works without ES2023 array methods, for older Android WebViews and Safari', () => {
+    const prototype = Array.prototype as { findLastIndex?: unknown };
+    const findLastIndex = prototype.findLastIndex;
+    delete prototype.findLastIndex;
+    try {
+      render(<ControlledOtp value="123" />);
+
+      box(1).focus();
+      fireEvent.keyDown(box(1), { key: 'End' });
+      expect(document.activeElement).toBe(box(4));
+    } finally {
+      prototype.findLastIndex = findLastIndex;
+    }
   });
 
   it('stays on the last box with End and ArrowRight when the code is full', () => {
