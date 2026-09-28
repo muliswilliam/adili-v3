@@ -3,7 +3,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { cloneElement, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { discardDeclarationFn } from '../../server/declarations';
+import { discardMyDeclaration } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { SUBMIT_NEXT_RELEASE } from './summary';
@@ -36,7 +36,7 @@ vi.mock('@tanstack/react-router', async () => {
 });
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
 
-const discardMock = vi.mocked(discardDeclarationFn);
+const discardMock = vi.mocked(discardMyDeclaration);
 
 const SPOUSE = 'spouse:5f0c2b8e-1d2a-4c3b-9e4f-5a6b7c8d9e0f';
 const CHILD = 'child:7b2e4d0a-3f4c-4e5d-9a6b-7c8d9e0f1a2b';

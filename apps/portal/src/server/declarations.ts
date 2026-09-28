@@ -50,7 +50,7 @@ export const getMyObligations = createServerFn({ method: 'GET' }).handler(
   (): Promise<ObligationsResult | Unauthenticated> => asDeclarant(listObligations),
 );
 
-export const startDeclarationFn = createServerFn({ method: 'POST' })
+export const startMyDeclaration = createServerFn({ method: 'POST' })
   .validator(z.object({ obligationId: id }))
   .handler(({ data }): Promise<StartResult | Unauthenticated> =>
     asDeclarant((client) => startDeclaration(client, data.obligationId)),
@@ -85,7 +85,7 @@ export const saveDeclarationSection = createServerFn({ method: 'POST' })
     asDeclarant((client) => saveSection(client, data)),
   );
 
-export const discardDeclarationFn = createServerFn({ method: 'POST' })
+export const discardMyDeclaration = createServerFn({ method: 'POST' })
   .validator(declarationInput)
   .handler(({ data }): Promise<DiscardResult | Unauthenticated> =>
     asDeclarant((client) => discardDeclaration(client, data.declarationId)),
