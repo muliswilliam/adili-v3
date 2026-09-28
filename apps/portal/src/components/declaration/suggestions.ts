@@ -343,32 +343,9 @@ export function readPath(value: unknown, path: string): unknown {
   return current;
 }
 
-function isEmpty(value: unknown) {
-  return (
-    value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
-  );
-}
-
 /** The item's values at the paths a patch writes, keyed by path (for `emptyFieldDiff`). */
 export function valuesAt(target: unknown, patch: PatchEntry[]): Record<string, unknown> {
   return Object.fromEntries(patch.map(({ path }) => [path, readPath(target, path)]));
-}
-
-/** The existing item with each patch entry written where it is empty, or everywhere if `overwrite`. */
-export function applyPatch<T extends object>(target: T, patch: PatchEntry[], overwrite = false): T {
-  const next = structuredClone(target) as Record<string, unknown>;
-  for (const { path, value } of patch) {
-    const keys = path.split('.');
-    const last = keys.pop() ?? path;
-    let node = next;
-    for (const key of keys) {
-      const child = node[key];
-      if (typeof child !== 'object' || child === null) node[key] = {};
-      node = node[key] as Record<string, unknown>;
-    }
-    if (overwrite || isEmpty(node[last])) node[last] = value;
-  }
-  return next as T;
 }
 
 /** The first item whose identifier equals the suggestion's, for the service's `matchItemId`. */

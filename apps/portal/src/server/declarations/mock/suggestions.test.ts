@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { sourceDetails } from '../../../components/declaration/item-source';
 import type { Item } from '../../../components/declaration/statement';
+import { suggestionPatch } from '../../../components/declaration/suggestions';
 import {
   acceptSuggestion,
   dismissSuggestion,
@@ -27,6 +28,7 @@ import {
   setLookupDelay,
 } from '../mock.server';
 import type { paths } from '../schema.gen';
+import { applyPatch } from './suggestions';
 import { mockDocumentsFetch, resetDocumentsMock } from '../../documents/mock.server';
 import type { paths as documentPaths } from '../../documents/schema.gen';
 import { registryAnswer } from './suggestions';
@@ -585,5 +587,27 @@ describe('reading a document (S6)', () => {
         idempotencyKey: crypto.randomUUID(),
       }),
     ).toEqual({ status: 'refused', code: null });
+  });
+});
+
+describe('applyPatch', () => {
+  const item: Item = {
+    id: 'a1',
+    type: 'vehicle',
+    description: 'Our car',
+    details: { registration: 'KCA123A' },
+  };
+  const vehicle = {
+    itemType: 'vehicle',
+    fields: { registration: 'KCA 123A', make: 'Toyota', model: 'Fielder', year: 2016 },
+  };
+
+  it('fills only the empty fields unless told to overwrite', () => {
+    const patch = suggestionPatch(vehicle);
+    expect(applyPatch(item, patch)).toEqual({
+      ...item,
+      details: { registration: 'KCA123A', makeModel: 'Toyota Fielder, 2016' },
+    });
+    expect(applyPatch(item, patch, true).description).toBe('Toyota Fielder');
   });
 });

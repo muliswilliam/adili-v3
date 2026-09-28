@@ -10,7 +10,6 @@ import { contractEnum } from '../../test/contract';
 import type { Draft, Statement } from './contents';
 import type { Item } from './statement';
 import {
-  applyPatch,
   categoryOf,
   editFields,
   editValue,
@@ -154,15 +153,6 @@ describe('applying to a matching item', () => {
       null,
     );
     expect(findMatch(kra, [item])).toBe(null);
-  });
-
-  it('fills only the empty fields unless told to overwrite', () => {
-    const patch = suggestionPatch(vehicle);
-    expect(applyPatch(item, patch)).toEqual({
-      ...item,
-      details: { registration: 'KCA123A', makeModel: 'Toyota Fielder, 2016' },
-    });
-    expect(applyPatch(item, patch, true).description).toBe('Toyota Fielder');
   });
 
   it('lists what applying fills, for the card', () => {

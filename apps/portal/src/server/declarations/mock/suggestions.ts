@@ -4,10 +4,10 @@ import type { Draft, Household, ItemSource } from '../../../components/declarati
 import { DOCUMENT_KINDS } from '../../../components/declaration/extraction';
 import { type Item, NIL_KEY } from '../../../components/declaration/statement';
 import {
-  applyPatch,
   categoryOf,
   declaredType,
   findMatch,
+  type PatchEntry,
   REGISTRIES,
   type SuggestionKind,
   suggestionKind,
@@ -47,6 +47,29 @@ import { isRecord, json, problem, readJson } from './http';
  *   bumps the draft version. A spouse's KRA PIN goes to Household; the officer has no KRA
  *   fields in declaration.v1, so theirs answers 400 `no-target`.
  */
+
+function isEmpty(value: unknown) {
+  return (
+    value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
+  );
+}
+
+/** The existing item with each patch entry written where it is empty, or everywhere if `overwrite`. */
+export function applyPatch<T extends object>(target: T, patch: PatchEntry[], overwrite = false): T {
+  const next = structuredClone(target) as Record<string, unknown>;
+  for (const { path, value } of patch) {
+    const keys = path.split('.');
+    const last = keys.pop() ?? path;
+    let node = next;
+    for (const key of keys) {
+      const child = node[key];
+      if (typeof child !== 'object' || child === null) node[key] = {};
+      node = node[key] as Record<string, unknown>;
+    }
+    if (overwrite || isEmpty(node[last])) node[last] = value;
+  }
+  return next as T;
+}
 
 interface StoredSet extends SuggestionSet {
   /** When the registry "answers", in ms since the epoch. */
