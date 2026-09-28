@@ -1,18 +1,16 @@
 import { env } from '../env.server';
-import { mockableClient } from '../mockable-client.server';
-import type { paths } from './api.gen';
+import { createDocumentsClient, type DocumentsClient } from './client';
 
 /**
- * Typed client for the documents service, generated from
- * `packages/schemas/internal/documents.yaml`, for clarification letter downloads. Shares the
- * REVIEW_MOCK flag: the review mock answers for the letters it issued.
+ * The documents client for clarification letter downloads: the same client as uploads (with
+ * its per-call timeouts), answered by the review mock under REVIEW_MOCK, which knows the
+ * letters it issued.
  */
-export function documentsClient(accessToken: string) {
+export function documentsClient(accessToken: string): DocumentsClient {
   const config = env();
-  return mockableClient<paths>({
+  return createDocumentsClient({
     baseUrl: config.DOCUMENTS_API_URL,
-    headers: { authorization: `Bearer ${accessToken}` },
-    timeoutMs: 10_000,
+    accessToken,
     // Inline, so production builds drop the mock (see mockableClient).
     mock:
       import.meta.env.DEV && config.REVIEW_MOCK
