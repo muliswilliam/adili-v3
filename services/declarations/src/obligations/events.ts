@@ -45,4 +45,5 @@ export function obligationStatusChanged(
 
 /** The directory events the declarations service consumes, and their data (ids only). */
 export const ROSTER_IMPORT_COMPLETED = 'roster.import.completed.v1';
+export const ROSTER_EXITS_CONFIRMED = 'roster.exits.confirmed.v1';
 export const DECLARANT_ONBOARDED = 'declarant.onboarded.v1';
