@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
 
 import { config } from '../config.js';
-import { DIRECTORY_INTERNAL_SCOPE, DirectoryPersonContacts } from './directory-person-contacts.js';
+import {
+  DIRECTORY_PERSON_CONTACTS_SCOPE,
+  DirectoryPersonContacts,
+} from './directory-person-contacts.js';
 import { PersonContactsSource } from './person-contacts.js';
 import { PersonContactsCache } from './person-contacts-cache.js';
 
@@ -27,7 +30,7 @@ export const CONTACTS_TTL_MS = 10 * 60_000;
             issuerUrl: config.OIDC_ISSUER_URL,
             clientId: config.KEYCLOAK_CLIENT_ID,
             clientSecret: config.KEYCLOAK_CLIENT_SECRET,
-            scopes: [DIRECTORY_INTERNAL_SCOPE],
+            scopes: [DIRECTORY_PERSON_CONTACTS_SCOPE],
             timeoutMs: config.CONTACT_LOOKUP_TIMEOUT_MS,
           }),
           timeoutMs: config.CONTACT_LOOKUP_TIMEOUT_MS,

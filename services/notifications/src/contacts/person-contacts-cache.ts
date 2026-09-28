@@ -1,4 +1,8 @@
-import { type PersonContacts, PersonContactsSource } from './person-contacts.js';
+import {
+  type ContactLookup,
+  type PersonContacts,
+  PersonContactsSource,
+} from './person-contacts.js';
 
 export interface PersonContactsCacheOptions {
   /** How long an answer is reused. Expiry is the only invalidation. */
@@ -16,8 +20,9 @@ interface Entry {
 
 /**
  * Reuses a person's contacts for a short while, so the SMS and email of one reminder (and a
- * burst of reminders) cost one directory read. Answers without contacts are cached like any
- * other; failed lookups are not. Concurrent lookups of one person share a request.
+ * burst of reminders) cost one directory read. Entries are per person and tenant, as the
+ * directory answers. Answers without contacts are cached like any other; failed lookups are not.
+ * Concurrent lookups of one person share a request.
  */
 export class PersonContactsCache extends PersonContactsSource {
   private readonly entries = new Map<string, Entry>();
@@ -32,29 +37,30 @@ export class PersonContactsCache extends PersonContactsSource {
     this.now = options.now ?? Date.now;
   }
 
-  lookup(personId: string): Promise<PersonContacts> {
-    const entry = this.entries.get(personId);
+  lookup(request: ContactLookup): Promise<PersonContacts> {
+    const key = `${request.tenant}/${request.personId}`;
+    const entry = this.entries.get(key);
     if (entry && this.now() < entry.expiresAt) {
       return Promise.resolve(entry.contacts);
     }
-    this.entries.delete(personId);
-    let pending = this.pending.get(personId);
+    this.entries.delete(key);
+    let pending = this.pending.get(key);
     if (!pending) {
-      pending = this.fetch(personId).finally(() => this.pending.delete(personId));
-      this.pending.set(personId, pending);
+      pending = this.fetch(key, request).finally(() => this.pending.delete(key));
+      this.pending.set(key, pending);
     }
     return pending;
   }
 
-  private async fetch(personId: string): Promise<PersonContacts> {
-    const contacts = await this.source.lookup(personId);
+  private async fetch(key: string, request: ContactLookup): Promise<PersonContacts> {
+    const contacts = await this.source.lookup(request);
     // Map keeps insertion order, so the first key is the oldest entry.
     while (this.entries.size >= this.options.maxEntries) {
       const oldest = this.entries.keys().next();
       if (oldest.done) break;
       this.entries.delete(oldest.value);
     }
-    this.entries.set(personId, { contacts, expiresAt: this.now() + this.options.ttlMs });
+    this.entries.set(key, { contacts, expiresAt: this.now() + this.options.ttlMs });
     return contacts;
   }
 }

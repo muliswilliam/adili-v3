@@ -39,7 +39,7 @@ export const recipientSchema = z.discriminatedUnion('kind', [
     kind: z.literal('person'),
     personId: z.uuid().meta({
       description:
-        "The person's verified contacts are resolved through the directory (cached for 10 minutes) and the one for the channel is used. None for the channel is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).",
+        "The person's verified contacts are resolved through the directory at the message's `tenant` (required for a person; cached for 10 minutes) and the one for the channel is used. None for the channel, or a person not onboarded at that tenant, is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).",
     }),
   }),
 ]);
@@ -55,7 +55,8 @@ export const sendMessageBody = z.object({
   }),
   locale: z.enum(LOCALES).default('en'),
   tenant: z.string().min(1).max(64).optional().meta({
-    description: 'Tenant key for audit and per-tenant branding; optional for platform messages',
+    description:
+      'Tenant key for audit and per-tenant branding. Required for a person recipient (whose contacts are read at that tenant); optional for platform messages to an address',
   }),
 });
 
@@ -68,7 +69,15 @@ export const sendMessageSchema = sendMessageBody
   // One pass, so a caller sees every recipient, template and params error in one response.
   .superRefine((body, ctx) => {
     const { channel, recipient, template, params } = body;
-    // A person's contacts come from the directory at send time; only an address is checked here.
+    // A person's contacts come from the directory at send time, read at the message's tenant.
+    if (recipient.kind === 'person' && body.tenant === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['tenant'],
+        message: 'is required for a person recipient',
+      });
+    }
+    // Only an address is checked here.
     if (recipient.kind === 'address') {
       if (channel === 'email' && !email.safeParse(recipient.to).success) {
         ctx.addIssue({

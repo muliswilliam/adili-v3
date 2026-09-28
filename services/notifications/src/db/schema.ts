@@ -1,3 +1,4 @@
+import { idempotencySchema } from '@adili/api-kit/schema';
 import { eventsSchema } from '@adili/events/schema';
 import { sql } from 'drizzle-orm';
 import { check, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
@@ -47,7 +48,9 @@ export const messages = pgTable(
 /** Drizzle schema of the notifications database. Only this service reads or writes it (ADR-013). */
 export const schema = {
   ...eventsSchema,
+  ...idempotencySchema,
   messages,
 };
 
 export * from '@adili/events/schema';
+export * from '@adili/api-kit/schema';

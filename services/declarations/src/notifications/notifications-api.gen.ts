@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Render a template and send it by email or SMS
-         * @description Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.
+         * @description Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message.
          */
         post: operations["sendMessage"];
         delete?: never;
@@ -65,7 +65,7 @@ export interface components {
             kind: "person";
             /**
              * Format: uuid
-             * @description The person's verified contacts are resolved through the directory (cached for 10 minutes) and the one for the channel is used. None for the channel is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).
+             * @description The person's verified contacts are resolved through the directory at the message's `tenant` (required for a person; cached for 10 minutes) and the one for the channel is used. None for the channel, or a person not onboarded at that tenant, is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).
              */
             personId: string;
         };
@@ -82,7 +82,7 @@ export interface components {
              * @enum {string}
              */
             locale: "en" | "sw";
-            /** @description Tenant key for audit and per-tenant branding; optional for platform messages */
+            /** @description Tenant key for audit and per-tenant branding. Required for a person recipient (whose contacts are read at that tenant); optional for platform messages to an address */
             tenant?: string;
         };
         /** @enum {string} */
@@ -134,7 +134,10 @@ export interface operations {
     sendMessage: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -164,6 +167,15 @@ export interface operations {
             };
             /** @description Caller lacks the messages scope */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

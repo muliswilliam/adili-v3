@@ -9,6 +9,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
@@ -31,11 +32,12 @@ export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 
   @Post()
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'sendMessage',
     summary: 'Render a template and send it by email or SMS',
     description:
-      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.',
+      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message.',
   })
   @ApiBody({ required: true, schema: schemaRef('SendMessage') })
   @ApiCreatedResponse({

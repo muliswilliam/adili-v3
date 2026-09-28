@@ -1,14 +1,18 @@
-import { type PersonContacts, PersonContactsSource } from './person-contacts.js';
+import {
+  type ContactLookup,
+  type PersonContacts,
+  PersonContactsSource,
+} from './person-contacts.js';
 
 /** In-memory directory for tests: answers from `set`, records lookups and can fail once. */
 export class FakePersonContacts extends PersonContactsSource {
-  readonly lookups: string[] = [];
-  private readonly contacts = new Map<string, PersonContacts>();
+  readonly lookups: ContactLookup[] = [];
+  private readonly contacts = new Map<string, { contacts: PersonContacts; tenant?: string }>();
   private failure: Error | undefined;
   private hanging = false;
 
-  lookup(personId: string): Promise<PersonContacts> {
-    this.lookups.push(personId);
+  lookup(request: ContactLookup): Promise<PersonContacts> {
+    this.lookups.push({ ...request });
     if (this.hanging) {
       this.hanging = false;
       // Like a stalled directory: never settles.
@@ -19,11 +23,14 @@ export class FakePersonContacts extends PersonContactsSource {
       this.failure = undefined;
       return Promise.reject(failure);
     }
-    return Promise.resolve(this.contacts.get(personId) ?? { email: null, phone: null });
+    const known = this.contacts.get(request.personId);
+    const visible = known && (known.tenant === undefined || known.tenant === request.tenant);
+    return Promise.resolve(visible ? known.contacts : { email: null, phone: null });
   }
 
-  set(personId: string, contacts: PersonContacts): void {
-    this.contacts.set(personId, contacts);
+  /** The person's contacts, at `tenant` only when given (else at any tenant). */
+  set(personId: string, contacts: PersonContacts, tenant?: string): void {
+    this.contacts.set(personId, { contacts, tenant });
   }
 
   /** The next lookup rejects with `error`. */

@@ -1,12 +1,14 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import { ServiceTokenError } from '@adili/api-kit';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { DirectoryPersonContacts } from './directory-person-contacts.js';
 import { ContactLookupError } from './person-contacts.js';
 
 const PERSON = '0199a8f0-1111-7000-8000-000000000001';
+const LOOKUP = { personId: PERSON, tenant: 'psc' };
 
 interface Answer {
   status: number;
@@ -61,12 +63,13 @@ describe('DirectoryPersonContacts', () => {
       body: { personId: PERSON, email: 'wanjiku@example.go.ke', phone: '+254712345678' },
     });
 
-    const contacts = await client(url).lookup(PERSON);
+    const contacts = await client(url).lookup(LOOKUP);
 
     expect(contacts).toEqual({ email: 'wanjiku@example.go.ke', phone: '+254712345678' });
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.url).toBe(`/internal/v1/persons/${PERSON}/contacts`);
     expect(requests[0]?.headers.authorization).toBe('Bearer token-1');
+    expect(requests[0]?.headers['x-acting-tenant']).toBe('psc');
   });
 
   it('passes on null contacts', async () => {
@@ -75,16 +78,16 @@ describe('DirectoryPersonContacts', () => {
       body: { personId: PERSON, email: null, phone: '+254712345678' },
     });
 
-    await expect(client(url).lookup(PERSON)).resolves.toEqual({
+    await expect(client(url).lookup(LOOKUP)).resolves.toEqual({
       email: null,
       phone: '+254712345678',
     });
   });
 
-  it('treats an unknown person as a person without contacts', async () => {
+  it('treats an unknown person, or one not onboarded at the tenant, as a person without contacts', async () => {
     const url = await directory({ status: 404, body: { status: 404, title: 'Not Found' } });
 
-    await expect(client(url).lookup(PERSON)).resolves.toEqual({ email: null, phone: null });
+    await expect(client(url).lookup(LOOKUP)).resolves.toEqual({ email: null, phone: null });
   });
 
   it('fetches a new token once when the directory refuses the cached one', async () => {
@@ -94,7 +97,7 @@ describe('DirectoryPersonContacts', () => {
       { status: 200, body: { personId: PERSON, email: null, phone: null } },
     );
 
-    await client(url, tokens).lookup(PERSON);
+    await client(url, tokens).lookup(LOOKUP);
 
     expect(tokens.invalidated).toBe(1);
     expect(requests.map((r) => r.headers.authorization)).toEqual([
@@ -111,21 +114,21 @@ describe('DirectoryPersonContacts', () => {
   ])('reports %s as a failed lookup', async (_case, answer) => {
     const url = await directory(answer);
 
-    await expect(client(url).lookup(PERSON)).rejects.toBeInstanceOf(ContactLookupError);
+    await expect(client(url).lookup(LOOKUP)).rejects.toBeInstanceOf(ContactLookupError);
   });
 
   it('gives up after its timeout', async () => {
     const url = await directory({ status: 200, body: {}, delayMs: 2_000 });
     const started = Date.now();
 
-    await expect(client(url, new FakeTokens(), 200).lookup(PERSON)).rejects.toBeInstanceOf(
+    await expect(client(url, new FakeTokens(), 200).lookup(LOOKUP)).rejects.toBeInstanceOf(
       ContactLookupError,
     );
     expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   it('reports an unreachable directory as a failed lookup', async () => {
-    await expect(client('http://127.0.0.1:9/').lookup(PERSON)).rejects.toBeInstanceOf(
+    await expect(client('http://127.0.0.1:9/').lookup(LOOKUP)).rejects.toBeInstanceOf(
       ContactLookupError,
     );
   });
@@ -133,10 +136,10 @@ describe('DirectoryPersonContacts', () => {
   it('reports a token failure as a failed lookup', async () => {
     const url = await directory({ status: 200, body: {} });
     const tokens = new FakeTokens();
-    tokens.token = () => Promise.reject(new Error('keycloak down'));
+    tokens.token = () => Promise.reject(new ServiceTokenError('keycloak down'));
 
     await expect(
-      new DirectoryPersonContacts({ directoryUrl: url, tokens, timeoutMs: 1_000 }).lookup(PERSON),
+      new DirectoryPersonContacts({ directoryUrl: url, tokens, timeoutMs: 1_000 }).lookup(LOOKUP),
     ).rejects.toBeInstanceOf(ContactLookupError);
     expect(requests).toHaveLength(0);
   });

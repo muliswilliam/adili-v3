@@ -320,7 +320,7 @@ describe('internal messages API', () => {
           text: 'Adili: your biennial declaration for Public Service Commission is due on 31 December 2027 (30 days). Sign in at https://portal.adili.go.ke',
         },
       ]);
-      expect(directory.lookups).toEqual([personId]);
+      expect(directory.lookups).toEqual([{ personId, tenant: 'psc' }]);
     });
 
     it('sends the email to the verified address', async () => {
@@ -398,7 +398,10 @@ describe('internal messages API', () => {
       expect(failed.statusCode).toBe(201);
       expect(failed.json()).toMatchObject({ status: 'failed', error: 'contact-lookup-failed' });
       expect(retried.json()).toMatchObject({ status: 'sent', error: null });
-      expect(directory.lookups).toEqual([personId, personId]);
+      expect(directory.lookups).toEqual([
+        { personId, tenant: 'psc' },
+        { personId, tenant: 'psc' },
+      ]);
     });
 
     it('gives up on a stalled contact lookup within the send budget', async () => {
@@ -420,7 +423,7 @@ describe('internal messages API', () => {
       await send(reminder('sms', personId));
       await send(reminder('email', personId));
 
-      expect(directory.lookups).toEqual([personId]);
+      expect(directory.lookups).toEqual([{ personId, tenant: 'psc' }]);
       expect(sms.sent).toHaveLength(1);
       expect(email.sent).toHaveLength(1);
     });
@@ -437,6 +440,52 @@ describe('internal messages API', () => {
         expect.arrayContaining(['params.daysLeft', 'params.dueDate']) as string[],
       );
       expect(directory.lookups).toHaveLength(0);
+    });
+
+    it('requires the tenant the reminder is for, and looks no one up without it', async () => {
+      const response = await send({ ...reminder('sms', newPerson()), tenant: undefined });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ errors: [{ path: 'tenant' }] });
+      expect(directory.lookups).toHaveLength(0);
+    });
+
+    it('reports no-contact for a person not onboarded at the tenant named', async () => {
+      const personId = newPerson();
+      directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' }, 'tsc');
+
+      const response = await send(reminder('sms', personId));
+
+      expect(response.json()).toMatchObject({ status: 'failed', error: 'no-contact' });
+      expect(directory.lookups).toEqual([{ personId, tenant: 'psc' }]);
+      expect(sms.sent).toHaveLength(0);
+    });
+
+    it('sends once for requests with the same Idempotency-Key, replaying the message', async () => {
+      const personId = newPerson();
+      directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
+      const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abcd' };
+
+      const first = await send(reminder('sms', personId), headers);
+      const retry = await send(reminder('sms', personId), headers);
+
+      expect(first.statusCode).toBe(201);
+      expect(retry.statusCode).toBe(201);
+      expect(retry.headers['idempotent-replayed']).toBe('true');
+      expect(retry.json()).toEqual(first.json());
+      expect(sms.sent).toHaveLength(1);
+    });
+
+    it('refuses an Idempotency-Key reused for another message', async () => {
+      const personId = newPerson();
+      directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
+      const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abce' };
+
+      await send(reminder('sms', personId), headers);
+      const other = await send(reminder('email', personId), headers);
+
+      expect(other.statusCode).toBe(422);
+      expect(email.sent).toHaveLength(0);
     });
 
     it('rejects a person id that is not a UUID', async () => {

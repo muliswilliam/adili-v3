@@ -13,10 +13,18 @@ export class ContactLookupError extends Error {
   }
 }
 
+/** Whose contacts, for a message sent for which tenant. */
+export interface ContactLookup {
+  personId: string;
+  /** The Commission the message is sent for: the person must be onboarded there. */
+  tenant: string;
+}
+
 /**
- * Where a person's contacts come from. An unknown person has no contacts; any failure to find
- * out throws `ContactLookupError`, so "no contact" is never a guess.
+ * Where a person's contacts come from. An unknown person, or one not onboarded at the tenant, has
+ * no contacts; any failure to find out throws `ContactLookupError`, so "no contact" is never a
+ * guess.
  */
 export abstract class PersonContactsSource {
-  abstract lookup(personId: string): Promise<PersonContacts>;
+  abstract lookup(request: ContactLookup): Promise<PersonContacts>;
 }

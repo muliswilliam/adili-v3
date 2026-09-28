@@ -113,16 +113,18 @@ export class MessagesService {
 
   /** The address to send to: given, or the person's verified contact for the channel. */
   private async resolve(request: SendMessage, messageId: string): Promise<Resolution> {
-    const { recipient } = request;
+    const { recipient, tenant } = request;
     if (recipient.kind === 'address') {
       return { to: recipient.to };
     }
+    // The schema requires a tenant with a person recipient.
+    if (tenant === undefined) throw new Error('person recipient without a tenant');
     let contacts: PersonContacts;
     try {
       contacts = await withTimeout(
         this.options.contactLookupTimeoutMs,
         () => new ContactLookupError('contact lookup ran out of time'),
-        () => this.contacts.lookup(recipient.personId),
+        () => this.contacts.lookup({ personId: recipient.personId, tenant }),
       );
     } catch (failure) {
       this.logger.warn(

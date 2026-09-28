@@ -7,6 +7,7 @@ import { PersonContactsCache } from './person-contacts-cache.js';
 const PERSON = '0199a8f0-1111-7000-8000-000000000001';
 const OTHER = '0199a8f0-2222-7000-8000-000000000002';
 const MINUTE = 60_000;
+const at = (personId: string, tenant = 'psc') => ({ personId, tenant });
 
 function setup(options: { maxEntries?: number } = {}) {
   let now = 1_000_000;
@@ -31,34 +32,34 @@ describe('PersonContactsCache', () => {
   it('answers from the cache for 10 minutes after a lookup', async () => {
     const { source, cache, advance } = setup();
 
-    await cache.lookup(PERSON);
+    await cache.lookup(at(PERSON));
     advance(10 * MINUTE - 1);
-    const contacts = await cache.lookup(PERSON);
+    const contacts = await cache.lookup(at(PERSON));
 
     expect(contacts).toEqual({ email: 'wanjiku@example.go.ke', phone: '+254712345678' });
-    expect(source.lookups).toEqual([PERSON]);
+    expect(source.lookups.map((lookup) => lookup.personId)).toEqual([PERSON]);
   });
 
   it('looks up again once the 10 minutes are over', async () => {
     const { source, cache, advance } = setup();
 
-    await cache.lookup(PERSON);
+    await cache.lookup(at(PERSON));
     source.set(PERSON, { email: 'new@example.go.ke', phone: null });
     advance(10 * MINUTE);
-    const contacts = await cache.lookup(PERSON);
+    const contacts = await cache.lookup(at(PERSON));
 
     expect(contacts).toEqual({ email: 'new@example.go.ke', phone: null });
-    expect(source.lookups).toEqual([PERSON, PERSON]);
+    expect(source.lookups.map((lookup) => lookup.personId)).toEqual([PERSON, PERSON]);
   });
 
   it('keeps a changed contact until the entry expires (TTL is the only invalidation)', async () => {
     const { source, cache, advance } = setup();
 
-    await cache.lookup(PERSON);
+    await cache.lookup(at(PERSON));
     source.set(PERSON, { email: 'new@example.go.ke', phone: null });
     advance(5 * MINUTE);
 
-    await expect(cache.lookup(PERSON)).resolves.toEqual({
+    await expect(cache.lookup(at(PERSON))).resolves.toEqual({
       email: 'wanjiku@example.go.ke',
       phone: '+254712345678',
     });
@@ -68,46 +69,55 @@ describe('PersonContactsCache', () => {
     const { source, cache } = setup();
     const unknown = '0199a8f0-3333-7000-8000-000000000003';
 
-    await cache.lookup(unknown);
-    const contacts = await cache.lookup(unknown);
+    await cache.lookup(at(unknown));
+    const contacts = await cache.lookup(at(unknown));
 
     expect(contacts).toEqual({ email: null, phone: null });
-    expect(source.lookups).toEqual([unknown]);
+    expect(source.lookups.map((lookup) => lookup.personId)).toEqual([unknown]);
   });
 
   it('keeps people apart', async () => {
     const { cache } = setup();
 
-    await cache.lookup(PERSON);
+    await cache.lookup(at(PERSON));
 
-    await expect(cache.lookup(OTHER)).resolves.toEqual({ email: null, phone: '+254722000000' });
+    await expect(cache.lookup(at(OTHER))).resolves.toEqual({ email: null, phone: '+254722000000' });
+  });
+
+  it('keeps tenants apart: a person is looked up at each tenant a message names', async () => {
+    const { source, cache } = setup();
+
+    await cache.lookup(at(PERSON, 'psc'));
+    await cache.lookup(at(PERSON, 'tsc'));
+
+    expect(source.lookups).toEqual([at(PERSON, 'psc'), at(PERSON, 'tsc')]);
   });
 
   it('does not cache a failed lookup', async () => {
     const { source, cache } = setup();
     source.failNext(new ContactLookupError('directory answered 503'));
 
-    await expect(cache.lookup(PERSON)).rejects.toBeInstanceOf(ContactLookupError);
-    await expect(cache.lookup(PERSON)).resolves.toMatchObject({ phone: '+254712345678' });
-    expect(source.lookups).toEqual([PERSON, PERSON]);
+    await expect(cache.lookup(at(PERSON))).rejects.toBeInstanceOf(ContactLookupError);
+    await expect(cache.lookup(at(PERSON))).resolves.toMatchObject({ phone: '+254712345678' });
+    expect(source.lookups.map((lookup) => lookup.personId)).toEqual([PERSON, PERSON]);
   });
 
   it('shares one lookup between concurrent callers', async () => {
     const { source, cache } = setup();
 
-    const [sms, email] = await Promise.all([cache.lookup(PERSON), cache.lookup(PERSON)]);
+    const [sms, email] = await Promise.all([cache.lookup(at(PERSON)), cache.lookup(at(PERSON))]);
 
     expect(sms).toEqual(email);
-    expect(source.lookups).toEqual([PERSON]);
+    expect(source.lookups.map((lookup) => lookup.personId)).toEqual([PERSON]);
   });
 
   it('drops the oldest entry beyond its capacity', async () => {
     const { source, cache } = setup({ maxEntries: 1 });
 
-    await cache.lookup(PERSON);
-    await cache.lookup(OTHER);
-    await cache.lookup(PERSON);
+    await cache.lookup(at(PERSON));
+    await cache.lookup(at(OTHER));
+    await cache.lookup(at(PERSON));
 
-    expect(source.lookups).toEqual([PERSON, OTHER, PERSON]);
+    expect(source.lookups.map((lookup) => lookup.personId)).toEqual([PERSON, OTHER, PERSON]);
   });
 });
