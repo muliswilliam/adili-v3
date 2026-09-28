@@ -140,9 +140,9 @@ describe('requireCheckEmail', () => {
 describe('redirectIfInProgress', () => {
   it('sends a session in progress back to its step', async () => {
     expect(
-      await redirectFrom(() =>
-        redirectIfInProgress({ status: 'active', session: session('phone-pending') }),
-      ),
+      await redirectFrom(() => {
+        redirectIfInProgress({ status: 'active', session: session('phone-pending') });
+      }),
     ).toMatchObject({ to: '/get-started/verify-phone' });
   });
 
