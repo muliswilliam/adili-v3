@@ -20,8 +20,8 @@ async function mockFetch(request: Request): Promise<Response> {
  */
 export function declarationsClient(accessToken: string) {
   const config = env();
-  // Local development and tests only: DECLARATIONS_MOCK=true serves obligations from the mock
-  // until the declarations service implements its read API (#90). `import.meta.env.DEV` is
+  // Local development and tests only: DECLARATIONS_MOCK=true serves obligations from the mock,
+  // for portal work without the declarations service running. `import.meta.env.DEV` is
   // `false` in production builds, so the bundler drops this branch and the mock's chunk with
   // it; keep the check inline here for that to work.
   const send =
