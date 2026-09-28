@@ -1,5 +1,4 @@
-import { createServiceClient, isUnanswered, type ServiceTokenClient } from '@adili/api-kit';
-import type { Client } from 'openapi-fetch';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
 import type { components, paths } from './notifications-api.gen.js';
@@ -56,13 +55,15 @@ export interface NotificationsOtpDeliveryOptions {
  * try again.
  */
 export class NotificationsOtpDelivery extends OtpDelivery {
-  private readonly notifications: Client<paths>;
+  private readonly notifications: ServiceClient<paths>;
 
   constructor(options: NotificationsOtpDeliveryOptions) {
     super();
     this.notifications = createServiceClient<paths>({
       baseUrl: options.notificationsUrl,
+      service: 'notifications',
       tokens: options.tokens,
+      unavailable: (message, options) => new OtpDeliveryFailed(message, options),
       timeoutMs: options.timeoutMs ?? NOTIFICATIONS_SEND_TIMEOUT_MS,
       fetch: options.fetch,
     });
@@ -83,27 +84,12 @@ export class NotificationsOtpDelivery extends OtpDelivery {
       tenant: message.tenant,
     };
 
-    let answer;
-    try {
-      answer = await this.notifications.POST('/internal/v1/messages', { body });
-    } catch (error) {
-      if (isUnanswered(error)) {
-        throw new OtpDeliveryFailed('the notifications service did not answer', { cause: error });
-      }
-      throw error;
-    }
-    const { data, response } = answer;
-    if (response.status !== 201) {
-      throw new OtpDeliveryFailed(`notifications answered ${String(response.status)}`);
-    }
-    const parsed = messageViewSchema.safeParse(data);
-    if (!parsed.success) {
-      throw new OtpDeliveryFailed('notifications answered a message that breaks its contract', {
-        cause: parsed.error,
-      });
-    }
-    if (parsed.data.status !== 'sent') {
-      throw new OtpDeliveryFailed(`notifications reported the message ${parsed.data.status}`);
+    const sent = await this.notifications.call(
+      (api) => api.POST('/internal/v1/messages', { body }),
+      { status: 201, schema: messageViewSchema },
+    );
+    if (sent.status !== 'sent') {
+      throw new OtpDeliveryFailed(`notifications reported the message ${sent.status}`);
     }
   }
 }

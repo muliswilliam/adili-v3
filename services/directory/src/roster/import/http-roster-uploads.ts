@@ -1,5 +1,4 @@
-import { createServiceClient, isUnanswered, type ServiceTokenClient } from '@adili/api-kit';
-import type { Client } from 'openapi-fetch';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 
 import type { paths } from './documents-api.gen.js';
 import {
@@ -46,14 +45,16 @@ export interface HttpRosterUploadsOptions {
  */
 export class HttpRosterUploads extends RosterUploads {
   private readonly fetch: typeof fetch;
-  private readonly documents: Client<paths>;
+  private readonly documents: ServiceClient<paths>;
 
   constructor(private readonly options: HttpRosterUploadsOptions) {
     super();
     this.fetch = options.fetch ?? globalThis.fetch;
     this.documents = createServiceClient<paths>({
       baseUrl: options.documentsUrl,
+      service: 'The documents service',
       tokens: options.tokens,
+      unavailable: (message, options) => new DocumentsUnavailable(message, options),
       timeoutMs: options.timeoutMs,
       fetch: this.fetch,
     });
@@ -90,28 +91,24 @@ export class HttpRosterUploads extends RosterUploads {
 
   /** Asks documents for a download URL. */
   private async download(ref: UploadRef): Promise<{ upload: RosterUpload; downloadUrl: string }> {
-    let answer;
-    try {
-      answer = await this.documents.GET('/internal/v1/uploads/{id}/download', {
-        params: { path: { id: ref.uploadId }, header: { 'X-Acting-Tenant': ref.tenant } },
-      });
-    } catch (error) {
-      if (isUnanswered(error)) {
-        throw new DocumentsUnavailable('The documents service did not answer', { cause: error });
-      }
-      throw error;
-    }
-    const { data, response } = answer;
-    if (response.status === 404) throw new UploadNotFound(ref.uploadId);
-    if (response.status === 409) throw new UploadNotClean(ref.uploadId);
-    if (!data) throw new DocumentsUnavailable(`Documents answered ${String(response.status)}`);
-    const parsed = uploadDownloadSchema.safeParse(data);
-    if (!parsed.success) {
-      throw new DocumentsUnavailable('Documents answered a download that breaks its contract', {
-        cause: parsed.error,
-      });
-    }
-    const upload = parsed.data;
+    const upload = await this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/uploads/{id}/download', {
+          params: { path: { id: ref.uploadId }, header: { 'X-Acting-Tenant': ref.tenant } },
+        }),
+      {
+        status: 200,
+        schema: uploadDownloadSchema,
+        otherwise: {
+          404: () => {
+            throw new UploadNotFound(ref.uploadId);
+          },
+          409: () => {
+            throw new UploadNotClean(ref.uploadId);
+          },
+        },
+      },
+    );
     const format = rosterFormatOf(upload.detectedType);
     // Only roster imports are rosters.
     if (upload.purpose !== 'roster-import' || format === undefined) {

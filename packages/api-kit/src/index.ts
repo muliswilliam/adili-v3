@@ -17,9 +17,11 @@ export {
 export { TokenVerifier } from './auth/token-verifier.js';
 export {
   createServiceClient,
-  isUnanswered,
+  type ExpectedAnswer,
   SERVICE_CALL_TIMEOUT_MS,
+  type ServiceAnswer,
   ServiceCallFailed,
+  type ServiceClient,
   type ServiceClientOptions,
 } from './service-client.js';
 export { createService, type ServiceOptions } from './bootstrap.js';

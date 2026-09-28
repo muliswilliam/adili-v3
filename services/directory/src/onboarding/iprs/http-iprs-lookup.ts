@@ -1,5 +1,4 @@
-import { createServiceClient, isUnanswered, type ServiceTokenClient } from '@adili/api-kit';
-import type { Client } from 'openapi-fetch';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
 import type { paths } from './integration-gateway-api.gen.js';
@@ -9,7 +8,7 @@ import { type IprsPerson, IprsLookup, IprsUnavailable } from './iprs-lookup.js';
 export const IPRS_SCOPE = 'iprs';
 
 export interface HttpIprsLookupOptions {
-  /** Base URL of the integration-gateway, e.g. `http://localhost:4010`. */
+  /** Base URL of the integration-gateway, e.g. `http://localhost:4009`. */
   integrationGatewayUrl: string;
   /** Client credentials tokens of the directory carrying `iprs`. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
@@ -39,42 +38,24 @@ const iprsPersonSchema = z.object({
  * `IprsUnavailable`.
  */
 export class HttpIprsLookup extends IprsLookup {
-  private readonly gateway: Client<paths>;
+  private readonly gateway: ServiceClient<paths>;
 
   constructor(options: HttpIprsLookupOptions) {
     super();
     this.gateway = createServiceClient<paths>({
       baseUrl: options.integrationGatewayUrl,
+      service: 'the integration-gateway',
       tokens: options.tokens,
+      unavailable: (message, options) => new IprsUnavailable(message, options),
       timeoutMs: options.timeoutMs,
       fetch: options.fetch,
     });
   }
 
-  async find(nationalId: string): Promise<IprsPerson | null> {
-    let answer;
-    try {
-      answer = await this.gateway.POST('/internal/v1/iprs/person-lookups', {
-        body: { nationalId },
-      });
-    } catch (error) {
-      if (isUnanswered(error)) {
-        throw new IprsUnavailable('the integration-gateway did not answer', { cause: error });
-      }
-      throw error;
-    }
-    const { data, response } = answer;
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      throw new IprsUnavailable(`the integration-gateway answered ${String(response.status)}`);
-    }
-    const parsed = iprsPersonSchema.safeParse(data);
-    if (!parsed.success) {
-      throw new IprsUnavailable(
-        'the integration-gateway answered a person that breaks its contract',
-        { cause: parsed.error },
-      );
-    }
-    return parsed.data;
+  find(nationalId: string): Promise<IprsPerson | null> {
+    return this.gateway.call(
+      (api) => api.POST('/internal/v1/iprs/person-lookups', { body: { nationalId } }),
+      { status: 200, schema: iprsPersonSchema, otherwise: { 404: () => null } },
+    );
   }
 }
