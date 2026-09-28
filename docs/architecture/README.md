@@ -768,7 +768,7 @@ adili-v3/
 │   ├── ui/                  # design system (shared by apps + Keycloak theme)
 │   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
-│   ├── forms/               # validators and generated types for the form JSON Schemas (FE + BE)
+│   ├── forms/               # validators, generated types and Zod schemas for the form JSON Schemas (FE + BE)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
 ├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks

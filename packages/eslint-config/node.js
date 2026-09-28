@@ -9,7 +9,8 @@ import tseslint from 'typescript-eslint';
  */
 export function nodeConfig(tsconfigRootDir) {
   return tseslint.config(
-    { ignores: ['dist/**', 'coverage/**', 'migrations/**'] },
+    // Generated files follow their generator's style; the generator is what gets linted.
+    { ignores: ['dist/**', 'coverage/**', 'migrations/**', '**/*.gen.ts'] },
     js.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     ...tseslint.configs.stylisticTypeChecked,
