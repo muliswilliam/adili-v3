@@ -22,6 +22,9 @@ export const PREFILL_COPY = {
     checking: en('Checking…'),
     checked: en((at: string) => `Checked ${formatDateTime(at)}`),
     toReview: en((count: number) => `${String(count)} to review`),
+    /** How a spouse or child is named when Household has no first name for them. */
+    spouseFallback: en('your spouse'),
+    childFallback: en('this child'),
     noId: en((first: string) => `Add ${first}'s national ID in Household to check registries.`),
     // The declarant's own ID comes from their record, not Household, so only the roster can fix it.
     noOwnId: en(
@@ -147,6 +150,11 @@ export const PREFILL_COPY = {
     appointmentDate: en('Date of appointment'),
     workStation: en('Work station'),
   },
+  /** The HR fields' placeholders in Your details. */
+  hrPlaceholder: {
+    jobGroup: en('e.g. D3 (T-Scale 13)'),
+    workStation: en('e.g. Eldoret, Uasin Gishu'),
+  },
   /** The summary's fold of the items that came from a registry or a document (spec 05b S11). */
   summary: {
     sourcedItems: en(
@@ -165,4 +173,5 @@ export const KRA_COPY = english(PREFILL_COPY.kra);
 export const COMPLIANCE_WORDS: Record<string, string> = english(PREFILL_COPY.complianceStatus);
 export const ROSTER_HINT = PREFILL_COPY.roster.hint.en;
 export const HR_LABELS = english(PREFILL_COPY.hr);
+export const HR_PLACEHOLDERS = english(PREFILL_COPY.hrPlaceholder);
 export const SUMMARY_COPY = english(PREFILL_COPY.summary);

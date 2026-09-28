@@ -31,6 +31,7 @@ import {
   withCurrency,
 } from '../../declaration/statement';
 import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from '../../declaration/labels';
+import { optionalLabel } from './optional-label';
 
 /**
  * Where #125 mounts the AttachmentList for an item. Called for assets and liabilities (the
@@ -159,14 +160,6 @@ const ASSET_DETAILS: Partial<Record<string, DetailField[]>> = {
 };
 ASSET_DETAILS.building = ASSET_DETAILS.land;
 ASSET_DETAILS.shareholding = ASSET_DETAILS.securities;
-
-function optionalLabel(label: string) {
-  return (
-    <>
-      {label} <span className="font-normal text-muted-foreground">(optional)</span>
-    </>
-  );
-}
 
 export interface ItemEditorProps {
   category: Category;

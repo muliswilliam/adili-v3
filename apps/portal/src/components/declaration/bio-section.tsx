@@ -21,8 +21,9 @@ import {
   MARITAL_STATUS_LABELS,
   optionsOf,
 } from '../../declaration/labels';
-import { HR_LABELS, ROSTER_HINT } from '../../declaration/copy';
+import { HR_LABELS, HR_PLACEHOLDERS, ROSTER_HINT } from '../../declaration/copy';
 import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
+import { optionalLabel } from './optional-label';
 import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
@@ -67,14 +68,6 @@ function RosterHint() {
       <Icon icon={Building03Icon} className="size-3.5" />
       {ROSTER_HINT}
     </span>
-  );
-}
-
-function optional(label: string) {
-  return (
-    <>
-      {label} <span className="font-normal text-muted-foreground">(optional)</span>
-    </>
   );
 }
 
@@ -278,13 +271,13 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           Employment
         </h2>
         <FormField
-          label={optional(HR_LABELS.jobGroup)}
+          label={optionalLabel(HR_LABELS.jobGroup)}
           hint={rosterHint('jobGroup')}
           controlId="bio-jobGroup"
         >
           <Input
             maxLength={40}
-            placeholder="e.g. D3 (T-Scale 13)"
+            placeholder={HR_PLACEHOLDERS.jobGroup}
             value={officer.employment?.jobGroup ?? ''}
             onChange={(event) => {
               setEmployment({ jobGroup: event.target.value });
@@ -292,7 +285,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
-          label={optional(HR_LABELS.appointmentDate)}
+          label={optionalLabel(HR_LABELS.appointmentDate)}
           hint={rosterHint('appointmentDate')}
           error={appointmentInvalid ? BIO_MESSAGES.dateFormat : undefined}
           controlId="bio-appointmentDate"
@@ -307,13 +300,13 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
-          label={optional(HR_LABELS.workStation)}
+          label={optionalLabel(HR_LABELS.workStation)}
           hint={rosterHint('workStation')}
           controlId="bio-workStation"
         >
           <Input
             maxLength={100}
-            placeholder="e.g. Eldoret, Uasin Gishu"
+            placeholder={HR_PLACEHOLDERS.workStation}
             value={officer.employment?.workStation ?? ''}
             onChange={(event) => {
               setEmployment({ workStation: event.target.value });

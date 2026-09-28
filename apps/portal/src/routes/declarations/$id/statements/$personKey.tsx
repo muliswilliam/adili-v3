@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import type { Draft, PersonKey, PersonName } from '../../../../declaration/contents';
+import { REGISTRY_COPY } from '../../../../declaration/copy';
 import { fullName } from '../../../../declaration/format';
 import { householdMember } from '../../../../declaration/household';
 import { relationOfPerson } from '../../../../declaration/section-key';
@@ -67,7 +68,8 @@ function registryPerson(
   entry: HouseholdEntry | null,
 ): RegistryPerson {
   const relation = relationOfPerson(personKey);
-  const fallback = relation === 'spouse' ? 'your spouse' : 'this child';
+  const fallback =
+    relation === 'spouse' ? REGISTRY_COPY.spouseFallback : REGISTRY_COPY.childFallback;
   const nationalId = entry?.nationalId?.trim();
   const first = name?.firstName?.trim() ?? '';
   return {
