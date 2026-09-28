@@ -4,24 +4,33 @@ import { z } from 'zod';
 
 import { getBff } from './bff.server';
 import {
+  acceptSuggestion,
+  type AcceptOutcome,
   type DeclarationListResult,
   type DeclarationResult,
   type DiscardResult,
   discardDeclaration,
+  dismissSuggestion,
+  type DismissOutcome,
   linkAttachment,
   type LinkResult,
   listDeclarations,
   listObligations,
+  listSuggestions,
   loadDeclaration,
   loadSection,
   loadSummary,
   type ObligationsResult,
+  type RegistryLookupsResult,
+  requestLookups,
   type SaveOutcome,
   saveSection,
   type SectionResult,
   startDeclaration,
   type StartResult,
+  type SuggestionsResult,
   type SummaryResult,
+  type Json,
   unlinkAttachment,
   type UnlinkResult,
 } from './declarations.server';
@@ -108,4 +117,65 @@ export const getDeclarationSummary = createServerFn({ method: 'GET' })
   .validator(declarationInput)
   .handler(({ data }): Promise<SummaryResult | Unauthenticated> =>
     asDeclarant((client) => loadSummary(client, data.declarationId)),
+  );
+
+const personKey = z.string().regex(/^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$/);
+const json: z.ZodType<Json> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(json),
+    z.record(z.string(), json),
+  ]),
+);
+
+export const requestRegistryLookups = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      declarationId: id,
+      personKey,
+      systems: z.array(z.enum(['kra', 'ntsa', 'brs', 'ardhisasa'])).min(1),
+      textVersion: z.string().min(1),
+      idempotencyKey: id,
+    }),
+  )
+  .handler(({ data }): Promise<RegistryLookupsResult | Unauthenticated> =>
+    asDeclarant((client) => requestLookups(client, data)),
+  );
+
+export const listDeclarationSuggestions = createServerFn({ method: 'GET' })
+  .validator(
+    z.object({
+      declarationId: id,
+      personKey: personKey.optional(),
+      sectionKey: sectionKey.optional(),
+    }),
+  )
+  .handler(({ data }): Promise<SuggestionsResult | Unauthenticated> =>
+    asDeclarant((client) => listSuggestions(client, data)),
+  );
+
+export const acceptDeclarationSuggestion = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      declarationId: id,
+      suggestionId: id,
+      ifMatch: z.string().min(1),
+      fields: z.record(z.string(), json),
+      applyToItemId: id.nullable(),
+      overwrite: z.boolean().optional(),
+    }),
+  )
+  .handler(({ data }): Promise<AcceptOutcome | Unauthenticated> =>
+    asDeclarant((client) => acceptSuggestion(client, data)),
+  );
+
+export const dismissDeclarationSuggestion = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({ declarationId: id, suggestionId: id, reason: z.string().max(200).optional() }),
+  )
+  .handler(({ data }): Promise<DismissOutcome | Unauthenticated> =>
+    asDeclarant((client) => dismissSuggestion(client, data)),
   );
