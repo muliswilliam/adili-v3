@@ -8,6 +8,12 @@ export const envSchema = bffEnvSchema.extend({
    * `vite dev` and tests only; production builds do not contain the mock.
    */
   DIRECTORY_MOCK: z.stringbool().default(false),
+  DECLARATIONS_API_URL: z.url(),
+  /**
+   * Serve obligations from in-memory fixtures until the declarations service implements its
+   * read API (#90). Honoured in `vite dev` and tests only; production builds do not contain it.
+   */
+  DECLARATIONS_MOCK: z.stringbool().default(false),
   /**
    * Proxies in front of the portal that append to X-Forwarded-For (e.g. 1 behind one load
    * balancer). 0 ignores the header and uses the socket address; see server/client-ip.ts.

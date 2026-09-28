@@ -174,6 +174,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 | Foundations and shared components | [#104](https://github.com/muliswilliam/adili-v3/pull/104) | `packages/ui/prototype/kit.css` | applied |
 | Commissions list and detail | [#12](https://github.com/muliswilliam/adili-v3/issues/12) | `apps/console/prototype/01-commissions.prototype.html` | tokens only |
 | Get started (Identify) | [#66](https://github.com/muliswilliam/adili-v3/issues/66) | `apps/portal/prototype/declarant-journey.prototype.html` (`gs-*` screens) | built from the Figma frame `onboarding-step-1` with a national ID field the frame lacks; glow colours sampled; prototype pass pending |
+| Dashboard obligations and drawer | [#89](https://github.com/muliswilliam/adili-v3/issues/89) | `apps/portal/prototype/declarant-journey.prototype.html` (`#89` Home and drawer screens) | built from the prototype; card tints use `brand` and `warning` tokens instead of the kit's hex gradients; spec 04 copy where it differs from the prototype |
 
 Add a row when a screen's design pass starts, and flip the status when it merges.
 

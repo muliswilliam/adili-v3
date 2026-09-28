@@ -37,7 +37,7 @@ function renderCards(declarant: DeclarantAccountResult) {
   } as Viewer;
   render(
     <ToastProvider>
-      <DashboardCards viewer={viewer} />
+      <DashboardCards viewer={viewer} obligations={<section>Your declarations</section>} />
     </ToastProvider>,
   );
 }
@@ -68,7 +68,7 @@ describe('DashboardCards', () => {
     expect(within(phone).getByText('Verified')).toBeTruthy();
 
     expect(screen.getByText('Onboarded on 26 Sep 2026')).toBeTruthy();
-    expect(screen.getByText('No obligations yet')).toBeTruthy();
+    expect(screen.getByText('Your declarations')).toBeTruthy();
   });
 
   it('copies the OFR and announces it politely', async () => {
@@ -114,21 +114,19 @@ describe('DashboardCards', () => {
     expect(valueOf('Phone').textContent).toBe('Not provided');
   });
 
-  it('keeps the obligations placeholder and sign-in identity for someone not onboarded', () => {
+  it('shows the sign-in identity for someone not onboarded', () => {
     renderCards({ status: 'not-declarant' });
 
-    expect(screen.getByText('Filing obligations')).toBeTruthy();
-    expect(screen.getByText('No obligations yet')).toBeTruthy();
     expect(screen.getByText('Your account')).toBeTruthy();
     expect(screen.queryByText('You are not onboarded as a declarant')).toBeNull();
     expect(screen.queryByText('Officer reference')).toBeNull();
   });
 
-  it('warns when the account details cannot be loaded, keeping the obligations placeholder', () => {
+  it('warns when the account details cannot be loaded, keeping the obligations', () => {
     renderCards({ status: 'unavailable' });
 
     expect(screen.getByText('Account details unavailable').closest('[role="alert"]')).toBeTruthy();
-    expect(screen.getByText('No obligations yet')).toBeTruthy();
+    expect(screen.getByText('Your declarations')).toBeTruthy();
     expect(screen.queryByText('Officer reference')).toBeNull();
   });
 });
