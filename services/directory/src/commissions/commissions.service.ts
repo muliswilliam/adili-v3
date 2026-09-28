@@ -8,13 +8,19 @@ import { violatedUniqueConstraint } from '../db/errors.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { rosterSummaries } from '../roster/schema.js';
 import { rosterSummaryColumns, toRosterSummary } from '../roster/summary.js';
+import { actingTenantContext } from '../internal-api.js';
 import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
 import type { CreateCommissionBody } from './create-commission.js';
 import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
 import { nairobiToday } from './policy-versions.js';
-import { type Commission, type CommissionPage, type OfficerCategory } from './representation.js';
+import {
+  type Commission,
+  type CommissionPage,
+  type InternalCommission,
+  type OfficerCategory,
+} from './representation.js';
 import {
   commissionCategories,
   commissions,
@@ -187,6 +193,22 @@ export class CommissionsService {
   async read(tx: Transaction, slug: string): Promise<Commission> {
     const [found] = await this.select(tx).where(eq(commissions.slug, slug)).limit(1);
     return toCommission(notFoundIfInvisible(found));
+  }
+
+  /** Slug, issuer code and name, for a service acting for `tenant`; another Commission's is 404. */
+  async internalRef(
+    principal: Principal,
+    tenant: string,
+    slug: string,
+  ): Promise<InternalCommission> {
+    actingTenantContext(principal, tenant, slug);
+    const [found] = await this.db
+      .select({ slug: commissions.slug, name: commissions.name })
+      .from(commissions)
+      .where(eq(commissions.slug, slug))
+      .limit(1);
+    const { name } = notFoundIfInvisible(found);
+    return { slug, issuerCode: slug.toUpperCase(), name };
   }
 
   async listOfficerCategories(): Promise<OfficerCategory[]> {

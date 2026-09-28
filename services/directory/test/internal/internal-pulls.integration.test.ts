@@ -357,6 +357,27 @@ describe('S18 one record', () => {
   });
 });
 
+describe('Commission reference', () => {
+  it('gives the slug, issuer code and name services show the Commission by', async () => {
+    const response = await api.get('/internal/v1/commissions/psc', DECLARATIONS, ACTING_PSC);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<unknown>();
+    expect(contractErrors(okResponse('/internal/v1/commissions/{slug}', 'get'), body)).toEqual([]);
+    expect(body).toEqual({ slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' });
+  });
+
+  it("answers 404 for another Commission's and for an unknown one", async () => {
+    const other = await api.get('/internal/v1/commissions/tsc', DECLARATIONS, ACTING_PSC);
+    const unknown = await api.get('/internal/v1/commissions/kra', DECLARATIONS, {
+      'x-acting-tenant': 'kra',
+    });
+
+    expect(other.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+  });
+});
+
 describe('S18 current policy', () => {
   it('gives version 1 with the obligations-start date, periods and offsets', async () => {
     const response = await api.get('/internal/v1/commissions/psc/policy', DECLARATIONS, ACTING_PSC);

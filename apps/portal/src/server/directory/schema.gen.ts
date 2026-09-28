@@ -188,6 +188,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/commissions/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slug, issuer code and name of a Commission (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. E.g. declarations names the Commission of each obligation.
+         */
+        get: operations["internalGetCommission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/roster/template": {
         parameters: {
             query?: never;
@@ -937,6 +957,15 @@ export interface components {
             nextCursor: string | null;
             /** @description Commissions matching the filters across all pages */
             total: number;
+        };
+        InternalCommission: {
+            slug: components["schemas"]["Slug"];
+            /**
+             * @description slug upper-cased
+             * @example TSC
+             */
+            issuerCode: string;
+            name: string;
         };
         TenantPolicyVersion: {
             /** Format: uuid */
@@ -2264,6 +2293,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TenantPolicyVersion"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetCommission: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Commission */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalCommission"];
                 };
             };
             /** @description X-Acting-Tenant is missing or not a tenant key */
