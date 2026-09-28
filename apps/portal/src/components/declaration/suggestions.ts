@@ -298,16 +298,20 @@ export function registryStatus(
   return 'unavailable';
 }
 
-/** The status strip: one entry per registry, counting the suggestions shown for it. */
+/**
+ * The status strip: one entry per registry, counting the still-actionable (`new`) suggestions of
+ * the registry's latest set. Accepted and dismissed ones, and earlier checks, do not count, so a
+ * re-check that finds nothing new reads "Nothing found".
+ */
 export function registryEntries(sets: LoadedSuggestionSet[]): RegistryStatusEntry[] {
   const latest = latestSets(sets);
-  const shown = shownSuggestions(sets);
   return REGISTRIES.map((source) => {
-    const count = shown.filter((each) => each.source === source).length;
+    const set = latest[source];
+    const count = set?.suggestions.filter((each) => each.status === 'new').length ?? 0;
     return {
       id: source,
       name: SOURCE_NAMES[source],
-      status: registryStatus(latest[source], count),
+      status: registryStatus(set, count),
       count,
     };
   });

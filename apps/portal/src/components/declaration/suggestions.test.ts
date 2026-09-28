@@ -253,12 +253,41 @@ describe('a person’s registry check', () => {
     ];
     expect(registryEntries(sets).map(({ name, status, count }) => [name, status, count])).toEqual([
       ['KRA', 'checking', 0],
-      ['NTSA', 'found', 2],
+      ['NTSA', 'found', 1],
       ['BRS', 'nothing-found', 0],
       ['ArdhiSasa', 'unavailable', 0],
     ]);
     expect(isChecking(sets)).toBe(true);
     expect(lastChecked(sets)).toBe('2026-09-27T09:00:02Z');
+  });
+
+  it('says nothing found when a re-check comes back empty', () => {
+    const sets = [
+      set({
+        suggestions: [
+          suggestion({ status: 'accepted' }),
+          suggestion({ id: 's2', status: 'dismissed' }),
+          suggestion({ id: 's3', status: 'superseded' }),
+        ],
+      }),
+      set({ id: 'ntsa-2', requestedAt: '2026-09-27T09:00:00Z', readyAt: '2026-09-27T09:00:02Z' }),
+    ];
+    const ntsa = registryEntries(sets).find((entry) => entry.id === 'ntsa');
+    expect([ntsa?.status, ntsa?.count]).toEqual(['nothing-found', 0]);
+  });
+
+  it('counts only the new suggestions of the latest set', () => {
+    const sets = [
+      set({
+        suggestions: [
+          suggestion({ status: 'accepted' }),
+          suggestion({ id: 's2' }),
+          suggestion({ id: 's3', status: 'dismissed' }),
+        ],
+      }),
+    ];
+    const ntsa = registryEntries(sets).find((entry) => entry.id === 'ntsa');
+    expect([ntsa?.status, ntsa?.count]).toEqual(['found', 1]);
   });
 
   it('says not checked before any lookup', () => {
