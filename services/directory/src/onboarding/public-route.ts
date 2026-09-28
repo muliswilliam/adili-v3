@@ -1,6 +1,14 @@
 import { applyDecorators, createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import { ApiHeader, ApiParam, ApiTags, DECORATORS } from '@nestjs/swagger';
-import { ApiProblemResponse, type AuthenticatedRequest, Public } from '@adili/api-kit';
+import {
+  ApiProblemResponse,
+  type AuthenticatedRequest,
+  Public,
+  RequireIdempotencyKey,
+} from '@adili/api-kit';
+
+import { config } from '../config.js';
+import { keyedHash } from './secret.js';
 
 /** The header the portal BFF copies the session secret into from its httpOnly cookie. */
 export const ONBOARDING_SECRET_HEADER = 'x-onboarding-secret';
@@ -51,3 +59,23 @@ export const ApiSessionRoute = () =>
       'OnboardingProblem',
     ),
   );
+
+/**
+ * `@RequireIdempotencyKey()` for a session route (ADR-013 §7.5): the portal sends one key per
+ * submission, and a retry with it gets the first answer back instead of running the step again.
+ * Session routes have no token, so keys belong to the session and the secret presented (a keyed
+ * hash of both, never the secret): a caller without the secret never sees a stored answer, and
+ * its request runs, and fails, like any other.
+ */
+export const SessionIdempotencyKey = () => RequireIdempotencyKey({ owner: sessionKeyOwner });
+
+function sessionKeyOwner(request: AuthenticatedRequest): string {
+  const { sessionId } = request.params as { sessionId?: string };
+  const secret = request.headers[ONBOARDING_SECRET_HEADER];
+  return `onboarding-session:${keyedHash(
+    config.ONBOARDING_HMAC_KEY,
+    'idempotency',
+    sessionId ?? '',
+    typeof secret === 'string' ? secret : '',
+  )}`;
+}

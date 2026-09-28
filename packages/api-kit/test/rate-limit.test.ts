@@ -16,7 +16,7 @@ import {
   RateLimitModule,
   rateLimitsSchema,
   RateLimitStore,
-  takeToken,
+  countRequest,
   TokenVerifier,
 } from '../src/index.js';
 
@@ -128,7 +128,7 @@ describe('RateLimit', () => {
   });
 
   beforeEach(() => {
-    // Each test starts at a point far from the others, so every bucket is full again.
+    // Each test starts at a point far from the others, so every window is empty again.
     now += 24 * 60 * 60 * 1000;
   });
 
@@ -161,8 +161,8 @@ describe('RateLimit', () => {
 
     expect(passed.map((response) => response.statusCode)).toEqual([200, 200, 200]);
     expect(passed.map(limitHeaders)).toEqual([
-      { limit: '3', remaining: '2', reset: '20' },
-      { limit: '3', remaining: '1', reset: '40' },
+      { limit: '3', remaining: '2', reset: '60' },
+      { limit: '3', remaining: '1', reset: '60' },
       { limit: '3', remaining: '0', reset: '60' },
     ]);
     expect(refused.statusCode).toBe(429);
@@ -172,24 +172,30 @@ describe('RateLimit', () => {
       code: 'rate-limit-exceeded',
       title: 'Too Many Requests',
       status: 429,
-      retryAfterSeconds: 20,
+      retryAfterSeconds: 60,
       instance: '/v1/rosters/batches',
     });
     expect(limitHeaders(refused)).toEqual({ limit: '3', remaining: '0', reset: '60' });
-    expect(refused.headers['retry-after']).toBe('20');
+    expect(refused.headers['retry-after']).toBe('60');
   });
 
-  it('refills over the window', async () => {
-    for (let i = 0; i < 3; i++) await get('/v1/rosters/batches', tokens.hr);
+  it('lets a request back in once the oldest one leaves the window, not sooner', async () => {
+    await get('/v1/rosters/batches', tokens.hr);
+    now += 20_000;
+    await get('/v1/rosters/batches', tokens.hr);
+    now += 20_000;
+    await get('/v1/rosters/batches', tokens.hr);
     now += 19_000;
     const early = await get('/v1/rosters/batches', tokens.hr);
-    now += 2_000;
-    const refilled = await get('/v1/rosters/batches', tokens.hr);
+    now += 1_000;
+    const inWindow = await get('/v1/rosters/batches', tokens.hr);
 
     expect(early.statusCode).toBe(429);
     expect(early.headers['retry-after']).toBe('1');
-    expect(refilled.statusCode).toBe(200);
-    expect(limitHeaders(refilled)).toMatchObject({ remaining: '0' });
+    expect(inWindow.statusCode).toBe(200);
+    expect(limitHeaders(inWindow)).toEqual({ limit: '3', remaining: '0', reset: '60' });
+    // The next one waits for the second request (made 40 s ago) to leave.
+    expect((await get('/v1/rosters/batches', tokens.hr)).headers['retry-after']).toBe('20');
   });
 
   it('shares one budget across the routes of a group, and none with other groups', async () => {
@@ -219,7 +225,7 @@ describe('RateLimit', () => {
     const response = await get('/v1/rosters/missing', tokens.hr);
 
     expect(response.statusCode).toBe(404);
-    expect(limitHeaders(response)).toEqual({ limit: '3', remaining: '2', reset: '20' });
+    expect(limitHeaders(response)).toEqual({ limit: '3', remaining: '2', reset: '60' });
   });
 
   it('leaves routes without @RateLimit alone', async () => {
@@ -310,54 +316,67 @@ describe('rateLimitsSchema', () => {
   });
 });
 
-describe('takeToken', () => {
+describe('countRequest', () => {
   const policy = { limit: 2, windowSeconds: 10 };
 
-  it('starts full and takes one token per request', () => {
-    const first = takeToken(undefined, policy, 0);
-    const second = takeToken(first.bucket, policy, 0);
-    const third = takeToken(second.bucket, policy, 0);
+  it('allows the limit in a window and refuses the next without counting it', () => {
+    const first = countRequest(undefined, policy, 0);
+    const second = countRequest(first.log, policy, 1_000);
+    const third = countRequest(second.log, policy, 2_000);
 
     expect(first.decision).toEqual({
       allowed: true,
       limit: 2,
       remaining: 1,
-      resetSeconds: 5,
+      resetSeconds: 10,
       retryAfterSeconds: 0,
     });
     expect(second.decision).toMatchObject({ allowed: true, remaining: 0, resetSeconds: 10 });
-    expect(third.decision).toMatchObject({ allowed: false, remaining: 0, retryAfterSeconds: 5 });
-    expect(third.bucket.tokens).toBe(0);
-  });
-
-  it('refills continuously up to the limit', () => {
-    const empty = { tokens: 0, updatedAtMs: 0 };
-
-    expect(takeToken(empty, policy, 2_500).decision).toMatchObject({
+    expect(third.decision).toEqual({
       allowed: false,
-      retryAfterSeconds: 3,
+      limit: 2,
+      remaining: 0,
+      resetSeconds: 9,
+      retryAfterSeconds: 8,
     });
-    expect(takeToken(empty, policy, 6_000).decision).toMatchObject({ allowed: true, remaining: 0 });
-    expect(takeToken(empty, policy, 60_000).decision).toMatchObject({ remaining: 1 });
+    expect(third.log).toEqual([0, 1_000]);
   });
 
-  it('allows a request made exactly when a refused one was told to retry, whatever the rounding', () => {
+  it('holds at most the limit in any window, however the requests are spread', () => {
     const fivePerFifteenMinutes = { limit: 5, windowSeconds: 900 };
-    const refused = takeToken({ tokens: 0, updatedAtMs: 0 }, fivePerFifteenMinutes, 179_000);
-    expect(refused.decision).toMatchObject({ allowed: false, retryAfterSeconds: 1 });
+    let log: number[] = [];
+    for (let minute = 0; minute < 5; minute++) {
+      const counted = countRequest(log, fivePerFifteenMinutes, minute * 60_000);
+      expect(counted.decision.allowed).toBe(true);
+      log = counted.log;
+    }
 
-    // Stored as Valkey stores it (Lua `tostring`, 14 significant digits), the 179 s of refill
-    // plus the next second add up to a hair under one token.
-    const stored = { ...refused.bucket, tokens: Number(refused.bucket.tokens.toPrecision(14)) };
-    const retried = takeToken(stored, fivePerFifteenMinutes, 180_000);
-    expect(retried.decision).toMatchObject({ allowed: true, remaining: 0 });
-    expect(retried.bucket.tokens).toBeGreaterThanOrEqual(0);
+    // The sixth at minute 3, 5, 14:59: refused, until the first leaves at minute 15.
+    for (const atMs of [3 * 60_000, 5 * 60_000, 15 * 60_000 - 1]) {
+      expect(countRequest(log, fivePerFifteenMinutes, atMs).decision.allowed).toBe(false);
+    }
+    const refused = countRequest(log, fivePerFifteenMinutes, 5 * 60_000);
+    expect(refused.decision.retryAfterSeconds).toBe(600);
+    const allowed = countRequest(log, fivePerFifteenMinutes, 5 * 60_000 + 600_000);
+    expect(allowed.decision).toMatchObject({ allowed: true, remaining: 0 });
   });
 
-  it('gives a token back for a negative cost, up to the limit', () => {
-    const empty = { tokens: 0, updatedAtMs: 0 };
-    const refunded = takeToken(empty, policy, 0, -1);
+  it('allows a request made exactly when a refused one was told to retry', () => {
+    const { log } = countRequest(countRequest(undefined, policy, 0).log, policy, 0);
+    const refused = countRequest(log, policy, 1_500);
+    expect(refused.decision).toMatchObject({ allowed: false, retryAfterSeconds: 9 });
 
+    expect(countRequest(log, policy, 1_500 + 9_000).decision).toMatchObject({
+      allowed: true,
+      remaining: 1,
+    });
+  });
+
+  it('gives the latest request back for a negative cost, never below none', () => {
+    const { log } = countRequest(countRequest(undefined, policy, 0).log, policy, 4_000);
+    const refunded = countRequest(log, policy, 5_000, -1);
+
+    expect(refunded.log).toEqual([0]);
     expect(refunded.decision).toEqual({
       allowed: true,
       limit: 2,
@@ -365,6 +384,9 @@ describe('takeToken', () => {
       resetSeconds: 5,
       retryAfterSeconds: 0,
     });
-    expect(takeToken(undefined, policy, 0, -1).bucket.tokens).toBe(2);
+    expect(countRequest(undefined, policy, 0, -1)).toEqual({
+      log: [],
+      decision: { allowed: true, limit: 2, remaining: 2, resetSeconds: 0, retryAfterSeconds: 0 },
+    });
   });
 });

@@ -1,14 +1,16 @@
 import { TokenVerifier } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
-import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
+import { IdentityUnavailable, UsernameTaken } from '../../src/identity/identity-provisioning.js';
 import { KeycloakIdentityProvisioning } from '../../src/identity/keycloak-identity-provisioning.js';
 import {
   ACTIVATION,
+  declarant,
   identityProvisioningContract,
   type InspectedUser,
   reportingOfficer,
   uniqueEmail,
+  uniqueOfr,
 } from './identity-provisioning.contract.js';
 
 /**
@@ -128,6 +130,29 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
   },
 }));
 
+describe('KeycloakIdentityProvisioning with an OFR held by another account', () => {
+  it('reports UsernameTaken, not EmailTaken, and leaves that account alone', async () => {
+    const ofr = uniqueOfr();
+    await admin('POST', '/users', {
+      username: ofr,
+      email: uniqueEmail('holder'),
+      enabled: true,
+    });
+    const [holder] = await admin<{ id: string }[]>(
+      'GET',
+      `/users?username=${encodeURIComponent(ofr)}&exact=true`,
+    );
+    try {
+      await expect(
+        adapter.createDeclarantUser(declarant(uniqueEmail('blocked'), ofr)),
+      ).rejects.toBeInstanceOf(UsernameTaken);
+      await expect(adapter.findById(String(holder?.id))).resolves.not.toBeNull();
+    } finally {
+      if (holder) await admin('DELETE', `/users/${holder.id}`);
+    }
+  });
+});
+
 describe('KeycloakIdentityProvisioning against an unreachable Keycloak', () => {
   it('reports IdentityUnavailable', async () => {
     const unreachable = new KeycloakIdentityProvisioning({
@@ -158,17 +183,22 @@ describe('KeycloakIdentityProvisioning against an unreachable Keycloak', () => {
 // Independent admin access for inspection and cleanup, with the same service account.
 let adminToken: string | undefined;
 
-async function admin<T = unknown>(method: string, path: string): Promise<T> {
+async function admin<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   adminToken ??= await clientCredentialsToken();
   const base = ISSUER_URL.replace('/realms/', '/admin/realms/');
   const response = await fetch(`${base}${path}`, {
     method,
-    headers: { authorization: `Bearer ${adminToken}` },
+    headers: {
+      authorization: `Bearer ${adminToken}`,
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
     throw new Error(`${method} ${path} answered ${response.status}: ${await response.text()}`);
   }
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  const text = await response.text();
+  return (text === '' ? undefined : JSON.parse(text)) as T;
 }
 
 async function clientCredentialsToken(): Promise<string> {

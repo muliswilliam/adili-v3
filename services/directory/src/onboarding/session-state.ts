@@ -41,6 +41,25 @@ export const ONBOARDING_OUTCOMES = [
 ] as const;
 export type OnboardingOutcome = (typeof ONBOARDING_OUTCOMES)[number];
 
+/**
+ * Whether a new account's set-password email went. It is sent after confirm commits, so it can
+ * fail while the account stands; the declarant then sends it with resend (spec 03, ADR-014).
+ */
+export const SET_PASSWORD_EMAIL_STATUSES = ['sent', 'failed'] as const;
+export type SetPasswordEmailStatus = (typeof SET_PASSWORD_EMAIL_STATUSES)[number];
+
+/**
+ * The set-password email of a session confirmed with a new account: `sent` while the session
+ * records when it last went, `failed` when it records none. Null for every other session.
+ */
+export function setPasswordEmailStatus(session: {
+  outcome: OnboardingOutcome | null;
+  passwordEmailSentAt: Date | null;
+}): SetPasswordEmailStatus | null {
+  if (session.outcome !== 'account-created') return null;
+  return session.passwordEmailSentAt === null ? 'failed' : 'sent';
+}
+
 /** Why a session ended, as `onboarding.session.ended.v1` reports it. */
 export const END_REASONS = ['confirmed', 'identity-mismatch', 'expired', 'rate-limited'] as const;
 export type EndReason = (typeof END_REASONS)[number];
@@ -110,6 +129,11 @@ export const ONBOARDING_TIMING = {
   /** Codes that may be sent per channel after the first; one more ends the session. */
   otpResends: 3,
 } as const;
+
+/** When something last sent at `lastSentAt` (a code, the set-password email) may be sent again. */
+export function resendAvailableAt(lastSentAt: Date): Date {
+  return new Date(lastSentAt.getTime() + ONBOARDING_TIMING.resendCooldownMs);
+}
 
 /** When a session created at `now` expires. */
 export function initialExpiry(now: Date): Date {

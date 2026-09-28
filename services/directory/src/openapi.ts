@@ -22,6 +22,7 @@ import {
   reportingOfficerStateSchema,
   rosterSummarySchema,
 } from './commissions/representation.js';
+import { onboardingFailuresSchema } from './onboarding/failures/representation.js';
 import {
   identifyDeclarantBody,
   maskedContactSchema,
@@ -149,6 +150,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   OnboardingSessionCreated: onboardingSessionCreatedSchema,
   OnboardingConfirmResult: onboardingConfirmResultSchema,
   OnboardingProblem: onboardingProblemSchema,
+  OnboardingFailures: onboardingFailuresSchema,
   DeclarantProfile: declarantProfileSchema,
   PersonSummary: personSummarySchema,
   PersonContacts: personContactsSchema,

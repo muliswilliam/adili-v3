@@ -18,10 +18,10 @@ CREATE POLICY "onboarding_otps_tenant_isolation" ON "onboarding_otps"
 	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform')
 	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
 --> statement-breakpoint
-ALTER TABLE "onboarding_attempts" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "onboarding_failures" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
-ALTER TABLE "onboarding_attempts" FORCE ROW LEVEL SECURITY;
+ALTER TABLE "onboarding_failures" FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
-CREATE POLICY "onboarding_attempts_tenant_isolation" ON "onboarding_attempts"
+CREATE POLICY "onboarding_failures_tenant_isolation" ON "onboarding_failures"
 	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform')
 	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');

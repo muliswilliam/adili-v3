@@ -19,7 +19,8 @@ import {
 import { z } from 'zod';
 
 import { MessagesService } from './messages.service.js';
-import { type MessageView, type SendMessage, sendMessageSchema } from './send-message.schema.js';
+import type { MessageView } from './representation.js';
+import { type SendMessage, sendMessageSchema } from './send-message.schema.js';
 
 /** Internal: not routed by the public entrypoint. Callers are services with the messages scope. */
 @ApiTags('internal')
@@ -33,14 +34,15 @@ export class MessagesController {
   @ApiOperation({
     operationId: 'sendMessage',
     summary: 'Render a template and send it by email or SMS',
-    description: 'Synchronous with a 5-second budget. A provider failure is status failed.',
+    description:
+      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.',
   })
-  @ApiBody({ schema: schemaRef('SendMessage') })
+  @ApiBody({ required: true, schema: schemaRef('SendMessage') })
   @ApiCreatedResponse({
     description: 'Message handed to the provider (or failed, see status)',
     schema: schemaRef('Message'),
   })
-  @ApiProblemResponse(400, 'Unknown template, invalid recipient or params')
+  @ApiProblemResponse(400, 'Unknown template, or a recipient or params the template rejects')
   @ApiProblemResponse(403, 'Caller lacks the messages scope')
   send(
     @Body(new ZodValidationPipe(sendMessageSchema)) body: SendMessage,
@@ -50,11 +52,16 @@ export class MessagesController {
   }
 
   @Get(':id')
-  @ApiOperation({ operationId: 'getMessage', summary: 'Delivery status of a message' })
+  @ApiOperation({
+    operationId: 'getMessage',
+    summary: 'Delivery status of a message',
+    description: 'Only the service that sent the message sees it.',
+  })
   @ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } })
   @ApiOkResponse({ description: 'The message', schema: schemaRef('Message') })
+  @ApiProblemResponse(400, 'The id is not a UUID')
   @ApiProblemResponse(403, 'Caller lacks the messages scope')
-  @ApiProblemResponse(404, 'Not found, or sent by another caller')
+  @ApiProblemResponse(404, 'No message with this id, or another caller sent it')
   async get(
     @Param('id', new ZodValidationPipe(z.uuid())) id: string,
     @CurrentPrincipal() caller: Principal,

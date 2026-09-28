@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
+import { IdentityUnavailable, UsernameTaken } from '../../src/identity/identity-provisioning.js';
 import { InMemoryIdentityProvisioning } from '../../src/identity/in-memory-identity-provisioning.js';
 import {
   ACTIVATION,
+  declarant,
   identityProvisioningContract,
   reportingOfficer,
+  uniqueEmail,
 } from './identity-provisioning.contract.js';
 
 const fake = new InMemoryIdentityProvisioning();
@@ -191,5 +193,19 @@ describe('InMemoryIdentityProvisioning', () => {
 
     expect(identity.calls()).toEqual([]);
     await expect(identity.findByEmail('a@psc.go.ke')).resolves.toBeNull();
+  });
+
+  it('refuses an OFR held by an account that is not a leftover declarant account', async () => {
+    const identity = new InMemoryIdentityProvisioning();
+    const holder = identity.seedUser({
+      email: 'holder@psc.go.ke',
+      username: 'ofr-0000001-x',
+      tenant: null,
+    });
+
+    await expect(
+      identity.createDeclarantUser(declarant(uniqueEmail('blocked'), 'OFR-0000001-X')),
+    ).rejects.toBeInstanceOf(UsernameTaken);
+    expect(identity.user(holder)).toBeDefined();
   });
 });

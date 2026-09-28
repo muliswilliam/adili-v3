@@ -6,9 +6,9 @@ import { Clock } from '../../clock.js';
 import { PLATFORM_TENANT } from '../../commissions/access.js';
 import { commissions } from '../../commissions/schema.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterSummaries } from '../../roster/schema.js';
 import type { ListOnboardingCommissionsQuery, OnboardingCommission } from '../representation.js';
 import { ONBOARDING_SUBJECT } from '../sessions.repository.js';
+import { selectOnboardingCommissions, toOnboardingCommission } from './onboarding-commission.js';
 
 /** How long a replica serves the Commission list before reading it again. */
 export const COMMISSION_LIST_TTL_MS = 60 * 1000;
@@ -45,23 +45,11 @@ export class OnboardingCommissionsService {
       this.db,
       { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT },
       (tx) =>
-        tx
-          .select({
-            slug: commissions.slug,
-            name: commissions.name,
-            lastImportId: rosterSummaries.lastImportId,
-          })
-          .from(commissions)
-          .leftJoin(rosterSummaries, eq(rosterSummaries.tenant, commissions.slug))
+        selectOnboardingCommissions(tx)
           .where(eq(commissions.status, 'active'))
           .orderBy(asc(commissions.name)),
     );
-    const list = rows.map((row) => ({
-      slug: row.slug,
-      issuerCode: row.slug.toUpperCase(),
-      name: row.name,
-      hasRoster: row.lastImportId !== null,
-    }));
+    const list = rows.map(toOnboardingCommission);
     this.cached = { list, until: now + COMMISSION_LIST_TTL_MS };
     return list;
   }

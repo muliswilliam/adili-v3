@@ -82,7 +82,7 @@ describe('RateLimit on public routes', () => {
   });
 
   beforeEach(() => {
-    // Each test starts far from the others, so every bucket is full again.
+    // Each test starts far from the others, so every window is empty again.
     now += 24 * 60 * 60 * 1000;
   });
 
@@ -117,10 +117,10 @@ describe('RateLimit on public routes', () => {
     expect(passed.map((response) => response.statusCode)).toEqual([201, 201, 201, 201, 201]);
     // The tightest budget is shown: per IP and Commission (1 left) until per IP is as low.
     expect(passed.map(limitHeaders)).toEqual([
-      { limit: '2', remaining: '1', reset: '30' },
-      { limit: '2', remaining: '1', reset: '30' },
-      { limit: '2', remaining: '1', reset: '30' },
-      { limit: '5', remaining: '1', reset: '48' },
+      { limit: '2', remaining: '1', reset: '60' },
+      { limit: '2', remaining: '1', reset: '60' },
+      { limit: '2', remaining: '1', reset: '60' },
+      { limit: '5', remaining: '1', reset: '60' },
       { limit: '5', remaining: '0', reset: '60' },
     ]);
     expect(refused.statusCode).toBe(429);
@@ -130,12 +130,12 @@ describe('RateLimit on public routes', () => {
       code: 'rate-limit-exceeded',
       title: 'Too Many Requests',
       status: 429,
-      detail: 'Rate limit of 5 requests per 60 seconds exceeded. Retry after 12 seconds.',
-      retryAfterSeconds: 12,
+      detail: 'Rate limit of 5 requests per 60 seconds exceeded. Retry after 60 seconds.',
+      retryAfterSeconds: 60,
       instance: '/v1/onboarding/sessions',
     });
     expect(limitHeaders(refused)).toEqual({ limit: '5', remaining: '0', reset: '60' });
-    expect(refused.headers['retry-after']).toBe('12');
+    expect(refused.headers['retry-after']).toBe('60');
   });
 
   it('keeps the per IP and Commission budget apart from the per IP one', async () => {
@@ -146,7 +146,7 @@ describe('RateLimit on public routes', () => {
     const otherAddress = await identify('psc', '198.51.100.9');
 
     expect(samePair.statusCode).toBe(429);
-    expect(samePair.json()).toMatchObject({ code: 'rate-limit-exceeded', retryAfterSeconds: 30 });
+    expect(samePair.json()).toMatchObject({ code: 'rate-limit-exceeded', retryAfterSeconds: 60 });
     expect(limitHeaders(samePair)).toEqual({ limit: '2', remaining: '0', reset: '60' });
     expect(otherCommission.statusCode).toBe(201);
     expect(otherAddress.statusCode).toBe(201);
@@ -178,7 +178,7 @@ describe('RateLimit on public routes', () => {
     expect((await direct('192.0.2.200')).statusCode).toBe(429);
   });
 
-  it('takes no token for a refunded outcome, and one for others', async () => {
+  it('counts no request for a refunded outcome, and one for others', async () => {
     const noRoster = [];
     for (let i = 0; i < 7; i++) noRoster.push(await identify('no-roster'));
     const last = await identify('no-roster');
@@ -191,7 +191,7 @@ describe('RateLimit on public routes', () => {
     const noMatch = await identify('unknown');
     expect(noMatch.statusCode).toBe(404);
     expect(noMatch.json()).toMatchObject({ code: 'no-match' });
-    expect(limitHeaders(noMatch)).toEqual({ limit: '2', remaining: '1', reset: '30' });
+    expect(limitHeaders(noMatch)).toEqual({ limit: '2', remaining: '1', reset: '60' });
     for (let i = 0; i < 3; i++) await identify(`commission-${i}`);
     expect((await identify('commission-4')).statusCode).toBe(201);
     expect((await identify('commission-5')).statusCode).toBe(429);
@@ -201,7 +201,7 @@ describe('RateLimit on public routes', () => {
     const response = await identify(undefined);
 
     expect(response.statusCode).toBe(201);
-    expect(limitHeaders(response)).toEqual({ limit: '5', remaining: '4', reset: '12' });
+    expect(limitHeaders(response)).toEqual({ limit: '5', remaining: '4', reset: '60' });
   });
 
   it('keys on a route parameter', async () => {
@@ -213,18 +213,26 @@ describe('RateLimit on public routes', () => {
     expect((await get('tsc')).statusCode).toBe(200);
   });
 
-  it('refills on the injected clock', async () => {
-    for (let i = 0; i < 5; i++) await identify(`commission-${i}`);
-    expect((await identify('commission-5')).statusCode).toBe(429);
+  it('slides the window on the injected clock', async () => {
+    // One request every 10 seconds: the sixth, 50 seconds after the first, is refused.
+    for (let i = 0; i < 5; i++) {
+      await identify(`commission-${i}`);
+      now += 10_000;
+    }
+    const sixth = await identify('commission-5');
+    expect(sixth.statusCode).toBe(429);
+    expect(sixth.headers['retry-after']).toBe('10');
 
-    now += 11_999;
+    now += 9_999;
     expect((await identify('commission-5')).statusCode).toBe(429);
+    // The first request leaves the window 60 seconds after it was made; only one fits.
     now += 1;
     expect((await identify('commission-5')).statusCode).toBe(201);
+    expect((await identify('commission-6')).statusCode).toBe(429);
 
     now += 60_000;
     const reset = await identify('commission-6');
-    expect(limitHeaders(reset)).toEqual({ limit: '2', remaining: '1', reset: '30' });
+    expect(limitHeaders(reset)).toEqual({ limit: '2', remaining: '1', reset: '60' });
     expect((await identify(undefined)).headers['ratelimit-remaining']).toBe('3');
   });
 

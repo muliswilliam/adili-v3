@@ -32,6 +32,9 @@ jobs:
           # History back to the base commit, for the diff and Turborepo's affected packages.
           fetch-depth: 0
       - id: plan
+        # An explicit bash shell sets pipefail, so a failing plan fails the job instead of
+        # leaving every output empty behind tee.
+        shell: bash
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/ci-plan.mjs "$BASE" | tee -a "$GITHUB_OUTPUT"
@@ -70,7 +73,8 @@ jobs:
         run: pnpm --filter @adili/schemas lint:forms
       # Services with a `contracts` script export their OpenAPI; each export must equal the
       # committed packages/schemas/internal/<service>.yaml (directory, documents, declarations,
-      # notifications), and each client generated from a contract must equal its committed copy.
+      # notifications, integration-gateway), and each client generated from a contract must equal
+      # its committed copy.
       - name: Internal contracts match the services
         run: pnpm contracts:drift
       # What the image does after the build (infra/docker/service.Dockerfile), on this job's

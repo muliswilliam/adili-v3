@@ -1,5 +1,4 @@
-import { type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
-import createClient, { type Client } from 'openapi-fetch';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
 import type { paths } from './integration-gateway-api.gen.js';
@@ -9,13 +8,13 @@ import { type IprsPerson, IprsLookup, IprsUnavailable } from './iprs-lookup.js';
 export const IPRS_SCOPE = 'iprs';
 
 export interface HttpIprsLookupOptions {
-  /** Base URL of the integration-gateway, e.g. `http://localhost:4010`. */
+  /** Base URL of the integration-gateway, e.g. `http://localhost:4009`. */
   integrationGatewayUrl: string;
   /** Client credentials tokens of the directory carrying `iprs`. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /**
-   * Per call. The gateway gives IPRS 2 s and answers 503 itself past that; this bounds a gateway
-   * that does not answer at all. Default 5 s.
+   * Per call. Default ADR-013's 2 s: the gateway gives IPRS 2 s itself and answers 503 past that,
+   * so a slow IPRS reads the same either way.
    */
   timeoutMs?: number;
   /** For tests. */
@@ -33,67 +32,30 @@ const iprsPersonSchema = z.object({
  * IPRS through the integration-gateway's internal API (`POST /internal/v1/iprs/person-lookups`,
  * the national ID in the body so it stays out of URLs and logs), with the client generated from
  * its contract (packages/schemas/internal/integration-gateway.yaml → integration-gateway-api.gen.ts
- * via `pnpm generate:api`) and the directory's own token (client credentials, `iprs`). 200 is the
- * person, 404 no such person; anything else (503 `upstream-unavailable`, a timeout, no answer)
- * is `IprsUnavailable`.
+ * via `pnpm generate:api`) on api-kit's service client (the directory's own token with `iprs`,
+ * one retry after a 401). 200 is the person, 404 no such person; anything else (503
+ * `upstream-unavailable`, a person that breaks the contract, no answer in time, no token) is
+ * `IprsUnavailable`.
  */
 export class HttpIprsLookup extends IprsLookup {
-  private readonly gateway: Client<paths>;
+  private readonly gateway: ServiceClient<paths>;
 
-  constructor(private readonly options: HttpIprsLookupOptions) {
+  constructor(options: HttpIprsLookupOptions) {
     super();
-    const fetchImpl = options.fetch ?? globalThis.fetch;
-    const timeoutMs = options.timeoutMs ?? 5_000;
-    this.gateway = createClient<paths>({
-      baseUrl: options.integrationGatewayUrl.replace(/\/$/, ''),
-      headers: { accept: 'application/json' },
-      fetch: (request) =>
-        fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) })),
+    this.gateway = createServiceClient<paths>({
+      baseUrl: options.integrationGatewayUrl,
+      service: 'integration-gateway',
+      tokens: options.tokens,
+      unavailable: (message, options) => new IprsUnavailable(message, options),
+      timeoutMs: options.timeoutMs,
+      fetch: options.fetch,
     });
   }
 
-  async find(nationalId: string): Promise<IprsPerson | null> {
-    let answer = await this.lookup(nationalId);
-    if (answer.response.status === 401) {
-      this.options.tokens.invalidate();
-      answer = await this.lookup(nationalId);
-    }
-    const { data, response } = answer;
-    if (response.status === 404) return null;
-    if (!response.ok || !data) {
-      throw new IprsUnavailable(`the integration-gateway answered ${String(response.status)}`);
-    }
-    const parsed = iprsPersonSchema.safeParse(data);
-    if (!parsed.success) {
-      throw new IprsUnavailable(
-        'the integration-gateway answered a person that breaks its contract',
-        {
-          cause: parsed.error,
-        },
-      );
-    }
-    return parsed.data;
-  }
-
-  private async lookup(nationalId: string) {
-    let token: string;
-    try {
-      token = await this.options.tokens.token();
-    } catch (error) {
-      if (error instanceof ServiceTokenError) {
-        throw new IprsUnavailable('no service token for the integration-gateway', {
-          cause: error,
-        });
-      }
-      throw error;
-    }
-    try {
-      return await this.gateway.POST('/internal/v1/iprs/person-lookups', {
-        body: { nationalId },
-        headers: { authorization: `Bearer ${token}` },
-      });
-    } catch (error) {
-      throw new IprsUnavailable('the integration-gateway is unreachable', { cause: error });
-    }
+  find(nationalId: string): Promise<IprsPerson | null> {
+    return this.gateway.call(
+      (api) => api.POST('/internal/v1/iprs/person-lookups', { body: { nationalId } }),
+      { status: 200, schema: iprsPersonSchema, otherwise: { 404: () => null } },
+    );
   }
 }

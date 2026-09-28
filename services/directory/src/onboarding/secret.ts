@@ -22,7 +22,7 @@ export function secretMatches(secret: string | undefined, secretHash: string): b
 }
 
 /** HMAC-SHA-256 of `parts` under `key`, base64url: stored instead of IPs and codes. */
-export function keyedHash(key: string, ...parts: string[]): string {
+export function keyedHash(key: string | Buffer, ...parts: string[]): string {
   const hmac = createHmac('sha256', key);
   for (const part of parts) hmac.update(part).update('\0');
   return hmac.digest('base64url');

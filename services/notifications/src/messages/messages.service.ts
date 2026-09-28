@@ -19,7 +19,8 @@ import {
   type MessageSender,
   SMS_SENDER,
 } from './message-sender.js';
-import type { MessageView, SendMessage } from './send-message.schema.js';
+import type { MessageView } from './representation.js';
+import type { SendMessage } from './send-message.schema.js';
 import { renderTemplate } from './templates.js';
 
 export const MESSAGES_OPTIONS = Symbol('MESSAGES_OPTIONS');

@@ -63,9 +63,7 @@ export async function withTenant<TSchema extends Record<string, unknown>, TResul
   work: (tx: Transaction<TSchema>) => Promise<TResult>,
 ): Promise<TResult> {
   return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select set_config('app.tenant', ${context.tenant}, true), set_config('app.subject', ${context.subject}, true)`,
-    );
+    await switchTenant(tx, context);
     return work(tx);
   });
 }
@@ -89,4 +87,19 @@ export async function withPerson<TSchema extends Record<string, unknown>, TResul
     );
     return work(tx);
   });
+}
+
+/**
+ * Re-scopes a `withTenant` transaction to another tenant for the rest of it (ADR-006), e.g. a
+ * public route that finds a row in the platform context and then works on it as its tenant.
+ * Rows read before stay readable in memory; later statements see only the new tenant's rows.
+ * Like `withTenant`, the setting ends with the transaction.
+ */
+export async function switchTenant<TSchema extends Record<string, unknown>>(
+  tx: Transaction<TSchema>,
+  context: TenantContext,
+): Promise<void> {
+  await tx.execute(
+    sql`select set_config('app.tenant', ${context.tenant}, true), set_config('app.subject', ${context.subject}, true)`,
+  );
 }

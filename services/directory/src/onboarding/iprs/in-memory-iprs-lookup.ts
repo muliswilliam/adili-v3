@@ -2,20 +2,34 @@ import { type IprsPerson, IprsLookup, IprsUnavailable } from './iprs-lookup.js';
 
 /**
  * `IprsLookup` for tests: answers from the people it was given (null for anyone else), records
- * the national IDs asked for, and can be made unavailable.
+ * the national IDs asked for, can be made unavailable, and holds the next lookup until released
+ * (to see what waits on it).
  */
 export class InMemoryIprsLookup extends IprsLookup {
   private readonly people = new Map<string, IprsPerson>();
   private readonly lookups: string[] = [];
   private unavailable = 0;
+  private hold: Promise<void> | undefined;
 
-  find(nationalId: string): Promise<IprsPerson | null> {
+  async find(nationalId: string): Promise<IprsPerson | null> {
     this.lookups.push(nationalId);
+    const hold = this.hold;
+    this.hold = undefined;
+    await hold;
     if (this.unavailable > 0) {
       this.unavailable -= 1;
-      return Promise.reject(new IprsUnavailable('unavailable on request'));
+      throw new IprsUnavailable('unavailable on request');
     }
-    return Promise.resolve(this.people.get(nationalId) ?? null);
+    return this.people.get(nationalId) ?? null;
+  }
+
+  /** Holds the next lookup (after recording it) until the returned function is called. */
+  holdNext(): () => void {
+    let release: () => void = () => undefined;
+    this.hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    return release;
   }
 
   /** IPRS holds `person` under `nationalId`. */
@@ -37,5 +51,6 @@ export class InMemoryIprsLookup extends IprsLookup {
     this.people.clear();
     this.lookups.length = 0;
     this.unavailable = 0;
+    this.hold = undefined;
   }
 }

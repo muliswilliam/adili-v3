@@ -125,14 +125,26 @@ describe('GET /v1/me/declarant (S18)', () => {
     expect(body.contacts).toEqual({ email: null, phone: null });
   });
 
-  it('is 404 for a signed-in caller who is not an onboarded declarant', async () => {
+  it('is 404 for a declarant account without an onboarded person', async () => {
+    const response = await api.get(PROFILE, {
+      sub: 'someone-else',
+      tenant: 'tsc',
+      roles: ['declarant'],
+    });
+
+    expect(response.statusCode, response.body).toBe(404);
+    expect(response.headers['content-type']).toContain('application/problem+json');
+  });
+
+  it('is 403 for a caller without the declarant role, even as the person', async () => {
     for (const caller of [
-      { sub: 'someone-else', tenant: 'tsc', roles: ['declarant'] },
       TSC_OFFICER,
       HELPDESK,
+      // The person's own account, were it to lose the declarant role.
+      { ...declarant(wanjiru), roles: ['reviewer'] },
     ]) {
       const response = await api.get(PROFILE, caller);
-      expect(response.statusCode, response.body).toBe(404);
+      expect(response.statusCode, response.body).toBe(403);
       expect(response.headers['content-type']).toContain('application/problem+json');
     }
   });

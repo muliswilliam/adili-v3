@@ -44,6 +44,23 @@ const FORMS: Form[] = [
     },
   },
   { file: 'form-k.v1', typeName: 'FormKV1' },
+  {
+    file: 'form-m.v1',
+    typeName: 'FormMV1',
+    zod: {
+      rootName: 'FormMSchema',
+      names: {
+        '#/properties/schemaVersion': 'FORM_M_VERSION',
+        '#/$defs/NonFilerRow/properties/actionTaken': 'ACTIONS_TAKEN',
+        '#/$defs/NonFilerRow/properties/complied': 'COMPLIANCE_STATUSES',
+        '#/properties/partII/properties/clarifications/properties/items/items/properties/statusOfCompliance':
+          'CLARIFICATION_STATUSES',
+        '#/properties/partII/properties/accessRequests/properties/declineReasons/items/properties/reason':
+          'DECLINE_REASONS',
+        '#/properties/meta/properties/source': 'REPORT_SOURCES',
+      },
+    },
+  },
 ];
 
 const require = createRequire(import.meta.url);

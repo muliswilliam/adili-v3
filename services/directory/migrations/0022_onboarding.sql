@@ -1,8 +1,8 @@
-CREATE TABLE "onboarding_attempts" (
+CREATE TABLE "onboarding_failures" (
 	"tenant" text NOT NULL,
 	"window_start" timestamp with time zone NOT NULL,
 	"failures" integer NOT NULL,
-	CONSTRAINT "onboarding_attempts_tenant_window_start_pk" PRIMARY KEY("tenant","window_start")
+	CONSTRAINT "onboarding_failures_tenant_window_start_pk" PRIMARY KEY("tenant","window_start")
 );
 --> statement-breakpoint
 CREATE TABLE "onboarding_otps" (
@@ -41,6 +41,7 @@ CREATE TABLE "onboarding_sessions" (
 	"completed_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "onboarding_sessions_id_tenant_key" UNIQUE("id","tenant"),
 	CONSTRAINT "onboarding_sessions_state_check" CHECK ("onboarding_sessions"."state" in ('identified', 'email-contact-required', 'email-pending', 'email-verified', 'phone-contact-required', 'phone-pending', 'phone-verified', 'confirmed', 'identity-mismatch', 'expired')),
 	CONSTRAINT "onboarding_sessions_email_source_check" CHECK (("onboarding_sessions"."email" is null) = ("onboarding_sessions"."email_source" is null) and ("onboarding_sessions"."email_source" is null or "onboarding_sessions"."email_source" in ('roster', 'declarant'))),
 	CONSTRAINT "onboarding_sessions_phone_source_check" CHECK (("onboarding_sessions"."phone" is null) = ("onboarding_sessions"."phone_source" is null) and ("onboarding_sessions"."phone_source" is null or "onboarding_sessions"."phone_source" in ('roster', 'declarant'))),
@@ -72,8 +73,8 @@ ALTER TABLE "roster_records" ADD COLUMN "phone_source" text DEFAULT 'roster' NOT
 ALTER TABLE "roster_records" ADD COLUMN "person_id" uuid;--> statement-breakpoint
 ALTER TABLE "roster_records" ADD COLUMN "onboarded_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "roster_records" ADD COLUMN "identity_mismatch_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "onboarding_attempts" ADD CONSTRAINT "onboarding_attempts_tenant_commissions_slug_fk" FOREIGN KEY ("tenant") REFERENCES "public"."commissions"("slug") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "onboarding_otps" ADD CONSTRAINT "onboarding_otps_session_id_onboarding_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."onboarding_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "onboarding_failures" ADD CONSTRAINT "onboarding_failures_tenant_commissions_slug_fk" FOREIGN KEY ("tenant") REFERENCES "public"."commissions"("slug") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "onboarding_otps" ADD CONSTRAINT "onboarding_otps_session_fk" FOREIGN KEY ("session_id","tenant") REFERENCES "public"."onboarding_sessions"("id","tenant") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "onboarding_sessions" ADD CONSTRAINT "onboarding_sessions_tenant_commissions_slug_fk" FOREIGN KEY ("tenant") REFERENCES "public"."commissions"("slug") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "onboarding_sessions" ADD CONSTRAINT "onboarding_sessions_roster_record_id_roster_records_id_fk" FOREIGN KEY ("roster_record_id") REFERENCES "public"."roster_records"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "onboarding_sessions" ADD CONSTRAINT "onboarding_sessions_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

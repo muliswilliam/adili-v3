@@ -1,10 +1,15 @@
-import { problemDetailsSchema } from '@adili/api-kit';
+import { type ProblemCode, problemDetailsSchema } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { slugSchema } from '../commissions/create-commission.js';
 import { CONTACT_SOURCES } from '../roster/schema.js';
-import { normaliseEmail, normalisePhone } from './contact.js';
-import { ONBOARDING_OUTCOMES, ONBOARDING_STATES, OTP_CHANNELS } from './session-state.js';
+import { normaliseEmail, normalisePhone } from '../roster/normalise.js';
+import {
+  ONBOARDING_OUTCOMES,
+  ONBOARDING_STATES,
+  OTP_CHANNELS,
+  SET_PASSWORD_EMAIL_STATUSES,
+} from './session-state.js';
 
 /** Representations of the public onboarding API (contract components of the same names). */
 
@@ -105,6 +110,10 @@ export const onboardingSessionSchema = z.object({
     .optional()
     .meta({ description: 'Set when state is confirmed or identity-mismatch' }),
   ofr: ofrSchema.nullable().optional(),
+  setPasswordEmail: z.enum(SET_PASSWORD_EMAIL_STATUSES).nullable().meta({
+    description:
+      'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session',
+  }),
   expiresAt: z.iso.datetime(),
 });
 
@@ -183,7 +192,7 @@ export const ONBOARDING_PROBLEM_CODES = [
   'email-in-use',
   'rate-limit-exceeded',
   'wrong-step',
-] as const;
+] as const satisfies readonly ProblemCode[];
 
 export const onboardingProblemSchema = problemDetailsSchema.extend({
   code: z.enum(ONBOARDING_PROBLEM_CODES),

@@ -5,6 +5,7 @@ export {
   declarationIssues,
   type PersonKey,
   sectionContents,
+  sectionIssues,
   sectionSchema,
   validateDeclaration,
 } from './declaration.js';
@@ -44,5 +45,22 @@ export {
 } from './declaration.v1.zod.gen.js';
 export { validateFormK } from './form-k.js';
 export type { FormKV1 } from './form-k.v1.gen.js';
+export {
+  FORM_M_SECTIONS,
+  type FormMIssue,
+  type FormMProblems,
+  type FormMSectionKey,
+  formMIssues,
+  validateFormM,
+} from './form-m.js';
+export type { FormMV1 } from './form-m.v1.gen.js';
+export {
+  ACTIONS_TAKEN,
+  CLARIFICATION_STATUSES,
+  COMPLIANCE_STATUSES,
+  DECLINE_REASONS,
+  FormMSchema,
+  REPORT_SOURCES,
+} from './form-m.v1.zod.gen.js';
 export { COUNTIES, COUNTRIES, CURRENCIES } from './reference-data.js';
 export { type FormValidationError, type FormValidationResult } from './validate.js';

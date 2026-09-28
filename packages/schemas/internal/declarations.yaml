@@ -1993,8 +1993,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

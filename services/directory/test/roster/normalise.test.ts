@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { normaliseEmail, normalisePhone } from '../../src/onboarding/contact.js';
+import {
+  fileNumberKey,
+  normaliseEmail,
+  normaliseNationalId,
+  normalisePhone,
+} from '../../src/roster/normalise.js';
 
-/** Contacts a declarant supplies are normalised as roster imports normalise the roster's. */
-describe('contact normalisation', () => {
+/**
+ * One normalisation for roster rows and what a declarant types at onboarding, so identify
+ * matches what imports stored and supplied contacts look like the roster's.
+ */
+describe('roster normalisation', () => {
+  it('keys file numbers trimmed and case-insensitively, and keeps national ID digits', () => {
+    expect(fileNumberKey('  TSC/100200 ')).toBe('tsc/100200');
+    expect(normaliseNationalId('1234 5678')).toBe('12345678');
+  });
+
   it('trims and lower-cases emails, and refuses invalid ones', () => {
     expect(normaliseEmail('  Jane.Doe@MOE.go.ke ')).toBe('jane.doe@moe.go.ke');
     expect(normaliseEmail('not-an-email')).toBeNull();

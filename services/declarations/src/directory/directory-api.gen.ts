@@ -571,7 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Match personnel file number and national ID against a Commission's roster
-         * @description Public, rate-limited per client IP and per client IP and Commission (a Commission without a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+         * @description Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
          */
         post: operations["identifyDeclarant"];
         delete?: never;
@@ -671,7 +671,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm roster details, run the IPRS check and create or link the account
-         * @description Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`).
+         * @description Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`). Idempotent per Idempotency-Key: a retry gets the first answer back.
          */
         post: operations["confirmOnboarding"];
         delete?: never;
@@ -691,9 +691,29 @@ export interface paths {
         put?: never;
         /**
          * Send the set-password email again
-         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`).
+         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
          */
         post: operations["resendSetPasswordEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/roster/onboarding-failures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Failed onboarding attempts against the Commission in the last 24 hours
+         * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission. Counts only, no identifiers: many failures point to a stale roster or an attack (spec 03, story 30).
+         */
+        get: operations["getOnboardingFailures"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -709,7 +729,7 @@ export interface paths {
         };
         /**
          * The signed-in declarant's person, OFR, Commissions and verified contacts
-         * @description Any authenticated caller; the person is the one whose account is the token's subject, so a caller only ever reads their own. The portal dashboard reads it.
+         * @description Declarants only, their own: the person is the one whose account is the token's subject. The portal dashboard reads it, and takes 403 and 404 alike as "not a declarant".
          */
         get: operations["getMyDeclarantProfile"];
         put?: never;
@@ -1250,7 +1270,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
             /** @description Field-level errors */
@@ -1270,7 +1290,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1601,6 +1621,8 @@ export interface components {
             /** @description Set when state is confirmed or identity-mismatch */
             outcome?: components["schemas"]["OnboardingOutcome"] | null;
             ofr?: components["schemas"]["Ofr"] | null;
+            /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
+            setPasswordEmail: ("sent" | "failed") | null;
             /** Format: date-time */
             expiresAt: string;
         };
@@ -1630,6 +1652,8 @@ export interface components {
             /** @description Set when state is confirmed or identity-mismatch */
             outcome?: components["schemas"]["OnboardingOutcome"] | null;
             ofr?: components["schemas"]["Ofr"] | null;
+            /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
+            setPasswordEmail: ("sent" | "failed") | null;
             /** Format: date-time */
             expiresAt: string;
             /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
@@ -1661,6 +1685,21 @@ export interface components {
                 /** Format: uri */
                 recoverAccess?: string;
             };
+        };
+        OnboardingFailures: {
+            /**
+             * Format: date-time
+             * @description Start of the earliest hour counted: the current hour and the 23 before it
+             */
+            since: string;
+            /** @description Failed onboarding attempts against the Commission since `since`, by anyone: identify answered `no-match` (wrong or unknown identifiers, or an exited record), or a session ended because its codes or resends ran out */
+            failedAttempts: number;
+            /** @description Hours with failed attempts, oldest first */
+            hours: {
+                /** Format: date-time */
+                windowStart: string;
+                failedAttempts: number;
+            }[];
         };
         DeclarantProfile: {
             /** Format: uuid */
@@ -1723,7 +1762,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -3828,7 +3867,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            /** @description Problem code `already-onboarded` (with `links`) or `no-roster` */
+            /** @description Problem code `already-onboarded` (with `links`), or `no-roster`: no active Commission with that slug, or it has not imported a roster */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4207,6 +4246,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
             };
@@ -4259,6 +4300,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
             429: {
                 headers: {
@@ -4300,6 +4350,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
             };
@@ -4350,6 +4402,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
             429: {
                 headers: {
@@ -4366,6 +4427,46 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+        };
+    };
+    getOnboardingFailures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Failed attempts by hour */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingFailures"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -4397,7 +4498,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The caller is not an onboarded declarant */
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The account has the declarant role but no onboarded person */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4549,7 +4659,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationProblem"];
-            /** @description Problem code `identity-mismatch` (IPRS) or `already-registered` */
+            /** @description The identity document does not match IPRS, or belongs to an existing account */
             409: {
                 headers: {
                     [name: string]: unknown;

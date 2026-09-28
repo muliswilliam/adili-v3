@@ -9,8 +9,7 @@ import {
 } from '../../identity/identity-provisioning.js';
 import { persons } from '../../persons/schema.js';
 import { setPasswordEmail } from '../confirm/set-password-email.js';
-import { ONBOARDING_TIMING } from '../session-state.js';
-import { OnboardingSessions, wrongStep } from '../sessions.repository.js';
+import { OnboardingSessions, refuseDuringCooldown, wrongStep } from '../sessions.repository.js';
 
 /**
  * Resending the set-password email (spec 03, "check your email"): only for a session confirmed
@@ -37,13 +36,7 @@ export class PasswordEmailService {
         ) {
           throw wrongStep();
         }
-        const lastSentAt = session.passwordEmailSentAt?.getTime() ?? 0;
-        const waitMs = lastSentAt + ONBOARDING_TIMING.resendCooldownMs - now.getTime();
-        if (waitMs > 0) {
-          throw ProblemException.fromCode('resend-cooldown', {
-            extensions: { retryAfterSeconds: Math.ceil(waitMs / 1000) },
-          });
-        }
+        refuseDuringCooldown(session.passwordEmailSentAt, now);
         const [person] = await tx
           .select({ keycloakUserId: persons.keycloakUserId })
           .from(persons)

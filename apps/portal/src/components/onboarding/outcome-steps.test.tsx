@@ -38,6 +38,7 @@ function session(overrides: Partial<OnboardingSession> = {}): OnboardingSession 
     otp: { channel: null, resendAvailableAt: null, resendsLeft: 0, attemptsLeft: 0 },
     outcome: 'account-created',
     ofr: 'OFR-0000418-X',
+    setPasswordEmail: 'sent',
     expiresAt: '2099-01-01T00:00:00Z',
     ...overrides,
   };
@@ -147,6 +148,39 @@ describe('CheckEmailStep', () => {
     fireEvent.click(resendButton());
 
     expect(await screen.findByText('We could not send the email')).toBeDefined();
+  });
+
+  it('says the account is ready but the email did not go, with sending it open at once', () => {
+    renderCheckEmail(session({ setPasswordEmail: 'failed' }));
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Your account is ready' })).toBeDefined();
+    expect(screen.getByText(/We could not send the email to set your password to/)).toBeDefined();
+    expect(screen.getByText('j***@tsc.go.ke')).toBeDefined();
+    expect(screen.queryByText('Check your email')).toBeNull();
+    const send = screen.getByRole<HTMLButtonElement>('button', { name: 'Send email' });
+    expect(send.disabled).toBe(false);
+    expect(screen.getByText('OFR-0000418-X')).toBeDefined();
+  });
+
+  it('sends the email that did not go, then says where the link went', async () => {
+    renderCheckEmail(session({ setPasswordEmail: 'failed' }));
+    resendMock.mockResolvedValue({
+      ok: true,
+      session: session({
+        setPasswordEmail: 'sent',
+        otp: { ...session().otp, resendAvailableAt: inSeconds(60) },
+      }),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send email' }));
+
+    expect(await screen.findByText('Email sent')).toBeDefined();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Check your email' }),
+    ).toBeDefined();
+    await waitFor(() => {
+      expect(resendButton().textContent).toMatch(/Resend email in (59|60)s/);
+    });
   });
 
   it('lets the declarant leave and start again for another Commission', async () => {

@@ -16,6 +16,15 @@ export {
   ServiceTokenError,
 } from './auth/service-token-client.js';
 export { TokenVerifier } from './auth/token-verifier.js';
+export {
+  createServiceClient,
+  type ExpectedAnswer,
+  SERVICE_CALL_TIMEOUT_MS,
+  type ServiceAnswer,
+  ServiceCallFailed,
+  type ServiceClient,
+  type ServiceClientOptions,
+} from './service-client.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from './config.js';
 export { errorType } from './error-type.js';
@@ -28,6 +37,7 @@ export {
   IDEMPOTENT_REPLAYED_HEADER,
   IdempotencyInterceptor,
   RequireIdempotencyKey,
+  type RequireIdempotencyKeyOptions,
 } from './idempotency/idempotency.interceptor.js';
 export {
   IdempotencyModule,
@@ -86,13 +96,12 @@ export {
 export { RateLimitModule, type RateLimitModuleOptions } from './rate-limit/rate-limit.module.js';
 export {
   type ConsumeOptions,
+  countRequest,
   RATE_LIMIT_CLOCK,
   type RateLimitClock,
   type RateLimitDecision,
   type RateLimitPolicy,
   RateLimitStore,
-  takeToken,
-  type TokenBucket,
 } from './rate-limit/rate-limit.store.js';
 export { type ContractExportOptions, exportContract } from './contract.js';
 export {

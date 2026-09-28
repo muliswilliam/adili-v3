@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { config } from '../../src/config.js';
-import { onboardingAttempts, onboardingSessions, outbox } from '../../src/db/schema.js';
+import { onboardingFailures, onboardingSessions, outbox } from '../../src/db/schema.js';
 import type {
   OnboardingCommission,
   OnboardingSession,
@@ -80,7 +80,7 @@ async function outboxEvents() {
 
 async function failuresOf(tenant: string) {
   const rows = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
-    tx.select().from(onboardingAttempts).where(eq(onboardingAttempts.tenant, tenant)),
+    tx.select().from(onboardingFailures).where(eq(onboardingFailures.tenant, tenant)),
   );
   return rows.reduce((sum, row) => sum + row.failures, 0);
 }
@@ -188,6 +188,7 @@ describe('S2 identify', () => {
       },
       outcome: null,
       ofr: null,
+      setPasswordEmail: null,
       expiresAt: '2026-10-01T09:30:00.000Z',
     });
 
@@ -339,33 +340,38 @@ describe('S3 no-match', () => {
   });
 
   it('takes comparable time for every cause', async () => {
-    const rounds = 12;
-    const timings = new Map(Object.keys(causes).map((cause) => [cause, [] as number[]]));
+    const rounds = 21;
+    const timings: Record<string, number[]> = {};
+    const entries = Object.entries(causes);
     // Warm up connections and code paths first.
-    for (const input of Object.values(causes)) await identify(api, input, freshIp());
-    // Causes take turns in every round, so load from suites running alongside slows them alike.
+    for (const [, input] of entries) await identify(api, input, freshIp());
+    // Causes take turns within each round, so a machine getting busier or quieter over the
+    // run (other suites in parallel) weighs on every cause alike.
     for (let round = 0; round < rounds; round++) {
-      for (const [cause, input] of Object.entries(causes)) {
+      for (const [cause, input] of entries) {
         const started = performance.now();
         await identify(api, input, freshIp());
-        timings.get(cause)?.push(performance.now() - started);
+        (timings[cause] ??= []).push(performance.now() - started);
       }
     }
-    const medians: Record<string, number> = {};
-    for (const [cause, values] of timings) {
-      values.sort((a, b) => a - b);
-      medians[cause] = values[Math.floor(rounds / 2)] ?? 0;
-    }
 
+    // Every cause does the same work (one lookup, one failure count): the medians differ by
+    // scheduling noise only (a few ms with other suites running), under three quarters of one.
+    const medians = Object.fromEntries(
+      Object.entries(timings).map(([cause, values]) => [
+        cause,
+        values.sort((a, b) => a - b)[Math.floor(rounds / 2)] ?? 0,
+      ]),
+    );
     const values = Object.values(medians);
     const spread = Math.max(...values) - Math.min(...values);
-    expect(spread, JSON.stringify(medians)).toBeLessThan(Math.max(15, Math.min(...values)));
+    expect(spread, JSON.stringify(medians)).toBeLessThan(Math.max(10, Math.min(...values) * 0.75));
   });
 
   it('records the abuse threshold event once when a window reaches it', async () => {
     const window = new Date('2026-10-01T09:00:00Z');
     await withTenant(api.db, { tenant: 'tsc', subject: 'test' }, (tx) =>
-      tx.insert(onboardingAttempts).values({
+      tx.insert(onboardingFailures).values({
         tenant: 'tsc',
         windowStart: window,
         failures: config.ONBOARDING_ABUSE_THRESHOLD - 1,
@@ -381,13 +387,6 @@ describe('S3 no-match', () => {
     expect(events.map(({ envelope }) => [envelope.tenant, envelope.data])).toEqual([
       ['tsc', { window: window.toISOString(), failures: config.ONBOARDING_ABUSE_THRESHOLD }],
     ]);
-  });
-
-  it('answers no-match for an unknown Commission too', async () => {
-    const response = await identify(api, { ...asWanjiru, commission: 'kpa' }, freshIp());
-
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: 'no-match' });
   });
 });
 
@@ -439,8 +438,26 @@ describe('S5 no roster', () => {
   });
 });
 
+describe('S5 unknown Commission', () => {
+  it('answers 409 no-roster for a slug that is no active Commission, using up no rate limit', async () => {
+    const ip = freshIp();
+    const refusals = [];
+    for (let attempt = 0; attempt < 6; attempt++) {
+      refusals.push(await identify(api, { ...asWanjiru, commission: 'kpa' }, ip));
+    }
+
+    expect(refusals.map((response) => response.statusCode)).toEqual(Array(6).fill(409));
+    expect(refusals[0]?.json()).toMatchObject({ code: 'no-roster', status: 409 });
+    expect(contractErrors(componentSchema('OnboardingProblem'), refusals[0]?.json())).toEqual([]);
+    expect(refusals.map((response) => response.headers['ratelimit-remaining'])).toEqual(
+      Array(6).fill('5'),
+    );
+    expect((await identify(api, asWanjiru, ip)).statusCode).toBe(201);
+  });
+});
+
 describe('S6 rate limits', () => {
-  it('refuses the sixth attempt from one IP within 15 minutes, with headers, until the clock refills it', async () => {
+  it('refuses the sixth attempt from one IP within 15 minutes, with headers', async () => {
     const ip = freshIp();
     const other = freshIp();
     const attempts = [];
@@ -462,22 +479,51 @@ describe('S6 rate limits', () => {
       'ratelimit-limit': '5',
       'ratelimit-remaining': '0',
       'ratelimit-reset': '900',
-      'retry-after': '180',
+      'retry-after': '900',
     });
-    expect(sixth.json()).toMatchObject({ code: 'rate-limit-exceeded', retryAfterSeconds: 180 });
+    expect(sixth.json()).toMatchObject({ code: 'rate-limit-exceeded', retryAfterSeconds: 900 });
     expect(contractErrors(componentSchema('OnboardingProblem'), sixth.json())).toEqual([]);
     // Another address has its own budget.
     expect((await identify(api, asWanjiru, other)).statusCode).toBe(201);
+  });
 
-    // One attempt comes back every 3 minutes; all five after 15.
-    api.clock.advance(179_000);
+  it('still refuses a sixth attempt at minute 3, and at 14:59, then lets one in at 15:00', async () => {
+    const ip = freshIp();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await identify(api, { ...asWanjiru, nationalId: `8765432${attempt}` }, ip);
+    }
+
+    // No attempt comes back before its 15 minutes are up (a token bucket gave one back every 3).
+    api.clock.advance(3 * 60 * 1000);
+    const atMinuteThree = await identify(api, asWanjiru, ip);
+    expect(atMinuteThree.statusCode).toBe(429);
+    expect(atMinuteThree.headers['retry-after']).toBe('720');
+    api.clock.advance(12 * 60 * 1000 - 1_000);
     expect((await identify(api, asWanjiru, ip)).statusCode).toBe(429);
+
     api.clock.advance(1_000);
+    const inWindow = await identify(api, asWanjiru, ip);
+    expect(inWindow.statusCode, inWindow.body).toBe(201);
+    expect(inWindow.headers['ratelimit-remaining']).toBe('4');
+  });
+
+  it('holds five attempts in any 15 minutes, however they are spread', async () => {
+    const ip = freshIp();
+    for (let minute = 0; minute < 5; minute++) {
+      await identify(api, { ...asWanjiru, nationalId: `8765432${minute}` }, ip);
+      api.clock.advance(2 * 60 * 1000);
+    }
+
+    // Minute 10: the first attempt (minute 0) leaves the window at minute 15.
+    const refused = await identify(api, asWanjiru, ip);
+    expect(refused.statusCode).toBe(429);
+    expect(refused.headers['retry-after']).toBe('300');
+    api.clock.advance(5 * 60 * 1000);
     expect((await identify(api, asWanjiru, ip)).statusCode).toBe(201);
-    api.clock.advance(15 * 60 * 1000);
-    const refilled = await identify(api, asWanjiru, ip);
-    expect(refilled.statusCode).toBe(201);
-    expect(refilled.headers['ratelimit-remaining']).toBe('4');
+    // Minute 15: the one from minute 2 still counts until minute 17.
+    const next = await identify(api, { ...asWanjiru, nationalId: '87654329' }, ip);
+    expect(next.statusCode).toBe(429);
+    expect(next.headers['retry-after']).toBe('120');
   });
 
   describe('per IP and Commission', () => {

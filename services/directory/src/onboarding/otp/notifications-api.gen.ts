@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Render a template and send it by email or SMS
-         * @description Synchronous with a 5-second budget. A provider failure is status failed.
+         * @description Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.
          */
         post: operations["sendMessage"];
         delete?: never;
@@ -31,7 +31,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Delivery status of a message */
+        /**
+         * Delivery status of a message
+         * @description Only the service that sent the message sees it.
+         */
         get: operations["getMessage"];
         put?: never;
         post?: never;
@@ -105,7 +108,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -114,6 +117,11 @@ export interface components {
                 message: string;
             }[];
         };
+        /**
+         * @description Templates later specs register. Not accepted yet; each moves into `TemplateId` when implemented.
+         * @enum {string}
+         */
+        PlannedTemplateId: "acknowledgement-email" | "acknowledgement-sms" | "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms" | "decision-email" | "decision-sms" | "notice-email" | "notice-sms" | "salary-stopped-email" | "salary-stopped-sms" | "salary-reinstated-email" | "salary-reinstated-sms" | "form-m-draft-ready-email" | "form-m-reminder-email" | "form-m-chase-email" | "form-m-receipt-email" | "access-request-acknowledged-email" | "access-request-notified-email" | "access-request-notified-sms" | "access-decision-applicant-email" | "access-decision-declarant-email" | "access-package-ready-email" | "access-officer-reminder-email" | "lea-grant-notice-email" | "lea-decision-email" | "certified-copy-ready-email";
     };
     responses: never;
     parameters: never;
@@ -145,7 +153,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description Unknown template, invalid recipient or params */
+            /** @description Unknown template, or a recipient or params the template rejects */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -185,6 +193,15 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Caller lacks the messages scope */
             403: {
                 headers: {
@@ -194,7 +211,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found, or sent by another caller */
+            /** @description No message with this id, or another caller sent it */
             404: {
                 headers: {
                     [name: string]: unknown;

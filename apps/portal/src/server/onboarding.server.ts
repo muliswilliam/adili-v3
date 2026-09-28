@@ -242,6 +242,11 @@ function sessionParams({ sessionId, secret }: OnboardingCredentials) {
   return { path: { sessionId }, header: { 'X-Onboarding-Secret': secret } };
 }
 
+function idempotentSessionParams(credentials: OnboardingCredentials, idempotencyKey: string) {
+  const { path, header } = sessionParams(credentials);
+  return { path, header: { ...header, 'Idempotency-Key': idempotencyKey } };
+}
+
 function channelParams({ sessionId, secret }: OnboardingCredentials, channel: OtpChannel) {
   return { path: { sessionId, channel }, header: { 'X-Onboarding-Secret': secret } };
 }
@@ -335,28 +340,34 @@ export async function provideContact(
 /**
  * Confirms the roster details. The directory checks them against the national register, then
  * creates the account or links the record to the declarant's existing one; the session's state
- * and outcome say which.
+ * and outcome say which. `idempotencyKey` is the submission's: a retry with it gets the first
+ * answer back instead of confirming again.
  */
 export function confirm(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
+  idempotencyKey: string,
 ): Promise<StepResult> {
   return sessionCall(client, credentials, async () => {
     const result = await client.POST('/v1/onboarding/sessions/{sessionId}/confirm', {
-      params: sessionParams(credentials),
+      params: idempotentSessionParams(credentials, idempotencyKey),
     });
     return { ...result, data: result.data?.session };
   });
 }
 
-/** Sends the set-password email again, then reads the session back for the new wait. */
+/**
+ * Sends the set-password email again, then reads the session back for the new wait. A retry with
+ * the submission's `idempotencyKey` sends no second email.
+ */
 export function resendPasswordEmail(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
+  idempotencyKey: string,
 ): Promise<StepResult> {
   return sessionCall(client, credentials, () =>
     client.POST('/v1/onboarding/sessions/{sessionId}/resend-password-email', {
-      params: sessionParams(credentials),
+      params: idempotentSessionParams(credentials, idempotencyKey),
     }),
   );
 }

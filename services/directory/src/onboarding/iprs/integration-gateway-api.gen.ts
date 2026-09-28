@@ -15,8 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Person as held by IPRS, cached for 24 hours (hits and misses)
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in
-         *     access logs, traces and problem details). Safe to repeat.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Requires a service token with scope `iprs`.
          */
         post: operations["lookupIprsPerson"];
         delete?: never;
@@ -290,6 +289,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        LookupIprsPerson: {
+            nationalId: string;
+        };
+        /** @description A person as IPRS holds them */
         IprsPerson: {
             nationalId: string;
             firstName: string;
@@ -304,9 +307,18 @@ export interface components {
             type: string;
             title: string;
             status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
-            code?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
         };
         /** @enum {string} */
         System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "payroll" | "icms";
@@ -479,15 +491,14 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    nationalId: string;
-                };
+                "application/json": components["schemas"]["LookupIprsPerson"];
             };
         };
         responses: {
             /** @description Person found */
             200: {
                 headers: {
+                    /** @description `hit` when the answer came from the cache, `miss` when IPRS was asked */
                     "X-Cache"?: "hit" | "miss";
                     [name: string]: unknown;
                 };
@@ -504,7 +515,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Caller lacks the iprs scope */
+            /** @description Requires one of the scopes: iprs */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -513,9 +524,10 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No IPRS record for this national ID */
+            /** @description Problem type `not-found`: IPRS has no person with this national ID */
             404: {
                 headers: {
+                    /** @description `hit` when the answer came from the cache, `miss` when IPRS was asked */
                     "X-Cache"?: "hit" | "miss";
                     [name: string]: unknown;
                 };

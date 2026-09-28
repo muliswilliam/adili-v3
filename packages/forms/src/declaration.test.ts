@@ -5,6 +5,7 @@ import {
   type DeclarationV1,
   declarationIssues,
   sectionContents,
+  sectionIssues,
   validateDeclaration,
 } from './index.js';
 import {
@@ -130,6 +131,34 @@ describe('declarationIssues', () => {
         },
       ],
     });
+  });
+});
+
+describe('sectionIssues', () => {
+  it.each(validDeclarations())('finds nothing in any capture section of %s', (_name, document) => {
+    for (const [key, contents] of sectionContents(document)) {
+      expect(sectionIssues(key, contents), key).toEqual([]);
+    }
+  });
+
+  it.each(invalidDeclarations())(
+    'finds in the capture section of %s what the whole declaration reports there',
+    (_name, { issues, document }) => {
+      const contents = new Map(sectionContents(document));
+
+      for (const key of new Set(issues.map((issue) => issue.sectionKey))) {
+        expect(sectionIssues(key, contents.get(key))).toEqual(
+          issues.filter((issue) => issue.sectionKey === key),
+        );
+      }
+    },
+  );
+
+  it('lists what an empty capture section still needs', () => {
+    expect(sectionIssues('household', {})).toEqual([
+      { sectionKey: 'household', path: '/spouses', code: 'required', message: 'is required' },
+      { sectionKey: 'household', path: '/children', code: 'required', message: 'is required' },
+    ]);
   });
 });
 

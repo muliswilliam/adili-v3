@@ -1,7 +1,10 @@
 import { ServiceTokenError } from '@adili/api-kit';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { NotificationsOtpDelivery } from '../../src/onboarding/otp/notifications-otp-delivery.js';
+import {
+  NOTIFICATIONS_SEND_TIMEOUT_MS,
+  NotificationsOtpDelivery,
+} from '../../src/onboarding/otp/notifications-otp-delivery.js';
 import { OtpDeliveryFailed, type OtpMessage } from '../../src/onboarding/otp/otp-delivery.js';
 import { componentSchema, contractErrors } from '../support/contract.js';
 
@@ -143,7 +146,12 @@ describe('NotificationsOtpDelivery', () => {
     ['a 400', [{ status: 400, body: { type: 'x', title: 'Bad', status: 400 } }], /400/],
     ['a 503', [{ status: 503 }], /503/],
     ['a second 401', [{ status: 401 }, { status: 401 }], /401/],
-    ['no answer', [new TypeError('fetch failed')], /unreachable/],
+    [
+      'an answer that breaks the contract',
+      [{ status: 201, body: { ...message('sent'), status: 'queued' } }],
+      /breaks its contract/,
+    ],
+    ['no answer', [new TypeError('fetch failed')], /did not answer/],
   ])('fails on %s', async (_case, given, reason) => {
     answers = given;
 
@@ -158,5 +166,10 @@ describe('NotificationsOtpDelivery', () => {
 
     await expect(sending).rejects.toBeInstanceOf(OtpDeliveryFailed);
     expect(calls).toEqual([]);
+  });
+
+  it("waits just past notifications' 5 s synchronous budget", () => {
+    expect(NOTIFICATIONS_SEND_TIMEOUT_MS).toBeGreaterThan(5_000);
+    expect(NOTIFICATIONS_SEND_TIMEOUT_MS).toBeLessThanOrEqual(6_000);
   });
 });

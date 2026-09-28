@@ -1,6 +1,6 @@
 {
   "id": "15892992-e66b-4ddb-8eb0-6fd6958424c9",
-  "prevId": "ed3ca26e-011e-4279-a137-9c6e9e9d1233",
+  "prevId": "54cda2bc-ac8a-45dc-a316-091c25736229",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -26,28 +26,28 @@
         "commission_categories_commission_id_commissions_id_fk": {
           "name": "commission_categories_commission_id_commissions_id_fk",
           "tableFrom": "commission_categories",
-          "tableTo": "commissions",
           "columnsFrom": [
             "commission_id"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "commission_categories_category_code_officer_categories_code_fk": {
           "name": "commission_categories_category_code_officer_categories_code_fk",
           "tableFrom": "commission_categories",
-          "tableTo": "officer_categories",
           "columnsFrom": [
             "category_code"
           ],
+          "tableTo": "officer_categories",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -127,15 +127,15 @@
           "columns": [
             {
               "expression": "lower(\"name\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -143,10 +143,10 @@
       "uniqueConstraints": {
         "commissions_slug_unique": {
           "name": "commissions_slug_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "slug"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -201,10 +201,10 @@
       "uniqueConstraints": {
         "officer_categories_sort_order_unique": {
           "name": "officer_categories_sort_order_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "sort_order"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -321,10 +321,10 @@
             }
           ],
           "isUnique": true,
-          "where": "\"reporting_officer_assignments\".\"state\" <> 'replaced'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"reporting_officer_assignments\".\"state\" <> 'replaced'",
+          "concurrently": false
         },
         "reporting_officer_assignments_keycloak_user_id_idx": {
           "name": "reporting_officer_assignments_keycloak_user_id_idx",
@@ -337,37 +337,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "reporting_officer_assignments_commission_id_commissions_id_fk": {
           "name": "reporting_officer_assignments_commission_id_commissions_id_fk",
           "tableFrom": "reporting_officer_assignments",
-          "tableTo": "commissions",
           "columnsFrom": [
             "commission_id"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "reporting_officer_assignments_replaced_by_reporting_officer_assignments_id_fk": {
           "name": "reporting_officer_assignments_replaced_by_reporting_officer_assignments_id_fk",
           "tableFrom": "reporting_officer_assignments",
-          "tableTo": "reporting_officer_assignments",
           "columnsFrom": [
             "replaced_by"
           ],
+          "tableTo": "reporting_officer_assignments",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -493,8 +493,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.onboarding_attempts": {
-      "name": "onboarding_attempts",
+    "public.onboarding_failures": {
+      "name": "onboarding_failures",
       "schema": "",
       "columns": {
         "tenant": {
@@ -518,23 +518,23 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "onboarding_attempts_tenant_commissions_slug_fk": {
-          "name": "onboarding_attempts_tenant_commissions_slug_fk",
-          "tableFrom": "onboarding_attempts",
-          "tableTo": "commissions",
+        "onboarding_failures_tenant_commissions_slug_fk": {
+          "name": "onboarding_failures_tenant_commissions_slug_fk",
+          "tableFrom": "onboarding_failures",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
-        "onboarding_attempts_tenant_window_start_pk": {
-          "name": "onboarding_attempts_tenant_window_start_pk",
+        "onboarding_failures_tenant_window_start_pk": {
+          "name": "onboarding_failures_tenant_window_start_pk",
           "columns": [
             "tenant",
             "window_start"
@@ -609,18 +609,20 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "onboarding_otps_session_id_onboarding_sessions_id_fk": {
-          "name": "onboarding_otps_session_id_onboarding_sessions_id_fk",
+        "onboarding_otps_session_fk": {
+          "name": "onboarding_otps_session_fk",
           "tableFrom": "onboarding_otps",
-          "tableTo": "onboarding_sessions",
           "columnsFrom": [
-            "session_id"
+            "session_id",
+            "tenant"
           ],
+          "tableTo": "onboarding_sessions",
           "columnsTo": [
-            "id"
+            "id",
+            "tenant"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -794,9 +796,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "onboarding_sessions_roster_record_id_idx": {
           "name": "onboarding_sessions_roster_record_id_idx",
@@ -809,9 +811,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "onboarding_sessions_live_expires_at_idx": {
           "name": "onboarding_sessions_live_expires_at_idx",
@@ -824,55 +826,64 @@
             }
           ],
           "isUnique": false,
-          "where": "\"onboarding_sessions\".\"state\" not in ('confirmed', 'identity-mismatch', 'expired')",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"onboarding_sessions\".\"state\" not in ('confirmed', 'identity-mismatch', 'expired')",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "onboarding_sessions_tenant_commissions_slug_fk": {
           "name": "onboarding_sessions_tenant_commissions_slug_fk",
           "tableFrom": "onboarding_sessions",
-          "tableTo": "commissions",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "onboarding_sessions_roster_record_id_roster_records_id_fk": {
           "name": "onboarding_sessions_roster_record_id_roster_records_id_fk",
           "tableFrom": "onboarding_sessions",
-          "tableTo": "roster_records",
           "columnsFrom": [
             "roster_record_id"
           ],
+          "tableTo": "roster_records",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "onboarding_sessions_person_id_persons_id_fk": {
           "name": "onboarding_sessions_person_id_persons_id_fk",
           "tableFrom": "onboarding_sessions",
-          "tableTo": "persons",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "persons",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "onboarding_sessions_id_tenant_key": {
+          "name": "onboarding_sessions_id_tenant_key",
+          "columns": [
+            "id",
+            "tenant"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "onboarding_sessions_state_check": {
@@ -968,9 +979,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "persons_ofr_key": {
           "name": "persons_ofr_key",
@@ -983,9 +994,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "persons_keycloak_user_id_key": {
           "name": "persons_keycloak_user_id_key",
@@ -998,9 +1009,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1076,24 +1087,24 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "roster_api_credentials_tenant_commissions_slug_fk": {
           "name": "roster_api_credentials_tenant_commissions_slug_fk",
           "tableFrom": "roster_api_credentials",
-          "tableTo": "commissions",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1164,122 +1175,27 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "reporting_entities_tenant_commissions_slug_fk": {
           "name": "reporting_entities_tenant_commissions_slug_fk",
           "tableFrom": "reporting_entities",
-          "tableTo": "commissions",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.roster_exits": {
-      "name": "roster_exits",
-      "schema": "",
-      "columns": {
-        "batch_id": {
-          "name": "batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "record_id": {
-          "name": "record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "exit_date": {
-          "name": "exit_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "roster_exits_record_id_idx": {
-          "name": "roster_exits_record_id_idx",
-          "columns": [
-            {
-              "expression": "record_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "roster_exits_record_id_roster_records_id_fk": {
-          "name": "roster_exits_record_id_roster_records_id_fk",
-          "tableFrom": "roster_exits",
-          "tableTo": "roster_records",
-          "columnsFrom": [
-            "record_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "roster_exits_tenant_commissions_slug_fk": {
-          "name": "roster_exits_tenant_commissions_slug_fk",
-          "tableFrom": "roster_exits",
-          "tableTo": "commissions",
-          "columnsFrom": [
-            "tenant"
-          ],
-          "columnsTo": [
-            "slug"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "roster_exits_batch_id_record_id_pk": {
-          "name": "roster_exits_batch_id_record_id_pk",
-          "columns": [
-            "batch_id",
-            "record_id"
-          ]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -1313,15 +1229,15 @@
         "roster_import_batches_import_id_roster_imports_id_fk": {
           "name": "roster_import_batches_import_id_roster_imports_id_fk",
           "tableFrom": "roster_import_batches",
-          "tableTo": "roster_imports",
           "columnsFrom": [
             "import_id"
           ],
+          "tableTo": "roster_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1433,9 +1349,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_import_rows_import_id_chunk_index_idx": {
           "name": "roster_import_rows_import_id_chunk_index_idx",
@@ -1454,9 +1370,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_import_rows_record_id_idx": {
           "name": "roster_import_rows_record_id_idx",
@@ -1469,37 +1385,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "roster_import_rows_import_id_roster_imports_id_fk": {
           "name": "roster_import_rows_import_id_roster_imports_id_fk",
           "tableFrom": "roster_import_rows",
-          "tableTo": "roster_imports",
           "columnsFrom": [
             "import_id"
           ],
+          "tableTo": "roster_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "roster_import_rows_record_id_roster_records_id_fk": {
           "name": "roster_import_rows_record_id_roster_records_id_fk",
           "tableFrom": "roster_import_rows",
-          "tableTo": "roster_records",
           "columnsFrom": [
             "record_id"
           ],
+          "tableTo": "roster_records",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1678,9 +1594,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_imports_one_in_progress_key": {
           "name": "roster_imports_one_in_progress_key",
@@ -1693,25 +1609,25 @@
             }
           ],
           "isUnique": true,
-          "where": "\"roster_imports\".\"state\" in ('pending', 'processing')",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"roster_imports\".\"state\" in ('pending', 'processing')",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "roster_imports_tenant_commissions_slug_fk": {
           "name": "roster_imports_tenant_commissions_slug_fk",
           "tableFrom": "roster_imports",
-          "tableTo": "commissions",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1943,15 +1859,15 @@
             },
             {
               "expression": "lower(\"personnel_file_number\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_records_tenant_national_id_idx": {
           "name": "roster_records_tenant_national_id_idx",
@@ -1970,9 +1886,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_records_national_id_idx": {
           "name": "roster_records_national_id_idx",
@@ -1985,9 +1901,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_records_tenant_full_name_id_idx": {
           "name": "roster_records_tenant_full_name_id_idx",
@@ -2012,9 +1928,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_records_tenant_summary_idx": {
           "name": "roster_records_tenant_summary_idx",
@@ -2039,9 +1955,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_records_tenant_flagged_idx": {
           "name": "roster_records_tenant_flagged_idx",
@@ -2054,10 +1970,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"roster_records\".\"absent_from_latest_import\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"roster_records\".\"absent_from_latest_import\"",
+          "concurrently": false
         },
         "roster_records_last_seen_import_id_idx": {
           "name": "roster_records_last_seen_import_id_idx",
@@ -2070,9 +1986,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "roster_records_tenant_identity_mismatch_at_idx": {
           "name": "roster_records_tenant_identity_mismatch_at_idx",
@@ -2091,10 +2007,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"roster_records\".\"identity_mismatch_at\" is not null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"roster_records\".\"identity_mismatch_at\" is not null",
+          "concurrently": false
         },
         "roster_records_person_id_idx": {
           "name": "roster_records_person_id_idx",
@@ -2107,90 +2023,90 @@
             }
           ],
           "isUnique": false,
-          "where": "\"roster_records\".\"person_id\" is not null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"roster_records\".\"person_id\" is not null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "roster_records_tenant_commissions_slug_fk": {
           "name": "roster_records_tenant_commissions_slug_fk",
           "tableFrom": "roster_records",
-          "tableTo": "commissions",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_records_reporting_entity_id_reporting_entities_id_fk": {
           "name": "roster_records_reporting_entity_id_reporting_entities_id_fk",
           "tableFrom": "roster_records",
-          "tableTo": "reporting_entities",
           "columnsFrom": [
             "reporting_entity_id"
           ],
+          "tableTo": "reporting_entities",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_records_person_id_persons_id_fk": {
           "name": "roster_records_person_id_persons_id_fk",
           "tableFrom": "roster_records",
-          "tableTo": "persons",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "persons",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_records_flagged_by_import_id_roster_imports_id_fk": {
           "name": "roster_records_flagged_by_import_id_roster_imports_id_fk",
           "tableFrom": "roster_records",
-          "tableTo": "roster_imports",
           "columnsFrom": [
             "flagged_by_import_id"
           ],
+          "tableTo": "roster_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_records_first_seen_import_id_roster_imports_id_fk": {
           "name": "roster_records_first_seen_import_id_roster_imports_id_fk",
           "tableFrom": "roster_records",
-          "tableTo": "roster_imports",
           "columnsFrom": [
             "first_seen_import_id"
           ],
+          "tableTo": "roster_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_records_last_seen_import_id_roster_imports_id_fk": {
           "name": "roster_records_last_seen_import_id_roster_imports_id_fk",
           "tableFrom": "roster_records",
-          "tableTo": "roster_imports",
           "columnsFrom": [
             "last_seen_import_id"
           ],
+          "tableTo": "roster_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2283,28 +2199,28 @@
         "roster_summaries_tenant_commissions_slug_fk": {
           "name": "roster_summaries_tenant_commissions_slug_fk",
           "tableFrom": "roster_summaries",
-          "tableTo": "commissions",
           "columnsFrom": [
             "tenant"
           ],
+          "tableTo": "commissions",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_summaries_last_import_id_roster_imports_id_fk": {
           "name": "roster_summaries_last_import_id_roster_imports_id_fk",
           "tableFrom": "roster_summaries",
-          "tableTo": "roster_imports",
           "columnsFrom": [
             "last_import_id"
           ],
+          "tableTo": "roster_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2374,9 +2290,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2495,10 +2411,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"outbox\".\"published_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"outbox\".\"published_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2555,14 +2471,109 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.roster_exits": {
+      "name": "roster_exits",
+      "schema": "",
+      "columns": {
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exit_date": {
+          "name": "exit_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "roster_exits_record_id_idx": {
+          "name": "roster_exits_record_id_idx",
+          "columns": [
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "roster_exits_record_id_roster_records_id_fk": {
+          "name": "roster_exits_record_id_roster_records_id_fk",
+          "tableFrom": "roster_exits",
+          "tableTo": "roster_records",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "roster_exits_tenant_commissions_slug_fk": {
+          "name": "roster_exits_tenant_commissions_slug_fk",
+          "tableFrom": "roster_exits",
+          "tableTo": "commissions",
+          "columnsFrom": [
+            "tenant"
+          ],
+          "columnsTo": [
+            "slug"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "roster_exits_batch_id_record_id_pk": {
+          "name": "roster_exits_batch_id_record_id_pk",
+          "columns": [
+            "batch_id",
+            "record_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

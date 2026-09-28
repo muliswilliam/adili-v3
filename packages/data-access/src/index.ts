@@ -21,6 +21,7 @@ export {
   type DatabaseOptions,
   type PersonContext,
   runMigrations,
+  switchTenant,
   type TenantContext,
   withPerson,
   withTenant,

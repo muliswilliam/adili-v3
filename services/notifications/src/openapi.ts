@@ -1,11 +1,10 @@
 import type { z } from 'zod';
 
+import { messageSchema, messageStatusSchema } from './messages/representation.js';
 import {
   channelSchema,
-  messageSchema,
-  messageStatusSchema,
   recipientSchema,
-  sendMessageSchema,
+  sendMessageBody,
   templateIdSchema,
 } from './messages/send-message.schema.js';
 
@@ -17,7 +16,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Channel: channelSchema,
   TemplateId: templateIdSchema,
   Recipient: recipientSchema,
-  SendMessage: sendMessageSchema,
+  SendMessage: sendMessageBody,
   MessageStatus: messageStatusSchema,
   Message: messageSchema,
 };

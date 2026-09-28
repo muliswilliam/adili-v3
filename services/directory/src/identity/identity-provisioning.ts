@@ -126,6 +126,19 @@ export class EmailTaken extends Error {
   }
 }
 
+/**
+ * The username belongs to an account that may not be replaced, e.g. an OFR held by an account
+ * that is not a declarant account left behind for that OFR. Needs an operator: retrying fails
+ * the same way.
+ */
+export class UsernameTaken extends Error {
+  override readonly name = 'UsernameTaken';
+
+  constructor(readonly username: string) {
+    super(`An account with username ${username} already exists`);
+  }
+}
+
 /** The identity provider could not be reached or failed; the operation may be retried. */
 export class IdentityUnavailable extends Error {
   override readonly name = 'IdentityUnavailable';
@@ -181,15 +194,22 @@ export abstract class IdentityProvisioning {
    * Creates an enabled declarant account: the OFR as username, the verified email, the `tenant`,
    * `tenants`, `ofr`, `person_id` and `phone` attributes, the `declarant` role and the
    * `UPDATE_PASSWORD` required action. Returns the new user id.
-   * @throws EmailTaken when an account with that email (or username) exists.
+   *
+   * The caller has just allocated the OFR in its transaction, so no committed person has it: an
+   * account already holding it is one an earlier attempt created before its transaction rolled
+   * back (and whose undo failed). Such a leftover, a declarant account whose `ofr` attribute is
+   * this OFR, is deleted and the account created, so the reference can be used again.
+   * @throws EmailTaken when another account has the email.
+   * @throws UsernameTaken when an account that is not such a leftover has the OFR as username.
    */
   abstract createDeclarantUser(input: CreateDeclarantUserInput): Promise<string>;
 
   /**
    * Adds `tenant` to the account's multi-valued `tenants` attribute (a person onboarded with
    * another Commission), keeping the single `tenant` attribute as it is, or setting it when the
-   * account has none. Returns the call that puts the previous tenants back exactly, or null when
-   * the account already had `tenant`.
+   * account has none. Returns the call that undoes exactly this change: it takes `tenant` out of
+   * `tenants` again (and out of `tenant` if this call set it), leaving any tenant added since in
+   * place; or null when the account already had `tenant`.
    * @throws IdentityUserNotFound
    */
   abstract addTenantToUser(userId: string, tenant: string): Promise<Restore | null>;

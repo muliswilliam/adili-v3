@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { withTenant } from '@adili/data-access';
 import { hasValidCheckCharacter } from '@adili/numbering';
 import { asc, eq } from 'drizzle-orm';
@@ -98,6 +100,23 @@ function resendPasswordEmail(session: { id: string; secret: string }) {
   return onSession(api, 'POST', session.id, '/resend-password-email', session.secret);
 }
 
+/** A POST on the session with this Idempotency-Key (none if null), as the portal sends it. */
+function postWithKey(
+  session: { id: string; secret: string },
+  path: '/confirm' | '/resend-password-email',
+  idempotencyKey: string | null,
+  secret = session.secret,
+) {
+  return api.anonymous({
+    method: 'POST',
+    url: `/v1/onboarding/sessions/${session.id}${path}`,
+    headers: {
+      'x-onboarding-secret': secret,
+      ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
+    },
+  });
+}
+
 async function events(type?: string) {
   const rows = await api.db
     .select({ type: outbox.eventType, envelope: outbox.envelope })
@@ -160,6 +179,7 @@ describe('S11 confirm creates the account', () => {
         state: 'confirmed',
         outcome: 'account-created',
         details: { fullName: 'Otieno Wanjiru', personnelFileNumber: 'TSC/100200' },
+        setPasswordEmail: 'sent',
       },
     });
     const ofr = result.session.ofr ?? '';
@@ -339,7 +359,12 @@ describe('S12, S13 identity mismatch', () => {
       expect(contractErrors(okResponse(CONFIRM_PATH, 'post'), result)).toEqual([]);
       expect(result).toMatchObject({
         outcome: 'identity-mismatch',
-        session: { state: 'identity-mismatch', outcome: 'identity-mismatch', ofr: null },
+        session: {
+          state: 'identity-mismatch',
+          outcome: 'identity-mismatch',
+          ofr: null,
+          setPasswordEmail: null,
+        },
       });
       expect(await sessionRow(session.id)).toMatchObject({ iprsOutcome, personId: null });
       expect(await record(tscRecord)).toMatchObject({
@@ -426,20 +451,30 @@ describe('S15 a person onboarded with another Commission', () => {
     expect(contractErrors(okResponse(CONFIRM_PATH, 'post'), result)).toEqual([]);
     expect(result).toMatchObject({
       outcome: 'linked-existing-account',
-      session: { state: 'confirmed', outcome: 'linked-existing-account', ofr: first.session.ofr },
+      session: {
+        state: 'confirmed',
+        outcome: 'linked-existing-account',
+        ofr: first.session.ofr,
+        setPasswordEmail: null,
+      },
     });
     // No password to set: nothing to resend.
     expect(result.session.otp.resendAvailableAt).toBeNull();
 
+    // Linking adds the Commission only: the person keeps the contacts their account has.
     expect(await allPersons()).toEqual([
       expect.objectContaining({
         id: person?.id,
         ofr: first.session.ofr,
         keycloakUserId,
-        email: 'wanjiru@example.com',
-        phone: '+254700111222',
+        email: WANJIRU.email,
+        phone: WANJIRU.phone,
       }),
     ]);
+    expect(api.identity.user(keycloakUserId)).toMatchObject({
+      email: WANJIRU.email,
+      phone: WANJIRU.phone,
+    });
     expect(api.identity.calls('createDeclarantUser')).toHaveLength(1);
     expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(1);
     expect(api.identity.calls('addTenantToUser')).toEqual([
@@ -449,10 +484,15 @@ describe('S15 a person onboarded with another Commission', () => {
       tenant: 'tsc',
       tenants: ['tsc', 'psc'],
     });
+    // The new Commission's record still gets the contacts verified for it.
     expect(await record(pscRecord)).toMatchObject({
       state: 'onboarded',
       personId: person?.id,
       onboardedAt: NOW,
+      email: 'wanjiru@example.com',
+      emailSource: 'declarant',
+      phone: '+254700111222',
+      phoneSource: 'declarant',
     });
     expect(await onboardedCount('psc')).toBe(1);
     expect(await events('declarant.onboarded.v1')).toEqual([
@@ -504,20 +544,82 @@ describe('S16 transaction boundaries', () => {
     expect(retry.session.ofr?.slice(0, 12)).toBe('OFR-0000001-');
   });
 
-  it('deletes the account it created when the set-password email fails, changing nothing', async () => {
+  it('keeps the committed account when the set-password email fails, and says so, with resend open at once', async () => {
     const session = await atConfirm(tscRecord);
     api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
 
     const response = await confirm(session);
 
-    expect(response.statusCode).toBe(502);
-    expect(response.json()).toMatchObject({ code: 'identity-unavailable' });
-    await expectNothingChanged(session);
-    const [created] = api.identity.calls('sendExecuteActionsEmail');
-    expect(api.identity.calls('deleteUser')).toEqual([
-      { operation: 'deleteUser', userId: created?.userId },
-    ]);
-    expect(api.identity.user(created?.userId ?? '')).toBeUndefined();
+    expect(response.statusCode, response.body).toBe(200);
+    const result = response.json<OnboardingConfirmResult>();
+    expect(contractErrors(okResponse(CONFIRM_PATH, 'post'), result)).toEqual([]);
+    expect(result).toMatchObject({
+      outcome: 'account-created',
+      session: { state: 'confirmed', setPasswordEmail: 'failed', otp: { resendAvailableAt: null } },
+    });
+    const [person] = await allPersons();
+    expect(person).toBeDefined();
+    expect(api.identity.calls('deleteUser')).toEqual([]);
+    expect(api.identity.user(person?.keycloakUserId ?? '')).toBeDefined();
+    expect(await record(tscRecord)).toMatchObject({ state: 'onboarded', personId: person?.id });
+    // The check-email step reads the same from the session.
+    expect((await getSession(api, session.id, session.secret)).json()).toEqual(result.session);
+
+    // No cooldown for an email that never went: the resend delivers it now.
+    expect((await resendPasswordEmail(session)).statusCode).toBe(202);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(2);
+    expect((await getSession(api, session.id, session.secret)).json()).toMatchObject({
+      setPasswordEmail: 'sent',
+      otp: { resendAvailableAt: new Date(NOW.getTime() + 60 * SECOND).toISOString() },
+    });
+  });
+
+  it('keeps saying failed when the resend fails too', async () => {
+    const session = await atConfirm(tscRecord);
+    api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
+    await confirm(session);
+    api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
+
+    const resend = await resendPasswordEmail(session);
+
+    expect(resend.statusCode).toBe(502);
+    expect(resend.json()).toMatchObject({ code: 'identity-unavailable' });
+    expect((await getSession(api, session.id, session.secret)).json()).toMatchObject({
+      setPasswordEmail: 'failed',
+      otp: { resendAvailableAt: null },
+    });
+  });
+
+  it('sends the set-password email only once the account and record are committed', async () => {
+    const session = await atConfirm(tscRecord);
+
+    const refused = await withOutboxRefusing(api, () => confirm(session));
+
+    expect(refused.statusCode).toBe(500);
+    expect(api.identity.calls('createDeclarantUser')).toHaveLength(1);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toEqual([]);
+  });
+
+  it('recovers from an account whose undo failed: the next confirm reuses its OFR', async () => {
+    const session = await atConfirm(tscRecord);
+    api.identity.failNext('deleteUser', new IdentityUnavailable('Keycloak is down'));
+
+    const refused = await withOutboxRefusing(api, () => confirm(session));
+    const [leftover] = api.identity.calls('createDeclarantUser');
+    const retry = await confirm(session);
+
+    expect(refused.statusCode).toBe(500);
+    expect(retry.statusCode, retry.body).toBe(200);
+    const result = retry.json<OnboardingConfirmResult>();
+    expect(result.outcome).toBe('account-created');
+    expect(result.session.ofr).toBe(leftover?.input.ofr);
+    // The leftover (same OFR, same email) was replaced by the person's account.
+    const [person] = await allPersons();
+    expect(person?.ofr).toBe(leftover?.input.ofr);
+    expect(api.identity.userByEmail(WANJIRU.email)).toMatchObject({
+      userId: person?.keycloakUserId,
+      ofr: person?.ofr,
+    });
   });
 
   it('deletes the account it created when the transaction fails after it', async () => {
@@ -563,6 +665,155 @@ describe('S16 transaction boundaries', () => {
     expect(response.json()).toMatchObject({ code: 'email-in-use', status: 409 });
     expect(contractErrors(componentSchema('OnboardingProblem'), response.json())).toEqual([]);
     await expectNothingChanged(session);
+  });
+});
+
+describe('retrying confirm and resend (Idempotency-Key, ADR-013 §7.5)', () => {
+  it('replays the first answer to a retry of confirm with the same key, creating one account', async () => {
+    const session = await atConfirm(tscRecord);
+    const key = randomUUID();
+
+    const first = await postWithKey(session, '/confirm', key);
+    const retry = await postWithKey(session, '/confirm', key);
+
+    expect(first.statusCode, first.body).toBe(200);
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+    expect(await allPersons()).toHaveLength(1);
+    expect(api.identity.calls('createDeclarantUser')).toHaveLength(1);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(1);
+    expect(await events('declarant.onboarded.v1')).toHaveLength(1);
+  });
+
+  it('runs a new submission (another key) against the session as it now is', async () => {
+    const session = await atConfirm(tscRecord);
+    await postWithKey(session, '/confirm', randomUUID());
+
+    const again = await postWithKey(session, '/confirm', randomUUID());
+
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ code: 'wrong-step' });
+  });
+
+  it('never replays a stored answer to a caller without the secret', async () => {
+    const session = await atConfirm(tscRecord);
+    const key = randomUUID();
+    await postWithKey(session, '/confirm', key);
+
+    const guessed = await postWithKey(session, '/confirm', key, 'not-the-secret');
+
+    expect(guessed.statusCode).toBe(404);
+    expect(guessed.headers['idempotent-replayed']).toBeUndefined();
+  });
+
+  it('does not keep a 503, so a retry with the same key runs the check again', async () => {
+    const session = await atConfirm(tscRecord);
+    const key = randomUUID();
+    api.iprs.failNext();
+
+    const unavailable = await postWithKey(session, '/confirm', key);
+    const retry = await postWithKey(session, '/confirm', key);
+
+    expect(unavailable.statusCode).toBe(503);
+    expect(retry.statusCode, retry.body).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBeUndefined();
+    expect(retry.json()).toMatchObject({ outcome: 'account-created' });
+  });
+
+  it('replays a resent set-password email instead of sending another', async () => {
+    const session = await atConfirm(tscRecord);
+    await confirm(session);
+    api.clock.advance(60 * SECOND);
+    const key = randomUUID();
+
+    const first = await postWithKey(session, '/resend-password-email', key);
+    const retry = await postWithKey(session, '/resend-password-email', key);
+    const another = await postWithKey(session, '/resend-password-email', randomUUID());
+
+    expect(first.statusCode).toBe(202);
+    expect(retry.statusCode).toBe(202);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(2);
+    expect(another.statusCode).toBe(429);
+    expect(another.json()).toMatchObject({ code: 'resend-cooldown' });
+  });
+
+  it.each(['/confirm', '/resend-password-email'] as const)(
+    'refuses %s without a key',
+    async (path) => {
+      const session = await atConfirm(tscRecord);
+
+      const response = await postWithKey(session, path, null);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
+      expect(api.iprs.calls()).toEqual([]);
+    },
+  );
+});
+
+describe('confirm against a changing roster', () => {
+  it('keeps a contact an import added to the record during the session', async () => {
+    const session = await atConfirm(pscRecord, {
+      email: 'wanjiru@example.com',
+      emailSource: 'declarant',
+      phone: '+254700111222',
+      phoneSource: 'declarant',
+    });
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .update(rosterRecords)
+        .set({ phone: '+254733000111', phoneSource: 'roster' })
+        .where(eq(rosterRecords.id, pscRecord)),
+    );
+
+    expect((await confirm(session)).statusCode).toBe(200);
+
+    expect(await record(pscRecord)).toMatchObject({
+      email: 'wanjiru@example.com',
+      emailSource: 'declarant',
+      phone: '+254733000111',
+      phoneSource: 'roster',
+    });
+  });
+
+  it('holds no lock while IPRS answers: the session stays readable meanwhile', async () => {
+    const session = await atConfirm(tscRecord);
+    const release = api.iprs.holdNext();
+
+    const confirming = confirm(session);
+    await expect.poll(() => api.iprs.calls().length).toBe(1);
+    const read = await getSession(api, session.id, session.secret);
+    release();
+
+    expect(read.statusCode).toBe(200);
+    expect(read.json()).toMatchObject({ state: 'phone-verified' });
+    expect((await confirming).json()).toMatchObject({ outcome: 'account-created' });
+  });
+
+  it('asks IPRS again when the record changed while it answered', async () => {
+    const session = await atConfirm(tscRecord);
+    api.iprs.givenPerson('87654321', { firstName: 'Kamau', middleName: null, lastName: 'Njoroge' });
+    const release = api.iprs.holdNext();
+
+    const confirming = confirm(session);
+    await expect.poll(() => api.iprs.calls().length).toBe(1);
+    // An import corrects the record's national ID and name while IPRS answers for the old ones.
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .update(rosterRecords)
+        .set({ nationalId: '87654321', fullName: 'Kamau Njoroge' })
+        .where(eq(rosterRecords.id, tscRecord)),
+    );
+    release();
+    const response = await confirming;
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(api.iprs.calls()).toEqual([WANJIRU.nationalId, '87654321']);
+    expect(await allPersons()).toEqual([
+      expect.objectContaining({ nationalId: '87654321', fullName: 'Kamau Njoroge' }),
+    ]);
   });
 });
 

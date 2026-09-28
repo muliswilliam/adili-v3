@@ -244,7 +244,9 @@ export function getSession(api: DirectoryApi, id: string, secret: string | undef
 
 /**
  * A call on a session: `path` below `/v1/onboarding/sessions/{id}` (e.g. `/otp/email/verify`),
- * with `secret` in X-Onboarding-Secret (none if undefined).
+ * with `secret` in X-Onboarding-Secret (none if undefined). A POST carries a fresh
+ * Idempotency-Key, as the portal sends one per submission (`confirm` and
+ * `resend-password-email` require it; the other steps ignore it).
  */
 export function onSession(
   api: DirectoryApi,
@@ -258,7 +260,10 @@ export function onSession(
   return api.anonymous({
     method,
     url: `/v1/onboarding/sessions/${id}${path}`,
-    headers: secret === undefined ? {} : { 'x-onboarding-secret': secret },
+    headers: {
+      ...(secret === undefined ? {} : { 'x-onboarding-secret': secret }),
+      ...(method === 'POST' ? { 'idempotency-key': randomUUID() } : {}),
+    },
     body,
     ip,
   });

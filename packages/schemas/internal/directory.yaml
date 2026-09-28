@@ -1943,7 +1943,7 @@ paths:
       tags:
         - onboarding
       summary: Match personnel file number and national ID against a Commission's roster
-      description: Public, rate-limited per client IP and per client IP and Commission (a Commission without a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+      description: Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
       operationId: identifyDeclarant
       requestBody:
         required: true
@@ -1984,7 +1984,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '409':
-          description: Problem code `already-onboarded` (with `links`) or `no-roster`
+          description: 'Problem code `already-onboarded` (with `links`), or `no-roster`: no active Commission with that slug, or it has not imported a roster'
           content:
             application/problem+json:
               schema:
@@ -2379,12 +2379,19 @@ paths:
       tags:
         - onboarding
       summary: Confirm roster details, run the IPRS check and create or link the account
-      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`).'
+      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`). Idempotent per Idempotency-Key: a retry gets the first answer back.'
       operationId: confirmOnboarding
       parameters:
         - name: sessionId
           required: true
           in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
           schema:
             type: string
             format: uuid
@@ -2432,6 +2439,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
@@ -2473,12 +2486,19 @@ paths:
       tags:
         - onboarding
       summary: Send the set-password email again
-      description: Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`).
+      description: 'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.'
       operationId: resendSetPasswordEmail
       parameters:
         - name: sessionId
           required: true
           in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
           schema:
             type: string
             format: uuid
@@ -2522,6 +2542,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
           description: Problem code `resend-cooldown` with `retryAfterSeconds`
           content:
@@ -2535,12 +2561,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
       security: []
+  /v1/commissions/{slug}/roster/onboarding-failures:
+    get:
+      tags:
+        - roster
+      summary: Failed onboarding attempts against the Commission in the last 24 hours
+      description: "The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission. Counts only, no identifiers: many failures point to a stale roster or an attack (spec 03, story 30)."
+      operationId: getOnboardingFailures
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Failed attempts by hour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingFailures'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/declarant:
     get:
       tags:
         - me
       summary: The signed-in declarant's person, OFR, Commissions and verified contacts
-      description: Any authenticated caller; the person is the one whose account is the token's subject, so a caller only ever reads their own. The portal dashboard reads it.
+      description: 'Declarants only, their own: the person is the one whose account is the token''s subject. The portal dashboard reads it, and takes 403 and 404 alike as "not a declarant".'
       operationId: getMyDeclarantProfile
       responses:
         '200':
@@ -2555,8 +2613,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: The caller is not an onboarded declarant
+          description: The account has the declarant role but no onboarded person
           content:
             application/problem+json:
               schema:
@@ -2711,7 +2775,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '409':
-          description: Problem code `identity-mismatch` (IPRS) or `already-registered`
+          description: The identity document does not match IPRS, or belongs to an existing account
           content:
             application/problem+json:
               schema:
@@ -3737,8 +3801,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -3790,8 +3852,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -4626,6 +4686,14 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Ofr'
             - type: 'null'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session'
         expiresAt:
           type: string
           format: date-time
@@ -4636,6 +4704,7 @@ components:
         - contacts
         - details
         - otp
+        - setPasswordEmail
         - expiresAt
     OnboardingSessionCreated:
       type: object
@@ -4715,6 +4784,14 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Ofr'
             - type: 'null'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session'
         expiresAt:
           type: string
           format: date-time
@@ -4728,6 +4805,7 @@ components:
         - contacts
         - details
         - otp
+        - setPasswordEmail
         - expiresAt
         - secret
     OnboardingConfirmResult:
@@ -4801,6 +4879,34 @@ components:
         - title
         - status
         - code
+    OnboardingFailures:
+      type: object
+      properties:
+        since:
+          type: string
+          format: date-time
+          description: 'Start of the earliest hour counted: the current hour and the 23 before it'
+        failedAttempts:
+          type: integer
+          description: 'Failed onboarding attempts against the Commission since `since`, by anyone: identify answered `no-match` (wrong or unknown identifiers, or an exited record), or a session ended because its codes or resends ran out'
+        hours:
+          type: array
+          items:
+            type: object
+            properties:
+              windowStart:
+                type: string
+                format: date-time
+              failedAttempts:
+                type: integer
+            required:
+              - windowStart
+              - failedAttempts
+          description: Hours with failed attempts, oldest first
+      required:
+        - since
+        - failedAttempts
+        - hours
     DeclarantProfile:
       type: object
       properties:
@@ -4954,8 +5060,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

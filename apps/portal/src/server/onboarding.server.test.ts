@@ -408,7 +408,7 @@ describe('confirm and the set-password email', () => {
   it('creates the account and waits for the set-password email', async () => {
     const session = await atConfirm();
 
-    const result = await confirm(client(), session);
+    const result = await confirm(client(), session, crypto.randomUUID());
 
     expect(result).toMatchObject({
       ok: true,
@@ -429,7 +429,7 @@ describe('confirm and the set-password email', () => {
       nationalId: '34567890',
     });
 
-    const result = await confirm(client(), session);
+    const result = await confirm(client(), session, crypto.randomUUID());
 
     expect(result).toMatchObject({
       ok: true,
@@ -445,7 +445,7 @@ describe('confirm and the set-password email', () => {
       nationalId: '45678901',
     });
 
-    const result = await confirm(client(), session);
+    const result = await confirm(client(), session, crypto.randomUUID());
 
     expect(result).toMatchObject({
       ok: true,
@@ -461,9 +461,15 @@ describe('confirm and the set-password email', () => {
       nationalId: '56789012',
     });
 
-    expect(await confirm(client(), session)).toEqual({ ok: false, code: 'iprs-unavailable' });
-    expect(await confirm(client(), session)).toEqual({ ok: false, code: 'identity-unavailable' });
-    expect(await confirm(client(), session)).toMatchObject({
+    expect(await confirm(client(), session, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'iprs-unavailable',
+    });
+    expect(await confirm(client(), session, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'identity-unavailable',
+    });
+    expect(await confirm(client(), session, crypto.randomUUID())).toMatchObject({
       ok: true,
       session: { outcome: 'account-created' },
     });
@@ -487,47 +493,117 @@ describe('confirm and the set-password email', () => {
       ),
     );
 
-    expect(await confirm(refusing, session)).toEqual({ ok: false, code: 'email-in-use' });
+    expect(await confirm(refusing, session, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'email-in-use',
+    });
   });
 
   it('reports a confirm from another step as a session that has moved', async () => {
     const { created } = await identify(client(), teacher);
     if (!created) throw new Error('no session');
 
-    expect(await confirm(client(), created)).toEqual({ ok: false, code: 'moved' });
+    expect(await confirm(client(), created, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'moved',
+    });
   });
 
   // S17
   it('holds the set-password email for 60 seconds, then sends it again', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const session = await atConfirm();
-    const confirmed = await confirm(client(), session);
+    const confirmed = await confirm(client(), session, crypto.randomUUID());
 
     // The contract allows no time here; the cooldown still applies.
     expect(confirmed.ok && confirmed.session.otp.resendAvailableAt).toBeNull();
-    expect(await resendPasswordEmail(client(), session)).toMatchObject({
+    expect(await resendPasswordEmail(client(), session, crypto.randomUUID())).toMatchObject({
       ok: false,
       code: 'resend-cooldown',
     });
 
     vi.setSystemTime(Date.now() + 61_000);
-    const result = await resendPasswordEmail(client(), session);
+    const result = await resendPasswordEmail(client(), session, crypto.randomUUID());
 
     expect(result).toMatchObject({ ok: true, session: { state: 'confirmed' } });
     expect(result.ok && result.session.otp.resendAvailableAt).toBeTruthy();
   });
 
+  it('says when the set-password email could not be sent, and sends it at once on resend', async () => {
+    const session = await atConfirm({
+      commission: 'psc',
+      personnelFileNumber: 'PSC/600700',
+      nationalId: '67890123',
+    });
+
+    const confirmed = await confirm(client(), session, crypto.randomUUID());
+
+    expect(confirmed).toMatchObject({
+      ok: true,
+      session: {
+        outcome: 'account-created',
+        setPasswordEmail: 'failed',
+        otp: { resendAvailableAt: null },
+      },
+    });
+    const resent = await resendPasswordEmail(client(), session, crypto.randomUUID());
+    expect(resent).toMatchObject({ ok: true, session: { setPasswordEmail: 'sent' } });
+    expect(resent.ok && resent.session.otp.resendAvailableAt).toBeTruthy();
+  });
+
   it('refuses the set-password email before the account exists or for a linked account', async () => {
     const pending = await atConfirm();
-    expect(await resendPasswordEmail(client(), pending)).toEqual({ ok: false, code: 'moved' });
+    expect(await resendPasswordEmail(client(), pending, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'moved',
+    });
 
     const linked = await atConfirm({
       commission: 'npsc',
       personnelFileNumber: 'NPSC/400500',
       nationalId: '45678901',
     });
-    await confirm(client(), linked);
-    expect(await resendPasswordEmail(client(), linked)).toEqual({ ok: false, code: 'moved' });
+    await confirm(client(), linked, crypto.randomUUID());
+    expect(await resendPasswordEmail(client(), linked, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'moved',
+    });
+  });
+
+  it("sends the submission's Idempotency-Key, and a retry with it gets the first answer back", async () => {
+    const session = await atConfirm();
+    const sent: (string | null)[] = [];
+    const recording = client((request) => {
+      sent.push(request.headers.get('idempotency-key'));
+      return mockDirectoryFetch(request);
+    });
+    const key = crypto.randomUUID();
+
+    const first = await confirm(recording, session, key);
+    const retry = await confirm(recording, session, key);
+    const another = await confirm(recording, session, crypto.randomUUID());
+
+    expect(sent.slice(0, 2)).toEqual([key, key]);
+    expect(first).toMatchObject({ ok: true, session: { state: 'confirmed' } });
+    expect(retry).toEqual(first);
+    // A new submission runs against the session as it now is.
+    expect(another).toEqual({ ok: false, code: 'moved' });
+  });
+
+  it('sends one Idempotency-Key per set-password email resend', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const session = await atConfirm();
+    await confirm(client(), session, crypto.randomUUID());
+    vi.setSystemTime(Date.now() + 61_000);
+    const key = crypto.randomUUID();
+
+    const first = await resendPasswordEmail(client(), session, key);
+    const retry = await resendPasswordEmail(client(), session, key);
+    const another = await resendPasswordEmail(client(), session, crypto.randomUUID());
+
+    expect(first).toMatchObject({ ok: true });
+    expect(retry).toMatchObject({ ok: true });
+    expect(another).toMatchObject({ ok: false, code: 'resend-cooldown' });
   });
 
   it('treats a wrong secret or outages as ended or unavailable', async () => {
@@ -535,9 +611,18 @@ describe('confirm and the set-password email', () => {
     const wrong = { ...session, secret: 'wrong' };
     const down = client(() => Promise.reject(new Error('ECONNREFUSED')));
 
-    expect(await confirm(client(), wrong)).toEqual({ ok: false, code: 'ended' });
-    expect(await confirm(down, session)).toEqual({ ok: false, code: 'unavailable' });
-    expect(await resendPasswordEmail(down, session)).toEqual({ ok: false, code: 'unavailable' });
+    expect(await confirm(client(), wrong, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'ended',
+    });
+    expect(await confirm(down, session, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'unavailable',
+    });
+    expect(await resendPasswordEmail(down, session, crypto.randomUUID())).toEqual({
+      ok: false,
+      code: 'unavailable',
+    });
   });
 });
 
