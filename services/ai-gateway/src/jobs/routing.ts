@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import type { ModelProvider } from '../providers/port.js';
+import type { ModelProvider, ProviderClass } from '../providers/port.js';
 import { InjectModelProvider } from '../providers/providers.module.js';
 
 export const ROUTING_OPTIONS = Symbol('ROUTING_OPTIONS');
@@ -12,6 +12,7 @@ export interface RoutingOptions {
 
 export interface Route {
   provider: string;
+  providerClass: ProviderClass;
   model: string;
 }
 
@@ -30,6 +31,7 @@ export class Routing {
   route(): Route {
     return {
       provider: this.provider.name,
+      providerClass: this.provider.providerClass,
       model: this.options.model,
     };
   }

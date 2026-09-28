@@ -114,7 +114,11 @@ export class JobExecutor {
           outputHash: output && hashJson(output),
           input: null,
           ...(metrics.usage && {
-            tokensIn: metrics.usage.inputTokens,
+            // All input the provider processed, whether served from its prompt cache or not.
+            tokensIn:
+              metrics.usage.inputTokens +
+              metrics.usage.cacheReadTokens +
+              metrics.usage.cacheWriteTokens,
             tokensOut: metrics.usage.outputTokens,
           }),
           latencyMs: metrics.latencyMs,

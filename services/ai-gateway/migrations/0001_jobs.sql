@@ -29,5 +29,5 @@ CREATE TABLE "jobs" (
 --> statement-breakpoint
 CREATE UNIQUE INDEX "jobs_caller_idempotency_key_idx" ON "jobs" USING btree ("caller","idempotency_key");--> statement-breakpoint
 CREATE UNIQUE INDEX "jobs_cache_idx" ON "jobs" USING btree ("tenant","caller","subject_ref","data_class","task","prompt_version","provider","model","input_hash") WHERE "jobs"."status" in ('queued', 'running', 'succeeded') and "jobs"."output_purged_at" is null;--> statement-breakpoint
-CREATE INDEX "jobs_queued_idx" ON "jobs" USING btree ("created_at") WHERE "jobs"."status" = 'queued';--> statement-breakpoint
+CREATE INDEX "jobs_live_idx" ON "jobs" USING btree ("created_at","id") WHERE "jobs"."status" in ('queued', 'running');--> statement-breakpoint
 CREATE INDEX "jobs_output_retention_idx" ON "jobs" USING btree ("finished_at") WHERE "jobs"."output" is not null;

@@ -30,6 +30,7 @@ export interface AnthropicAdapterOptions {
 /** Adapter over the official Anthropic SDK. Vendor types stay inside this file. */
 export class AnthropicAdapter implements ModelProvider {
   readonly name = PROVIDER;
+  readonly providerClass = 'external';
   readonly capabilities: ProviderCapabilities = {
     structuredOutput: true,
     streaming: true,

@@ -1,4 +1,5 @@
-import { canonical } from '../hashing.js';
+import { canonicalJson } from '@adili/api-kit';
+
 import type { StructuredRequest } from '../providers/port.js';
 import type { TaskDefinition } from './task.js';
 
@@ -21,7 +22,7 @@ export function buildProviderRequest(
     messages: [
       {
         role: 'user',
-        content: `Task input (JSON):\n<input>\n${JSON.stringify(canonical(input))}\n</input>`,
+        content: `Task input (JSON):\n<input>\n${canonicalJson(input)}\n</input>`,
       },
     ],
     maxOutputTokens: task.maxOutputTokens,

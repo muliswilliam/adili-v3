@@ -7,7 +7,10 @@ import { join } from 'node:path';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
+import { TEMPORAL_CLIENT } from '@adili/temporal';
+import type { Client } from '@temporalio/client';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
@@ -15,8 +18,9 @@ import pg from 'pg';
 
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
-import { schema } from '../../src/db/schema.js';
-import type { StructuredResult } from '../../src/providers/port.js';
+import { jobs, schema } from '../../src/db/schema.js';
+import { LIVE_STATUSES } from '../../src/jobs/job-states.js';
+import type { ModelProvider, StructuredResult } from '../../src/providers/port.js';
 import { MODEL_PROVIDER } from '../../src/providers/providers.module.js';
 import { ReplayAdapter } from '../../src/providers/replay.adapter.js';
 import { buildProviderRequest } from '../../src/tasks/provider-request.js';
@@ -38,11 +42,16 @@ export interface TestApp {
   close: () => Promise<void>;
 }
 
+export interface TestAppOptions {
+  /** Replaces the replay adapter, which otherwise serves fixtures from a temporary directory. */
+  provider?: ModelProvider;
+}
+
 /**
  * Boots the service against a fresh Postgres schema in the shared test database and compose
  * Temporal, with the replay adapter serving fixtures from a temporary directory.
  */
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
   const schemaName = `ai_gateway_test_${process.pid}_${Date.now()}`;
   const url = withSearchPath(baseUrl, schemaName);
@@ -73,7 +82,7 @@ export async function createTestApp(): Promise<TestApp> {
       ),
     )
     .overrideProvider(MODEL_PROVIDER)
-    .useValue(new ReplayAdapter({ fixturesDir, mode: 'replay' }))
+    .useValue(options.provider ?? new ReplayAdapter({ fixturesDir, mode: 'replay' }))
     .compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -108,6 +117,21 @@ export async function createTestApp(): Promise<TestApp> {
       await recorder.generateStructured(request);
     },
     close: async () => {
+      // Jobs a test did not wait for would otherwise sit on this file's queue, which no worker
+      // polls once the app is closed.
+      const temporal = app.get<Client>(TEMPORAL_CLIENT);
+      const live = await db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(inArray(jobs.status, LIVE_STATUSES));
+      await Promise.all(
+        live.map(({ id }) =>
+          temporal.workflow
+            .getHandle(`ai-job-${id}`)
+            .terminate('test app closed')
+            .catch(() => undefined),
+        ),
+      );
       // Closing the app stops the worker and ends the database pool.
       await app.close();
       await admin.query(`drop schema "${schemaName}" cascade`);

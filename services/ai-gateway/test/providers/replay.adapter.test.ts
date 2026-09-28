@@ -37,6 +37,7 @@ const structured: StructuredRequest = {
 /** Scripted inner provider standing in for a real vendor in record mode. */
 class ScriptedProvider implements ModelProvider {
   readonly name = 'scripted';
+  readonly providerClass = 'external';
   readonly capabilities = {
     structuredOutput: true,
     streaming: true,

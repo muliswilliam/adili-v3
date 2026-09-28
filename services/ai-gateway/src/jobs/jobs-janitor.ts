@@ -6,10 +6,12 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, gt, inArray, isNotNull, lt, or, sql } from 'drizzle-orm';
 
-import { jobs, type schema } from '../db/schema.js';
+import { type Job, jobs, type schema } from '../db/schema.js';
+import { JobExecutor } from './job-executor.js';
 import { JobStarter } from './job-starter.js';
+import { LIVE_STATUSES } from './job-states.js';
 
 export const JANITOR_OPTIONS = Symbol('JANITOR_OPTIONS');
 
@@ -18,13 +20,16 @@ export interface JanitorOptions {
 }
 
 const SWEEP_INTERVAL_MS = 60_000;
-/** A queued job older than this lost its workflow start (a crash between commit and start). */
-const QUEUED_GRACE_SECONDS = 60;
-const RESTART_BATCH = 100;
+/** Younger live jobs are left alone: their workflow may be starting or just ending. */
+const GRACE_SECONDS = 60;
+const PAGE_SIZE = 100;
+/** Workflow lookups in flight at once. */
+const CONCURRENCY = 10;
 
 /**
- * Every minute: starts workflows for jobs left queued, and clears outputs past retention.
- * Every replica runs it; both steps are idempotent.
+ * Every minute: recovers live jobs whose workflow is not running (a start lost to a crash, a
+ * workflow terminated or reset), and clears outputs past retention. Every replica runs it;
+ * each step is idempotent, and one failing does not stop the other.
  */
 @Injectable()
 export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -34,14 +39,13 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly starter: JobStarter,
+    private readonly executor: JobExecutor,
     @Inject(JANITOR_OPTIONS) private readonly options: JanitorOptions,
   ) {}
 
   onApplicationBootstrap(): void {
     this.timer = setInterval(() => {
-      this.sweep().catch((error: unknown) => {
-        this.logger.warn({ err: error }, 'Job sweep failed');
-      });
+      void this.sweep();
     }, SWEEP_INTERVAL_MS);
     this.timer.unref();
   }
@@ -51,24 +55,55 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   async sweep(): Promise<void> {
-    await this.restartQueued();
-    await this.purgeOutputs();
+    const steps = await Promise.allSettled([this.recoverLiveJobs(), this.purgeOutputs()]);
+    for (const step of steps) {
+      if (step.status === 'rejected') {
+        this.logger.warn({ err: step.reason as unknown }, 'Job sweep step failed');
+      }
+    }
   }
 
-  private async restartQueued(): Promise<void> {
-    const stranded = await this.db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(
-        and(
-          eq(jobs.status, 'queued'),
-          lt(jobs.createdAt, sql`now() - make_interval(secs => ${QUEUED_GRACE_SECONDS})`),
-        ),
-      )
-      .orderBy(jobs.createdAt)
-      .limit(RESTART_BATCH);
-    for (const { id } of stranded) {
-      await this.starter.start(id);
+  /** Walks every live job past the grace period, oldest first, a page at a time. */
+  private async recoverLiveJobs(): Promise<void> {
+    let after: Pick<Job, 'createdAt' | 'id'> | undefined;
+    for (;;) {
+      const page = await this.db
+        .select({ id: jobs.id, status: jobs.status, createdAt: jobs.createdAt })
+        .from(jobs)
+        .where(
+          and(
+            inArray(jobs.status, LIVE_STATUSES),
+            lt(jobs.createdAt, sql`now() - make_interval(secs => ${GRACE_SECONDS})`),
+            after &&
+              or(
+                gt(jobs.createdAt, after.createdAt),
+                and(sql`${jobs.createdAt} = ${after.createdAt}`, gt(jobs.id, after.id)),
+              ),
+          ),
+        )
+        .orderBy(asc(jobs.createdAt), asc(jobs.id))
+        .limit(PAGE_SIZE);
+      for (let i = 0; i < page.length; i += CONCURRENCY) {
+        await Promise.all(page.slice(i, i + CONCURRENCY).map((job) => this.recover(job)));
+      }
+      if (page.length < PAGE_SIZE) return;
+      after = page.at(-1);
+    }
+  }
+
+  /** Never throws: one job that cannot be recovered now is retried on the next sweep. */
+  private async recover(job: Pick<Job, 'id' | 'status'>): Promise<void> {
+    try {
+      const state = await this.starter.state(job.id);
+      if (state === 'running') return;
+      if (state === 'missing' && job.status === 'queued') {
+        await this.starter.start(job.id);
+        return;
+      }
+      // The workflow ended or vanished without finishing the job; nothing will finish it now.
+      await this.executor.fail(job.id, 'provider');
+    } catch (error) {
+      this.logger.warn({ err: error, jobId: job.id }, 'Could not recover a live job');
     }
   }
 

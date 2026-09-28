@@ -16,7 +16,8 @@ export function hashRequest(request: Pick<FastifyRequest, 'method' | 'url' | 'bo
     .digest('hex');
 }
 
-function canonicalJson(value: unknown): string {
+/** JSON with object keys sorted at every level, so equal values serialise equally. */
+export function canonicalJson(value: unknown): string {
   return JSON.stringify(value, (_key, nested: unknown) =>
     nested && typeof nested === 'object' && !Array.isArray(nested)
       ? Object.fromEntries(

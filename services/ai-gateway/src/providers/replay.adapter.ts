@@ -10,6 +10,7 @@ import type {
   GenerateResult,
   ModelProvider,
   ProviderCapabilities,
+  ProviderClass,
   StreamEvent,
   StructuredRequest,
   StructuredResult,
@@ -68,6 +69,8 @@ const ALL_CAPABILITIES: ProviderCapabilities = {
 export class ReplayAdapter implements ModelProvider {
   readonly name = 'replay';
   readonly capabilities: ProviderCapabilities;
+  /** Replays never leave the process; recording sends requests wherever the inner provider does. */
+  readonly providerClass: ProviderClass;
   private readonly inner: ModelProvider | undefined;
   /** Replayed batches never leave the process; their items are resolved from fixtures on poll. */
   private readonly replayBatches = new Map<string, BatchItem[]>();
@@ -78,6 +81,7 @@ export class ReplayAdapter implements ModelProvider {
     }
     this.inner = options.mode === 'record' ? options.inner : undefined;
     this.capabilities = this.inner?.capabilities ?? ALL_CAPABILITIES;
+    this.providerClass = this.inner?.providerClass ?? 'self-hosted';
   }
 
   generate(request: GenerateRequest): Promise<GenerateResult> {

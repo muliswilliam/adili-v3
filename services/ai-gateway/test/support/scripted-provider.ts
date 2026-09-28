@@ -1,6 +1,7 @@
 import type {
   ModelProvider,
   ProviderCapabilities,
+  ProviderClass,
   StructuredRequest,
   StructuredResult,
 } from '../../src/providers/port.js';
@@ -21,7 +22,10 @@ export class ScriptedProvider implements ModelProvider {
   };
   readonly requests: StructuredRequest[] = [];
 
-  constructor(private readonly answer: (request: StructuredRequest) => Promise<StructuredResult>) {}
+  constructor(
+    private readonly answer: (request: StructuredRequest) => Promise<StructuredResult>,
+    readonly providerClass: ProviderClass = 'self-hosted',
+  ) {}
 
   generateStructured(request: StructuredRequest): Promise<StructuredResult> {
     this.requests.push(request);

@@ -12,7 +12,12 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { CACHEABLE_STATUSES, JOB_REASONS, JOB_STATUSES } from '../jobs/job-states.js';
+import {
+  CACHEABLE_STATUSES,
+  JOB_REASONS,
+  JOB_STATUSES,
+  LIVE_STATUSES,
+} from '../jobs/job-states.js';
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { TASK_NAMES } from '../tasks/task.js';
 
@@ -90,10 +95,12 @@ export const jobs = pgTable(
       .where(
         sql`${table.status} in (${sql.raw(CACHEABLE_STATUSES.map((status) => `'${status}'`).join(', '))}) and ${table.outputPurgedAt} is null`,
       ),
-    // The janitor's scans: jobs left queued, and outputs past retention.
-    index('jobs_queued_idx')
-      .on(table.createdAt)
-      .where(sql`${table.status} = 'queued'`),
+    // The janitor's scans: live jobs past the grace period, and outputs past retention.
+    index('jobs_live_idx')
+      .on(table.createdAt, table.id)
+      .where(
+        sql`${table.status} in (${sql.raw(LIVE_STATUSES.map((status) => `'${status}'`).join(', '))})`,
+      ),
     index('jobs_output_retention_idx')
       .on(table.finishedAt)
       .where(sql`${table.output} is not null`),

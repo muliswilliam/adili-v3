@@ -357,6 +357,20 @@ describe('task jobs', () => {
       expect(contractErrors('Job', job)).toEqual([]);
     });
 
+    it('counts input served from the prompt cache as input tokens', async () => {
+      const input = freshInput();
+      await t.record('summarize-declaration', input, {
+        status: 'completed',
+        model: 'claude-opus-5-5',
+        output: summarizeOutput,
+        usage: { inputTokens: 200, outputTokens: 300, cacheReadTokens: 900, cacheWriteTokens: 100 },
+      });
+
+      const { id } = (await runTask('summarize-declaration', taskRequest(input))).json<Job>();
+
+      expect(await untilFinished(id)).toMatchObject({ usage: { tokensIn: 1200, tokensOut: 300 } });
+    });
+
     it('keeps the input only while the job runs', async () => {
       const input = freshInput();
       await recordSuccess(input);
@@ -382,6 +396,20 @@ describe('task jobs', () => {
 
       expect(response.statusCode).toBe(400);
       expect(response.headers['content-type']).toContain('application/problem+json');
+    });
+
+    it('rejects text containing a NUL character, which Postgres cannot store', async () => {
+      const input = {
+        ...summarizeInput,
+        document: { ...summarizeInput.document, note: 'before\u0000after' },
+      };
+
+      const response = await runTask('summarize-declaration', taskRequest(input));
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        errors: [{ path: 'input', message: expect.stringContaining('NUL') as string }],
+      });
     });
 
     it('rejects an unknown prompt version', async () => {
@@ -417,9 +445,8 @@ describe('task jobs', () => {
   });
 
   describe('janitor', () => {
-    it('starts a job whose workflow start was lost', async () => {
-      await recordSuccess(summarizeInput);
-      // As if the process died between committing the job and starting its workflow.
+    /** A job left behind by a crash: committed, but its workflow never ran or is gone. */
+    async function insertStranded(status: 'queued' | 'running') {
       const id = randomUUID();
       await t.db.insert(jobs).values({
         id,
@@ -427,21 +454,38 @@ describe('task jobs', () => {
         task: 'summarize-declaration',
         promptVersion: 1,
         dataClass: 'synthetic',
-        subjectRef: 'review-case:0199a8f0-6666-7000-8000-000000000006',
+        subjectRef: `review-case:${randomUUID()}`,
         caller: 'review',
         idempotencyKey: randomUUID(),
         requestHash: 'stranded',
         inputHash: 'stranded',
         input: summarizeInput,
-        status: 'queued',
+        status,
         provider: 'replay',
         model: 'claude-opus-5-5',
         createdAt: new Date(Date.now() - 5 * 60_000),
       });
+      return id;
+    }
+
+    it('starts a job whose workflow start was lost', async () => {
+      await recordSuccess(summarizeInput);
+      const id = await insertStranded('queued');
 
       await t.app.get(JobsJanitor).sweep();
 
       expect(await untilFinished(id)).toMatchObject({ status: 'succeeded' });
+    });
+
+    it('fails a running job whose workflow is gone, so it leaves the cache', async () => {
+      const id = await insertStranded('running');
+
+      await t.app.get(JobsJanitor).sweep();
+
+      expect((await getJob(id)).json<Job>()).toMatchObject({
+        status: 'failed',
+        reason: 'provider',
+      });
     });
 
     it('purges outputs past retention, which then no longer serve the cache', async () => {

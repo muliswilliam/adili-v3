@@ -105,9 +105,17 @@ export interface ProviderCapabilities {
   attachments: readonly AttachmentKind[];
 }
 
+/**
+ * Where a provider processes requests: `external` sends them outside the platform (a vendor
+ * API); `self-hosted` keeps them on infrastructure the platform controls. The classification
+ * gate decides which data classes each may see.
+ */
+export type ProviderClass = 'external' | 'self-hosted';
+
 export interface ModelProvider {
   /** Provider id recorded on jobs (`anthropic`, `replay`...). */
   readonly name: string;
+  readonly providerClass: ProviderClass;
   readonly capabilities: ProviderCapabilities;
   generate(request: GenerateRequest): Promise<GenerateResult>;
   generateStructured(request: StructuredRequest): Promise<StructuredResult>;

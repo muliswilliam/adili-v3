@@ -1,14 +1,15 @@
-import { setTimeout as sleep } from 'node:timers/promises';
-
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { callerOf, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { EventPublisher } from '@adili/events';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { findTask } from '../tasks/registry.js';
+import { gateAdmits } from './classification-gate.js';
+import { jobFinished } from './events.js';
 import { JobStarter } from './job-starter.js';
 import { CACHEABLE_STATUSES, TERMINAL_STATUSES } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
@@ -23,7 +24,6 @@ export interface RunTaskResult {
 
 /** Two concurrent requests can race for the same key or cache entry; the loser reads the winner. */
 const MAX_CREATE_ATTEMPTS = 3;
-const WAIT_POLL_MS = { first: 50, max: 500 };
 
 /** Creates task jobs (cache and idempotency enforced by the database) and reads them back. */
 @Injectable()
@@ -32,12 +32,14 @@ export class JobsService {
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly routing: Routing,
     private readonly starter: JobStarter,
+    private readonly events: EventPublisher,
   ) {}
 
   /**
    * Creates a job for a task call and starts it, unless the caller's Idempotency-Key names an
    * earlier job, or an equal request already has a live or succeeded job (the cache): then that
-   * job is returned. Waits up to `waitSeconds` for the job to end.
+   * job is returned. Waits up to `waitSeconds` for the job to end. A request the classification
+   * gate refuses is recorded as a `blocked` job (reason `policy`) that never reaches a provider.
    *
    * A request served from the cache does not record its key. Should the cached job fail, a
    * retry with that key runs a new job rather than returning the failed one: the retry of a
@@ -121,19 +123,25 @@ export class JobsService {
         return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
       }
 
-      const [created] = await this.db
-        .insert(jobs)
-        .values({
-          id: uuidv7(),
-          ...fields,
-          idempotencyKey,
-          requestHash,
-          input: request.input,
-          status: 'queued',
-        })
-        // Lost a race on the key or the cache entry: the next attempt reads the winner.
-        .onConflictDoNothing()
-        .returning();
+      const admitted = gateAdmits(request.dataClass, route.providerClass);
+      const created = await this.db.transaction(async (tx) => {
+        const [job] = await tx
+          .insert(jobs)
+          .values({
+            id: uuidv7(),
+            ...fields,
+            idempotencyKey,
+            requestHash,
+            ...(admitted
+              ? { input: request.input, status: 'queued' as const }
+              : { status: 'blocked' as const, reason: 'policy' as const, finishedAt: sql`now()` }),
+          })
+          // Lost a race on the key or the cache entry: the next attempt reads the winner.
+          .onConflictDoNothing()
+          .returning();
+        if (job?.status === 'blocked') await this.events.record(tx, jobFinished(job));
+        return job;
+      });
       if (created) {
         return { job: await this.startAndWait(created, request.waitSeconds), replayed: false };
       }
@@ -155,16 +163,11 @@ export class JobsService {
     if (job.status === 'queued') {
       await this.starter.start(job.id);
     }
-    const deadline = Date.now() + waitSeconds * 1000;
-    let current = job;
-    for (let pause = WAIT_POLL_MS.first; !TERMINAL_STATUSES.has(current.status);) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) break;
-      await sleep(Math.min(pause, remaining));
-      pause = Math.min(pause * 2, WAIT_POLL_MS.max);
-      current = (await this.find(job.id, job.caller)) ?? current;
+    if (TERMINAL_STATUSES.has(job.status) || waitSeconds === 0) {
+      return toJobView(job);
     }
-    return toJobView(current);
+    await this.starter.waitForEnd(job.id, waitSeconds * 1000);
+    return toJobView((await this.find(job.id, job.caller)) ?? job);
   }
 
   private async find(id: string, caller: string): Promise<Job | undefined> {
@@ -174,9 +177,4 @@ export class JobsService {
       .where(and(eq(jobs.id, id), eq(jobs.caller, caller)));
     return job;
   }
-}
-
-/** Services are identified by OAuth client; tokens without one fall back to the subject. */
-function callerOf(principal: Principal): string {
-  return principal.clientId ?? principal.subject;
 }

@@ -1,5 +1,5 @@
 {
-  "id": "218b8e11-f1f5-46aa-94e9-dfe09e60350f",
+  "id": "1963da4d-d635-4194-b61d-850a9b1f7c7d",
   "prevId": "1f852b43-0075-42e1-9ffc-b8d3b3d183fd",
   "version": "7",
   "dialect": "postgresql",
@@ -250,18 +250,24 @@
           "method": "btree",
           "with": {}
         },
-        "jobs_queued_idx": {
-          "name": "jobs_queued_idx",
+        "jobs_live_idx": {
+          "name": "jobs_live_idx",
           "columns": [
             {
               "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
-          "where": "\"jobs\".\"status\" = 'queued'",
+          "where": "\"jobs\".\"status\" in ('queued', 'running')",
           "concurrently": false,
           "method": "btree",
           "with": {}

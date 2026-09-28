@@ -24,8 +24,22 @@ export function taskRequestSchema(task: TaskDefinition) {
       .default(null)
       .meta({ description: 'Pin a prompt version; null uses the current one' }),
     waitSeconds: z.number().int().min(0).max(MAX_WAIT_SECONDS).default(0),
-    input: task.input,
+    input: task.input.refine((input) => !containsNul(input), {
+      message: 'Text must not contain NUL (U+0000) characters',
+    }),
   });
+}
+
+/** Postgres cannot store U+0000 in jsonb; such input is refused rather than failing on insert. */
+function containsNul(value: unknown): boolean {
+  if (typeof value === 'string') return value.includes('\u0000');
+  if (Array.isArray(value)) return value.some(containsNul);
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value).some(
+      ([key, nested]) => key.includes('\u0000') || containsNul(nested),
+    );
+  }
+  return false;
 }
 
 export type TaskRequest = z.infer<ReturnType<typeof taskRequestSchema>>;
