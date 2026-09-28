@@ -4,7 +4,8 @@
   "issues": [
     {
       "sectionKey": "bio",
-      "path": "address.physical",
+      "path": "/address/physical",
+      "code": "required",
       "message": "is required"
     }
   ],

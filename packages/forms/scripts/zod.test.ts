@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { zodModule } from './zod.ts';
+import { type JsonSchema, zodModule } from './zod.ts';
 
-const generate = (schema: Record<string, unknown>, names: Record<string, string> = {}) =>
-  zodModule(schema as Parameters<typeof zodModule>[0], { rootName: 'FormSchema', names });
+const generate = (schema: JsonSchema, names: Record<string, string> = {}) =>
+  zodModule(schema, { rootName: 'FormSchema', names });
 
 describe('zodModule', () => {
   it('names each enumeration once and validates with it', () => {
@@ -14,6 +14,27 @@ describe('zodModule', () => {
 
     expect(source).toContain('export const KINDS = ["a","b"] as const;');
     expect(source).toContain('"kind": z.enum(KINDS).optional()');
+  });
+
+  it('compiles patterns as Unicode regular expressions, as ajv does', () => {
+    const source = generate({ type: 'string', pattern: '^\\p{Lu}/' });
+
+    expect(source).toContain(String.raw`z.string().regex(/^\p{Lu}\//u)`);
+  });
+
+  it('refuses a count on an optional array, which a refinement cannot read', () => {
+    expect(() =>
+      generate({
+        type: 'object',
+        properties: {
+          nil: { type: 'boolean' },
+          items: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['nil'],
+        if: { properties: { nil: { const: true } } },
+        then: { properties: { items: { maxItems: 0 } } },
+      }),
+    ).toThrow('#/then/properties/items: a count needs items to be required');
   });
 
   it('refuses an enumeration it has no name for', () => {

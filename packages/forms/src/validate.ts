@@ -11,6 +11,15 @@ export interface FormValidationError {
 export type FormValidationResult<T> =
   { ok: true; value: T } | { ok: false; errors: FormValidationError[] };
 
+/** A problem with one field before it is given a path: the field's segments and ajv's keyword. */
+export interface FieldProblem {
+  /** Property names and array indexes from the root to the field; empty for the root. */
+  segments: string[];
+  /** The JSON Schema keyword that failed, e.g. `required`, `pattern` or `minItems`. */
+  code: string;
+  message: string;
+}
+
 /** A hostile document can fail thousands of times; the caller gets the first ones. */
 export const MAX_REPORTED_ERRORS = 50;
 
@@ -22,35 +31,46 @@ addFormats.default(ajv);
 
 /** Compiles a form's JSON Schema into a validator that reports every problem by field path. */
 export function compileForm<T>(schema: AnySchema): (document: unknown) => FormValidationResult<T> {
-  const validate = ajv.compile<T>(schema);
+  return formValidator<T>(compileFieldProblems(schema));
+}
+
+/** Reports the problems a compiled form finds by dotted field path. */
+export function formValidator<T>(
+  problems: (document: unknown) => FieldProblem[],
+): (document: unknown) => FormValidationResult<T> {
   return (document: unknown): FormValidationResult<T> => {
-    if (validate(document)) return { ok: true, value: document as T };
+    const found = problems(document);
+    if (found.length === 0) return { ok: true, value: document as T };
     return {
       ok: false,
-      errors: (validate.errors ?? []).slice(0, MAX_REPORTED_ERRORS).map(toFieldError),
+      errors: found.map(({ segments, message }) => ({ path: segments.join('.'), message })),
     };
   };
 }
 
+/** Like compileForm, but keeps each problem's segments and keyword for callers that place it. */
+export function compileFieldProblems(schema: AnySchema): (document: unknown) => FieldProblem[] {
+  const validate = ajv.compile(schema);
+  return (document: unknown) =>
+    validate(document)
+      ? []
+      : (validate.errors ?? []).slice(0, MAX_REPORTED_ERRORS).map(toFieldProblem);
+}
+
 // Ajv reports a missing or unexpected property against its parent object; the path names the
 // property itself, so a form can put the message on that field.
-function toFieldError(error: ErrorObject): FormValidationError {
+function toFieldProblem(error: ErrorObject): FieldProblem {
   const segments = error.instancePath.split('/').slice(1).map(unescapePointer);
-  if (error.keyword === 'required') {
-    return {
-      path: [...segments, (error.params as { missingProperty: string }).missingProperty].join('.'),
-      message: 'is required',
-    };
+  const code = error.keyword;
+  if (code === 'required') {
+    const { missingProperty } = error.params as { missingProperty: string };
+    return { segments: [...segments, missingProperty], code, message: 'is required' };
   }
-  if (error.keyword === 'additionalProperties') {
-    return {
-      path: [...segments, (error.params as { additionalProperty: string }).additionalProperty].join(
-        '.',
-      ),
-      message: 'is not allowed',
-    };
+  if (code === 'additionalProperties') {
+    const { additionalProperty } = error.params as { additionalProperty: string };
+    return { segments: [...segments, additionalProperty], code, message: 'is not allowed' };
   }
-  return { path: segments.join('.'), message: error.message ?? 'is invalid' };
+  return { segments, code, message: error.message ?? 'is invalid' };
 }
 
 function unescapePointer(segment: string): string {

@@ -1,18 +1,13 @@
 import schema from '@adili/schemas/forms/declaration.v1.json' with { type: 'json' };
-import { readdirSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
   ASSET_TYPES,
   CHANGE_KINDS,
   COUNTIES,
-  CURRENCIES,
-  type DeclarationIssue,
   DeclarationSchema,
-  type DeclarationV1,
   DECLARATION_TYPES,
+  declarationIssues,
   EMPLOYMENT_NATURES,
   INCOME_PERIOD_SOURCES,
   INCOME_TYPES,
@@ -25,38 +20,24 @@ import {
   sectionContents,
   sectionSchema,
 } from './index.js';
-
-const require = createRequire(import.meta.url);
-const fixturesDir = join(
-  dirname(require.resolve('@adili/schemas/package.json')),
-  'forms/fixtures/declaration.v1',
-);
-
-function fixtures<T>(kind: 'valid' | 'invalid') {
-  const dir = join(fixturesDir, kind);
-  return readdirSync(dir)
-    .filter((name) => name.endsWith('.json'))
-    .map((name) => [name, JSON.parse(readFileSync(join(dir, name), 'utf8')) as T] as const);
-}
-
-interface InvalidFixture {
-  issues: DeclarationIssue[];
-  document: DeclarationV1;
-}
-
-function officerStatement() {
-  const household = fixtures<DeclarationV1>('valid').find(
-    ([name]) => name === 'biennial-household.json',
-  )?.[1];
-  const statement = structuredClone(household?.statements[0]);
-  const [income] = statement?.income ?? [];
-  const [land] = statement?.assets ?? [];
-  if (!household || !statement || !income || !land) throw new Error('fixture has changed');
-  return { household, statement, income, land };
-}
+import { biennialHousehold, invalidDeclarations, validDeclarations } from './test/fixtures.js';
 
 const defs = schema.$defs;
 const officer = schema.properties.officer.properties;
+
+/** Zod's issue path as the JSON pointer declarationIssues reports. */
+const pointer = (path: PropertyKey[]) =>
+  path.map((segment) => `/${String(segment).replaceAll('~', '~0').replaceAll('/', '~1')}`).join('');
+
+/** A fresh biennial and parts of its officer's statement, which edit that declaration. */
+function officerStatement() {
+  const household = biennialHousehold();
+  const statement = household.statements[0];
+  const [income] = statement?.income ?? [];
+  const [land] = statement?.assets ?? [];
+  if (!statement || !income || !land) throw new Error('the officer’s statement has changed');
+  return { household, statement, income, land };
+}
 
 describe('declaration.v1 enumerations', () => {
   it.each([
@@ -85,53 +66,40 @@ describe('declaration.v1 enumerations', () => {
   });
 
   it('lists the 47 counties by code, each one the schema accepts', () => {
-    const pattern = new RegExp(defs.Location.properties.county.pattern);
+    const pattern = new RegExp(defs.Location.properties.county.pattern, 'u');
 
-    expect(COUNTIES).toHaveLength(47);
     expect(COUNTIES.map((county) => county.code)).toEqual(
       Array.from({ length: 47 }, (_, i) => String(i + 1).padStart(3, '0')),
     );
     expect(COUNTIES.filter((county) => !pattern.test(county.code))).toEqual([]);
     expect(COUNTIES.at(-1)).toEqual({ code: '047', name: 'Nairobi City' });
   });
-
-  it('offers currencies the schema accepts, without the shilling', () => {
-    const pattern = new RegExp(defs.Money.properties.original.properties.currency.pattern);
-
-    expect(CURRENCIES.filter((code) => !pattern.test(code))).toEqual([]);
-    expect(CURRENCIES).not.toContain('KES');
-    expect(new Set(CURRENCIES).size).toBe(CURRENCIES.length);
-  });
 });
 
 describe('Zod schemas', () => {
-  it.each(fixtures<DeclarationV1>('valid'))('accept the whole of %s', (_name, document) => {
+  it.each(validDeclarations())('accept the whole of %s', (_name, document) => {
     expect(DeclarationSchema.safeParse(document).error?.issues).toBeUndefined();
   });
 
-  it.each(fixtures<DeclarationV1>('valid'))('accept every section of %s', (_name, document) => {
+  it.each(validDeclarations())('accept every capture section of %s', (_name, document) => {
     for (const [key, contents] of sectionContents(document)) {
       expect(sectionSchema(key).safeParse(contents).error?.issues, key).toBeUndefined();
     }
   });
 
-  // Ajv also reports a failed if/then on the object itself; Zod reports the field only.
-  const fieldIssues = (issues: DeclarationIssue[]) =>
-    issues.filter((issue) => !/^must match "(then|else)" schema$/.test(issue.message));
-
-  it.each(fixtures<InvalidFixture>('invalid'))(
-    'reject the section of %s at the same fields as the JSON Schema',
+  it.each(invalidDeclarations())(
+    'reject the capture sections of %s at the fields the JSON Schema does',
     (_name, { issues, document }) => {
-      const [first] = issues;
-      if (!first?.sectionKey) throw new Error('every paragraph fixture fails in a section');
-      const contents = new Map(sectionContents(document)).get(first.sectionKey);
+      const contents = new Map(sectionContents(document));
 
-      const result = sectionSchema(first.sectionKey).safeParse(contents);
+      for (const key of new Set(issues.map((issue) => issue.sectionKey))) {
+        const result = sectionSchema(key).safeParse(contents.get(key));
 
-      expect(result.success).toBe(false);
-      expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual(
-        fieldIssues(issues).map((issue) => issue.path),
-      );
+        expect(
+          result.error?.issues.map((issue) => pointer(issue.path)),
+          key,
+        ).toEqual(issues.filter((issue) => issue.sectionKey === key).map((issue) => issue.path));
+      }
     },
   );
 
@@ -141,9 +109,9 @@ describe('Zod schemas', () => {
 
     const result = sectionSchema('statement:officer').safeParse(statement);
 
-    expect(result.error?.issues.map((issue) => [issue.path.join('.'), issue.message])).toEqual([
-      ['income.0.change.kind', 'is required'],
-      ['income.0.change.explanation', 'is required'],
+    expect(result.error?.issues.map((issue) => [pointer(issue.path), issue.message])).toEqual([
+      ['/income/0/change/kind', 'is required'],
+      ['/income/0/change/explanation', 'is required'],
     ]);
   });
 
@@ -153,15 +121,32 @@ describe('Zod schemas', () => {
 
     const result = sectionSchema('statement:officer').safeParse(statement);
 
-    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual([
-      'assets.0.joint.sharePercent',
+    expect(result.error?.issues.map((issue) => pointer(issue.path))).toEqual([
+      '/assets/0/joint/sharePercent',
+    ]);
+  });
+
+  // Documented on sectionSchema: completeness comes from declarationIssues, not from Zod.
+  it('check a flagged change’s kind only once its explanation parses, unlike the JSON Schema', () => {
+    const { household, statement, income } = officerStatement();
+    income.change = { changed: true, explanation: 5 as unknown as string };
+
+    const zod = sectionSchema('statement:officer').safeParse(statement);
+    const ajv = declarationIssues(household).issues;
+
+    expect(zod.error?.issues.map((issue) => pointer(issue.path))).toEqual([
+      '/income/0/change/explanation',
+    ]);
+    expect(ajv.map((issue) => issue.path)).toEqual([
+      '/income/0/change/kind',
+      '/income/0/change/explanation',
     ]);
   });
 });
 
 describe('sectionContents', () => {
   it('splits a declaration into its capture sections, one statement per person', () => {
-    const { household } = officerStatement();
+    const household = biennialHousehold();
 
     expect(sectionContents(household).map(([key]) => key)).toEqual([
       'bio',

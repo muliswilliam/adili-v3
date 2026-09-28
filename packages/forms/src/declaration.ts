@@ -1,90 +1,147 @@
 import schema from '@adili/schemas/forms/declaration.v1.json' with { type: 'json' };
-
 import type { z } from 'zod';
 
 import type { DeclarationV1 } from './declaration.v1.gen.js';
 import { DeclarationSchema, StatementSchema } from './declaration.v1.zod.gen.js';
-import { compileForm, type FormValidationError } from './validate.js';
+import {
+  compileFieldProblems,
+  type FieldProblem,
+  formValidator,
+  type FormValidationError,
+} from './validate.js';
+
+const problems = compileFieldProblems(schema);
 
 /** Validates a declaration (the First Schedule, paragraphs 1-9) against `declaration.v1`. */
-export const validateDeclaration = compileForm<DeclarationV1>(schema);
+export const validateDeclaration = formValidator<DeclarationV1>(problems);
 
 /** `officer` or `spouse:<id>` / `child:<id>`: whose financial statement (paragraph 8) it is. */
 export type PersonKey = 'officer' | `spouse:${string}` | `child:${string}`;
 
 /**
  * A capture section of a draft (declarations.yaml `SectionKey`): `bio` holds `officer`,
- * `household` holds `{ spouses, children }`, `statement:<personKey>` one `statements[]` entry and
- * `other` holds `otherInformation`.
+ * `household` holds `{ spouses, children }`, `statement:<personKey>` holds one person's
+ * financial statement and `other` holds `otherInformation`. A test holds these to the contract.
  */
 export type DeclarationSectionKey = 'bio' | 'household' | 'other' | `statement:${PersonKey}`;
 
-/** A schema problem placed on the section that shows it, for completeness messages. */
+/** A schema problem on a capture section, as declarations.yaml `CompletenessIssue`. */
 export interface DeclarationIssue {
-  /** The section, or null for the declaration's own fields (type, dates, attestation). */
-  sectionKey: DeclarationSectionKey | null;
-  /** Dotted path within the section's contents; the whole path when `sectionKey` is null. */
+  sectionKey: DeclarationSectionKey;
+  /** JSON pointer within the capture section's contents, e.g. `/birth/date`. */
   path: string;
+  /** The JSON Schema keyword that failed, e.g. `required`, `pattern` or `minItems`. */
+  code: string;
   message: string;
 }
 
-const PERSON_KEY = new RegExp(schema.$defs.PersonKey.pattern);
-
-/** Validates a declaration and places every problem on its section and field. */
-export function declarationIssues(document: unknown): DeclarationIssue[] {
-  const result = validateDeclaration(document);
-  return result.ok ? [] : result.errors.map((error) => toIssue(error, document));
+export interface DeclarationProblems {
+  /** Problems the declarant can fix, each on the capture section that shows it. */
+  issues: DeclarationIssue[];
+  /**
+   * Problems with what the service fills in (type, dates, the statements' person keys, the
+   * attestation). They are not the declarant's to fix, so no capture section shows them.
+   */
+  declaration: FormValidationError[];
 }
 
-function toIssue({ path, message }: FormValidationError, document: unknown): DeclarationIssue {
-  const [head, ...rest] = path.split('.');
-  switch (head) {
-    case 'officer':
-      return { sectionKey: 'bio', path: rest.join('.'), message };
-    case 'spouses':
-    case 'children':
-      return { sectionKey: 'household', path, message };
-    case 'otherInformation':
-      return { sectionKey: 'other', path: rest.join('.'), message };
-    case 'statements': {
-      const [index, ...field] = rest;
-      const personKey = statementPersonKey(document, Number(index));
-      if (index !== undefined && personKey !== undefined) {
-        return { sectionKey: `statement:${personKey}`, path: field.join('.'), message };
-      }
-      return { sectionKey: null, path, message };
-    }
-    default:
-      return { sectionKey: null, path, message };
-  }
-}
-
-const SECTION_SCHEMAS = {
-  bio: DeclarationSchema.shape.officer,
-  household: DeclarationSchema.pick({ spouses: true, children: true }),
-  statement: StatementSchema,
-  other: DeclarationSchema.shape.otherInformation,
-};
+const FIXED_SECTION_KEYS = ['bio', 'household', 'other'] as const;
+type FixedSectionKey = (typeof FIXED_SECTION_KEYS)[number];
+type Fields = readonly [keyof DeclarationV1, ...(keyof DeclarationV1)[]];
 
 /**
- * The Zod schema of a section's contents, generated from `declaration.v1` like the whole-form
- * validator, for the portal's forms and the service's section saves.
+ * The capture sections other than the per-person statements: the declaration.v1 fields each
+ * holds, and whether paths inside it keep the field name (household contents are
+ * `{ spouses, children }`, so they do; bio and other contents are the field itself).
+ */
+const FIXED_SECTIONS: Record<
+  FixedSectionKey,
+  { fields: Fields; keepsFieldName: boolean; schema: z.ZodType }
+> = {
+  bio: { fields: ['officer'], keepsFieldName: false, schema: DeclarationSchema.shape.officer },
+  household: {
+    fields: ['spouses', 'children'],
+    keepsFieldName: true,
+    schema: DeclarationSchema.pick({ spouses: true, children: true }),
+  },
+  other: {
+    fields: ['otherInformation'],
+    keepsFieldName: false,
+    schema: DeclarationSchema.shape.otherInformation,
+  },
+};
+
+const PERSON_KEY = new RegExp(schema.$defs.PersonKey.pattern, 'u');
+
+function isStatementKey(key: DeclarationSectionKey): key is `statement:${PersonKey}` {
+  return key.startsWith('statement:');
+}
+
+/**
+ * The Zod schema of a capture section's contents, generated from `declaration.v1` like the
+ * whole-form validator, for the portal's forms and the service's capture section saves.
+ *
+ * Zod runs a refinement (a flagged change needs a kind and an explanation, a joint asset a share)
+ * only once the rest of its object parses, so while a field is malformed it reports fewer
+ * problems than `declarationIssues`. Completeness comes from `declarationIssues`.
  */
 export function sectionSchema(key: DeclarationSectionKey): z.ZodType {
-  return key.startsWith('statement:') ? SECTION_SCHEMAS.statement : SECTION_SCHEMAS[key as 'bio'];
+  return isStatementKey(key) ? StatementSchema : FIXED_SECTIONS[key].schema;
 }
 
 /** A declaration split into its capture sections, in capture order, one statement per person. */
 export function sectionContents(document: DeclarationV1): [DeclarationSectionKey, unknown][] {
+  const fixed = (key: FixedSectionKey): [DeclarationSectionKey, unknown] => {
+    const { fields, keepsFieldName } = FIXED_SECTIONS[key];
+    return [
+      key,
+      keepsFieldName
+        ? Object.fromEntries(fields.map((field) => [field, document[field]]))
+        : document[fields[0]],
+    ];
+  };
   return [
-    ['bio', document.officer],
-    ['household', { spouses: document.spouses, children: document.children }],
+    fixed('bio'),
+    fixed('household'),
     ...document.statements.map((statement): [DeclarationSectionKey, unknown] => [
       `statement:${statement.personKey as PersonKey}`,
       statement,
     ]),
-    ['other', document.otherInformation],
+    fixed('other'),
   ];
+}
+
+/** Validates a declaration and places every problem on its capture section and field. */
+export function declarationIssues(document: unknown): DeclarationProblems {
+  const found: DeclarationProblems = { issues: [], declaration: [] };
+  for (const problem of problems(document)) {
+    // A failed if/then/else is also reported on the field it requires; that report is enough.
+    if (problem.code === 'if') continue;
+    const issue = toIssue(problem, document);
+    if (issue) found.issues.push(issue);
+    else found.declaration.push({ path: problem.segments.join('.'), message: problem.message });
+  }
+  return found;
+}
+
+function toIssue({ segments, code, message }: FieldProblem, document: unknown) {
+  const [head, ...rest] = segments;
+  const at = (sectionKey: DeclarationSectionKey, inside: string[]): DeclarationIssue => ({
+    sectionKey,
+    path: inside.map((segment) => `/${escapePointer(segment)}`).join(''),
+    code,
+    message,
+  });
+  if (head === 'statements') {
+    const [index, ...field] = rest;
+    const personKey = statementPersonKey(document, Number(index));
+    return index !== undefined && personKey ? at(`statement:${personKey}`, field) : undefined;
+  }
+  for (const key of FIXED_SECTION_KEYS) {
+    const { fields, keepsFieldName } = FIXED_SECTIONS[key];
+    if (fields.some((field) => field === head)) return at(key, keepsFieldName ? segments : rest);
+  }
+  return undefined;
 }
 
 function statementPersonKey(document: unknown, index: number): PersonKey | undefined {
@@ -94,4 +151,8 @@ function statementPersonKey(document: unknown, index: number): PersonKey | undef
   return typeof personKey === 'string' && PERSON_KEY.test(personKey)
     ? (personKey as PersonKey)
     : undefined;
+}
+
+function escapePointer(segment: string): string {
+  return segment.replaceAll('~', '~0').replaceAll('/', '~1');
 }

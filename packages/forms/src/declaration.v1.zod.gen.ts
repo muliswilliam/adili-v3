@@ -82,13 +82,13 @@ export const PersonNameSchema = z.strictObject({
 
 export const PersonKeySchema = z
   .string()
-  .regex(/^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$/);
+  .regex(/^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$/u);
 
 export const MoneySchema = z.strictObject({
   kesCents: z.int().min(0),
   original: z
     .strictObject({
-      currency: z.string().regex(/^[A-Z]{3}$/),
+      currency: z.string().regex(/^[A-Z]{3}$/u),
       minorUnits: z.int().min(0),
     })
     .optional(),
@@ -98,11 +98,11 @@ export const LocationSchema = z.strictObject({
   inKenya: z.boolean(),
   county: z
     .string()
-    .regex(/^0(0[1-9]|[1-3][0-9]|4[0-7])$/)
+    .regex(/^0(0[1-9]|[1-3][0-9]|4[0-7])$/u)
     .optional(),
   country: z
     .string()
-    .regex(/^[A-Z]{2}$/)
+    .regex(/^[A-Z]{2}$/u)
     .optional(),
   detail: z.string().max(200).optional(),
 });
@@ -138,7 +138,7 @@ export const MaritalStatusChangeSchema = z
 export const AttachmentSchema = z.strictObject({
   uploadId: z.guid(),
   fileName: z.string().max(255),
-  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/u),
 });
 
 /** Where a pre-filled item came from (spec 05b); absent for manually entered items */
@@ -155,11 +155,11 @@ export const SpouseSchema = z.strictObject({
   name: PersonNameSchema,
   nationalId: z
     .string()
-    .regex(/^[0-9]{5,10}$/)
+    .regex(/^[0-9]{5,10}$/u)
     .optional(),
   kraPin: z
     .string()
-    .regex(/^[AP][0-9]{9}[A-Z]$/)
+    .regex(/^[AP][0-9]{9}[A-Z]$/u)
     .optional(),
   occupationSector: z.enum(OCCUPATION_SECTORS).optional(),
   separated: z.boolean(),
@@ -172,7 +172,7 @@ export const ChildSchema = z.strictObject({
   dateOfBirth: z.iso.date(),
   nationalId: z
     .string()
-    .regex(/^[0-9]{5,10}$/)
+    .regex(/^[0-9]{5,10}$/u)
     .optional(),
   includedAtStatementDate: z.boolean(),
 });
@@ -331,7 +331,7 @@ export const RegistrableInterestsSchema = z.strictObject({
     holds: z.boolean(),
     country: z
       .string()
-      .regex(/^[A-Z]{2}$/)
+      .regex(/^[A-Z]{2}$/u)
       .optional(),
     pendingApplication: z.boolean(),
   }),
@@ -371,7 +371,7 @@ export const DeclarationSchema = z.strictObject({
       employer: z.string().max(200),
       nature: z.enum(EMPLOYMENT_NATURES),
       natureOther: z.string().max(100).optional(),
-      responsibleCommission: z.string().regex(/^[a-z][a-z0-9]{1,19}$/),
+      responsibleCommission: z.string().regex(/^[a-z][a-z0-9]{1,19}$/u),
       personnelFileNumber: z.string().max(30).optional(),
     }),
   }),
