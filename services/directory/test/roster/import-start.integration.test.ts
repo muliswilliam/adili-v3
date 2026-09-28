@@ -24,6 +24,7 @@ const OFFICER: Principal = {
   clientId: 'console',
   name: 'Fatuma Wanjiru',
   issuedAt: null,
+  personId: null,
 };
 const ROWS = [{ personnelFileNumber: 'PSC/1', fullName: 'Achieng Otieno', nationalId: '12345678' }];
 

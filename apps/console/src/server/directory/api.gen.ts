@@ -842,6 +842,8 @@ export interface components {
             name: string | null;
             /** @description When the token was issued (`iat`), in seconds since the epoch */
             issuedAt: number | null;
+            /** @description Person the declarant account is linked to (`person_id`); null for staff */
+            personId: string | null;
         };
         /**
          * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.

@@ -19,6 +19,10 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 
 ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so login is MFA.
 
+## Person claim (spec 04)
+
+Declarant data is keyed by person, not tenant. The `portal` and `console` clients map the user attribute `person_id` (admin-only in the user profile, set when onboarding links the account to a person) to the `person_id` claim; staff have none, so their tokens are unchanged. Services read it as `Principal.personId` (`packages/api-kit`) and scope declarant transactions with `withPerson` (`packages/data-access`). The demo `declarant` has a fixed `person_id`.
+
 ## Staff provisioning (spec 06)
 
 - `directory` is a confidential client with only a service account. The directory service uses it on the Admin REST API to create staff accounts, grant and revoke roles and send the activation email. Its service account has realm-management `manage-users`, `view-users` and `query-users` (not `view-realm`), plus the client roles below.

@@ -21,6 +21,11 @@ export interface Principal {
    * service refuse tokens issued before a credential was rotated or revoked.
    */
   issuedAt: number | null;
+  /**
+   * The declarant's person (`person_id` claim, set when onboarding links the account to a person);
+   * null for staff and service tokens. Declarant data is keyed by it, not by tenant.
+   */
+  personId: string | null;
 }
 
 /**
@@ -50,5 +55,8 @@ export const principalSchema = z.object({
   }),
   issuedAt: z.int().nullable().meta({
     description: 'When the token was issued (`iat`), in seconds since the epoch',
+  }),
+  personId: z.string().nullable().meta({
+    description: 'Person the declarant account is linked to (`person_id`); null for staff',
   }),
 }) satisfies z.ZodType<Principal>;

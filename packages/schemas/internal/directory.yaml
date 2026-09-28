@@ -2463,6 +2463,11 @@ components:
           type:
             - integer
             - 'null'
+        personId:
+          description: Person the declarant account is linked to (`person_id`); null for staff
+          type:
+            - string
+            - 'null'
       required:
         - subject
         - tenant
@@ -2471,6 +2476,7 @@ components:
         - clientId
         - name
         - issuedAt
+        - personId
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$

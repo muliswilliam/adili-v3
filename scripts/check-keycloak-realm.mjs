@@ -4,7 +4,7 @@
 // theme, user profile attributes), service clients and scopes (messages and iprs; the
 // keycloak-extension client) and API client setup (roster:write client scope; documents:internal
 // and the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are
-// optional (#371 seeds them).
+// optional (#371 seeds them). Portal and console tokens carry the person_id claim (spec 04).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +70,17 @@ for (const [id, port, secret] of [
 for (const id of ['portal', 'console']) {
   const acr = clients.get(id)?.attributes?.['default.acr.values'];
   if (acr !== 'step-up') fail(`${id} default ACR must be step-up so login is MFA`);
+  // Declarant data is keyed by person (spec 04): the person_id attribute becomes a token claim.
+  const personId = (clients.get(id)?.protocolMappers ?? []).find(
+    (mapper) =>
+      mapper.protocolMapper === 'oidc-usermodel-attribute-mapper' &&
+      mapper.config?.['user.attribute'] === 'person_id',
+  );
+  if (personId?.config?.['claim.name'] !== 'person_id') {
+    fail(`${id} needs a person_id user attribute mapper to the person_id claim (spec 04)`);
+  } else if (personId.config['access.token.claim'] !== 'true') {
+    fail(`${id}: the person_id claim must be on the access token`);
+  }
 }
 
 const flows = new Map((realm.authenticationFlows ?? []).map((flow) => [flow.alias, flow]));
@@ -257,7 +268,8 @@ const profile = JSON.parse(profileProvider?.config?.['kc.user.profile.config']?.
 const attributes = new Map(
   (profile.attributes ?? []).map((attribute) => [attribute.name, attribute]),
 );
-for (const name of ['tenant', 'phone', 'commissionName', 'invitedRole']) {
+// person_id is an access claim (spec 04): a user who could edit it could read another person's data.
+for (const name of ['tenant', 'person_id', 'phone', 'commissionName', 'invitedRole']) {
   const attribute = attributes.get(name);
   if (!attribute) {
     fail(`user profile must declare ${name} (unmanaged attributes are read-only)`);
