@@ -64,8 +64,11 @@ export function lineSegments(values: readonly (number | null | undefined)[]): Li
  * Which category labels to show on an axis of `count` categories: all of them up to `limit`,
  * otherwise every nth one counted back from the last, so the latest is always labelled. The step
  * spreads at most `limit` labels over the whole axis, leaving room for the right-aligned last one.
+ * A `limit` of 1 labels only the last category, and one below 1 labels none.
  */
 export function labelledIndexes(count: number, limit: number): number[] {
+  if (count <= 0 || limit < 1) return [];
+  if (count > limit && limit < 2) return [count - 1];
   const step = count <= limit ? 1 : Math.ceil((count - 1) / (limit - 1));
   const indexes: number[] = [];
   for (let index = count - 1; index >= 0; index -= step) indexes.unshift(index);

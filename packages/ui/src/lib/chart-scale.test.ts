@@ -73,6 +73,13 @@ describe('labelledIndexes', () => {
     expect(labelledIndexes(7, 4)).toEqual([0, 2, 4, 6]);
   });
 
+  it('labels only the last category when the limit is 1, and none below that', () => {
+    expect(labelledIndexes(12, 1)).toEqual([11]);
+    expect(labelledIndexes(1, 1)).toEqual([0]);
+    expect(labelledIndexes(12, 0)).toEqual([]);
+    expect(labelledIndexes(12, -3)).toEqual([]);
+  });
+
   it('labels nothing when there is no data', () => {
     expect(labelledIndexes(0, 5)).toEqual([]);
   });
