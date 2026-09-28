@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Draft, Household } from '../../../components/declaration/contents';
+import type { Draft, Household, ItemSource } from '../../../components/declaration/contents';
 import { type Item, NIL_KEY } from '../../../components/declaration/statement';
 import {
   applyPatch,
@@ -357,7 +357,7 @@ export async function acceptSuggestion(
   const applyTo = typeof body.applyToItemId === 'string' ? body.applyToItemId : null;
   const overwrite = body.overwrite === true;
   const patch = suggestionPatch({ itemType: suggestion.itemType, fields: body.fields });
-  const source = {
+  const source: ItemSource = {
     kind: set.source,
     suggestionId: suggestion.id,
     ...(set.verificationResultId ? { verificationResultId: set.verificationResultId } : {}),

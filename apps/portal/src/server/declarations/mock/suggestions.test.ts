@@ -1,6 +1,8 @@
 import createClient from 'openapi-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { sourceDetails } from '../../../components/declaration/item-source';
+import type { Item } from '../../../components/declaration/statement';
 import {
   acceptSuggestion,
   dismissSuggestion,
@@ -246,6 +248,9 @@ describe('accepting a suggestion (S4)', () => {
       },
     ]);
     expect(section.section.contents.assetsNil).toBe(false);
+    const [accepted] = section.section.contents.assets as Item[];
+    if (!accepted) throw new Error('no accepted item');
+    expect(sourceDetails(accepted)).toMatchObject({ kind: 'ntsa', reference: 'KCA 123A' });
   });
 
   it('adds the edited fields', async () => {
