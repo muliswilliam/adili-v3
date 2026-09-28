@@ -78,7 +78,8 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     }
     // The link carries Keycloak's action token; its claims hold the lifespan and redirect.
     const claims = actionTokenClaims(message.text);
-    expect(claims.exp - claims.iat).toBe(options.lifespanSeconds);
+    // Keycloak reads the clock separately for iat and exp, so they can land a second apart.
+    expectLifespan(claims, options.lifespanSeconds);
     expect(claims.reduri).toBe(options.redirectUri);
     expect(claims.azp).toBe(options.clientId);
     expect(claims.rqac).toEqual([...options.actions]);
@@ -93,7 +94,7 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
       expect(body).toContain('This link expires in 24 hours.');
     }
     const claims = actionTokenClaims(message.text);
-    expect(claims.exp - claims.iat).toBe(options.lifespanSeconds);
+    expectLifespan(claims, options.lifespanSeconds);
     expect(claims.reduri).toBe(options.redirectUri);
     expect(claims.azp).toBe(options.clientId);
     expect(claims.rqac).toEqual([...options.actions]);
@@ -268,6 +269,11 @@ function actionTokenClaims(text: string): ActionTokenClaims {
     throw new Error(`No action token link in email:\n${text}`);
   }
   return JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as ActionTokenClaims;
+}
+
+function expectLifespan(claims: ActionTokenClaims, lifespanSeconds: number): void {
+  expect(claims.exp - claims.iat).toBeGreaterThanOrEqual(lifespanSeconds - 1);
+  expect(claims.exp - claims.iat).toBeLessThanOrEqual(lifespanSeconds);
 }
 
 function requireEnv(name: string): string {
