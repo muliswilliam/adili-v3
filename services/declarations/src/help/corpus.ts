@@ -63,8 +63,16 @@ export type CorpusTag = (typeof CORPUS_TAGS)[number];
 
 const IsoDate = z.iso.date();
 
+/**
+ * Citations: `Act s.31`, `Act s.2 "family"`, `Act First Schedule, note 13` (or `introduction`,
+ * `guidelines`, `para. 8`, `solemn declaration`), `Act Second Schedule` (`, item 15`),
+ * `Regs r.21`, `Regs r.2 "gift"`; `AM` is reserved for the Administrative Mechanisms (#426).
+ */
+const CITATION =
+  /^(?:Act s\.\d+(?: "[^"]+")?|Regs r\.\d+(?: "[^"]+")?|Act First Schedule, (?:introduction|guidelines|note \d+|para\. \d+|solemn declaration)|Act Second Schedule(?:, item \d+)?|AM .+)$/u;
+
 const CorpusFilePassageSchema = z.strictObject({
-  citation: z.string().min(1),
+  citation: z.string().regex(CITATION, 'is not a corpus citation'),
   title: z.string().min(1),
   /** English text as published. */
   text: z.string().min(1),
@@ -114,7 +122,13 @@ export function loadCorpus(dir: string = DEFAULT_DIR): CorpusFile[] {
     .filter((name) => name.endsWith('.json'))
     .sort()
     .map((name) => {
-      const parsed = CorpusFileSchema.safeParse(JSON.parse(readFileSync(join(dir, name), 'utf8')));
+      let json: unknown;
+      try {
+        json = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+      } catch (error) {
+        throw new Error(`${name}: not valid JSON (${(error as Error).message})`, { cause: error });
+      }
+      const parsed = CorpusFileSchema.safeParse(json);
       if (!parsed.success) throw new Error(`${name}: ${z.prettifyError(parsed.error)}`);
       return parsed.data;
     });
@@ -151,6 +165,23 @@ export function byWording(a: PassageId, b: PassageId): number {
   );
 }
 
+/** The files' passages as stored, each with its effective date and no end date yet. */
+export function toPassages(files: CorpusFile[], version: string): CorpusPassage[] {
+  return files.flatMap((file) =>
+    file.passages.map((passage) => ({
+      source: file.source,
+      citation: passage.citation,
+      title: passage.title,
+      textEn: passage.text,
+      textSw: passage.textSw ?? null,
+      tags: passage.tags,
+      effectiveFrom: passage.effectiveFrom ?? file.effectiveFrom,
+      effectiveTo: null,
+      version,
+    })),
+  );
+}
+
 /**
  * What an import changes. The files are the whole statutory corpus: a wording they hold is
  * inserted, or updated in place when its content changed (a transcription correction); a stored
@@ -163,24 +194,11 @@ export function planImport(
   version: string,
 ): ImportPlan {
   const incoming = new Map<string, CorpusPassage>();
-  for (const file of files) {
-    for (const passage of file.passages) {
-      const wording: CorpusPassage = {
-        source: file.source,
-        citation: passage.citation,
-        title: passage.title,
-        textEn: passage.text,
-        textSw: passage.textSw ?? null,
-        tags: passage.tags,
-        effectiveFrom: passage.effectiveFrom ?? file.effectiveFrom,
-        effectiveTo: null,
-        version,
-      };
-      if (incoming.has(passageKey(wording))) {
-        throw new Error(`${wording.citation} is in the corpus twice from ${wording.effectiveFrom}`);
-      }
-      incoming.set(passageKey(wording), wording);
+  for (const wording of toPassages(files, version)) {
+    if (incoming.has(passageKey(wording))) {
+      throw new Error(`${wording.citation} is in the corpus twice from ${wording.effectiveFrom}`);
     }
+    incoming.set(passageKey(wording), wording);
   }
 
   // Each wording of a citation ends where the next one begins.
@@ -223,7 +241,11 @@ function sameContent(a: CorpusPassage, b: CorpusPassage): boolean {
 export interface CorpusStore {
   currentVersion(): Promise<string | null>;
   passages(): Promise<CorpusPassage[]>;
-  /** Applies a plan and records the version, all or nothing. */
+  /**
+   * Applies a plan and records the version, all or nothing. The plan is built outside this call,
+   * so a database store must lock the corpus (or re-check the current version) inside the
+   * transaction, or two concurrent imports could both apply plans made against stale rows.
+   */
   apply(plan: ImportPlan, version: string): Promise<void>;
 }
 

@@ -1,4 +1,10 @@
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import {
   CORPUS_TAGS,
@@ -7,6 +13,7 @@ import {
   importCorpus,
   loadCorpus,
   planImport,
+  toPassages,
 } from '../../src/help/corpus.js';
 import { InMemoryCorpusStore } from '../../src/help/in-memory-corpus-store.js';
 
@@ -37,13 +44,7 @@ function file(overrides: Partial<CorpusFile> = {}): CorpusFile {
 }
 
 describe('the committed corpus', () => {
-  const passages = committed.flatMap((corpusFile) =>
-    corpusFile.passages.map((passage) => ({
-      ...passage,
-      source: corpusFile.source,
-      effectiveFrom: passage.effectiveFrom ?? corpusFile.effectiveFrom,
-    })),
-  );
+  const passages = toPassages(committed, corpusVersion(committed));
 
   it('holds the Act (Part IV, definitions, schedules) and the Regulations', () => {
     expect(committed.map((corpusFile) => [corpusFile.source, corpusFile.effectiveFrom])).toEqual([
@@ -78,7 +79,7 @@ describe('the committed corpus', () => {
       (passage) =>
         !passage.citation ||
         !passage.title ||
-        passage.text.length < 10 ||
+        passage.textEn.length < 10 ||
         passage.tags.length === 0 ||
         passage.tags.some((tag) => !tags.has(tag)),
     );
@@ -95,9 +96,9 @@ describe('the committed corpus', () => {
   it('keeps the text as published: no ligatures, page furniture or stray whitespace', () => {
     const suspect = passages.filter(
       (passage) =>
-        /[ﬀ-ﬆ]/u.test(passage.text) ||
-        /\(Act No\. 11 of 2025\)$|Legal Notice 53 of 2026\)$/u.test(passage.text) ||
-        passage.text !== passage.text.replace(/\s+/gu, ' ').trim(),
+        /[ﬀ-ﬆ]/u.test(passage.textEn) ||
+        /\(Act No\. 11 of 2025\)$|Legal Notice 53 of 2026\)$/u.test(passage.textEn) ||
+        passage.textEn !== passage.textEn.replace(/\s+/gu, ' ').trim(),
     );
 
     expect(suspect.map((passage) => passage.citation)).toEqual([]);
@@ -105,7 +106,7 @@ describe('the committed corpus', () => {
 
   it('quotes the law’s own words where the form relies on them', () => {
     const text = (citation: string) =>
-      passages.find((passage) => passage.citation === citation)?.text ?? '';
+      passages.find((passage) => passage.citation === citation)?.textEn ?? '';
 
     expect(text('Act s.31')).toContain(
       '“material change” means— (a) at least twenty-five percent increase or decrease',
@@ -248,6 +249,45 @@ describe('importCorpus', () => {
 
     expect(first.inserted).toBe(committed.flatMap((corpusFile) => corpusFile.passages).length);
     expect(second.skipped).toBe(true);
+  });
+});
+
+describe('corpus files', () => {
+  it('refuses a citation outside the corpus grammar', () => {
+    const bad = file();
+    const dir = mkdtempSync(join(tmpdir(), 'corpus-'));
+    const [first] = bad.passages;
+    if (!first) throw new Error('the file has passages');
+    first.citation = 'section 34 of the Act';
+    writeFileSync(join(dir, 'act.json'), JSON.stringify(bad));
+
+    expect(() => loadCorpus(dir)).toThrow(/act\.json: .*citation/su);
+  });
+
+  it('names the file that is not valid JSON', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'corpus-'));
+    writeFileSync(join(dir, 'broken.json'), '{ "source": ');
+
+    expect(() => loadCorpus(dir)).toThrow(/^broken\.json: not valid JSON/u);
+  });
+
+  it('tags capture sections with the kinds declarations.yaml SectionKey allows', () => {
+    const require = createRequire(import.meta.url);
+    const contract = parse(
+      readFileSync(
+        join(dirname(require.resolve('@adili/schemas/package.json')), 'internal/declarations.yaml'),
+        'utf8',
+      ),
+    ) as { components: { schemas: { SectionKey: { pattern: string } } } };
+    const sectionKey = new RegExp(contract.components.schemas.SectionKey.pattern, 'u');
+    const kinds = ['bio', 'household', 'other', 'statement'] as const;
+
+    expect(kinds.filter((kind) => !(CORPUS_TAGS as readonly string[]).includes(kind))).toEqual([]);
+    expect(
+      kinds
+        .map((kind) => (kind === 'statement' ? 'statement:officer' : kind))
+        .filter((key) => !sectionKey.test(key)),
+    ).toEqual([]);
   });
 });
 
