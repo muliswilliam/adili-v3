@@ -459,17 +459,51 @@ describe('national ID on another roster', () => {
     await givenTscRoster();
 
     const seen = await withTenant(api.db, { tenant: 'psc', subject: 'test' }, async (tx) => {
-      const { rows: found } = await tx.execute<{ id: string }>(
-        sql`select roster_national_ids_on_other_rosters('psc', array['12345678', '34567890', '1']) as id`,
+      const { rows: found } = await tx.execute(
+        sql`select roster_national_ids_on_other_rosters(array['12345678', '34567890', '1', '12345678']) as found`,
       );
       const { rows: context } = await tx.execute<{ tenant: string }>(
         sql`select current_setting('app.tenant') as tenant`,
       );
       const visible = await tx.select().from(rosterRecords);
-      return { found: found.map((row) => row.id), context: context[0]?.tenant, visible };
+      return { found, context: context[0]?.tenant, visible };
     });
 
-    expect(seen).toEqual({ found: ['12345678'], context: 'psc', visible: [] });
+    // One boolean per ID asked about, in order, and nothing else of the other roster.
+    expect(seen).toEqual({
+      found: [{ found: [true, false, false, true] }],
+      context: 'psc',
+      visible: [],
+    });
+  });
+
+  it('answers only in a Commission context, and only for other Commissions', async () => {
+    await givenTscRoster();
+    const lookup = (tenant: string) =>
+      withTenant(api.db, { tenant, subject: 'test' }, async (tx) => {
+        const { rows } = await tx.execute<{ found: boolean[] }>(
+          sql`select roster_national_ids_on_other_rosters(array['12345678']) as found`,
+        );
+        return rows[0]?.found;
+      });
+
+    // tsc's own officer is not "on another roster" for tsc.
+    expect(await lookup('tsc')).toEqual([false]);
+    await expect(lookup('platform')).rejects.toThrow();
+  });
+
+  it('runs as its owner with a pinned search path, and PUBLIC may not call it', async () => {
+    const { rows } = await api.db.execute(sql`
+      select p.prosecdef as definer,
+        p.proconfig = array['search_path=pg_catalog, ' || current_schema() || ', pg_temp']
+          as "searchPathPinned",
+        has_function_privilege('public', p.oid, 'execute') as "publicCanExecute"
+      from pg_proc as p
+      where p.proname = 'roster_national_ids_on_other_rosters'
+        and p.pronamespace = current_schema()::regnamespace
+    `);
+
+    expect(rows).toEqual([{ definer: true, searchPathPinned: true, publicCanExecute: false }]);
   });
 });
 

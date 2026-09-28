@@ -136,7 +136,6 @@ export async function applyChunk(
     await adjustRosterSummary(tx, ref.tenant, summaryDelta(decisions.map((row) => row.decision)));
     const elsewhere = await nationalIdsOnOtherRosters(
       tx,
-      ref.tenant,
       decisions.flatMap(({ nationalId, decision }) =>
         decision.kind === 'locked' ? [] : [nationalId],
       ),
@@ -317,20 +316,20 @@ const NATIONAL_ID_ON_ANOTHER_ROSTER: RowNote = {
 
 /**
  * Which of the national IDs are on another Commission's roster, through a database function that
- * sees other rosters for the length of the query and answers only with the IDs asked about
- * (migration 0019); this transaction stays in the importing tenant's context.
+ * sees other rosters for the length of its query and answers with one boolean per ID asked about
+ * (migration 0020); it takes the importing tenant from this transaction's context, which it
+ * leaves as it was.
  */
 async function nationalIdsOnOtherRosters(
   tx: Transaction,
-  tenant: string,
   nationalIds: string[],
 ): Promise<Set<string>> {
   if (nationalIds.length === 0) return new Set();
-  const { rows } = await tx.execute<{ national_id: string }>(sql`
-    select national_id from roster_national_ids_on_other_rosters(${tenant}, ${sql.param(nationalIds)}::text[])
-      as national_id
+  const { rows } = await tx.execute<{ found: boolean[] }>(sql`
+    select roster_national_ids_on_other_rosters(${sql.param(nationalIds)}::text[]) as found
   `);
-  return new Set(rows.map((row) => row.national_id));
+  const found = rows[0]?.found ?? [];
+  return new Set(nationalIds.filter((_, index) => found[index] === true));
 }
 
 /** Personnel file numbers identify records case-insensitively. */
