@@ -26,8 +26,10 @@ import type {
 import { LoadError, NoAccess } from '../load-error';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
+import { IdentityMismatchBadge } from './identity-mismatch';
 import { messages as m } from './messages';
 import { isFlagged } from './record-imports';
+import { hasIdentityMismatch } from './record-onboarding';
 import {
   appendPage,
   hasRecordFilters,
@@ -68,6 +70,8 @@ export interface RecordsListProps {
 /**
  * The roster records card (spec 02 FE-6): search, state filter and "Flagged only" on top, then
  * the records ordered by name with masked national IDs, and "Load more" for the next page.
+ * The "Identity check failed" chip (spec 03 S25) joins "Flagged only" once the directory filters
+ * on `identityMismatch` (#76); until then it would look on and filter nothing.
  */
 export function RecordsList(props: RecordsListProps) {
   const { result, search } = props;
@@ -303,6 +307,7 @@ function StateBadges({ record }: { record: RosterRecordListItem }) {
     <span className="flex flex-wrap items-center gap-1.5">
       <RecordStateBadge state={record.state} />
       {isFlagged(record) ? <NotInLatestImportBadge /> : null}
+      {hasIdentityMismatch(record) ? <IdentityMismatchBadge /> : null}
     </span>
   );
 }
