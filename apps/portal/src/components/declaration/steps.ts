@@ -158,7 +158,9 @@ export const OFFICER_LABEL = 'You';
 /** How a person is named in lists: "You" for the officer, else their name or "Unnamed person". */
 export function nameFor(key: SectionKey, name: string | null | undefined): string {
   if (key === 'statement:officer') return OFFICER_LABEL;
-  return name?.trim() || 'Unnamed person';
+  const trimmed = name?.trim();
+  if (!trimmed) return 'Unnamed person';
+  return trimmed;
 }
 
 /** "You" for the officer, else the person's name from their statement section. */
