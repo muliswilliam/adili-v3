@@ -146,7 +146,7 @@ Shared helpers live next to the components: `formatDate`, `formatDateTime`, `for
 
 ## Storybook
 
-`pnpm --filter @adili/ui storybook` serves every `src/**/*.stories.tsx` on port 6006, with the accessibility panel; `build-storybook` writes a static copy. `src/stories.test.tsx` renders every story in the unit tests, so a story cannot break silently. Stories cover each state a ticket lists (the access primitives so far).
+`pnpm --filter @adili/ui storybook` serves every `src/**/*.stories.tsx` on port 6006, with the accessibility panel; `build-storybook` writes a static copy. `src/stories.test.tsx` renders every story in the unit tests, so a story cannot break silently. Stories cover each state a ticket lists (the access primitives and `Chart` so far).
 
 ## Dark theme
 
