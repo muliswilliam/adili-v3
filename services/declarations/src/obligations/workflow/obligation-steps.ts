@@ -22,7 +22,6 @@ import {
   filingObligations,
   obligationReminders,
   type ReminderOutcome,
-  tenantPolicyCache,
 } from '../schema.js';
 import type { LoadedObligation, ReminderRequest, SendReminderResult } from './contract.js';
 
@@ -89,10 +88,9 @@ export class ObligationSteps {
           dueDate: filingObligations.dueDate,
           status: filingObligations.status,
           personId: filingObligations.personId,
-          offsets: tenantPolicyCache.policy,
+          reminderOffsetsDays: filingObligations.reminderOffsetsDays,
         })
         .from(filingObligations)
-        .leftJoin(tenantPolicyCache, eq(tenantPolicyCache.tenant, filingObligations.tenant))
         .where(eq(filingObligations.id, obligationId));
       if (!row) return null;
       const recorded = await tx
@@ -107,8 +105,8 @@ export class ObligationSteps {
         dueDate: row.dueDate,
         status: row.status,
         personLinked: row.personId !== null,
-        // The Commission's offsets in force (the cache is refreshed on every roster event).
-        reminderOffsetsDays: [...(row.offsets?.reminderOffsetsDays ?? [])],
+        // The offsets of the policy version the obligation was created under (ADR-003 §4).
+        reminderOffsetsDays: row.reminderOffsetsDays,
         recordedOffsets: recorded.map((r) => r.offsetDays),
         jitterWindowMs: config.REMINDER_JITTER_HOURS * HOUR_MS,
       };
@@ -157,7 +155,7 @@ export class ObligationSteps {
         .from(filingObligations)
         .where(eq(filingObligations.id, obligationId));
       if (!row) return;
-      await tx
+      const recorded = await tx
         .insert(obligationReminders)
         .values(
           reminders.map((reminder) => ({
@@ -168,7 +166,17 @@ export class ObligationSteps {
             outcome: 'skipped-past-due-at-creation' as const,
           })),
         )
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning({
+          offsetDays: obligationReminders.offsetDays,
+          outcome: obligationReminders.outcome,
+        });
+      await this.events.recordAll(
+        tx,
+        recorded.map(({ offsetDays, outcome }) =>
+          obligationReminderSent(row.tenant, { obligationId, offsetDays, channels: [], outcome }),
+        ),
+      );
     });
   }
 

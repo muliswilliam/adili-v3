@@ -43,6 +43,13 @@
       "when": 1790627721822,
       "tag": "0005_policy_cache_cycle_openings_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790627999901,
+      "tag": "0006_obligation_reminder_offsets",
+      "breakpoints": true
     }
   ]
 }

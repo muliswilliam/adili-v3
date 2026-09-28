@@ -15,7 +15,7 @@ import {
   type PlanOperation,
   planObligations,
 } from './engine.js';
-import { obligationCreated, obligationStatusChanged } from './events.js';
+import { obligationCreated, obligationReminderSent, obligationStatusChanged } from './events.js';
 import { filingObligations, obligationReminders, rosterSnapshots } from './schema.js';
 import { noChanges, type ObligationChanges } from './workflows.js';
 
@@ -245,6 +245,9 @@ async function applyPlan(
     status: obligation.status,
     policyVersionId: context.policy.id,
     policyVersion: obligation.policyVersion,
+    reminderOffsetsDays: [...obligation.reminders, ...obligation.skippedReminders]
+      .map((reminder) => reminder.offsetDays)
+      .sort((a, b) => b - a),
   }));
   for (let start = 0; start < rows.length; start += INSERT_CHUNK) {
     await tx.insert(filingObligations).values(rows.slice(start, start + INSERT_CHUNK));
@@ -274,6 +277,16 @@ async function applyPlan(
       }),
     );
     changes.created.push(row.id);
+  }
+  for (const reminder of skipped) {
+    newEvents.push(
+      obligationReminderSent(context.tenant, {
+        obligationId: reminder.obligationId,
+        offsetDays: reminder.offsetDays,
+        channels: [],
+        outcome: reminder.outcome,
+      }),
+    );
   }
 
   for (const link of links) {

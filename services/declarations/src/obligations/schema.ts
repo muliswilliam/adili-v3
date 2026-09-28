@@ -118,6 +118,11 @@ export const filingObligations = pgTable(
     /** The directory policy version whose periods and offsets the obligation was computed with. */
     policyVersionId: uuid().notNull(),
     policyVersion: integer().notNull(),
+    /**
+     * That policy version's reminder offsets (days before the due date, largest first), which its
+     * workflow plans reminders with (ADR-003 §4: a later version never re-plans a running case).
+     */
+    reminderOffsetsDays: integer().array().notNull(),
     /** When its `FilingObligationWorkflow` was started; null until then. */
     workflowStartedAt: timestamp({ withTimezone: true }),
     /** The declaration that filed it (slice 06); null before. */

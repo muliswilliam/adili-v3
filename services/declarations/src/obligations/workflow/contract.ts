@@ -31,7 +31,7 @@ export interface LoadedObligation {
   status: ObligationStatus;
   /** Whether the declarant has onboarded (a person is linked). */
   personLinked: boolean;
-  /** The Commission's reminder offsets, days before the due date. */
+  /** The reminder offsets of the obligation's policy version, days before the due date. */
   reminderOffsetsDays: number[];
   /** Offsets that already have a reminder row (sent, skipped or failed). */
   recordedOffsets: number[];

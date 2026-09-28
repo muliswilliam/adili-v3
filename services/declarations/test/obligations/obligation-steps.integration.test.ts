@@ -17,7 +17,7 @@ import {
   directoryEvent,
   startDeclarationsApi,
 } from '../support/declarations-api.js';
-import { rosterRecord } from '../support/fake-directory.js';
+import { policyVersion, rosterRecord } from '../support/fake-directory.js';
 
 /**
  * The steps `FilingObligationWorkflow`'s activities take (S11 and the reminder rules), against
@@ -107,6 +107,13 @@ async function events(type: string) {
   return rows.map((row) => row.envelope);
 }
 
+/** `obligation.reminder-sent.v1` events but those of reminders past at creation. */
+async function sentByWorkflow() {
+  return (await events('obligation.reminder-sent.v1')).filter(
+    (e) => e.data.outcome !== 'skipped-past-due-at-creation',
+  );
+}
+
 describe('sendReminder', () => {
   it('S11: records skipped-not-onboarded without calling notifications when no person is linked', async () => {
     const { initial } = await officer();
@@ -125,7 +132,7 @@ describe('sendReminder', () => {
       scheduledAt: new Date('2027-07-17T10:41:07.000Z'),
       tenant: 'psc',
     });
-    expect((await events('obligation.reminder-sent.v1')).map((e) => e.data)).toEqual([
+    expect((await sentByWorkflow()).map((e) => e.data)).toEqual([
       { obligationId: initial, offsetDays: 14, channels: [], outcome: 'skipped-not-onboarded' },
     ]);
   });
@@ -158,7 +165,7 @@ describe('sendReminder', () => {
       messageIds: api.notifications.sent.map((m) => m.messageId),
       sentAt: api.clock.now(),
     });
-    const [event] = await events('obligation.reminder-sent.v1');
+    const [event] = await sentByWorkflow();
     expect(event).toMatchObject({
       tenant: 'psc',
       subject: initial,
@@ -223,9 +230,7 @@ describe('sendReminder', () => {
     await expect(api.steps.sendReminder(reminder(initial), attempt(true).run)).resolves.toBe(
       'failed',
     );
-    expect((await events('obligation.reminder-sent.v1')).map((e) => e.data.outcome)).toEqual([
-      'failed',
-    ]);
+    expect((await sentByWorkflow()).map((e) => e.data.outcome)).toEqual(['failed']);
   });
 
   it('does not send a reminder already recorded again', async () => {
@@ -239,7 +244,7 @@ describe('sendReminder', () => {
     );
 
     expect(api.notifications.sent).toHaveLength(2);
-    expect(await events('obligation.reminder-sent.v1')).toHaveLength(1);
+    expect(await sentByWorkflow()).toHaveLength(1);
   });
 
   it('sends nothing and records nothing for an obligation no longer open for reminders', async () => {
@@ -285,7 +290,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     ]);
   });
 
-  it('loads what the workflow plans from: dates, status, offsets in force, reminders recorded', async () => {
+  it('loads what the workflow plans from: dates, status, offsets of its policy version, reminders recorded', async () => {
     const { initial } = await officer(PERSON);
 
     await expect(api.steps.load(initial)).resolves.toEqual({
@@ -301,6 +306,21 @@ describe('setStatus, loadObligation, recordSkipped', () => {
       jitterWindowMs: 6 * 60 * 60 * 1000,
     });
     await expect(api.steps.load(randomUUID())).resolves.toBeNull();
+  });
+
+  it("plans reminders with the offsets of the obligation's policy version, not a later one (ADR-003 §4)", async () => {
+    const { initial } = await officer(PERSON);
+    // Version 2 changes the offsets; the next roster event caches it.
+    api.directory.givenCommission(
+      'psc',
+      'Public Service Commission',
+      policyVersion({ id: randomUUID(), version: 2, reminderOffsetsDays: [22, 7, 1] }),
+    );
+    await officer();
+
+    await expect(api.steps.load(initial)).resolves.toMatchObject({
+      reminderOffsetsDays: [30, 14, 7],
+    });
   });
 
   it('records reminders missed by the workflow as skipped, once', async () => {
@@ -322,5 +342,34 @@ describe('setStatus, loadObligation, recordSkipped', () => {
         ),
     );
     expect(rows).toEqual([{ outcome: 'skipped-past-due-at-creation' }]);
+    expect(
+      (await events('obligation.reminder-sent.v1'))
+        .map((e) => e.data)
+        .filter((data) => data.obligationId === biennial),
+    ).toEqual([
+      {
+        obligationId: biennial,
+        offsetDays: 30,
+        channels: [],
+        outcome: 'skipped-past-due-at-creation',
+      },
+    ]);
+  });
+
+  it('announces reminders already past when the obligation was created', async () => {
+    const { initial } = await officer();
+
+    expect(
+      (await events('obligation.reminder-sent.v1'))
+        .map((e) => e.data)
+        .filter((data) => data.obligationId === initial),
+    ).toEqual([
+      {
+        obligationId: initial,
+        offsetDays: 30,
+        channels: [],
+        outcome: 'skipped-past-due-at-creation',
+      },
+    ]);
   });
 });
