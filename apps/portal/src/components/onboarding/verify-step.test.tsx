@@ -129,7 +129,10 @@ describe('VerifyStep', () => {
     expect(await screen.findByText('That code is not right. 3 attempts left.')).toBeDefined();
     expect(box(1).value).toBe('');
     expect(box(1).getAttribute('aria-invalid')).toBe('true');
-    expect(document.activeElement).toBe(box(1));
+    // Focus moves in an effect after the error renders.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(box(1));
+    });
   });
 
   it('starts again with "too many attempts" when the last code was wrong', async () => {
