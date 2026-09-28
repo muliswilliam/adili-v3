@@ -21,7 +21,7 @@ import { messages as m } from '../../../../components/roster/messages';
 import { useImportPolling } from '../../../../components/roster/use-import-polling';
 import { FailureAlert, RunningProgress } from '../../../../components/roster/wizard-import-step';
 import type { RejectedRowsPager } from '../../../../components/roster/use-rejected-rows';
-import { signInRedirect } from '../../../../components/sign-in-redirect';
+import { goToSignIn, signInRedirect } from '../../../../components/sign-in-redirect';
 import type {
   DirectoryResult,
   RosterImport,
@@ -166,7 +166,7 @@ function Report({
   const polling = useImportPolling(importRunning(loaded) ? loaded.id : null, {
     read: (importId) => getRosterImport({ data: { slug, importId } }),
     onUnauthenticated: () => {
-      window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo(loaded.id))}`);
+      goToSignIn(returnTo(loaded.id));
     },
     onEnded: () => {
       void router.invalidate();

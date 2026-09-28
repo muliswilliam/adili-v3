@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import type { RosterRecord } from '../../server/directory/client';
 import { keepRosterRecords } from '../../server/roster-exits';
+import { goToSignIn } from '../sign-in-redirect';
 import { ConfirmExitsDialogContent } from './confirm-exits-dialog';
 import { keepFailure } from './exits';
 import { messages as m } from './messages';
@@ -33,10 +34,6 @@ export function RecordActions({
 
   if (record.state === 'exited') return null;
 
-  const signIn = () => {
-    window.location.assign(`/auth/login?returnTo=${encodeURIComponent(window.location.pathname)}`);
-  };
-
   const keep = async () => {
     if (keeping) return;
     setKeeping(true);
@@ -50,7 +47,7 @@ export function RecordActions({
       return;
     }
     const failure = keepFailure(outcome.error);
-    if (failure.kind === 'sign-in') signIn();
+    if (failure.kind === 'sign-in') goToSignIn();
     else toast({ title: failure.message, urgency: 'assertive' });
   };
 

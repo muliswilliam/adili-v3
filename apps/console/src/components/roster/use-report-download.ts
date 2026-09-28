@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import type { RosterImport } from '../../server/directory/client';
 import { downloadAttachment } from '../download';
+import { goToSignIn } from '../sign-in-redirect';
 import { reportCsvUrl, reportFileName } from './import-report';
 import { messages as m } from './messages';
 
@@ -20,7 +21,7 @@ export function useReportDownload(imp: Pick<RosterImport, 'id' | 'fileName'>, re
     const outcome = await downloadAttachment(reportCsvUrl(imp.id), reportFileName(imp.fileName));
     setDownloading(false);
     if (outcome === 'unauthenticated') {
-      window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
+      goToSignIn(returnTo);
     } else if (outcome === 'failed') {
       toast({ title: m.downloadRejectedError, urgency: 'assertive' });
     }

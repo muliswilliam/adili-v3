@@ -28,6 +28,7 @@ import type {
 import { keepRosterRecords } from '../../server/roster-exits';
 import { formatDate } from '../format';
 import { LoadError, NoAccess } from '../load-error';
+import { goToSignIn } from '../sign-in-redirect';
 import { ConfirmExitsDialogContent } from './confirm-exits-dialog';
 import { type ExitingOfficer, keepFailure, type Selection, selectionReducer } from './exits';
 import { messages as m } from './messages';
@@ -51,12 +52,6 @@ export interface FlaggedListProps {
 }
 
 const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } as const;
-
-function signIn() {
-  window.location.assign(
-    `/auth/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`,
-  );
-}
 
 /**
  * The flagged officers card (spec 02 FE-7): officers missing from the latest complete import,
@@ -128,7 +123,7 @@ export function FlaggedList({
       return;
     }
     const failure = keepFailure(outcome.error);
-    if (failure.kind === 'sign-in') signIn();
+    if (failure.kind === 'sign-in') goToSignIn();
     else toast({ title: failure.message, urgency: 'assertive' });
   };
 
@@ -141,7 +136,7 @@ export function FlaggedList({
     );
     setLoadingMore(false);
     if (!page.ok && page.error.kind === 'unauthenticated') {
-      signIn();
+      goToSignIn();
       return;
     }
     if (page.ok) setLoaded((current) => (current ? appendPage(current, page.data) : page.data));

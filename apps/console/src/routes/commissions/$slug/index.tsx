@@ -23,7 +23,7 @@ import { resendOutcome } from '../../../components/commissions/resend';
 import { RECENT_IMPORTS, RosterCard } from '../../../components/commissions/roster-card';
 import { formatDate, formatDateTime, formatRelativeDate } from '../../../components/format';
 import { DetailItem, DetailList, Page, PageHead, SectionCard } from '../../../components/page';
-import { signInRedirect } from '../../../components/sign-in-redirect';
+import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
 import { resendInvitation } from '../../../server/commissions';
 import type { Commission } from '../../../server/directory/client';
 import { listRecentRosterImports } from '../../../server/roster-records';
@@ -166,9 +166,7 @@ function OfficerCard({ commission }: { commission: Commission }) {
     }));
     setResending(false);
     if (!result.ok && result.error.kind === 'unauthenticated') {
-      window.location.assign(
-        `/auth/login?returnTo=${encodeURIComponent(`/commissions/${commission.slug}`)}`,
-      );
+      goToSignIn(`/commissions/${commission.slug}`);
       return;
     }
     const outcome = resendOutcome(result.ok ? null : result.error, officer.email);

@@ -26,6 +26,7 @@ import { ImportUnavailable, WizardImportStep } from '../../components/roster/wiz
 import { WizardReportStep } from '../../components/roster/wizard-report-step';
 import { WizardTemplateStep } from '../../components/roster/wizard-template-step';
 import { WizardUploadStep } from '../../components/roster/wizard-upload-step';
+import { goToSignIn } from '../../components/sign-in-redirect';
 import type { RosterImport } from '../../server/directory/client';
 import {
   checkRosterUpload,
@@ -70,7 +71,7 @@ const returnTo = (importId: string | null) =>
   importId ? `/roster/import?import=${importId}` : '/roster/import';
 
 const signIn = (importId: string | null) => {
-  window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo(importId))}`);
+  goToSignIn(returnTo(importId));
 };
 
 /** Blocks every navigation while enabled; `disabled` switches it. Stable, so it registers once. */

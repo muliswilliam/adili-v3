@@ -16,6 +16,7 @@ import type {
   RosterImportRowPage,
 } from '../../server/directory/client';
 import { formatNumber } from '../format';
+import { goToSignIn } from '../sign-in-redirect';
 import { rowsPurged } from './import-report';
 import { messages as m } from './messages';
 import { RejectedRows } from './rejected-rows';
@@ -127,7 +128,7 @@ function ImportRejectedRows({
     {
       read: readRows,
       onUnauthenticated: () => {
-        window.location.assign(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
+        goToSignIn(returnTo);
       },
     },
     { initial: initialRows, pager: rowsPager },
