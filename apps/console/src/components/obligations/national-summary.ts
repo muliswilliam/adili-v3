@@ -136,32 +136,3 @@ export function nationalPage(
   const shown = rows.slice(start, start + NATIONAL_PAGE_SIZE);
   return { rows: shown, page, pages, from: start + 1, to: start + shown.length };
 }
-
-/** Days before a biennial statement date that the platform creates the cycle's obligations. */
-const CYCLE_OPENS_DAYS_BEFORE = 120;
-
-export interface BiennialCycleDates {
-  year: string;
-  /** When the cycle's obligations are created. */
-  opensOn: string;
-  statementDate: string;
-  dueDate: string;
-}
-
-/**
- * The statutory dates of a biennial cycle (Act s.34(2): statement 1 November, due 31 December)
- * and the day it opens, from its key (`biennial:2027`); null for any other key. The national
- * summary names only the cycle, so the page words its dates from the calendar.
- */
-export function biennialCycleDates(cycleKey: string): BiennialCycleDates | null {
-  const year = /^biennial:(\d{4})$/.exec(cycleKey)?.[1];
-  if (!year) return null;
-  const statement = new Date(`${year}-11-01T00:00:00Z`);
-  const opens = new Date(statement.getTime() - CYCLE_OPENS_DAYS_BEFORE * 24 * 60 * 60 * 1000);
-  return {
-    year,
-    opensOn: opens.toISOString().slice(0, 10),
-    statementDate: `${year}-11-01`,
-    dueDate: `${year}-12-31`,
-  };
-}

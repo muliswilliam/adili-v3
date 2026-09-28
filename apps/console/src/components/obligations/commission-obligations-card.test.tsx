@@ -15,6 +15,15 @@ const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0) => ({
   filed,
 });
 
+/** A biennial cycle under the statutory dates. */
+const cycle = (year: number, opened: boolean) => ({
+  key: `biennial:${String(year)}`,
+  statementDate: `${String(year)}-11-01`,
+  dueDate: `${String(year)}-12-31`,
+  opensOn: `${String(year)}-07-04`,
+  opened,
+});
+
 function summary(
   overrides: Partial<CommissionObligationsSummary> = {},
 ): DeclarationsResult<CommissionObligationsSummary> {
@@ -22,7 +31,8 @@ function summary(
     ok: true,
     data: {
       commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
-      cycle: { key: 'biennial:2027', statementDate: '2027-11-01', dueDate: '2027-12-31' },
+      cycle: cycle(2027, true),
+      cycles: [cycle(2027, true), cycle(2029, false), cycle(2031, false)],
       total: counts(0, 47, 26),
       byType: { initial: counts(0, 40, 20), biennial: counts(), final: counts(0, 7, 6) },
       notOnboarded: { due: 30, overdue: 18 },

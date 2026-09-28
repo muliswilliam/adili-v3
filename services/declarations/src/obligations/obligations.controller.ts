@@ -6,6 +6,7 @@ import {
   CurrentPrincipal,
   type Principal,
   Roles,
+  schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 
@@ -49,7 +50,10 @@ export class ObligationsController {
     summary: "The signed-in declarant's obligations across Commissions",
     description: 'Authorised by the person_id claim. Staff tokens without it get 404.',
   })
-  @ApiOkResponse({ description: 'Obligations grouped by Commission' })
+  @ApiOkResponse({
+    description: 'Obligations grouped by Commission',
+    schema: schemaRef('MyObligations'),
+  })
   @ApiProblemResponse(404, NOT_VISIBLE)
   mine(@CurrentPrincipal() principal: Principal): Promise<MyObligations> {
     return this.obligations.mine(principal);
@@ -64,8 +68,12 @@ export class ObligationsController {
       "Every Commission's counts for a cycle (the current one by default), with not-onboarded officers due or overdue, the last roster import, and totals. No officer data.",
   })
   @ApiQueryParameters(summaryQuery)
-  @ApiOkResponse({ description: 'Counts per Commission and totals' })
+  @ApiOkResponse({
+    description: 'Counts per Commission and totals',
+    schema: schemaRef('NationalSummary'),
+  })
   @ApiProblemResponse(400, 'Query failed validation')
+  @ApiProblemResponse(403, 'Only EACC roles and platform admins')
   nationalSummary(
     @CurrentPrincipal() principal: Principal,
     @Query(new ZodValidationPipe(summaryQuery)) query: SummaryQuery,
@@ -81,7 +89,7 @@ export class ObligationsController {
     description:
       "The declarant's own (officer null); staff of the obligation's Commission and platform admins (with the officer). Anyone else gets 404.",
   })
-  @ApiOkResponse({ description: 'The obligation' })
+  @ApiOkResponse({ description: 'The obligation', schema: schemaRef('ObligationDetail') })
   @ApiProblemResponse(404, NOT_VISIBLE)
   one(
     @CurrentPrincipal() principal: Principal,
@@ -100,8 +108,9 @@ export class ObligationsController {
       "A cycle's counts (the current cycle by default: the latest opened, or the next while none has): its biennials, open initial and final obligations, and those filed in the cycle's two years. Staff of the Commission, platform admins and EACC roles; staff of another Commission get 404.",
   })
   @ApiQueryParameters(summaryQuery)
-  @ApiOkResponse({ description: 'The summary' })
+  @ApiOkResponse({ description: 'The summary', schema: schemaRef('CommissionSummary') })
   @ApiProblemResponse(400, 'Query failed validation')
+  @ApiProblemResponse(403, "Not a Commission's staff, an EACC role or a platform admin")
   @ApiProblemResponse(404, NOT_VISIBLE)
   commissionSummary(
     @CurrentPrincipal() principal: Principal,
@@ -121,8 +130,12 @@ export class ObligationsController {
       'Staff of the tenant and platform-admin. EACC roles get 403 (summaries only); staff of another Commission 404.',
   })
   @ApiQueryParameters(listCommissionObligationsQuery)
-  @ApiOkResponse({ description: 'Page ordered by due date, overdue first' })
+  @ApiOkResponse({
+    description: 'Page ordered by due date, overdue first',
+    schema: schemaRef('ObligationPage'),
+  })
   @ApiProblemResponse(400, 'Query failed validation, or the cursor is unknown')
+  @ApiProblemResponse(403, "Not a Commission's staff or a platform admin (EACC sees counts only)")
   @ApiProblemResponse(404, NOT_VISIBLE)
   listCommissionObligations(
     @CurrentPrincipal() principal: Principal,

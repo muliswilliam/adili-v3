@@ -19,8 +19,8 @@ import {
   type MessageSender,
   SMS_SENDER,
 } from './message-sender.js';
-import type { SendMessage } from './send-message.schema.js';
-import { type Channel, renderTemplate } from './templates.js';
+import type { MessageView, SendMessage } from './send-message.schema.js';
+import { renderTemplate } from './templates.js';
 
 export const MESSAGES_OPTIONS = Symbol('MESSAGES_OPTIONS');
 
@@ -40,18 +40,6 @@ export interface MessagesOptions {
 export type MessageFailure = DeliveryFailure | 'no-contact' | 'contact-lookup-failed';
 
 type Resolution = { to: string } | { failure: 'no-contact' | 'contact-lookup-failed' };
-
-/** notifications.yaml `Message`. */
-export interface MessageView {
-  id: string;
-  channel: Channel;
-  template: string;
-  status: 'sent' | 'failed';
-  /** A `MessageFailure` when failed. */
-  error: string | null;
-  providerMessageId: string | null;
-  createdAt: string;
-}
 
 @Injectable()
 export class MessagesService {

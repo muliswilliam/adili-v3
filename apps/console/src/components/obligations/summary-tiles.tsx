@@ -1,9 +1,16 @@
-import { Button, Icon, Skeleton, StatTile } from '@adili/ui';
+import {
+  Button,
+  Icon,
+  obligationStatusMeta,
+  obligationTypeNames,
+  Skeleton,
+  StatTile,
+} from '@adili/ui';
 import { UserRemove01Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import type { CommissionObligationsSummary } from '../../server/declarations/client';
-import { messages as m, OBLIGATION_STATUS_LABELS, OBLIGATION_TYPE_LABELS } from './messages';
+import { messages as m } from './messages';
 import {
   notOnboardedCount,
   OBLIGATION_FILTER_STATUSES,
@@ -39,7 +46,7 @@ export function SummaryTiles({ summary, search, onSearchChange }: SummaryTilesPr
   return (
     <div role="group" aria-label={m.summaryLabel} className={GRID}>
       {OBLIGATION_FILTER_STATUSES.map((status) => {
-        const label = OBLIGATION_STATUS_LABELS[status];
+        const label = obligationStatusMeta[status].label;
         return (
           <StatTile
             key={status}
@@ -47,7 +54,7 @@ export function SummaryTiles({ summary, search, onSearchChange }: SummaryTilesPr
             value={summary.total[status]}
             marker={<span aria-hidden="true" className={`size-2 rounded-full ${DOTS[status]}`} />}
             breakdown={OBLIGATION_TYPES.map((type) => ({
-              label: OBLIGATION_TYPE_LABELS[type],
+              label: obligationTypeNames[type],
               value: summary.byType[type][status],
             }))}
             breakdownLabel={m.byType(label)}
@@ -64,8 +71,8 @@ export function SummaryTiles({ summary, search, onSearchChange }: SummaryTilesPr
         marker={<Icon icon={UserRemove01Icon} />}
         tone={notOnboarded > 0 ? 'warning' : 'default'}
         breakdown={[
-          { label: OBLIGATION_STATUS_LABELS.due, value: summary.notOnboarded.due },
-          { label: OBLIGATION_STATUS_LABELS.overdue, value: summary.notOnboarded.overdue },
+          { label: obligationStatusMeta.due.label, value: summary.notOnboarded.due },
+          { label: obligationStatusMeta.overdue.label, value: summary.notOnboarded.overdue },
         ]}
         breakdownLabel={m.notOnboardedBreakdown}
       />

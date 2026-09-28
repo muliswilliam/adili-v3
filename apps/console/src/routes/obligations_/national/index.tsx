@@ -1,4 +1,4 @@
-import { TableRowLink, useToday } from '@adili/ui';
+import { TableRowLink } from '@adili/ui';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../../components/obligations/messages';
@@ -49,7 +49,6 @@ function NationalPage({
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/obligations/national/' });
   const { roles } = Route.useRouteContext();
-  const today = useToday();
   return (
     <NationalView
       result={result}
@@ -57,7 +56,6 @@ function NationalPage({
       onSearchChange={(next) => {
         void navigate({ search: next, resetScroll: false });
       }}
-      today={today}
       commissionLink={(row) => (
         <TableRowLink asChild>
           <Link to="/commissions/$slug" params={{ slug: row.commission.slug }}>

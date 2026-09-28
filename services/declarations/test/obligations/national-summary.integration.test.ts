@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { cycleCalendar } from '../../src/db/schema.js';
 
 import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import type { NationalSummary } from '../../src/obligations/representation.js';
@@ -78,6 +81,15 @@ async function national(caller: Caller, query = ''): Promise<NationalSummary> {
   return body;
 }
 
+/** A biennial cycle under the statutory dates, opening 120 days before its statement date. */
+const cycle = (year: number, opened: boolean) => ({
+  key: `biennial:${String(year)}`,
+  statementDate: `${String(year)}-11-01`,
+  dueDate: `${String(year)}-12-31`,
+  opensOn: `${String(year)}-07-04`,
+  opened,
+});
+
 const counts = (upcoming: number, due: number, overdue: number, filed = 0) => ({
   upcoming,
   due,
@@ -88,7 +100,7 @@ const counts = (upcoming: number, due: number, overdue: number, filed = 0) => ({
 describe('GET /v1/obligations/summary', () => {
   it('counts the current cycle per Commission by name, with the last roster import and totals', async () => {
     expect(await national(EACC)).toEqual({
-      cycle: 'biennial:2027',
+      cycle: cycle(2027, true),
       commissions: [
         {
           commission: { slug: 'kra', issuerCode: 'KRA', name: 'Kenya Revenue Authority' },
@@ -146,7 +158,7 @@ describe('GET /v1/obligations/summary', () => {
   it("counts another cycle's biennials, and open initial and final obligations", async () => {
     const body = await national(EACC, 'cycle=biennial:2029');
 
-    expect(body.cycle).toBe('biennial:2029');
+    expect(body.cycle).toEqual(cycle(2029, false));
     expect(body.commissions.map((c) => [c.commission.slug, c.total, c.notOnboarded])).toEqual([
       ['kra', counts(0, 0, 0), 0],
       ['psc', counts(0, 0, 1), 1],
@@ -163,12 +175,28 @@ describe('GET /v1/obligations/summary', () => {
 
   it('gives an empty list and zero totals before any roster import', async () => {
     await api.reset();
+    api.clock.setToday('2027-06-01');
 
     expect(await national(EACC)).toEqual({
-      cycle: 'biennial:2027',
+      cycle: cycle(2027, false),
       commissions: [],
       totals: counts(0, 0, 0),
     });
+  });
+
+  it('names the opening day of a cycle not open yet', async () => {
+    api.clock.setToday('2027-06-01');
+
+    expect((await national(EACC)).cycle).toEqual(cycle(2027, false));
+  });
+
+  it('opens a cycle early when the calendar brings its opening day forward', async () => {
+    await api.db
+      .update(cycleCalendar)
+      .set({ openingLeadDays: 762 })
+      .where(eq(cycleCalendar.cycleYear, 2029));
+
+    expect((await national(EACC)).cycle).toEqual({ ...cycle(2029, true), opensOn: '2027-10-01' });
   });
 });
 

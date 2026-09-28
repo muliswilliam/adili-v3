@@ -12,8 +12,15 @@ import { NationalView, type NationalViewProps } from './national-view';
 
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate: vi.fn() }) }));
 
-const JUNE_2027 = Date.parse('2027-06-01T09:00:00Z');
-const AUGUST_2027 = Date.parse('2027-08-01T09:00:00Z');
+type Cycle = NationalObligationsSummary['cycle'];
+
+const CYCLE_2027: Cycle = {
+  key: 'biennial:2027',
+  statementDate: '2027-11-01',
+  dueDate: '2027-12-31',
+  opensOn: '2027-07-04',
+  opened: false,
+};
 
 function row(
   slug: string,
@@ -42,11 +49,14 @@ const rows = [
   ),
 ];
 
-function ok(commissions = rows): DeclarationsResult<NationalObligationsSummary> {
+function ok(
+  commissions = rows,
+  cycle = CYCLE_2027,
+): DeclarationsResult<NationalObligationsSummary> {
   return {
     ok: true,
     data: {
-      cycle: 'biennial:2027',
+      cycle,
       commissions,
       totals: commissions.reduce(
         (t, r) => ({
@@ -69,7 +79,6 @@ function renderView(overrides: Partial<NationalViewProps> = {}) {
       search={{}}
       onSearchChange={onSearchChange}
       commissionLink={(r) => <a href={`/commissions/${r.commission.slug}`}>{r.commission.name}</a>}
-      today={JUNE_2027}
       {...overrides}
     />,
   );
@@ -143,8 +152,13 @@ describe('S16 national summary (EACC, platform admin)', () => {
     );
   });
 
+  it('names the opening day the service gives, e.g. a cycle brought forward', () => {
+    renderView({ result: ok(rows, { ...CYCLE_2027, opensOn: '2027-06-15' }) });
+    expect(screen.getByRole('status').textContent).toContain('opens on 15 Jun 2027');
+  });
+
   it('drops the notice once the cycle has opened', () => {
-    renderView({ today: AUGUST_2027 });
+    renderView({ result: ok(rows, { ...CYCLE_2027, opened: true }) });
     expect(screen.queryByRole('status')).toBeNull();
   });
 

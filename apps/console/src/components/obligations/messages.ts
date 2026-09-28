@@ -1,67 +1,9 @@
-import type {
-  ObligationStatus,
-  Reminder,
-  ObligationType,
-  ReminderOutcome,
-} from '../../server/declarations/client';
 import { formatNumber } from '../format';
 
 /**
- * Words for obligations: type labels, status words and reminder outcomes. Spec 04 wants one table
- * shared by portal and console; this is the console's copy until it moves to a shared package.
+ * Type labels, status words and reminder outcomes come from the table shared with the portal
+ * (@adili/ui `lib/obligations`, spec 04 i18n); this file holds the console's own copy.
  */
-export const OBLIGATION_TYPE_LABELS: Record<ObligationType, string> = {
-  initial: 'Initial',
-  biennial: 'Biennial',
-  final: 'Final',
-};
-
-/** The type as a declaration, e.g. "Biennial declaration 2027" (the year from the cycle key). */
-export function obligationTypeLong(type: ObligationType, cycleKey: string): string {
-  if (type === 'initial') return 'Initial declaration';
-  if (type === 'final') return 'Final declaration';
-  const year = /^biennial:(\d{4})$/.exec(cycleKey)?.[1];
-  return year ? `Biennial declaration ${year}` : 'Biennial declaration';
-}
-
-/** The type as a table cell, e.g. "Biennial 2027". */
-export function obligationTypeShort(type: ObligationType, cycleKey: string): string {
-  const year = type === 'biennial' ? /^biennial:(\d{4})$/.exec(cycleKey)?.[1] : undefined;
-  return year ? `${OBLIGATION_TYPE_LABELS[type]} ${year}` : OBLIGATION_TYPE_LABELS[type];
-}
-
-export const OBLIGATION_STATUS_LABELS: Record<ObligationStatus, string> = {
-  upcoming: 'Upcoming',
-  due: 'Due',
-  overdue: 'Overdue',
-  filed: 'Filed',
-  cancelled: 'Cancelled',
-};
-
-export const REMINDER_OUTCOME_LABELS: Record<ReminderOutcome, string> = {
-  sent: 'Sent by SMS and email',
-  'skipped-not-onboarded': 'Skipped: not yet onboarded',
-  'skipped-no-contact': 'Skipped: no contact details',
-  'skipped-past-due-at-creation': 'Skipped: date had passed when the obligation was created',
-  failed: 'Failed',
-};
-
-const CHANNEL_NAMES: Record<Reminder['channels'][number], string> = { sms: 'SMS', email: 'email' };
-
-/** "Sent by SMS and email", or by whichever channels it went out on; other outcomes as words. */
-export function reminderOutcomeLabel(reminder: Pick<Reminder, 'outcome' | 'channels'>): string {
-  if (reminder.outcome !== 'sent' || reminder.channels.length === 0) {
-    return REMINDER_OUTCOME_LABELS[reminder.outcome];
-  }
-  return `Sent by ${reminder.channels.map((channel) => CHANNEL_NAMES[channel]).join(' and ')}`;
-}
-
-/** The channels a reminder used, e.g. "SMS, email"; "-" for none. */
-export function reminderChannelsText(reminder: Pick<Reminder, 'channels'>): string {
-  const text = reminder.channels.map((channel) => CHANNEL_NAMES[channel]).join(', ');
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '-';
-}
-
 /**
  * Copy of the Obligations workspace (spec 04 frontend, FE-3). One English string per key; the
  * Swahili slot stays empty until translations are reviewed by EACC.
@@ -73,7 +15,7 @@ export const en = {
   cycleLine: (cycle: string, statement: string, due: string) =>
     `${cycle} · statement ${statement} · due ${due}`,
   cycleNotOpen: 'Not open yet',
-  cycleNotOpenHint: 'Obligations for the cycle are created 120 days before its statement date.',
+  cycleNotOpenHint: (opens: string) => `The cycle's obligations are created on ${opens}.`,
   // Tiles
   summaryLabel: 'Summary',
   byType: (label: string) => `${label} by type`,
@@ -113,8 +55,7 @@ export const en = {
   no: 'No',
   onboardedShort: 'Onboarded',
   notOnboardedShort: 'Not onboarded',
-  remindersSent: (count: number) =>
-    `${formatNumber(count)} ${count === 1 ? 'reminder' : 'reminders'} sent`,
+  remindersLast: (offset: string, outcome: string) => `Last (${offset}): ${outcome}`,
   remindersNoneNotOnboarded: 'None sent: not yet onboarded. Chase through your own channels.',
   remindersSeeHistory: 'Open the officer for the reminder history.',
   shown: (count: number) =>
@@ -160,7 +101,6 @@ export const en = {
   reminderSent: 'Sent',
   reminderChannels: 'Channels',
   reminderOutcome: 'Outcome',
-  offsetDays: (days: number) => `${formatNumber(days)} ${days === 1 ? 'day' : 'days'} before`,
   noReminders: 'No reminders scheduled for this obligation.',
   rosterRecord: 'Roster record',
   close: 'Close',

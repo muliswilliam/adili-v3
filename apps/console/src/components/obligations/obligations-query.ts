@@ -103,7 +103,7 @@ export function obligationsQuery(
   if (search) query.search = search;
   if (filters.type) query.type = filters.type;
   if (filters.status) query.status = filters.status;
-  if (filters.onboarded !== undefined) query.onboarded = filters.onboarded;
+  if (filters.onboarded !== undefined) query.onboarded = filters.onboarded ? 'true' : 'false';
   if (filters.cycle) query.cycle = filters.cycle;
   if (page.cursor) query.cursor = page.cursor;
   if (page.limit !== undefined) query.limit = page.limit;
@@ -115,7 +115,7 @@ export interface CycleOption {
   key: string;
   /** The key as words, e.g. "Biennial 2027". */
   label: string;
-  /** False while the cycle has no obligations yet (it opens 120 days before its statement date). */
+  /** False while the cycle has not opened: it has no biennial obligations yet. */
   opened: boolean;
 }
 
@@ -126,12 +126,10 @@ export function cycleLabel(key: string): string {
   return key;
 }
 
-const countsOf = (counts: CommissionObligationsSummary['total']) =>
-  counts.upcoming + counts.due + counts.overdue + counts.filed;
-
 /**
- * The cycles to choose from: the summary's current biennial cycle, open once it has obligations,
- * and a cycle already in the URL if it is another one (so the select can show it).
+ * The cycles to choose from: those opened, oldest first, and the current cycle while it has not
+ * opened yet (shown, not selectable), then a cycle already in the URL if it is another one (so the
+ * select can show it).
  */
 export function cycleOptions(
   summary: CommissionObligationsSummary | null,
@@ -139,11 +137,15 @@ export function cycleOptions(
 ): CycleOption[] {
   const options: CycleOption[] = [];
   if (summary) {
-    options.push({
-      key: summary.cycle.key,
-      label: cycleLabel(summary.cycle.key),
-      opened: countsOf(summary.byType.biennial) > 0,
-    });
+    for (const cycle of summary.cycles) {
+      if (cycle.opened || cycle.key === summary.cycle.key) {
+        options.push({ key: cycle.key, label: cycleLabel(cycle.key), opened: cycle.opened });
+      }
+    }
+    if (!options.some((option) => option.key === summary.cycle.key)) {
+      const { key, opened } = summary.cycle;
+      options.push({ key, label: cycleLabel(key), opened });
+    }
   }
   if (selected && !options.some((option) => option.key === selected)) {
     options.push({ key: selected, label: cycleLabel(selected), opened: true });

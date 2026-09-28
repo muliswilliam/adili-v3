@@ -3,7 +3,11 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/mocks/demo/rosters/*.csv"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/mocks/demo/rosters/*.csv",
+        "$TURBO_ROOT$/packages/schemas/internal/*.yaml"
+      ]
     },
     "build": {
       "inputs": [

@@ -5,6 +5,12 @@ import {
   DateText,
   EmptyState,
   Icon,
+  obligationStatusMeta,
+  obligationTypeNames,
+  obligationTypeShortLabel,
+  reminderOffsetLabel,
+  reminderOutcomeLabel,
+  remindersSentLabel,
   Select,
   SelectItem,
   Skeleton,
@@ -36,12 +42,7 @@ import { appendPage, type LoadedPages } from '../roster/records-query';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
 import { ObligationStatusBadge, OnboardedBadge } from './obligation-badges';
-import {
-  messages as m,
-  OBLIGATION_STATUS_LABELS,
-  OBLIGATION_TYPE_LABELS,
-  obligationTypeShort,
-} from './messages';
+import { messages as m } from './messages';
 import {
   type CycleOption,
   hasObligationFilters,
@@ -141,7 +142,7 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         <SelectItem value={ALL}>{m.typeAll}</SelectItem>
         {OBLIGATION_TYPES.map((type) => (
           <SelectItem key={type} value={type}>
-            {OBLIGATION_TYPE_LABELS[type]}
+            {obligationTypeNames[type]}
           </SelectItem>
         ))}
       </Select>
@@ -166,7 +167,7 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         <SelectItem value={ALL}>{m.statusAll}</SelectItem>
         {OBLIGATION_FILTER_STATUSES.map((status) => (
           <SelectItem key={status} value={status}>
-            {OBLIGATION_STATUS_LABELS[status]}
+            {obligationStatusMeta[status].label}
           </SelectItem>
         ))}
       </Select>
@@ -437,10 +438,27 @@ function DueDate({ obligation }: { obligation: ObligationListItem }) {
   );
 }
 
-/** What the reminders say on hover and focus; the drawer lists every one. */
-function remindersTip(obligation: ObligationListItem): string {
+/**
+ * What the reminders say on hover and focus: the count sent and the last reminder's outcome; the
+ * drawer lists every one.
+ */
+function remindersTip(obligation: ObligationListItem): ReactNode {
+  const { lastReminder } = obligation;
   if (!obligation.officer.onboarded) return m.remindersNoneNotOnboarded;
-  return `${m.remindersSent(obligation.remindersSent)}. ${m.remindersSeeHistory}`;
+  return (
+    <>
+      <span className="block">{remindersSentLabel(obligation.remindersSent)}</span>
+      {lastReminder ? (
+        <span className="block">
+          {m.remindersLast(
+            reminderOffsetLabel(lastReminder.offsetDays),
+            reminderOutcomeLabel(lastReminder.outcome, lastReminder.channels),
+          )}
+        </span>
+      ) : null}
+      <span className="block">{m.remindersSeeHistory}</span>
+    </>
+  );
 }
 
 /** Reminders sent, as a count with a tooltip; above the row's link so it takes hover and focus. */
@@ -449,7 +467,7 @@ function Reminders({ obligation }: { obligation: ObligationListItem }) {
     <Tooltip content={remindersTip(obligation)}>
       <span
         tabIndex={0}
-        aria-label={m.remindersSent(obligation.remindersSent)}
+        aria-label={remindersSentLabel(obligation.remindersSent)}
         className="relative z-10 inline-flex items-center gap-1.5 rounded-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <Icon icon={Notification01Icon} className="size-3.5 text-muted-foreground" />
@@ -477,7 +495,7 @@ function ObligationsTable({
               <FileNumber value={obligation.officer.personnelFileNumber} />
             </TableHead>
             <TableCell className="whitespace-nowrap">
-              {obligationTypeShort(obligation.type, obligation.cycleKey)}
+              {obligationTypeShortLabel(obligation.type, obligation.statementDate)}
             </TableCell>
             <TableCell className="whitespace-nowrap">
               {formatDate(obligation.statementDate)}
@@ -527,7 +545,7 @@ function ObligationsCards({
             <ObligationStatusBadge status={obligation.status} />
           </div>
           <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
-            <span>{obligationTypeShort(obligation.type, obligation.cycleKey)}</span>
+            <span>{obligationTypeShortLabel(obligation.type, obligation.statementDate)}</span>
             <span aria-hidden="true">·</span>
             <span>{formatDate(obligation.dueDate)}</span>
             <span aria-hidden="true">·</span>
@@ -540,7 +558,7 @@ function ObligationsCards({
           <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
             <span>{obligation.officer.onboarded ? m.onboardedShort : m.notOnboardedShort}</span>
             <span aria-hidden="true">·</span>
-            <span>{m.remindersSent(obligation.remindersSent)}</span>
+            <span>{remindersSentLabel(obligation.remindersSent)}</span>
           </p>
         </li>
       ))}

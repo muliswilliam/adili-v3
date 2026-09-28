@@ -4,7 +4,13 @@ import { withTenant } from '@adili/data-access';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { filingObligations, rosterSnapshots } from '../../src/db/schema.js';
+import {
+  cycleCalendar,
+  cycleOpenings,
+  filingObligations,
+  obligationReminders,
+  rosterSnapshots,
+} from '../../src/db/schema.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import type {
   CommissionSummary,
@@ -148,11 +154,37 @@ const counts = (upcoming: number, due: number, overdue: number, filed = 0) => ({
   filed,
 });
 
+/** A biennial cycle under the statutory dates, opening 120 days before its statement date. */
+const cycle = (year: number, opened: boolean) => ({
+  key: `biennial:${String(year)}`,
+  statementDate: `${String(year)}-11-01`,
+  dueDate: `${String(year)}-12-31`,
+  opensOn: `${String(year)}-07-04`,
+  opened,
+});
+
+/** Obligation id of a PSC officer's obligation of `type`. */
+async function obligationIdOf(fullName: string, type: 'initial' | 'biennial' | 'final') {
+  return withTenant(api.db, { tenant: 'psc', subject: 'test' }, async (tx) => {
+    const [row] = await tx
+      .select({ id: filingObligations.id })
+      .from(filingObligations)
+      .innerJoin(
+        rosterSnapshots,
+        eq(rosterSnapshots.rosterRecordId, filingObligations.rosterRecordId),
+      )
+      .where(and(eq(rosterSnapshots.fullName, fullName), eq(filingObligations.type, type)));
+    if (!row) throw new Error(`no ${type} obligation for ${fullName}`);
+    return row.id;
+  });
+}
+
 describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
   it('counts the current cycle by type and status, and not-onboarded officers due or overdue', async () => {
     expect(await summary(PSC_OFFICER)).toEqual({
       commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
-      cycle: { key: 'biennial:2027', statementDate: '2027-11-01', dueDate: '2027-12-31' },
+      cycle: cycle(2027, true),
+      cycles: [cycle(2027, true), cycle(2029, false), cycle(2031, false)],
       total: counts(5, 2, 2),
       byType: {
         initial: counts(0, 1, 2),
@@ -187,11 +219,7 @@ describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
     const next = await summary(PSC_OFFICER, 'psc', 'cycle=biennial:2029');
 
     expect(current.byType.initial).toEqual(counts(0, 1, 1, 1));
-    expect(next.cycle).toEqual({
-      key: 'biennial:2029',
-      statementDate: '2029-11-01',
-      dueDate: '2029-12-31',
-    });
+    expect(next.cycle).toEqual(cycle(2029, false));
     // Faith's initial was filed in 2027, outside 2028-2029.
     expect(next.byType).toEqual({
       initial: counts(0, 1, 1),
@@ -206,12 +234,42 @@ describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
     expect((await summary(PSC_OFFICER)).cycle.key).toBe('biennial:2027');
   });
 
+  it('opens a cycle early when the calendar brings its opening day forward', async () => {
+    // The demo seed does this: 2029 opens on 2027-10-01 instead of 2029-07-04.
+    await api.db
+      .update(cycleCalendar)
+      .set({ openingLeadDays: 762 })
+      .where(eq(cycleCalendar.cycleYear, 2029));
+
+    const body = await summary(PSC_OFFICER);
+
+    expect(body.cycle).toEqual({ ...cycle(2029, true), opensOn: '2027-10-01' });
+    expect(body.cycles.map((entry) => [entry.key, entry.opened])).toEqual([
+      ['biennial:2027', true],
+      ['biennial:2029', true],
+      ['biennial:2031', false],
+    ]);
+  });
+
+  it('counts a cycle as opened once its biennials were created, even before its opening day', async () => {
+    api.clock.setToday('2027-06-01');
+    await api.db
+      .insert(cycleOpenings)
+      .values({ tenant: 'psc', cycleYear: 2027, obligationsCreated: 5 });
+
+    expect((await summary(PSC_OFFICER)).cycle).toEqual(cycle(2027, true));
+    expect((await summary({ tenant: 'tsc', roles: ['supervisor'] }, 'tsc')).cycle).toEqual(
+      cycle(2027, false),
+    );
+  });
+
   it('gives a Commission without obligations zero counts and the next cycle', async () => {
     api.clock.setToday('2026-09-28');
 
     expect(await summary({ tenant: 'kra', roles: ['supervisor'] }, 'kra')).toEqual({
       commission: { slug: 'kra', issuerCode: 'KRA', name: 'KRA' },
-      cycle: { key: 'biennial:2027', statementDate: '2027-11-01', dueDate: '2027-12-31' },
+      cycle: cycle(2027, false),
+      cycles: [cycle(2027, false), cycle(2029, false), cycle(2031, false)],
       total: counts(0, 0, 0),
       byType: { initial: counts(0, 0, 0), biennial: counts(0, 0, 0), final: counts(0, 0, 0) },
       notOnboarded: { due: 0, overdue: 0 },
@@ -248,11 +306,57 @@ describe('S15 GET /v1/commissions/{slug}/obligations', () => {
       cycleKey: 'initial:2027-03-01',
       statementDate: '2027-03-01',
       remindersSent: 0,
+      // Its reminders were all past when it was created, on 2027-10-15.
+      lastReminder: {
+        offsetDays: 7,
+        scheduledAt: '2027-03-23T21:00:00.000Z',
+        sentAt: null,
+        channels: [],
+        outcome: 'skipped-past-due-at-creation',
+      },
       officer: {
         personnelFileNumber: 'PSC/1003',
         fullName: 'Faith Achieng',
         onboarded: true,
         ofr: 'OFR-0000417-4',
+      },
+    });
+  });
+
+  it("carries each obligation's latest reminder", async () => {
+    const id = await obligationIdOf('Daudi Ochieng', 'biennial');
+    await withTenant(api.db, { tenant: 'psc', subject: 'test' }, (tx) =>
+      tx.insert(obligationReminders).values([
+        {
+          obligationId: id,
+          tenant: 'psc',
+          offsetDays: 14,
+          scheduledAt: new Date('2027-12-17T12:00:00+03:00'),
+          outcome: 'skipped-no-contact',
+        },
+        {
+          obligationId: id,
+          tenant: 'psc',
+          offsetDays: 30,
+          scheduledAt: new Date('2027-12-01T12:00:00+03:00'),
+          sentAt: new Date('2027-12-01T12:04:00+03:00'),
+          channels: ['sms', 'email'],
+          messageIds: [randomUUID(), randomUUID()],
+          outcome: 'sent',
+        },
+      ]),
+    );
+
+    const item = (await page(PSC_OFFICER, 'search=Daudi&type=biennial')).items[0];
+
+    expect(item).toMatchObject({
+      remindersSent: 1,
+      lastReminder: {
+        offsetDays: 14,
+        scheduledAt: '2027-12-17T09:00:00.000Z',
+        sentAt: null,
+        channels: [],
+        outcome: 'skipped-no-contact',
       },
     });
   });
