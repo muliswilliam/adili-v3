@@ -1,10 +1,10 @@
 {
-  "description": "Part B (complaints): whether a register is maintained is not answered (S14)",
-  "errors": ["partII.complaints.registerMaintained"],
+  "description": "Part III: the confirmedBy block is left out; an unsigned block has null fields (S14)",
+  "errors": ["partIII.confirmedBy"],
   "issues": [
     {
-      "sectionKey": "complaints",
-      "path": "/registerMaintained",
+      "sectionKey": "partIII",
+      "path": "/confirmedBy",
       "code": "required",
       "message": "is required"
     }
@@ -189,6 +189,7 @@
         "dataUnavailable": false
       },
       "complaints": {
+        "registerMaintained": true,
         "items": [
           {
             "name": "John Otieno Ouma",
@@ -205,11 +206,6 @@
         "name": "Rose Adhiambo Were",
         "designation": "Deputy Director, Compliance",
         "date": "2028-07-08"
-      },
-      "confirmedBy": {
-        "name": "Dr. Mercy Wanjiku Kamau",
-        "designation": "Commission Secretary",
-        "date": "2028-07-15"
       }
     },
     "meta": {

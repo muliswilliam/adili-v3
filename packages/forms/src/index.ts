@@ -43,6 +43,7 @@ export {
   OCCUPATION_SECTORS,
 } from './declaration.v1.zod.gen.js';
 export { validateFormK } from './form-k.js';
+export type { FormKV1 } from './form-k.v1.gen.js';
 export {
   FORM_M_SECTIONS,
   type FormMIssue,
@@ -60,6 +61,5 @@ export {
   FormMSchema,
   REPORT_SOURCES,
 } from './form-m.v1.zod.gen.js';
-export type { FormKV1 } from './form-k.v1.gen.js';
 export { COUNTIES, COUNTRIES, CURRENCIES } from './reference-data.js';
 export { type FormValidationError, type FormValidationResult } from './validate.js';

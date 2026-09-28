@@ -7,6 +7,7 @@ import {
   formValidator,
   type FormValidationError,
   jsonPointer,
+  placeProblems,
 } from './validate.js';
 
 const problems = compileFieldProblems(schema);
@@ -47,19 +48,17 @@ export interface FormMIssue {
 export interface FormMProblems {
   /** Problems placed on the Form M section that shows them. */
   issues: FormMIssue[];
-  /** Problems outside the sections: the schema version, platform `meta`, a missing part. */
+  /**
+   * Problems outside the sections: the schema version, platform `meta`, a missing part. Named for
+   * the document as a whole, as `DeclarationProblems.declaration` is.
+   */
   report: FormValidationError[];
 }
 
 /** Validates a compliance report and places every problem on its Form M section and field. */
 export function formMIssues(document: unknown): FormMProblems {
-  const found: FormMProblems = { issues: [], report: [] };
-  for (const problem of problems(document)) {
-    const issue = toIssue(problem);
-    if (issue) found.issues.push(issue);
-    else found.report.push({ path: problem.segments.join('.'), message: problem.message });
-  }
-  return found;
+  const { placed, unplaced } = placeProblems(problems(document), toIssue);
+  return { issues: placed, report: unplaced };
 }
 
 function toIssue({ segments, code, message }: FieldProblem): FormMIssue | undefined {

@@ -1,10 +1,10 @@
 {
-  "description": "Part III: the confirming signatory is missing (S14)",
-  "errors": ["partIII.confirmedBy"],
+  "description": "Part B (complaints): the registerMaintained field is left out; null would record \"not answered\" (S14)",
+  "errors": ["partII.complaints.registerMaintained"],
   "issues": [
     {
-      "sectionKey": "partIII",
-      "path": "/confirmedBy",
+      "sectionKey": "complaints",
+      "path": "/registerMaintained",
       "code": "required",
       "message": "is required"
     }
@@ -189,7 +189,6 @@
         "dataUnavailable": false
       },
       "complaints": {
-        "registerMaintained": true,
         "items": [
           {
             "name": "John Otieno Ouma",
@@ -206,6 +205,11 @@
         "name": "Rose Adhiambo Were",
         "designation": "Deputy Director, Compliance",
         "date": "2028-07-08"
+      },
+      "confirmedBy": {
+        "name": "Dr. Mercy Wanjiku Kamau",
+        "designation": "Commission Secretary",
+        "date": "2028-07-15"
       }
     },
     "meta": {

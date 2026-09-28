@@ -76,29 +76,7 @@ export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOpti
       return `${expression({ ...node, type: only }, pointer)}.nullable()`;
     }
 
-    // An allOf's members other than if/then/else all apply: intersect them with the node's own
-    // schema. Zod rejects an unknown key only when every side of an intersection does, JSON
-    // Schema when any strict member does; so beside a strict member a loose one is made strict,
-    // which is the same only while its properties are ones the strict members allow.
-    const combined = ((node.allOf ?? []) as JsonSchema[])
-      .map((member, index) => [member, `${pointer}/allOf/${String(index)}`] as const)
-      .filter(([member]) => member.if === undefined);
-    const strict = combined.map(([member]) => resolve(member)).filter(isStrictObject);
-    const members = combined.map(([member, at]) => {
-      if (
-        strict.length === 0 ||
-        member.type !== 'object' ||
-        member.additionalProperties !== undefined
-      ) {
-        return expression(member, at);
-      }
-      for (const key of Object.keys((member.properties ?? {}) as JsonSchema)) {
-        if (strict.some((other) => !(key in ((other.properties ?? {}) as JsonSchema)))) {
-          throw new Error(`${at}: ${key} is forbidden by a strict allOf member`);
-        }
-      }
-      return expression({ ...member, additionalProperties: false }, at);
-    });
+    const members = allOfMembers(node, pointer);
     const ownSchema = ['type', '$ref', 'enum', 'const'].some((key) => node[key] !== undefined);
     const [first, ...rest] = ownSchema ? [baseExpression(node, pointer), ...members] : members;
     if (first === undefined) throw new Error(`${pointer}: no type, $ref, enum, const or allOf`);
@@ -108,6 +86,29 @@ export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOpti
     return checks.length === 0
       ? base
       : `${base}.superRefine((value, ctx) => {\n${checks.join('\n')}\n})`;
+  }
+
+  /**
+   * The Zod source of an allOf's members other than if/then/else, which all apply and are
+   * intersected. Zod rejects an unknown key only when every side of an intersection does, JSON
+   * Schema when any strict member does; so beside a strict member a loose one is made strict,
+   * which is the same only while its properties are ones the strict members allow.
+   */
+  function allOfMembers(node: JsonSchema, pointer: string): string[] {
+    const intersected = ((node.allOf ?? []) as JsonSchema[])
+      .map((member, index) => [member, `${pointer}/allOf/${String(index)}`] as const)
+      .filter(([member]) => member.if === undefined);
+    const strictMembers = intersected.map(([member]) => resolve(member)).filter(isStrictObject);
+    return intersected.map(([member, at]) => {
+      const loose = member.type === 'object' && member.additionalProperties === undefined;
+      if (strictMembers.length === 0 || !loose) return expression(member, at);
+      for (const key of Object.keys((member.properties ?? {}) as JsonSchema)) {
+        if (strictMembers.some((strict) => !(key in ((strict.properties ?? {}) as JsonSchema)))) {
+          throw new Error(`${at}: ${key} is forbidden by a strict allOf member`);
+        }
+      }
+      return expression({ ...member, additionalProperties: false }, at);
+    });
   }
 
   /** A member as written, or the $defs entry it refers to. */

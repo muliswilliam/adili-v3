@@ -9,6 +9,7 @@ import {
   formValidator,
   type FormValidationError,
   jsonPointer,
+  placeProblems,
 } from './validate.js';
 
 const declarationProblems = compileFieldProblems(schema);
@@ -114,15 +115,10 @@ export function sectionContents(document: DeclarationV1): [DeclarationSectionKey
 
 /** Validates a declaration and places every problem on its capture section and field. */
 export function declarationIssues(document: unknown): DeclarationProblems {
-  const found: DeclarationProblems = { issues: [], declaration: [] };
-  for (const problem of declarationProblems(document)) {
-    // A failed if/then/else is also reported on the field it requires; that report is enough.
-    if (problem.code === 'if') continue;
-    const issue = toIssue(problem, document);
-    if (issue) found.issues.push(issue);
-    else found.declaration.push({ path: problem.segments.join('.'), message: problem.message });
-  }
-  return found;
+  // A failed if/then/else is also reported on the field it requires; that report is enough.
+  const found = declarationProblems(document).filter((problem) => problem.code !== 'if');
+  const { placed, unplaced } = placeProblems(found, (problem) => toIssue(problem, document));
+  return { issues: placed, declaration: unplaced };
 }
 
 function toIssue({ segments, code, message }: FieldProblem, document: unknown) {
