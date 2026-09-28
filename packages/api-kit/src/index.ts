@@ -3,6 +3,7 @@ export {
   auditedReadOf,
   type AuditedReadOptions,
 } from './audit/audited-read.decorator.js';
+export { ActingTenant, InternalApi } from './auth/acting-tenant.js';
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
 export { callerOf, type Principal, principalSchema } from './auth/principal.js';

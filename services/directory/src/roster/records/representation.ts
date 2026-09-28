@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { slugSchema } from '../../commissions/create-commission.js';
 import { ofrSchema } from '../../onboarding/representation.js';
 import { importChannelSchema } from '../import/representation.js';
 import { ROSTER_RECORD_STATES } from '../schema.js';
@@ -92,3 +93,38 @@ export const rosterRecordPageSchema = z.object({
     .meta({ description: 'Pass as `cursor` for the next page; null on the last page' }),
 });
 export type RosterRecordPage = z.infer<typeof rosterRecordPageSchema>;
+
+/**
+ * A roster record as services pull it after a directory event (spec 04): what their read models
+ * keep, with the Commission it belongs to. No national ID and no contacts (a person's verified
+ * contacts come from `GET /internal/v1/persons/{personId}/contacts`).
+ */
+export const internalRosterRecordSchema = z.object({
+  id: z.uuid(),
+  tenant: slugSchema,
+  personnelFileNumber: z.string(),
+  fullName: z.string(),
+  designation: z.string().nullable(),
+  jobGroup: z.string().nullable(),
+  reportingEntity: reportingEntityRefSchema.nullable(),
+  state: rosterRecordStateSchema,
+  appointmentDate: z.iso.date().nullable().meta({ description: 'Null when the roster gives none' }),
+  exitDate: z.iso.date().nullable().meta({ description: 'Set while the record is exited' }),
+  personId: z
+    .uuid()
+    .nullable()
+    .meta({ description: 'The declarant the record is onboarded as; kept when it exits' }),
+  ofr: ofrSchema.nullable().meta({ description: "The declarant's officer reference" }),
+  onboardedAt: z.iso.datetime().nullable(),
+  updatedAt: z.iso.datetime().meta({ description: 'Last change to the record' }),
+});
+export type InternalRosterRecord = z.infer<typeof internalRosterRecordSchema>;
+
+export const internalRosterRecordPageSchema = z.object({
+  items: z.array(internalRosterRecordSchema),
+  nextCursor: z
+    .string()
+    .nullable()
+    .meta({ description: 'Pass as `cursor` for the next page; null on the last page' }),
+});
+export type InternalRosterRecordPage = z.infer<typeof internalRosterRecordPageSchema>;

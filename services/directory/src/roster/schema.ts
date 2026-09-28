@@ -330,6 +330,32 @@ export const rosterImportRows = pgTable(
 );
 
 /**
+ * Each exit of a record, by the confirmation that recorded it: the `batchId` of
+ * `roster.exits.confirmed.v1`, so that consumers of the event pull the batch's records (spec 04).
+ * A record exits again after a re-activation under a new batch; earlier rows stay as history.
+ */
+export const rosterExits = pgTable(
+  'roster_exits',
+  {
+    batchId: uuid().notNull(),
+    recordId: uuid()
+      .notNull()
+      .references(() => rosterRecords.id),
+    /** Denormalised from the record for RLS (policy in migration 0025). */
+    tenant: text()
+      .notNull()
+      .references(() => commissions.slug),
+    exitDate: date({ mode: 'string' }).notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.batchId, table.recordId] }),
+    /** A record's exits. */
+    index('roster_exits_record_id_idx').on(table.recordId),
+  ],
+);
+
+/**
  * The rows of an API batch (spec #27, channel `api`) as the HR system sent them, from the start
  * of the import until staging has copied them into `roster_import_rows` or the import ends,
  * either of which deletes them; the purge deletes any left 30 days after the import ended (or
@@ -371,5 +397,6 @@ export const rosterSchema = {
   rosterImports,
   rosterImportRows,
   rosterImportBatches,
+  rosterExits,
   rosterSummaries,
 };

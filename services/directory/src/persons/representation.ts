@@ -52,3 +52,14 @@ export const findPersonQuery = z.object({
   }),
 });
 export type FindPersonQuery = z.infer<typeof findPersonQuery>;
+
+/** The contacts notifications sends a person's messages to (spec 04). */
+export const personContactsSchema = z.object({
+  personId: z.uuid(),
+  email: z.string().nullable().meta({ description: 'Verified at onboarding; null when none' }),
+  phone: z
+    .string()
+    .nullable()
+    .meta({ description: 'E.164, verified at onboarding; null when none' }),
+});
+export type PersonContacts = z.infer<typeof personContactsSchema>;

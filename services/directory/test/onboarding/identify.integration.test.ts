@@ -340,18 +340,21 @@ describe('S3 no-match', () => {
 
   it('takes comparable time for every cause', async () => {
     const rounds = 12;
-    const medians: Record<string, number> = {};
+    const timings = new Map(Object.keys(causes).map((cause) => [cause, [] as number[]]));
     // Warm up connections and code paths first.
     for (const input of Object.values(causes)) await identify(api, input, freshIp());
-    for (const [cause, input] of Object.entries(causes)) {
-      const timings = [];
-      for (let round = 0; round < rounds; round++) {
+    // Causes take turns in every round, so load from suites running alongside slows them alike.
+    for (let round = 0; round < rounds; round++) {
+      for (const [cause, input] of Object.entries(causes)) {
         const started = performance.now();
         await identify(api, input, freshIp());
-        timings.push(performance.now() - started);
+        timings.get(cause)?.push(performance.now() - started);
       }
-      timings.sort((a, b) => a - b);
-      medians[cause] = timings[Math.floor(rounds / 2)] ?? 0;
+    }
+    const medians: Record<string, number> = {};
+    for (const [cause, values] of timings) {
+      values.sort((a, b) => a - b);
+      medians[cause] = values[Math.floor(rounds / 2)] ?? 0;
     }
 
     const values = Object.values(medians);

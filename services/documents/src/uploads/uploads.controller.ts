@@ -8,9 +8,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  ActingTenant,
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  InternalApi,
   type Principal,
   RequireIdempotencyKey,
   schemaRef,
@@ -18,7 +20,7 @@ import {
 } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { ActingTenant, InternalApi } from '../internal/acting-tenant.js';
+import { DOCUMENTS_INTERNAL_SCOPE } from '../internal/acting-tenant.js';
 import {
   type CreateUploadBody,
   createUploadBody,
@@ -110,7 +112,7 @@ export class UploadsController {
 /** Internal: not routed by the public entrypoint. Callers are services acting for a tenant. */
 @ApiTags('internal')
 @Controller('internal/v1/uploads')
-@InternalApi()
+@InternalApi(DOCUMENTS_INTERNAL_SCOPE)
 export class InternalUploadsController {
   constructor(private readonly uploads: UploadsService) {}
 

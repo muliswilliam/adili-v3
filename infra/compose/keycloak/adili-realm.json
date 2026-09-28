@@ -311,6 +311,38 @@
       "serviceAccountsEnabled": true,
       "defaultClientScopes": ["basic", "messages"],
       "optionalClientScopes": []
+    },
+    {
+      "clientId": "declarations",
+      "name": "Declarations service",
+      "description": "Service account the declarations service uses to pull roster records and policy from the directory and to send reminders through notifications",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "declarations-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "directory:internal", "messages"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "notifications",
+      "name": "Notifications service",
+      "description": "Service account the notifications service uses to read a person's verified contacts from the directory",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "notifications-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "directory:internal"],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1002,6 +1034,28 @@
     {
       "name": "iprs",
       "description": "Look people up in IPRS through the integration-gateway (/internal/v1/iprs)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "directory:internal",
+      "description": "Pull roster records, policy and person contacts from the directory (/internal/v1)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
