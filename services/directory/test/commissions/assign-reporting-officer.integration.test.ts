@@ -78,9 +78,12 @@ const officerOf = async (slug = 'tsc') =>
     .reportingOfficer;
 
 const assignedEvents = async () =>
-  (await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox)).filter(
-    (event) => event.type === 'commission.reporting-officer.assigned.v1',
-  );
+  (
+    await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .orderBy(outbox.id)
+  ).filter((event) => event.type === 'commission.reporting-officer.assigned.v1');
 
 const errorPaths = (body: Problem) => (body.errors ?? []).map((error) => error.path).sort();
 

@@ -42,7 +42,7 @@ function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commiss
     ['Responsible Commission', commission],
   ];
   return (
-    <section aria-labelledby="roster-heading" className="grid gap-3 rounded-xl bg-muted p-5">
+    <section aria-labelledby="roster-heading" className="grid gap-3 rounded-lg bg-muted p-5">
       <div className="flex items-center gap-2">
         <Icon icon={LockIcon} className="size-4 text-muted-foreground" />
         <h2 id="roster-heading" className="text-base font-semibold">
@@ -225,7 +225,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
 
         <div className="grid gap-3 sm:col-span-2">
           <CheckboxItem
-            label="My marital status changed since my last declaration"
+            label="Marital status changed since last declaration"
             checked={changed}
             onChange={(event) => {
               const next = event.target.checked;

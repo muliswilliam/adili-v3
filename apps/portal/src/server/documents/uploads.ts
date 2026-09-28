@@ -1,9 +1,8 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { getBff } from '../bff.server';
-import type { Unauthenticated } from '../declarations';
+import { asDeclarant as asDeclarantOf } from '../bff.server';
+import type { Unauthenticated } from '../results';
 import { documentsClient, type DocumentsClient } from './client.server';
 import {
   checkUpload,
@@ -18,12 +17,8 @@ import {
  * The token stays on the server; the browser only gets the presigned URL to PUT the bytes to.
  */
 
-async function asDeclarant<T>(
-  call: (client: DocumentsClient) => Promise<T>,
-): Promise<T | Unauthenticated> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { status: 'unauthenticated' };
-  return call(documentsClient(session.accessToken));
+function asDeclarant<T>(call: (client: DocumentsClient) => Promise<T>) {
+  return asDeclarantOf(documentsClient, call);
 }
 
 const uploadInput = z.object({ uploadId: z.uuid() });

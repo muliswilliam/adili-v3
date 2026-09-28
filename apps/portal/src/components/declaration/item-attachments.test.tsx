@@ -290,7 +290,9 @@ describe('ItemAttachments (S10)', () => {
     });
 
     // Linked in this visit, the file has a menu: Read into the form, then Remove.
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
@@ -316,7 +318,9 @@ describe('ItemAttachments (S10)', () => {
       },
     });
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
@@ -332,7 +336,9 @@ describe('ItemAttachments (S10)', () => {
 
   it('does not unlink until the removal is confirmed', async () => {
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
@@ -343,7 +349,9 @@ describe('ItemAttachments (S10)', () => {
   it('keeps the document when the service cannot unlink it', async () => {
     unlinkMock.mockResolvedValue({ status: 'unavailable' });
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
@@ -376,7 +384,9 @@ describe('Read into the form on an attachment (S6, S11)', () => {
   }
 
   function openMenu(name = 'deed.pdf') {
-    fireEvent.click(screen.getByRole('button', { name: `Actions for ${name}` }));
+    fireEvent.keyDown(screen.getByRole('button', { name: `Actions for ${name}` }), {
+      key: 'Enter',
+    });
     return screen.getByRole('menu');
   }
 

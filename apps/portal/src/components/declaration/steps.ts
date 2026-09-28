@@ -152,9 +152,12 @@ function firstName(fullName: string | null | undefined) {
   return fullName?.trim().split(/\s+/)[0] ?? '';
 }
 
+/** How the declarant is named wherever people are listed. */
+export const OFFICER_LABEL = 'You';
+
 /** "You" for the officer, else the person's name. */
 export function personLabel(sections: DeclarationSection[], key: SectionKey): string {
-  if (key === 'statement:officer') return 'You';
+  if (key === 'statement:officer') return OFFICER_LABEL;
   return section(sections, key)?.personName ?? 'Unnamed person';
 }
 

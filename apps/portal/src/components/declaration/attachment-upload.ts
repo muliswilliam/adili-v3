@@ -1,4 +1,4 @@
-import type { Unauthenticated } from '../../server/declarations';
+import type { Unauthenticated } from '../../server/results';
 import type {
   AttachmentFile,
   ReserveResult,

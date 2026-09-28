@@ -15,8 +15,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts"
+    "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts",
+    "contracts": "node --disable-warning=DEP0205 --env-file=.env.example --import @swc-node/register/esm-register src/contract/export.ts"
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
@@ -25,6 +27,7 @@
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
     "@aws-sdk/client-s3": "^3.1140.0",
+    "@aws-sdk/s3-request-presigner": "^3.1140.0",
     "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^12.1.0",
     "@nestjs/microservices": "^12.1.0",
@@ -32,19 +35,26 @@
     "drizzle-orm": "^0.45.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "uuid": "^14.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
+    "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@nestjs/platform-fastify": "^12.1.0",
     "@nestjs/testing": "^12.1.0",
     "@swc-node/register": "^1.12.1",
     "@swc/core": "^1.16.2",
     "@types/node": "^24.0.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.11.0",
+    "jose": "^6.2.12",
     "typescript": "~6.0.3",
     "unplugin-swc": "^2.0.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }

@@ -322,7 +322,7 @@ function identify(body: IdentifyDeclarant, clientIp: string) {
     const retryAfterSeconds = Math.ceil((counter.blockedUntil - now) / 1000);
     return problem(
       429,
-      'rate-limited',
+      'rate-limit-exceeded',
       'Too many attempts',
       { retryAfterSeconds },
       { 'RateLimit-Reset': String(retryAfterSeconds) },

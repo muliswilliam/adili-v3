@@ -80,7 +80,7 @@ import { sourceDetails } from '../../declaration/item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { ownerOf, personKeyOf } from '../../declaration/section-key';
-import { liveSections, relationship, stepLink } from './steps';
+import { liveSections, OFFICER_LABEL, relationship, stepLink } from './steps';
 import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
 import { focusControl, useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
@@ -116,7 +116,7 @@ function itemTitle(category: Category, item: Item) {
 }
 
 function sectionRelationship(key: string, separated: boolean) {
-  if (key === 'statement:officer') return 'You';
+  if (key === 'statement:officer') return OFFICER_LABEL;
   const found = relationship(key);
   return found === 'Spouse' && separated ? 'Spouse, separated' : (found ?? '');
 }
@@ -749,7 +749,8 @@ function AlsoDeclareDialog({
     .map((section) => ({
       key: section.key,
       name: section.personName ?? 'Unnamed person',
-      relation: section.key === 'statement:officer' ? 'You' : (relationship(section.key) ?? ''),
+      relation:
+        section.key === 'statement:officer' ? OFFICER_LABEL : (relationship(section.key) ?? ''),
     }));
   const theirShareId = useId();
   const [target, setTarget] = useState<string | null>(null);

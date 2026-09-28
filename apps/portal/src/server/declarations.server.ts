@@ -14,6 +14,7 @@ import type {
   Suggestion,
   SuggestionSet,
 } from './declarations/types';
+import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 
 /**
  * The declarations service's spec 05 endpoints, reduced to discriminated results the routes
@@ -30,27 +31,9 @@ export type LoadedSection = Omit<SectionEnvelope, 'contents'> & { contents: Json
 
 export type LoadedSummary = Omit<DeclarationSummary, 'document'> & { document: JsonObject };
 
-export interface Unavailable {
-  status: 'unavailable';
-}
-export interface NotFound {
-  status: 'not-found';
-}
-
-const unavailable: Unavailable = { status: 'unavailable' };
-const notFound: NotFound = { status: 'not-found' };
-
 /** The service's ETag, or the draft version quoted the same way when a proxy dropped it. */
 function etagOf(response: Response, draftVersion: number) {
   return response.headers.get('ETag') ?? `"${String(draftVersion)}"`;
-}
-
-async function attempt<T>(call: () => Promise<T>): Promise<T | Unavailable> {
-  try {
-    return await call();
-  } catch {
-    return unavailable;
-  }
 }
 
 export type ObligationsResult = { status: 'ok'; obligations: MyObligations } | Unavailable;

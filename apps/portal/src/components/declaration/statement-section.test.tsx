@@ -396,7 +396,7 @@ describe('StatementSection: item editors', () => {
     );
 
     expect(
-      screen.getByRole<HTMLInputElement>('checkbox', { name: /Changed since my last declaration/ })
+      screen.getByRole<HTMLInputElement>('checkbox', { name: /Changed since last declaration/ })
         .checked,
     ).toBe(true);
     const kinds = screen.getByRole('group', { name: 'What changed?' });

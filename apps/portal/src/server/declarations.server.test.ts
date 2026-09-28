@@ -25,6 +25,7 @@ import type { paths } from './declarations/schema.gen';
 import type { Declaration } from './declarations/types';
 import { mockDocumentsFetch, resetDocumentsMock } from './documents/mock.server';
 import type { paths as documentPaths } from './documents/schema.gen';
+import type { CreateUpload } from './documents/types';
 
 function client(send: (request: Request) => Promise<Response> = mockDeclarationsFetch) {
   return createClient<paths>({ baseUrl: 'http://declarations.test', fetch: send });
@@ -336,15 +337,18 @@ describe('attachments (S10)', () => {
 
     async function upload(fileName: string) {
       const { data } = await documents.POST('/v1/uploads', {
+        params: { header: { 'Idempotency-Key': crypto.randomUUID() } },
         body: {
           purpose: 'declaration-attachment',
           contentType: 'application/pdf',
           declaredSize: 2048,
           fileName,
-        },
+        } satisfies CreateUpload as never,
       });
       if (!data) throw new Error('no reservation');
-      await documents.POST('/v1/uploads/{id}/complete', { params: { path: { id: data.id } } });
+      await documents.POST('/v1/uploads/{id}/complete', {
+        params: { path: { id: data.id }, header: { 'Idempotency-Key': crypto.randomUUID() } },
+      });
       return data.id;
     }
 

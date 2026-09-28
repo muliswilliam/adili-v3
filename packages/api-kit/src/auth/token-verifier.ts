@@ -8,6 +8,8 @@ interface KeycloakClaims extends JWTPayload {
   realm_access?: { roles?: string[] };
   /** Space-separated scope names (RFC 8693 §4.2). */
   scope?: string;
+  name?: string;
+  preferred_username?: string;
 }
 
 /** Verifies Keycloak access tokens against the realm's published signing keys. */
@@ -36,6 +38,8 @@ export class TokenVerifier {
       roles: payload.realm_access?.roles ?? [],
       scopes: payload.scope?.split(' ').filter(Boolean) ?? [],
       clientId: payload.azp ?? null,
+      name: payload.name ?? payload.preferred_username ?? null,
+      issuedAt: payload.iat ?? null,
     };
   }
 }

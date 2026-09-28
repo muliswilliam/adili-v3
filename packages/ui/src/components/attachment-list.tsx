@@ -4,6 +4,7 @@ import {
   Cancel01Icon,
   Delete02Icon,
   File01Icon,
+  MoreVerticalIcon,
   Upload04Icon,
 } from '@hugeicons/core-free-icons';
 import { type ComponentProps, type ReactNode, useId, useRef, useState } from 'react';
@@ -23,7 +24,7 @@ import {
 import { type FileRejection, matchesAccept } from './file-drop-zone';
 import { FieldHint } from './form-field';
 import { Icon } from './icon';
-import { Menu, MenuItem } from './menu';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from './menu';
 import { ProgressBar } from './progress-bar';
 import { Spinner } from './spinner';
 
@@ -282,19 +283,31 @@ export function AttachmentList({
                     </Button>
                   ) : null}
                   {menu ? (
-                    <Menu label={messages.actions(attachment.name)} disabled={disabled}>
-                      {menu}
-                      {onRemove ? (
-                        <MenuItem
-                          icon={Delete02Icon}
-                          tone="destructive"
-                          onSelect={() => {
-                            setConfirming(attachment);
-                          }}
+                    <Menu>
+                      <MenuTrigger asChild disabled={disabled}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={messages.actions(attachment.name)}
                         >
-                          {messages.remove}
-                        </MenuItem>
-                      ) : null}
+                          <Icon icon={MoreVerticalIcon} />
+                        </Button>
+                      </MenuTrigger>
+                      <MenuContent>
+                        {menu}
+                        {onRemove ? (
+                          <MenuItem
+                            icon={Delete02Icon}
+                            tone="destructive"
+                            onSelect={() => {
+                              setConfirming(attachment);
+                            }}
+                          >
+                            {messages.remove}
+                          </MenuItem>
+                        ) : null}
+                      </MenuContent>
                     </Menu>
                   ) : attachment.status === 'linked' && onRemove ? (
                     <Button

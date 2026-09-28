@@ -31,6 +31,7 @@ import type { paths } from '../schema.gen';
 import { applyPatch } from './suggestions';
 import { mockDocumentsFetch, resetDocumentsMock } from '../../documents/mock.server';
 import type { paths as documentPaths } from '../../documents/schema.gen';
+import type { CreateUpload } from '../../documents/types';
 import { registryAnswer } from './suggestions';
 
 const client = createClient<paths>({
@@ -457,15 +458,18 @@ async function attached(fileName: string) {
   });
   if (saved.status !== 'saved') throw new Error(saved.status);
   const { data } = await documents.POST('/v1/uploads', {
+    params: { header: { 'Idempotency-Key': crypto.randomUUID() } },
     body: {
       purpose: 'declaration-attachment',
       contentType: 'application/pdf',
       declaredSize: 2048,
       fileName,
-    },
+    } satisfies CreateUpload as never,
   });
   if (!data) throw new Error('no reservation');
-  await documents.POST('/v1/uploads/{id}/complete', { params: { path: { id: data.id } } });
+  await documents.POST('/v1/uploads/{id}/complete', {
+    params: { path: { id: data.id }, header: { 'Idempotency-Key': crypto.randomUUID() } },
+  });
   const linked = await linkAttachment(client, {
     declarationId,
     sectionKey: 'statement:officer',

@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -5,9 +7,11 @@ from demo.fixtures import load_roster_rows
 from hr.push import (
     EXIT_FILE_NUMBER,
     HttpResult,
+    PushError,
     batch_payload,
     demo_batch_rows,
     exit_payload,
+    idempotency_key,
     push_demo_roster,
 )
 
@@ -60,28 +64,117 @@ def test_demo_batch_matches_directory_roster_rows() -> None:
     assert exit_payload() == {"exitDate": "2026-08-31"}
 
 
-def test_push_roster_posts_batch_then_exit(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[str, object]] = []
+TOKEN_URL = "http://keycloak.test/realms/adili/protocol/openid-connect/token"
+
+
+@pytest.fixture
+def credential(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DIRECTORY_HR_CLIENT_ID", "roster-psc-0a1b2c3d")
+    monkeypatch.setenv("DIRECTORY_HR_CLIENT_SECRET", "s3cret")
+    monkeypatch.setenv("DIRECTORY_HR_TOKEN_URL", TOKEN_URL)
+
+
+@pytest.mark.usefixtures("credential")
+def test_push_roster_exchanges_the_credential_then_posts_batch_waits_and_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    forms: list[tuple[str, dict[str, str]]] = []
+    posts: list[tuple[str, object, dict[str, str]]] = []
+    gets: list[str] = []
+    states = iter(["processing", "completed"])
+
+    def fake_form(url: str, form: dict[str, str], timeout: float = 10) -> HttpResult:
+        forms.append((url, form))
+        return HttpResult(200, {"access_token": "token-1", "token_type": "Bearer"}, url)
 
     def fake_post(
         url: str, body: object, headers: dict[str, str], timeout: float = 10
     ) -> HttpResult:
-        calls.append((url, body))
+        posts.append((url, body, headers))
         if url.endswith("/roster/imports"):
             return HttpResult(202, {"id": "import-1", "state": "pending"}, url)
         return HttpResult(200, {"state": "exited"}, url)
 
+    def fake_get(url: str, headers: dict[str, str], timeout: float = 10) -> HttpResult:
+        gets.append(url)
+        assert headers["Authorization"] == "Bearer token-1"
+        return HttpResult(200, {"id": "import-1", "state": next(states)}, url)
+
+    monkeypatch.setattr("hr.push.post_form", fake_form)
     monkeypatch.setattr("hr.push.post_json", fake_post)
+    monkeypatch.setattr("hr.push.get_json", fake_get)
+    monkeypatch.setattr("hr.push.POLL_INTERVAL_SECONDS", 0)
     results = push_demo_roster()
 
-    assert [result.status for result in results] == [202, 200]
-    assert calls[0][0].endswith("/v1/commissions/psc/roster/imports")
-    payload = calls[0][1]
+    assert forms == [
+        (
+            TOKEN_URL,
+            {
+                "grant_type": "client_credentials",
+                "client_id": "roster-psc-0a1b2c3d",
+                "client_secret": "s3cret",
+                "scope": "roster:write",
+            },
+        )
+    ]
+    assert [result.status for result in results] == [202, 200, 200]
+    batch_url, payload, batch_headers = posts[0]
+    assert batch_url.endswith("/v1/commissions/psc/roster/imports")
+    assert batch_headers["Authorization"] == "Bearer token-1"
     assert isinstance(payload, dict)
     assert payload["channel"] == "api"
     assert len(payload["rows"]) >= 2
-    assert "PSC%2F2019%2F0888" in calls[1][0]
-    assert calls[1][1] == {"exitDate": "2026-08-31"}
+    assert gets == [f"{batch_url}/import-1", f"{batch_url}/import-1"]
+    exit_url, exit_body, exit_headers = posts[1]
+    assert "PSC%2F2019%2F0888" in exit_url
+    assert exit_body == {"exitDate": "2026-08-31"}
+    # Idempotency keys are UUIDs, the same for the same request on a re-run.
+    for headers in (batch_headers, exit_headers):
+        assert str(uuid.UUID(headers["Idempotency-Key"])) == headers["Idempotency-Key"]
+    assert batch_headers["Idempotency-Key"] == idempotency_key("batch", batch_payload())
+    assert batch_headers["Idempotency-Key"] != exit_headers["Idempotency-Key"]
+
+
+@pytest.mark.usefixtures("credential")
+def test_push_roster_stops_when_the_import_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    posted: list[str] = []
+    monkeypatch.setattr(
+        "hr.push.post_form",
+        lambda url, form, timeout=10: HttpResult(200, {"access_token": "t"}, url),
+    )
+
+    def fake_post(
+        url: str, body: object, headers: dict[str, str], timeout: float = 10
+    ) -> HttpResult:
+        posted.append(url)
+        return HttpResult(202, {"id": "import-1", "state": "pending"}, url)
+
+    monkeypatch.setattr("hr.push.post_json", fake_post)
+    monkeypatch.setattr(
+        "hr.push.get_json",
+        lambda url, headers, timeout=10: HttpResult(200, {"state": "failed"}, url),
+    )
+    results = push_demo_roster()
+
+    assert [result.body["state"] for result in results] == ["pending", "failed"]
+    assert len(posted) == 1
+
+
+@pytest.mark.usefixtures("credential")
+def test_push_roster_reports_a_refused_credential(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "hr.push.post_form",
+        lambda url, form, timeout=10: HttpResult(401, {"error": "invalid_client"}, url),
+    )
+    with pytest.raises(PushError, match="invalid_client"):
+        push_demo_roster()
+
+
+def test_push_roster_needs_the_credential(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DIRECTORY_HR_CLIENT_ID", raising=False)
+    monkeypatch.delenv("DIRECTORY_HR_CLIENT_SECRET", raising=False)
+    with pytest.raises(PushError, match="DIRECTORY_HR_CLIENT_ID"):
+        push_demo_roster()
 
 
 def test_push_roster_dry_run_does_not_call_directory(monkeypatch: pytest.MonkeyPatch) -> None:

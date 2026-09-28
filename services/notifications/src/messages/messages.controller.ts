@@ -6,7 +6,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentPrincipal, type Principal, RequireScopes, ZodValidationPipe } from '@adili/api-kit';
+import { CurrentPrincipal, type Principal, Scopes, ZodValidationPipe } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { type MessageView, MessagesService } from './messages.service.js';
@@ -15,7 +15,7 @@ import { type SendMessage, sendMessageSchema } from './send-message.schema.js';
 /** Internal: not routed by the public entrypoint. Callers are services with the messages scope. */
 @ApiTags('internal')
 @ApiBearerAuth()
-@RequireScopes('messages')
+@Scopes('messages')
 @Controller('internal/v1/messages')
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}

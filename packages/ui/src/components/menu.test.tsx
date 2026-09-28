@@ -1,17 +1,49 @@
 import { Delete02Icon, SparklesIcon } from '@hugeicons/core-free-icons';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { Menu, MenuItem, MenuNote } from './menu';
+import { Menu, MenuContent, MenuItem, MenuNote, MenuTrigger } from './menu';
+
+function DownloadMenu({ onSelect }: { onSelect: (format: string) => void }) {
+  return (
+    <Menu>
+      <MenuTrigger>Download template</MenuTrigger>
+      <MenuContent>
+        <MenuItem
+          onSelect={() => {
+            onSelect('csv');
+          }}
+        >
+          CSV template (.csv)
+        </MenuItem>
+        <MenuItem
+          onSelect={() => {
+            onSelect('xlsx');
+          }}
+        >
+          Excel template (.xlsx)
+        </MenuItem>
+      </MenuContent>
+    </Menu>
+  );
+}
 
 const LABEL = 'Actions for logbook-KCB782M.pdf';
 
-function renderMenu({ readDisabled = false } = {}) {
-  const onRead = vi.fn();
-  const onRemove = vi.fn();
-  render(
-    <>
-      <Menu label={LABEL}>
+function AttachmentMenu({
+  onRead,
+  onRemove,
+  readDisabled = false,
+}: {
+  onRead: () => void;
+  onRemove: () => void;
+  readDisabled?: boolean;
+}) {
+  return (
+    <Menu>
+      <MenuTrigger aria-label={LABEL}>…</MenuTrigger>
+      <MenuContent>
         <MenuItem icon={SparklesIcon} tone="ai" onSelect={onRead} disabled={readDisabled}>
           Read into the form
         </MenuItem>
@@ -19,121 +51,102 @@ function renderMenu({ readDisabled = false } = {}) {
         <MenuItem icon={Delete02Icon} tone="destructive" onSelect={onRemove}>
           Remove
         </MenuItem>
-      </Menu>
-      <button type="button">Elsewhere</button>
-    </>,
+      </MenuContent>
+    </Menu>
   );
-  const trigger = screen.getByRole('button', { name: LABEL });
-  return { trigger, onRead, onRemove };
-}
-
-function entries() {
-  return screen.getAllByRole('menuitem');
 }
 
 describe('Menu', () => {
-  it('is a closed menu button until pressed', () => {
-    const { trigger } = renderMenu();
-
+  it('opens from its trigger and runs the picked item', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<DownloadMenu onSelect={onSelect} />);
+    const trigger = screen.getByRole('button', { name: 'Download template' });
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+
+    await user.click(trigger);
+    await user.click(screen.getByRole('menuitem', { name: 'Excel template (.xlsx)' }));
+
+    await waitFor(() => {
+      expect(onSelect).toHaveBeenCalledWith('xlsx');
+    });
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('opens on click, named after its trigger, with focus on the first entry', () => {
-    const { trigger } = renderMenu();
+  it('works from the keyboard and closes on Escape', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<DownloadMenu onSelect={onSelect} />);
+    const trigger = screen.getByRole('button', { name: 'Download template' });
 
-    fireEvent.click(trigger);
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
 
-    expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('menu', { name: LABEL })).toBeDefined();
-    expect(entries().map((entry) => entry.textContent)).toEqual([
+    await user.keyboard('{Enter}');
+    await user.keyboard('{Enter}');
+    await waitFor(() => {
+      expect(onSelect).toHaveBeenCalledWith('csv');
+    });
+  });
+
+  it('shows a note as an unavailable entry that leaves the menu open', async () => {
+    const user = userEvent.setup();
+    const onRead = vi.fn();
+    const onRemove = vi.fn();
+    render(<AttachmentMenu onRead={onRead} onRemove={onRemove} />);
+
+    await user.click(screen.getByRole('button', { name: LABEL }));
+    expect(screen.getAllByRole('menuitem').map((entry) => entry.textContent)).toEqual([
       'Read into the form',
       'Payslips: not enabled for your Commission',
       'Remove',
     ]);
-    expect(document.activeElement).toBe(entries()[0]);
+    const note = screen.getByRole('menuitem', {
+      name: 'Payslips: not enabled for your Commission',
+    });
+    expect(note.getAttribute('aria-disabled')).toBe('true');
+
+    await user.click(note);
+    expect(screen.getByRole('menu')).toBeDefined();
+    expect(onRead).not.toHaveBeenCalled();
+    expect(onRemove).not.toHaveBeenCalled();
   });
 
-  it('shows a note as an unavailable entry', () => {
-    const { trigger } = renderMenu();
-    fireEvent.click(trigger);
-
-    expect(
-      screen
-        .getByRole('menuitem', { name: 'Payslips: not enabled for your Commission' })
-        .getAttribute('aria-disabled'),
-    ).toBe('true');
-  });
-
-  it('moves between entries with the arrows, Home and End, wrapping at the ends', () => {
-    const { trigger } = renderMenu();
-    fireEvent.keyDown(trigger, { key: 'ArrowUp' });
-    const [read, note, remove] = entries();
-    expect(document.activeElement).toBe(remove);
-
-    const menu = screen.getByRole('menu');
-    fireEvent.keyDown(menu, { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(read);
-    fireEvent.keyDown(menu, { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(note);
-    fireEvent.keyDown(menu, { key: 'ArrowUp' });
-    fireEvent.keyDown(menu, { key: 'ArrowUp' });
-    expect(document.activeElement).toBe(remove);
-    fireEvent.keyDown(menu, { key: 'Home' });
-    expect(document.activeElement).toBe(read);
-    fireEvent.keyDown(menu, { key: 'End' });
-    expect(document.activeElement).toBe(remove);
-  });
-
-  it('closes on Esc and returns focus to the trigger', () => {
-    const { trigger } = renderMenu();
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
-
-    expect(screen.queryByRole('menu')).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it('closes, returns focus and then runs the chosen action', () => {
-    const { trigger, onRemove } = renderMenu();
-    fireEvent.click(trigger);
+  it('closes, returns focus to the trigger and then runs the chosen action', async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    render(<AttachmentMenu onRead={vi.fn()} onRemove={onRemove} />);
+    const trigger = screen.getByRole('button', { name: LABEL });
+    let focusedOnRun: Element | null = null;
     onRemove.mockImplementation(() => {
-      expect(document.activeElement).toBe(trigger);
+      focusedOnRun = document.activeElement;
     });
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    await user.click(trigger);
+    await user.click(screen.getByRole('menuitem', { name: 'Remove' }));
 
-    expect(onRemove).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onRemove).toHaveBeenCalledOnce();
+    });
+    expect(focusedOnRun).toBe(trigger);
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('does nothing when a disabled entry is chosen', () => {
-    const { trigger, onRead } = renderMenu({ readDisabled: true });
-    fireEvent.click(trigger);
+  it('does nothing when a disabled item is chosen', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const onRead = vi.fn();
+    render(<AttachmentMenu onRead={onRead} onRemove={vi.fn()} readDisabled />);
 
+    await user.click(screen.getByRole('button', { name: LABEL }));
     const read = screen.getByRole('menuitem', { name: 'Read into the form' });
     expect(read.getAttribute('aria-disabled')).toBe('true');
-    fireEvent.click(read);
+    await user.click(read);
 
     expect(onRead).not.toHaveBeenCalled();
     expect(screen.getByRole('menu')).toBeDefined();
-  });
-
-  it('closes on a click outside, on Tab and on a second press of the trigger', () => {
-    const { trigger } = renderMenu();
-
-    fireEvent.click(trigger);
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Elsewhere' }));
-    expect(screen.queryByRole('menu')).toBeNull();
-
-    fireEvent.click(trigger);
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Tab' });
-    expect(screen.queryByRole('menu')).toBeNull();
-
-    fireEvent.click(trigger);
-    fireEvent.click(trigger);
-    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

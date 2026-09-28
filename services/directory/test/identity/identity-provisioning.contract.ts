@@ -4,6 +4,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import {
   type ActivationEmailOptions,
+  ApiClientExists,
+  ApiClientNotFound,
+  type CreateApiClientInput,
   type CreateStaffUserInput,
   EmailTaken,
   type IdentityProvisioning,
@@ -27,6 +30,14 @@ export interface InspectedUser {
   invitedRole: string | null;
 }
 
+/** What a token obtained with the client credentials grant carries, as services verify it. */
+export interface ClientToken {
+  tenant: string | null;
+  scopes: readonly string[];
+  /** `azp`: the client the token was issued to. */
+  clientId: string | null;
+}
+
 export interface ContractHarness {
   adapter: IdentityProvisioning;
   inspect(userId: string): Promise<InspectedUser>;
@@ -36,8 +47,15 @@ export interface ContractHarness {
     userId: string,
     options?: ActivationEmailOptions,
   ): Promise<void>;
+  /**
+   * Obtains a token with the client credentials grant and verifies it for the `adili-api`
+   * audience; null when the identity provider refuses the client or secret.
+   */
+  clientCredentials(clientId: string, secret: string): Promise<ClientToken | null>;
   /** Removes accounts the suite created. */
   cleanup(userIds: string[]): Promise<void>;
+  /** Removes API clients the suite created. */
+  cleanupApiClients(clientIds: string[]): Promise<void>;
 }
 
 export const ACTIVATION: ActivationEmailOptions = {
@@ -67,7 +85,16 @@ export function reportingOfficer(email: string): CreateStaffUserInput {
   };
 }
 
-/** Behaviour every IdentityProvisioning adapter must have (spec #6, S17). */
+/** A client id no other test run uses. */
+export function uniqueClientId(label: string): string {
+  return `contract-${label.toLowerCase()}-${randomUUID().slice(0, 8)}`;
+}
+
+export function rosterClient(clientId: string): CreateApiClientInput {
+  return { tenant: 'tsc', clientId, scopes: ['roster:write'] };
+}
+
+/** Behaviour every IdentityProvisioning adapter must have (spec #6, S17; spec #27, S19). */
 export function identityProvisioningContract(name: string, harness: () => ContractHarness): void {
   describe(`${name} satisfies the identity provisioning contract`, () => {
     const created: string[] = [];
@@ -78,8 +105,18 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       return userId;
     }
 
+    const createdClients: string[] = [];
+
+    async function createClient(label: string) {
+      const clientId = uniqueClientId(label);
+      createdClients.push(clientId);
+      const issued = await harness().adapter.createApiClient(rosterClient(clientId));
+      return issued;
+    }
+
     afterAll(async () => {
       await harness().cleanup(created);
+      await harness().cleanupApiClients(createdClients);
     });
 
     it('S17: creates a staff user with the tenant attribute, role and three required actions', async () => {
@@ -280,6 +317,63 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       await expect(adapter.sendActivationEmail(UNKNOWN_USER_ID, ACTIVATION)).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );
+    });
+
+    it('S19: creates an API client whose token carries its scope, its tenant and the API audience', async () => {
+      const { clientId, secret } = await createClient('S19');
+
+      expect(secret).toEqual(expect.any(String));
+      expect(secret.length).toBeGreaterThanOrEqual(32);
+      const token = await harness().clientCredentials(clientId, secret);
+      expect(token).toMatchObject({ tenant: 'tsc', clientId });
+      expect(token?.scopes).toContain('roster:write');
+      await expect(harness().clientCredentials(clientId, 'not-the-secret')).resolves.toBeNull();
+    });
+
+    it('S19: rotating the secret stops the previous one at once', async () => {
+      const { clientId, secret: previous } = await createClient('rotate');
+
+      const rotated = await harness().adapter.rotateApiClientSecret(clientId);
+
+      expect(rotated.clientId).toBe(clientId);
+      expect(rotated.secret).not.toBe(previous);
+      await expect(harness().clientCredentials(clientId, previous)).resolves.toBeNull();
+      await expect(harness().clientCredentials(clientId, rotated.secret)).resolves.toMatchObject({
+        tenant: 'tsc',
+      });
+    });
+
+    it('S19: a disabled API client obtains no token; disabling is idempotent', async () => {
+      const { clientId, secret } = await createClient('disable');
+
+      await harness().adapter.disableApiClient(clientId);
+      await harness().adapter.disableApiClient(clientId);
+
+      await expect(harness().clientCredentials(clientId, secret)).resolves.toBeNull();
+      await expect(
+        harness().adapter.disableApiClient(uniqueClientId('nobody')),
+      ).resolves.toBeUndefined();
+    });
+
+    it('reports a taken client id as ApiClientExists, even when that client is disabled', async () => {
+      const { clientId, secret } = await createClient('duplicate');
+
+      await expect(
+        harness().adapter.createApiClient({ ...rosterClient(clientId), tenant: 'psc' }),
+      ).rejects.toBeInstanceOf(ApiClientExists);
+      await expect(harness().clientCredentials(clientId, secret)).resolves.toMatchObject({
+        tenant: 'tsc',
+      });
+      await harness().adapter.disableApiClient(clientId);
+      await expect(
+        harness().adapter.createApiClient(rosterClient(clientId)),
+      ).rejects.toBeInstanceOf(ApiClientExists);
+    });
+
+    it('reports rotating an unknown API client as ApiClientNotFound', async () => {
+      await expect(
+        harness().adapter.rotateApiClientSecret(uniqueClientId('nobody')),
+      ).rejects.toBeInstanceOf(ApiClientNotFound);
     });
   });
 }

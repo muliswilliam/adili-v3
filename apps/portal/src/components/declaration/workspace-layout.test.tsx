@@ -7,11 +7,13 @@ import type { SaveOutcome } from '../../server/declarations.server';
 import { DECLARATION_ID, renderWorkspace, sampleDeclaration } from './testing';
 import { invalidate, navigate } from './testing-mocks';
 import { useWorkspace } from './workspace';
+import { signInAgain } from '../sign-in';
 import { CONFLICT_COPY, RELOADED_COPY } from './workspace-layout';
 import { HEADER_COPY } from './workspace-header';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
+vi.mock('../sign-in', () => ({ signInAgain: vi.fn() }));
 
 const saveMock = vi.mocked(saveDeclarationSection);
 const getMock = vi.mocked(getDeclaration);
@@ -70,6 +72,7 @@ beforeEach(() => {
   saveMock.mockReset();
   getMock.mockReset();
   navigate.mockReset();
+  vi.mocked(signInAgain).mockReset();
   invalidate.mockClear();
 });
 
@@ -169,6 +172,22 @@ describe('WorkspaceLayout', () => {
     await waitFor(() => {
       expect(saveStatus()[0]?.textContent).toBe('Could not save, retrying');
     });
+  });
+
+  it('signs the declarant in once when the session ends mid-edit', async () => {
+    saveMock.mockResolvedValue({ status: 'unauthenticated' });
+    renderWorkspace(<Editor />, { step: 'bio' });
+
+    await edit();
+    await waitFor(() => {
+      expect(saveStatus()[0]?.textContent).toBe('Could not save, retrying');
+    });
+    await edit();
+
+    await waitFor(() => {
+      expect(saveMock).toHaveBeenCalledTimes(2);
+    });
+    expect(signInAgain).toHaveBeenCalledOnce();
   });
 
   it('says why beside the section when the service refuses it', async () => {

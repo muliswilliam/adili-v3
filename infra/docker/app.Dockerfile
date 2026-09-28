@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Builds a TanStack Start app (portal, console, verify):
 #   docker build -f infra/docker/app.Dockerfile --build-arg APP=portal -t adili/portal .
+# Keep in step with .nvmrc (CI reads it).
 ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-alpine AS base

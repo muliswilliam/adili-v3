@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-// Meta-validates every First Schedule / Form K / Form M JSON Schema (draft 2020-12).
+// Meta-validates every First Schedule / Form K / Form M JSON Schema (draft 2020-12), then
+// compiles it with the options @adili/forms uses (packages/forms/src/validate.ts), so a schema
+// that would throw at a consumer's startup (an unknown keyword, say) fails here first. Fixtures
+// are checked by the @adili/forms tests.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +17,9 @@ const ajv = new Ajv2020({
 });
 addFormats(ajv);
 
+// Keep in step with packages/forms/src/validate.ts.
+const compileOptions = { allErrors: true, strictTypes: false };
+
 const files = readdirSync(formsDir)
   .filter((name) => name.endsWith('.json'))
   .sort();
@@ -26,13 +32,20 @@ let failed = 0;
 for (const name of files) {
   const path = join(formsDir, name);
   const schema = JSON.parse(readFileSync(path, 'utf8'));
-  const valid = ajv.validateSchema(schema);
-  if (valid) {
-    console.log(`ok    ${name}`);
-  } else {
+  if (!ajv.validateSchema(schema)) {
     failed += 1;
     console.error(`fail  ${name}`);
     console.error(ajv.errorsText(ajv.errors, { separator: '\n' }));
+    continue;
+  }
+  try {
+    const strict = new Ajv2020(compileOptions);
+    addFormats(strict);
+    strict.compile(schema);
+    console.log(`ok    ${name}`);
+  } catch (error) {
+    failed += 1;
+    console.error(`fail  ${name}: ${error.message}`);
   }
 }
 

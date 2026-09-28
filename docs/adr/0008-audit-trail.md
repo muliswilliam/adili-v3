@@ -1,6 +1,6 @@
 # ADR-008: Tamper-evident audit trail
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28: reads are recorded through the outbox (Pipeline step 2, spec #27)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [ADR-002](0002-object-storage-seaweedfs-demo-ceph-rgw-production.md), [ADR-005](0005-message-queue-rabbitmq.md), [research/database-sizing.md](../research/database-sizing.md)
@@ -45,7 +45,7 @@
 ### Pipeline
 
 1. **Writes:** the service writes the audit event into its **outbox in the same transaction** as the business change (ADR-005). There's no change without its audit record.
-2. **Reads and denials:** published by request interceptors directly to RabbitMQ.
+2. **Reads:** a request interceptor writes the audit event (`audit.read.v1`) into the service's **outbox** before the response is sent, and the relay publishes it like any other event (ADR-005). A read the audit trail cannot record fails instead of going unrecorded. Routes opt in with `@AuditedRead` (`packages/api-kit`); the interceptor is `AuditedReadInterceptor` (`packages/events`). **Denials:** published by request interceptors directly to RabbitMQ.
 3. The **audit service** consumes, checks for duplicates, and **inserts in batches** (COPY) into the audit database.
 4. **Hash chain per tenant per day:** `hash = SHA-256(prev_hash || canonical(event))`. Chains per tenant/day allow parallel writes.
 5. **Daily anchor:** a Merkle root per tenant/day, **signed** with a key held in OpenBao, written to the `audit-archive` bucket with object lock. It can also be shared with EACC or an external custodian.
@@ -81,5 +81,5 @@ Declarants get **"Who accessed my declaration"**: a timeline of every access to 
 
 **Negative / risks**
 - The largest dataset (~1.1TB in 10 years). Handled with partitioning and archiving.
-- Read auditing is at-least-once through the queue: a crash between serving a read and publishing could lose one event. Mitigation: publish before returning sensitive payloads (synchronous confirm) on the highest-sensitivity endpoints.
+- Read auditing costs a database write per audited read (the outbox row), even for reads that otherwise touch only a replica or cache. Accepted for reliability: publishing reads straight to RabbitMQ would lose the event on a crash between serving the read and publishing it.
 - Canonical serialisation for hashing must be stable across versions. It's versioned (`hash_v`) and covered by tests.

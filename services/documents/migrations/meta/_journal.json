@@ -8,6 +8,34 @@
       "when": 1790325259371,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790543705923,
+      "tag": "0001_uploads",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790543709600,
+      "tag": "0002_uploads_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790584021138,
+      "tag": "0003_upload_rejection_encoding",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790585709155,
+      "tag": "0004_idempotency",
+      "breakpoints": true
     }
   ]
 }

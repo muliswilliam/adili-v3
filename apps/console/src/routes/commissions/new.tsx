@@ -40,7 +40,7 @@ import {
 import { messages as m } from '../../components/commissions/messages';
 import { LoadError, NoAccess } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
-import { signInRedirect } from '../../components/sign-in-redirect';
+import { goToSignIn, signInRedirect } from '../../components/sign-in-redirect';
 import { createCommission, listOfficerCategories } from '../../server/commissions';
 import type { OfficerCategory } from '../../server/directory/client';
 
@@ -194,7 +194,7 @@ function CreateCommissionForm({ categories }: { categories: OfficerCategory[] })
       return;
     }
     if (result.error.kind === 'unauthenticated') {
-      window.location.assign(`/auth/login?returnTo=${encodeURIComponent('/commissions/new')}`);
+      goToSignIn('/commissions/new');
       return;
     }
     const failure = submitFailure(result.error, draft);

@@ -28,6 +28,3 @@ export function filtersOf({
 }: CommissionFilters): CommissionFilters {
   return { search, type, reportingOfficer };
 }
-
-/** Wait this long after the last keystroke before searching (spec 01). */
-export const SEARCH_DEBOUNCE_MS = 300;

@@ -1,7 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import {
   type ActivationEmailOptions,
+  ApiClientExists,
+  ApiClientNotFound,
+  type ApiClientSecret,
+  type CreateApiClientInput,
   type CreateStaffUserInput,
   EmailTaken,
   IdentityProvisioning,
@@ -22,7 +26,10 @@ export type IdentityCall =
   | { operation: 'setEnabled'; userId: string; enabled: boolean }
   | { operation: 'updateProfile'; userId: string; profile: StaffProfile }
   | { operation: 'deleteUser'; userId: string }
-  | { operation: 'sendActivationEmail'; userId: string; options: ActivationEmailOptions };
+  | { operation: 'sendActivationEmail'; userId: string; options: ActivationEmailOptions }
+  | { operation: 'createApiClient'; input: CreateApiClientInput }
+  | { operation: 'rotateApiClientSecret'; clientId: string }
+  | { operation: 'disableApiClient'; clientId: string };
 
 export type IdentityOperation = IdentityCall['operation'];
 
@@ -39,6 +46,20 @@ export interface InMemoryUser {
   /** Commission and role named by the latest activation email, as Keycloak records them. */
   commissionName: string | null;
   invitedRole: string | null;
+}
+
+/** An API client held by the fake, with what its tokens would carry. */
+export interface InMemoryApiClient {
+  clientId: string;
+  /** The hard-coded `tenant` claim of its tokens. */
+  tenant: string;
+  /** Client scopes of its tokens (`scope` claim). */
+  scopes: string[];
+  /** Audience of its tokens. */
+  audience: string;
+  enabled: boolean;
+  /** The current secret; the fake keeps it so tests can check what was handed out. */
+  secret: string;
 }
 
 export interface SeedUser {
@@ -58,7 +79,13 @@ export interface SeedUser {
 export class InMemoryIdentityProvisioning extends IdentityProvisioning {
   private readonly log: IdentityCall[] = [];
   private readonly users = new Map<string, InMemoryUser>();
+  private readonly apiClients = new Map<string, InMemoryApiClient>();
   private readonly failures = new Map<IdentityOperation, Error>();
+
+  /** @param audience Audience of API client tokens, as the Keycloak adapter's option. */
+  constructor(private readonly audience = 'adili-api') {
+    super();
+  }
 
   /** Adds an existing account (for example, one already in another tenant). Returns its id. */
   seedUser(seed: SeedUser): string {
@@ -107,10 +134,17 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     return user && structuredClone(user);
   }
 
-  /** Forgets every account and call, for reuse between tests. */
+  /** A snapshot of an API client, or undefined. Not recorded as a call. */
+  apiClient(clientId: string): InMemoryApiClient | undefined {
+    const client = this.apiClients.get(clientId);
+    return client && structuredClone(client);
+  }
+
+  /** Forgets every account, API client and call, for reuse between tests. */
   reset(): void {
     this.log.length = 0;
     this.users.clear();
+    this.apiClients.clear();
     this.failures.clear();
   }
 
@@ -215,6 +249,44 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     });
   }
 
+  createApiClient(input: CreateApiClientInput): Promise<ApiClientSecret> {
+    this.log.push({ operation: 'createApiClient', input: structuredClone(input) });
+    const failure = this.takeFailure('createApiClient');
+    if (failure) return Promise.reject(failure);
+    if (this.apiClients.has(input.clientId)) {
+      return Promise.reject(new ApiClientExists(input.clientId));
+    }
+    const secret = newSecret();
+    this.apiClients.set(input.clientId, {
+      clientId: input.clientId,
+      tenant: input.tenant,
+      scopes: [...input.scopes],
+      audience: this.audience,
+      enabled: true,
+      secret,
+    });
+    return Promise.resolve({ clientId: input.clientId, secret });
+  }
+
+  rotateApiClientSecret(clientId: string): Promise<ApiClientSecret> {
+    this.log.push({ operation: 'rotateApiClientSecret', clientId });
+    const failure = this.takeFailure('rotateApiClientSecret');
+    if (failure) return Promise.reject(failure);
+    const client = this.apiClients.get(clientId);
+    if (!client) return Promise.reject(new ApiClientNotFound(clientId));
+    client.secret = newSecret();
+    return Promise.resolve({ clientId, secret: client.secret });
+  }
+
+  disableApiClient(clientId: string): Promise<void> {
+    this.log.push({ operation: 'disableApiClient', clientId });
+    const failure = this.takeFailure('disableApiClient');
+    if (failure) return Promise.reject(failure);
+    const client = this.apiClients.get(clientId);
+    if (client) client.enabled = false;
+    return Promise.resolve();
+  }
+
   private takeFailure(operation: IdentityOperation): Error | undefined {
     const failure = this.failures.get(operation);
     this.failures.delete(operation);
@@ -240,6 +312,11 @@ function identityUser(user: InMemoryUser | undefined): IdentityUser | null {
   return user
     ? { userId: user.userId, tenant: user.tenant, enabled: user.enabled, roles: [...user.roles] }
     : null;
+}
+
+/** Random like Keycloak's generated secrets (32 characters). */
+function newSecret(): string {
+  return randomBytes(24).toString('base64url');
 }
 
 function normalise(email: string): string {

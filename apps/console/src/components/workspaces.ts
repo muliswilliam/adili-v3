@@ -9,7 +9,7 @@ export interface Workspace {
 }
 
 /** Routes of workspaces that exist so far. */
-export type WorkspaceHref = '/commissions';
+export type WorkspaceHref = '/commissions' | '/roster';
 
 interface WorkspaceDefinition {
   id: string;
@@ -26,6 +26,9 @@ interface WorkspaceDefinition {
 
 /** Roles that manage Responsible Commissions; EACC analysts and supervisors only read them. */
 export const COMMISSION_WRITE_ROLES = ['platform-admin'] as const;
+
+/** Roles that import and maintain a Commission's roster; commission admins only read it. */
+export const ROSTER_WRITE_ROLES = ['reporting-officer'] as const;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
@@ -61,7 +64,10 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'Declarant roster',
     description:
       "Import and maintain your Commission's roster and help officers who cannot onboard.",
-    roles: ['reporting-officer'],
+    readOnlyDescription: "Your Commission's roster and import history.",
+    href: '/roster',
+    roles: ['reporting-officer', 'commission-admin'],
+    writeRoles: ROSTER_WRITE_ROLES,
   },
   {
     id: 'commission',

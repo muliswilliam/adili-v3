@@ -126,6 +126,8 @@
         "years": {
           "type": "array",
           "minItems": 1,
+          "maxItems": 50,
+          "uniqueItems": true,
           "items": { "type": "integer", "minimum": 2025 }
         },
         "includeSpouses": { "type": "boolean" },

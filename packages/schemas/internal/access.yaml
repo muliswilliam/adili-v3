@@ -631,13 +631,17 @@ components:
       enum: [bio, income, assets, liabilities, other]
     Scope:
       type: object
-      required: [years, includeSpouses, includeChildren, sections]
+      description: The scope of form-k.v1. Law enforcement requests never include clarifications.
+      required: [years, includeSpouses, includeChildren, sections, includeClarifications]
       properties:
         years:
           type: array
           minItems: 1
+          maxItems: 50
+          uniqueItems: true
           items:
             type: integer
+            minimum: 2025
         includeSpouses:
           type: boolean
         includeChildren:
@@ -645,8 +649,11 @@ components:
         sections:
           type: array
           minItems: 1
+          uniqueItems: true
           items:
             $ref: '#/components/schemas/Section'
+        includeClarifications:
+          type: boolean
     Decision:
       type: object
       required: [outcome, grantedScope, grounds, reasons, decidedBy, decidedAt]
