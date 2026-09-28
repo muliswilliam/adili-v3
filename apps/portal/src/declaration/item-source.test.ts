@@ -48,6 +48,20 @@ describe('sourceDetails', () => {
     ).toEqual({ kind: 'document', at: AT, reference: 'logbook-KCB782M.pdf' });
   });
 
+  it('falls back to the identifier when a document item has several files', () => {
+    expect(
+      sourceDetails({
+        type: 'vehicle',
+        details: { registration: 'KCB 782M' },
+        attachments: [
+          { uploadId: 'u', fileName: 'logbook-KCB782M.pdf', sha256: 'x' },
+          { uploadId: 'v', fileName: 'insurance.pdf', sha256: 'y' },
+        ],
+        source: { kind: 'document', suggestionId, at: AT },
+      })?.reference,
+    ).toBe('KCB 782M');
+  });
+
   it('leaves the identifier out when the item has none', () => {
     expect(
       sourceDetails({
