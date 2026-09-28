@@ -172,14 +172,14 @@ jobs:
             server start-dev --ip 0.0.0.0 --namespace adili
           timeout 60 sh -c 'until docker exec temporal temporal operator namespace describe --namespace adili >/dev/null 2>&1; do sleep 1; done'
       # Object storage as in infra/compose (service containers cannot take a command): the S3
-      # identity, SSE-S3 for the clean bucket and the ADR-002 buckets.
+      # identity, SSE-S3 for the clean bucket, the volume slots and the ADR-002 buckets.
       - name: Start SeaweedFS
         run: |
           docker run -d --name seaweedfs -p 8333:8333 -p 9333:9333 -e WEED_S3_SSE_KEY=adili-ci-sse-key \
             -v "$PWD/infra/compose/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro" \
             -v "$PWD/infra/compose/seaweedfs/create-buckets.sh:/scripts/create-buckets.sh:ro" \
             chrislusf/seaweedfs:4.47 server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json \
-            -master.volumeSizeLimitMB=1024
+            -master.volumeSizeLimitMB=1024 -volume.max=64
           timeout 120 sh -c 'until curl -sf http://localhost:9333/cluster/status >/dev/null && curl -s -o /dev/null http://localhost:8333; do sleep 2; done' \
             || { docker logs seaweedfs; exit 1; }
           timeout 120 sh -c 'until docker exec -e SEAWEEDFS_MASTER=localhost:9333 seaweedfs sh /scripts/create-buckets.sh \
