@@ -7,8 +7,8 @@
  *
  * Limits: each string literal is checked on its own, so a ring split across `cn()` arguments
  * (`cn('outline-none', 'focus-visible:outline-2')`) is not caught, and every string is checked,
- * not only class names. Only an unprefixed `outline-none` or `outline-hidden` counts as hiding
- * the outline, so rings on a child selector such as `[&_a]:` are not checked either.
+ * not only class names. A ring is checked against the outline hidden on the same element, so
+ * `[&_a]:outline-none` goes with `[&_a]:focus-visible:outline-2` and not with an unprefixed ring.
  */
 
 /** A variant-prefixed outline or ring width, e.g. `focus-visible:after:outline-2`. */
@@ -22,6 +22,17 @@ function parse(token) {
   return { variants: parts, utility };
 }
 
+/** Variants that say when or on which pseudo-element the ring draws, not which element it is on. */
+const NOT_SCOPE = new Set(['focus-visible', 'after', 'before']);
+
+/**
+ * The element a class applies to, as its remaining variants: `''` for the element itself,
+ * `[&_a]` for its child links.
+ */
+function scopeOf(variants) {
+  return variants.filter((variant) => !NOT_SCOPE.has(variant)).join(':');
+}
+
 /**
  * What is wrong with a class string's focus ring, if anything: a list of messages, empty when
  * the string is fine.
@@ -30,9 +41,16 @@ function parse(token) {
  */
 export function focusRingProblems(text) {
   const tokens = text.split(/\s+/).filter(Boolean).map(parse);
-  const unprefixed = new Set(tokens.filter((t) => t.variants.length === 0).map((t) => t.utility));
-  const hidesWithNone = unprefixed.has('outline-none');
-  if (!hidesWithNone && !unprefixed.has('outline-hidden')) return [];
+
+  /** How each element's outline is hidden: `outline-none` wins over `outline-hidden`. */
+  const hidden = new Map();
+  for (const { variants, utility } of tokens) {
+    if (variants.includes('focus-visible')) continue;
+    if (utility !== 'outline-none' && utility !== 'outline-hidden') continue;
+    const scope = scopeOf(variants);
+    if (hidden.get(scope) !== 'outline-none') hidden.set(scope, utility);
+  }
+  if (hidden.size === 0) return [];
 
   const onFocus = tokens.filter((t) => t.variants.includes('focus-visible'));
   const widths = onFocus.filter((t) => WIDTH.test(t.utility) && t.utility !== 'ring-inset');
@@ -41,12 +59,17 @@ export function focusRingProblems(text) {
   );
 
   const problems = [];
-  if (hidesWithNone && widths.length > 0) {
-    problems.push(
-      '`outline-none` with a focus ring: compose `focusRing` from @adili/ui with `cn`, or use `outline-hidden` (docs/design.md, Focus).',
-    );
-  }
+  const reported = new Set();
   for (const { variants, utility } of widths) {
+    const scope = scopeOf(variants);
+    const hides = hidden.get(scope);
+    if (!hides) continue;
+    if (hides === 'outline-none' && !reported.has(scope)) {
+      reported.add(scope);
+      problems.push(
+        '`outline-none` with a focus ring: compose `focusRing` from @adili/ui with `cn`, or use `outline-hidden` (docs/design.md, Focus).',
+      );
+    }
     if (!utility.includes('outline')) continue;
     const key = variants.join(':');
     if (!styled.has(key)) {

@@ -27,6 +27,8 @@ describe('focusRingProblems', () => {
       '-mx-1 rounded-md px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
       // Rings on a pseudo-element.
       'underline-offset-4 outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset',
+      // Rings on child links.
+      'underline [&_a]:outline-none [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid [&_a]:focus-visible:outline-ring',
     ]) {
       assert.equal(focusRingProblems(text).length, 1, text);
     }
@@ -38,6 +40,10 @@ describe('focusRingProblems', () => {
       focusRingProblems(
         'rounded-sm outline-hidden after:absolute focus-visible:after:outline-2 focus-visible:outline-solid focus-visible:after:outline-ring',
       ).length,
+      1,
+    );
+    assert.equal(
+      focusRingProblems('underline [&_a]:outline-hidden [&_a]:focus-visible:outline-2').length,
       1,
     );
     // Both problems at once.
@@ -59,6 +65,9 @@ describe('focusRingProblems', () => {
       'outline-none empty:hidden',
       'rounded-lg has-focus-visible:outline-3 has-focus-visible:outline-ring/15',
       'focus-visible:outline-2',
+      'underline [&_a]:outline-hidden [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid',
+      // Hidden on the child links only, so the element's own ring still draws.
+      '[&_a]:outline-none focus-visible:outline-2 focus-visible:outline-solid',
     ]) {
       assert.deepEqual(focusRingProblems(text), [], text);
     }
