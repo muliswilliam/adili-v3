@@ -58,7 +58,7 @@ const deed: Attachment = { uploadId: UPLOAD_ID, fileName: 'deed.pdf', sha256: SH
 
 const setAttachmentsSpy = vi.fn();
 
-type Extras = Partial<Pick<ItemAttachmentSlot, 'itemType' | 'onAccepted' | 'extractionOff'>>;
+type Extras = Partial<Pick<ItemAttachmentSlot, 'itemType' | 'onAccepted'>>;
 
 function Harness({ initial, extras }: { initial: Attachment[]; extras: Extras }) {
   const [attachments, setAttachments] = useState(initial);
@@ -363,11 +363,6 @@ describe('Read into the form on an attachment (S6, S11)', () => {
       name: 'Read into the form: not enabled for your Commission',
     });
     expect(note.getAttribute('aria-disabled')).toBe('true');
-  });
-
-  it('says so too when a set said so on load', () => {
-    renderAttachments([deed], { extractionOff: true });
-    expect(within(openMenu('deed.pdf')).getByText(/not enabled for your Commission/)).toBeDefined();
   });
 
   it('reads the document, applies it through accept and marks the row', async () => {

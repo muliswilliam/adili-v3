@@ -134,7 +134,7 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
   const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
   const [reading, setReading] = useState<(ReadTarget & { uploadId: string }) | null>(null);
   const declarationId = declaration.id;
-  const canRead = useExtractionEnabled(declarationId) && slot.extractionOff !== true;
+  const canRead = useExtractionEnabled(declarationId);
   const { sectionKey } = slot;
   const { itemId, category } = slot;
 

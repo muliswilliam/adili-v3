@@ -74,6 +74,7 @@ import {
 } from './statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
 import { readingNotEnabledIn } from './extraction';
+import { markExtractionOff } from './extraction-availability';
 import { fullName } from './format';
 import { sourceDetails } from './item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
@@ -268,13 +269,17 @@ export function StatementSection({
     }, 0);
   }
 
-  // Attachments can be read into the form (#316): the item that adds or fills is merged in.
+  // A document set that says reading is off tells the one store the attachment menus read.
   const readingOff = readingNotEnabledIn(registries?.sets ?? []);
+  useEffect(() => {
+    if (readingOff) markExtractionOff(declaration.id);
+  }, [readingOff, declaration.id]);
+
+  // Attachments can be read into the form (#316): the item that adds or fills is merged in.
   const withReading: RenderAttachments | undefined = renderAttachments
     ? (slot) =>
         renderAttachments({
           ...slot,
-          extractionOff: readingOff,
           onAccepted: (itemId, contents) => {
             update((current) => withAcceptedItem(current, contents, itemId));
           },

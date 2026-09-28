@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDeclarationSection, saveDeclarationSection } from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
+import { resetExtractionAvailability, useExtractionEnabled } from './extraction-availability';
 import { ITEM_MESSAGES } from './statement';
 import type { ItemAttachmentSlot } from './statement-item-editor';
 import {
@@ -138,6 +139,7 @@ async function flushTimers() {
 }
 
 beforeEach(() => {
+  resetExtractionAvailability();
   saveMock.mockReset();
   saveMock.mockReturnValue(new Promise(() => undefined));
   getSectionMock.mockReset();
@@ -683,7 +685,7 @@ describe('StatementSection: attachment slot', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Edit Land: Quarter-acre residential plot, Kapsoya' }),
     );
-    expect(slot).toMatchObject({ itemType: 'land', item: land, extractionOff: false });
+    expect(slot).toMatchObject({ itemType: 'land', item: land });
 
     const added = {
       id: 'a0000000-0000-4000-8000-00000000000b',
@@ -701,13 +703,8 @@ describe('StatementSection: attachment slot', () => {
     expect(screen.getByRole('button', { name: 'Edit Land: Land in Njoro' })).toBeTruthy();
   });
 
-  it('tells the slot reading is off when a document set said so', () => {
-    let slot: ItemAttachmentSlot | undefined;
+  it('remembers reading is off for the draft when a document set said so', () => {
     renderStatement(statement({ assets: [land] }), {
-      renderAttachments: (given) => {
-        slot = given;
-        return null;
-      },
       registries: {
         person: { name: 'Mwangi Kamau', firstName: 'Mwangi', nationalId: null, hasId: true },
         sets: [
@@ -725,10 +722,7 @@ describe('StatementSection: attachment slot', () => {
         ],
       },
     });
-    openTab(/^Assets/);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Edit Land: Quarter-acre residential plot, Kapsoya' }),
-    );
-    expect(slot?.extractionOff).toBe(true);
+    const { result } = renderHook(() => useExtractionEnabled(DECLARATION_ID));
+    expect(result.current).toBe(false);
   });
 });

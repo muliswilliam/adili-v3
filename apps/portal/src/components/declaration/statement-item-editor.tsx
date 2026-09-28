@@ -52,8 +52,6 @@ export interface ItemAttachmentSlot {
   item?: unknown;
   /** Takes the item an accept added or filled, from the section as read back (#316). */
   onAccepted?: (itemId: string, contents: JsonObject) => void;
-  /** Reading documents is known to be off for this Commission (#316). */
-  extractionOff?: boolean;
 }
 
 export type RenderAttachments = (slot: ItemAttachmentSlot) => ReactNode;
