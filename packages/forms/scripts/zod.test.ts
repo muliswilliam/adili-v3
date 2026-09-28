@@ -99,6 +99,18 @@ describe('zodModule', () => {
     ).toThrow('#/then/properties/items: a count needs items to be required');
   });
 
+  it('refuses a reference to a loose definition beside a strict member, which it cannot tighten', () => {
+    expect(() =>
+      generate({
+        $defs: {
+          Strict: { type: 'object', additionalProperties: false, properties: {} },
+          Loose: { type: 'object', properties: {} },
+        },
+        allOf: [{ $ref: '#/$defs/Strict' }, { $ref: '#/$defs/Loose' }],
+      }),
+    ).toThrow('#/allOf/1: a loose $ref beside a strict allOf member is not supported');
+  });
+
   it('refuses an enumeration it has no name for', () => {
     expect(() =>
       generate({ type: 'object', properties: { kind: { type: 'string', enum: ['a'] } } }),

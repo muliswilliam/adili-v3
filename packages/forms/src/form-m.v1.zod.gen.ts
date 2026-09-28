@@ -1,4 +1,4 @@
-/* Generated from @adili/schemas/forms/form-m.v1.json by scripts/zod.ts. Do not edit. */
+/* Generated from @adili/schemas/forms/form-m.v1.json by scripts/generate-types.ts. Do not edit. */
 
 import { z } from 'zod';
 

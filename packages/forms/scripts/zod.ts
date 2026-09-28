@@ -48,6 +48,8 @@ const FORMATS: Record<string, string> = {
   'date-time': 'z.iso.datetime({ offset: true })',
   // Ajv's uuid format accepts any version, as z.guid() does; z.uuid() would insist on RFC 9562.
   uuid: 'z.guid()',
+  // Ajv-formats and Zod check email with different expressions that disagree on rare edge cases;
+  // submission validates with Ajv.
   email: 'z.email()',
 };
 
@@ -101,6 +103,16 @@ export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOpti
     const strictMembers = intersected.map(([member]) => resolve(member)).filter(isStrictObject);
     return intersected.map(([member, at]) => {
       const loose = member.type === 'object' && member.additionalProperties === undefined;
+      const resolved = resolve(member);
+      // A referenced definition is emitted once, as it is; it cannot be made strict here.
+      if (
+        strictMembers.length > 0 &&
+        member !== resolved &&
+        resolved.type === 'object' &&
+        resolved.additionalProperties === undefined
+      ) {
+        throw new Error(`${at}: a loose $ref beside a strict allOf member is not supported`);
+      }
       if (strictMembers.length === 0 || !loose) return expression(member, at);
       for (const key of Object.keys((member.properties ?? {}) as JsonSchema)) {
         if (strictMembers.some((strict) => !(key in ((strict.properties ?? {}) as JsonSchema)))) {
