@@ -62,7 +62,7 @@ CREATE TABLE "roster_snapshots" (
 	"source_updated_at" timestamp with time zone NOT NULL,
 	"synced_from" uuid,
 	"synced_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "roster_snapshots_state_check" CHECK ("roster_snapshots"."state" in ('active', 'exited'))
+	CONSTRAINT "roster_snapshots_state_check" CHECK ("roster_snapshots"."state" in ('not_onboarded', 'onboarded', 'exited'))
 );
 --> statement-breakpoint
 CREATE TABLE "tenant_policy_cache" (

@@ -24,7 +24,7 @@ export function policyVersion(overrides: Partial<PulledPolicy> = {}): PulledPoli
   };
 }
 
-/** A roster record as the directory would give it: active, not onboarded. */
+/** A roster record as the directory would give it: not onboarded unless a person is given. */
 export function rosterRecord(
   tenant: string,
   overrides: Partial<PulledRosterRecord> = {},
@@ -35,7 +35,7 @@ export function rosterRecord(
     tenant,
     personnelFileNumber: `${tenant.toUpperCase()}/${id.slice(0, 8)}`,
     fullName: 'Achieng Otieno',
-    state: 'active',
+    state: overrides.personId ? 'onboarded' : 'not_onboarded',
     appointmentDate: '2015-01-05',
     exitDate: null,
     personId: null,

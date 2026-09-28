@@ -1,5 +1,5 @@
 {
-  "id": "5d29085a-6c45-4be2-9b87-b6821d5dfe41",
+  "id": "4abfe407-c222-4b60-8ce7-2d3c90321385",
   "prevId": "256f5bf9-232f-4cc1-95c6-77083d6f93bb",
   "version": "7",
   "dialect": "postgresql",
@@ -639,7 +639,7 @@
       "checkConstraints": {
         "roster_snapshots_state_check": {
           "name": "roster_snapshots_state_check",
-          "value": "\"roster_snapshots\".\"state\" in ('active', 'exited')"
+          "value": "\"roster_snapshots\".\"state\" in ('not_onboarded', 'onboarded', 'exited')"
         }
       },
       "isRLSEnabled": false

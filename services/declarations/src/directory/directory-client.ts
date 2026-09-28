@@ -7,7 +7,7 @@ export interface PulledRosterRecord {
   tenant: string;
   personnelFileNumber: string;
   fullName: string;
-  state: 'active' | 'exited';
+  state: 'not_onboarded' | 'onboarded' | 'exited';
   appointmentDate: string | null;
   exitDate: string | null;
   personId: string | null;

@@ -1,6 +1,6 @@
 {
-  "id": "a814513a-970b-497a-bad6-122ff36d0f9c",
-  "prevId": "5d29085a-6c45-4be2-9b87-b6821d5dfe41",
+  "id": "0d6f444e-e7a4-4b4d-a2f3-ef840a7f9fb3",
+  "prevId": "4abfe407-c222-4b60-8ce7-2d3c90321385",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -639,7 +639,7 @@
       "checkConstraints": {
         "roster_snapshots_state_check": {
           "name": "roster_snapshots_state_check",
-          "value": "\"roster_snapshots\".\"state\" in ('active', 'exited')"
+          "value": "\"roster_snapshots\".\"state\" in ('not_onboarded', 'onboarded', 'exited')"
         }
       },
       "isRLSEnabled": false

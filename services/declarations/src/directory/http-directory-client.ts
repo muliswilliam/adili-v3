@@ -34,7 +34,7 @@ const rosterRecordSchema = z.object({
   tenant: z.string(),
   personnelFileNumber: z.string(),
   fullName: z.string(),
-  state: z.enum(['active', 'exited']),
+  state: z.enum(['not_onboarded', 'onboarded', 'exited']),
   appointmentDate: civilDate.nullable(),
   exitDate: civilDate.nullable(),
   personId: z.uuid().nullable(),

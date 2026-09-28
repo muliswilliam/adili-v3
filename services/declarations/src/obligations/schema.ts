@@ -33,7 +33,8 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 };
 
-export const ROSTER_RECORD_STATES = ['active', 'exited'] as const;
+/** As in the directory: `not_onboarded` until the declarant onboards, `exited` once an exit is recorded. */
+export const ROSTER_RECORD_STATES = ['not_onboarded', 'onboarded', 'exited'] as const;
 
 /**
  * The declarations service's snapshot of a directory roster record, as last pulled: what the
@@ -66,7 +67,10 @@ export const rosterSnapshots = pgTable(
   (table) => [
     index('roster_snapshots_tenant_state_idx').on(table.tenant, table.state),
     index('roster_snapshots_person_id_idx').on(table.personId),
-    check('roster_snapshots_state_check', sql`${table.state} in ('active', 'exited')`),
+    check(
+      'roster_snapshots_state_check',
+      sql`${table.state} in ('not_onboarded', 'onboarded', 'exited')`,
+    ),
   ],
 );
 
