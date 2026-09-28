@@ -32,6 +32,9 @@ jobs:
           # History back to the base commit, for the diff and Turborepo's affected packages.
           fetch-depth: 0
       - id: plan
+        # An explicit bash shell sets pipefail, so a failing plan fails the job instead of
+        # leaving every output empty behind tee.
+        shell: bash
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/ci-plan.mjs "$BASE" | tee -a "$GITHUB_OUTPUT"
