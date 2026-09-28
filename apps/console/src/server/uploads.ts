@@ -1,31 +1,14 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { ROSTER_CONTENT_TYPES, ROSTER_FILE_MAX_BYTES } from '../components/roster/roster-file';
-import { getBff } from './bff.server';
+import { asDocumentsViewer } from './as-viewer.server';
 import {
   callDocuments,
-  createDocumentsClient,
-  type DocumentsClient,
   type DocumentsResult,
   type Upload,
   type UploadReservation,
 } from './documents/client';
-import { env } from './env.server';
-
-/** Runs `work` with a documents client acting as the signed-in user. */
-async function asViewer<T>(
-  work: (client: DocumentsClient) => Promise<DocumentsResult<T>>,
-): Promise<DocumentsResult<T>> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) {
-    return { ok: false, error: { kind: 'unauthenticated' } };
-  }
-  return work(
-    createDocumentsClient({ baseUrl: env().DOCUMENTS_API_URL, accessToken: session.accessToken }),
-  );
-}
 
 export const createRosterUploadInput = z.object({
   contentType: z.enum([ROSTER_CONTENT_TYPES.csv, ROSTER_CONTENT_TYPES.xlsx]),
@@ -43,7 +26,7 @@ export type CreateRosterUploadInput = z.infer<typeof createRosterUploadInput>;
 export const createRosterUpload = createServerFn({ method: 'POST' })
   .validator(createRosterUploadInput)
   .handler(({ data }): Promise<DocumentsResult<UploadReservation>> =>
-    asViewer((client) =>
+    asDocumentsViewer((client) =>
       callDocuments(() =>
         client.POST('/v1/uploads', { body: { purpose: 'roster-import', ...data } }),
       ),
@@ -57,7 +40,7 @@ export const createRosterUpload = createServerFn({ method: 'POST' })
 export const completeUpload = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.uuid() }))
   .handler(({ data }): Promise<DocumentsResult<Upload>> =>
-    asViewer((client) =>
+    asDocumentsViewer((client) =>
       callDocuments(() =>
         client.POST('/v1/uploads/{id}/complete', { params: { path: { id: data.id } } }),
       ),
