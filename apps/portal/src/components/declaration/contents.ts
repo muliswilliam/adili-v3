@@ -127,6 +127,12 @@ export interface Officer {
     /** The Commission's slug; its name comes from `Declaration.commission`. */
     responsibleCommission: string;
     personnelFileNumber?: string;
+    /** Pre-filled from the Commission's roster when it has one; editable. */
+    jobGroup?: string;
+    /** Date of appointment, ISO date. Pre-filled from the roster when it has one; editable. */
+    appointmentDate?: string;
+    /** Pre-filled from the roster when it has one; editable. */
+    workStation?: string;
   };
 }
 
@@ -155,12 +161,26 @@ export interface Household {
   children: { none: boolean; items: Child[] };
 }
 
+export const ITEM_SOURCE_KINDS = ['kra', 'ntsa', 'brs', 'ardhisasa', 'document'] as const;
+export type ItemSourceKind = (typeof ITEM_SOURCE_KINDS)[number];
+
+/** Where a pre-filled item came from (spec 05b); absent for items entered by hand. */
+export interface ItemSource {
+  kind: ItemSourceKind;
+  suggestionId: string;
+  verificationResultId?: string;
+  aiJobId?: string;
+  /** When the registry answered or the document was read, ISO date-time. */
+  at: string;
+}
+
 interface ItemBase {
   id: string;
   description: string;
   location: Location;
   change: ChangeFlag;
   attachments?: Attachment[];
+  source?: ItemSource;
 }
 
 export interface IncomeItem extends ItemBase {
