@@ -199,7 +199,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
 
         <div className="grid gap-3 sm:col-span-2">
           <CheckboxItem
-            label="My marital status changed since my last declaration"
+            label="Marital status changed since last declaration"
             checked={changed}
             onChange={(event) => {
               const next = event.target.checked;
