@@ -20,7 +20,8 @@
  *
  * `GET /v1/me/declarant` reads the bearer token's claims without checking its signature. A user
  * with the `declarant` realm role gets the profile listed under their username in
- * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 404.
+ * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 403, as
+ * the directory answers callers without the role.
  *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
  * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
@@ -208,18 +209,15 @@ function bearerClaims(request: Request): TokenClaims | null {
 function myDeclarantProfile(request: Request) {
   const claims = bearerClaims(request);
   if (!claims) return json(401, { type: 'about:blank', title: 'Unauthorized', status: 401 });
-  const username = claims.preferred_username ?? '';
-  const profile =
-    DECLARANT_PROFILES[username] ??
-    (claims.realm_access?.roles?.includes('declarant') ? DEMO_DECLARANT : undefined);
-  if (!profile) {
-    return json(404, {
+  if (!claims.realm_access?.roles?.includes('declarant')) {
+    return json(403, {
       type: 'about:blank',
-      title: 'The caller is not an onboarded declarant',
-      status: 404,
+      title: 'Forbidden',
+      status: 403,
+      detail: 'Requires one of the roles: declarant',
     });
   }
-  return json(200, profile);
+  return json(200, DECLARANT_PROFILES[claims.preferred_username ?? ''] ?? DEMO_DECLARANT);
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -318,8 +316,7 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
 
 function identify(body: IdentifyDeclarant, clientIp: string) {
   const commission = ONBOARDING_COMMISSIONS.find((entry) => entry.slug === body.commission);
-  if (!commission) return problem(404, 'no-match', 'No matching roster record');
-  if (!commission.hasRoster) {
+  if (!commission?.hasRoster) {
     return problem(409, 'no-roster', 'This Commission has not imported its roster');
   }
 
