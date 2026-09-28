@@ -21,6 +21,13 @@ export const envSchema = bffEnvSchema.extend({
    * mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
+  REVIEW_API_URL: z.url().default('http://localhost:4003'),
+  /**
+   * Serve the declarant's clarifications from in-memory fixtures until the review service
+   * implements spec 07a (#174). Attachments are checked against the documents mock, so turn on
+   * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
+   */
+  REVIEW_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,11 +1,11 @@
 import type { DocumentsClient } from './client.server';
-import type { Upload, UploadReservation } from './types';
+import type { Upload, UploadPurpose, UploadReservation } from './types';
 
 /**
- * The documents service's upload flow for declaration attachments (documents.yaml), reduced to
- * discriminated results. Pure: the caller injects the client (see `uploads.ts` for the server
- * functions). The browser PUTs the bytes to the reservation's `uploadUrl` itself; these never
- * see the file.
+ * The documents service's upload flow for declaration and clarification attachments
+ * (documents.yaml), reduced to discriminated results. Pure: the caller injects the client (see
+ * `uploads.ts` for the server functions). The browser PUTs the bytes to the reservation's
+ * `uploadUrl` itself; these never see the file.
  *
  * reserve (`POST /v1/uploads`) -> browser PUT -> complete (`POST /v1/uploads/{id}/complete`,
  * scans) -> poll `GET /v1/uploads/{id}` while the scan has not finished.
@@ -42,15 +42,24 @@ export type ReserveResult =
   | { status: 'rejected'; reason: 'type' | 'size' }
   | Unavailable;
 
-/** `POST /v1/uploads` with the `declaration-attachment` purpose. */
+/** Purposes whose files the declarant attaches: PDF, JPEG, PNG or HEIC up to 20 MB each. */
+export const ATTACHMENT_PURPOSES = [
+  'declaration-attachment',
+  'clarification-attachment',
+] as const satisfies readonly UploadPurpose[];
+
+export type AttachmentPurpose = (typeof ATTACHMENT_PURPOSES)[number];
+
+/** `POST /v1/uploads` with the `declaration-attachment` purpose, or the one given. */
 export function reserveAttachmentUpload(
   client: DocumentsClient,
   file: AttachmentFile,
+  purpose: AttachmentPurpose = 'declaration-attachment',
 ): Promise<ReserveResult> {
   return attempt(async () => {
     const { data, error, response } = await client.POST('/v1/uploads', {
       body: {
-        purpose: 'declaration-attachment',
+        purpose,
         contentType: file.contentType,
         declaredSize: file.size,
         fileName: file.fileName.slice(0, 255),
