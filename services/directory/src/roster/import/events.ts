@@ -1,5 +1,4 @@
-import type { NewEvent } from '@adili/events';
-
+import { tenantEvent } from '../../tenant-event.js';
 import type { EventActor } from '../actor.js';
 import type { ImportChannel } from '../schema.js';
 import type { ImportCounts, ImportFailureCode } from './representation.js';
@@ -20,12 +19,10 @@ export interface RosterImportCompletedData extends Record<string, unknown> {
   actor: EventActor;
 }
 
-export function rosterImportCompleted(
-  slug: string,
-  data: RosterImportCompletedData,
-): NewEvent<RosterImportCompletedData> {
-  return { type: ROSTER_IMPORT_COMPLETED, subject: data.importId, tenant: slug, data };
-}
+export const rosterImportCompleted = tenantEvent<RosterImportCompletedData>(
+  ROSTER_IMPORT_COMPLETED,
+  (data) => data.importId,
+);
 
 export const ROSTER_IMPORT_FAILED = 'roster.import.failed.v1';
 
@@ -35,9 +32,7 @@ export interface RosterImportFailedData extends Record<string, unknown> {
   actor: EventActor;
 }
 
-export function rosterImportFailed(
-  slug: string,
-  data: RosterImportFailedData,
-): NewEvent<RosterImportFailedData> {
-  return { type: ROSTER_IMPORT_FAILED, subject: data.importId, tenant: slug, data };
-}
+export const rosterImportFailed = tenantEvent<RosterImportFailedData>(
+  ROSTER_IMPORT_FAILED,
+  (data) => data.importId,
+);

@@ -1,5 +1,4 @@
-import type { NewEvent } from '@adili/events';
-
+import { tenantEvent } from '../../tenant-event.js';
 import type { EventActor } from '../actor.js';
 
 /**
@@ -19,9 +18,7 @@ export interface ApiCredentialChangedData extends Record<string, unknown> {
   actor: EventActor;
 }
 
-export function apiCredentialChanged(
-  slug: string,
-  data: ApiCredentialChangedData,
-): NewEvent<ApiCredentialChangedData> {
-  return { type: ROSTER_API_CREDENTIAL_CHANGED, subject: data.clientId, tenant: slug, data };
-}
+export const apiCredentialChanged = tenantEvent<ApiCredentialChangedData>(
+  ROSTER_API_CREDENTIAL_CHANGED,
+  (data) => data.clientId,
+);
