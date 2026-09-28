@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Keycloak with the Adili login and email themes (apps/keycloak-theme) installed:
 #   docker build -f infra/docker/keycloak.Dockerfile -t adili/keycloak .
+# Keep in step with .nvmrc (CI reads it).
 ARG NODE_VERSION=24
 ARG KEYCLOAK_VERSION=26.7.4
 

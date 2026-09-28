@@ -46,6 +46,7 @@ Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `
 | `scrim` | `.overlay` | `rgb(24 20 16 / 0.42)` | behind dialogs |
 | `glow` / `glow-soft` | | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `logo` | | `#f06225` | the Dials logo only |
+| `code` / `code-foreground` | `.code` (roster prototype) | `#171717` / `#ecebe8` | code examples; dark in both themes (`#0f0f0e` with a `border` hairline, `code-border`, in the dark theme). `code-keyword` `#ffb48f`, `code-string` `#b6e3a8` and `code-comment` `#8d8b87` colour their parts, all at least 4.5:1 on the panel |
 
 Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`). The info and brand solids miss 4.5:1 on their light soft fills, so their badges use `-subtle-foreground`, as the kit's `.badge-info` and `.badge-brand` do.
 
@@ -116,6 +117,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
 | `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
 | `Select` | `.select`, `.menu` | trigger styled like `Input`; the list is a 12px-radius `shadow-pop` menu with 36px items. The trigger takes the id and aria attributes from `FormField`. |
+| `Menu` | `.menu` | a button's dropdown of actions: 12px-radius `shadow-pop` panel, 200px minimum, 6px padding; `MenuItem` rows are 36px, 14px text with a 16px muted icon, `rounded-md`, `muted` when highlighted; disabled items are 50% opacity. `MenuTrigger` wraps the button; `MenuContent` aligns to its end by default. |
 | `DataTable` | `.table` with `.cbx` | `Table` with a 36px checkbox column; selected rows tint `brand-faint`; select all covers the current page |
 | `FileDropZone` | `.drop` | 1.5px dashed `input` border, 16px radius, 44px icon tile, 15px semibold label and 13.5px hint inside the zone. Hover and drag-over turn the border ink on `brand-faint`; an error softens it red and shows `FieldError` below; disabled is 55% opacity. |
 | `ProgressBar` | `.pbar`, `.prog-meta` | 10px bar (`sm`: 6px) on `muted` with a hairline; fill `primary`, or `success` / `destructive` via `tone`. Status text and the percentage sit under the bar. `indeterminate` sweeps while the total is unknown. The label names the bar for screen readers only. |
@@ -130,6 +132,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `FilterChip` | `.chip`, `.chip.on` | 32px pill toggle, 13.5px medium, with an optional icon and count; ink when pressed, a control ring when not; state in `aria-pressed` |
 | `Spinner` | `.spinner` | 18px ring in the current text colour, spinning (still when reduced motion is set); decorative |
 | `StatusMark` | state icon on login outcome pages | 56px circle with a 28px icon above an outcome or error title; tones `success`, `warning`, `destructive`, `neutral` on their soft fills |
+| `CodeBlock` | `.code` in `02-roster.prototype.html` (API documentation) | 12px-radius `code` panel, 12.5px mono at 1.65 line height, 14 × 16px padding; lines keep their breaks and scroll sideways, so the block is a focusable, labelled group. `CodeKeyword`, `CodeString` and `CodeComment` mark its parts |
 
 Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 

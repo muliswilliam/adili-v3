@@ -136,14 +136,25 @@ services:
 
   seaweedfs:
     image: chrislusf/seaweedfs:4.47
+    # CORS: browsers PUT uploads straight to storage (ADR-002), from the portal and console only.
+    # Volume slots: each bucket grows 7 volumes on its first write. Left at 0, -volume.max is
+    # free disk / volume size, which on a small disk (e.g. a CI runner) leaves the clean bucket
+    # none. Volumes are sparse, so a fixed count costs no disk up front.
     command:
       [
         'server',
         '-dir=/data',
         '-s3',
         '-s3.config=/etc/seaweedfs/s3.json',
+        '-s3.allowedOrigins=http://localhost:3010,http://localhost:3020',
         '-master.volumeSizeLimitMB=1024',
+        '-volume.max=64',
       ]
+    environment:
+      # SSE-S3 key for the documents service's clean-bucket copies. A dev-only secret: SeaweedFS
+      # derives the key-encryption key from it (HKDF-SHA256). Production uses Ceph RGW with
+      # keys from OpenBao (ADR-002).
+      WEED_S3_SSE_KEY: adili-dev-sse-key
     ports: ['8333:8333', '9333:9333']
     volumes:
       - seaweedfs-data:/data

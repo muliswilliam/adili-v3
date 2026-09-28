@@ -11,6 +11,7 @@
     "db:migrate": "uv run --env-file .env python manage.py migrate",
     "db:seed": "uv run --env-file .env python manage.py seed_demo",
     "roster:push": "uv run --env-file .env python manage.py push_roster",
+    "roster:files": "uv run --env-file .env.example python manage.py generate_rosters",
     "contracts": "uv run --env-file .env.example python manage.py export_contracts"
   }
 }

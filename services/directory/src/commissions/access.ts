@@ -1,4 +1,4 @@
-import type { Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import type { TenantContext } from '@adili/data-access';
 
 /** RLS context of platform-wide principals; also a reserved tenant key. */
@@ -47,4 +47,14 @@ export function tenantContextOf(principal: Principal): TenantContext {
   }
   const tenant = principal.tenant && principal.tenant !== PLATFORM_TENANT ? principal.tenant : '';
   return { tenant, subject: principal.subject };
+}
+
+/**
+ * The RLS context of work on Commission `slug` that only the Commission's own principals may do
+ * (its reporting officer, its HR system): its tenant. Anyone else gets 404, as if the Commission
+ * did not exist.
+ */
+export function ownTenantContext(principal: Principal, slug: string): TenantContext {
+  notFoundIfInvisible(slug, () => principal.tenant === slug);
+  return { tenant: slug, subject: principal.subject };
 }

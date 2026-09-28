@@ -1,0 +1,82 @@
+import { z } from 'zod';
+
+import { importChannelSchema } from '../import/representation.js';
+import { ROSTER_RECORD_STATES } from '../schema.js';
+
+/**
+ * Response shapes of the roster records endpoints (spec #27). They are the contract: the OpenAPI
+ * document is generated from them.
+ */
+
+export const rosterRecordStateSchema = z.enum(ROSTER_RECORD_STATES).meta({
+  description:
+    '`not_onboarded` until the declarant onboards against the record (slice 03); `exited` once an exit is recorded',
+});
+
+export const reportingEntityRefSchema = z.object({
+  id: z.uuid(),
+  name: z.string().meta({ description: 'As first written in a roster row' }),
+});
+
+export const rosterRecordListItemSchema = z.object({
+  id: z.uuid(),
+  personnelFileNumber: z.string(),
+  fullName: z.string(),
+  nationalIdMasked: z.string().meta({
+    description: 'All but the last three digits replaced, e.g. •••••123',
+    examples: ['•••••123'],
+  }),
+  designation: z.string().nullable(),
+  jobGroup: z.string().nullable(),
+  reportingEntity: reportingEntityRefSchema.nullable(),
+  state: rosterRecordStateSchema,
+  absentFromLatestImport: z.boolean().meta({
+    description:
+      'Not in the latest complete import; stays set until an exit is confirmed or the record is kept',
+  }),
+  flaggedByImportId: z
+    .uuid()
+    .nullable()
+    .meta({ description: 'The complete import that flagged the record; null when not flagged' }),
+  flaggedAt: z.iso.datetime().nullable().meta({ description: 'When the record was flagged' }),
+});
+export type RosterRecordListItem = z.infer<typeof rosterRecordListItemSchema>;
+
+export const rosterRecordImportSchema = z.object({
+  importId: z.uuid(),
+  startedAt: z.iso.datetime(),
+  outcome: z.enum(['created', 'updated', 'unchanged', 'rejected']).meta({
+    description:
+      "What the import's row did to the record; `rejected` when it would have changed the identity of an onboarded record",
+  }),
+});
+export type RosterRecordImport = z.infer<typeof rosterRecordImportSchema>;
+
+export const rosterRecordSchema = rosterRecordListItemSchema.extend({
+  nationalId: z.string().meta({ description: 'Full value, digits only; reads are audited' }),
+  appointmentDate: z.iso.date().nullable(),
+  email: z.string().nullable(),
+  phone: z.string().nullable().meta({ description: 'E.164' }),
+  exitDate: z.iso.date().nullable(),
+  source: importChannelSchema.meta({ description: 'Channel of the last change' }),
+  firstSeenImportId: z.uuid(),
+  lastSeenImportId: z.uuid().meta({
+    description: 'The latest import with a row for this record, whether or not it changed it',
+  }),
+  imports: z.array(rosterRecordImportSchema).meta({
+    description:
+      'Imports with a row for this record, newest first; at most the latest 50, from the import rows kept (rows are purged after 30 days)',
+  }),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type RosterRecord = z.infer<typeof rosterRecordSchema>;
+
+export const rosterRecordPageSchema = z.object({
+  items: z.array(rosterRecordListItemSchema),
+  nextCursor: z
+    .string()
+    .nullable()
+    .meta({ description: 'Pass as `cursor` for the next page; null on the last page' }),
+});
+export type RosterRecordPage = z.infer<typeof rosterRecordPageSchema>;
