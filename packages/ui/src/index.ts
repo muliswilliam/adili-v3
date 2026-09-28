@@ -38,6 +38,7 @@ export {
   ConsentDialog,
   type ConsentDialogProps,
   type ConsentMessages,
+  listNames,
   maskNationalId,
 } from './components/consent-dialog';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';

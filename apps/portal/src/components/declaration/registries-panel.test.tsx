@@ -280,7 +280,7 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
     expect(dialog.textContent).toContain('what they hold about Mwangi Njoroge Kamau and show');
   });
 
-  it('retries one unavailable registry without asking again', async () => {
+  it('retries one unavailable registry once the declarant requests it again', async () => {
     lookupsMock.mockResolvedValue({
       status: 'started',
       sets: [set('ardhisasa', { id: 'land-2', status: 'pending', readyAt: null })],
@@ -290,11 +290,22 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
 
     fireEvent.click(within(strip()).getByRole('button', { name: 'Retry ArdhiSasa' }));
 
+    const dialog = await screen.findByRole('dialog', { name: 'Check registries' });
+    expect(dialog.textContent).toContain(
+      'Adili will ask ArdhiSasa what they hold about Mwangi Njoroge Kamau and show',
+    );
+    const proceed = within(dialog).getByRole('button', { name: 'Continue' });
+    expect((proceed as HTMLButtonElement).disabled).toBe(true);
+    expect(lookupsMock).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'I request this check' }));
+    expect(lookupsMock).not.toHaveBeenCalled();
+    fireEvent.click(proceed);
+
     await waitFor(() => {
       expect(lookupsMock).toHaveBeenCalledTimes(1);
     });
     expect(lookupsMock.mock.calls[0]?.[0].data.systems).toEqual(['ardhisasa']);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(lookupsMock.mock.calls[0]?.[0].data.textVersion).toBe('registry-consent.v1');
   });
 
   it('disables the check when the service says the person has no national ID', async () => {

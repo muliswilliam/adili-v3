@@ -2,7 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConsentDialog, type ConsentDialogProps, maskNationalId } from './consent-dialog';
+import {
+  ConsentDialog,
+  type ConsentDialogProps,
+  listNames,
+  maskNationalId,
+} from './consent-dialog';
 
 function Harness(props: Partial<ConsentDialogProps>) {
   const [open, setOpen] = useState(false);
@@ -48,6 +53,14 @@ describe('maskNationalId', () => {
   });
 });
 
+describe('listNames', () => {
+  it('names one, two or more in a sentence', () => {
+    expect(listNames(['KRA'])).toBe('KRA');
+    expect(listNames(['KRA', 'NTSA'])).toBe('KRA and NTSA');
+    expect(listNames(['KRA', 'NTSA', 'BRS', 'ArdhiSasa'])).toBe('KRA, NTSA, BRS and ArdhiSasa');
+  });
+});
+
 describe('ConsentDialog', () => {
   it('is a modal naming the person and their masked ID', () => {
     render(<Harness />);
@@ -59,6 +72,15 @@ describe('ConsentDialog', () => {
     expect(dialog.getAttribute('aria-describedby')).toBe(body.id);
     expect(body.textContent).toBe(
       'Adili will ask KRA, NTSA, BRS and ArdhiSasa what they hold about Mary Wanjiru Kennedy (•••••789) and show the results to you only. Nothing is added unless you accept it.',
+    );
+  });
+
+  it('names only the registries asked, e.g. to retry one', () => {
+    render(<Harness registries={['ArdhiSasa']} />);
+    openDialog();
+
+    expect(screen.getByText(/what they hold about/).textContent).toBe(
+      'Adili will ask ArdhiSasa what they hold about Mary Wanjiru Kennedy (•••••789) and show the results to you only. Nothing is added unless you accept it.',
     );
   });
 

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from './dialog';
 import { Icon } from './icon';
+import { SOURCE_NAMES } from './source-badge';
 
 /** A national ID with all but its last three digits hidden: "12345678" → "•••••678". */
 export function maskNationalId(id: string): string {
@@ -21,10 +22,27 @@ export function maskNationalId(id: string): string {
   return '•'.repeat(Math.max(0, trimmed.length - 3)) + trimmed.slice(-3);
 }
 
+/** Names in a sentence: "KRA", "KRA and NTSA", "KRA, NTSA, BRS and ArdhiSasa". */
+export function listNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} and ${names.slice(-1).join('')}`;
+}
+
+/** Every registry a check can ask, by name. */
+const EVERY_REGISTRY = [
+  SOURCE_NAMES.kra,
+  SOURCE_NAMES.ntsa,
+  SOURCE_NAMES.brs,
+  SOURCE_NAMES.ardhisasa,
+];
+
 export interface ConsentMessages {
   title: string;
-  /** The consent text. `maskedId` is absent when the person's ID is not known. */
-  body: (name: string, maskedId: string | undefined) => ReactNode;
+  /**
+   * The consent text. `maskedId` is absent when the person's ID is not known; `registries` names
+   * the registries asked, in a sentence (see `listNames`).
+   */
+  body: (name: string, maskedId: string | undefined, registries: string) => ReactNode;
   confirm: string;
   cancel: string;
   continue: string;
@@ -32,8 +50,8 @@ export interface ConsentMessages {
 
 const DEFAULT_MESSAGES: ConsentMessages = {
   title: 'Check registries',
-  body: (name, maskedId) =>
-    `Adili will ask KRA, NTSA, BRS and ArdhiSasa what they hold about ${name}${
+  body: (name, maskedId, registries) =>
+    `Adili will ask ${registries} what they hold about ${name}${
       maskedId ? ` (${maskedId})` : ''
     } and show the results to you only. Nothing is added unless you accept it.`,
   confirm: 'I request this check',
@@ -48,6 +66,11 @@ export interface ConsentDialogProps {
   name: string;
   /** Their national ID, already masked (see `maskNationalId`). Left out of the text when absent. */
   maskedId?: string;
+  /**
+   * The registries this check asks, by name, e.g. `['ArdhiSasa']` to retry one. Defaults to
+   * every registry.
+   */
+  registries?: readonly string[];
   /** Called when the user has ticked the request and pressed Continue. Close the dialog here. */
   onContinue: () => void;
   /** Set while the consent is being recorded: nothing can be changed or closed. */
@@ -67,6 +90,7 @@ export function ConsentDialog({
   onOpenChange,
   name,
   maskedId,
+  registries = EVERY_REGISTRY,
   onContinue,
   busy = false,
   messages: overrides,
@@ -101,7 +125,7 @@ export function ConsentDialog({
         </DialogHeader>
         {/* Mounted only while open, so the tick starts cleared each time. */}
         <ConsentForm
-          body={messages.body(name, maskedId)}
+          body={messages.body(name, maskedId, listNames(registries))}
           messages={messages}
           busy={busy}
           onContinue={onContinue}

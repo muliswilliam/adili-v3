@@ -190,7 +190,8 @@ export function RegistriesPanel({
   const isOfficer = relationOfPerson(personKey) === 'officer';
 
   const [sets, setSets] = useState(initialSets);
-  const [consentOpen, setConsentOpen] = useState(false);
+  // The registries the consent dialog is open for: every one, or one to retry. Null when closed.
+  const [consentFor, setConsentFor] = useState<readonly RegistrySystem[] | null>(null);
   const [starting, setStarting] = useState(false);
   const [refusedNoId, setRefusedNoId] = useState(false);
   const [busy, setBusy] = useState<Busy>({});
@@ -479,7 +480,7 @@ export function RegistriesPanel({
       size="sm"
       disabled={disabled || checking || starting}
       onClick={() => {
-        setConsentOpen(true);
+        setConsentFor(REGISTRIES);
       }}
     >
       <Icon icon={checkIcon} />
@@ -535,8 +536,9 @@ export function RegistriesPanel({
               registries={registryEntries(sets)}
               disabled={disabled || starting}
               onRetry={(id) => {
+                // A retry asks the registry again, so it needs the declarant's request again.
                 const source = REGISTRIES.find((registry) => registry === id);
-                if (source) void start([source]);
+                if (source) setConsentFor([source]);
               }}
             />
             {REGISTRIES.map((source) => {
@@ -579,14 +581,18 @@ export function RegistriesPanel({
         </p>
 
         <ConsentDialog
-          open={consentOpen}
-          onOpenChange={setConsentOpen}
+          open={consentFor !== null}
+          onOpenChange={(next) => {
+            if (!next) setConsentFor(null);
+          }}
           name={person.name}
           maskedId={person.nationalId ? maskNationalId(person.nationalId) : undefined}
+          registries={(consentFor ?? REGISTRIES).map((source) => SOURCE_NAMES[source])}
           busy={starting}
           onContinue={() => {
-            setConsentOpen(false);
-            void start(REGISTRIES);
+            const systems = consentFor ?? REGISTRIES;
+            setConsentFor(null);
+            void start(systems);
           }}
         />
         <EditAndAddDialog
