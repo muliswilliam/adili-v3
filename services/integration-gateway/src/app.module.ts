@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CoreModule, HttpReadinessCheck } from '@adili/api-kit';
-import { CacheModule, ValkeyReadinessCheck } from '@adili/cache';
+import { CacheModule } from '@adili/cache';
 import { DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
@@ -18,7 +18,7 @@ import { IprsModule } from './iprs/iprs.module.js';
         DatabaseReadinessCheck,
         RabbitMqReadinessCheck,
         TemporalReadinessCheck,
-        ValkeyReadinessCheck,
+        // Not Valkey: IPRS lookups skip the cache while it is down, so it is no reason to go unready.
         new HttpReadinessCheck('government-systems', `${config.MOCKS_BASE_URL}/health`),
       ],
     }),

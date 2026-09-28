@@ -19,7 +19,7 @@ const WANJIKU: StubPerson = {
 };
 
 /** S21 and the IPRS lookup rules, over HTTP against Postgres, Valkey and a stub IPRS. */
-describe('GET /internal/v1/iprs/persons/:nationalId', () => {
+describe('POST /internal/v1/iprs/person-lookups', () => {
   let iprs: StubIprs;
   let t: TestApp;
   let auth: { authorization: string };
@@ -62,7 +62,12 @@ describe('GET /internal/v1/iprs/persons/:nationalId', () => {
       .orderBy(asc(verificationResults.checkedAt), asc(verificationResults.id));
 
   const lookup = (nationalId: string, headers: Record<string, string> = auth) =>
-    t.app.inject({ method: 'GET', url: `/internal/v1/iprs/persons/${nationalId}`, headers });
+    t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/iprs/person-lookups',
+      headers,
+      payload: { nationalId },
+    });
 
   it('reaches IPRS on the first lookup and answers the second from the cache', async () => {
     const first = await lookup('23456789');
@@ -261,6 +266,19 @@ describe('GET /internal/v1/iprs/persons/:nationalId', () => {
       expect(logs.length).toBeGreaterThan(0);
       for (const secret of ['23456789', '34567890', 'Wanjiku', 'Kamau', 'Njeri']) {
         expect(everything).not.toContain(secret);
+      }
+    });
+
+    it('answers the lookup when the result cannot be recorded', async () => {
+      await t.db.execute(sql`alter table verification_results rename to verification_results_off`);
+      try {
+        const response = await lookup('23456789');
+
+        expect(response.statusCode).toBe(200);
+      } finally {
+        await t.db.execute(
+          sql`alter table verification_results_off rename to verification_results`,
+        );
       }
     });
   });

@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Param, Res } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   CurrentPrincipal,
@@ -10,7 +10,7 @@ import {
 import type { FastifyReply } from 'fastify';
 
 import type { IprsPerson } from './iprs-person.js';
-import { nationalIdSchema } from './iprs-person.js';
+import { type LookupIprsPerson, lookupIprsPersonSchema } from './iprs-person.js';
 import { IprsLookupService } from './iprs-lookup.service.js';
 
 /** Internal: not routed by the public entrypoint. Callers are services with the iprs scope. */
@@ -21,18 +21,23 @@ import { IprsLookupService } from './iprs-lookup.service.js';
 export class IprsController {
   constructor(private readonly iprs: IprsLookupService) {}
 
-  @Get('persons/:nationalId')
+  /**
+   * A read, posted so the national ID travels in the body: URLs end up in access logs, traces
+   * and problem details. Safe to repeat; it changes nothing but the verification-results log.
+   */
+  @Post('person-lookups')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     operationId: 'lookupIprsPerson',
     summary: 'Person as held by IPRS, cached for 24 hours (hits and misses)',
   })
   @ApiOkResponse({ description: 'Person found' })
   async lookupPerson(
-    @Param('nationalId', new ZodValidationPipe(nationalIdSchema)) nationalId: string,
+    @Body(new ZodValidationPipe(lookupIprsPersonSchema)) body: LookupIprsPerson,
     @CurrentPrincipal() caller: Principal,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<IprsPerson> {
-    const result = await this.iprs.lookup(nationalId, caller);
+    const result = await this.iprs.lookup(body.nationalId, caller);
     if (result.outcome === 'unavailable') {
       throw new ProblemException({
         type: 'upstream-unavailable',

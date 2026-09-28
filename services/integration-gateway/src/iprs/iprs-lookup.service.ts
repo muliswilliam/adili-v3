@@ -35,22 +35,31 @@ export class IprsLookupService {
     private readonly results: VerificationResults,
   ) {}
 
-  /** Every lookup, answered or not, leaves a verification-results row. */
+  /** Every lookup, answered or not, leaves a verification-results row (best effort). */
   async lookup(nationalId: string, caller: Principal): Promise<IprsLookup> {
     const started = performance.now();
     const subjectHash = this.hasher.hash('iprs', nationalId);
     const result = await this.resolve(nationalId, subjectHash);
-    await this.results.record(
-      {
-        system: 'iprs',
-        subjectHash,
-        outcome: result.outcome,
-        reason: result.outcome === 'unavailable' ? result.reason : null,
-        cached: result.outcome !== 'unavailable' && result.cached,
-        latencyMs: performance.now() - started,
-      },
-      caller,
-    );
+    try {
+      await this.results.record(
+        {
+          system: 'iprs',
+          subjectHash,
+          outcome: result.outcome,
+          reason: result.outcome === 'unavailable' ? result.reason : null,
+          cached: result.outcome !== 'unavailable' && result.cached,
+          latencyMs: performance.now() - started,
+        },
+        caller,
+      );
+    } catch (error) {
+      // The caller still gets its answer: onboarding must not stop because the log could not be
+      // written. The error is logged (without the ID) so the gap shows.
+      this.logger.error(
+        { subjectHash, errorType: error instanceof Error ? error.name : typeof error },
+        'Verification result not recorded',
+      );
+    }
     return result;
   }
 

@@ -30,5 +30,8 @@ export const registryPersonSchema = z
     sex: person.sex,
   }));
 
-/** National IDs as the contract accepts them. */
-export const nationalIdSchema = z.string().regex(/^[0-9]{5,10}$/, 'must be 5 to 10 digits');
+/** Body of `POST /internal/v1/iprs/person-lookups` (integration-gateway.yaml `lookupIprsPerson`). */
+export const lookupIprsPersonSchema = z.strictObject({
+  nationalId: z.string().regex(/^[0-9]{5,10}$/, 'must be 5 to 10 digits'),
+});
+export type LookupIprsPerson = z.infer<typeof lookupIprsPersonSchema>;
