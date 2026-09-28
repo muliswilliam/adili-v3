@@ -656,6 +656,7 @@ flowchart TB
 ```
 
 - Every component is a container image built in CI.
+- Apps sit behind exactly one edge proxy (Traefik here, the ingress controller in production), so the portal's `TRUSTED_PROXY_HOPS` stays at its default of 1 and reads the browser's address from the last X-Forwarded-For entry for per-IP rate limits. Set it to the real number of proxies if another one (e.g. a CDN) is added in front; a higher value lets clients spoof their IP.
 - Demo accounts for every role, synthetic seed data, one-command reset.
 - Deploy instructions + a recorded demo backup (agenda requirement).
 

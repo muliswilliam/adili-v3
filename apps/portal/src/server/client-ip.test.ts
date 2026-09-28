@@ -29,6 +29,10 @@ describe('clientIp', () => {
     );
   });
 
+  it('uses the socket address with the default single hop when no proxy is in front (local dev)', () => {
+    expect(clientIp(headers(), SOCKET, 1)).toBe(SOCKET);
+  });
+
   it('falls back to the socket address when the header is missing or too short', () => {
     expect(clientIp(headers(), SOCKET, 1)).toBe(SOCKET);
     expect(clientIp(headers('203.0.113.7'), SOCKET, 2)).toBe(SOCKET);

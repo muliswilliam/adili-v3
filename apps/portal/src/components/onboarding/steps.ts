@@ -64,10 +64,13 @@ export function routeForSession(session: Pick<OnboardingSession, 'state' | 'outc
 }
 
 /**
- * Where a declarant who comes back to the start of Get started is sent: the step their session
- * is on, or null when it has finished (an account created or linked, or stopped at identity
- * mismatch) or ended, so they can start a new onboarding, e.g. for another Commission. The
- * finished pages stay reachable at their own routes while the cookie lasts.
+ * Where a declarant who comes back to the start of Get started (Choose your Commission or
+ * Identify) is sent: the step their session is on, or null when it has finished (an account
+ * created or linked, or stopped at identity mismatch) or ended, so they can start a new
+ * onboarding, e.g. for another Commission, and are not trapped on a finished page. Nothing
+ * clears a finished session's cookie on its own: Check your email, Done and Not verified still
+ * show on a refresh or Back while the cookie lasts, until the declarant starts again or
+ * identifies for a new onboarding, which replaces it.
  */
 export function resumeRoute(
   session: Pick<OnboardingSession, 'state' | 'outcome'>,
