@@ -1,0 +1,2 @@
+ALTER TABLE "roster_import_rows" ADD COLUMN "notes" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+CREATE INDEX "roster_records_national_id_idx" ON "roster_records" USING btree ("national_id");

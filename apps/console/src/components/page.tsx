@@ -51,6 +51,7 @@ export function SectionCard({
   icon,
   title,
   headingRef,
+  actions,
   className,
   children,
 }: {
@@ -59,6 +60,8 @@ export function SectionCard({
   title: ReactNode;
   /** Lets the page move focus to the heading, e.g. after the control that had it is gone. */
   headingRef?: Ref<HTMLHeadingElement>;
+  /** Shown at the end of the header, e.g. a status badge. */
+  actions?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -77,6 +80,7 @@ export function SectionCard({
         >
           {title}
         </CardTitle>
+        {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
       </CardHeader>
       {children}
     </Card>

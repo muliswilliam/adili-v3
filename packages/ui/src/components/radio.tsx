@@ -33,7 +33,7 @@ export function RadioCard({
     <label
       htmlFor={fieldIds.id}
       className={cn(
-        'relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg bg-control px-3 py-2.5 text-[14.5px] font-medium shadow-control transition-shadow select-none hover:shadow-control-hover has-checked:shadow-[0_0_0_1.5px_var(--ring)] has-focus-visible:outline-3 has-focus-visible:outline-ring/15 has-disabled:cursor-not-allowed has-disabled:opacity-50',
+        'relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg bg-control px-3 py-2.5 text-[14.5px] font-medium shadow-control transition-shadow select-none hover:shadow-control-hover has-checked:shadow-control-selected has-focus-visible:outline-3 has-focus-visible:outline-ring/15 has-disabled:cursor-not-allowed has-disabled:opacity-50',
         className,
       )}
     >

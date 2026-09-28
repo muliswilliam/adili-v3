@@ -1,0 +1,52 @@
+name: Prototypes
+
+# Publishes the clickable HTML prototypes to GitHub Pages. Each prototype dir
+# keeps its repo path so the relative links between prototypes still resolve.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/prototype/**'
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Assemble site
+        run: |
+          mkdir _site
+          find . -type d -name prototype -not -path '*/node_modules/*' -not -path './_site/*' \
+            -exec cp -r --parents {} _site/ \;
+          touch _site/.nojekyll
+          cat > _site/index.html <<'EOF'
+          <!doctype html>
+          <meta charset="utf-8" />
+          <title>Dials - prototypes</title>
+          <meta http-equiv="refresh" content="0; url=packages/ui/prototype/index.html" />
+          <a href="packages/ui/prototype/index.html">Dials prototypes</a>
+          EOF
+      - uses: actions/upload-pages-artifact@v4
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

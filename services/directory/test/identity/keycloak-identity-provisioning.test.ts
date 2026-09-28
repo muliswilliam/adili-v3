@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ApiClientExists,
+  ApiClientNotFound,
   EmailTaken,
   IdentityUnavailable,
   IdentityUserNotFound,
@@ -374,6 +376,127 @@ describe('KeycloakIdentityProvisioning', () => {
           clientSecret: 'secret',
         }),
     ).toThrow(/realm issuer/);
+  });
+
+  describe('API clients', () => {
+    const INPUT = { tenant: 'psc', clientId: 'roster-psc-1', scopes: ['roster:write'] };
+    const CLIENT = { id: 'internal-1', clientId: 'roster-psc-1', enabled: true, secret: '**' };
+    const created: Handler = () =>
+      new Response(null, {
+        status: 201,
+        headers: { location: `http://keycloak.test${ADMIN}/clients/internal-1` },
+      });
+
+    it('creates a confidential service-account client with its scopes, tenant claim and audience', async () => {
+      const { adapter, requests } = keycloak({
+        [TOKEN]: tokenOk,
+        [`POST ${ADMIN}/clients`]: created,
+        [`GET ${ADMIN}/clients/internal-1/client-secret`]: () =>
+          Response.json({ type: 'secret', value: 'the-secret' }),
+      });
+
+      await expect(adapter.createApiClient(INPUT)).resolves.toEqual({
+        clientId: 'roster-psc-1',
+        secret: 'the-secret',
+      });
+      expect(requests[1]?.body).toMatchObject({
+        clientId: 'roster-psc-1',
+        enabled: true,
+        publicClient: false,
+        serviceAccountsEnabled: true,
+        standardFlowEnabled: false,
+        implicitFlowEnabled: false,
+        directAccessGrantsEnabled: false,
+        defaultClientScopes: ['basic', 'roster:write'],
+        optionalClientScopes: [],
+        protocolMappers: [
+          {
+            protocolMapper: 'oidc-hardcoded-claim-mapper',
+            config: expect.objectContaining({
+              'claim.name': 'tenant',
+              'claim.value': 'psc',
+              'access.token.claim': 'true',
+            }) as unknown,
+          },
+          {
+            protocolMapper: 'oidc-audience-mapper',
+            config: expect.objectContaining({
+              'included.custom.audience': 'adili-api',
+              'access.token.claim': 'true',
+            }) as unknown,
+          },
+        ],
+      });
+    });
+
+    it('maps 409 on creation to ApiClientExists', async () => {
+      const { adapter } = keycloak({
+        [TOKEN]: tokenOk,
+        [`POST ${ADMIN}/clients`]: () =>
+          Response.json({ errorMessage: 'Client roster-psc-1 already exists' }, { status: 409 }),
+      });
+
+      await expect(adapter.createApiClient(INPUT)).rejects.toEqual(
+        new ApiClientExists('roster-psc-1'),
+      );
+    });
+
+    it('deletes a created client whose secret could not be read', async () => {
+      const { adapter, requests } = keycloak({
+        [TOKEN]: tokenOk,
+        [`POST ${ADMIN}/clients`]: created,
+        [`GET ${ADMIN}/clients/internal-1/client-secret`]: () =>
+          new Response(null, { status: 503 }),
+        [`DELETE ${ADMIN}/clients/internal-1`]: () => new Response(null, { status: 204 }),
+      });
+
+      await expect(adapter.createApiClient(INPUT)).rejects.toBeInstanceOf(IdentityUnavailable);
+      expect(requests.at(-1)).toMatchObject({ method: 'DELETE' });
+    });
+
+    it('rotates the secret of the client found by client id', async () => {
+      const { adapter, requests } = keycloak({
+        [TOKEN]: tokenOk,
+        [`GET ${ADMIN}/clients`]: () => Response.json([CLIENT]),
+        [`POST ${ADMIN}/clients/internal-1/client-secret`]: () =>
+          Response.json({ type: 'secret', value: 'new-secret' }),
+      });
+
+      await expect(adapter.rotateApiClientSecret('roster-psc-1')).resolves.toEqual({
+        clientId: 'roster-psc-1',
+        secret: 'new-secret',
+      });
+      expect(requests[1]?.url.searchParams.get('clientId')).toBe('roster-psc-1');
+    });
+
+    it('reports rotating an unknown client as ApiClientNotFound', async () => {
+      const { adapter } = keycloak({
+        [TOKEN]: tokenOk,
+        [`GET ${ADMIN}/clients`]: () => Response.json([]),
+      });
+
+      await expect(adapter.rotateApiClientSecret('roster-psc-1')).rejects.toEqual(
+        new ApiClientNotFound('roster-psc-1'),
+      );
+    });
+
+    it('disables the client with its full representation, and only once', async () => {
+      let representation = CLIENT;
+      const { adapter, requests } = keycloak({
+        [TOKEN]: tokenOk,
+        [`GET ${ADMIN}/clients`]: () => Response.json([representation]),
+        [`PUT ${ADMIN}/clients/internal-1`]: () => {
+          representation = { ...CLIENT, enabled: false };
+          return new Response(null, { status: 204 });
+        },
+      });
+
+      await adapter.disableApiClient('roster-psc-1');
+      await adapter.disableApiClient('roster-psc-1');
+
+      const puts = requests.filter((request) => request.method === 'PUT');
+      expect(puts.map((request) => request.body)).toEqual([{ ...CLIENT, enabled: false }]);
+    });
   });
 });
 

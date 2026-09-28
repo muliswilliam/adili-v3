@@ -18,6 +18,13 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export {
+  CodeBlock,
+  type CodeBlockProps,
+  CodeComment,
+  CodeKeyword,
+  CodeString,
+} from './components/code-block';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export {
@@ -26,6 +33,14 @@ export {
   type DataTableProps,
   type DataTableSelection,
 } from './components/data-table';
+export {
+  DeadlineChip,
+  type DeadlineChipProps,
+  deadlineSoonDays,
+  type DeadlineState,
+  deadlineStatus,
+  type DeadlineStatus,
+} from './components/deadline-chip';
 export {
   DescriptionItem,
   type DescriptionItemProps,
@@ -51,6 +66,13 @@ export {
 } from './components/file-drop-zone';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
+export {
+  type Ground,
+  GroundsSelect,
+  type GroundsSelectProps,
+  REGULATION_24_GROUNDS,
+  groundMeta,
+} from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
@@ -63,6 +85,7 @@ export {
   maskEmail,
   maskPhone,
 } from './components/masked-contact';
+export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
@@ -72,6 +95,30 @@ export {
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  type HeadingLevel,
+  REGISTER_KINDS,
+  type RegisterEntry,
+  type RegisterKind,
+  registerKindMeta,
+  RegisterList,
+  type RegisterListProps,
+  type RegisterOutcome,
+  registerOutcomeMeta,
+  RegisterTimeline,
+  type RegisterTimelineProps,
+} from './components/register-timeline';
+export {
+  formatScope,
+  isSameScope,
+  isScopeWithin,
+  type Scope,
+  SCOPE_SECTIONS,
+  ScopePicker,
+  type ScopePickerProps,
+  type ScopeSection,
+  scopeSectionLabels,
+} from './components/scope-picker';
 export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
@@ -101,6 +148,7 @@ export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export { cn } from './lib/cn';
+export { type Tone, toneClassNames } from './lib/tone';
 export {
   countdownAnnouncement,
   formatClock,
@@ -109,4 +157,10 @@ export {
   useCountdownAnnouncement,
 } from './lib/countdown';
 export { focusRing } from './lib/focus';
-export { formatDate, formatDateTime } from './lib/format-date';
+export {
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  msUntilKenyanMidnight,
+} from './lib/format-date';
