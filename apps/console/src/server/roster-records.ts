@@ -7,7 +7,6 @@ import { asViewer } from './as-viewer.server';
 import {
   callDirectory,
   type DirectoryResult,
-  type RosterImportPage,
   type RosterRecord,
   type RosterRecordPage,
 } from './directory/client';
@@ -57,19 +56,6 @@ export const getRosterRecord = createServerFn({ method: 'GET' })
       callDirectory(() =>
         client.GET('/v1/commissions/{slug}/roster/records/{recordId}', {
           params: { path: { slug: data.slug, recordId: data.recordId } },
-        }),
-      ),
-    ),
-  );
-
-/** `GET /v1/commissions/{slug}/roster/imports`: the newest imports first. */
-export const listRecentRosterImports = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: commissionSlug, limit: z.number().int().min(1).max(100) }))
-  .handler(({ data }): Promise<DirectoryResult<RosterImportPage>> =>
-    asViewer((client) =>
-      callDirectory(() =>
-        client.GET('/v1/commissions/{slug}/roster/imports', {
-          params: { path: { slug: data.slug }, query: { limit: data.limit } },
         }),
       ),
     ),

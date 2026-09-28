@@ -8,7 +8,7 @@ import {
   Tick02Icon,
   UserAdd01Icon,
 } from '@hugeicons/core-free-icons';
-import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 
 import type {
   DirectoryResult,
@@ -49,6 +49,8 @@ export function ImportReportBody({
   returnTo,
   initialRows,
   rowsPager,
+  reportCsvUrl,
+  reviewFlagged,
 }: {
   imp: RosterImport;
   /** Reads a page of the import's rejected rows (`listRejectedRows` in the app). */
@@ -59,6 +61,10 @@ export function ImportReportBody({
   initialRows?: DirectoryResult<RosterImportRowPage>;
   /** Keeps the page of rejected rows on show in the URL; otherwise in component state. */
   rowsPager?: RejectedRowsPager;
+  /** Where the console serves the rejected rows CSV (`reportCsvUrl`). */
+  reportCsvUrl: string;
+  /** The way to review the officers flagged as absent (a link button); null when the viewer may not. */
+  reviewFlagged: ReactNode;
 }) {
   const counts = imp.counts;
   if (!counts) return null;
@@ -84,12 +90,15 @@ export function ImportReportBody({
         <Alert variant="warning" role="status" className="mt-4">
           <Icon icon={Flag02Icon} />
           <AlertTitle>{m.flaggedTitle(counts.flaggedAbsent)}</AlertTitle>
-          <AlertDescription>
-            {m.flaggedText}
-            <Button asChild variant="secondary" size="sm" className="mt-2.5 flex w-fit">
-              <Link to="/roster/flagged">{m.reviewFlaggedButton}</Link>
-            </Button>
-          </AlertDescription>
+          {/* The call to review only for viewers who may: EACC reads the count alone. */}
+          {reviewFlagged ? (
+            <AlertDescription>
+              {m.flaggedText}
+              <Button asChild variant="secondary" size="sm" className="mt-2.5 flex w-fit">
+                {reviewFlagged}
+              </Button>
+            </AlertDescription>
+          ) : null}
         </Alert>
       ) : null}
       {counts.noted > 0 ? (
@@ -111,6 +120,7 @@ export function ImportReportBody({
           returnTo={returnTo}
           initialRows={initialRows}
           rowsPager={rowsPager}
+          reportCsvUrl={reportCsvUrl}
         />
       )}
     </>
@@ -123,12 +133,14 @@ function ImportRejectedRows({
   returnTo,
   initialRows,
   rowsPager,
+  reportCsvUrl,
 }: {
   imp: RosterImport;
   readRows: RejectedRowsDeps['read'];
   returnTo: string;
   initialRows?: DirectoryResult<RosterImportRowPage>;
   rowsPager?: RejectedRowsPager;
+  reportCsvUrl: string;
 }) {
   // Past the retention date the directory has purged the rows (410): say so without asking.
   const purged = rowsPurged(imp);
@@ -142,7 +154,7 @@ function ImportRejectedRows({
     },
     { initial: initialRows, pager: rowsPager },
   );
-  const { downloading, download } = useReportDownload(imp, returnTo);
+  const { downloading, download } = useReportDownload(imp, reportCsvUrl, returnTo);
   return (
     <RejectedRows
       imp={imp}

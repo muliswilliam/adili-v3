@@ -36,6 +36,8 @@ import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commis
 import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId'
 import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/imports/$importId/index'
 import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv'
+import { Route as CommissionsSlugImportsImportIdIndexRouteImport } from './routes/commissions/$slug/imports/$importId/index'
+import { Route as CommissionsSlugImportsImportIdReportDotcsvRouteImport } from './routes/commissions/$slug/imports/$importId/report[.]csv'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -177,6 +179,18 @@ const RosterImportsImportIdReportDotcsvRoute =
     path: '/$importId/report.csv',
     getParentRoute: () => RosterImportsRouteRoute,
   } as any)
+const CommissionsSlugImportsImportIdIndexRoute =
+  CommissionsSlugImportsImportIdIndexRouteImport.update({
+    id: '/imports/$importId/',
+    path: '/imports/$importId/',
+    getParentRoute: () => CommissionsSlugRouteRoute,
+  } as any)
+const CommissionsSlugImportsImportIdReportDotcsvRoute =
+  CommissionsSlugImportsImportIdReportDotcsvRouteImport.update({
+    id: '/imports/$importId/report.csv',
+    path: '/imports/$importId/report.csv',
+    getParentRoute: () => CommissionsSlugRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -206,6 +220,8 @@ export interface FileRoutesByFullPath {
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
+  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -228,6 +244,8 @@ export interface FileRoutesByTo {
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute
+  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  '/commissions/$slug/imports/$importId': typeof CommissionsSlugImportsImportIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -258,6 +276,8 @@ export interface FileRoutesById {
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
+  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -289,6 +309,8 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/report.csv'
     | '/commissions/$slug/records/'
     | '/roster/imports/$importId/'
+    | '/commissions/$slug/imports/$importId/report.csv'
+    | '/commissions/$slug/imports/$importId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -311,6 +333,8 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/report.csv'
     | '/commissions/$slug/records'
     | '/roster/imports/$importId'
+    | '/commissions/$slug/imports/$importId/report.csv'
+    | '/commissions/$slug/imports/$importId'
   id:
     | '__root__'
     | '/'
@@ -340,6 +364,8 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/report.csv'
     | '/commissions/$slug/records/'
     | '/roster/imports/$importId/'
+    | '/commissions/$slug/imports/$importId/report.csv'
+    | '/commissions/$slug/imports/$importId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -542,6 +568,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterImportsImportIdReportDotcsvRouteImport
       parentRoute: typeof RosterImportsRouteRoute
     }
+    '/commissions/$slug/imports/$importId/': {
+      id: '/commissions/$slug/imports/$importId/'
+      path: '/imports/$importId'
+      fullPath: '/commissions/$slug/imports/$importId/'
+      preLoaderRoute: typeof CommissionsSlugImportsImportIdIndexRouteImport
+      parentRoute: typeof CommissionsSlugRouteRoute
+    }
+    '/commissions/$slug/imports/$importId/report.csv': {
+      id: '/commissions/$slug/imports/$importId/report.csv'
+      path: '/imports/$importId/report.csv'
+      fullPath: '/commissions/$slug/imports/$importId/report.csv'
+      preLoaderRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRouteImport
+      parentRoute: typeof CommissionsSlugRouteRoute
+    }
   }
 }
 
@@ -564,12 +604,18 @@ const CommissionsSlugRecordsRouteRouteWithChildren =
 interface CommissionsSlugRouteRouteChildren {
   CommissionsSlugRecordsRouteRoute: typeof CommissionsSlugRecordsRouteRouteWithChildren
   CommissionsSlugIndexRoute: typeof CommissionsSlugIndexRoute
+  CommissionsSlugImportsImportIdReportDotcsvRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  CommissionsSlugImportsImportIdIndexRoute: typeof CommissionsSlugImportsImportIdIndexRoute
 }
 
 const CommissionsSlugRouteRouteChildren: CommissionsSlugRouteRouteChildren = {
   CommissionsSlugRecordsRouteRoute:
     CommissionsSlugRecordsRouteRouteWithChildren,
   CommissionsSlugIndexRoute: CommissionsSlugIndexRoute,
+  CommissionsSlugImportsImportIdReportDotcsvRoute:
+    CommissionsSlugImportsImportIdReportDotcsvRoute,
+  CommissionsSlugImportsImportIdIndexRoute:
+    CommissionsSlugImportsImportIdIndexRoute,
 }
 
 const CommissionsSlugRouteRouteWithChildren =

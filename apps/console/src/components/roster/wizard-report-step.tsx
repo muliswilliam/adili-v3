@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 
 import type { RosterImport } from '../../server/directory/client';
 import { formatDateTime } from '../format';
+import { reportCsvUrl } from './import-report';
 import { ImportReportBody } from './import-report-body';
 import { messages as m } from './messages';
 import type { RejectedRowsDeps } from './use-rejected-rows';
@@ -47,7 +48,13 @@ export function WizardReportStep({
         </div>
       </Card>
       <div className="mt-5">
-        <ImportReportBody imp={imp} readRows={readRows} returnTo={returnTo} />
+        <ImportReportBody
+          imp={imp}
+          readRows={readRows}
+          returnTo={returnTo}
+          reportCsvUrl={reportCsvUrl(imp.id)}
+          reviewFlagged={<Link to="/roster/flagged">{m.reviewFlaggedButton}</Link>}
+        />
       </div>
       <div className="mt-6 flex flex-wrap gap-2.5">
         <Button onClick={onImportAnother}>

@@ -6,7 +6,8 @@ import { rosterImportReportResponse } from '../../../../server/roster-import-rep
 export const Route = createFileRoute('/roster/imports/$importId/report.csv')({
   server: {
     handlers: {
-      GET: ({ request, params }) => rosterImportReportResponse(request, params.importId),
+      GET: ({ request, params }) =>
+        rosterImportReportResponse(request, { importId: params.importId }),
     },
   },
 });
