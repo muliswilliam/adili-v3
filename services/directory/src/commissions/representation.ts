@@ -60,6 +60,14 @@ export const rosterSummarySchema = z.object({
 });
 export type RosterSummary = z.infer<typeof rosterSummarySchema>;
 
+/** What services show a Commission by (internal): e.g. declarations' obligations per Commission. */
+export const internalCommissionSchema = z.object({
+  slug: slugSchema,
+  issuerCode: z.string().meta({ description: 'slug upper-cased', examples: ['TSC'] }),
+  name: z.string(),
+});
+export type InternalCommission = z.infer<typeof internalCommissionSchema>;
+
 export const commissionSchema = z.object({
   id: z.uuid(),
   slug: slugSchema,

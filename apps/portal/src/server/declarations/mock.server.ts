@@ -1,7 +1,7 @@
 /**
  * In-memory stand-in for the declarations service's declarant reads, `GET /v1/me/obligations`
- * and `GET /v1/obligations/{id}` (contract draft, spec 04), used when DECLARATIONS_MOCK is set
- * until the service implements them (#90).
+ * and `GET /v1/obligations/{id}` (spec 04), used when DECLARATIONS_MOCK is set to work on the
+ * portal without the service.
  *
  * Like the real service it answers by the bearer token's `person_id` claim, read without
  * checking the signature; a token without one gets 404. Fixtures, dated from today so the

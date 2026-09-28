@@ -13,6 +13,11 @@ export const envSchema = baseEnvSchema.extend({
   VALKEY_URL: z.url(),
   OPENBAO_ADDR: z.url(),
   OPENBAO_TOKEN: z.string().min(1),
+  /** The directory, whose internal API roster records, policies and Commission names come from. */
+  DIRECTORY_API_URL: z.url(),
+  /** The service's confidential Keycloak client (client credentials, `directory:internal`). */
+  KEYCLOAK_CLIENT_ID: z.string().min(1).default('declarations'),
+  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -13,6 +13,7 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { ObligationsModule } from './obligations/obligations.module.js';
 
 const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
 
@@ -40,6 +41,7 @@ const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
       namespace: config.TEMPORAL_NAMESPACE,
     }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    ObligationsModule,
   ],
   providers: [{ provide: FieldCipher, useValue: new OpenBaoTransitCipher(openbao) }],
 })

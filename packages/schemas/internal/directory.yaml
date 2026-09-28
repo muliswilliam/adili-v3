@@ -445,6 +445,51 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions/{slug}:
+    get:
+      tags:
+        - internal
+      summary: Slug, issuer code and name of a Commission (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. E.g. declarations names the Commission of each obligation.
+      operationId: internalGetCommission
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: The Commission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommission'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/roster/template:
     get:
       tags:
@@ -3093,6 +3138,22 @@ components:
         - items
         - nextCursor
         - total
+    InternalCommission:
+      type: object
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: slug upper-cased
+          examples:
+            - TSC
+        name:
+          type: string
+      required:
+        - slug
+        - issuerCode
+        - name
     TenantPolicyVersion:
       type: object
       properties:
