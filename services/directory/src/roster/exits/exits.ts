@@ -4,7 +4,7 @@ import type { EventPublisher } from '@adili/events';
 import { and, count, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
-import type { RosterActor } from '../actor.js';
+import { eventActorOf, type RosterActor } from '../actor.js';
 import { rosterImports, rosterRecords } from '../schema.js';
 import { adjustRosterSummary } from '../summary.js';
 import { type ExitSource, rosterExitsConfirmed, rosterRecordsKept } from './events.js';
@@ -110,7 +110,7 @@ export async function confirmExits(
       count: recordIds.length,
       source: command.source,
       recordIds,
-      actor: { kind: command.actor.kind, id: command.actor.id },
+      actor: eventActorOf(command.actor),
     }),
   );
   return { batchId, count: recordIds.length };
@@ -164,7 +164,7 @@ export async function keepRecords(
     rosterRecordsKept(command.tenant, {
       count: kept.length,
       recordIds: kept.map((record) => record.id),
-      actor: { kind: command.actor.kind, id: command.actor.id },
+      actor: eventActorOf(command.actor),
     }),
   );
   return { count: kept.length };

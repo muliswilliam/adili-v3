@@ -216,7 +216,11 @@ describe('S15 batch import', () => {
     expect(await events('roster.import.completed.v1')).toEqual([
       expect.objectContaining({
         tenant: 'psc',
-        data: expect.objectContaining({ importId: started.id, channel: 'api' }) as unknown,
+        data: expect.objectContaining({
+          importId: started.id,
+          channel: 'api',
+          actor: { kind: 'client', id: PSC_CLIENT },
+        }) as unknown,
       }),
     ]);
   });

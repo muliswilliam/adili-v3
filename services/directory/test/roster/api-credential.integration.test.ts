@@ -24,6 +24,8 @@ const OFFICER: Caller = {
   roles: ['reporting-officer'],
   name: 'Fatuma Wanjiru',
 };
+/** The officer as credential events name them. */
+const ACTOR = { kind: 'user', id: 'officer-1' };
 const TOKEN_ENDPOINT = 'http://localhost:8080/realms/adili/protocol/openid-connect/token';
 
 interface Credential {
@@ -153,7 +155,7 @@ describe('S18 credential lifecycle', () => {
       source: 'adili/directory',
       subject: clientId,
       tenant: 'tsc',
-      data: { action: 'created', clientId },
+      data: { action: 'created', clientId, actor: ACTOR },
     });
   });
 
@@ -187,8 +189,8 @@ describe('S18 credential lifecycle', () => {
     expect(body.rotatedAt).toEqual(expect.any(String));
     expect(api.identity.apiClient(first.clientId)?.secret).toBe(body.secret);
     expect((await credentialEvents()).map((event) => event.envelope.data)).toEqual([
-      { action: 'created', clientId: first.clientId },
-      { action: 'rotated', clientId: first.clientId },
+      { action: 'created', clientId: first.clientId, actor: ACTOR },
+      { action: 'rotated', clientId: first.clientId, actor: ACTOR },
     ]);
     expect((await get()).json<Credential>().rotatedAt).toBe(body.rotatedAt);
   });
@@ -230,8 +232,8 @@ describe('S18 credential lifecycle', () => {
     expect(metadata).toMatchObject({ clientId, revokedAt: expect.any(String) as unknown });
     expect(contractErrors(okResponse(CONTRACT_PATH, 'get'), metadata)).toEqual([]);
     expect((await credentialEvents()).map((event) => event.envelope.data)).toEqual([
-      { action: 'created', clientId },
-      { action: 'revoked', clientId },
+      { action: 'created', clientId, actor: ACTOR },
+      { action: 'revoked', clientId, actor: ACTOR },
     ]);
   });
 

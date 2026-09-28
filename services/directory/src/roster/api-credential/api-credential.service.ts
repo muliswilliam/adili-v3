@@ -10,6 +10,7 @@ import type { Transaction } from '../../commissions/commissions.service.js';
 import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
 import type { DirectorySchema } from '../../db/schema.js';
+import { eventActorOf, rosterActorOf } from '../actor.js';
 import {
   ApiClientNotFound,
   IdentityProvisioning,
@@ -73,7 +74,7 @@ export class ApiCredentialService {
           scopes: [ROSTER_WRITE_SCOPE],
         });
         issued = { row, secret };
-        await this.record(tx, slug, 'created', clientId);
+        await this.record(tx, principal, slug, 'created', clientId);
         return withSecret(row, secret);
       });
     } catch (error) {
@@ -100,7 +101,7 @@ export class ApiCredentialService {
           .set({ rotatedAt: sql`clock_timestamp()` })
           .where(eq(rosterApiCredentials.tenant, slug))
           .returning();
-        await this.record(tx, slug, 'rotated', current.keycloakClientId);
+        await this.record(tx, principal, slug, 'rotated', current.keycloakClientId);
         return withSecret(row ?? current, secret);
       });
     } catch (error) {
@@ -121,7 +122,7 @@ export class ApiCredentialService {
           .update(rosterApiCredentials)
           .set({ revokedAt: sql`clock_timestamp()` })
           .where(eq(rosterApiCredentials.tenant, slug));
-        await this.record(tx, slug, 'revoked', current.keycloakClientId);
+        await this.record(tx, principal, slug, 'revoked', current.keycloakClientId);
       });
     } catch (error) {
       throw asProblem(
@@ -195,11 +196,19 @@ export class ApiCredentialService {
 
   private async record(
     tx: Transaction,
+    principal: Principal,
     slug: string,
     action: ApiCredentialAction,
     clientId: string,
   ): Promise<void> {
-    await this.events.record(tx, apiCredentialChanged(slug, { action, clientId }));
+    await this.events.record(
+      tx,
+      apiCredentialChanged(slug, {
+        action,
+        clientId,
+        actor: eventActorOf(rosterActorOf(principal)),
+      }),
+    );
   }
 }
 

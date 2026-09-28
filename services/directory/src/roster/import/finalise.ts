@@ -4,6 +4,7 @@ import { and, count, eq, isNotNull, or, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
+import { eventActorOf } from '../actor.js';
 import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
 import { refreshRosterSummary } from '../summary.js';
 import { rosterImportCompleted, rosterImportFailed } from './events.js';
@@ -32,12 +33,15 @@ export async function finaliseImport(
         state: rosterImports.state,
         channel: rosterImports.channel,
         declaredComplete: rosterImports.declaredComplete,
+        startedByKind: rosterImports.startedByKind,
+        startedBy: rosterImports.startedBy,
       })
       .from(rosterImports)
       .where(and(eq(rosterImports.id, ref.importId), eq(rosterImports.tenant, ref.tenant)))
       .for('update');
     if (!current || current.state === 'completed' || current.state === 'failed') return;
 
+    const actor = eventActorOf({ kind: current.startedByKind, id: current.startedBy });
     const counts = await tally(tx, ref.importId, {
       flaggedAbsent: result.state === 'completed' ? (result.flaggedAbsent ?? 0) : 0,
     });
@@ -67,6 +71,7 @@ export async function finaliseImport(
           channel: current.channel,
           declaredComplete: current.declaredComplete,
           counts,
+          actor,
         }),
       );
     } else {
@@ -76,6 +81,7 @@ export async function finaliseImport(
         rosterImportFailed(ref.tenant, {
           importId: ref.importId,
           failureCode: result.failure.code,
+          actor,
         }),
       );
     }

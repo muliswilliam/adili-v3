@@ -1,6 +1,6 @@
 import type { NewEvent } from '@adili/events';
 
-import type { RosterActor } from '../actor.js';
+import type { EventActor } from '../actor.js';
 
 /**
  * Events about exits and flags on a roster (spec #27), recorded in the transaction of the change
@@ -10,12 +10,6 @@ import type { RosterActor } from '../actor.js';
 
 /** Where an exit was recorded: the console (reporting officer) or an HR system's API call. */
 export type ExitSource = 'console' | 'api';
-
-/** The actor as events carry it: no display name. */
-export interface EventActor extends Record<string, unknown> {
-  kind: RosterActor['kind'];
-  id: string;
-}
 
 export const ROSTER_EXITS_CONFIRMED = 'roster.exits.confirmed.v1';
 

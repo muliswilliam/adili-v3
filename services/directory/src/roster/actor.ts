@@ -22,3 +22,16 @@ export function rosterActorOf(principal: Principal): RosterActor {
   }
   return { kind: 'client', id: principal.clientId, name: principal.clientId };
 }
+
+/**
+ * The actor as roster events carry it (user story 47: each roster change names who made it):
+ * kind and id, no display name.
+ */
+export interface EventActor extends Record<string, unknown> {
+  kind: RosterActor['kind'];
+  id: string;
+}
+
+export function eventActorOf(actor: Pick<RosterActor, 'kind' | 'id'>): EventActor {
+  return { kind: actor.kind, id: actor.id };
+}

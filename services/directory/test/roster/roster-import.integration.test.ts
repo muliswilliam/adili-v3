@@ -214,6 +214,7 @@ describe('S4 file import', () => {
             channel: 'file',
             declaredComplete: true,
             counts: done.counts,
+            actor: { kind: 'user', id: 'officer-psc' },
           },
         }) as unknown,
       },
@@ -295,7 +296,11 @@ describe('S5 missing required column', () => {
       expect.objectContaining({
         type: 'roster.import.failed.v1',
         tenant: 'psc',
-        data: { importId: done.id, failureCode: 'missing-columns' },
+        data: {
+          importId: done.id,
+          failureCode: 'missing-columns',
+          actor: { kind: 'user', id: 'officer-psc' },
+        },
       }),
     ]);
   });
