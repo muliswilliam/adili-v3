@@ -35,6 +35,11 @@ interface AttemptMetrics {
 const NO_CALL: AttemptMetrics = { usage: null, latencyMs: 0 };
 /** Longest one write of a job's final state may take (Postgres `statement_timeout`). */
 const WRITE_TIMEOUT_MS = 5_000;
+/**
+ * The same bound on this side: a connection lost mid-write never answers, and the server's
+ * timeout cannot reach a client it has lost. Covers the commit too.
+ */
+const WRITE_WAIT_MS = WRITE_TIMEOUT_MS + 1_000;
 const RECORD_RETRY_DELAY_MS = { first: 250, max: 4_000 };
 
 /**
@@ -46,8 +51,10 @@ export class ResultNotRecordedError extends Error {
 }
 
 /**
- * Runs `write` (bounded by `WRITE_TIMEOUT_MS`), retrying with backoff while another try can
- * still end before `deadline`; then throws `ResultNotRecordedError`.
+ * Runs `write` (bounded by `WRITE_WAIT_MS`), retrying with backoff while another try can
+ * still end before `deadline`; then throws `ResultNotRecordedError`. A write abandoned by the
+ * timer may still commit later; that is safe, since final-state writes only apply to live jobs
+ * and the job then simply keeps the recorded result.
  */
 async function retryWrite(
   jobId: string,
@@ -60,16 +67,31 @@ async function retryWrite(
     delay = Math.min(delay * 2, RECORD_RETRY_DELAY_MS.max)
   ) {
     try {
-      await write();
+      await withTimeout(write(), WRITE_WAIT_MS);
       return;
     } catch (error) {
-      if (Date.now() + delay + WRITE_TIMEOUT_MS > deadline) {
+      if (Date.now() + delay + WRITE_WAIT_MS > deadline) {
         throw new ResultNotRecordedError(`Could not record the result of job ${jobId}`, {
           cause: error,
         });
       }
       await sleep(delay);
     }
+  }
+}
+
+/** `work`, or a rejection once `ms` pass; the work itself is not cancelled. */
+async function withTimeout(work: Promise<void>, ms: number): Promise<void> {
+  const timer = new AbortController();
+  try {
+    await Promise.race([
+      work,
+      sleep(ms, undefined, { signal: timer.signal }).then(() => {
+        throw new Error(`Write did not finish within ${ms} ms`);
+      }),
+    ]);
+  } finally {
+    timer.abort();
   }
 }
 

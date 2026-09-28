@@ -8,14 +8,14 @@ import { PROVIDER_ERROR } from './failures.js';
 import { JobExecutor, ResultNotRecordedError } from './job-executor.js';
 import type { JobReason } from './job-states.js';
 
+/** Time the attempt keeps after the executor gives up, to report it before Temporal times out. */
+const ATTEMPT_DEADLINE_MARGIN_MS = 5_000;
+
 /**
  * Temporal activities of the `aiJob` workflow; every public method is registered by name.
  * Provider errors become application failures the retry policy understands: transient kinds
  * are retried, the rest fail the job at once. Other errors (a database outage) are retried.
  */
-/** Time the attempt keeps after the executor gives up, to report it before Temporal times out. */
-const ATTEMPT_DEADLINE_MARGIN_MS = 5_000;
-
 @Injectable()
 export class JobActivities {
   constructor(private readonly executor: JobExecutor) {}
