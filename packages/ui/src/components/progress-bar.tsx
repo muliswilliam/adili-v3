@@ -1,5 +1,6 @@
 import { type ComponentProps, type ReactNode, useId, useState } from 'react';
 
+import { clamp } from '../lib/clamp';
 import { cn } from '../lib/cn';
 
 export type ProgressBarProps = Omit<ComponentProps<'div'>, 'children'> & {
@@ -53,7 +54,7 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const labelId = useId();
   const safeMax = Number.isFinite(max) && max > 0 ? max : 100;
-  const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 0), safeMax) : 0;
+  const clamped = Number.isFinite(value) ? clamp(value, 0, safeMax) : 0;
   const percent = Math.round((clamped / safeMax) * 100);
   const text = valueText ?? `${String(percent)}%`;
   const every = Number.isFinite(announceEvery) && announceEvery > 0 ? announceEvery : 25;

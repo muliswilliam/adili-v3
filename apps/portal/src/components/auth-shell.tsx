@@ -1,4 +1,4 @@
-import { Button, Icon, LogoWordmark, ToastProvider, useToast } from '@adili/ui';
+import { Button, cn, focusRing, Icon, LogoWordmark, ToastProvider, useToast } from '@adili/ui';
 import { Globe02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
@@ -15,10 +15,7 @@ export function AuthShell({ art, children }: { art: AuthArtVariant; children: Re
       <div className="grid min-h-dvh grid-cols-1 min-[1000px]:grid-cols-[minmax(460px,1fr)_minmax(0,1.15fr)]">
         <div className="flex min-h-dvh flex-col p-5 min-[700px]:px-10 min-[700px]:py-7">
           <header className="flex min-h-9 items-center justify-between gap-4">
-            <a
-              href="/"
-              className="-mx-1 rounded-md px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <a href="/" className={cn(focusRing, '-mx-1 rounded-md px-1 py-1')}>
               <LogoWordmark />
             </a>
             <div className="flex items-center gap-1">

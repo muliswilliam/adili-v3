@@ -1,4 +1,4 @@
-import { Icon } from '@adili/ui';
+import { cn, focusRing, Icon } from '@adili/ui';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { Link, useMatches } from '@tanstack/react-router';
 
@@ -59,10 +59,7 @@ export function Breadcrumbs() {
             </li>
           ) : (
             <li key={crumb.id} className="flex shrink-0 items-center gap-1.5">
-              <Link
-                to={crumb.to}
-                className="rounded-sm outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
+              <Link to={crumb.to} className={cn(focusRing, 'rounded-sm hover:text-foreground')}>
                 {crumb.label}
               </Link>
               <Icon icon={ArrowRight01Icon} className="size-3.5" />

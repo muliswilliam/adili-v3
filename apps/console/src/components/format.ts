@@ -1,3 +1,5 @@
+import { formatNumber } from '@adili/ui';
+
 /**
  * Dates as the console shows them, in Kenyan time. Built from numeric parts rather than
  * locale month names so the server-rendered and hydrated text agree across ICU versions and
@@ -79,12 +81,8 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   return formatRelativeDate(iso, now);
 }
 
-const numberFormat = new Intl.NumberFormat('en-KE');
-
-/** `48,312` */
-export function formatNumber(value: number): string {
-  return numberFormat.format(value);
-}
+/** `48,312`, as `@adili/ui` prints it, so console copy and charts agree. */
+export { formatNumber };
 
 const MEBIBYTE = 1024 * 1024;
 

@@ -24,7 +24,7 @@ The kit is throwaway: plain CSS with hex values so the prototypes open by double
 | Font | Inter | `font-sans` (Inter Variable, bundled via `@fontsource-variable/inter`), features `cv11` and `ss01` |
 | Body text | 15px, line height 1.5 | set on `body`; components set their own sizes (labels and table text 14px, hints 13px) |
 | Icons | stroke icons, 16 to 18px | `Icon` from `@adili/ui` with icons from `@hugeicons/core-free-icons`, 16px by default |
-| Focus | 2px ink outline, 2px offset | `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring` on buttons, links, tabs, steppers and drop zones; controls use `shadow-control-focus` |
+| Focus | 2px ink outline, 2px offset | `focusRing` from `@adili/ui` (`outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring`) on buttons, links, tabs, steppers and drop zones; compose it with `cn` to change the colour or offset, or use `focusRingInset` to draw it 2px inside a clipped control. Where a focus ring is drawn, use `outline-hidden`, never `outline-none` (which stays only where nothing draws one: inputs, which use `shadow-control-focus`, and `tabIndex={-1}` alerts), and keep `focus-visible:outline-solid`: in Tailwind 4 both hiding utilities set the outline style to none and `outline-2` inherits it, so without it the ring never draws. The `adili/focus-ring` lint rule (`@adili/eslint-config`) catches both. Controls use `shadow-control-focus` |
 
 ## Colour tokens
 
@@ -116,7 +116,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `DescriptionList` | `.dl` | term on the left in muted, value right-aligned in medium weight, rows split by hairlines |
 | `SiteHeader` | `.topbar` | 60px, translucent page colour with blur, hairline below; 16px side padding, 28px from `sm` |
 | `Dialog` | `.dialog` | bottom sheet with a grabber on phones, centred 560px panel from `sm`. `DialogHeader` (19px title), `DialogBody` (scrolls; fields 18px apart), `DialogFooter` (hairline above; equal-width buttons on phones, right-aligned from `sm`) |
-| `Toast` | `.toast` | dark pill at the bottom centre with a tick; assertive toasts show a warning icon in `brand` |
+| `Toast` | `.toast` | pill at the bottom centre, portalled to the body so it sits above dialogs. Polite: dark `foreground` pill with `background` text and a tick. Assertive: red `bg-destructive` pill with `text-destructive-foreground` and an alert icon, and no auto-dismiss. The countdown pauses on hover and focus; the dismiss button's ring takes the pill's text colour |
 | `Table` | `.table` | 12.5px muted headers on a faint fill, 12px cells with 16px at the row ends, hairlines between rows |
 | `EmptyState` | `.empty` | 30px icon tile, 15px title, 14px text up to 340px wide; no border, since it sits inside a card |
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
@@ -147,17 +147,18 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `SaveIndicator` | `.save` in the declaration header | 13px muted status with an icon: `saving` (`Spinner`), `saved` (green cloud tick), `retrying` (warning text), `conflict` (destructive medium text with a `Reload` button, announced assertively). Text and icon, never colour alone. |
 | `SectionNav` | `.dnav` sidebar in the declaration screens | ordered list of sections with 24px status circles (done is a tick on `success-subtle`) and an optional 12px muted detail line; sub-sections hang off a 1.5px rule with 13.5px items. The current one has `aria-current="page"`; completeness is also in text for screen readers. |
 | `SegmentedChoice` | `.seg` in the declaration screens | native radios in a fieldset shown as 40px `shadow-control` buttons, 10px radius (`rounded-lg`), 6px apart; the chosen one is ink. Arrow keys move between options. |
+| `Chart` | none (derived) | `figure` with a 14px medium caption, hidden from assistive tech because the data table carries the same title. `bar` draws one horizontal 8px track per series under each category label, value text on the right; `line` draws a 192px plot with hairline grid, 2px lines and 8px points. Series take `brand`, `info`, `foreground`, `muted-foreground`, never a status colour. Suppressed (`null`) and missing values are never plotted: bars show `suppressedLabel` or `missingLabel`, lines leave a plain break with nothing joining it, and a long line labels at most four categories (always the latest). The data table is always there for assistive tech; `showTable` puts it on screen. |
 | `DeadlineChip` | `.dlc` in `10-access` | a `Badge` for an access clock (a decision, the representation window, a download window; not a filing obligation's due date), 12.5px semibold tabular: days left (`default`), due soon and due today (`warning`), late (`destructive`) or met with a tick (`success`). Due soon starts at the clock's first reminder, from `deadlineSoonDays` (decision 10, representations 2, law enforcement 4); `late` takes the server's flag, late even on the due day after the due time. A `time` element; screen readers hear the label, date and days left ("Decision due 12 Oct 2026, 3 days left"). Days count in Kenyan calendar days (`deadlineStatus`) and move on at midnight. |
 | `ScopePicker` | `.scope` in `10-access` | Years, People and Sections fieldsets (card fill, `shadow-control`, 12.5px uppercase legends), side by side from 760px of its own width. The declarant is always included. `restrictTo` disables what was not requested ("Not requested") so a partial grant can only narrow; errors ring the group red. `Scope` is `form-k.v1`'s scope, as is access.yaml's. `formatScope`, `isScopeWithin` and `isSameScope` go with it. |
 | `GroundsSelect` | `.grounds`, `.gr` in `10-access` | a card per Regulation 24 ground, toggled from anywhere on it; checked cards take `shadow-control-selected`. The checkbox is named by the short label and described by the quoted regulation text. The kit's legend tooltip is a hint under the legend, since it says when grounds are required. |
 | `RegisterTimeline`, `RegisterList` | `.timeline.reg` in `10-access`; `.rt` in `declarant-profile` | the access register newest first, icon, copy and tint per `RegisterEntry.kind`; a `decided` entry reads and tints by its `outcome` (granted, partially granted, denied). Entries can override title and tone for the declarant's copy. `RegisterTimeline`: vertical timeline for one request in a card. `RegisterList`: flush rows grouped by month headings with the reference, the date shown and the full time read out. |
 | `CodeBlock` | `.code` in `02-roster.prototype.html` (API documentation) | 12px-radius `code` panel, 12.5px mono at 1.65 line height, 14 × 16px padding; lines keep their breaks and scroll sideways, so the block is a focusable, labelled group. `CodeKeyword`, `CodeString` and `CodeComment` mark its parts |
 
-Shared helpers live next to the components: `formatDate`, `formatDateTime`, `formatMonth` and `formatCalendarDate` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
+Shared helpers live next to the components: `formatDate`, `formatDateTime`, `formatMonth` and `formatCalendarDate` print dates in Kenyan time the same on server and browser, `formatNumber` prints counts with thousands separators (`48,312`), and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 
 ## Storybook
 
-`pnpm --filter @adili/ui storybook` serves every `src/**/*.stories.tsx` on port 6006, with the accessibility panel; `build-storybook` writes a static copy. `src/stories.test.tsx` renders every story in the unit tests, so a story cannot break silently. Stories cover each state a ticket lists (the access primitives so far).
+`pnpm --filter @adili/ui storybook` serves every `src/**/*.stories.tsx` on port 6006, with the accessibility panel; `build-storybook` writes a static copy. `src/stories.test.tsx` renders every story in the unit tests, so a story cannot break silently. Stories cover each state a ticket lists (the access primitives and `Chart` so far).
 
 ## Dark theme
 
@@ -167,7 +168,7 @@ Shared helpers live next to the components: `formatDate`, `formatDateTime`, `for
 
 For the designer; each is built as described until decided.
 
-1. **Placeholder contrast.** `#8f8d89` on white is about 3.3:1, below the 4.5:1 WCAG 2.2 AA asks of text.
+1. **Placeholder contrast.** `#8f8d89` on white is about 3.3:1 (3.0:1 on `muted`, which read-only controls use), below the 4.5:1 WCAG 2.2 AA asks of text. The dark theme uses the same grey, which reaches 4.6:1 on `muted` and 5.2:1 on `card`.
 2. **Brand buttons.** White on `#e95a24` is about 3.5:1, so there is no solid brand button; the kit's `.btn-brand` is unused by the prototypes.
 3. **Hint placement.** The kit's `field()` puts the hint under the control; the portal's onboarding screens put it under the label. Code keeps it under the label so it is read before the control.
 4. **Dark theme**: not yet designed.

@@ -19,6 +19,13 @@ export {
   CardTitle,
 } from './components/card';
 export {
+  Chart,
+  type ChartDatum,
+  type ChartProps,
+  type ChartSeries,
+  type ChartValue,
+} from './components/chart';
+export {
   Checkbox,
   CheckboxGroup,
   type CheckboxGroupProps,
@@ -186,6 +193,7 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
+export { focusRing, focusRingInset } from './lib/focus';
 export {
   daysInMonth,
   formatDayMonthYear,
@@ -199,6 +207,7 @@ export {
   formatMonth,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { formatNumber } from './lib/format-number';
 export {
   formatMoney,
   type MoneyInvalidReason,

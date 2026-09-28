@@ -73,6 +73,52 @@ describe('Dialog', () => {
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Email' }));
   });
 
+  it('skips hidden inputs and hidden sections when choosing the first field', () => {
+    render(
+      <Dialog defaultOpen>
+        <DialogContent aria-describedby={undefined}>
+          <DialogTitle>Edit address</DialogTitle>
+          <DialogBody>
+            <input type="hidden" name="id" value="1" />
+            <div hidden>
+              <input aria-label="Hidden by attribute" />
+            </div>
+            <div style={{ display: 'none' }}>
+              <input aria-label="Hidden by display" />
+            </div>
+            <div style={{ visibility: 'hidden' }}>
+              <input aria-label="Hidden by visibility" />
+            </div>
+            <div inert>
+              <input aria-label="Inert" />
+            </div>
+            <input aria-label="Street" />
+          </DialogBody>
+        </DialogContent>
+      </Dialog>,
+    );
+
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Street' }));
+  });
+
+  it('focuses the first footer button when the dialog has no fields', () => {
+    render(
+      <Dialog defaultOpen>
+        <DialogContent aria-describedby={undefined}>
+          <DialogTitle>Remove officer</DialogTitle>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button>Cancel</Button>
+            </DialogClose>
+            <Button>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>,
+    );
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
+  });
+
   it('renders the header, body and footer inside the dialog', () => {
     render(<ReplaceDialog />);
     open();
