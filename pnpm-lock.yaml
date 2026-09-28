@@ -363,6 +363,9 @@ importers:
       nestjs-pino:
         specifier: ^5.2.1
         version: 5.2.1(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(pino-http@11.0.0)(pino@10.3.1)(rxjs@7.8.2)
+      openapi-fetch:
+        specifier: ^0.17.0
+        version: 0.17.0
       pino:
         specifier: ^10.3.1
         version: 10.3.1

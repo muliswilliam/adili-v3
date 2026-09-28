@@ -15,6 +15,13 @@ export {
   ServiceTokenError,
 } from './auth/service-token-client.js';
 export { TokenVerifier } from './auth/token-verifier.js';
+export {
+  createServiceClient,
+  isUnanswered,
+  SERVICE_CALL_TIMEOUT_MS,
+  ServiceCallFailed,
+  type ServiceClientOptions,
+} from './service-client.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from './config.js';
 export { errorType } from './error-type.js';

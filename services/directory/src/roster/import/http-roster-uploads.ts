@@ -1,5 +1,5 @@
-import { type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
-import createClient, { type Client } from 'openapi-fetch';
+import { createServiceClient, isUnanswered, type ServiceTokenClient } from '@adili/api-kit';
+import type { Client } from 'openapi-fetch';
 
 import type { paths } from './documents-api.gen.js';
 import {
@@ -22,7 +22,7 @@ export interface HttpRosterUploadsOptions {
   documentsUrl: string;
   /** Client credentials tokens of the directory carrying `documents:internal`. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
-  /** Per call to documents. Default 5 s. */
+  /** Per call to documents. Default ADR-013's 2 s. */
   timeoutMs?: number;
   /** Until object storage answers with headers. Default 30 s. */
   headersTimeoutMs?: number;
@@ -39,10 +39,10 @@ export interface HttpRosterUploadsOptions {
 /**
  * Reads roster uploads through the documents service's internal API, with the client generated
  * from its contract (packages/schemas/internal/documents.yaml → documents-api.gen.ts via
- * `pnpm generate:api`) and its answers validated at the boundary (`uploadDownloadSchema`): the
- * directory's own token (client credentials, `documents:internal`) with the tenant in
- * `X-Acting-Tenant`; documents checks the upload is that tenant's. The file is then streamed from
- * the presigned URL.
+ * `pnpm generate:api`) on api-kit's service client and its answers validated at the boundary
+ * (`uploadDownloadSchema`): the directory's own token (client credentials, `documents:internal`)
+ * with the tenant in `X-Acting-Tenant`; documents checks the upload is that tenant's. The file is
+ * then streamed from the presigned URL.
  */
 export class HttpRosterUploads extends RosterUploads {
   private readonly fetch: typeof fetch;
@@ -51,13 +51,11 @@ export class HttpRosterUploads extends RosterUploads {
   constructor(private readonly options: HttpRosterUploadsOptions) {
     super();
     this.fetch = options.fetch ?? globalThis.fetch;
-    const fetchImpl = this.fetch;
-    const timeoutMs = options.timeoutMs ?? 5_000;
-    this.documents = createClient<paths>({
-      baseUrl: options.documentsUrl.replace(/\/$/, ''),
-      headers: { accept: 'application/json' },
-      fetch: (request) =>
-        fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) })),
+    this.documents = createServiceClient<paths>({
+      baseUrl: options.documentsUrl,
+      tokens: options.tokens,
+      timeoutMs: options.timeoutMs,
+      fetch: this.fetch,
     });
   }
 
@@ -90,12 +88,18 @@ export class HttpRosterUploads extends RosterUploads {
     };
   }
 
-  /** Asks documents for a download URL, retrying once with a fresh token after a 401. */
+  /** Asks documents for a download URL. */
   private async download(ref: UploadRef): Promise<{ upload: RosterUpload; downloadUrl: string }> {
-    let answer = await this.requestDownload(ref);
-    if (answer.response.status === 401) {
-      this.options.tokens.invalidate();
-      answer = await this.requestDownload(ref);
+    let answer;
+    try {
+      answer = await this.documents.GET('/internal/v1/uploads/{id}/download', {
+        params: { path: { id: ref.uploadId }, header: { 'X-Acting-Tenant': ref.tenant } },
+      });
+    } catch (error) {
+      if (isUnanswered(error)) {
+        throw new DocumentsUnavailable('The documents service did not answer', { cause: error });
+      }
+      throw error;
     }
     const { data, response } = answer;
     if (response.status === 404) throw new UploadNotFound(ref.uploadId);
@@ -117,28 +121,6 @@ export class HttpRosterUploads extends RosterUploads {
       upload: { id: upload.id, fileName: upload.fileName, format, size: upload.size },
       downloadUrl: upload.downloadUrl,
     };
-  }
-
-  private async requestDownload({ tenant, uploadId }: UploadRef) {
-    let token: string;
-    try {
-      token = await this.options.tokens.token();
-    } catch (error) {
-      if (error instanceof ServiceTokenError) {
-        throw new DocumentsUnavailable('No service token for the documents service', {
-          cause: error,
-        });
-      }
-      throw error;
-    }
-    try {
-      return await this.documents.GET('/internal/v1/uploads/{id}/download', {
-        params: { path: { id: uploadId }, header: { 'X-Acting-Tenant': tenant } },
-        headers: { authorization: `Bearer ${token}` },
-      });
-    } catch (error) {
-      throw new DocumentsUnavailable('The documents service is unreachable', { cause: error });
-    }
   }
 }
 

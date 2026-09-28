@@ -1,11 +1,19 @@
-import { type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
-import createClient, { type Client } from 'openapi-fetch';
+import { createServiceClient, isUnanswered, type ServiceTokenClient } from '@adili/api-kit';
+import type { Client } from 'openapi-fetch';
+import { z } from 'zod';
 
 import type { components, paths } from './notifications-api.gen.js';
 import { OtpDelivery, OtpDeliveryFailed, type OtpMessage } from './otp-delivery.js';
 
 /** The scope the directory's service token needs for the notifications internal API. */
 export const NOTIFICATIONS_MESSAGES_SCOPE = 'messages';
+
+/**
+ * How long the directory waits for notifications to send a code: notifications' synchronous
+ * budget for its provider (5 s, spec 03) plus a second for the hop. The recorded exception to
+ * ADR-013's 2 s default.
+ */
+export const NOTIFICATIONS_SEND_TIMEOUT_MS = 6_000;
 
 type SendMessage = components['schemas']['SendMessage'];
 
@@ -21,15 +29,15 @@ const TEMPLATES = {
 /** The longest Commission name the templates take. */
 const COMMISSION_NAME_MAX = 120;
 
+/** What the directory reads of notifications' `MessageView`, validated at the boundary. */
+const messageViewSchema = z.object({ status: z.enum(['sent', 'failed']) });
+
 export interface NotificationsOtpDeliveryOptions {
   /** Base URL of the notifications service, e.g. `http://localhost:4010`. */
   notificationsUrl: string;
   /** Client credentials tokens of the directory carrying `messages`. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
-  /**
-   * Per call. Default 8 s: notifications gives its provider 5 s, and the declarant waits on the
-   * answer.
-   */
+  /** Per call. Default `NOTIFICATIONS_SEND_TIMEOUT_MS`. */
   timeoutMs?: number;
   /** For tests. */
   fetch?: typeof fetch;
@@ -39,25 +47,24 @@ export interface NotificationsOtpDeliveryOptions {
  * Sends onboarding codes through the notifications service's internal messages API
  * (`POST /internal/v1/messages`, templates `onboarding-otp-email` and `onboarding-otp-sms`),
  * with the client generated from its contract (packages/schemas/internal/notifications.yaml →
- * notifications-api.gen.ts via `pnpm generate:api`) and the directory's own token (client
- * credentials, `messages`).
+ * notifications-api.gen.ts via `pnpm generate:api`) on api-kit's service client (the directory's
+ * own token with `messages`, one retry after a 401).
  *
  * Only a message notifications reports `sent` counts as sent. A `failed` message (the provider
- * refused or timed out), any other answer, no answer in time and no token all throw
- * `OtpDeliveryFailed`, so the step rolls back and the declarant may try again.
+ * refused or timed out), any other answer (or one that breaks the contract), no answer in time
+ * and no token all throw `OtpDeliveryFailed`, so the step changes nothing and the declarant may
+ * try again.
  */
 export class NotificationsOtpDelivery extends OtpDelivery {
   private readonly notifications: Client<paths>;
 
-  constructor(private readonly options: NotificationsOtpDeliveryOptions) {
+  constructor(options: NotificationsOtpDeliveryOptions) {
     super();
-    const fetchImpl = options.fetch ?? globalThis.fetch;
-    const timeoutMs = options.timeoutMs ?? 8_000;
-    this.notifications = createClient<paths>({
-      baseUrl: options.notificationsUrl.replace(/\/$/, ''),
-      headers: { accept: 'application/json' },
-      fetch: (request) =>
-        fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) })),
+    this.notifications = createServiceClient<paths>({
+      baseUrl: options.notificationsUrl,
+      tokens: options.tokens,
+      timeoutMs: options.timeoutMs ?? NOTIFICATIONS_SEND_TIMEOUT_MS,
+      fetch: options.fetch,
     });
   }
 
@@ -76,39 +83,27 @@ export class NotificationsOtpDelivery extends OtpDelivery {
       tenant: message.tenant,
     };
 
-    let answer = await this.post(body);
-    if (answer.response.status === 401) {
-      this.options.tokens.invalidate();
-      answer = await this.post(body);
-    }
-    const { data, response } = answer;
-    if (response.status !== 201 || !data) {
-      throw new OtpDeliveryFailed(`notifications answered ${String(response.status)}`);
-    }
-    if (data.status !== 'sent') {
-      throw new OtpDeliveryFailed(`notifications reported the message ${data.status}`);
-    }
-  }
-
-  private async post(body: SendMessage) {
-    let token: string;
+    let answer;
     try {
-      token = await this.options.tokens.token();
+      answer = await this.notifications.POST('/internal/v1/messages', { body });
     } catch (error) {
-      if (error instanceof ServiceTokenError) {
-        throw new OtpDeliveryFailed('no service token for the notifications service', {
-          cause: error,
-        });
+      if (isUnanswered(error)) {
+        throw new OtpDeliveryFailed('the notifications service did not answer', { cause: error });
       }
       throw error;
     }
-    try {
-      return await this.notifications.POST('/internal/v1/messages', {
-        body,
-        headers: { authorization: `Bearer ${token}` },
+    const { data, response } = answer;
+    if (response.status !== 201) {
+      throw new OtpDeliveryFailed(`notifications answered ${String(response.status)}`);
+    }
+    const parsed = messageViewSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new OtpDeliveryFailed('notifications answered a message that breaks its contract', {
+        cause: parsed.error,
       });
-    } catch (error) {
-      throw new OtpDeliveryFailed('the notifications service is unreachable', { cause: error });
+    }
+    if (parsed.data.status !== 'sent') {
+      throw new OtpDeliveryFailed(`notifications reported the message ${parsed.data.status}`);
     }
   }
 }

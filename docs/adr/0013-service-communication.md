@@ -49,7 +49,9 @@ flowchart LR
   - timeout 2s (configurable per call), deadlines propagated
   - retries only for idempotent requests (GET, or POST with `Idempotency-Key`), exponential backoff with jitter, max 2
   - circuit breaker per downstream (cockatiel)
-- **Not built yet:** the shared resilient client does not exist. The first synchronous hop (directory → documents, spec #27) uses the generated client with a per-call timeout and one retry after a 401 with a fresh token; its file reads run in Temporal activities, whose retries cover transient failures. Retries with backoff and the circuit breaker land in `packages/api-kit` with the next service that calls another synchronously, and the directory adopts them then.
+- **Built so far:** `createServiceClient` in `packages/api-kit` wraps the generated client: the caller's client credentials token (§5), one retry after a 401 with a fresh token, the 2 s default timeout per attempt, and one error (`ServiceCallFailed`) for "no answer". The directory's calls to documents (spec #27), notifications and the integration-gateway (spec 03) use it. **Not built yet:** retries with backoff and the circuit breaker; they land in `createServiceClient` with the first hop that needs them (the integration-gateway breaks its own upstream circuits, and roster file reads run in Temporal activities, whose retries cover transient failures).
+- **Recorded timeout exceptions** (longer than the 2 s default, each with its reason):
+  - directory → notifications `POST /internal/v1/messages` (onboarding codes): 6 s. The messages API is synchronous with a 5 s budget for its email or SMS provider (spec 03), and the declarant waits on the answer; the extra second covers the hop.
 - **Depth limit:** at most **one synchronous hop** from a service (BFF → service → one dependency). Deeper chains become events or Temporal.
 - **Hot reference data** (tenants, org tree, policies, numbering schemes, reference data from `directory`) is **cached locally**: Valkey plus in-process cache, invalidated by `directory.*.changed.v1` events. Services don't call `directory` on every request.
 
