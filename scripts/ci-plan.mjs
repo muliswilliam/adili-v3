@@ -5,7 +5,9 @@
 //   node scripts/ci-plan.mjs <base-sha> [--json]
 // Without a usable base (first push, force push, unknown commit), every job runs.
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const [base = '', flag] = process.argv.slice(2);
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' });
@@ -32,6 +34,28 @@ const all =
   everything ||
   touches(/^\.github\/workflows\/(ci|keycloak)\.yml$/, /^\.nvmrc$/, /^scripts\/ci-plan\.mjs$/);
 
+// The clickable HTML prototypes sit inside the packages they design but are not built, tested
+// or shipped. Turborepo compares the base with a commit that has their changes reverted, so a
+// prototype edit does not count as a change to its package and everything depending on it.
+function withoutPrototypes() {
+  const prototypes = changed.filter((file) => /(^|\/)prototype\//.test(file));
+  if (prototypes.length === 0) return 'HEAD';
+  const dir = mkdtempSync(join(tmpdir(), 'ci-plan-'));
+  const env = { ...process.env, GIT_INDEX_FILE: join(dir, 'index') };
+  const gitWith = (...args) => execFileSync('git', args, { encoding: 'utf8', env }).trim();
+  try {
+    gitWith('read-tree', 'HEAD');
+    for (const file of prototypes) {
+      const [mode, , sha] = gitWith('ls-tree', base, '--', file).split(/\s+/);
+      if (sha) gitWith('update-index', '--add', '--cacheinfo', `${mode},${sha},${file}`);
+      else gitWith('update-index', '--force-remove', '--', file);
+    }
+    return gitWith('commit-tree', gitWith('write-tree'), '-p', 'HEAD', '-m', 'ci-plan');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 let affected = [];
 if (!all) {
   const turbo = JSON.parse(readFileSync('package.json', 'utf8')).devDependencies.turbo;
@@ -40,7 +64,7 @@ if (!all) {
     env: {
       ...process.env,
       TURBO_SCM_BASE: base,
-      TURBO_SCM_HEAD: 'HEAD',
+      TURBO_SCM_HEAD: withoutPrototypes(),
       TURBO_TELEMETRY_DISABLED: '1',
     },
   });

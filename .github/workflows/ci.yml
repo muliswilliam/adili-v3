@@ -319,7 +319,7 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [plan, typescript, keycloak, integration, python]
+    needs: [plan, typescript, keycloak, integration, python, image]
     runs-on: ubuntu-latest
     steps:
       # Plan skips the jobs a change does not need; a skipped job passes only if Plan did.
@@ -328,7 +328,7 @@ jobs:
           NEEDS: ${{ toJson(needs) }}
         run: |
           set -eu
-          for job in plan typescript keycloak integration python; do
+          for job in plan typescript keycloak integration python image; do
             result=$(echo "$NEEDS" | jq -r --arg job "$job" '.[$job].result')
             echo "$job: $result"
             case "$job:$result" in
