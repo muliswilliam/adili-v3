@@ -70,7 +70,7 @@ import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from '../../declaration/label
 import { fullName } from '../../declaration/format';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { personKeyOf } from '../../declaration/section-key';
-import { liveSections, OFFICER_LABEL, relationship } from './steps';
+import { liveSections, relationLabel } from './steps';
 import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
@@ -105,9 +105,8 @@ function itemTitle(category: Category, item: Item) {
 }
 
 function sectionRelationship(key: string, separated: boolean) {
-  if (key === 'statement:officer') return OFFICER_LABEL;
-  const found = relationship(key);
-  return found === 'Spouse' && separated ? 'Spouse, separated' : (found ?? '');
+  const label = relationLabel(key);
+  return label === 'Spouse' && separated ? 'Spouse, separated' : label;
 }
 
 export interface StatementSectionProps {
@@ -668,8 +667,7 @@ function AlsoDeclareDialog({
     .map((section) => ({
       key: section.key,
       name: section.personName ?? 'Unnamed person',
-      relation:
-        section.key === 'statement:officer' ? OFFICER_LABEL : (relationship(section.key) ?? ''),
+      relation: relationLabel(section.key),
     }));
   const theirShareId = useId();
   const [target, setTarget] = useState<string | null>(null);

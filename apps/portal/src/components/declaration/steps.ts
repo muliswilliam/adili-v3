@@ -155,10 +155,15 @@ function firstName(fullName: string | null | undefined) {
 /** How the declarant is named wherever people are listed. */
 export const OFFICER_LABEL = 'You';
 
-/** "You" for the officer, else the person's name. */
-export function personLabel(sections: DeclarationSection[], key: SectionKey): string {
+/** How a person is named in lists: "You" for the officer, else their name or "Unnamed person". */
+export function nameFor(key: SectionKey, name: string | null | undefined): string {
   if (key === 'statement:officer') return OFFICER_LABEL;
-  return section(sections, key)?.personName ?? 'Unnamed person';
+  return name?.trim() || 'Unnamed person';
+}
+
+/** "You" for the officer, else the person's name from their statement section. */
+export function personLabel(sections: DeclarationSection[], key: SectionKey): string {
+  return nameFor(key, section(sections, key)?.personName);
 }
 
 /** The relationship shown next to a person, from their statement key. */
@@ -167,6 +172,11 @@ export function relationship(key: SectionKey): 'Spouse' | 'Child' | null {
   if (relation === 'spouse') return 'Spouse';
   if (relation === 'child') return 'Child';
   return null;
+}
+
+/** The label next to a person: "You" for the officer, "Spouse" or "Child", else empty. */
+export function relationLabel(key: SectionKey): string {
+  return key === 'statement:officer' ? OFFICER_LABEL : (relationship(key) ?? '');
 }
 
 /** The screen's heading. */
