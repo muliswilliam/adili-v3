@@ -63,9 +63,11 @@ export class RosterImportsService {
     body: StartFileImportBody,
   ): Promise<RosterImport> {
     notFoundIfInvisible(slug, () => principal.tenant === slug);
-    const upload = await this.uploads.describe(slug, body.uploadId).catch((error: unknown) => {
-      throw this.asProblem(error);
-    });
+    const upload = await this.uploads
+      .describe({ tenant: slug, uploadId: body.uploadId })
+      .catch((error: unknown) => {
+        throw this.asProblem(error);
+      });
     return this.start(principal, slug, {
       channel: 'file',
       declaredComplete: body.declaredComplete,
@@ -254,7 +256,7 @@ export class RosterImportsService {
   ): Promise<RosterImportPreview> {
     notFoundIfInvisible(slug, () => principal.tenant === slug);
     try {
-      const upload = await this.uploads.open(slug, body.uploadId);
+      const upload = await this.uploads.open({ tenant: slug, uploadId: body.uploadId });
       return { uploadId: upload.id, ...(await previewRosterFile(upload)) };
     } catch (error) {
       throw this.asProblem(error);

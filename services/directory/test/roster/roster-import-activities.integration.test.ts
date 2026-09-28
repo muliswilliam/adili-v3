@@ -21,6 +21,7 @@ import {
   type OpenedRosterUpload,
   type RosterUpload,
   RosterUploads,
+  type UploadRef,
 } from '../../src/roster/import/roster-uploads.js';
 import { IMPORT_SUBJECT, StagingSuperseded, stageImport } from '../../src/roster/import/staging.js';
 import type { ImportRef } from '../../src/roster/import/workflow-contract.js';
@@ -240,7 +241,7 @@ class GatedUploads extends RosterUploads {
     return Promise.reject(new Error('not used'));
   }
 
-  open(_tenant: string, uploadId: string): Promise<OpenedRosterUpload> {
+  open({ uploadId }: UploadRef): Promise<OpenedRosterUpload> {
     const gate = Promise.withResolvers<undefined>();
     this.gates.push(gate);
     const [head, tail] = this.parts.map((part) => new TextEncoder().encode(part));

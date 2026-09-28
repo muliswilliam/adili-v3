@@ -6,6 +6,7 @@ import {
   type OpenedRosterUpload,
   type RosterUpload,
   RosterUploads,
+  type UploadRef,
   UploadNotClean,
   UploadNotFound,
 } from './roster-uploads.js';
@@ -63,18 +64,18 @@ export class InMemoryRosterUploads extends RosterUploads {
     this.failures = 0;
   }
 
-  describe(tenant: string, uploadId: string): Promise<RosterUpload> {
-    return Promise.resolve().then(() => this.find(tenant, uploadId).upload);
+  describe(ref: UploadRef): Promise<RosterUpload> {
+    return Promise.resolve().then(() => this.find(ref).upload);
   }
 
-  open(tenant: string, uploadId: string): Promise<OpenedRosterUpload> {
+  open(ref: UploadRef): Promise<OpenedRosterUpload> {
     return Promise.resolve().then(() => {
-      const stored = this.find(tenant, uploadId);
+      const stored = this.find(ref);
       return { ...stored.upload, body: chunked(stored.bytes) };
     });
   }
 
-  private find(tenant: string, uploadId: string): StoredUpload {
+  private find({ tenant, uploadId }: UploadRef): StoredUpload {
     if (this.failures > 0) {
       this.failures -= 1;
       throw new DocumentsUnavailable('The documents service is unreachable (simulated)');

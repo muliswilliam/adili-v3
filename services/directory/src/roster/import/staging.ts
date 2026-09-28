@@ -173,7 +173,7 @@ async function openSource(
     };
   }
   try {
-    const upload = await uploads.open(row.tenant, row.uploadId);
+    const upload = await uploads.open({ tenant: row.tenant, uploadId: row.uploadId });
     const file = await parseRosterFile(upload.body, upload.format);
     if (!file.ok) {
       return {
