@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { errorType } from '@adili/api-kit';
 import { InjectValkey } from '@adili/cache';
 import type { Redis } from 'iovalkey';
 
@@ -42,7 +43,3 @@ export class IprsCache {
 }
 
 const key = (subjectHash: string) => `iprs:person:${subjectHash}`;
-
-function errorType(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
-}

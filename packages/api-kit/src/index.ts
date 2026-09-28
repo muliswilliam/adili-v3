@@ -7,6 +7,7 @@ export { notFoundIfInvisible, Roles, RolesGuard } from './auth/roles.js';
 export { TokenVerifier } from './auth/token-verifier.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig } from './config.js';
+export { errorType } from './error-type.js';
 export { CoreModule, type CoreModuleOptions } from './core.module.js';
 export { HttpReadinessCheck } from './health/http-readiness-check.js';
 export { ReadinessCheck } from './health/readiness-check.js';

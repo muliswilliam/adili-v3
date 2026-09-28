@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { circuitBreaker, ConsecutiveBreaker, handleAll } from 'cockatiel';
 
 import { config } from '../config.js';
+import { SUBJECT_HASH_KEY, SubjectHasher } from '../verification/subject-hasher.js';
 import { VerificationResults } from '../verification/verification-results.js';
 import { IPRS_CACHE_TTL_SECONDS, IprsCache } from './iprs-cache.js';
 import { IPRS_CLIENT_OPTIONS, IprsClient, type IprsClientOptions } from './iprs-client.js';
 import { IPRS_BREAKER, IprsLookupService } from './iprs-lookup.service.js';
 import { IprsController } from './iprs.controller.js';
-import { SUBJECT_HASH_KEY, SubjectHasher } from './subject-hasher.js';
 
 /** IPRS identity lookup for onboarding (`/internal/v1/iprs`). */
 @Module({

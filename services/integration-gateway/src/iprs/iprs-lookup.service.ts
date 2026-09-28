@@ -1,14 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { Principal } from '@adili/api-kit';
+import { errorType, type Principal } from '@adili/api-kit';
 import { BrokenCircuitError, CircuitState, type CircuitBreakerPolicy } from 'cockatiel';
 
 import type { UnavailableReason } from '../db/schema.js';
 import { UpstreamError } from '../resilience/upstream-error.js';
+import { SubjectHasher } from '../verification/subject-hasher.js';
 import { VerificationResults } from '../verification/verification-results.js';
 import { type IprsAnswer, IprsCache } from './iprs-cache.js';
 import { IprsClient } from './iprs-client.js';
 import type { IprsPerson } from './iprs-person.js';
-import { SubjectHasher } from './subject-hasher.js';
 
 export const IPRS_BREAKER = Symbol('IPRS_BREAKER');
 
@@ -35,11 +35,35 @@ export class IprsLookupService {
     private readonly results: VerificationResults,
   ) {}
 
-  /** Every lookup, answered or not, leaves a verification-results row (best effort). */
+  /**
+   * Every lookup, answered or not, leaves a verification-results row (best effort). An unexpected
+   * error is recorded as unavailable before it propagates.
+   */
   async lookup(nationalId: string, caller: Principal): Promise<IprsLookup> {
     const started = performance.now();
     const subjectHash = this.hasher.hash('iprs', nationalId);
-    const result = await this.resolve(nationalId, subjectHash);
+    let result: IprsLookup;
+    try {
+      result = await this.resolve(nationalId, subjectHash);
+    } catch (error) {
+      await this.record(
+        subjectHash,
+        { outcome: 'unavailable', reason: 'upstream-error' },
+        started,
+        caller,
+      );
+      throw error;
+    }
+    await this.record(subjectHash, result, started, caller);
+    return result;
+  }
+
+  private async record(
+    subjectHash: string,
+    result: IprsLookup,
+    started: number,
+    caller: Principal,
+  ): Promise<void> {
     try {
       await this.results.record(
         {
@@ -56,11 +80,10 @@ export class IprsLookupService {
       // The caller still gets its answer: onboarding must not stop because the log could not be
       // written. The error is logged (without the ID) so the gap shows.
       this.logger.error(
-        { subjectHash, errorType: error instanceof Error ? error.name : typeof error },
+        { subjectHash, errorType: errorType(error) },
         'Verification result not recorded',
       );
     }
-    return result;
   }
 
   private async resolve(nationalId: string, subjectHash: string): Promise<IprsLookup> {
