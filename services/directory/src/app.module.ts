@@ -15,6 +15,7 @@ import { CommissionsModule } from './commissions/commissions.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { MeController } from './me/me.controller.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
+import { PersonsModule } from './persons/persons.module.js';
 import { ApiCredentialModule } from './roster/api-credential/api-credential.module.js';
 import { RosterExitsModule } from './roster/exits/exits.module.js';
 import { RosterImportModule } from './roster/import/import.module.js';
@@ -61,6 +62,7 @@ import { RosterModule } from './roster/roster.module.js';
     RosterRecordsModule,
     RosterExitsModule,
     OnboardingModule,
+    PersonsModule,
   ],
   controllers: [MeController],
 })

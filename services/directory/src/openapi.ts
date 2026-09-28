@@ -28,6 +28,7 @@ import {
   onboardingStateSchema,
   otpChannelSchema,
 } from './onboarding/representation.js';
+import { declarantProfileSchema, personSummarySchema } from './persons/representation.js';
 import {
   confirmExitsBody,
   exitsResultSchema,
@@ -126,4 +127,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   OnboardingSession: onboardingSessionSchema,
   OnboardingSessionCreated: onboardingSessionCreatedSchema,
   OnboardingProblem: onboardingProblemSchema,
+  DeclarantProfile: declarantProfileSchema,
+  PersonSummary: personSummarySchema,
 };

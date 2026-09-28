@@ -336,46 +336,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /v1/me/declarant:
-    get:
-      tags: [onboarding]
-      operationId: getMyDeclarantProfile
-      summary: The signed-in declarant's person, OFR, Commissions and verified contacts
-      responses:
-        '200':
-          description: Profile
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarantProfile'
-        '404':
-          description: The caller is not an onboarded declarant
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/persons:
-    get:
-      tags: [onboarding]
-      operationId: findPersonByOfr
-      summary: Look up account metadata by officer reference (helpdesk, platform-admin)
-      parameters:
-        - name: ofr
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/Ofr'
-      responses:
-        '200':
-          description: Account metadata without roster contents
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PersonSummary'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/policy:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -659,63 +619,6 @@ components:
           $ref: '#/components/schemas/OnboardingOutcome'
         session:
           $ref: '#/components/schemas/OnboardingSession'
-    DeclarantProfile:
-      type: object
-      required: [personId, ofr, fullName, contacts, commissions]
-      properties:
-        personId:
-          type: string
-          format: uuid
-        ofr:
-          $ref: '#/components/schemas/Ofr'
-        fullName:
-          type: string
-        contacts:
-          type: object
-          required: [email, phone]
-          properties:
-            email:
-              type: [string, 'null']
-            phone:
-              type: [string, 'null']
-        commissions:
-          type: array
-          items:
-            type: object
-            required: [slug, name, personnelFileNumber, rosterRecordId, state, onboardedAt]
-            properties:
-              slug:
-                $ref: '#/components/schemas/Slug'
-              name:
-                type: string
-              personnelFileNumber:
-                type: string
-              rosterRecordId:
-                type: string
-                format: uuid
-              state:
-                $ref: '#/components/schemas/RosterRecordState'
-              onboardedAt:
-                type: [string, 'null']
-                format: date-time
-    PersonSummary:
-      type: object
-      required: [personId, ofr, fullName, commissions, createdAt]
-      properties:
-        personId:
-          type: string
-          format: uuid
-        ofr:
-          $ref: '#/components/schemas/Ofr'
-        fullName:
-          type: string
-        commissions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Slug'
-        createdAt:
-          type: string
-          format: date-time
     TenantPolicyVersion:
       type: object
       required:

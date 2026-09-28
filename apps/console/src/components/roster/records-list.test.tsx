@@ -29,6 +29,9 @@ function record(overrides: Partial<RosterRecordListItem> = {}): RosterRecordList
     absentFromLatestImport: false,
     flaggedByImportId: null,
     flaggedAt: null,
+    ofr: null,
+    onboardedAt: null,
+    identityMismatchAt: null,
     ...overrides,
   };
 }

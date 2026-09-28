@@ -33,6 +33,9 @@ function record(index: number, overrides: Partial<RosterRecordListItem> = {}) {
     absentFromLatestImport: true,
     flaggedByImportId: '0191f8d2-0000-7000-8000-0000000000f1',
     flaggedAt: '2026-09-21T09:30:00Z',
+    ofr: null,
+    onboardedAt: null,
+    identityMismatchAt: null,
     ...overrides,
   } satisfies RosterRecordListItem;
 }

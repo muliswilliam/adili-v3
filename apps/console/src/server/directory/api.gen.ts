@@ -480,6 +480,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/declarant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in declarant's person, OFR, Commissions and verified contacts
+         * @description Any authenticated caller; the person is the one whose account is the token's subject, so a caller only ever reads their own. The portal dashboard reads it.
+         */
+        get: operations["getMyDeclarantProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/persons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Look up account metadata by officer reference
+         * @description Helpdesk and platform admins, audited. Account metadata only: who the person is and which Commissions they are onboarded at, never the contents of their roster records. The officer reference is validated with its check character, so a mistyped one is 400 rather than 404.
+         */
+        get: operations["findPersonByOfr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/onboarding/sessions/{sessionId}/contacts": {
         parameters: {
             query?: never;
@@ -659,40 +699,6 @@ export interface paths {
         put?: never;
         /** Disable a law-enforcement officer account (platform-admin) */
         post: operations["revokeAgencyOfficer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/declarant": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The signed-in declarant's person, OFR, Commissions and verified contacts */
-        get: operations["getMyDeclarantProfile"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/persons": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Look up account metadata by officer reference (helpdesk, platform-admin) */
-        get: operations["findPersonByOfr"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1298,6 +1304,12 @@ export interface components {
             flaggedByImportId: string | null;
             /** @description When the record was flagged */
             flaggedAt: string | null;
+            /** @description The declarant's officer reference once onboarded; null before */
+            ofr: components["schemas"]["Ofr"] | null;
+            /** @description When the declarant onboarded against the record; null before */
+            onboardedAt: string | null;
+            /** @description When an onboarding attempt found that IPRS does not confirm the record's name; null when none has */
+            identityMismatchAt: string | null;
         };
         RosterRecordImport: {
             /** Format: uuid */
@@ -1330,6 +1342,12 @@ export interface components {
             flaggedByImportId: string | null;
             /** @description When the record was flagged */
             flaggedAt: string | null;
+            /** @description The declarant's officer reference once onboarded; null before */
+            ofr: components["schemas"]["Ofr"] | null;
+            /** @description When the declarant onboarded against the record; null before */
+            onboardedAt: string | null;
+            /** @description When an onboarding attempt found that IPRS does not confirm the record's name; null when none has */
+            identityMismatchAt: string | null;
             /** @description Full value, digits only; reads are audited */
             nationalId: string;
             appointmentDate: string | null;
@@ -1518,6 +1536,42 @@ export interface components {
                 recoverAccess?: string;
             };
         };
+        DeclarantProfile: {
+            /** Format: uuid */
+            personId: string;
+            ofr: components["schemas"]["Ofr"];
+            /** @description As confirmed at onboarding */
+            fullName: string;
+            /** @description The contacts verified at the latest onboarding */
+            contacts: {
+                email: string | null;
+                /** @description E.164 */
+                phone: string | null;
+            };
+            /** @description The person's roster records, one per Commission, ordered by name */
+            commissions: {
+                slug: components["schemas"]["Slug"];
+                name: string;
+                personnelFileNumber: string;
+                /** Format: uuid */
+                rosterRecordId: string;
+                state: components["schemas"]["RosterRecordState"];
+                onboardedAt: string | null;
+            }[];
+        };
+        PersonSummary: {
+            /** Format: uuid */
+            personId: string;
+            ofr: components["schemas"]["Ofr"];
+            fullName: string;
+            /** @description Commissions whose roster records the person is linked to */
+            commissions: components["schemas"]["Slug"][];
+            /**
+             * Format: date-time
+             * @description When the account was created
+             */
+            createdAt: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1565,35 +1619,6 @@ export interface components {
         OnboardingConfirmResult: {
             outcome: components["schemas"]["OnboardingOutcome"];
             session: components["schemas"]["OnboardingSession"];
-        };
-        DeclarantProfile: {
-            /** Format: uuid */
-            personId: string;
-            ofr: components["schemas"]["Ofr"];
-            fullName: string;
-            contacts: {
-                email: string | null;
-                phone: string | null;
-            };
-            commissions: {
-                slug: components["schemas"]["Slug"];
-                name: string;
-                personnelFileNumber: string;
-                /** Format: uuid */
-                rosterRecordId: string;
-                state: components["schemas"]["RosterRecordState"];
-                /** Format: date-time */
-                onboardedAt: string | null;
-            }[];
-        };
-        PersonSummary: {
-            /** Format: uuid */
-            personId: string;
-            ofr: components["schemas"]["Ofr"];
-            fullName: string;
-            commissions: components["schemas"]["Slug"][];
-            /** Format: date-time */
-            createdAt: string;
         };
         TenantPolicyVersion: {
             /** Format: uuid */
@@ -2936,6 +2961,8 @@ export interface operations {
                 state?: "not_onboarded" | "onboarded" | "exited";
                 /** @description Only records flagged as absent from the latest complete import, or only those not flagged */
                 flagged?: "true" | "false";
+                /** @description Only records on which an onboarding attempt found an identity mismatch, or only those without one */
+                identityMismatch?: "true" | "false";
                 /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
                 limit?: number;
@@ -3487,6 +3514,98 @@ export interface operations {
             };
         };
     };
+    getMyDeclarantProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantProfile"];
+                };
+            };
+            /** @description Missing, expired or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The caller is not an onboarded declarant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    findPersonByOfr: {
+        parameters: {
+            query: {
+                /** @description Officer reference (ADR-011), permanent and person-level */
+                ofr: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account metadata without roster contents */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonSummary"];
+                };
+            };
+            /** @description Not an officer reference: wrong shape or check character */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only the helpdesk and platform admins look persons up
+             *
+             *     Requires one of the roles: platform-admin, helpdesk
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No person has this officer reference */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     provideOnboardingContact: {
         parameters: {
             query?: never;
@@ -3879,59 +3998,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LeaOfficerAccount"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getMyDeclarantProfile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Profile */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarantProfile"];
-                };
-            };
-            /** @description The caller is not an onboarded declarant */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    findPersonByOfr: {
-        parameters: {
-            query: {
-                ofr: components["schemas"]["Ofr"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Account metadata without roster contents */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PersonSummary"];
                 };
             };
             403: components["responses"]["Forbidden"];

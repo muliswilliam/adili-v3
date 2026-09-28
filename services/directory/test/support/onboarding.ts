@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
-import { eq } from 'drizzle-orm';
+import { allocateReference, OFR } from '@adili/numbering';
+import { eq, inArray } from 'drizzle-orm';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { config } from '../../src/config.js';
 import {
   onboardingOtps,
   onboardingSessions,
+  persons,
   reportingEntities,
   rosterImports,
   rosterRecords,
@@ -33,6 +35,9 @@ import type { DirectoryApi } from './directory-api.js';
  *   (`hasRoster` true), records in any state. Returns record ids by file number.
  * - `givenSession(api, { recordId, state, ... })`: a session in any state, e.g. `phone-verified`
  *   for confirm tests, optionally with a channel's current code. Returns its id and secret.
+ * - `givenOnboardedPerson(api, { recordIds })`: a person onboarded against records, as confirm
+ *   leaves them (person with OFR and Keycloak user id, records `onboarded`), for the profile and
+ *   lookup tests. `givenIdentityMismatch(api, recordId)`: as a confirm refused by IPRS leaves it.
  * - `identify`, `getSession`, `onSession`: the public routes as the portal calls them.
  * - `api.otpDelivery`: codes sent (`last(to)?.code`), `failNext()` to make a send fail.
  *
@@ -256,4 +261,83 @@ export function onSession(
     body,
     ip,
   });
+}
+
+export interface OnboardedPersonFixture {
+  /** Roster records the person onboarded against; the first gives their name and national ID. */
+  recordIds: string[];
+  /** The `sub` of the person's tokens; random by default. */
+  keycloakUserId?: string;
+  email?: string | null;
+  /** E.164. */
+  phone?: string | null;
+  /** `api.clock.now()` by default. */
+  onboardedAt?: Date;
+}
+
+export interface OnboardedPerson {
+  personId: string;
+  ofr: string;
+  keycloakUserId: string;
+}
+
+/**
+ * Arranges a person onboarded against `recordIds`, as confirm would leave them: a person with an
+ * allocated OFR and a Keycloak user id, and each record `onboarded`, linked, with `onboardedAt`
+ * and its Commission's summary recounted.
+ */
+export async function givenOnboardedPerson(
+  api: DirectoryApi,
+  fixture: OnboardedPersonFixture,
+): Promise<OnboardedPerson> {
+  const keycloakUserId = fixture.keycloakUserId ?? randomUUID();
+  const onboardedAt = fixture.onboardedAt ?? api.clock.now();
+  return withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, async (tx) => {
+    const records = await tx
+      .select({
+        id: rosterRecords.id,
+        tenant: rosterRecords.tenant,
+        fullName: rosterRecords.fullName,
+        nationalId: rosterRecords.nationalId,
+      })
+      .from(rosterRecords)
+      .where(inArray(rosterRecords.id, fixture.recordIds));
+    const first = records.find((record) => record.id === fixture.recordIds[0]);
+    if (!first || records.length !== fixture.recordIds.length) {
+      throw new Error(`no roster records ${fixture.recordIds.join(', ')}`);
+    }
+    const ofr = await allocateReference(tx, OFR);
+    const [person] = await tx
+      .insert(persons)
+      .values({
+        nationalId: first.nationalId,
+        fullName: first.fullName,
+        ofr,
+        keycloakUserId,
+        email: fixture.email ?? null,
+        phone: fixture.phone ?? null,
+        createdAt: onboardedAt,
+      })
+      .returning({ id: persons.id });
+    if (!person) throw new Error('insert returned no row');
+    await tx
+      .update(rosterRecords)
+      .set({ state: 'onboarded', personId: person.id, onboardedAt })
+      .where(inArray(rosterRecords.id, fixture.recordIds));
+    for (const tenant of new Set(records.map((record) => record.tenant))) {
+      await recomputeRosterSummary(tx, tenant);
+    }
+    return { personId: person.id, ofr, keycloakUserId };
+  });
+}
+
+/** Marks `recordId` as a confirm refused by IPRS leaves it: `identityMismatchAt` set. */
+export async function givenIdentityMismatch(
+  api: DirectoryApi,
+  recordId: string,
+  at: Date = api.clock.now(),
+): Promise<void> {
+  await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+    tx.update(rosterRecords).set({ identityMismatchAt: at }).where(eq(rosterRecords.id, recordId)),
+  );
 }

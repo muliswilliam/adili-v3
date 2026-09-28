@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ofrSchema } from '../../onboarding/representation.js';
 import { importChannelSchema } from '../import/representation.js';
 import { ROSTER_RECORD_STATES } from '../schema.js';
 
@@ -39,6 +40,17 @@ export const rosterRecordListItemSchema = z.object({
     .nullable()
     .meta({ description: 'The complete import that flagged the record; null when not flagged' }),
   flaggedAt: z.iso.datetime().nullable().meta({ description: 'When the record was flagged' }),
+  ofr: ofrSchema
+    .nullable()
+    .meta({ description: "The declarant's officer reference once onboarded; null before" }),
+  onboardedAt: z.iso
+    .datetime()
+    .nullable()
+    .meta({ description: 'When the declarant onboarded against the record; null before' }),
+  identityMismatchAt: z.iso.datetime().nullable().meta({
+    description:
+      "When an onboarding attempt found that IPRS does not confirm the record's name; null when none has",
+  }),
 });
 export type RosterRecordListItem = z.infer<typeof rosterRecordListItemSchema>;
 
