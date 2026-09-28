@@ -378,8 +378,7 @@ function idleOtp(): OnboardingSession['otp'] {
 
 const notFound = () => json(404, { type: 'about:blank', title: 'Not found', status: 404 });
 const sessionEnded = () => problem(410, 'session-expired', 'Session ended');
-// The contract names no problem code for a 409; the portal goes by the status.
-const wrongStep = () => problem(409, 'session-expired', 'Session is not waiting for this');
+const wrongStep = () => problem(409, 'wrong-step', 'Session is not waiting for this');
 
 /** The live session for an id and secret, or the response that refuses it. */
 function liveSession(sessionId: string, secret: string | null): MockSession | Response {

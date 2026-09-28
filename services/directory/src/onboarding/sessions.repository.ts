@@ -332,14 +332,7 @@ export function sessionEnded(): ProblemException {
   return ProblemException.fromCode('session-expired');
 }
 
-/**
- * 409: the session is not at the step asked for (e.g. another tab moved it on). The registry has
- * no code for it; the portal re-reads the session on any 409.
- */
+/** 409 `wrong-step`: the session is not at the step asked for (e.g. another tab moved it on). */
 export function wrongStep(): ProblemException {
-  return new ProblemException({
-    type: 'onboarding-wrong-step',
-    title: 'Session is not at this step',
-    status: HttpStatus.CONFLICT,
-  });
+  return ProblemException.fromCode('wrong-step');
 }

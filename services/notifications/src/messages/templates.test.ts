@@ -24,6 +24,18 @@ describe('renderTemplate', () => {
     expect(rendered.text).toContain('setting up your declarant account. It expires in 10 minutes.');
   });
 
+  it('names the Commission in the onboarding SMS and says to ignore an unrequested code', () => {
+    const rendered = renderTemplate('onboarding-otp-sms', 'en', {
+      code: '123456',
+      commissionName: 'Teachers Service Commission',
+      expiresInMinutes: 10,
+    });
+
+    expect(rendered.text).toBe(
+      'Adili: your code to set up your account with Teachers Service Commission is 123456. It expires in 10 minutes. Did not ask for it? Ignore this SMS. Do not share it.',
+    );
+  });
+
   it('uses the singular for one minute', () => {
     const rendered = renderTemplate('login-otp-sms', 'en', { code: '1234', expiresInMinutes: 1 });
 

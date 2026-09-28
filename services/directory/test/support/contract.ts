@@ -7,15 +7,15 @@ import { parse } from 'yaml';
 
 /**
  * Validates bodies against the committed contracts (packages/schemas/internal/directory.yaml, and
- * documents.yaml for what the directory reads from documents), so tests fail when an API drifts
+ * documents.yaml and notifications.yaml for what the directory sends them), so tests fail when an API drifts
  * from its contract.
  */
-type Contract = 'directory' | 'documents';
+type Contract = 'directory' | 'documents' | 'notifications';
 
 const ajv = new Ajv2020({ strict: false, allErrors: true });
 addFormats.default(ajv);
 const resolve = createRequire(import.meta.url).resolve;
-for (const contract of ['directory', 'documents'] satisfies Contract[]) {
+for (const contract of ['directory', 'documents', 'notifications'] satisfies Contract[]) {
   const path = resolve(`@adili/schemas/internal/${contract}.yaml`);
   ajv.addSchema(parse(readFileSync(path, 'utf8')) as object, `${contract}.yaml`);
 }

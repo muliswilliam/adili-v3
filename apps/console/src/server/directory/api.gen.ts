@@ -480,44 +480,19 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/onboarding/sessions/{sessionId}/contacts": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Supply an email or phone when the roster record has none */
-        post: operations["provideOnboardingContact"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify": {
         parameters: {
             query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Verify the 6-digit code for a channel */
+        /**
+         * Verify the 6-digit code for a channel
+         * @description Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410).
+         */
         post: operations["verifyOnboardingOtp"];
         delete?: never;
         options?: never;
@@ -528,20 +503,37 @@ export interface paths {
     "/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend": {
         parameters: {
             query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Send a new code (60-second cooldown, at most 3 per channel) */
+        /**
+         * Send a new code (60-second cooldown, at most 3 per channel)
+         * @description Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410). Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
+         */
         post: operations["resendOnboardingOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/sessions/{sessionId}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Supply an email or phone when the roster record has none
+         * @description Public, with the session secret; rate-limited per client IP. Only while the session waits for that contact (`*-contact-required`). The value is normalised (email lower-cased, phone to E.164) and its first code sent; once verified it is written to the roster record with source `declarant`.
+         */
+        post: operations["provideOnboardingContact"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1152,7 +1144,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
             /** @description Field-level errors */
@@ -1172,7 +1164,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1500,7 +1492,7 @@ export interface components {
             title: string;
             status: number;
             /** @enum {string} */
-            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limit-exceeded";
+            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "otp-send-failed" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limit-exceeded" | "wrong-step";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1518,6 +1510,15 @@ export interface components {
                 recoverAccess?: string;
             };
         };
+        VerifyOnboardingOtp: {
+            /** @description The 6-digit code sent to the channel */
+            code: string;
+        };
+        ProvideOnboardingContact: {
+            channel: components["schemas"]["OtpChannel"];
+            /** @description An email address, or a phone number (E.164, or a Kenyan number such as 0712345678) */
+            value: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1526,7 +1527,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1692,7 +1693,6 @@ export interface components {
         SessionId: string;
         /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
         OnboardingSecret: string;
-        OtpChannelParam: components["schemas"]["OtpChannel"];
     };
     requestBodies: never;
     headers: never;
@@ -3410,13 +3410,13 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The first code could not be sent; no session was created */
+            /** @description Problem code `otp-send-failed`: the first code could not be sent; no session was created */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
         };
@@ -3487,81 +3487,42 @@ export interface operations {
             };
         };
     };
-    provideOnboardingContact: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    channel: components["schemas"]["OtpChannel"];
-                    value: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Contact accepted and OTP sent */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSession"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            404: components["responses"]["NotFound"];
-            /** @description Session is not waiting for this contact */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            410: components["responses"]["SessionEnded"];
-        };
-    };
     verifyOnboardingOtp: {
         parameters: {
             query?: never;
             header: {
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
+                "X-Onboarding-Secret": string;
             };
             path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
+                sessionId: string;
+                /** @description email or phone */
+                channel: components["schemas"]["OtpChannel"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    code: string;
-                };
+                "application/json": components["schemas"]["VerifyOnboardingOtp"];
             };
         };
         responses: {
-            /** @description Verified; session advanced */
+            /** @description Verified; the session moved on */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingSession"];
                 };
             };
-            /** @description Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired` */
+            /** @description Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`; a body failing validation has no code */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3570,8 +3531,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not waiting for this channel */
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step`: the session is not waiting for this channel's code; re-read it */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3580,7 +3549,41 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            410: components["responses"]["SessionEnded"];
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
         };
     };
     resendOnboardingOtp: {
@@ -3588,11 +3591,12 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
+                "X-Onboarding-Secret": string;
             };
             path: {
-                sessionId: components["parameters"]["SessionId"];
-                channel: components["parameters"]["OtpChannelParam"];
+                sessionId: string;
+                /** @description email or phone */
+                channel: components["schemas"]["OtpChannel"];
             };
             cookie?: never;
         };
@@ -3601,12 +3605,26 @@ export interface operations {
             /** @description New code sent */
             202: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not waiting for this channel */
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step`: the session is not waiting for this channel's code; re-read it */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3615,9 +3633,123 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            410: components["responses"]["SessionEnded"];
-            /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `resend-cooldown` (with `retryAfterSeconds`) or `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After) */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+        };
+    };
+    provideOnboardingContact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvideOnboardingContact"];
+            };
+        };
+        responses: {
+            /** @description Contact accepted and its code sent */
+            200: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingSession"];
+                };
+            };
+            /** @description Body failed validation (e.g. not a valid email or phone number) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step`: the session is not waiting for this contact; re-read it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

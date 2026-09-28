@@ -1694,11 +1694,11 @@ paths:
               schema:
                 type: integer
         '502':
-          description: The first code could not be sent; no session was created
+          description: 'Problem code `otp-send-failed`: the first code could not be sent; no session was created'
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/schemas/OnboardingProblem'
       security: []
   /v1/onboarding/sessions/{sessionId}:
     get:
@@ -1776,124 +1776,280 @@ paths:
               schema:
                 type: integer
       security: []
-  /v1/onboarding/sessions/{sessionId}/contacts:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-    post:
-      tags:
-        - onboarding
-      summary: Supply an email or phone when the roster record has none
-      operationId: provideOnboardingContact
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - channel
-                - value
-              properties:
-                channel:
-                  $ref: '#/components/schemas/OtpChannel'
-                value:
-                  type: string
-                  maxLength: 254
-      responses:
-        '200':
-          description: Contact accepted and OTP sent
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OnboardingSession'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Session is not waiting for this contact
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '410':
-          $ref: '#/components/responses/SessionEnded'
-      security: []
   /v1/onboarding/sessions/{sessionId}/otp/{channel}/verify:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-      - $ref: '#/components/parameters/OtpChannelParam'
     post:
       tags:
         - onboarding
       summary: Verify the 6-digit code for a channel
+      description: 'Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410).'
       operationId: verifyOnboardingOtp
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: channel
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/OtpChannel'
+          description: email or phone
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - code
-              properties:
-                code:
-                  type: string
-                  pattern: ^[0-9]{6}$
+              $ref: '#/components/schemas/VerifyOnboardingOtp'
       responses:
         '200':
-          description: Verified; session advanced
+          description: Verified; the session moved on
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSession'
         '400':
-          description: Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`
+          description: Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`; a body failing validation has no code
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Session is not waiting for this channel
+          description: "Problem code `wrong-step`: the session is not waiting for this channel's code; re-read it"
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '410':
-          $ref: '#/components/responses/SessionEnded'
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
       security: []
   /v1/onboarding/sessions/{sessionId}/otp/{channel}/resend:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-      - $ref: '#/components/parameters/OtpChannelParam'
     post:
       tags:
         - onboarding
       summary: Send a new code (60-second cooldown, at most 3 per channel)
+      description: Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410). Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
       operationId: resendOnboardingOtp
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: channel
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/OtpChannel'
+          description: email or phone
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
       responses:
         '202':
           description: New code sent
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Session is not waiting for this channel
+          description: "Problem code `wrong-step`: the session is not waiting for this channel's code; re-read it"
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '410':
-          $ref: '#/components/responses/SessionEnded'
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
         '429':
-          description: Problem code `resend-cooldown` with `retryAfterSeconds`
+          description: Problem code `resend-cooldown` (with `retryAfterSeconds`) or `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+      security: []
+  /v1/onboarding/sessions/{sessionId}/contacts:
+    post:
+      tags:
+        - onboarding
+      summary: Supply an email or phone when the roster record has none
+      description: Public, with the session secret; rate-limited per client IP. Only while the session waits for that contact (`*-contact-required`). The value is normalised (email lower-cased, phone to E.164) and its first code sent; once verified it is written to the roster record with source `declarant`.
+      operationId: provideOnboardingContact
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvideOnboardingContact'
+      responses:
+        '200':
+          description: Contact accepted and its code sent
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          description: Body failed validation (e.g. not a valid email or phone number)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `wrong-step`: the session is not waiting for this contact; re-read it'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
           content:
             application/problem+json:
               schema:
@@ -3146,6 +3302,8 @@ components:
             - otp-invalid
             - otp-expired
             - resend-cooldown
+            - otp-send-failed
+            - wrong-step
             - session-expired
             - iprs-unavailable
             - identity-unavailable
@@ -3196,6 +3354,8 @@ components:
             - otp-invalid
             - otp-expired
             - resend-cooldown
+            - otp-send-failed
+            - wrong-step
             - session-expired
             - iprs-unavailable
             - identity-unavailable
@@ -4028,11 +4188,13 @@ components:
             - no-roster
             - otp-invalid
             - otp-expired
+            - otp-send-failed
             - resend-cooldown
             - session-expired
             - iprs-unavailable
             - identity-unavailable
             - rate-limit-exceeded
+            - wrong-step
         detail:
           type: string
         instance:
@@ -4069,6 +4231,27 @@ components:
         - title
         - status
         - code
+    VerifyOnboardingOtp:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: ^[0-9]{6}$
+          description: The 6-digit code sent to the channel
+      required:
+        - code
+    ProvideOnboardingContact:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/OtpChannel'
+        value:
+          type: string
+          maxLength: 254
+          description: An email address, or a phone number (E.164, or a Kenyan number such as 0712345678)
+      required:
+        - channel
+        - value
     ProblemDetails:
       type: object
       properties:
@@ -4088,6 +4271,8 @@ components:
             - otp-invalid
             - otp-expired
             - resend-cooldown
+            - otp-send-failed
+            - wrong-step
             - session-expired
             - iprs-unavailable
             - identity-unavailable
@@ -4398,12 +4583,6 @@ components:
       description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
       schema:
         type: string
-    OtpChannelParam:
-      name: channel
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/OtpChannel'
   responses:
     RateLimited:
       description: Problem code `rate-limit-exceeded`; RateLimit-* headers present

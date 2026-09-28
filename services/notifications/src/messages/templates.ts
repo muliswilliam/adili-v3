@@ -80,7 +80,7 @@ export const templates = {
     params: otpParams,
     copy: {
       en: (params) => ({
-        text: `Adili: your verification code is ${params.code}. It expires in ${minutes(params.expiresInMinutes)}. Do not share it.`,
+        text: `Adili: your code to set up your account${forCommission(params)} is ${params.code}. It expires in ${minutes(params.expiresInMinutes)}. Did not ask for it? Ignore this SMS. Do not share it.`,
       }),
     },
   }),

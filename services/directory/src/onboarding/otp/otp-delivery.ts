@@ -1,5 +1,3 @@
-import { Injectable } from '@nestjs/common';
-
 import type { OtpChannel } from '../session-state.js';
 
 /** One one-time code to send: through the notifications service's onboarding OTP templates. */
@@ -24,22 +22,11 @@ export class OtpDeliveryFailed extends Error {
 }
 
 /**
- * Sends onboarding one-time codes (a Nest token). The notifications-backed adapter comes with
- * the OTP ticket (#70); tests use `InMemoryOtpDelivery`. Implementations throw
+ * Sends onboarding one-time codes (a Nest token): `NotificationsOtpDelivery` in the service,
+ * `InMemoryOtpDelivery` in tests. Implementations throw
  * `OtpDeliveryFailed` when the message was not sent (notifications answered `failed`, or did not
  * answer).
  */
 export abstract class OtpDelivery {
   abstract send(message: OtpMessage): Promise<void>;
-}
-
-/**
- * Bound until the notifications adapter exists (#70): every send fails, so identify answers 502
- * for records with an email instead of pretending a code went out.
- */
-@Injectable()
-export class UnconfiguredOtpDelivery extends OtpDelivery {
-  send(): Promise<void> {
-    return Promise.reject(new OtpDeliveryFailed('no message channel is configured'));
-  }
 }
