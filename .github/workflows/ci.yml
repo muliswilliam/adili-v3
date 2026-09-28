@@ -55,7 +55,9 @@ jobs:
             turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
-      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks' --cache-dir=.turbo
+      # One task per vCPU (2 on this runner): more starves the test suites, whose timeouts then
+      # fire on tests that take milliseconds locally.
+      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks' --cache-dir=.turbo --concurrency=2
       - run: pnpm deps:check
       # Typecheck and build regenerate these (route trees, clients generated from the committed
       # contracts), so a stale committed copy shows up as a diff.
