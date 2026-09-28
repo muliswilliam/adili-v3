@@ -101,14 +101,6 @@ export function Chart({
   const display = (value: number | null | undefined) =>
     value === null ? suppressedLabel : value === undefined ? missingLabel : formatValue(value);
   const plot: PlotProps = { series, data, ...axis, display, formatValue };
-  // Bars label a gap inline; a line only shows a dashed bridge, so the legend says what it means.
-  const gapKeys =
-    kind === 'line'
-      ? [
-          ...(values.includes(null) ? [{ key: 'suppressed', label: suppressedLabel }] : []),
-          ...(values.includes(undefined) ? [{ key: 'missing', label: missingLabel }] : []),
-        ]
-      : [];
 
   return (
     <figure aria-labelledby={titleId} className={cn('flex flex-col gap-3', className)} {...props}>
@@ -116,22 +108,15 @@ export function Chart({
         {title}
       </figcaption>
       <div data-chart-plot="" aria-hidden="true" className="flex flex-col gap-3">
-        {(series.length > 1 || gapKeys.length > 0) && (
+        {series.length > 1 && (
           <ul
             data-chart-legend=""
             className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-secondary-foreground"
           >
-            {series.length > 1 &&
-              series.map((s, seriesIndex) => (
-                <li key={s.key} className="flex items-center gap-1.5">
-                  <span className={cn('size-2.5 rounded-sm', colorOf(seriesIndex).fill)} />
-                  {s.label}
-                </li>
-              ))}
-            {gapKeys.map((gap) => (
-              <li key={gap.key} className="flex items-center gap-1.5">
-                <span className="w-4 border-t-2 border-dashed border-muted-foreground" />
-                <span data-chart-gap-key="">{gap.label}</span>
+            {series.map((s, seriesIndex) => (
+              <li key={s.key} className="flex items-center gap-1.5">
+                <span className={cn('size-2.5 rounded-sm', colorOf(seriesIndex).fill)} />
+                {s.label}
               </li>
             ))}
           </ul>
@@ -268,24 +253,6 @@ function LinePlot({ series, data, max, ticks, formatValue }: PlotProps) {
                         points={segment.map(point).join(' ')}
                       />
                     ))}
-                  {/* A faint dashed bridge over each gap, matching the legend's gap key. */}
-                  {segments.slice(1).map((segment, gapIndex) => {
-                    const before = segments[gapIndex]?.at(-1);
-                    const after = segment[0];
-                    if (!before || !after) return null;
-                    return (
-                      <polyline
-                        key={after.index}
-                        data-chart-gap=""
-                        fill="none"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 4"
-                        opacity={0.6}
-                        vectorEffect="non-scaling-stroke"
-                        points={`${point(before)} ${point(after)}`}
-                      />
-                    );
-                  })}
                 </g>
               );
             })}

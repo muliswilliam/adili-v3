@@ -131,6 +131,31 @@ describe('Chart', () => {
       ).toHaveLength(3);
     });
 
+    it('leaves a plain break across suppressed and missing values, with nothing joining it', () => {
+      const single = { ...nationalTrend, series: [{ key: 'filing', label: 'Filing rate' }] };
+      const { container } = render(
+        <Chart
+          {...single}
+          data={[
+            { label: '2024', values: { filing: 78 } },
+            { label: '2025', values: { filing: 80 } },
+            { label: '2026', values: { filing: null } },
+            { label: '2027', values: {} },
+            { label: '2028', values: { filing: 91.2 } },
+            { label: '2029', values: { filing: 93 } },
+          ]}
+        />,
+      );
+
+      const lines = container.querySelectorAll('polyline');
+      expect(Array.from(lines, (line) => line.getAttribute('points'))).toEqual([
+        '0,22 20,20',
+        '80,8.8 100,7',
+      ]);
+      expect(container.querySelector('[stroke-dasharray]')).toBeNull();
+      expect(container.querySelector('[data-chart-legend]')).toBeNull();
+    });
+
     it('places points by category and value', () => {
       const { container } = render(<Chart {...nationalTrend} />);
 
@@ -196,51 +221,10 @@ describe('Chart', () => {
     );
   });
 
-  it('explains line gaps in the legend so sighted users see why a point is missing', () => {
-    const single = { ...nationalTrend, series: [{ key: 'filing', label: 'Filing rate' }] };
-    const { container, rerender } = render(<Chart {...single} suppressedLabel="Fewer than 10" />);
-
-    expect(container.querySelector('[data-chart-gap-key]')?.textContent).toBe('Fewer than 10');
-
-    rerender(
-      <Chart
-        {...single}
-        data={nationalTrend.data.filter((datum) => datum.values.filing !== null)}
-      />,
-    );
-    expect(container.querySelector('[data-chart-legend]')).toBeNull();
-  });
-
   it('passes other props to the figure', () => {
     render(<Chart {...byCommission} id="filing-chart" data-testid="chart" />);
 
     expect(screen.getByTestId('chart').id).toBe('filing-chart');
-  });
-
-  it('bridges a line gap with a dashed segment that matches the legend key', () => {
-    const { container } = render(<Chart {...nationalTrend} />);
-
-    expect(
-      container.querySelectorAll('[data-chart-series="filing"] [data-chart-gap]'),
-    ).toHaveLength(1);
-    expect(
-      container.querySelectorAll('[data-chart-series="compliance"] [data-chart-gap]'),
-    ).toHaveLength(0);
-  });
-
-  it('does not bridge a gap at either end of a line', () => {
-    const { container } = render(
-      <Chart
-        {...nationalTrend}
-        data={[
-          { label: '2025', values: { filing: null, compliance: 70 } },
-          { label: '2026', values: { filing: 80, compliance: 72 } },
-          { label: '2027', values: { filing: null, compliance: 75 } },
-        ]}
-      />,
-    );
-
-    expect(container.querySelectorAll('[data-chart-gap]')).toHaveLength(0);
   });
 
   it('labels a value missing from the data as no data, not as suppressed', () => {
@@ -257,23 +241,6 @@ describe('Chart', () => {
     const missingRow = screen.getByRole('row', { name: /National Police Service Commission/ });
     expect(within(missingRow).getByRole('cell').textContent).toBe('No data');
     expect(container.querySelectorAll('[data-chart-bar]')).toHaveLength(1);
-  });
-
-  it('keys missing and suppressed line gaps separately', () => {
-    const { container } = render(
-      <Chart
-        {...nationalTrend}
-        data={[
-          { label: '2025', values: { filing: 80, compliance: 70 } },
-          { label: '2026', values: { filing: null } },
-          { label: '2027', values: { filing: 91.2, compliance: 75 } },
-        ]}
-      />,
-    );
-
-    expect(
-      Array.from(container.querySelectorAll('[data-chart-gap-key]'), (key) => key.textContent),
-    ).toEqual(['Not shown', 'No data']);
   });
 
   it('renders an empty line chart without plotting or labelling anything', () => {
