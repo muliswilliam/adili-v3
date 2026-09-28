@@ -217,6 +217,25 @@ describe('StatementSection: your assets', () => {
     expect(within(panel()).getByText('KES 6,000,000')).toBeTruthy();
   });
 
+  it('S11: badges an item from a registry with its source, date and identifier', () => {
+    const at = '2026-09-26T08:00:00Z';
+    const suggestionId = '7d1f7a64-3c41-4c55-9d0e-6a9b1b3e2f10';
+    renderStatement(
+      statement({ assets: [{ ...land, source: { kind: 'ardhisasa', suggestionId, at } }, shares] }),
+    );
+    openTab(/^Assets/);
+
+    const badge = within(card('Land: Quarter-acre residential plot, Kapsoya')).getByRole('img', {
+      name: 'Source: From ArdhiSasa, 26 Sep 2026 · Eldoret Municipality Block 7/1234',
+    });
+    expect(badge.textContent).toBe('ArdhiSasa');
+    expect(
+      within(card('Shareholding: Shares in a Kampala hardware business')).queryByRole('img', {
+        name: /^Source:/,
+      }),
+    ).toBeNull();
+  });
+
   it('names every card action after the item', () => {
     renderStatement(statement({ assets: [land] }));
     openTab(/^Assets/);

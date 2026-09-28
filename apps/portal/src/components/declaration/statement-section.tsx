@@ -20,6 +20,7 @@ import {
   type MoneyInvalidReason,
   Repeater,
   SegmentedChoice,
+  SourceBadge,
   Tabs,
   TabsContent,
   TabsCount,
@@ -68,6 +69,7 @@ import {
 } from './statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
 import { fullName } from './format';
+import { sourceDetails } from './item-source';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { liveSections, personKeyOf, relationship } from './steps';
 import { useSectionAutosave, useWorkspace } from './workspace';
@@ -562,7 +564,9 @@ function ItemCardDetails({
   const originalAmount = originalCents(money);
   const documents = any.attachments?.length ?? 0;
   const tags: ReactNode[] = [];
+  const source = sourceDetails(item);
 
+  if (source) tags.push(<SourceBadge key="source" {...source} />);
   if (category === 'assets' && any.joint?.isJoint) {
     tags.push(
       <Badge key="joint">
