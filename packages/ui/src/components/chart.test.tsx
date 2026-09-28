@@ -249,6 +249,38 @@ describe('Chart', () => {
     expect(container.querySelectorAll('[data-chart-bar]')).toHaveLength(1);
   });
 
+  it('treats a value that is not a finite number as no data, never plotting it', () => {
+    const { container } = render(
+      <Chart
+        {...byCommission}
+        data={[
+          { label: 'Public Service Commission', values: { filing: 91.2 } },
+          { label: 'National Police Service Commission', values: { filing: NaN } },
+        ]}
+      />,
+    );
+
+    const row = screen.getByRole('row', { name: /National Police Service Commission/ });
+    expect(within(row).getByRole('cell').textContent).toBe('No data');
+    const bars = container.querySelectorAll<HTMLElement>('[data-chart-bar]');
+    expect(Array.from(bars, (bar) => bar.style.width)).toEqual(['91.2%']);
+  });
+
+  it('draws every category when two share a label', () => {
+    const { container } = render(
+      <Chart
+        {...nationalTrend}
+        data={[
+          { label: '2027', values: { filing: 80, compliance: 70 } },
+          { label: '2027', values: { filing: 90, compliance: 75 } },
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByRole('rowheader')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-chart-point]')).toHaveLength(4);
+  });
+
   it('renders an empty line chart without plotting or labelling anything', () => {
     const { container } = render(<Chart {...nationalTrend} data={[]} />);
 

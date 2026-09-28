@@ -23,7 +23,8 @@ export interface ChartSeries {
 
 /**
  * One category (a Commission, a year) with a value per series key. `null` means suppressed; a key
- * left out means there is no data.
+ * left out, or a number that is not finite, means there is no data. Values are counts and rates:
+ * a negative one draws as zero, and the table shows it as given.
  */
 export interface ChartDatum {
   label: string;
@@ -77,12 +78,14 @@ function percentOf(value: number, max: number): number {
 interface PlotProps {
   series: readonly ChartSeries[];
   data: readonly ChartDatum[];
+  /** `values[datumIndex][seriesIndex]`, read once from `data`. */
+  values: readonly (readonly ChartValue[])[];
   max: number;
 }
 
 interface BarPlotProps extends PlotProps {
   /** Renders a value, or the suppressed or missing label. */
-  display: (value: ChartValue) => ReactNode;
+  valueText: (value: ChartValue) => ReactNode;
 }
 
 interface LinePlotProps extends PlotProps {
@@ -110,12 +113,12 @@ export function Chart({
   className,
   ...props
 }: ChartProps) {
-  const values = data.flatMap((datum) => series.map((s) => seriesValue(datum, s.key)));
-  const { max: axisMax, ticks } = chartAxis(Math.max(0, ...values.filter(isPlotted)), max);
+  const values = data.map((datum) => series.map((s) => seriesValue(datum, s.key)));
+  const { max: axisMax, ticks } = chartAxis(Math.max(0, ...values.flat().filter(isPlotted)), max);
   const gapLabels = { suppressed: suppressedLabel, missing: missingLabel };
-  const display = (value: ChartValue) =>
+  const valueText = (value: ChartValue) =>
     isPlotted(value) ? formatValue(value) : gapLabels[valueState(value)];
-  const plot: PlotProps = { series, data, max: axisMax };
+  const plot: PlotProps = { series, data, values, max: axisMax };
 
   return (
     <figure className={cn('flex flex-col gap-3', className)} {...props}>
@@ -137,7 +140,7 @@ export function Chart({
           </ul>
         )}
         {kind === 'bar' ? (
-          <BarPlot {...plot} display={display} />
+          <BarPlot {...plot} valueText={valueText} />
         ) : (
           <LinePlot {...plot} ticks={ticks} formatValue={formatValue} />
         )}
@@ -155,11 +158,12 @@ export function Chart({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((datum) => (
-              <TableRow key={datum.label}>
+            {data.map((datum, datumIndex) => (
+              // Keyed by position: two categories may share a label.
+              <TableRow key={datumIndex}>
                 <TableHead scope="row">{datum.label}</TableHead>
-                {series.map((s) => {
-                  const value = seriesValue(datum, s.key);
+                {series.map((s, seriesIndex) => {
+                  const value = values[datumIndex]?.[seriesIndex];
                   return (
                     <TableCell
                       key={s.key}
@@ -168,7 +172,7 @@ export function Chart({
                         valueState(value) !== 'value' && 'text-muted-foreground',
                       )}
                     >
-                      {display(value)}
+                      {valueText(value)}
                     </TableCell>
                   );
                 })}
@@ -181,15 +185,15 @@ export function Chart({
   );
 }
 
-function BarPlot({ series, data, max, display }: BarPlotProps) {
+function BarPlot({ series, data, values, max, valueText }: BarPlotProps) {
   return (
     // Subgrids share one value column, so every track ends at the same place whatever the label.
     <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-3">
-      {data.map((datum) => (
-        <div key={datum.label} className="col-span-2 grid grid-cols-subgrid gap-y-1">
+      {data.map((datum, datumIndex) => (
+        <div key={datumIndex} className="col-span-2 grid grid-cols-subgrid gap-y-1">
           <span className="col-span-2 text-sm text-foreground">{datum.label}</span>
           {series.map((s, seriesIndex) => {
-            const value = seriesValue(datum, s.key);
+            const value = values[datumIndex]?.[seriesIndex];
             return (
               <div
                 key={s.key}
@@ -206,7 +210,7 @@ function BarPlot({ series, data, max, display }: BarPlotProps) {
                   )}
                 </div>
                 <span className="text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-                  {display(value)}
+                  {valueText(value)}
                 </span>
               </div>
             );
@@ -217,7 +221,7 @@ function BarPlot({ series, data, max, display }: BarPlotProps) {
   );
 }
 
-function LinePlot({ series, data, max, ticks, formatValue }: LinePlotProps) {
+function LinePlot({ series, data, values, max, ticks, formatValue }: LinePlotProps) {
   const xOf = (datumIndex: number) =>
     data.length > 1 ? roundFloatNoise((datumIndex / (data.length - 1)) * 100) : 50;
   const yOf = (value: number) => roundFloatNoise(100 - percentOf(value, max));
@@ -256,7 +260,7 @@ function LinePlot({ series, data, max, ticks, formatValue }: LinePlotProps) {
             preserveAspectRatio="none"
           >
             {series.map((s, seriesIndex) => {
-              const segments = lineSegments(data.map((datum) => seriesValue(datum, s.key)));
+              const segments = lineSegments(values.map((row) => row[seriesIndex]));
               return (
                 <g key={s.key} data-chart-series={s.key} className={colorOf(seriesIndex).stroke}>
                   {segments
@@ -279,12 +283,12 @@ function LinePlot({ series, data, max, ticks, formatValue }: LinePlotProps) {
           {/* Points are HTML so they stay round when the plot stretches. */}
           {series.map((s, seriesIndex) => (
             <div key={s.key} data-chart-series={s.key}>
-              {data.map((datum, datumIndex) => {
-                const value = seriesValue(datum, s.key);
+              {values.map((row, datumIndex) => {
+                const value = row[seriesIndex];
                 if (!isPlotted(value)) return null;
                 return (
                   <span
-                    key={datum.label}
+                    key={datumIndex}
                     data-chart-point=""
                     className={cn(
                       'absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card',
