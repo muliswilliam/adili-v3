@@ -460,8 +460,11 @@ describe('obligation drawer', () => {
       list: page([cancelled]),
       loadObligation: vi.fn(() => Promise.resolve(failed)),
     });
+    // A cancelled obligation is not overdue, whatever its due date.
+    expect(table().querySelector('tbody')?.textContent).not.toContain('overdue');
     fireEvent.click(within(table()).getByRole('button', { name: 'Achieng Otieno' }));
     const drawer = await screen.findByRole('dialog');
+    expect(drawer.textContent).not.toContain('overdue');
 
     const badge = within(drawer).getByText('Cancelled');
     expect(badge.getAttribute('data-variant')).toBe('neutral');

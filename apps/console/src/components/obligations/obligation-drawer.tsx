@@ -2,7 +2,6 @@ import {
   Alert,
   AlertTitle,
   Button,
-  DateText,
   Drawer,
   DrawerBody,
   DrawerClose,
@@ -34,7 +33,7 @@ import type {
   DeclarantRef,
 } from '../../server/declarations/client';
 import { DetailItem, DetailList } from '../page';
-import { OnboardedBadge } from './obligation-badges';
+import { ObligationWhen, OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
 
 const unavailable: DeclarationsResult<ObligationDetail> = {
@@ -107,11 +106,7 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
     <>
       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <ObligationStatusBadge status={obligation.status} />
-        {obligation.status === 'upcoming' ? (
-          <DateText date={obligation.statementDate} kind="opens" />
-        ) : (
-          <DateText date={obligation.dueDate} />
-        )}
+        <ObligationWhen obligation={obligation} />
       </div>
       <DetailList className="px-0 py-0">
         <DetailItem term={m.fileNumber}>
@@ -230,18 +225,23 @@ function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDeta
               key={`${reminder.offsetDays}-${reminder.scheduledAt}`}
               className="border-b last:border-b-0"
             >
-              <th scope="row" className="py-2.5 pr-4 text-left font-normal whitespace-nowrap">
+              <th
+                scope="row"
+                className="py-2.5 pr-4 align-top text-left font-normal whitespace-nowrap"
+              >
                 {reminderOffsetLabel(reminder.offsetDays)}
               </th>
-              <td className="py-2.5 pr-4 whitespace-nowrap">{formatDate(reminder.scheduledAt)}</td>
-              <td className="py-2.5 pr-4 whitespace-nowrap">
+              <td className="py-2.5 pr-4 align-top whitespace-nowrap">
+                {formatDate(reminder.scheduledAt)}
+              </td>
+              <td className="py-2.5 pr-4 align-top whitespace-nowrap">
                 {reminder.sentAt ? (
                   <span title={formatDateTime(reminder.sentAt)}>{formatDate(reminder.sentAt)}</span>
                 ) : (
                   m.noValue
                 )}
               </td>
-              <td className="py-2.5 pr-4 whitespace-nowrap">
+              <td className="py-2.5 pr-4 align-top whitespace-nowrap">
                 {reminderChannelsLabel(reminder.channels)}
               </td>
               <td className="py-2.5 align-top">

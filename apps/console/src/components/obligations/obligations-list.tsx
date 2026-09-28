@@ -2,7 +2,6 @@ import {
   Button,
   Card,
   cn,
-  DateText,
   EmptyState,
   formatDate,
   Icon,
@@ -42,7 +41,7 @@ import { LoadError } from '../load-error';
 import { appendPage, type LoadedPages } from '../roster/records-query';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
-import { OnboardedBadge } from './obligation-badges';
+import { ObligationWhen, OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
 import {
   type CycleOption,
@@ -429,11 +428,7 @@ function DueDate({ obligation }: { obligation: ObligationListItem }) {
     <>
       <span className="block whitespace-nowrap">{formatDate(obligation.dueDate)}</span>
       <span className="block text-[12.5px] whitespace-nowrap text-muted-foreground">
-        {obligation.status === 'upcoming' ? (
-          <DateText date={obligation.statementDate} kind="opens" />
-        ) : (
-          <DateText date={obligation.dueDate} />
-        )}
+        <ObligationWhen obligation={obligation} />
       </span>
     </>
   );
@@ -549,11 +544,11 @@ function ObligationsCards({
             <span>{obligationTypeShortLabel(obligation.type, obligation.statementDate)}</span>
             <span aria-hidden="true">·</span>
             <span>{formatDate(obligation.dueDate)}</span>
-            <span aria-hidden="true">·</span>
-            {obligation.status === 'upcoming' ? (
-              <DateText date={obligation.statementDate} kind="opens" />
-            ) : (
-              <DateText date={obligation.dueDate} />
+            {obligation.status === 'filed' || obligation.status === 'cancelled' ? null : (
+              <>
+                <span aria-hidden="true">·</span>
+                <ObligationWhen obligation={obligation} />
+              </>
             )}
           </p>
           <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
