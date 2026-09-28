@@ -10,7 +10,7 @@ import {
 } from 'react';
 
 import { cn } from '../lib/cn';
-import { describedBy, FieldError, FieldHint } from './form-field';
+import { FieldError, FieldHint, joinIds } from './form-field';
 import { Input } from './input';
 import { Label } from './label';
 
@@ -252,7 +252,7 @@ export function OtpInput({
       role="group"
       id={groupId}
       aria-labelledby={labelId}
-      aria-describedby={describedBy(hintId, errorId)}
+      aria-describedby={joinIds(hintId, errorId)}
       className={cn('grid gap-1.5', className)}
     >
       <Label asChild id={labelId}>

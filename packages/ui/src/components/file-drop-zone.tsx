@@ -11,8 +11,7 @@ import {
 
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
-// The same joining serves aria-labelledby too.
-import { describedBy as joinIds } from '../lib/use-field-ids';
+import { joinIds } from '../lib/use-field-ids';
 import { FieldError } from './form-field';
 import { Icon } from './icon';
 

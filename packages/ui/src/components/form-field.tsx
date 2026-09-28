@@ -6,7 +6,7 @@ import { useFieldIds } from '../lib/use-field-ids';
 import { Icon } from './icon';
 import { Label } from './label';
 
-export { describedBy } from '../lib/use-field-ids';
+export { joinIds } from '../lib/use-field-ids';
 
 export function FieldHint({ className, ...props }: ComponentProps<'p'>) {
   return <p className={cn('text-[13px] text-muted-foreground', className)} {...props} />;
