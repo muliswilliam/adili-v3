@@ -1134,6 +1134,9 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
