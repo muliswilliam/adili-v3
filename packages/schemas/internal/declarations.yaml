@@ -1923,6 +1923,11 @@ components:
           description: Second Schedule item type from declaration.v1, or `bio-tax` for KRA PIN and compliance
         fields:
           type: object
+          description: >-
+            Proposed values in the portal's field vocabulary, not declaration.v1 `details`; the portal translates them into the item on accept.
+            Keys per item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code);
+            `shareholding` companyName, registrationNumber, role, shares; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType.
+            Every statement item may also carry `description`. Value fields (`value`, `amount`) are never proposed, and a partial record omits blank keys.
           additionalProperties: true
         sourceRef:
           type: object

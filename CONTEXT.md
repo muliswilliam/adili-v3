@@ -69,6 +69,18 @@ _Avoid_: section, schedule
 A change meeting Act s.31(4): 25% or more in value, acquisition or disposal, marital status, directorships or memberships.
 _Avoid_: significant change, delta
 
+**Suggestion**:
+A proposed item or field, read from a registry or a document, that the declarant can accept, edit or dismiss; never part of the declaration until accepted.
+_Avoid_: pre-fill, auto-fill, recommendation
+
+**Match key**:
+A normalised identifier (registration, parcel, company number or name, KRA PIN) that says a suggestion and an existing item describe the same thing.
+_Avoid_: dedupe key, fingerprint
+
+**Item source**:
+The record on an accepted item of where it came from: the registry or document, the suggestion, and when; absent for items the declarant entered.
+_Avoid_: provenance, origin
+
 ### Review
 
 **Clarification**:

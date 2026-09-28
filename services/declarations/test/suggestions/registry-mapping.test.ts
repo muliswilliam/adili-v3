@@ -3,16 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   countyCode,
   type MappedSuggestion,
-  mapArdhisasaResult,
-  mapBrsResult,
-  mapKraResult,
-  mapNtsaResult,
   mapRegistryResult,
 } from '../../src/suggestions/registry-mapping.js';
 import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
 
-const SPOUSE = 'spouse:3f0c1b2a-4d5e-4f60-8a7b-9c0d1e2f3a4b';
-const CHILD = 'child:5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d';
+const SPOUSE = 'spouse:3f0c1b2a-4d5e-4f60-8a7b-9c0d1e2f3a4b' as const;
+const CHILD = 'child:5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d' as const;
 
 /** No suggestion ever carries a value: valuing is the declarant's (S3). */
 function expectNoValues(suggestions: MappedSuggestion[]) {
@@ -25,7 +21,7 @@ function expectNoValues(suggestions: MappedSuggestion[]) {
 
 describe('NTSA → vehicle', () => {
   it('maps each vehicle to a vehicle asset in the person’s statement', () => {
-    const suggestions = mapNtsaResult(ntsa.found, 'officer');
+    const suggestions = mapRegistryResult(ntsa.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -59,11 +55,11 @@ describe('NTSA → vehicle', () => {
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapNtsaResult(ntsa.empty, 'officer')).toEqual([]);
+    expect(mapRegistryResult(ntsa.empty, 'officer')).toEqual([]);
   });
 
   it('leaves blank fields out of a partial record and skips one with nothing to show', () => {
-    expect(mapNtsaResult(ntsa.partial, SPOUSE)).toEqual([
+    expect(mapRegistryResult(ntsa.partial, SPOUSE)).toEqual([
       {
         sectionKey: `statement:${SPOUSE}`,
         itemType: 'vehicle',
@@ -77,7 +73,7 @@ describe('NTSA → vehicle', () => {
 
 describe('ArdhiSasa → land', () => {
   it('maps each parcel to a land asset with size in hectares and a county code', () => {
-    const suggestions = mapArdhisasaResult(ardhisasa.found, 'officer');
+    const suggestions = mapRegistryResult(ardhisasa.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -117,11 +113,11 @@ describe('ArdhiSasa → land', () => {
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapArdhisasaResult(ardhisasa.empty, 'officer')).toEqual([]);
+    expect(mapRegistryResult(ardhisasa.empty, 'officer')).toEqual([]);
   });
 
   it('handles partial parcels: county codes, unknown counties, missing size or number', () => {
-    expect(mapArdhisasaResult(ardhisasa.partial, CHILD)).toEqual([
+    expect(mapRegistryResult(ardhisasa.partial, CHILD)).toEqual([
       {
         sectionKey: `statement:${CHILD}`,
         itemType: 'land',
@@ -155,7 +151,7 @@ describe('ArdhiSasa → land', () => {
 
 describe('BRS → shareholding', () => {
   it('maps each directorship or shareholding to a shareholding asset', () => {
-    const suggestions = mapBrsResult(brs.found, 'officer');
+    const suggestions = mapRegistryResult(brs.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -196,11 +192,11 @@ describe('BRS → shareholding', () => {
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapBrsResult(brs.empty, 'officer')).toEqual([]);
+    expect(mapRegistryResult(brs.empty, 'officer')).toEqual([]);
   });
 
   it('describes a nameless company by its number and skips one with neither', () => {
-    expect(mapBrsResult(brs.partial, SPOUSE)).toEqual([
+    expect(mapRegistryResult(brs.partial, SPOUSE)).toEqual([
       {
         sectionKey: `statement:${SPOUSE}`,
         itemType: 'shareholding',
@@ -218,7 +214,7 @@ describe('BRS → shareholding', () => {
 
 describe('KRA → bio tax fields and income hint', () => {
   it('maps the officer’s PIN and compliance to the bio, and declared income to a hint', () => {
-    const suggestions = mapKraResult(kra.found, 'officer');
+    const suggestions = mapRegistryResult(kra.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -245,7 +241,7 @@ describe('KRA → bio tax fields and income hint', () => {
   });
 
   it('puts a spouse’s PIN in the household and gives no hint without income data', () => {
-    expect(mapKraResult(kra.partial, SPOUSE)).toEqual([
+    expect(mapRegistryResult(kra.partial, SPOUSE)).toEqual([
       {
         sectionKey: 'household',
         itemType: 'bio-tax',
@@ -257,26 +253,17 @@ describe('KRA → bio tax fields and income hint', () => {
   });
 
   it('suggests no PIN for a child, whose record has no PIN field, but keeps the hint', () => {
-    expect(mapKraResult(kra.found, CHILD).map((each) => [each.sectionKey, each.itemType])).toEqual([
-      [`statement:${CHILD}`, 'income-hint'],
-    ]);
+    expect(
+      mapRegistryResult(kra.found, CHILD).map((each) => [each.sectionKey, each.itemType]),
+    ).toEqual([[`statement:${CHILD}`, 'income-hint']]);
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapKraResult(kra.empty, 'officer')).toEqual([]);
+    expect(mapRegistryResult(kra.empty, 'officer')).toEqual([]);
   });
 });
 
 describe('mapRegistryResult', () => {
-  it('dispatches on the result’s system', () => {
-    expect(mapRegistryResult(ntsa.found, 'officer')).toEqual(mapNtsaResult(ntsa.found, 'officer'));
-    expect(mapRegistryResult(ardhisasa.found, 'officer')).toEqual(
-      mapArdhisasaResult(ardhisasa.found, 'officer'),
-    );
-    expect(mapRegistryResult(brs.found, 'officer')).toEqual(mapBrsResult(brs.found, 'officer'));
-    expect(mapRegistryResult(kra.found, 'officer')).toEqual(mapKraResult(kra.found, 'officer'));
-  });
-
   it('suggests nothing for not-found and unavailable outcomes', () => {
     for (const result of [ntsa.notFound, ntsa.unavailable, brs.notFound, ardhisasa.unavailable]) {
       expect(mapRegistryResult(result, 'officer')).toEqual([]);
@@ -285,6 +272,42 @@ describe('mapRegistryResult', () => {
     expect(
       mapRegistryResult({ ...kra.unavailable, taxpayers: kra.found.taxpayers }, 'officer'),
     ).toEqual([]);
+  });
+});
+
+describe('field vocabulary', () => {
+  // The portal's accept mapping reads these keys (see `Suggestion.fields` in declarations.yaml).
+  const VOCABULARY: Record<MappedSuggestion['itemType'], string[]> = {
+    vehicle: ['description', 'registration', 'make', 'model', 'year'],
+    land: ['description', 'parcelNumber', 'size', 'location', 'county'],
+    shareholding: ['description', 'companyName', 'registrationNumber', 'role', 'shares'],
+    'bio-tax': ['kraPin', 'complianceStatus'],
+    'income-hint': ['incomeType'],
+  };
+
+  it('uses exactly the portal’s field keys for each item type', () => {
+    const seen = new Map<string, Set<string>>();
+    const results = [ntsa, ardhisasa, brs, kra].flatMap((fixtures) => [
+      fixtures.found,
+      fixtures.partial,
+    ]);
+    for (const result of results) {
+      for (const personKey of ['officer', SPOUSE] as const) {
+        for (const { itemType, fields } of mapRegistryResult(result, personKey)) {
+          const keys = seen.get(itemType) ?? new Set<string>();
+          for (const key of Object.keys(fields)) keys.add(key);
+          seen.set(itemType, keys);
+        }
+      }
+    }
+
+    expect(
+      Object.fromEntries([...seen].map(([itemType, keys]) => [itemType, [...keys].sort()])),
+    ).toEqual(
+      Object.fromEntries(
+        Object.entries(VOCABULARY).map(([itemType, keys]) => [itemType, [...keys].sort()]),
+      ),
+    );
   });
 });
 
