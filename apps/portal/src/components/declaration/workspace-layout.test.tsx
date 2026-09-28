@@ -184,9 +184,14 @@ describe('WorkspaceLayout', () => {
     });
     await edit();
 
-    await waitFor(() => {
-      expect(saveMock).toHaveBeenCalledTimes(2);
-    });
+    // The second save waits out the 1 s backoff after the first failure, the same length as
+    // waitFor's default timeout, so give it room.
+    await waitFor(
+      () => {
+        expect(saveMock).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 3_000 },
+    );
     expect(signInAgain).toHaveBeenCalledOnce();
   });
 
