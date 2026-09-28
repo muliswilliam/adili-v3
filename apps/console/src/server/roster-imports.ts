@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { importRunning } from '../components/roster/import-report';
 import { commissionSlug } from './commission-slug';
 import { asViewer } from './as-viewer.server';
 import {
@@ -116,9 +117,7 @@ export const findRunningRosterImport = createServerFn({ method: 'GET' })
         }),
       );
       if (!page.ok) return page;
-      const running = page.data.items.find(
-        (item) => item.state === 'pending' || item.state === 'processing',
-      );
+      const running = page.data.items.find(importRunning);
       return { ok: true, data: running ?? null };
     }),
   );

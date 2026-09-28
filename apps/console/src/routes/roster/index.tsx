@@ -38,6 +38,7 @@ import { Page, PageHead } from '../../components/page';
 import { type CredentialState, credentialState } from '../../components/roster/api-credential';
 import { onboardedPercent, toOnboard } from '../../components/roster/coverage';
 import { messages as m } from '../../components/roster/messages';
+import { importRunning } from '../../components/roster/import-report';
 import { type NextStep, nextSteps } from '../../components/roster/next-steps';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
 import { RunningImportBanner } from '../../components/roster/running-import-banner';
@@ -279,7 +280,7 @@ function useRunningImport(slug: string | null, loaded: RosterImport | null): Ros
   });
   if (!loaded || polling.error === 'not-found') return null;
   const current = polling.imp ?? loaded;
-  return current.state === 'pending' || current.state === 'processing' ? current : null;
+  return importRunning(current) ? current : null;
 }
 
 /** The way into the import wizard; disabled, saying why, while an import runs. */
