@@ -16,6 +16,14 @@ COPY apps/keycloak-extension/src src
 # The unit tests run in CI (Keycloak workflow); the image only packages.
 RUN --mount=type=cache,id=m2,target=/root/.m2 mvn -B -q -ntp -DskipTests package
 
+# Reduce the repo to the theme and the workspace packages it depends on.
+FROM node:${NODE_VERSION}-bookworm-slim AS prune
+ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
+RUN corepack enable
+WORKDIR /repo
+COPY . .
+RUN pnpm dlx turbo@^2 prune @adili/keycloak-theme --docker --out-dir /pruned
+
 FROM node:${NODE_VERSION}-bookworm-slim AS theme
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 # keycloakify packages the theme as a provider JAR with Maven.
@@ -23,11 +31,11 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends maven openjdk-17-jdk-headless \
   && rm -rf /var/lib/apt/lists/* \
   && corepack enable
-WORKDIR /repo
-COPY . .
-RUN pnpm dlx turbo@^2 prune @adili/keycloak-theme --out-dir /pruned
 WORKDIR /pruned
+# The manifests alone first, so the install layer stays cached until dependencies change.
+COPY --from=prune /pruned/json/ .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+COPY --from=prune /pruned/full/ .
 RUN pnpm turbo run build --filter=@adili/keycloak-theme^... \
   && pnpm --filter @adili/keycloak-theme build-keycloak-theme
 

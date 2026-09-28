@@ -779,13 +779,13 @@ adili-v3/
 - TypeScript `strict`, ESLint + Prettier, no `any` without justification; Python: ruff, mypy, pytest.
 - **Contracts first:** OpenAPI / JSON Schema / AsyncAPI in `packages/schemas`, with types generated from them.
 - **Tests:**
-  - unit (Vitest)
+  - unit (Vitest, `isolate: false`: test files in a worker share modules and the jsdom environment, so a test resets any module state it changes; portal and console, whose files mock the router per file, use `pool: 'vmThreads'` instead)
   - integration against real Postgres/RabbitMQ (Testcontainers)
   - RLS isolation tests
   - Temporal replay and time-skipping tests
   - Playwright end-to-end tests of the demo journeys
   - AI eval sets
-- **CI (GitHub Actions):** lint, type check, tests, build, container and dependency scanning, schema diff checks.
+- **CI (GitHub Actions):** lint, type check, tests, build, container and dependency scanning, schema diff checks. A plan job (`scripts/ci-plan.mjs`) runs only the jobs a change needs: images for the affected services, and the Keycloak, integration and mocks jobs when their inputs change.
 - Conventional commits, protected main branch, PR reviews, ADRs for significant decisions.
 
 ---
