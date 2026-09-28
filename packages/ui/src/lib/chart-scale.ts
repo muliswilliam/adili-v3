@@ -47,13 +47,15 @@ export type ChartValue = number | null | undefined;
 
 export type ChartValueState = 'value' | 'suppressed' | 'missing';
 
-/** Whether a chart value is a number to plot, suppressed, or missing from the data. */
-export function valueState(value: number): 'value';
+/**
+ * Whether a chart value is a number to plot, suppressed, or missing from the data. A number that is
+ * not finite (NaN, Infinity) counts as missing, so bad input never reaches the drawing.
+ */
 export function valueState(value: null | undefined): Exclude<ChartValueState, 'value'>;
 export function valueState(value: ChartValue): ChartValueState;
 export function valueState(value: ChartValue): ChartValueState {
   if (value === null) return 'suppressed';
-  if (value === undefined) return 'missing';
+  if (value === undefined || !Number.isFinite(value)) return 'missing';
   return 'value';
 }
 

@@ -49,11 +49,15 @@ describe('valueState', () => {
     expect(valueState(null)).toBe('suppressed');
     expect(valueState(undefined)).toBe('missing');
   });
+
+  it('counts a number that is not finite as missing', () => {
+    expect([NaN, Infinity, -Infinity].map(valueState)).toEqual(['missing', 'missing', 'missing']);
+  });
 });
 
 describe('isPlotted', () => {
   it('plots numbers only', () => {
-    expect([0, 4, null, undefined].map(isPlotted)).toEqual([true, true, false, false]);
+    expect([0, 4, null, undefined, NaN].map(isPlotted)).toEqual([true, true, false, false, false]);
   });
 });
 
