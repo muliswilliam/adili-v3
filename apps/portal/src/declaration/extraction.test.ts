@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LoadedSuggestion, LoadedSuggestionSet } from '../server/declarations.server';
+import { DOCUMENT_KIND_LABELS } from './labels';
 import {
   acceptedFields,
   clashes,
   defaultKind,
-  DOCUMENT_KIND_LABELS,
   DOCUMENT_KINDS,
   readingNotEnabledIn,
   FAILURE_REASONS,

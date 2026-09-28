@@ -14,6 +14,7 @@ import {
   suggestionKind,
   suggestionPatch,
 } from './suggestions';
+import { DOCUMENT_KIND_LABELS } from './labels';
 
 /**
  * Pure rules for "Read into the form" (spec 05b S6, #316): which document kind to offer first,
@@ -28,15 +29,6 @@ import {
  * A field without its own entry takes the suggestion's `confidence`. Anything malformed is
  * left out rather than refused.
  */
-
-export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
-  'title-deed': 'Title deed',
-  logbook: 'Logbook',
-  payslip: 'Payslip',
-  'bank-letter': 'Bank letter',
-  'share-certificate': 'Share certificate',
-  other: 'Other',
-};
 
 /** Every kind the contract has, in the order the sheet offers them. */
 export const DOCUMENT_KINDS = Object.keys(DOCUMENT_KIND_LABELS) as readonly DocumentKind[];

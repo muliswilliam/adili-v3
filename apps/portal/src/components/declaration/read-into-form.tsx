@@ -36,11 +36,11 @@ import {
 } from '../../server/declarations';
 import type { DocumentKind, JsonObject, LoadedSuggestion } from '../../server/declarations.server';
 import { markExtractionOff } from './extraction-availability';
+import { DOCUMENT_KIND_LABELS } from '../../declaration/labels';
 import {
   acceptedFields,
   clashes,
   defaultKind,
-  DOCUMENT_KIND_LABELS,
   DOCUMENT_KINDS,
   EXTRACTION_COPY as COPY,
   FAILURE_REASONS,

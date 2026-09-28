@@ -1,4 +1,4 @@
-import type { Completeness } from '../server/declarations/types';
+import type { Completeness, DocumentKind } from '../server/declarations/types';
 import type {
   AssetType,
   ChangeKind,
@@ -14,8 +14,8 @@ import type { Category } from './statement';
 
 /**
  * The one table of labels for declaration capture (the spec's i18n table): the declaration.v1
- * enumerations in schema order, the statement categories, and the change kinds each category
- * offers. Completeness messages are the service's, so they are not here.
+ * enumerations in schema order, the statement categories, the change kinds each category
+ * offers, and the kinds of document read into the form. Completeness messages are the service's, so they are not here.
  *
  * Each enumeration is keyed by the type generated from the schema (`form.gen.ts`, or the
  * declarations contract for obligation types and completeness), so a value the schema adds is a
@@ -121,6 +121,15 @@ export const LABELS = {
     complete: en('Complete'),
     archived: en('Archived'),
   } satisfies Labels<Completeness>,
+  /** What a document read into the form is (spec 05b), in the order the sheet offers them. */
+  documentKind: {
+    'title-deed': en('Title deed'),
+    logbook: en('Logbook'),
+    payslip: en('Payslip'),
+    'bank-letter': en('Bank letter'),
+    'share-certificate': en('Share certificate'),
+    other: en('Other'),
+  } satisfies Labels<DocumentKind>,
 };
 
 export const OBLIGATION_TYPE_LABELS = english(LABELS.obligationType);
@@ -133,6 +142,7 @@ export const LIABILITY_TYPE_LABELS = english(LABELS.liabilityType);
 export const CHANGE_KIND_WORDS = english(LABELS.changeKind);
 export const MEMBERSHIP_KIND_LABELS = english(LABELS.membershipKind);
 export const COMPLETENESS_LABELS = english(LABELS.completeness);
+export const DOCUMENT_KIND_LABELS = english(LABELS.documentKind);
 
 export const CATEGORY_WORDS = {
   income: { tab: 'Income', lower: 'income', one: 'income item', add: 'Add income' },
