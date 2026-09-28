@@ -5,12 +5,12 @@ import { workspaceFor, workspacesFor } from './workspaces';
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue only', () => {
-    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review']);
+  it('gives reviewers the review queue and obligations', () => {
+    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'obligations']);
   });
 
-  it('gives supervisors review and approvals, once each', () => {
-    expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals']);
+  it('gives supervisors review, approvals and obligations, once each', () => {
+    expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals', 'obligations']);
   });
 
   it('gives EACC analysts Commissions and compliance reports but not the review queue', () => {
@@ -97,4 +97,26 @@ describe('Roster workspace', () => {
   ])('stays closed for %s', (role) => {
     expect(workspaceFor([role], 'roster')).toBeUndefined();
   });
+});
+
+describe('Obligations workspace', () => {
+  it.each(['reporting-officer', 'reviewer', 'supervisor', 'commission-admin'])(
+    'opens for %s',
+    (role) => {
+      expect(workspaceFor([role], 'obligations')).toEqual({
+        id: 'obligations',
+        title: 'Obligations',
+        description: 'Who must declare, by when, and who has been reminded.',
+        href: '/obligations',
+        readOnly: false,
+      });
+    },
+  );
+
+  it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor', 'access-officer', 'declarant'])(
+    'stays closed for %s, who reach counts through the Commission',
+    (role) => {
+      expect(workspaceFor([role], 'obligations')).toBeUndefined();
+    },
+  );
 });
