@@ -10,6 +10,8 @@ interface KeycloakClaims extends JWTPayload {
   scope?: string;
   name?: string;
   preferred_username?: string;
+  /** The account's person, from the `person_id` user attribute (declarants once onboarded). */
+  person_id?: string;
 }
 
 /** Verifies Keycloak access tokens against the realm's published signing keys. */
@@ -40,6 +42,7 @@ export class TokenVerifier {
       clientId: payload.azp ?? null,
       name: payload.name ?? payload.preferred_username ?? null,
       issuedAt: payload.iat ?? null,
+      personId: payload.person_id ?? null,
     };
   }
 }

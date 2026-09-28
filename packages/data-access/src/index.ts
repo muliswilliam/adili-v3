@@ -19,8 +19,10 @@ export {
   createDatabase,
   type Database,
   type DatabaseOptions,
+  type PersonContext,
   runMigrations,
   type TenantContext,
+  withPerson,
   withTenant,
 } from './database.js';
 export {

@@ -132,6 +132,20 @@
           }
         },
         {
+          "name": "person_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "person_id",
+            "claim.name": "person_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
           "name": "adili-api audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
@@ -172,6 +186,20 @@
           "config": {
             "user.attribute": "tenant",
             "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "person_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "person_id",
+            "claim.name": "person_id",
             "jsonType.label": "String",
             "id.token.claim": "true",
             "access.token.claim": "true",
@@ -1366,7 +1394,8 @@
       "enabled": true,
       "attributes": {
         "tenant": ["psc"],
-        "phone": ["+254700000001"]
+        "phone": ["+254700000001"],
+        "person_id": ["7d3f9b2a-4c1e-4a8b-9f60-2e5d8c1b0a47"]
       },
       "credentials": [
         {
