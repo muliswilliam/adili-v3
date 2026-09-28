@@ -33,7 +33,7 @@ function english<T extends Record<string, { en: unknown; sw: unknown }>>(table: 
   ) as English<T>;
 }
 
-export const COPY = {
+export const PREFILL_COPY = {
   /** The Check registries panel on a statement (#312). */
   registry: {
     heading: en('Registries'),
@@ -160,11 +160,11 @@ export const COPY = {
   },
 };
 
-export const REGISTRY_COPY = english(COPY.registry);
-export const EXTRACTION_COPY = english(COPY.extraction);
-export const FAILURE_REASONS = english(COPY.failureReason);
-export const FIELD_LABELS = english(COPY.field);
-export const SUGGESTION_COPY = english(COPY.suggestion);
-export const KRA_COPY = english(COPY.kra);
-export const COMPLIANCE_WORDS: Record<string, string> = english(COPY.complianceStatus);
-export const ROSTER_HINT = COPY.roster.hint.en;
+export const REGISTRY_COPY = english(PREFILL_COPY.registry);
+export const EXTRACTION_COPY = english(PREFILL_COPY.extraction);
+export const FAILURE_REASONS = english(PREFILL_COPY.failureReason);
+export const FIELD_LABELS = english(PREFILL_COPY.field);
+export const SUGGESTION_COPY = english(PREFILL_COPY.suggestion);
+export const KRA_COPY = english(PREFILL_COPY.kra);
+export const COMPLIANCE_WORDS: Record<string, string> = english(PREFILL_COPY.complianceStatus);
+export const ROSTER_HINT = PREFILL_COPY.roster.hint.en;
