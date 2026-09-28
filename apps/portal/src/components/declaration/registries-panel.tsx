@@ -1,6 +1,8 @@
 import {
   Badge,
   Button,
+  Card,
+  CardIcon,
   ConsentDialog,
   Dialog,
   DialogBody,
@@ -489,119 +491,120 @@ export function RegistriesPanel({
       : REGISTRY_COPY.registries;
 
   return (
-    <section
-      aria-labelledby={headingId}
-      className="grid gap-3 rounded-item bg-card p-4 shadow-card"
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="grid size-[34px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground"
-        >
-          <Icon icon={BankIcon} className="size-[17px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 id={headingId} className="flex flex-wrap items-center gap-2 text-base font-semibold">
-            {REGISTRY_COPY.heading}
-            {toReview > 0 ? <Badge variant="info">{REGISTRY_COPY.toReview(toReview)}</Badge> : null}
-          </h2>
-          <p className="text-sm text-muted-foreground">{sub}</p>
-        </div>
-        {checkButton}
-        {everChecked ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-expanded={open}
-            aria-label={open ? REGISTRY_COPY.hide : REGISTRY_COPY.show}
-            onClick={() => {
-              setOpen((current) => !current);
-            }}
-          >
-            <Icon icon={open ? ArrowDown01Icon : ArrowRight01Icon} />
-          </Button>
-        ) : null}
-      </div>
-
-      {everChecked && open ? (
-        <>
-          <RegistryStatusList
-            registries={registryEntries(sets)}
-            disabled={disabled || starting}
-            onRetry={(id) => {
-              const source = REGISTRIES.find((registry) => registry === id);
-              if (source) void start([source]);
-            }}
-          />
-          {REGISTRIES.map((source) => {
-            const group = live.filter((each) => each.source === source);
-            if (group.length === 0) return null;
-            return (
-              <div
-                key={source}
-                role="group"
-                aria-label={`From ${SOURCE_NAMES[source]}`}
-                className="grid gap-2"
-              >
-                {group.map(card)}
-              </div>
-            );
-          })}
-          {dismissed.length > 0 ? (
-            <div className="grid gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-fit"
-                aria-expanded={foldOpen}
-                onClick={() => {
-                  setFoldOpen((current) => !current);
-                }}
-              >
-                <Icon icon={foldOpen ? ArrowDown01Icon : ArrowRight01Icon} />
-                {REGISTRY_COPY.dismissedFold(dismissed.length)}
-              </Button>
-              {foldOpen ? <div className="grid gap-2">{dismissed.map(card)}</div> : null}
-            </div>
+    <section aria-labelledby={headingId}>
+      <Card className="gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <CardIcon className="mb-0 shrink-0">
+            <Icon icon={BankIcon} />
+          </CardIcon>
+          <div className="min-w-0 flex-1">
+            <h2
+              id={headingId}
+              className="flex flex-wrap items-center gap-2 text-base font-semibold"
+            >
+              {REGISTRY_COPY.heading}
+              {toReview > 0 ? (
+                <Badge variant="info">{REGISTRY_COPY.toReview(toReview)}</Badge>
+              ) : null}
+            </h2>
+            <p className="text-sm text-muted-foreground">{sub}</p>
+          </div>
+          {checkButton}
+          {everChecked ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-expanded={open}
+              aria-label={open ? REGISTRY_COPY.hide : REGISTRY_COPY.show}
+              onClick={() => {
+                setOpen((current) => !current);
+              }}
+            >
+              <Icon icon={open ? ArrowDown01Icon : ArrowRight01Icon} />
+            </Button>
           ) : null}
-        </>
-      ) : null}
+        </div>
 
-      <p role="status" className="sr-only">
-        {announcement}
-      </p>
+        {everChecked && open ? (
+          <>
+            <RegistryStatusList
+              registries={registryEntries(sets)}
+              disabled={disabled || starting}
+              onRetry={(id) => {
+                const source = REGISTRIES.find((registry) => registry === id);
+                if (source) void start([source]);
+              }}
+            />
+            {REGISTRIES.map((source) => {
+              const group = live.filter((each) => each.source === source);
+              if (group.length === 0) return null;
+              return (
+                <div
+                  key={source}
+                  role="group"
+                  aria-label={`From ${SOURCE_NAMES[source]}`}
+                  className="grid gap-2"
+                >
+                  {group.map(card)}
+                </div>
+              );
+            })}
+            {dismissed.length > 0 ? (
+              <div className="grid gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-fit"
+                  aria-expanded={foldOpen}
+                  onClick={() => {
+                    setFoldOpen((current) => !current);
+                  }}
+                >
+                  <Icon icon={foldOpen ? ArrowDown01Icon : ArrowRight01Icon} />
+                  {REGISTRY_COPY.dismissedFold(dismissed.length)}
+                </Button>
+                {foldOpen ? <div className="grid gap-2">{dismissed.map(card)}</div> : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
 
-      <ConsentDialog
-        open={consentOpen}
-        onOpenChange={setConsentOpen}
-        name={person.name}
-        maskedId={person.nationalId ? maskNationalId(person.nationalId) : undefined}
-        busy={starting}
-        onContinue={() => {
-          setConsentOpen(false);
-          void start(REGISTRIES);
-        }}
-      />
-      <EditAndAddDialog
-        editing={editing}
-        onClose={() => {
-          setEditing(null);
-        }}
-        onAdd={(each, fields) => {
-          setEditing(null);
-          void run(
-            each,
-            { fields, applyToItemId: null },
-            {
-              done: REGISTRY_COPY.addedEdited,
-              refreshed: REGISTRY_COPY.refreshedAdded,
-              applied: false,
-            },
-          );
-        }}
-      />
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
+
+        <ConsentDialog
+          open={consentOpen}
+          onOpenChange={setConsentOpen}
+          name={person.name}
+          maskedId={person.nationalId ? maskNationalId(person.nationalId) : undefined}
+          busy={starting}
+          onContinue={() => {
+            setConsentOpen(false);
+            void start(REGISTRIES);
+          }}
+        />
+        <EditAndAddDialog
+          editing={editing}
+          onClose={() => {
+            setEditing(null);
+          }}
+          onAdd={(each, fields) => {
+            setEditing(null);
+            void run(
+              each,
+              { fields, applyToItemId: null },
+              {
+                done: REGISTRY_COPY.addedEdited,
+                refreshed: REGISTRY_COPY.refreshedAdded,
+                applied: false,
+              },
+            );
+          }}
+        />
+      </Card>
     </section>
   );
 }

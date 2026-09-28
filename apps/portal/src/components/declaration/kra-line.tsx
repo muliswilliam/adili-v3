@@ -1,4 +1,4 @@
-import { formatDate, Icon } from '@adili/ui';
+import { Card, CardIcon, formatDate, Icon } from '@adili/ui';
 import { BankIcon } from '@hugeicons/core-free-icons';
 
 import type { LoadedSuggestionSet } from '../../server/declarations.server';
@@ -25,9 +25,11 @@ export function KraLine({ sets }: { sets: LoadedSuggestionSet[] }) {
   const text = kraLineText(sets);
   if (!text) return null;
   return (
-    <p className="flex items-center gap-3 rounded-item bg-card px-4 py-3 text-sm shadow-card">
-      <Icon icon={BankIcon} className="size-4 shrink-0 text-secondary-foreground" />
-      <span>{text}</span>
-    </p>
+    <Card className="flex-row items-center gap-3 p-4 sm:p-4">
+      <CardIcon className="mb-0 shrink-0">
+        <Icon icon={BankIcon} />
+      </CardIcon>
+      <p className="text-sm">{text}</p>
+    </Card>
   );
 }
