@@ -15,6 +15,13 @@ const NUMERIC_PARTS = new Intl.DateTimeFormat('en', {
   timeZone: 'Africa/Nairobi',
 });
 
+const LONG_PARTS = new Intl.DateTimeFormat('en', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'Africa/Nairobi',
+});
+
 const MONTH_PARTS = new Intl.DateTimeFormat('en', {
   month: 'long',
   year: 'numeric',
@@ -32,6 +39,12 @@ function parts(time: string | number, format = PARTS) {
 /** `2026-09-26T07:42:00Z` → `26 Sep 2026`, in Kenyan time. */
 export function formatDate(iso: string): string {
   const part = parts(iso);
+  return `${part('day')} ${part('month')} ${part('year')}`;
+}
+
+/** `2027-11-01` → `1 November 2027`, in Kenyan time. */
+export function formatLongDate(iso: string): string {
+  const part = parts(iso, LONG_PARTS);
   return `${part('day')} ${part('month')} ${part('year')}`;
 }
 
@@ -56,6 +69,17 @@ export function formatMonth(iso: string): string {
 const DAY_MS = 86_400_000;
 // Kenya keeps UTC+3 all year, so its midnight is a fixed offset from UTC.
 const KENYA_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Whole calendar days in Kenyan time from `now` (epoch ms) to the day of `iso` (a date or a
+ * date-time): 0 on the day itself, negative once it has passed. Both days are read as UTC
+ * midnights, so month lengths, leap days and the year end cannot shift the count.
+ */
+export function calendarDaysUntil(iso: string, now: number): number {
+  return Math.round(
+    (Date.parse(formatCalendarDate(iso)) - Date.parse(formatCalendarDate(now))) / DAY_MS,
+  );
+}
 
 /** Milliseconds from `now` (epoch ms) to the next midnight in Kenyan time. */
 export function msUntilKenyanMidnight(now: number): number {
