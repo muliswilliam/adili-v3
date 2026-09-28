@@ -199,7 +199,7 @@ flowchart TB
 **Service runtime.** Every service is a NestJS **hybrid application** (NestJS microservices guideline): one process serves Fastify HTTP (`/v1`, `/internal/v1`, `/health/*`, `/docs`) and consumes its RabbitMQ queue through the Nest RMQ transport. Each service has one durable quorum queue, `<service>.events`, bound to the `adili.events` topic exchange once per `@OnEvent('<type>')` handler, with a per-service dead-letter queue. Publishing goes through the transactional outbox, relayed with the Nest RMQ `ClientProxy`.
 
 **Common shared libraries** (`packages/`, used by every service):
-- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth with scopes (`@RequireScopes`), RFC 9457 problem details, health endpoints, `Idempotency-Key` handling (`@RequireIdempotencyKey()`, `idempotency_keys` table per service)
+- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth with roles or scopes (`@Roles`, `@Scopes`), per-client rate limits (`@RateLimit`, token buckets in Valkey), RFC 9457 problem details, health endpoints, `Idempotency-Key` handling (`@RequireIdempotencyKey()`, `idempotency_keys` table per service)
 - `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security, field cipher (AES-256-GCM envelope encryption with per-tenant OpenBao Transit keys, fake for tests)
 - `events`: CloudEvents envelope, outbox relay, inbox (idempotent consumers), RMQ topology, `@OnEvent`
 - `temporal`: Temporal client, worker module (workflows + Nest-provided activities on a task queue, readiness, drain on shutdown), time-skipping test helper
@@ -769,6 +769,7 @@ adili-v3/
 │   ├── ui/                  # design system (shared by apps + Keycloak theme)
 │   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
+│   ├── forms/               # validators, generated types and Zod schemas for the form JSON Schemas (FE + BE)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
 ├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks
@@ -779,13 +780,13 @@ adili-v3/
 - TypeScript `strict`, ESLint + Prettier, no `any` without justification; Python: ruff, mypy, pytest.
 - **Contracts first:** OpenAPI / JSON Schema / AsyncAPI in `packages/schemas`, with types generated from them.
 - **Tests:**
-  - unit (Vitest)
+  - unit (Vitest, `isolate: false`: test files in a worker share modules and the jsdom environment, so a test resets any module state it changes; portal and console, whose files mock the router per file, use `pool: 'vmThreads'` instead)
   - integration against real Postgres/RabbitMQ (Testcontainers)
   - RLS isolation tests
   - Temporal replay and time-skipping tests
   - Playwright end-to-end tests of the demo journeys
   - AI eval sets
-- **CI (GitHub Actions):** lint, type check, tests, build, container and dependency scanning, schema diff checks.
+- **CI (GitHub Actions):** lint, type check, tests, build, container and dependency scanning, schema diff checks. A plan job (`scripts/ci-plan.mjs`) runs only the jobs a change needs: when packaging inputs change (Dockerfile, manifests, lockfile), a production install per affected service (`scripts/check-deploy-imports.mjs`) and one service image; the Keycloak, integration and mocks jobs when their inputs change.
 - Conventional commits, protected main branch, PR reviews, ADRs for significant decisions.
 
 ---
@@ -808,6 +809,7 @@ adili-v3/
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
 | [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
+| [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
 
 ---
 

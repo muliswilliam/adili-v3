@@ -1,4 +1,4 @@
-import { Button, Input, Label } from '@adili/ui';
+import { Button, cn, focusRing, Input, Label } from '@adili/ui';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
 import { useState } from 'react';
 
@@ -76,7 +76,10 @@ export default function LoginConfigTotp({
                       <a
                         id="mode-barcode"
                         href={totp.qrUrl}
-                        className="w-fit rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className={cn(
+                          focusRing,
+                          'w-fit rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground',
+                        )}
                       >
                         {msg('adiliTotpScanInstead')}
                       </a>
@@ -98,7 +101,10 @@ export default function LoginConfigTotp({
                       <a
                         id="mode-manual"
                         href={totp.manualUrl}
-                        className="rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className={cn(
+                          focusRing,
+                          'rounded-sm text-sm font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground',
+                        )}
                       >
                         {msg('adiliTotpCantScan')}
                       </a>

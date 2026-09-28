@@ -1,0 +1,2 @@
+# Fixtures are byte-exact (BOM, CRLF line endings); never normalise them.
+* -text

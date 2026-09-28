@@ -6,3 +6,4 @@ export {
   VALKEY,
   ValkeyReadinessCheck,
 } from './cache.module.js';
+export { ValkeyRateLimitStore } from './valkey-rate-limit.store.js';

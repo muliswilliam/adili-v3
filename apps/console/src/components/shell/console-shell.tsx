@@ -1,23 +1,37 @@
-import { Badge, Button, cn, Icon, LogoWordmark } from '@adili/ui';
+import { Badge, Button, cn, focusRing, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 import { Link, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import { Breadcrumbs } from './breadcrumbs';
 import { seniorRoleLabel } from '../roles';
-import { initials, navFor } from './nav';
+import { formatNumber } from '../format';
+import { activeNavHref, initials, type NavHref, navFor } from './nav';
+
+/** A count on a sidebar entry, e.g. flagged officers on Roster; `label` reads it out. */
+export interface NavCount {
+  count: number;
+  /** For screen readers, e.g. "3 flagged". */
+  label: string;
+}
+
+export type NavCounts = Partial<Record<NavHref, NavCount>>;
 
 export interface ConsoleShellProps {
   userName: string;
   roles: readonly string[];
+  /** Counts shown on sidebar entries (the kit's `.cnav .count`); none are shown for 0. */
+  navCounts?: NavCounts;
   children: ReactNode;
 }
 
 /**
  * Signed-in console layout (the kit's `consoleShell`): a 248px sidebar from 1024px, and below
- * that a menu button in the top bar that opens the same sidebar as a drawer.
+ * that a menu button in the top bar that opens the same sidebar as a drawer. The site footer
+ * closes the main column, so the sidebar keeps the full height of the window however far the
+ * page scrolls.
  */
-export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
+export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleShellProps) {
   const drawer = useRef<HTMLDialogElement>(null);
   const pathname = useLocation({ select: (location) => location.pathname });
 
@@ -26,7 +40,9 @@ export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
     drawer.current?.close();
   }, [pathname]);
 
-  const sidebar = <Sidebar userName={userName} roles={roles} />;
+  const sidebar = (
+    <Sidebar userName={userName} roles={roles} pathname={pathname} navCounts={navCounts} />
+  );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r bg-muted/60 px-3 py-4 lg:flex">
@@ -59,27 +75,43 @@ export function ConsoleShell({ userName, roles, children }: ConsoleShellProps) {
           <Link
             to="/"
             aria-label="Dials console home"
-            className="shrink-0 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
+            className={cn(focusRing, 'shrink-0 rounded-sm lg:hidden')}
           >
             <LogoWordmark className="h-5" />
           </Link>
           <Breadcrumbs />
         </header>
         {children}
+        {/* Lined up with a page's content (`Page`). */}
+        <SiteFooter
+          className="mt-auto"
+          contentClassName="max-w-[1280px] sm:px-4 min-[700px]:px-7!"
+        />
       </div>
     </div>
   );
 }
 
-function Sidebar({ userName, roles }: { userName: string; roles: readonly string[] }) {
+function Sidebar({
+  userName,
+  roles,
+  pathname,
+  navCounts,
+}: {
+  userName: string;
+  roles: readonly string[];
+  pathname: string;
+  navCounts?: NavCounts;
+}) {
   const groups = navFor(roles);
+  const active = activeNavHref(groups, pathname);
   const role = seniorRoleLabel(roles);
   return (
     <>
       <Link
         to="/"
         aria-label="Dials console home"
-        className="mb-2 flex w-fit items-center gap-2 rounded-sm px-2 pt-1 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(focusRing, 'mb-2 flex w-fit items-center gap-2 rounded-sm px-2 pt-1')}
       >
         <LogoWordmark className="h-[22px]" />
         <Badge className="h-5 px-2 text-[11px]">Console</Badge>
@@ -93,15 +125,23 @@ function Sidebar({ userName, roles }: { userName: string; roles: readonly string
             <ul className="grid gap-1">
               {group.items.map((item) => (
                 <li key={item.label}>
+                  {/*
+                    The deepest entry containing the page is current (API access, not also
+                    Roster); the router's own active state would mark both.
+                  */}
                   <Link
                     to={item.to}
+                    activeOptions={{ exact: true }}
+                    aria-current={item.to === active ? 'page' : undefined}
                     className={cn(
-                      'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
-                      'data-[status=active]:bg-card data-[status=active]:text-foreground data-[status=active]:shadow-card',
+                      focusRing,
+                      'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground hover:bg-muted hover:text-foreground',
+                      'aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-card',
                     )}
                   >
                     <Icon icon={item.icon} className="size-[17px]" />
                     {item.label}
+                    <Count value={navCounts?.[item.to]} />
                   </Link>
                 </li>
               ))}
@@ -127,6 +167,22 @@ function Sidebar({ userName, roles }: { userName: string; roles: readonly string
           </Button>
         </form>
       </div>
+    </>
+  );
+}
+
+/** The kit's nav count: a muted pill, brand on the current entry. Hidden for none. */
+function Count({ value }: { value: NavCount | undefined }) {
+  if (!value || value.count <= 0) return null;
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-foreground/10 px-1.5 text-[11.5px] font-medium text-secondary-foreground tabular-nums group-aria-[current=page]:bg-brand group-aria-[current=page]:text-primary-foreground"
+      >
+        {formatNumber(value.count)}
+      </span>
+      <span className="sr-only">{`, ${value.label}`}</span>
     </>
   );
 }

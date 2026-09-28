@@ -9,3 +9,9 @@
  */
 export const focusRing =
   'outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
+
+/**
+ * `focusRing` drawn 2px inside the element, for controls whose outer edge is clipped or covered:
+ * tabs in a scrolling list, a button inside a field.
+ */
+export const focusRingInset = `${focusRing} focus-visible:-outline-offset-2`;

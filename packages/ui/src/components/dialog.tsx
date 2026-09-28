@@ -17,11 +17,11 @@ const DISMISS_ATTRIBUTE = 'data-dialog-dismiss';
 const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea, [tabindex]';
 
 /**
- * Whether an element can take focus from a user: not disabled, not taken out of the tab order,
- * not inside a hidden or inert subtree and not hidden by CSS. Walks up the tree with
+ * Whether an element can take initial focus: it is not the built-in close button, not disabled,
+ * not taken out of the tab order, not inside a hidden or inert subtree and not hidden by CSS. Walks up the tree with
  * getComputedStyle rather than using getClientRects, which is empty for everything in jsdom.
  */
-function isFocusable(element: HTMLElement, container: HTMLElement): boolean {
+function isInitialFocusTarget(element: HTMLElement, container: HTMLElement): boolean {
   if (element.tabIndex < 0 || element.matches(':disabled')) return false;
   if (element.hasAttribute(DISMISS_ATTRIBUTE)) return false;
   if (element.closest('[hidden], [inert]')) return false;
@@ -66,10 +66,11 @@ export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> 
 /**
  * Modal content: a bottom sheet on phones, a centred 560px panel from `sm`. Compose it from
  * DialogHeader, DialogBody (which scrolls) and DialogFooter. On open, focus moves to the first
- * visible field, or to the first footer button when there are no fields, and only to the close
- * button when nothing else can take focus. It is trapped while open and returns to the trigger
- * on close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there
- * is no DialogDescription.
+ * visible, enabled focusable element in DOM order other than the close button: usually the first
+ * field, or the first footer button when nothing before it can take focus. It goes to the close
+ * button only when nothing else can. Focus is trapped while open and returns to the trigger on
+ * close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there is no
+ * DialogDescription.
  */
 export function DialogContent({
   busy = false,
@@ -93,11 +94,11 @@ export function DialogContent({
           // take focus, Radix's default (the close button) runs.
           const container = event.target;
           const first = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).find(
-            (element) => isFocusable(element, container),
+            (element) => isInitialFocusTarget(element, container),
           );
           if (!first) return;
           first.focus();
-          if (document.activeElement === first) event.preventDefault();
+          if (container.ownerDocument.activeElement === first) event.preventDefault();
         }}
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();

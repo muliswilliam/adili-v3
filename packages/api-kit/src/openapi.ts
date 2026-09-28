@@ -121,16 +121,22 @@ export function toOpenApiSchemas(schemas: Record<string, z.ZodType>): Record<str
 }
 
 /**
- * Documents an error response carrying problem details.
+ * Documents an error response carrying problem details: `ProblemDetails`, or the named schema
+ * of a problem type with extension members (one extending `problemDetailsSchema`).
  *
  * @example
  * @ApiProblemResponse(409, 'Tenant key or name already exists')
+ * @ApiProblemResponse(409, 'Another import is running', 'ImportInProgressProblem')
  */
-export const ApiProblemResponse = (status: number, description: string) =>
+export const ApiProblemResponse = (
+  status: number,
+  description: string,
+  schema = 'ProblemDetails',
+) =>
   ApiResponse({
     status,
     description,
-    content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef('ProblemDetails') } },
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef(schema) } },
   });
 
 /**

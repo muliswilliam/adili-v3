@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDate, formatDateTime } from './format-date';
+import {
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  msUntilKenyanMidnight,
+} from './format-date';
 
 describe('formatDate', () => {
   it('prints day, short month and year', () => {
@@ -19,5 +25,30 @@ describe('formatDateTime', () => {
 
   it('rolls over to the next day after 21:00 UTC', () => {
     expect(formatDateTime('2026-03-11T21:05:00Z')).toBe('12 Mar 2026, 00:05');
+  });
+});
+
+describe('formatCalendarDate', () => {
+  it('prints the ISO calendar date in Kenyan time', () => {
+    expect(formatCalendarDate('2026-09-26T07:42:00Z')).toBe('2026-09-26');
+    expect(formatCalendarDate('2026-03-11T21:05:00Z')).toBe('2026-03-12');
+  });
+
+  it('takes epoch milliseconds', () => {
+    expect(formatCalendarDate(Date.parse('2026-01-01T00:00:00Z'))).toBe('2026-01-01');
+  });
+});
+
+describe('formatMonth', () => {
+  it('prints the full month and year in Kenyan time', () => {
+    expect(formatMonth('2026-09-26T07:42:00Z')).toBe('September 2026');
+    expect(formatMonth('2026-08-31T21:30:00Z')).toBe('September 2026');
+  });
+});
+
+describe('msUntilKenyanMidnight', () => {
+  it('counts to 00:00 in Nairobi, 21:00 UTC', () => {
+    expect(msUntilKenyanMidnight(Date.parse('2026-09-26T20:59:00Z'))).toBe(60_000);
+    expect(msUntilKenyanMidnight(Date.parse('2026-09-26T21:00:00Z'))).toBe(86_400_000);
   });
 });

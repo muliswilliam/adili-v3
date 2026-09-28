@@ -42,12 +42,21 @@ export const reportingOfficerSchema = z.object({
 export type ReportingOfficer = z.infer<typeof reportingOfficerSchema>;
 
 export const rosterSummarySchema = z.object({
-  status: z.enum(['none', 'imported']),
-  expectedDeclarants: z.number().int(),
+  status: z.enum(['none', 'imported']).meta({
+    description: '`imported` once an import of the roster has completed',
+  }),
+  expectedDeclarants: z.number().int().meta({ description: 'Roster records not exited' }),
   onboardedDeclarants: z.number().int(),
-  flagged: z.number().int(),
-  lastImportAt: z.iso.datetime().nullable(),
+  flagged: z.number().int().meta({
+    description: 'Records not exited flagged as absent from the latest complete import',
+  }),
+  lastImportAt: z.iso.datetime().nullable().meta({
+    description: 'When the latest completed import (complete or partial) finished',
+  }),
   lastImportId: z.uuid().nullable(),
+  lastCompleteImportAt: z.iso.datetime().nullable().meta({
+    description: 'When the latest completed import declared as the complete roster finished',
+  }),
 });
 export type RosterSummary = z.infer<typeof rosterSummarySchema>;
 
@@ -83,13 +92,3 @@ export const commissionPageSchema = z.object({
     .meta({ description: 'Commissions matching the filters across all pages' }),
 });
 export type CommissionPage = z.infer<typeof commissionPageSchema>;
-
-/** Roster summary until slice 02 imports rosters. */
-export const NO_ROSTER: RosterSummary = {
-  status: 'none',
-  expectedDeclarants: 0,
-  onboardedDeclarants: 0,
-  flagged: 0,
-  lastImportAt: null,
-  lastImportId: null,
-};

@@ -1,0 +1,2 @@
+DROP INDEX "roster_import_rows_import_id_status_idx";--> statement-breakpoint
+CREATE INDEX "roster_import_rows_import_id_status_row_number_idx" ON "roster_import_rows" USING btree ("import_id","status","row_number");

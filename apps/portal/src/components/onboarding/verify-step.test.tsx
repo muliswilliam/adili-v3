@@ -130,7 +130,11 @@ describe('VerifyStep', () => {
     expect(await screen.findByText('That code is not right. 3 attempts left.')).toBeDefined();
     expect(box(1).value).toBe('');
     expect(box(1).getAttribute('aria-invalid')).toBe('true');
-    expect(document.activeElement).toBe(box(1));
+    // The boxes remount after the failed code and focus the first in a passive effect, which
+    // React may run a task after the commit that showed the message.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(box(1));
+    });
   });
 
   it.each([

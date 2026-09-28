@@ -4,6 +4,8 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { focusRingPlugin } from './focus-ring.js';
+
 /**
  * Type-aware lint rules shared by the TanStack Start apps and the UI package.
  * @param {string} tsconfigRootDir directory of the package's tsconfig.json
@@ -17,6 +19,7 @@ export function reactConfig(tsconfigRootDir) {
     ...tseslint.configs.stylisticTypeChecked,
     reactHooks.configs.flat.recommended,
     {
+      plugins: { adili: focusRingPlugin },
       languageOptions: {
         globals: { ...globals.browser, ...globals.node },
         parserOptions: { projectService: true, tsconfigRootDir },
@@ -26,6 +29,8 @@ export function reactConfig(tsconfigRootDir) {
         '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
         // TanStack Router uses `throw redirect()` with non-Error objects.
         '@typescript-eslint/only-throw-error': 'off',
+        // A visible keyboard focus ring (docs/design.md, Focus).
+        'adili/focus-ring': 'error',
       },
     },
     {

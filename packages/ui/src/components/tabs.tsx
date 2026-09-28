@@ -2,7 +2,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
-import { focusRing } from '../lib/focus';
+import { focusRing, focusRingInset } from '../lib/focus';
 
 /**
  * Tabs switch between panels on one page. Arrow keys move between tabs and Tab moves into the
@@ -27,9 +27,9 @@ export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsP
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        focusRing,
         // Inset, so the ring is not clipped by the scrolling tab list.
-        '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:-outline-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-foreground data-[state=active]:text-foreground',
+        focusRingInset,
+        '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-foreground data-[state=active]:text-foreground',
         className,
       )}
       {...props}

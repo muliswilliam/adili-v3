@@ -10,7 +10,7 @@ export interface StepperStep {
   label: ReactNode;
 }
 
-export type StepperProps = Omit<ComponentProps<'nav'>, 'children'> & {
+export type StepperProps = Omit<ComponentProps<'nav'>, 'children' | 'onSelect'> & {
   /** Names the navigation landmark, e.g. "Import steps". */
   label: string;
   steps: StepperStep[];

@@ -11,6 +11,11 @@ export const envSchema = baseEnvSchema.extend({
   TEMPORAL_ADDRESS: z.string().min(1),
   TEMPORAL_NAMESPACE: z.string().min(1),
   S3_ENDPOINT: z.url(),
+  /**
+   * Endpoint browsers reach the storage at, for presigned upload URLs; defaults to S3_ENDPOINT
+   * (the same host in local development).
+   */
+  S3_PUBLIC_ENDPOINT: z.url().optional(),
   S3_REGION: z.string().min(1),
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
