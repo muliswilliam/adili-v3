@@ -14,6 +14,14 @@ describe('reminderSent', () => {
     expect(reminderSent('2026-09-01T08:00:00Z', null, '2026-09-21T08:00:00Z')).toBe(true);
   });
 
+  it('agrees with reminderAt on day 20 before the reminder time', () => {
+    // Already 21 September in Nairobi, but before reminderAt (09:00Z).
+    expect(reminderSent('2026-09-01T09:00:00Z', null, '2026-09-21T01:00:00Z')).toBe(false);
+    expect(
+      reminderSent('2026-09-01T09:00:00Z', '2026-09-21T01:00:00Z', '2026-09-28T08:00:00Z'),
+    ).toBe(false);
+  });
+
   it('never went when the declarant responded before day 20', () => {
     expect(
       reminderSent('2026-09-01T08:00:00Z', '2026-09-05T08:00:00Z', '2026-09-28T08:00:00Z'),

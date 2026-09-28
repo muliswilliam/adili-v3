@@ -18,8 +18,10 @@ export function lateDays(dueAt: string, respondedAt: string): number {
   return Math.max(1, daysBetween(dueAt, respondedAt));
 }
 
-/** Whether the reminder went: day 20 reached, and no response before it. */
+/**
+ * Whether the reminder went: its time, `reminderAt`, came before any response. Measured against the
+ * same instant as `reminderAt`, so the date shown and this answer never disagree.
+ */
 export function reminderSent(issuedAt: string, respondedAt: string | null, now: string): boolean {
-  if (respondedAt && Date.parse(respondedAt) <= Date.parse(reminderAt(issuedAt))) return false;
-  return daysBetween(issuedAt, respondedAt ?? now) >= REMINDER_DAY;
+  return Date.parse(respondedAt ?? now) >= Date.parse(reminderAt(issuedAt));
 }
