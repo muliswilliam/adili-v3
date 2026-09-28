@@ -2,6 +2,7 @@ import {
   AlertCircleIcon,
   Attachment01Icon,
   Cancel01Icon,
+  Delete02Icon,
   File01Icon,
   Upload04Icon,
 } from '@hugeicons/core-free-icons';
@@ -22,6 +23,7 @@ import {
 import { type FileRejection, matchesAccept } from './file-drop-zone';
 import { FieldHint } from './form-field';
 import { Icon } from './icon';
+import { Menu, MenuItem } from './menu';
 import { ProgressBar } from './progress-bar';
 import { Spinner } from './spinner';
 
@@ -55,6 +57,10 @@ export interface AttachmentMessages {
   removeConfirm: string;
   cancel: string;
   retry: string;
+  /** Names an attached file's action menu (see `menuItems`). Defaults to "Actions for {name}". */
+  actions: (name: string) => string;
+  /** The remove entry in that menu. */
+  remove: string;
 }
 
 const DEFAULT_MESSAGES: AttachmentMessages = {
@@ -71,6 +77,8 @@ const DEFAULT_MESSAGES: AttachmentMessages = {
   removeConfirm: 'Remove document',
   cancel: 'Cancel',
   retry: 'Try again',
+  actions: (name) => `Actions for ${name}`,
+  remove: 'Remove',
 };
 
 const PROBLEMS: AttachmentStatus[] = ['infected', 'rejected-type', 'rejected-size', 'failed'];
@@ -101,6 +109,12 @@ export type AttachmentListProps = Omit<ComponentProps<'div'>, 'children'> & {
   onDismiss?: (attachment: AttachmentListItem) => void;
   /** Uploads a failed file again. */
   onRetry?: (attachment: AttachmentListItem) => void;
+  /**
+   * More actions for an attached file, as MenuItem and MenuNote entries (e.g. "Read into the
+   * form"). When it returns something, the row's actions become a Menu named "Actions for
+   * {name}" holding them, then Remove (still confirmed first) when `onRemove` is set.
+   */
+  menuItems?: (attachment: AttachmentListItem) => ReactNode;
   /** Replaces any of the default copy. */
   messages?: Partial<AttachmentMessages>;
   disabled?: boolean;
@@ -127,6 +141,7 @@ export function AttachmentList({
   onRemove,
   onDismiss,
   onRetry,
+  menuItems,
   messages: messageOverrides,
   disabled = false,
   className,
@@ -167,6 +182,11 @@ export function AttachmentList({
     }
   }
 
+  function menuFor(attachment: AttachmentListItem): ReactNode {
+    const entries = menuItems?.(attachment);
+    return entries === undefined || entries === null || entries === false ? null : entries;
+  }
+
   function statusLine(attachment: AttachmentListItem): ReactNode {
     if (attachment.detail !== undefined) return attachment.detail;
     if (attachment.status === 'linked') {
@@ -183,6 +203,7 @@ export function AttachmentList({
         <ul aria-label={label} className="grid gap-2">
           {attachments.map((attachment) => {
             const problem = PROBLEMS.includes(attachment.status);
+            const menu = attachment.status === 'linked' ? menuFor(attachment) : null;
             return (
               <li
                 key={attachment.id}
@@ -260,7 +281,22 @@ export function AttachmentList({
                       <Icon icon={Cancel01Icon} />
                     </Button>
                   ) : null}
-                  {attachment.status === 'linked' && onRemove ? (
+                  {menu ? (
+                    <Menu label={messages.actions(attachment.name)} disabled={disabled}>
+                      {menu}
+                      {onRemove ? (
+                        <MenuItem
+                          icon={Delete02Icon}
+                          tone="destructive"
+                          onSelect={() => {
+                            setConfirming(attachment);
+                          }}
+                        >
+                          {messages.remove}
+                        </MenuItem>
+                      ) : null}
+                    </Menu>
+                  ) : attachment.status === 'linked' && onRemove ? (
                     <Button
                       type="button"
                       variant="ghost"

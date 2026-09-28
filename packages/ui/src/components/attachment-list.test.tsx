@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AttachmentList, type AttachmentListItem, formatFileSize } from './attachment-list';
+import { MenuItem, MenuNote } from './menu';
 
 const everyState: AttachmentListItem[] = [
   { id: '1', name: 'bank-statement-aug-2026.pdf', status: 'uploading', progress: 45 },
@@ -98,6 +99,82 @@ describe('AttachmentList', () => {
 
     expect(onRemove).toHaveBeenCalledWith(everyState[2]);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it("puts a linked file's actions in a menu, with Remove still confirmed", () => {
+    const onRemove = vi.fn();
+    const onRead = vi.fn();
+    render(
+      <AttachmentList
+        label="Documents"
+        attachments={everyState}
+        onRemove={onRemove}
+        menuItems={(attachment) =>
+          attachment.name.startsWith('title-deed') ? (
+            <MenuItem
+              onSelect={() => {
+                onRead(attachment);
+              }}
+            >
+              Read into the form
+            </MenuItem>
+          ) : null
+        }
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Remove title-deed-block-7-1234.pdf' })).toBeNull();
+    const trigger = screen.getByRole('button', {
+      name: 'Actions for title-deed-block-7-1234.pdf',
+    });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Read into the form' }));
+    expect(onRead).toHaveBeenCalledWith(everyState[2]);
+
+    fireEvent.click(trigger);
+    expect(screen.getAllByRole('menuitem').map((entry) => entry.textContent)).toEqual([
+      'Read into the form',
+      'Remove',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    const dialog = screen.getByRole('dialog', { name: 'Remove title-deed-block-7-1234.pdf?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
+    expect(onRemove).toHaveBeenCalledWith(everyState[2]);
+  });
+
+  it('names the menu with other copy, and can hold only a note', () => {
+    render(
+      <AttachmentList
+        label="Documents"
+        attachments={everyState}
+        onRemove={vi.fn()}
+        menuItems={() => <MenuNote>Read into the form: not enabled for your Commission</MenuNote>}
+        messages={{ actions: (name) => `Vitendo vya ${name}` }}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Vitendo vya title-deed-block-7-1234.pdf' }),
+    );
+    expect(screen.getAllByRole('menuitem').map((entry) => entry.textContent)).toEqual([
+      'Read into the form: not enabled for your Commission',
+      'Remove',
+    ]);
+  });
+
+  it('keeps the remove button when the menu has no entries for a file', () => {
+    render(
+      <AttachmentList
+        label="Documents"
+        attachments={everyState}
+        onRemove={vi.fn()}
+        menuItems={() => null}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Remove title-deed-block-7-1234.pdf' }),
+    ).toBeDefined();
   });
 
   it('keeps the file when the user cancels', () => {
