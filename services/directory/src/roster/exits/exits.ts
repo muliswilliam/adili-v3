@@ -62,8 +62,8 @@ export interface ConfirmExits {
 }
 
 /**
- * Exits the records: `exited` with their exit date, the absent flag cleared, and the actor
- * stamped as who resolved them. An exited record stays on the roster (for the final declaration)
+ * Exits the records: `exited` with their exit date, the state they had kept for a re-activation
+ * to restore, the absent flag cleared, and the actor stamped as who resolved them. An exited record stays on the roster (for the final declaration)
  * but no longer counts as expected. HR-system exits also make `api` the record's source.
  * All or nothing: throws `RosterRecordsNotFound` or `RosterRecordsExited` naming the offending
  * records, and changes nothing. Records `roster.exits.confirmed.v1`.
@@ -84,6 +84,7 @@ export async function confirmExits(
   await tx.execute(sql`
     update roster_records as target set
       state = 'exited',
+      state_before_exit = target.state,
       exit_date = source.exit_date,
       absent_from_latest_import = false,
       flagged_by_import_id = null,

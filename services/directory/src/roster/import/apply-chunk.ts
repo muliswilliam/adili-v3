@@ -30,7 +30,11 @@ interface RecordValues {
   phone: string | null;
 }
 
-type ExistingRecord = RecordValues & { id: string; state: typeof rosterRecords.$inferSelect.state };
+type ExistingRecord = RecordValues & {
+  id: string;
+  state: typeof rosterRecords.$inferSelect.state;
+  stateBeforeExit: typeof rosterRecords.$inferSelect.stateBeforeExit;
+};
 
 /** What applying one row does to the roster. */
 type Decision =
@@ -167,19 +171,27 @@ export async function applyChunk(
 
 /**
  * The decision for one row. A row for an onboarded record may not change its identity (national
- * ID, full name); the row is rejected whole and the record keeps every field. A row for an
- * exited record re-activates it (`updateRecords`), so it is an update even with the same values.
+ * ID, full name); the row is rejected whole and the record keeps every field. That holds for an
+ * exited record that had onboarded too, since re-activating it restores `onboarded`. A row for
+ * an exited record re-activates it (`updateRecords`), so it is an update even with the same
+ * values.
  */
 function decide(values: RecordValues, existing: ExistingRecord | undefined): Decision {
   if (!existing) return { kind: 'create', values };
-  if (existing.state === 'exited') return { kind: 'update', recordId: existing.id, values };
-  if (existing.state === 'onboarded') {
+  if (activeState(existing) === 'onboarded') {
     const errors = identityChanges(existing, values);
     if (errors.length > 0) return { kind: 'locked', recordId: existing.id, errors };
   }
+  if (existing.state === 'exited') return { kind: 'update', recordId: existing.id, values };
   return sameValues(existing, values)
     ? { kind: 'unchanged', recordId: existing.id }
     : { kind: 'update', recordId: existing.id, values };
+}
+
+/** The record's state, or for an exited record the state a re-activation gives it back. */
+function activeState(record: ExistingRecord): 'not_onboarded' | 'onboarded' {
+  if (record.state === 'exited') return record.stateBeforeExit ?? 'not_onboarded';
+  return record.state;
 }
 
 function identityChanges(existing: RecordValues, values: RecordValues): RowError[] {
@@ -295,6 +307,7 @@ async function recordsByFileNumber(
     .select({
       id: rosterRecords.id,
       state: rosterRecords.state,
+      stateBeforeExit: rosterRecords.stateBeforeExit,
       personnelFileNumber: rosterRecords.personnelFileNumber,
       fullName: rosterRecords.fullName,
       nationalId: rosterRecords.nationalId,
@@ -342,7 +355,8 @@ async function createRecords(
 
 /**
  * Writes the rows' values to their records in one statement. An exited record is re-activated:
- * back to `not_onboarded` without its exit date (spec #27; slice 03 onboards it again).
+ * back to the state it had before its exit (`onboarded` stays onboarded, spec #27), without its
+ * exit date.
  */
 async function updateRecords(
   tx: Transaction,
@@ -374,7 +388,11 @@ async function updateRecords(
       appointment_date = source.appointment_date,
       email = source.email,
       phone = source.phone,
-      state = case when target.state = 'exited' then 'not_onboarded' else target.state end,
+      state = case
+        when target.state = 'exited' then coalesce(target.state_before_exit, 'not_onboarded')
+        else target.state
+      end,
+      state_before_exit = null,
       exit_date = case when target.state = 'exited' then null else target.exit_date end,
       source = ${channel},
       last_seen_import_id = ${ref.importId},

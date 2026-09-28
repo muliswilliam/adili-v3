@@ -106,6 +106,12 @@ export const rosterRecords = pgTable(
     phone: text(),
     state: text({ enum: ROSTER_RECORD_STATES }).notNull().default('not_onboarded'),
     exitDate: date({ mode: 'string' }),
+    /**
+     * The state an exited record had before its exit, which re-activation restores: an officer
+     * who had onboarded is onboarded again, and keeps the identity lock. Null while not exited
+     * (and for exits recorded before it was kept, when no record could have onboarded yet).
+     */
+    stateBeforeExit: text({ enum: ['not_onboarded', 'onboarded'] }),
     /** Not in the latest complete import; the reporting officer confirms the exit or keeps it. */
     absentFromLatestImport: boolean().notNull().default(false),
     flaggedByImportId: uuid().references((): AnyPgColumn => rosterImports.id),
@@ -148,6 +154,10 @@ export const rosterRecords = pgTable(
     check(
       'roster_records_exit_date_check',
       sql`${table.state} = 'exited' or ${table.exitDate} is null`,
+    ),
+    check(
+      'roster_records_state_before_exit_check',
+      sql`${table.stateBeforeExit} is null or (${table.state} = 'exited' and ${table.stateBeforeExit} in ('not_onboarded', 'onboarded'))`,
     ),
   ],
 );

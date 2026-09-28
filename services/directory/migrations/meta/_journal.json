@@ -113,6 +113,13 @@
       "when": 1790583140044,
       "tag": "0015_roster_import_staging_attempt",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790585019876,
+      "tag": "0016_roster_records_state_before_exit",
+      "breakpoints": true
     }
   ]
 }
