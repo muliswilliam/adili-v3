@@ -12,7 +12,7 @@ import { Badge } from './badge';
 import { Icon, type IconProps } from './icon';
 import { Tooltip } from './tooltip';
 
-/** Where a declared item's details came from: a government registry or a document the user read in. */
+/** Where a declared item's details came from: a government registry or a document the declarant read in. */
 export type SourceKind = 'kra' | 'ntsa' | 'brs' | 'ardhisasa' | 'document';
 
 /** Display names. Registry names are not translated. */
