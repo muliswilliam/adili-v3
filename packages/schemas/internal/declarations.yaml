@@ -2092,7 +2092,8 @@ components:
           $ref: '#/components/schemas/Declaration'
         document:
           type: object
-          description: The assembled declaration.v1 document (decrypted for the owner)
+          description: >-
+            The assembled declaration.v1 document (decrypted for the owner). Items keep their optional `source` (ItemSource); suggestion data is never included.
           additionalProperties: true
         valid:
           type: boolean
@@ -2178,7 +2179,8 @@ components:
           properties:
             document:
               type: object
-              description: The immutable declaration.v1 document (decrypted for the owner)
+              description: >-
+                The immutable declaration.v1 document (decrypted for the owner). Items keep their optional `source` (ItemSource); suggestion data is never included.
               additionalProperties: true
     Acknowledgement:
       type: object
@@ -2302,7 +2304,8 @@ components:
           type: string
         document:
           type: object
-          description: The immutable declaration.v1 document, decrypted
+          description: >-
+            The immutable declaration.v1 document, decrypted. Items keep their optional `source` (ItemSource); suggestion data is never included.
           additionalProperties: true
         attachments:
           type: array
