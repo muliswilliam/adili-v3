@@ -31,10 +31,13 @@ import { SessionUnavailable } from './step-alerts';
 const RESEND_COOLDOWN_SECONDS = 60;
 
 /**
- * Seconds until the set-password email can go again. The email has only just been sent when
- * this page shows, so without a time from the directory the full cooldown applies.
+ * Seconds until the set-password email can go again. None when it could not be sent: nothing
+ * went, so there is nothing to wait for. Otherwise it has only just been sent when this page
+ * shows, so without a time from the directory the full cooldown applies.
  */
-function emailWait(resendAvailableAt: string | null): number {
+function emailWait({ setPasswordEmail, otp }: OnboardingSession): number {
+  if (setPasswordEmail === 'failed') return 0;
+  const { resendAvailableAt } = otp;
   return resendAvailableAt === null ? RESEND_COOLDOWN_SECONDS : secondsUntil(resendAvailableAt);
 }
 
@@ -90,30 +93,45 @@ function StartAnother() {
   );
 }
 
-function CheckEmail({ session }: { session: OnboardingSession }) {
+function CheckEmail({ session: loaded }: { session: OnboardingSession }) {
+  // A resend answers with the session, which then says the email went.
+  const [session, setSession] = useState(loaded);
   const email = session.contacts.email;
+  const address = email ? (
+    <MaskedContact kind="email" value={email.masked} className="text-foreground" />
+  ) : (
+    'your email address'
+  );
   return (
     <>
       <SuccessMark tone="brand">
         <Icon icon={Mail01Icon} strokeWidth={2} />
       </SuccessMark>
-      <StepHeading
-        title="Check your email"
-        description={
-          <>
-            Your account is ready. Set your password with the link sent to{' '}
-            {email ? (
-              <MaskedContact kind="email" value={email.masked} className="text-foreground" />
-            ) : (
-              'your email address'
-            )}
-            . It expires in 24 hours.
-          </>
-        }
-      />
+      {session.setPasswordEmail === 'failed' ? (
+        // The account stands; only the email with the link did not go (ADR-014).
+        <StepHeading
+          title="Your account is ready"
+          description={
+            <>
+              We could not send the email to set your password to {address}. Send it now; the link
+              expires 24 hours after it is sent.
+            </>
+          }
+        />
+      ) : (
+        <StepHeading
+          title="Check your email"
+          description={
+            <>
+              Your account is ready. Set your password with the link sent to {address}. It expires
+              in 24 hours.
+            </>
+          }
+        />
+      )}
       {session.ofr ? <OfficerReferencePanel ofr={session.ofr} /> : null}
       <div className="mt-[22px] grid gap-2.5">
-        <ResendEmail session={session} />
+        <ResendEmail session={session} onSent={setSession} />
         <Button asChild variant="ghost" className="w-full">
           <a href={SIGN_IN}>Sign in</a>
         </Button>
@@ -147,13 +165,20 @@ function describeWait(seconds: number): string {
  * Sends the set-password email again. The wait ticks every second on screen; screen readers
  * hear it only at 10-second steps.
  */
-function ResendEmail({ session }: { session: OnboardingSession }) {
+function ResendEmail({
+  session,
+  onSent,
+}: {
+  session: OnboardingSession;
+  onSent: (session: OnboardingSession) => void;
+}) {
   const settle = useSettle({
     route: '/get-started/check-email',
     commission: session.commission.slug,
   });
   const { toast } = useToast();
-  const [secondsLeft, startCountdown] = useCountdown(emailWait(session.otp.resendAvailableAt));
+  const [secondsLeft, startCountdown] = useCountdown(emailWait(session));
+  const neverSent = session.setPasswordEmail === 'failed';
   const [sending, setSending] = useState(false);
   const announcement = useCountdownAnnouncement(secondsLeft, describeWait);
 
@@ -164,8 +189,9 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
       const result = await resendSetPasswordEmail();
       if (result.ok) {
         // It has just gone, so there is always a wait.
-        startCountdown(emailWait(result.session.otp.resendAvailableAt) || RESEND_COOLDOWN_SECONDS);
-        toast({ title: 'Email sent again' });
+        startCountdown(emailWait(result.session) || RESEND_COOLDOWN_SECONDS);
+        toast({ title: neverSent ? 'Email sent' : 'Email sent again' });
+        onSent(result.session);
       } else if (result.code === 'resend-cooldown') {
         startCountdown(result.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);
       } else if (await settle(result)) {
@@ -191,7 +217,8 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
     <>
       <Button
         type="button"
-        variant="secondary"
+        // Sending the email that never went is the one thing left to do here.
+        variant={neverSent ? 'default' : 'secondary'}
         className="w-full"
         disabled={waiting || sending}
         onClick={() => void resend()}
@@ -203,7 +230,9 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
             ? 'Sending…'
             : waiting
               ? `Resend email in ${String(secondsLeft)}s`
-              : 'Resend email'}
+              : neverSent
+                ? 'Send email'
+                : 'Resend email'}
         </span>
       </Button>
       <p className="sr-only" aria-live="polite">

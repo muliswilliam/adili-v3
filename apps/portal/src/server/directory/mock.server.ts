@@ -15,6 +15,8 @@
  *   another Commission, so confirming links this record to it
  * - PSC/500600 / 56789012 at the Public Service Commission: the first confirm finds the national
  *   register down (503), the second fails to create the account (502), the third succeeds
+ * - PSC/600700 / 67890123 at the Public Service Commission: the account is created but the
+ *   set-password email cannot be sent (`setPasswordEmail: failed`); resending it works
  * Anything else is `no-match`; five misses from one address in a row are rate-limited.
  * The Judicial Service Commission has no roster yet.
  *
@@ -63,6 +65,8 @@ interface RosterRecord {
   existingOfr?: string;
   /** Failures the next confirms of a session run into, in order, before one succeeds. */
   confirmFailures?: ConfirmFailure[];
+  /** Set when the set-password email cannot be sent after the account is created. */
+  setPasswordEmailFails?: boolean;
 }
 
 type ConfirmFailure = 'iprs-unavailable' | 'identity-unavailable';
@@ -141,6 +145,19 @@ const ROSTER: RosterRecord[] = [
     onboarded: false,
     iprs: 'match',
     confirmFailures: ['iprs-unavailable', 'identity-unavailable'],
+  },
+  {
+    commission: 'psc',
+    fullName: 'Otieno Juma Were',
+    designation: 'Economist',
+    reportingEntity: 'The National Treasury',
+    personnelFileNumber: 'PSC/600700',
+    nationalId: '67890123',
+    email: 'o***@psc.go.ke',
+    phone: '07** *** 123',
+    onboarded: false,
+    iprs: 'match',
+    setPasswordEmailFails: true,
   },
 ];
 
@@ -304,6 +321,7 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
     otp: hasEmail ? freshOtp('email') : idleOtp(),
     outcome: null,
     ofr: null,
+    setPasswordEmail: null,
     expiresAt: new Date(now + SESSION_TTL_MS).toISOString(),
   };
   sessions.set(id, {
@@ -509,6 +527,7 @@ function allocateOfr(): string {
 function passwordEmailSent(entry: MockSession, { reportWait }: { reportWait: boolean }) {
   const now = Date.now();
   entry.passwordEmailAt = now;
+  entry.session.setPasswordEmail = 'sent';
   entry.session.otp = {
     ...idleOtp(),
     resendAvailableAt: reportWait ? new Date(now + RESEND_COOLDOWN_MS).toISOString() : null,
@@ -533,7 +552,13 @@ function confirm(entry: MockSession) {
     session.outcome = record.existingOfr ? 'linked-existing-account' : 'account-created';
     session.ofr = record.existingOfr ?? allocateOfr();
     onboarded.add(record);
-    if (!record.existingOfr) passwordEmailSent(entry, { reportWait: false });
+    if (!record.existingOfr && record.setPasswordEmailFails) {
+      // The account stands; with no email gone there is no wait before resending it.
+      session.setPasswordEmail = 'failed';
+      session.otp = idleOtp();
+    } else if (!record.existingOfr) {
+      passwordEmailSent(entry, { reportWait: false });
+    }
   }
   return json(200, { outcome: session.outcome, session });
 }

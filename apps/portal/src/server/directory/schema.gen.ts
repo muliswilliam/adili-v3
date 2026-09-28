@@ -1487,6 +1487,8 @@ export interface components {
             /** @description Set when state is confirmed or identity-mismatch */
             outcome?: components["schemas"]["OnboardingOutcome"] | null;
             ofr?: components["schemas"]["Ofr"] | null;
+            /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
+            setPasswordEmail: ("sent" | "failed") | null;
             /** Format: date-time */
             expiresAt: string;
         };
@@ -1516,6 +1518,8 @@ export interface components {
             /** @description Set when state is confirmed or identity-mismatch */
             outcome?: components["schemas"]["OnboardingOutcome"] | null;
             ofr?: components["schemas"]["Ofr"] | null;
+            /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
+            setPasswordEmail: ("sent" | "failed") | null;
             /** Format: date-time */
             expiresAt: string;
             /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */

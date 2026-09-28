@@ -34,6 +34,7 @@ import {
   type OtpChannel,
   pendingChannel,
   resendAvailableAt,
+  setPasswordEmailStatus,
   showsDetails,
   type TerminalState,
 } from './session-state.js';
@@ -263,6 +264,7 @@ export class OnboardingSessions {
           },
       outcome: session.outcome,
       ofr: person?.ofr ?? null,
+      setPasswordEmail: setPasswordEmailStatus(session),
       expiresAt: session.expiresAt.toISOString(),
     };
   }

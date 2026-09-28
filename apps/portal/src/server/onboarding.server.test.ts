@@ -529,6 +529,28 @@ describe('confirm and the set-password email', () => {
     expect(result.ok && result.session.otp.resendAvailableAt).toBeTruthy();
   });
 
+  it('says when the set-password email could not be sent, and sends it at once on resend', async () => {
+    const session = await atConfirm({
+      commission: 'psc',
+      personnelFileNumber: 'PSC/600700',
+      nationalId: '67890123',
+    });
+
+    const confirmed = await confirm(client(), session, crypto.randomUUID());
+
+    expect(confirmed).toMatchObject({
+      ok: true,
+      session: {
+        outcome: 'account-created',
+        setPasswordEmail: 'failed',
+        otp: { resendAvailableAt: null },
+      },
+    });
+    const resent = await resendPasswordEmail(client(), session, crypto.randomUUID());
+    expect(resent).toMatchObject({ ok: true, session: { setPasswordEmail: 'sent' } });
+    expect(resent.ok && resent.session.otp.resendAvailableAt).toBeTruthy();
+  });
+
   it('refuses the set-password email before the account exists or for a linked account', async () => {
     const pending = await atConfirm();
     expect(await resendPasswordEmail(client(), pending, crypto.randomUUID())).toEqual({

@@ -179,6 +179,7 @@ describe('S11 confirm creates the account', () => {
         state: 'confirmed',
         outcome: 'account-created',
         details: { fullName: 'Otieno Wanjiru', personnelFileNumber: 'TSC/100200' },
+        setPasswordEmail: 'sent',
       },
     });
     const ofr = result.session.ofr ?? '';
@@ -358,7 +359,12 @@ describe('S12, S13 identity mismatch', () => {
       expect(contractErrors(okResponse(CONFIRM_PATH, 'post'), result)).toEqual([]);
       expect(result).toMatchObject({
         outcome: 'identity-mismatch',
-        session: { state: 'identity-mismatch', outcome: 'identity-mismatch', ofr: null },
+        session: {
+          state: 'identity-mismatch',
+          outcome: 'identity-mismatch',
+          ofr: null,
+          setPasswordEmail: null,
+        },
       });
       expect(await sessionRow(session.id)).toMatchObject({ iprsOutcome, personId: null });
       expect(await record(tscRecord)).toMatchObject({
@@ -445,7 +451,12 @@ describe('S15 a person onboarded with another Commission', () => {
     expect(contractErrors(okResponse(CONFIRM_PATH, 'post'), result)).toEqual([]);
     expect(result).toMatchObject({
       outcome: 'linked-existing-account',
-      session: { state: 'confirmed', outcome: 'linked-existing-account', ofr: first.session.ofr },
+      session: {
+        state: 'confirmed',
+        outcome: 'linked-existing-account',
+        ofr: first.session.ofr,
+        setPasswordEmail: null,
+      },
     });
     // No password to set: nothing to resend.
     expect(result.session.otp.resendAvailableAt).toBeNull();
@@ -533,24 +544,50 @@ describe('S16 transaction boundaries', () => {
     expect(retry.session.ofr?.slice(0, 12)).toBe('OFR-0000001-');
   });
 
-  it('keeps the committed account when the set-password email fails, for the declarant to resend', async () => {
+  it('keeps the committed account when the set-password email fails, and says so, with resend open at once', async () => {
     const session = await atConfirm(tscRecord);
     api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
 
     const response = await confirm(session);
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.json()).toMatchObject({ outcome: 'account-created' });
+    const result = response.json<OnboardingConfirmResult>();
+    expect(contractErrors(okResponse(CONFIRM_PATH, 'post'), result)).toEqual([]);
+    expect(result).toMatchObject({
+      outcome: 'account-created',
+      session: { state: 'confirmed', setPasswordEmail: 'failed', otp: { resendAvailableAt: null } },
+    });
     const [person] = await allPersons();
     expect(person).toBeDefined();
     expect(api.identity.calls('deleteUser')).toEqual([]);
     expect(api.identity.user(person?.keycloakUserId ?? '')).toBeDefined();
     expect(await record(tscRecord)).toMatchObject({ state: 'onboarded', personId: person?.id });
+    // The check-email step reads the same from the session.
+    expect((await getSession(api, session.id, session.secret)).json()).toEqual(result.session);
 
-    // The email is sent after the commit; the check-email step's resend delivers it.
-    api.clock.advance(60 * SECOND);
+    // No cooldown for an email that never went: the resend delivers it now.
     expect((await resendPasswordEmail(session)).statusCode).toBe(202);
     expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(2);
+    expect((await getSession(api, session.id, session.secret)).json()).toMatchObject({
+      setPasswordEmail: 'sent',
+      otp: { resendAvailableAt: new Date(NOW.getTime() + 60 * SECOND).toISOString() },
+    });
+  });
+
+  it('keeps saying failed when the resend fails too', async () => {
+    const session = await atConfirm(tscRecord);
+    api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
+    await confirm(session);
+    api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
+
+    const resend = await resendPasswordEmail(session);
+
+    expect(resend.statusCode).toBe(502);
+    expect(resend.json()).toMatchObject({ code: 'identity-unavailable' });
+    expect((await getSession(api, session.id, session.secret)).json()).toMatchObject({
+      setPasswordEmail: 'failed',
+      otp: { resendAvailableAt: null },
+    });
   });
 
   it('sends the set-password email only once the account and record are committed', async () => {

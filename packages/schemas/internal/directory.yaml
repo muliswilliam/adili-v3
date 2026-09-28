@@ -4301,6 +4301,14 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Ofr'
             - type: 'null'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session'
         expiresAt:
           type: string
           format: date-time
@@ -4311,6 +4319,7 @@ components:
         - contacts
         - details
         - otp
+        - setPasswordEmail
         - expiresAt
     OnboardingSessionCreated:
       type: object
@@ -4390,6 +4399,14 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Ofr'
             - type: 'null'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session'
         expiresAt:
           type: string
           format: date-time
@@ -4403,6 +4420,7 @@ components:
         - contacts
         - details
         - otp
+        - setPasswordEmail
         - expiresAt
         - secret
     OnboardingConfirmResult:

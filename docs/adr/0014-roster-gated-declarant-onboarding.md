@@ -1,6 +1,6 @@
 # ADR-014: Roster-gated declarant onboarding
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28 with point 5 (spec 03)
 - **Date:** 2026-09-25
 - **Deciders:** Adili V3 DIALs team, product team
 - **Supersedes:** [ADR-004](0004-identity-keycloak-self-registration.md) decision points 2 (verified self-registration) and 3 (optional rosters). The rest of ADR-004 still stands.
@@ -55,6 +55,12 @@ Confirmed on 2026-09-25. The flowchart's open-points note is superseded by this 
 | 2 | OTPs to roster contacts or to contacts the declarant enters? | **Roster contacts** where the record has them, shown masked (e.g. `07** *** 123`). If the record has no email or phone, the declarant enters their own; those are stored on the roster record after verification. |
 | 3 | Keep the IPRS identity check? | **Yes.** At profile completion the directory verifies the roster record's national ID and names against IPRS (mock in demo). A mismatch blocks completion and is flagged to the reporting officer. |
 | 4 | Commissions with no roster yet | **No fallback.** Their declarants cannot onboard. EACC sees roster coverage per Commission and chases. A "pending roster" path can be added later without changing the main flow. |
+
+Settled while building onboarding (spec 03, #73), 2026-09-28:
+
+| # | Question | Decision |
+|---|---|---|
+| 5 | The set-password email fails after the account is created | **The account stands and the declarant is told.** The directory creates the person, the OFR and the Keycloak user in one transaction and sends Keycloak's set-password email only after it commits: an email cannot be taken back, so it cannot join the rollback. Should it fail, confirm still answers `account-created`, and the session says `setPasswordEmail: failed` with resend open at once (no cooldown for an email that never went). The portal's check-email step then says the account is ready but the email could not be sent, and offers to send it; a successful resend turns it to `sent`. Rolling the account back instead would make the declarant repeat IPRS and both OTPs for a mail outage. |
 
 ## Alternatives considered
 

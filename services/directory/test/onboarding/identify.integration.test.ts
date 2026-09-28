@@ -188,6 +188,7 @@ describe('S2 identify', () => {
       },
       outcome: null,
       ofr: null,
+      setPasswordEmail: null,
       expiresAt: '2026-10-01T09:30:00.000Z',
     });
 

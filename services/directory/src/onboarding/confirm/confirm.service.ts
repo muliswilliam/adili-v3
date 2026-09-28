@@ -72,7 +72,8 @@ const MAX_ROUNDS = 3;
  *   where the record still has none; the summary is recomputed; the session is `confirmed`;
  *   `declarant.onboarded.v1` is recorded.
  * - After the commit, a new account's set-password email is sent. Should that fail, the account
- *   stands and the declarant uses "resend" on the check-email step.
+ *   stands, and the session says `setPasswordEmail: failed` with resend open at once, so the
+ *   check-email step asks the declarant to send it (ADR-014).
  * - The identity provider failing: everything rolls back, what it had already done is undone
  *   (account deleted, the added tenant removed), 502 `identity-unavailable`; the declarant
  *   retries. The verified email on another account: 409 `email-in-use`, nothing changed.
@@ -99,8 +100,11 @@ export class ConfirmService {
       const verdict = await this.lookUp(sessionId, record);
       const confirmed = await this.decide(sessionId, secret, record, verdict);
       if (confirmed === RECHECK) continue;
-      if (confirmed.setPasswordEmailFor) {
-        await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailFor);
+      if (
+        confirmed.setPasswordEmailFor &&
+        !(await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailFor))
+      ) {
+        return this.setPasswordEmailFailed(sessionId, secret, confirmed.result);
       }
       return confirmed.result;
     }
@@ -295,12 +299,13 @@ export class ConfirmService {
   }
 
   /**
-   * The set-password email of a committed new account. Not sent, the account stands: the
-   * check-email step offers "resend" once its minute is up.
+   * The set-password email of a committed new account; whether it went. Not sent, the account
+   * stands (an email cannot be taken back, so it is not part of the transaction, ADR-014).
    */
-  private async sendSetPasswordEmail(sessionId: string, keycloakUserId: string): Promise<void> {
+  private async sendSetPasswordEmail(sessionId: string, keycloakUserId: string): Promise<boolean> {
     try {
       await this.identity.sendExecuteActionsEmail(keycloakUserId, setPasswordEmail());
+      return true;
     } catch (error) {
       if (!(error instanceof IdentityUnavailable || error instanceof IdentityUserNotFound)) {
         throw error;
@@ -309,7 +314,26 @@ export class ConfirmService {
         { sessionId, err: errorType(error) },
         'Set-password email of a new declarant account not sent; the declarant can resend it',
       );
+      return false;
     }
+  }
+
+  /**
+   * Records that the set-password email did not go: the session forgets when it was sent, so it
+   * says `setPasswordEmail: failed` and resend is open at once, and the answer says so too.
+   */
+  private async setPasswordEmailFailed(
+    sessionId: string,
+    secret: string | undefined,
+    confirmed: OnboardingConfirmResult,
+  ): Promise<OnboardingConfirmResult> {
+    return this.sessions.withLiveSession(sessionId, secret, async ({ tx, session, now }) => {
+      const amended = await this.sessions.amend(tx, session, {
+        passwordEmailSentAt: null,
+        updatedAt: now,
+      });
+      return { ...confirmed, session: await this.sessions.view(tx, amended, now) };
+    });
   }
 
   /** Undoes what the identity provider did for a confirm that did not commit, latest first. */
