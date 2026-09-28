@@ -8,6 +8,7 @@ export default defineConfig({
   // SWC emits the decorator metadata Nest's dependency injection relies on.
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
+    isolate: false,
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     exclude: ['**/*.integration.test.ts'],
     // Config is validated at import; tests use the committed local defaults.

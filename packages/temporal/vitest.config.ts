@@ -5,6 +5,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
+    isolate: false,
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     exclude: ['**/*.integration.test.ts'],
     // The first run downloads Temporal's test server and bundles the workflows.
