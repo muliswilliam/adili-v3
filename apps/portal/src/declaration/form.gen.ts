@@ -76,6 +76,18 @@ export interface DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfI
        */
       responsibleCommission: string;
       personnelFileNumber?: string;
+      /**
+       * Pre-filled from the Commission's roster when it has one (spec 05b); editable
+       */
+      jobGroup?: string;
+      /**
+       * Date of appointment; pre-filled from the Commission's roster when it has one (spec 05b); editable
+       */
+      appointmentDate?: string;
+      /**
+       * Pre-filled from the Commission's roster when it has one (spec 05b); editable
+       */
+      workStation?: string;
     };
   };
   /**

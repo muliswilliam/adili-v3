@@ -10,7 +10,7 @@ import {
   SelectItem,
   Textarea,
 } from '@adili/ui';
-import { LockIcon } from '@hugeicons/core-free-icons';
+import { Building03Icon, LockIcon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
@@ -21,6 +21,9 @@ import {
   MARITAL_STATUS_LABELS,
   optionsOf,
 } from '../../declaration/labels';
+import { HR_LABELS, HR_PLACEHOLDERS, ROSTER_HINT } from '../../declaration/copy';
+import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
+import { optionalLabel } from './optional-label';
 import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
@@ -59,6 +62,15 @@ function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commiss
   );
 }
 
+function RosterHint() {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon icon={Building03Icon} className="size-3.5" />
+      {ROSTER_HINT}
+    </span>
+  );
+}
+
 export interface BioSectionProps {
   section: LoadedSection;
   etag: string;
@@ -74,6 +86,7 @@ export interface BioSectionProps {
 export function BioSection({ section, etag, showErrors = false }: BioSectionProps) {
   const { declaration } = useWorkspace();
   const { value: officer, update } = useSectionAutosave<Draft<Officer>>(section, etag);
+  const [appointmentInvalid, setAppointmentInvalid] = useState(false);
   const { touch, shown } = useShownErrors(showErrors);
   const [birthDateText, setBirthDateText] = useState<{ text: string; invalid: boolean }>({
     text: '',
@@ -82,7 +95,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
 
   const issues = bioIssues(officer, declaration.statementDate);
   if (birthDateText.invalid) {
-    issues.birthDate = { kind: 'invalid', message: BIO_MESSAGES.birthDateFormat };
+    issues.birthDate = { kind: 'invalid', message: BIO_MESSAGES.dateFormat };
   }
 
   function error(field: BioField) {
@@ -95,6 +108,18 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
     const first = BIO_FIELD_ORDER.find((field) => issues[field]);
     return first ? fieldId(first) : null;
   });
+
+  // The roster's values as this page load read them; kept while the declarant edits (S8).
+  const [roster] = useState(() =>
+    rosterPrefill(section.contents, section.completeness === 'not-started'),
+  );
+
+  const rosterHint = (field: RosterField) =>
+    isFromRoster(field, officer, roster) ? <RosterHint /> : undefined;
+
+  const setEmployment = (patch: Partial<NonNullable<Draft<Officer>['employment']>>) => {
+    update((current) => ({ ...current, employment: { ...current.employment, ...patch } }));
+  };
 
   const set = (patch: (current: Draft<Officer>) => Draft<Officer>) => {
     update(patch);
@@ -153,6 +178,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           legend="Marital status"
           options={optionsOf(MARITAL_STATUS_LABELS)}
           value={officer.maritalStatus ?? null}
+          hint={rosterHint('maritalStatus')}
           error={error('maritalStatus')}
           onBlur={() => {
             touch('maritalStatus');
@@ -244,6 +270,49 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
         <h2 id="employment-heading" className="text-base font-semibold sm:col-span-2">
           Employment
         </h2>
+        <FormField
+          label={optionalLabel(HR_LABELS.jobGroup)}
+          hint={rosterHint('jobGroup')}
+          controlId="bio-jobGroup"
+        >
+          <Input
+            maxLength={40}
+            placeholder={HR_PLACEHOLDERS.jobGroup}
+            value={officer.employment?.jobGroup ?? ''}
+            onChange={(event) => {
+              setEmployment({ jobGroup: event.target.value });
+            }}
+          />
+        </FormField>
+        <FormField
+          label={optionalLabel(HR_LABELS.appointmentDate)}
+          hint={rosterHint('appointmentDate')}
+          error={appointmentInvalid ? BIO_MESSAGES.dateFormat : undefined}
+          controlId="bio-appointmentDate"
+        >
+          <DateInput
+            value={officer.employment?.appointmentDate ?? null}
+            maxYear={Number(declaration.statementDate.slice(0, 4))}
+            onValueChange={(date, details) => {
+              setAppointmentInvalid(details.invalid);
+              setEmployment({ appointmentDate: date ?? undefined });
+            }}
+          />
+        </FormField>
+        <FormField
+          label={optionalLabel(HR_LABELS.workStation)}
+          hint={rosterHint('workStation')}
+          controlId="bio-workStation"
+        >
+          <Input
+            maxLength={100}
+            placeholder={HR_PLACEHOLDERS.workStation}
+            value={officer.employment?.workStation ?? ''}
+            onChange={(event) => {
+              setEmployment({ workStation: event.target.value });
+            }}
+          />
+        </FormField>
         <FormField
           label="Nature of employment"
           error={error('nature')}

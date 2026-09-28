@@ -7,6 +7,7 @@ import {
   formatDateTime,
   formatMoney,
   Icon,
+  SourceBadge,
   Table,
   TableBody,
   TableCell,
@@ -30,9 +31,11 @@ import type { DeclarationSection } from '../../server/declarations/types';
 import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
+import { HR_LABELS, SUMMARY_COPY } from '../../declaration/copy';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
-import { statementSectionKey } from '../../declaration/section-key';
+import { sourceDetails } from '../../declaration/item-source';
+import { OFFICER_KEY, statementSectionKey } from '../../declaration/section-key';
 import {
   EMPLOYMENT_NATURE_LABELS,
   MARITAL_STATUS_LABELS,
@@ -263,6 +266,16 @@ function BioCards({ summary, document }: { summary: LoadedSummary; document: Sum
           'Reporting entity and designation',
           `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
         ],
+        ...(
+          [
+            [HR_LABELS.jobGroup, employment.jobGroup?.trim()],
+            [
+              HR_LABELS.appointmentDate,
+              employment.appointmentDate ? formatDate(employment.appointmentDate) : undefined,
+            ],
+            [HR_LABELS.workStation, employment.workStation?.trim()],
+          ] as const
+        ).flatMap(([term, value]): [string, ReactNode][] => (value ? [[term, value]] : [])),
         ['Nature of employment', nature],
         [
           'Responsible Commission',
@@ -416,10 +429,12 @@ function StatementItems({
                     const documents = (item.attachments ?? [])
                       .map((attachment) => attachment.fileName)
                       .filter(Boolean);
+                    const source = sourceDetails(item);
                     return (
                       <TableRow key={item.id ?? index}>
                         <TableCell>{typeLabel(category.key, item.type)}</TableCell>
                         <TableCell>
+                          {source ? <SourceBadge {...source} className="mb-1" /> : null}
                           <span className="block">{orUnanswered(item.description)}</span>
                           {flags.length > 0 ? (
                             <span className="block text-[13px] text-muted-foreground">
@@ -448,8 +463,62 @@ function StatementItems({
   );
 }
 
+interface SourcedPerson {
+  key: Step;
+  short: string;
+  statement: Draft<Statement>;
+}
+
+/** S11: every item that came from a registry or a document, with a link to check it. */
+function SourcedItems({
+  declarationId,
+  persons,
+}: {
+  declarationId: string;
+  persons: SourcedPerson[];
+}) {
+  const rows = persons.flatMap((person) =>
+    CATEGORIES.flatMap((category) =>
+      (person.statement[category.key] ?? []).flatMap((item: AnyItem, index) => {
+        const source = sourceDetails(item);
+        if (!source) return [];
+        const description =
+          [item.description?.trim(), typeLabel(category.key, item.type)].find(Boolean) ?? '';
+        return [{ id: `${person.key}:${item.id ?? String(index)}`, person, source, description }];
+      }),
+    ),
+  );
+  if (rows.length === 0) return null;
+  return (
+    <details className="group rounded-lg bg-muted">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+        {SUMMARY_COPY.sourcedItems(rows.length)}
+      </summary>
+      <ul className="grid gap-2 px-4 pb-3">
+        {rows.map((row) => (
+          <li key={row.id} className="flex flex-wrap items-center gap-2 text-sm">
+            <SourceBadge {...row.source} />
+            <span className="min-w-0 flex-1">
+              {row.description}
+              <span className="text-muted-foreground"> · {row.person.short}</span>
+            </span>
+            <Button asChild variant="ghost" size="sm">
+              <Link
+                {...stepLink(declarationId, row.person.key)}
+                aria-label={`Check ${row.description}`}
+              >
+                Check
+              </Link>
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 function statementKeyOf(statement: Draft<Statement>) {
-  return statementSectionKey(statement.personKey ?? 'officer');
+  return statementSectionKey(statement.personKey ?? OFFICER_KEY);
 }
 
 function StatementsCard({
@@ -517,6 +586,7 @@ function StatementsCard({
           KES, approximate. Joint assets at whole value.
         </p>
       </div>
+      <SourcedItems declarationId={declaration.id} persons={persons} />
       <div className="grid gap-3">
         {persons.map((person, index) => {
           const title = statementTitle(person.key, person.name);

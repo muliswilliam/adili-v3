@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDeclarationSection, saveDeclarationSection } from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
+import { resetExtractionAvailability, useExtractionEnabled } from './extraction-availability';
 import { ITEM_MESSAGES } from '../../declaration/statement';
+import type { ItemAttachmentSlot } from './statement-item-editor';
 import {
   NIL_BLOCKED_COPY,
   NIL_COPY,
@@ -137,6 +139,7 @@ async function flushTimers() {
 }
 
 beforeEach(() => {
+  resetExtractionAvailability();
   saveMock.mockReset();
   saveMock.mockReturnValue(new Promise(() => undefined));
   getSectionMock.mockReset();
@@ -215,6 +218,25 @@ describe('StatementSection: your assets', () => {
 
     expect(within(panel()).getByText('Total assets declared (KES estimates)')).toBeTruthy();
     expect(within(panel()).getByText('KES 6,000,000')).toBeTruthy();
+  });
+
+  it('S11: badges an item from a registry with its source, date and identifier', () => {
+    const at = '2026-09-26T08:00:00Z';
+    const suggestionId = '7d1f7a64-3c41-4c55-9d0e-6a9b1b3e2f10';
+    renderStatement(
+      statement({ assets: [{ ...land, source: { kind: 'ardhisasa', suggestionId, at } }, shares] }),
+    );
+    openTab(/^Assets/);
+
+    const badge = within(card('Land: Quarter-acre residential plot, Kapsoya')).getByRole('img', {
+      name: 'Source: From ArdhiSasa, 26 Sep 2026 · Eldoret Municipality Block 7/1234',
+    });
+    expect(badge.textContent).toBe('ArdhiSasa');
+    expect(
+      within(card('Shareholding: Shares in a Kampala hardware business')).queryByRole('img', {
+        name: /^Source:/,
+      }),
+    ).toBeNull();
   });
 
   it('names every card action after the item', () => {
@@ -650,5 +672,57 @@ describe('StatementSection: attachment slot', () => {
         disabled: false,
       }),
     );
+  });
+
+  it('gives the slot what Read into the form needs and merges the item it adds', () => {
+    let slot: ItemAttachmentSlot | undefined;
+    const renderAttachments = (given: ItemAttachmentSlot) => {
+      slot = given;
+      return null;
+    };
+    renderStatement(statement({ assets: [land] }), { renderAttachments });
+    openTab(/^Assets/);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Land: Quarter-acre residential plot, Kapsoya' }),
+    );
+    expect(slot).toMatchObject({ itemType: 'land', item: land });
+
+    const added = {
+      id: 'a0000000-0000-4000-8000-00000000000b',
+      type: 'land',
+      description: 'Land in Njoro',
+      details: { parcelNumber: 'Nakuru/Njoro/1187' },
+      location: { inKenya: true },
+      change: { changed: false },
+      joint: { isJoint: false },
+      source: { kind: 'document', suggestionId: land.id, at: '2026-09-26T07:31:00Z' },
+    };
+    act(() => {
+      slot?.onAccepted?.(added.id, { assets: [land, added] });
+    });
+    expect(screen.getByRole('button', { name: 'Edit Land: Land in Njoro' })).toBeTruthy();
+  });
+
+  it('remembers reading is off for the draft when a document set said so', () => {
+    renderStatement(statement({ assets: [land] }), {
+      registries: {
+        person: { name: 'Mwangi Kamau', firstName: 'Mwangi', nationalId: null, hasId: true },
+        sets: [
+          {
+            id: 'b0000000-0000-4000-8000-000000000001',
+            personKey: 'officer',
+            source: 'document',
+            status: 'not-enabled',
+            requestedAt: '2026-09-26T07:30:00Z',
+            readyAt: '2026-09-26T07:30:00Z',
+            verificationResultId: null,
+            aiJobId: null,
+            suggestions: [],
+          },
+        ],
+      },
+    });
+    const { result } = renderHook(() => useExtractionEnabled(DECLARATION_ID));
+    expect(result.current).toBe(false);
   });
 });

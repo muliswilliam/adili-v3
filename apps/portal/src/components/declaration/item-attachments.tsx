@@ -1,4 +1,13 @@
-import { AttachmentList, type AttachmentListItem, FieldHint, useToast } from '@adili/ui';
+import {
+  AttachmentList,
+  type AttachmentListItem,
+  FieldHint,
+  formatFileSize,
+  MenuItem,
+  MenuNote,
+  useToast,
+} from '@adili/ui';
+import { SparklesIcon } from '@hugeicons/core-free-icons';
 import {
   createContext,
   type Dispatch,
@@ -36,6 +45,9 @@ import {
   uploadsReducer,
 } from './attachments';
 import type { Attachment, Draft } from '../../declaration/contents';
+import { EXTRACTION_COPY } from '../../declaration/copy';
+import { useExtractionEnabled } from './extraction-availability';
+import { ReadIntoForm, type ReadTarget } from './read-into-form';
 import type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';
 import { useWorkspace } from './workspace';
 
@@ -48,6 +60,10 @@ import { useWorkspace } from './workspace';
  * run under the workspace's `whileHeld`: waiting edits go first (a new item must exist before a
  * document is linked to it), autosave waits, and the section is read back for the new ETag and
  * the item's attachments.
+ *
+ * A linked file's menu offers "Read into the form" (#316), by the attachment id the item's
+ * reference carries, however long ago it was linked; once the Commission is known not to read
+ * documents, the menu says so instead.
  */
 
 interface Uploads {
@@ -55,6 +71,9 @@ interface Uploads {
   dispatch: Dispatch<UploadsEvent>;
   /** The picked files by row id, to upload a failed one again. */
   files: Map<string, File>;
+  /** Upload ids of documents read into the form in this visit. */
+  read: ReadonlySet<string>;
+  markRead: (uploadId: string) => void;
 }
 
 const UploadsContext = createContext<Uploads | null>(null);
@@ -62,7 +81,13 @@ const UploadsContext = createContext<Uploads | null>(null);
 export function AttachmentUploadsProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(uploadsReducer, initialUploads);
   const [files] = useState(() => new Map<string, File>());
-  return <UploadsContext value={{ state, dispatch, files }}>{children}</UploadsContext>;
+  const [read, setRead] = useState<ReadonlySet<string>>(new Set());
+  const markRead = (uploadId: string) => {
+    setRead((current) => new Set([...current, uploadId]));
+  };
+  return (
+    <UploadsContext value={{ state, dispatch, files, read, markRead }}>{children}</UploadsContext>
+  );
 }
 
 function useUploads(): Uploads {
@@ -104,11 +129,13 @@ function wait(ms: number) {
 
 export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
   const { declaration, whileHeld } = useWorkspace();
-  const { state, dispatch, files } = useUploads();
+  const { state, dispatch, files, read, markRead } = useUploads();
   const { toast } = useToast();
   const headingId = useId();
   const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
+  const [reading, setReading] = useState<(ReadTarget & { uploadId: string }) | null>(null);
   const declarationId = declaration.id;
+  const canRead = useExtractionEnabled(declarationId);
   const { sectionKey } = slot;
   const { itemId, category } = slot;
 
@@ -208,9 +235,33 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
     }
   }
 
-  const rows = attachmentRows(itemId, slot.attachments, state).filter(
-    (row) => !removing.has(row.id),
-  );
+  const rows = attachmentRows(itemId, slot.attachments, state)
+    .filter((row) => !removing.has(row.id))
+    .map((row): AttachmentListItem => {
+      if (!read.has(row.id)) return row;
+      const detail = EXTRACTION_COPY.rowDetail;
+      return {
+        ...row,
+        detail: row.size === undefined ? detail : `${formatFileSize(row.size)} · ${detail}`,
+      };
+    });
+
+  function readMenu(row: AttachmentListItem) {
+    if (!canRead) return <MenuNote icon={SparklesIcon}>{EXTRACTION_COPY.notEnabled}</MenuNote>;
+    const known = complete(slot.attachments).find((each) => each.uploadId === row.id);
+    if (!known) return null;
+    return (
+      <MenuItem
+        icon={SparklesIcon}
+        tone="ai"
+        onSelect={() => {
+          setReading({ attachmentId: known.attachmentId, fileName: row.name, uploadId: row.id });
+        }}
+      >
+        {EXTRACTION_COPY.menu}
+      </MenuItem>
+    );
+  }
 
   return (
     <div role="group" aria-labelledby={headingId} className="grid gap-2">
@@ -253,6 +304,22 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
         }}
         onRemove={(row) => {
           void remove(row);
+        }}
+        menuItems={readMenu}
+      />
+      <ReadIntoForm
+        target={reading}
+        sectionKey={sectionKey}
+        itemId={itemId}
+        itemType={slot.itemType}
+        item={slot.item}
+        onClose={() => {
+          setReading(null);
+        }}
+        onApplied={({ itemId: acceptedId, contents, mode }) => {
+          if (contents) slot.onAccepted?.(acceptedId, contents);
+          if (reading) markRead(reading.uploadId);
+          toast({ title: mode === 'apply' ? EXTRACTION_COPY.applied : EXTRACTION_COPY.added });
         }}
       />
     </div>

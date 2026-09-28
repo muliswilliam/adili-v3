@@ -20,6 +20,7 @@ import {
   type MoneyInvalidReason,
   Repeater,
   SegmentedChoice,
+  SourceBadge,
   Tabs,
   TabsContent,
   TabsCount,
@@ -40,10 +41,15 @@ import {
   Tick02Icon,
   UserMultipleIcon,
 } from '@hugeicons/core-free-icons';
-import { type ReactNode, useId, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import { getDeclarationSection } from '../../server/declarations';
-import type { LoadedSection } from '../../server/declarations.server';
+import type {
+  LoadedSection,
+  LoadedSuggestion,
+  LoadedSuggestionSet,
+} from '../../server/declarations.server';
 import type { AssetItem, Draft, Statement } from '../../declaration/contents';
 import {
   AMOUNT_KEY,
@@ -67,11 +73,16 @@ import {
   tabState,
 } from '../../declaration/statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from '../../declaration/labels';
+import { readingNotEnabledIn } from '../../declaration/extraction';
+import { markExtractionOff } from './extraction-availability';
 import { fullName } from '../../declaration/format';
+import { sourceDetails } from '../../declaration/item-source';
+import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
-import { personKeyOf } from '../../declaration/section-key';
-import { liveSections, relationLabel } from './steps';
-import { useFocusFirstError, useShownErrors } from './section-errors';
+import { ownerOf, personKeyOf } from '../../declaration/section-key';
+import { liveSections, relationLabel, stepLink } from './steps';
+import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
+import { focusControl, useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';
@@ -121,6 +132,16 @@ export interface StatementSectionProps {
    * Nothing is rendered when omitted.
    */
   renderAttachments?: RenderAttachments;
+  /**
+   * Check registries for this person (#312): who they are and their suggestion sets as loaded.
+   * No panel is shown when omitted.
+   */
+  registries?: {
+    person: RegistryPerson;
+    sets: LoadedSuggestionSet[];
+    pollMs?: number;
+    pollLimit?: number;
+  };
 }
 
 interface Removing {
@@ -140,8 +161,10 @@ export function StatementSection({
   showErrors = false,
   separated = false,
   renderAttachments,
+  registries,
 }: StatementSectionProps) {
   const { declaration } = useWorkspace();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const {
     value: statement,
@@ -227,6 +250,45 @@ export function StatementSection({
     setEditing(item.id ?? null);
   }
 
+  /** Opens the item an accepted suggestion added, or Household for a spouse's KRA PIN. */
+  function viewSuggestion(suggestion: LoadedSuggestion) {
+    const itemId = suggestion.acceptedItemId;
+    const category = itemId ? categoryOfItem(statement, itemId) : null;
+    if (!itemId || !category) {
+      if (suggestion.sectionKey === 'household' || suggestion.sectionKey === 'bio') {
+        void navigate(stepLink(declaration.id, suggestion.sectionKey));
+      }
+      return;
+    }
+    if (editing !== null && editing !== itemId) mark(editing);
+    setTab(category);
+    setEditing(itemId);
+    const item = itemsOf(category).find((each) => each.id === itemId);
+    const issues = item ? itemIssues(category, item) : {};
+    const field = ITEM_FIELD_ORDER[category].find((each) => issues[each]) ?? 'description';
+    // Once the editor has opened.
+    setTimeout(() => {
+      focusControl(itemFieldId(itemId, field));
+    }, 0);
+  }
+
+  // A document set that says reading is off tells the one store the attachment menus read.
+  const readingOff = readingNotEnabledIn(registries?.sets ?? []);
+  useEffect(() => {
+    if (readingOff) markExtractionOff(declaration.id);
+  }, [readingOff, declaration.id]);
+
+  // Attachments can be read into the form (#316): the item that adds or fills is merged in.
+  const withReading: RenderAttachments | undefined = renderAttachments
+    ? (slot) =>
+        renderAttachments({
+          ...slot,
+          onAccepted: (itemId, contents) => {
+            update((current) => withAcceptedItem(current, contents, itemId));
+          },
+        })
+    : undefined;
+
   function confirmRemove() {
     if (!removing) return;
     const id = removing.item.id ?? '';
@@ -251,6 +313,23 @@ export function StatementSection({
           <Icon icon={InformationCircleIcon} />
           <AlertDescription>{SEPARATED_COPY}</AlertDescription>
         </Alert>
+      ) : null}
+
+      {registries ? (
+        <RegistriesPanel
+          personKey={ownerOf(key)}
+          person={registries.person}
+          initialSets={registries.sets}
+          pollMs={registries.pollMs}
+          pollLimit={registries.pollLimit}
+          statement={statement}
+          disabled={disabled}
+          onAccepted={({ itemId, section: fresh }) => {
+            if (fresh?.key !== key) return;
+            update((current) => withAcceptedItem(current, fresh.contents, itemId));
+          }}
+          onView={viewSuggestion}
+        />
       ) : null}
 
       <Tabs
@@ -321,7 +400,7 @@ export function StatementSection({
                   sectionKey={key}
                   disabled={disabled}
                   shareLabel={isOfficer ? 'My share' : `${firstName || 'Their'}'s share`}
-                  renderAttachments={renderAttachments}
+                  renderAttachments={withReading}
                   onChange={(next) => {
                     updateItem(category, item.id ?? '', next);
                   }}
@@ -551,7 +630,9 @@ function ItemCardDetails({
   const originalAmount = originalCents(money);
   const documents = any.attachments?.length ?? 0;
   const tags: ReactNode[] = [];
+  const source = sourceDetails(item);
 
+  if (source) tags.push(<SourceBadge key="source" {...source} />);
   if (category === 'assets' && any.joint?.isJoint) {
     tags.push(
       <Badge key="joint">

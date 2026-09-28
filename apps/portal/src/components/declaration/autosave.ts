@@ -197,10 +197,13 @@ export function retryDelay(failures: number): number {
 }
 
 /**
- * A write to the draft outside the queue (linking or unlinking a document). It resolves to the
- * ETag and version the draft was left at, read back afterwards, or `etag: null` when unknown.
+ * A write to the draft outside the queue (linking a document, accepting a suggestion). It gets
+ * the draft's current ETag, for a write that needs `If-Match`, and resolves to the ETag and
+ * version the draft was left at, read back afterwards, or `etag: null` when unknown.
  */
-export type HeldWrite<T> = () => Promise<{ value: T; etag: string | null; version: number }>;
+export type HeldWrite<T> = (
+  etag: string,
+) => Promise<{ value: T; etag: string | null; version: number }>;
 
 export type HeldResult<T> = { status: 'done'; value: T } | { status: 'conflict' };
 
@@ -304,7 +307,7 @@ export class AutosaveQueue {
     if (settled.status === 'conflict') return { status: 'conflict' };
     this.holding = true;
     try {
-      const { value, etag, version } = await write();
+      const { value, etag, version } = await write(this.state.etag);
       if (etag !== null) this.dispatch({ type: 'took-etag', etag, version });
       return { status: 'done', value };
     } finally {

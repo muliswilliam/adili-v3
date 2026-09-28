@@ -4,10 +4,14 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  acceptDeclarationSuggestion,
+  extractDeclarationAttachment,
   getDeclarationSection,
   linkDeclarationAttachment,
+  listDeclarationSuggestions,
   unlinkDeclarationAttachment,
 } from '../../server/declarations';
+import type { LoadedSuggestion } from '../../server/declarations.server';
 import {
   completeAttachmentUpload,
   createAttachmentUpload,
@@ -16,6 +20,8 @@ import {
 import type { UploadCheck } from '../../server/documents/uploads.server';
 import { putToPresignedUrl } from './attachment-upload';
 import type { Attachment } from '../../declaration/contents';
+import { markExtractionOff, resetExtractionAvailability } from './extraction-availability';
+import type { ItemAttachmentSlot } from './statement-item-editor';
 import { AttachmentUploadsProvider, ItemAttachments } from './item-attachments';
 import { DECLARATION_ID, renderWorkspace, rowOf as row } from './testing';
 
@@ -38,6 +44,9 @@ const putMock = vi.mocked(putToPresignedUrl);
 const linkMock = vi.mocked(linkDeclarationAttachment);
 const unlinkMock = vi.mocked(unlinkDeclarationAttachment);
 const getSectionMock = vi.mocked(getDeclarationSection);
+const extractMock = vi.mocked(extractDeclarationAttachment);
+const listMock = vi.mocked(listDeclarationSuggestions);
+const acceptMock = vi.mocked(acceptDeclarationSuggestion);
 
 const ITEM_ID = '0b7e6a3c-1111-4222-8333-444455556666';
 const UPLOAD_ID = '6f1d0c9e-0000-4000-8000-000000000001';
@@ -54,11 +63,15 @@ const deed: Attachment = {
 
 const setAttachmentsSpy = vi.fn();
 
-function Harness({ initial }: { initial: Attachment[] }) {
+type Extras = Partial<Pick<ItemAttachmentSlot, 'itemType' | 'onAccepted'>>;
+
+function Harness({ initial, extras }: { initial: Attachment[]; extras: Extras }) {
   const [attachments, setAttachments] = useState(initial);
   return (
     <ItemAttachments
       slot={{
+        itemType: 'vehicle',
+        ...extras,
         sectionKey: KEY,
         category: 'assets',
         itemId: ITEM_ID,
@@ -74,10 +87,10 @@ function Harness({ initial }: { initial: Attachment[] }) {
   );
 }
 
-function renderAttachments(initial: Attachment[] = []) {
+function renderAttachments(initial: Attachment[] = [], extras: Extras = {}) {
   return renderWorkspace(
     <AttachmentUploadsProvider>
-      <Harness initial={initial} />
+      <Harness initial={initial} extras={extras} />
     </AttachmentUploadsProvider>,
     { step: 'statement:officer' },
   );
@@ -101,6 +114,7 @@ function never<T>() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetExtractionAvailability();
   reserveMock.mockResolvedValue({
     status: 'reserved',
     reservation: {
@@ -275,7 +289,11 @@ describe('ItemAttachments (S10)', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove deed.pdf' }));
+    // Linked in this visit, the file has a menu: Read into the form, then Remove.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
     await waitFor(() => {
@@ -300,7 +318,10 @@ describe('ItemAttachments (S10)', () => {
       },
     });
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
     await waitFor(() => {
@@ -315,7 +336,10 @@ describe('ItemAttachments (S10)', () => {
 
   it('does not unlink until the removal is confirmed', async () => {
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(unlinkMock).not.toHaveBeenCalled();
@@ -325,11 +349,122 @@ describe('ItemAttachments (S10)', () => {
   it('keeps the document when the service cannot unlink it', async () => {
     unlinkMock.mockResolvedValue({ status: 'unavailable' });
     renderAttachments([deed]);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove deed.pdf' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for deed.pdf' }), {
+      key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove deed.pdf?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
     expect(await screen.findByText('The document could not be removed. Try again.')).toBeDefined();
     expect(screen.getByText('deed.pdf')).toBeDefined();
     expect(setAttachmentsSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('Read into the form on an attachment (S6, S11)', () => {
+  const read: LoadedSuggestion = {
+    id: '5a000000-0000-4000-8000-000000000001',
+    setId: '5b000000-0000-4000-8000-000000000001',
+    personKey: 'officer',
+    sectionKey: KEY,
+    itemType: 'vehicle',
+    fields: { registration: 'KCB 782M' },
+    sourceRef: { fields: [{ name: 'registration', confidence: 0.95, page: 1 }] },
+    confidence: 0.95,
+    matchItemId: null,
+    status: 'new',
+    acceptedItemId: null,
+  };
+
+  async function linked(extras: Extras = {}) {
+    renderAttachments([], extras);
+    pick(pdf());
+    await screen.findByText('8 KB · Attached');
+    linkMock.mock.calls.length = 0;
+  }
+
+  function openMenu(name = 'deed.pdf') {
+    fireEvent.keyDown(screen.getByRole('button', { name: `Actions for ${name}` }), {
+      key: 'Enter',
+    });
+    return screen.getByRole('menu');
+  }
+
+  it('offers it for a file linked in this visit', async () => {
+    await linked();
+    const menu = openMenu();
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Read into the form', 'Remove']);
+  });
+
+  it("offers it for a file linked before this visit, by its reference's attachment id", async () => {
+    extractMock.mockResolvedValue({ status: 'unavailable' });
+    renderAttachments([deed]);
+    fireEvent.click(within(openMenu()).getByRole('menuitem', { name: 'Read into the form' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Read into the form' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Read document' }));
+    await waitFor(() => {
+      expect(extractMock).toHaveBeenCalled();
+    });
+    expect(extractMock.mock.calls[0]?.[0].data).toMatchObject({ attachmentId: ATTACHMENT_ID });
+  });
+
+  it('says it is not enabled once the Commission is known not to read documents', () => {
+    markExtractionOff(DECLARATION_ID);
+    renderAttachments([deed]);
+    const menu = openMenu('deed.pdf');
+    const note = within(menu).getByRole('menuitem', {
+      name: 'Read into the form: not enabled for your Commission',
+    });
+    expect(note.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('reads the document, applies it through accept and marks the row', async () => {
+    const onAccepted = vi.fn();
+    extractMock.mockResolvedValue({
+      status: 'started',
+      set: {
+        id: read.setId,
+        personKey: 'officer',
+        source: 'document',
+        status: 'ready',
+        requestedAt: '2026-09-26T07:30:00Z',
+        readyAt: '2026-09-26T07:30:00Z',
+        verificationResultId: null,
+        aiJobId: null,
+        suggestions: [read],
+      },
+    });
+    acceptMock.mockResolvedValue({
+      status: 'accepted',
+      suggestion: { ...read, status: 'accepted', acceptedItemId: ITEM_ID },
+      itemId: ITEM_ID,
+      etag: '"6"',
+    });
+    await linked({ onAccepted });
+    fireEvent.click(within(openMenu()).getByRole('menuitem', { name: 'Read into the form' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Read into the form' });
+    expect(within(sheet).getByRole('radio', { name: 'Logbook' })).toHaveProperty('checked', true);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Read document' }));
+    const review = await screen.findByRole('dialog', { name: 'Check what was read' });
+    fireEvent.click(within(review).getByRole('button', { name: 'Apply to this item' }));
+    expect(await screen.findByText('Details applied to this item')).toBeDefined();
+    expect(extractMock.mock.calls[0]?.[0].data).toMatchObject({
+      attachmentId: ATTACHMENT_ID,
+      documentKindHint: 'logbook',
+      targetItemType: 'vehicle',
+    });
+    expect(acceptMock.mock.calls[0]?.[0].data).toMatchObject({
+      suggestionId: read.id,
+      applyToItemId: ITEM_ID,
+    });
+    expect(onAccepted).toHaveBeenCalledWith(ITEM_ID, {
+      assets: [{ id: ITEM_ID, attachments: [deed] }],
+    });
+    expect(screen.getByText('8 KB · Read into the form')).toBeDefined();
+    expect(listMock).not.toHaveBeenCalled();
   });
 });

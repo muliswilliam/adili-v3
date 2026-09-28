@@ -17,6 +17,7 @@ import { LockIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import type { AssetItem, Attachment, Draft, Location, Money } from '../../declaration/contents';
+import type { JsonObject } from '../../server/declarations.server';
 import {
   AMOUNT_KEY,
   type AnyItem,
@@ -30,6 +31,7 @@ import {
   withCurrency,
 } from '../../declaration/statement';
 import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from '../../declaration/labels';
+import { optionalLabel } from './optional-label';
 
 /**
  * Where #125 mounts the AttachmentList for an item. Called for assets and liabilities (the
@@ -46,6 +48,12 @@ export interface ItemAttachmentSlot {
   setAttachments: (next: Attachment[]) => void;
   /** Editing is off, e.g. after a conflict. */
   disabled: boolean;
+  /** The item's type, e.g. `vehicle`: what a document read into the form is read as (#316). */
+  itemType?: string | undefined;
+  /** The item as on screen, to show what reading a document into it would change. */
+  item?: unknown;
+  /** Takes the item an accept added or filled, from the section as read back (#316). */
+  onAccepted?: (itemId: string, contents: JsonObject) => void;
 }
 
 export type RenderAttachments = (slot: ItemAttachmentSlot) => ReactNode;
@@ -153,14 +161,6 @@ const ASSET_DETAILS: Partial<Record<string, DetailField[]>> = {
 ASSET_DETAILS.building = ASSET_DETAILS.land;
 ASSET_DETAILS.shareholding = ASSET_DETAILS.securities;
 
-function optionalLabel(label: string) {
-  return (
-    <>
-      {label} <span className="font-normal text-muted-foreground">(optional)</span>
-    </>
-  );
-}
-
 export interface ItemEditorProps {
   category: Category;
   item: Item;
@@ -195,12 +195,12 @@ export function ItemEditor({
   disabled,
   renderAttachments,
 }: ItemEditorProps) {
-  const any = item as AnyItem;
-  const id = any.id ?? '';
+  const anyItem = item as AnyItem;
+  const id = anyItem.id ?? '';
   const copy = COPY[category];
   const amountKey = AMOUNT_KEY[category];
-  const money: Draft<Money> = any[amountKey] ?? {};
-  const location: Draft<Location> = any.location ?? { inKenya: true };
+  const money: Draft<Money> = anyItem[amountKey] ?? {};
+  const location: Draft<Location> = anyItem.location ?? { inKenya: true };
   const abroad = location.inKenya === false;
   const fid = (field: string) => itemFieldId(id, field);
 
@@ -231,7 +231,7 @@ export function ItemEditor({
       id={fid('type')}
       legend={copy.type}
       options={Object.entries(TYPE_LABELS[category]).map(([value, label]) => ({ value, label }))}
-      value={any.type ?? null}
+      value={anyItem.type ?? null}
       error={errorFor('type')}
       onValueChange={(value) => {
         onTouch('type');
@@ -240,7 +240,7 @@ export function ItemEditor({
     />
   );
 
-  if (!any.type) {
+  if (!anyItem.type) {
     return (
       <div className="grid gap-4">
         {type}
@@ -249,7 +249,7 @@ export function ItemEditor({
     );
   }
 
-  const details = category === 'assets' ? (ASSET_DETAILS[any.type] ?? []) : [];
+  const details = category === 'assets' ? (ASSET_DETAILS[anyItem.type] ?? []) : [];
 
   return (
     <div className="grid gap-5">
@@ -265,7 +265,7 @@ export function ItemEditor({
               controlId={fid(field.key)}
             >
               <Input
-                value={any.details?.[field.key] ?? ''}
+                value={anyItem.details?.[field.key] ?? ''}
                 maxLength={field.maxLength}
                 placeholder={field.placeholder}
                 onChange={(event) => {
@@ -278,7 +278,7 @@ export function ItemEditor({
               />
             </FormField>
           ))}
-          {any.type === 'bank-account' ? (
+          {anyItem.type === 'bank-account' ? (
             <p className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-secondary-foreground sm:col-span-2">
               <Icon icon={LockIcon} className="size-4 shrink-0" />
               Do not enter account numbers.
@@ -289,7 +289,7 @@ export function ItemEditor({
 
       <FormField label="Description" error={errorFor('description')} controlId={fid('description')}>
         <Input
-          value={any.description ?? ''}
+          value={anyItem.description ?? ''}
           maxLength={200}
           placeholder={copy.description}
           onBlur={() => {
@@ -305,7 +305,7 @@ export function ItemEditor({
       {category === 'liabilities' ? (
         <FormField label="Creditor" error={errorFor('creditor')} controlId={fid('creditor')}>
           <Input
-            value={any.creditor ?? ''}
+            value={anyItem.creditor ?? ''}
             maxLength={200}
             placeholder="Who you owe, e.g. HFC Bank, Mwalimu SACCO"
             onBlur={() => {
@@ -484,7 +484,7 @@ export function ItemEditor({
         <div className="grid gap-3">
           <CheckboxItem
             label="Jointly held"
-            checked={any.joint?.isJoint === true}
+            checked={anyItem.joint?.isJoint === true}
             onChange={(event) => {
               const isJoint = event.target.checked;
               set((current) => ({
@@ -493,11 +493,11 @@ export function ItemEditor({
               }));
             }}
           />
-          {any.joint?.isJoint ? (
+          {anyItem.joint?.isJoint ? (
             <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4 sm:grid-cols-2">
               <FormField label={shareLabel} error={errorFor('share')} controlId={fid('share')}>
                 <PercentInput
-                  value={any.joint.sharePercent ?? null}
+                  value={anyItem.joint.sharePercent ?? null}
                   placeholder="50"
                   onBlur={() => {
                     onTouch('share');
@@ -514,7 +514,7 @@ export function ItemEditor({
               <FormField label={optionalLabel('Co-owner relationship')} controlId={fid('coOwner')}>
                 <Select
                   placeholder="Choose one"
-                  value={any.joint.coOwner ?? ''}
+                  value={anyItem.joint.coOwner ?? ''}
                   onValueChange={(coOwner) => {
                     set((current) => ({
                       ...current,
@@ -538,7 +538,7 @@ export function ItemEditor({
         <CheckboxItem
           label="Changed since last declaration"
           hint="Value up or down 25% or more, acquired, disposed of or settled."
-          checked={any.change?.changed === true}
+          checked={anyItem.change?.changed === true}
           onChange={(event) => {
             const changed = event.target.checked;
             set((current) => ({
@@ -547,13 +547,13 @@ export function ItemEditor({
             }));
           }}
         />
-        {any.change?.changed ? (
+        {anyItem.change?.changed ? (
           <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
             <SegmentedChoice
               id={fid('changeKind')}
               legend="What changed?"
               options={CHANGE_KIND_OPTIONS[category]}
-              value={any.change.kind ?? null}
+              value={anyItem.change.kind ?? null}
               error={errorFor('changeKind')}
               onValueChange={(kind) => {
                 onTouch('changeKind');
@@ -576,7 +576,7 @@ export function ItemEditor({
                 rows={3}
                 maxLength={1000}
                 placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
-                value={any.change.explanation ?? ''}
+                value={anyItem.change.explanation ?? ''}
                 onBlur={() => {
                   onTouch('explanation');
                 }}
@@ -599,11 +599,13 @@ export function ItemEditor({
             category,
             itemId: id,
             itemNoun: CATEGORY_WORDS[category].one,
-            attachments: any.attachments ?? [],
+            attachments: anyItem.attachments ?? [],
             setAttachments: (attachments) => {
               set((current) => ({ ...current, attachments }));
             },
             disabled,
+            itemType: anyItem.type,
+            item,
           })
         : null}
     </div>

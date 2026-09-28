@@ -1,5 +1,14 @@
-import type { Child, Draft, Household, MaritalStatus, PersonName, Spouse } from './contents';
+import type {
+  Child,
+  Draft,
+  Household,
+  MaritalStatus,
+  PersonKey,
+  PersonName,
+  Spouse,
+} from './contents';
 import { ageOn, blank, fullName } from './format';
+import { householdIdOf, relationOfPerson } from './section-key';
 
 /**
  * Rules for Spouses and children (paragraphs 6-7), shared by the household screen and the
@@ -40,6 +49,28 @@ export interface HouseholdIssue {
 const NATIONAL_ID = /^[0-9]{5,10}$/;
 const KRA_PIN = /^[AP][0-9]{9}[A-Z]$/;
 const NO_SPOUSE_EXPECTED: readonly MaritalStatus[] = ['single', 'divorced', 'widowed'];
+
+/** A spouse or child as Household has them. */
+export type HouseholdMember =
+  { relation: 'spouse'; person: Draft<Spouse> } | { relation: 'child'; person: Draft<Child> };
+
+/** The spouse or child a person key names in Household; null for the officer or when absent. */
+export function householdMember(
+  household: Draft<Household>,
+  personKey: PersonKey,
+): HouseholdMember | null {
+  const relation = relationOfPerson(personKey);
+  const id = householdIdOf(personKey);
+  if (relation === 'spouse') {
+    const person = household.spouses?.items?.find((each) => each.id === id);
+    return person ? { relation, person } : null;
+  }
+  if (relation === 'child') {
+    const person = household.children?.items?.find((each) => each.id === id);
+    return person ? { relation, person } : null;
+  }
+  return null;
+}
 
 /** The card's heading: the person's name once it has a first name, else "Spouse 2". */
 export function personTitle(name: Draft<PersonName> | undefined, fallback: string): string {

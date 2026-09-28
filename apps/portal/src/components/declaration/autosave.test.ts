@@ -284,13 +284,14 @@ describe('AutosaveQueue', () => {
         .mockResolvedValue(savedOutcome('"4"'));
       const queue = new AutosaveQueue({ etag: '"1"', version: 1, save });
       const write = deferred<{ value: string; etag: string; version: number }>();
-      const task = vi.fn(() => write.promise);
+      const task = vi.fn<(etag: string) => typeof write.promise>(() => write.promise);
 
       queue.edit('statement:officer', { assets: ['new item'] });
       const held = queue.whileHeld(task);
       await vi.advanceTimersByTimeAsync(0);
       expect(save).toHaveBeenCalledWith('statement:officer', { assets: ['new item'] }, '"1"');
-      expect(task).toHaveBeenCalledTimes(1);
+      // The write gets the ETag the waiting edits left, for its If-Match.
+      expect(task).toHaveBeenCalledExactlyOnceWith('"2"');
 
       // Typing during the write waits for it.
       queue.edit('statement:officer', { assets: ['typed'] });

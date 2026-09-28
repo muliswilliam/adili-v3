@@ -41,6 +41,22 @@ export {
   CodeString,
 } from './components/code-block';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
+export {
+  ConfidenceChip,
+  type ConfidenceChipProps,
+  confidenceLevel,
+  type ConfidenceLevel,
+  type ConfidenceMessages,
+} from './components/confidence-chip';
+export {
+  ConsentDialog,
+  type ConsentDialogProps,
+  type ConsentMessages,
+  consentTextVersion,
+  maskNationalId,
+  REGISTRY_KINDS,
+  type RegistryKind,
+} from './components/consent-dialog';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export { CountrySelect, type CountrySelectProps } from './components/country-select';
 export { CountySelect, type CountySelectProps } from './components/county-select';
@@ -103,7 +119,15 @@ export {
   maskEmail,
   maskPhone,
 } from './components/masked-contact';
-export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
+export {
+  Menu,
+  MenuContent,
+  MenuItem,
+  type MenuItemProps,
+  MenuNote,
+  type MenuNoteProps,
+  MenuTrigger,
+} from './components/menu';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
@@ -128,6 +152,15 @@ export {
   RegisterTimeline,
   type RegisterTimelineProps,
 } from './components/register-timeline';
+export {
+  type RegistryStatus,
+  type RegistryStatusEntry,
+  RegistryStatusList,
+  type RegistryStatusListProps,
+  type RegistryStatusMessages,
+  RegistryStatusRow,
+  type RegistryStatusRowProps,
+} from './components/registry-status';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,
@@ -160,6 +193,16 @@ export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
+export {
+  describeSource,
+  type ItemSourceDetails,
+  SOURCE_ICONS,
+  SOURCE_KINDS,
+  SOURCE_NAMES,
+  SourceBadge,
+  type SourceBadgeProps,
+  type SourceKind,
+} from './components/source-badge';
 export { Spinner } from './components/spinner';
 export {
   StatusMark,
@@ -168,6 +211,16 @@ export {
   statusMarkVariants,
 } from './components/status-mark';
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
+export {
+  emptyFieldDiff,
+  SUGGESTION_MESSAGES,
+  SuggestionCard,
+  type SuggestionCardProps,
+  type SuggestionField,
+  type SuggestionMatch,
+  type SuggestionMessages,
+  type SuggestionStatus,
+} from './components/suggestion-card';
 export {
   Table,
   TableBody,
@@ -208,6 +261,7 @@ export {
   formatMonth,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { listNames } from './lib/list-names';
 export { formatNumber } from './lib/format-number';
 export {
   formatMoney,

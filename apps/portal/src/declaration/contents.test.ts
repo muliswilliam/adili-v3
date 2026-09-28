@@ -9,6 +9,7 @@ import {
   CHANGE_KINDS,
   EMPLOYMENT_NATURES,
   INCOME_TYPES,
+  ITEM_SOURCE_KINDS,
   LIABILITY_TYPES,
   MARITAL_STATUSES,
   MEMBERSHIP_KINDS,
@@ -57,6 +58,7 @@ describe('declaration.v1 enums', () => {
     ['asset type', at(defs.AssetItem, 'type').enum, ASSET_TYPES],
     ['liability type', at(defs.LiabilityItem, 'type').enum, LIABILITY_TYPES],
     ['change kind', at(defs.ChangeFlag, 'kind').enum, CHANGE_KINDS],
+    ['item source kind', at(defs.ItemSource, 'kind').enum, ITEM_SOURCE_KINDS],
     [
       'membership kind',
       at(defs.RegistrableInterests, 'memberships', 'items', 'kind').enum,
@@ -64,6 +66,13 @@ describe('declaration.v1 enums', () => {
     ],
   ])('%s matches the schema', (_name, fromSchema, handWritten) => {
     expect(fromSchema).toEqual([...handWritten]);
+  });
+
+  it('has the HR fields the roster pre-fills', () => {
+    const employment = at(schema, 'officer', 'employment').properties ?? {};
+    expect(Object.keys(employment)).toEqual(
+      expect.arrayContaining(['jobGroup', 'appointmentDate', 'workStation']),
+    );
   });
 
   it('keeps the solemn declaration text', () => {

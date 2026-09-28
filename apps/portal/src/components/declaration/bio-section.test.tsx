@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveDeclarationSection } from '../../server/declarations';
 import { BIO_MESSAGES } from '../../declaration/bio';
 import { BioSection, ROSTER_NOTE } from './bio-section';
+import { ROSTER_HINT } from '../../declaration/copy';
 import { DECLARATION_ID, renderWorkspace, sampleBio } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
@@ -17,6 +18,29 @@ function renderBio(contents: Record<string, unknown> = {}, showErrors = false) {
     <BioSection section={sampleBio(contents)} etag={'"1"'} showErrors={showErrors} />,
     { step: 'bio' },
   );
+}
+
+const HR = {
+  maritalStatus: 'married',
+  employment: {
+    designation: 'Deputy Principal',
+    employer: 'Nyeri High School',
+    responsibleCommission: 'tsc',
+    personnelFileNumber: 'TSC/999999',
+    jobGroup: 'D3 (T-Scale 13)',
+    appointmentDate: '2026-09-02',
+    workStation: 'Eldoret, Uasin Gishu',
+  },
+};
+
+function renderHr(contents: Record<string, unknown>, { saved = false } = {}) {
+  const section = sampleBio(contents);
+  if (saved) section.completeness = 'incomplete';
+  return renderWorkspace(<BioSection section={section} etag={'"1"'} />, { step: 'bio' });
+}
+
+function hinted(name: RegExp) {
+  return screen.getByRole<HTMLInputElement>('textbox', { name, description: ROSTER_HINT });
 }
 
 function textbox(name: string) {
@@ -61,7 +85,7 @@ describe('BioSection', () => {
     fireEvent.change(textbox('Date of birth'), { target: { value: '31/02/1977' } });
 
     expect(textbox('Date of birth').getAttribute('aria-invalid')).toBe('true');
-    expect(screen.getByText(BIO_MESSAGES.birthDateFormat)).toBeTruthy();
+    expect(screen.getByText(BIO_MESSAGES.dateFormat)).toBeTruthy();
   });
 
   it('shows a missing answer once the field is left', () => {
@@ -152,6 +176,69 @@ describe('BioSection', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('S8: pre-fills the HR fields from the roster, editable, with where they came from', () => {
+    renderHr(HR);
+
+    expect(hinted(/^Job group/).value).toBe('D3 (T-Scale 13)');
+    expect(hinted(/^Date of appointment/).value).toBe('02/09/2026');
+    expect(hinted(/^Work station/).value).toBe('Eldoret, Uasin Gishu');
+    const marital = screen.getByRole('group', { name: 'Marital status' });
+    expect(within(marital).getByText(ROSTER_HINT)).toBeTruthy();
+    expect(within(marital).getByRole<HTMLInputElement>('radio', { name: 'Married' }).checked).toBe(
+      true,
+    );
+  });
+
+  it('S8: drops the roster note once the declarant changes a value, and saves it', () => {
+    vi.useFakeTimers();
+    try {
+      renderHr(HR);
+
+      fireEvent.change(hinted(/^Job group/), { target: { value: 'D4 (T-Scale 14)' } });
+
+      const jobGroup = screen.getByRole<HTMLInputElement>('textbox', { name: /^Job group/ });
+      expect(jobGroup.value).toBe('D4 (T-Scale 14)');
+      expect(jobGroup.getAttribute('aria-describedby')).toBeNull();
+      expect(hinted(/^Work station/)).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(1_500);
+      });
+      expect(saveMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          contents: expect.objectContaining({
+            employment: expect.objectContaining({
+              jobGroup: 'D4 (T-Scale 14)',
+              workStation: 'Eldoret, Uasin Gishu',
+              designation: 'Deputy Principal',
+            }) as unknown,
+          }) as unknown,
+        }) as unknown,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('S8: leaves the HR fields empty and editable when the roster has none', () => {
+    renderHr({});
+
+    for (const name of [/^Job group/, /^Date of appointment/, /^Work station/]) {
+      const field = screen.getByRole<HTMLInputElement>('textbox', { name });
+      expect(field.value).toBe('');
+      expect(field.disabled).toBe(false);
+    }
+    expect(screen.queryByText(ROSTER_HINT, { selector: 'span' })).toBeNull();
+  });
+
+  it('claims nothing came from the roster for a saved bio it has no record of', () => {
+    renderHr(HR, { saved: true });
+
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: /^Job group/ }).value).toBe(
+      'D3 (T-Scale 13)',
+    );
+    expect(screen.queryByText(ROSTER_HINT, { selector: 'span' })).toBeNull();
   });
 
   it('sends waiting edits at once when the declarant leaves the screen', async () => {

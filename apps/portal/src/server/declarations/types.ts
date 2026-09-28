@@ -1,4 +1,4 @@
-import type { components } from './schema.gen';
+import type { components, operations } from './schema.gen';
 
 type Schemas = components['schemas'];
 
@@ -18,3 +18,13 @@ export type ProblemDetails = Schemas['ProblemDetails'];
 export type SectionEnvelope = Schemas['SectionEnvelope'];
 export type SectionKey = Schemas['SectionKey'];
 export type SectionSaveResult = Schemas['SectionSaveResult'];
+export type Suggestion = Schemas['Suggestion'];
+export type SuggestionSet = Schemas['SuggestionSet'];
+export type SuggestionSource = Schemas['SuggestionSource'];
+
+/** The registries a lookup can ask (every `SuggestionSource` but `document`). */
+export type RegistrySystem = Exclude<SuggestionSource, 'document'>;
+
+/** What the declarant says a document is, as `extractAttachment` takes it (an inline enum). */
+export type DocumentKind =
+  operations['extractAttachment']['requestBody']['content']['application/json']['documentKindHint'];

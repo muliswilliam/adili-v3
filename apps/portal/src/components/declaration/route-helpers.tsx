@@ -2,6 +2,7 @@ import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { Link, notFound, redirect } from '@tanstack/react-router';
 
+import type { PersonKey } from '../../declaration/contents';
 import { isUuid, parsePersonKey, statementSectionKey } from '../../declaration/section-key';
 import { getDeclarationSection } from '../../server/declarations';
 import type { SectionResult } from '../../server/declarations.server';
@@ -16,11 +17,16 @@ export function requireDeclarationId(id: string): string {
   return id;
 }
 
-/** `officer`, `spouse:<uuid>` or `child:<uuid>` from the statement route, as a section key. */
-export function statementKey(personKey: string): SectionKey {
+/** Throws the router's not-found for a statement route's malformed person key. */
+export function requirePersonKey(personKey: string): PersonKey {
   const parsed = parsePersonKey(personKey);
   if (!parsed) throw notFound();
-  return statementSectionKey(parsed);
+  return parsed;
+}
+
+/** `officer`, `spouse:<uuid>` or `child:<uuid>` from the statement route, as a section key. */
+export function statementKey(personKey: string): SectionKey {
+  return statementSectionKey(requirePersonKey(personKey));
 }
 
 /** The redirect to sign in, then back to `returnTo`, as a full page load (see `loginHref`). */

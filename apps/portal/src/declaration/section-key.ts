@@ -13,6 +13,11 @@ export type SectionKind = 'bio' | 'household' | 'statement' | 'other';
 export type ParsedSectionKey =
   { kind: 'bio' | 'household' | 'other' } | { kind: 'statement'; personKey: PersonKey };
 
+/** The officer's person key. */
+export const OFFICER_KEY = 'officer' satisfies PersonKey;
+
+export type Relation = 'officer' | 'spouse' | 'child';
+
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const PERSON_KEY = new RegExp(`^(?:officer|(?:spouse|child):${UUID})$`);
 const ID = new RegExp(`^${UUID}$`);
@@ -55,10 +60,27 @@ export function personKeyOf(key: string): PersonKey | null {
   return parsed?.kind === 'statement' ? parsed.personKey : null;
 }
 
-/** Whose statement a key is: the officer, a spouse or a child; null for other sections. */
-export function relationOf(key: string): 'officer' | 'spouse' | 'child' | null {
-  const personKey = personKeyOf(key);
-  if (personKey === null) return null;
-  if (personKey === 'officer') return 'officer';
+/**
+ * Whose a section is: a statement's person, and the officer for `bio`, `household` and `other`
+ * (and anything that is not a section key).
+ */
+export function ownerOf(key: string): PersonKey {
+  return personKeyOf(key) ?? OFFICER_KEY;
+}
+
+/** Who a person key names: the officer, a spouse or a child. */
+export function relationOfPerson(personKey: PersonKey): Relation {
+  if (personKey === OFFICER_KEY) return 'officer';
   return personKey.startsWith('spouse:') ? 'spouse' : 'child';
+}
+
+/** A spouse's or child's id in Household (`spouse:<uuid>` -> `<uuid>`); null for the officer. */
+export function householdIdOf(personKey: PersonKey): string | null {
+  return personKey === OFFICER_KEY ? null : personKey.slice(personKey.indexOf(':') + 1);
+}
+
+/** Whose statement a key is: the officer, a spouse or a child; null for other sections. */
+export function relationOf(key: string): Relation | null {
+  const personKey = personKeyOf(key);
+  return personKey === null ? null : relationOfPerson(personKey);
 }

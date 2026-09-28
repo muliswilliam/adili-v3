@@ -374,6 +374,9 @@ export const DeclarationSchema = z.strictObject({
       natureOther: z.string().max(100).optional(),
       responsibleCommission: z.string().regex(/^[a-z][a-z0-9]{1,19}$/u),
       personnelFileNumber: z.string().max(30).optional(),
+      jobGroup: z.string().max(40).optional(),
+      appointmentDate: z.iso.date().optional(),
+      workStation: z.string().max(100).optional(),
     }),
   }),
   spouses: z.strictObject({

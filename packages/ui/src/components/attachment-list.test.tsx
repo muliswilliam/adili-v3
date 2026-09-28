@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AttachmentList, type AttachmentListItem, formatFileSize } from './attachment-list';
+import { MenuItem, MenuNote } from './menu';
 
 const everyState: AttachmentListItem[] = [
   { id: '1', name: 'bank-statement-aug-2026.pdf', status: 'uploading', progress: 45 },
@@ -12,6 +13,11 @@ const everyState: AttachmentListItem[] = [
   { id: '6', name: 'IMG_20260912_101512.heic', status: 'rejected-size' },
   { id: '7', name: 'logbook-KDA123X.jpg', status: 'failed' },
 ];
+
+/** Opens an attachment's action menu the way a keyboard user does (Radix opens on pointerdown or keys, not click). */
+function openMenu(trigger: HTMLElement) {
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+}
 
 function row(name: string) {
   const item = screen.getByText(name).closest('li');
@@ -98,6 +104,84 @@ describe('AttachmentList', () => {
 
     expect(onRemove).toHaveBeenCalledWith(everyState[2]);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it("puts a linked file's actions in a menu, with Remove still confirmed", async () => {
+    const onRemove = vi.fn();
+    const onRead = vi.fn();
+    render(
+      <AttachmentList
+        label="Documents"
+        attachments={everyState}
+        onRemove={onRemove}
+        menuItems={(attachment) =>
+          attachment.name.startsWith('title-deed') ? (
+            <MenuItem
+              onSelect={() => {
+                onRead(attachment);
+              }}
+            >
+              Read into the form
+            </MenuItem>
+          ) : null
+        }
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Remove title-deed-block-7-1234.pdf' })).toBeNull();
+    const trigger = screen.getByRole('button', {
+      name: 'Actions for title-deed-block-7-1234.pdf',
+    });
+    openMenu(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Read into the form' }));
+    await waitFor(() => {
+      expect(onRead).toHaveBeenCalledWith(everyState[2]);
+    });
+
+    openMenu(trigger);
+    expect(screen.getAllByRole('menuitem').map((entry) => entry.textContent)).toEqual([
+      'Read into the form',
+      'Remove',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Remove title-deed-block-7-1234.pdf?',
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }));
+    expect(onRemove).toHaveBeenCalledWith(everyState[2]);
+  });
+
+  it('names the menu with other copy, and can hold only a note', () => {
+    render(
+      <AttachmentList
+        label="Documents"
+        attachments={everyState}
+        onRemove={vi.fn()}
+        menuItems={() => <MenuNote>Read into the form: not enabled for your Commission</MenuNote>}
+        messages={{ actions: (name) => `Vitendo vya ${name}` }}
+      />,
+    );
+
+    openMenu(screen.getByRole('button', { name: 'Vitendo vya title-deed-block-7-1234.pdf' }));
+    expect(screen.getAllByRole('menuitem').map((entry) => entry.textContent)).toEqual([
+      'Read into the form: not enabled for your Commission',
+      'Remove',
+    ]);
+  });
+
+  it('keeps the remove button when the menu has no entries for a file', () => {
+    render(
+      <AttachmentList
+        label="Documents"
+        attachments={everyState}
+        onRemove={vi.fn()}
+        menuItems={() => null}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Remove title-deed-block-7-1234.pdf' }),
+    ).toBeDefined();
   });
 
   it('keeps the file when the user cancels', () => {

@@ -17,7 +17,7 @@ type DeclarationDocument =
  * Every value of a schema enumeration, in the order the form lists them. It fails to compile
  * when a value is missing or unknown, so the lists move with the generated types.
  */
-function allOf<T extends string>() {
+export function allOf<T extends string>() {
   return <const A extends readonly T[]>(
     values: A & ([T] extends [A[number]] ? unknown : { missing: Exclude<T, A[number]> }),
   ): A => values;
@@ -130,6 +130,15 @@ export const MEMBERSHIP_KINDS = allOf<MembershipKind>()([
   'foundation',
   'trust',
   'other',
+]);
+
+export type ItemSourceKind = ItemSource['kind'];
+export const ITEM_SOURCE_KINDS = allOf<ItemSourceKind>()([
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+  'document',
 ]);
 
 /** Anything in a draft may be missing. Arrays keep their element type partial too. */
