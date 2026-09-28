@@ -38,7 +38,7 @@ import {
   materialChangeStep,
   NO_MATERIAL_CHANGES,
 } from '../../declaration/other';
-import { personLabel, stepLink } from './steps';
+import { OFFICER_LABEL, personLabel, stepLink } from './steps';
 import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
@@ -85,7 +85,9 @@ function MaterialChanges({
 }) {
   const { declaration } = useWorkspace();
   const label = (personKey: string) =>
-    personKey === 'officer' ? 'You' : personLabel(declaration.sections, `statement:${personKey}`);
+    personKey === 'officer'
+      ? OFFICER_LABEL
+      : personLabel(declaration.sections, `statement:${personKey}`);
 
   return (
     <Card className="p-5">

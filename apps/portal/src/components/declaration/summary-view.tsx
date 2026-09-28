@@ -46,6 +46,7 @@ import {
   pendingCaseLine,
 } from '../../declaration/other';
 import {
+  OFFICER_LABEL,
   relationship,
   STATEMENTS_TITLE,
   STEP_TITLES,
@@ -469,9 +470,12 @@ function StatementsCard({
     return {
       key,
       statement,
-      name: you ? 'You' : name || 'Unnamed person',
-      short: you ? 'You' : (statement.personName?.firstName?.trim() ?? name) || 'Unnamed person',
-      relation: you ? 'You' : relationship(key),
+      name: you ? OFFICER_LABEL : name || 'Unnamed person',
+      short: you
+        ? OFFICER_LABEL
+        : (statement.personName?.firstName?.trim() ?? name) || 'Unnamed person',
+      /** Spouse or child; none for the declarant. */
+      relation: you ? null : relationship(key),
       totals: statementTotals(statement),
       completeness: (declaration.sections.find((section) => section.key === key)?.completeness ??
         'not-started') as ParagraphCompleteness,
@@ -527,7 +531,7 @@ function StatementsCard({
               <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-4 py-3">
                 <h3 className="flex-1 font-semibold">
                   {person.name}
-                  {person.relation && person.relation !== 'You' ? (
+                  {person.relation ? (
                     <span className="font-normal text-muted-foreground"> · {person.relation}</span>
                   ) : null}
                 </h3>
@@ -556,7 +560,7 @@ function OtherCard({ summary, document }: { summary: LoadedSummary; document: Su
   const other = document.otherInformation ?? {};
   const interests = other.registrableInterests ?? {};
   const names = (personKey: string) => {
-    if (personKey === 'officer') return 'You';
+    if (personKey === 'officer') return OFFICER_LABEL;
     const statement = document.statements?.find((entry) => entry.personKey === personKey);
     return fullName(statement?.personName) || 'Unnamed person';
   };
