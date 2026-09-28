@@ -1,3 +1,11 @@
+import {
+  AlertCircleIcon,
+  Cancel01Icon,
+  MinusSignIcon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
+
+import type { IconProps } from '../components/icon';
 import type { StatusBadgeVariant } from '../components/status-badge';
 import { formatDate } from './format-date';
 
@@ -9,9 +17,6 @@ import { formatDate } from './format-date';
 export type ObligationType = 'initial' | 'biennial' | 'final';
 
 export type ObligationStatus = 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
-
-/** The statuses shown to people; `cancelled` obligations are never listed. */
-export type ShownObligationStatus = Exclude<ObligationStatus, 'cancelled'>;
 
 export type ReminderOutcome =
   | 'sent'
@@ -85,20 +90,28 @@ export function obligationCycleLabel(type: ObligationType, statementDate: string
   return type === 'initial' ? m.cycleInitial(date) : m.cycleFinal(date);
 }
 
-/** The word and `StatusBadge` variant for each status people see. */
-export const obligationStatusMeta: Record<
-  ShownObligationStatus,
-  { label: string; variant: StatusBadgeVariant }
-> = {
+export interface ObligationStatusMeta {
+  label: string;
+  variant: StatusBadgeVariant;
+  /** Replaces the variant's icon on the badge. */
+  icon?: IconProps['icon'];
+}
+
+/**
+ * The word and `StatusBadge` variant for each status. The declarant's dashboard never lists a
+ * `cancelled` obligation; staff may open one, so it has a neutral badge with a cross.
+ */
+export const obligationStatusMeta: Record<ObligationStatus, ObligationStatusMeta> = {
   upcoming: { label: m.upcoming, variant: 'neutral' },
   due: { label: m.due, variant: 'info' },
   overdue: { label: m.overdue, variant: 'warning' },
   filed: { label: m.filed, variant: 'success' },
+  cancelled: { label: m.cancelled, variant: 'neutral', icon: Cancel01Icon },
 };
 
-/** A status's word, `cancelled` included (staff may open a cancelled obligation). */
+/** A status's word. */
 export function obligationStatusLabel(status: ObligationStatus): string {
-  return status === 'cancelled' ? m.cancelled : obligationStatusMeta[status].label;
+  return obligationStatusMeta[status].label;
 }
 
 /** A reminder's outcome in plain words, naming the channels it went by when sent. */
@@ -123,6 +136,24 @@ export function reminderOutcomeLabel(
       return m.failed;
   }
 }
+
+export interface ReminderOutcomeMeta {
+  icon: IconProps['icon'];
+  /** The icon's colour. */
+  iconClassName: string;
+}
+
+/**
+ * The icon beside each reminder outcome's words: a green tick when sent, a red alert when
+ * sending failed (someone should look), a muted dash when it was skipped on purpose.
+ */
+export const reminderOutcomeMeta: Record<ReminderOutcome, ReminderOutcomeMeta> = {
+  sent: { icon: Tick02Icon, iconClassName: 'text-success' },
+  failed: { icon: AlertCircleIcon, iconClassName: 'text-destructive' },
+  'skipped-not-onboarded': { icon: MinusSignIcon, iconClassName: 'text-muted-foreground' },
+  'skipped-no-contact': { icon: MinusSignIcon, iconClassName: 'text-muted-foreground' },
+  'skipped-past-due-at-creation': { icon: MinusSignIcon, iconClassName: 'text-muted-foreground' },
+};
 
 /** "30 days before" the due date. */
 export function reminderOffsetLabel(days: number): string {
