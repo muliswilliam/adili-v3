@@ -23,6 +23,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type {
+  Attachment,
   Draft,
   Household,
   Officer,
@@ -551,7 +552,7 @@ function syncStatements(stored: Stored, household: Draft<Household>) {
 
 interface ItemWithAttachments {
   id?: string;
-  attachments?: { uploadId: string; fileName: string; sha256: string }[];
+  attachments?: Attachment[];
 }
 
 function findItem(stored: Stored, key: string, itemId: string) {
@@ -597,7 +598,12 @@ async function linkAttachment(request: Request, id: string) {
   };
   item.attachments = [
     ...(item.attachments ?? []),
-    { uploadId, fileName: attachment.fileName, sha256: attachment.sha256 },
+    {
+      attachmentId: attachment.id,
+      uploadId,
+      fileName: attachment.fileName,
+      sha256: attachment.sha256,
+    },
   ];
   stored.attachments.set(attachment.id, attachment);
   stored.draftVersion += 1;

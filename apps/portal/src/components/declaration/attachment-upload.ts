@@ -21,7 +21,7 @@ export const SCAN_POLL_MS = 1_000;
 export const SCAN_POLL_LIMIT = 60;
 
 export type LinkOutcome =
-  | { status: 'linked'; attachmentId: string; size: number }
+  | { status: 'linked'; size: number }
   | {
       status: 'failed';
     };
@@ -109,13 +109,7 @@ export async function uploadAttachment(
     finish('failed');
     return;
   }
-  emit({
-    type: 'linked',
-    id: rowId,
-    uploadId,
-    attachmentId: linked.attachmentId,
-    size: linked.size,
-  });
+  emit({ type: 'linked', id: rowId, uploadId, size: linked.size });
 }
 
 /**

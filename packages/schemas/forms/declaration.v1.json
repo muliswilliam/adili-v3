@@ -242,9 +242,14 @@
     },
     "Attachment": {
       "type": "object",
-      "required": ["uploadId", "fileName", "sha256"],
+      "required": ["attachmentId", "uploadId", "fileName", "sha256"],
       "additionalProperties": false,
       "properties": {
+        "attachmentId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The link's id, set by the declarations service when it links the upload; unlinking takes it"
+        },
         "uploadId": { "type": "string", "format": "uuid" },
         "fileName": { "type": "string", "maxLength": 255 },
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }

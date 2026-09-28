@@ -77,6 +77,7 @@ export const renderItemAttachments: RenderAttachments = (slot) => <ItemAttachmen
 function complete(attachments: Draft<Attachment>[]): Attachment[] {
   return attachments.filter(
     (attachment): attachment is Attachment =>
+      typeof attachment.attachmentId === 'string' &&
       typeof attachment.uploadId === 'string' &&
       typeof attachment.fileName === 'string' &&
       typeof attachment.sha256 === 'string',
@@ -147,13 +148,16 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
         value: attachment,
         fallback: [
           ...complete(slot.attachments).filter((each) => each.uploadId !== uploadId),
-          { uploadId, fileName: attachment.fileName, sha256: attachment.sha256 },
+          {
+            attachmentId: attachment.id,
+            uploadId,
+            fileName: attachment.fileName,
+            sha256: attachment.sha256,
+          },
         ],
       };
     });
-    return linked
-      ? { status: 'linked', attachmentId: linked.id, size: linked.size }
-      : { status: 'failed' };
+    return linked ? { status: 'linked', size: linked.size } : { status: 'failed' };
   }
 
   const steps: UploadSteps = {
@@ -173,21 +177,23 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
     });
   }
 
-  async function remove(attachment: AttachmentListItem) {
-    const uploadId = attachment.id;
-    const rest = complete(slot.attachments).filter((each) => each.uploadId !== uploadId);
-    const known = state.linked[uploadId];
-    if (!known) {
-      // Linked before this page load: the service did not say which attachment it is, so the
-      // reference leaves with the next save of the section.
-      slot.setAttachments(rest);
-      toast({ title: ATTACHMENT_COPY.removed });
+  /**
+   * Unlinks a document however long ago it was linked: the service drops the link and the
+   * item's reference together and records the unlink, then the section is read back.
+   */
+  async function remove(row: AttachmentListItem) {
+    const uploadId = row.id;
+    const all = complete(slot.attachments);
+    const attachment = all.find((each) => each.uploadId === uploadId);
+    if (!attachment) {
+      toast({ title: ATTACHMENT_COPY.removeFailed });
       return;
     }
+    const rest = all.filter((each) => each.uploadId !== uploadId);
     setRemoving((current) => new Set([...current, uploadId]));
     const removed = await writeHeld(async () => {
       const result = await unlinkDeclarationAttachment({
-        data: { declarationId, attachmentId: known.attachmentId },
+        data: { declarationId, attachmentId: attachment.attachmentId },
       });
       // Gone already is as good as removed.
       if (result.status !== 'unlinked' && result.status !== 'not-found') return { ok: false };

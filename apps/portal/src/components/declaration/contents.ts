@@ -107,6 +107,8 @@ export interface MaritalStatusChange {
 }
 
 export interface Attachment {
+  /** The link's id; `DELETE .../attachments/{attachmentId}` unlinks it. */
+  attachmentId: string;
   uploadId: string;
   fileName: string;
   sha256: string;
