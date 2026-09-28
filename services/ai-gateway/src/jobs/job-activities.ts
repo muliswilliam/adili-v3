@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
 
 import { ProviderError } from '../providers/port.js';
@@ -12,13 +13,19 @@ import type { JobReason } from './job-states.js';
  * Provider errors become application failures the retry policy understands: transient kinds
  * are retried, the rest fail the job at once. Other errors (a database outage) are retried.
  */
+/** Time the attempt keeps after the executor gives up, to report it before Temporal times out. */
+const ATTEMPT_DEADLINE_MARGIN_MS = 5_000;
+
 @Injectable()
 export class JobActivities {
   constructor(private readonly executor: JobExecutor) {}
 
   async executeJob(jobId: string): Promise<void> {
+    const { currentAttemptScheduledTimestampMs, startToCloseTimeoutMs } = Context.current().info;
+    const deadline =
+      currentAttemptScheduledTimestampMs + startToCloseTimeoutMs - ATTEMPT_DEADLINE_MARGIN_MS;
     try {
-      await this.executor.execute(jobId);
+      await this.executor.execute(jobId, deadline);
     } catch (error) {
       throw toFailure(error);
     }

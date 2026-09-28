@@ -33,8 +33,9 @@ interface AttemptMetrics {
 }
 
 const NO_CALL: AttemptMetrics = { usage: null, latencyMs: 0 };
-/** About 15 s in all, well inside the attempt's margin over the provider timeout. */
-const RECORD_RETRY_DELAYS_MS = [250, 750, 2000, 4000, 8000];
+/** Longest one write of a job's final state may take (Postgres `statement_timeout`). */
+const WRITE_TIMEOUT_MS = 5_000;
+const RECORD_RETRY_DELAY_MS = { first: 250, max: 4_000 };
 
 /**
  * A provider result that could not be recorded. Not retried: another attempt would call, and
@@ -44,15 +45,25 @@ export class ResultNotRecordedError extends Error {
   override readonly name = 'ResultNotRecordedError';
 }
 
-/** Runs `write`, retrying on failure; throws `ResultNotRecordedError` once the pauses are spent. */
-async function retryWrite(jobId: string, write: () => Promise<void>): Promise<void> {
-  for (let attempt = 0; ; attempt++) {
+/**
+ * Runs `write` (bounded by `WRITE_TIMEOUT_MS`), retrying with backoff while another try can
+ * still end before `deadline`; then throws `ResultNotRecordedError`.
+ */
+async function retryWrite(
+  jobId: string,
+  deadline: number,
+  write: () => Promise<void>,
+): Promise<void> {
+  for (
+    let delay = RECORD_RETRY_DELAY_MS.first;
+    ;
+    delay = Math.min(delay * 2, RECORD_RETRY_DELAY_MS.max)
+  ) {
     try {
       await write();
       return;
     } catch (error) {
-      const delay = RECORD_RETRY_DELAYS_MS[attempt];
-      if (delay === undefined) {
+      if (Date.now() + delay + WRITE_TIMEOUT_MS > deadline) {
         throw new ResultNotRecordedError(`Could not record the result of job ${jobId}`, {
           cause: error,
         });
@@ -77,7 +88,12 @@ export class JobExecutor {
     private readonly events: EventPublisher,
   ) {}
 
-  async execute(jobId: string): Promise<void> {
+  /**
+   * @param deadline epoch ms by which this attempt must have recorded its result or given up,
+   *   so that giving up (`ResultNotRecordedError`) always comes before the attempt times out
+   *   and is retried with a second provider call.
+   */
+  async execute(jobId: string, deadline: number): Promise<void> {
     const job = await this.start(jobId);
     if (!job) return;
     const task = findTask(job.task);
@@ -99,7 +115,7 @@ export class JobExecutor {
     // the workflow's retry, which would call the provider again. A worker that dies between
     // the call and the commit still leads to a second call; only storing the raw result first
     // would prevent that.
-    await retryWrite(job.id, () => this.finish(job, outcome, metrics));
+    await retryWrite(job.id, deadline, () => this.finish(job, outcome, metrics));
   }
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */
@@ -153,6 +169,8 @@ export class JobExecutor {
   private async finish(job: Job, outcome: Outcome, metrics: AttemptMetrics): Promise<void> {
     const output = outcome.status === 'succeeded' ? outcome.output : null;
     await this.db.transaction(async (tx) => {
+      // A hung write (lock wait, lost connection) must fail in time for the caller to react.
+      await tx.execute(sql.raw(`set local statement_timeout = ${WRITE_TIMEOUT_MS}`));
       const [finished] = await tx
         .update(jobs)
         .set({
