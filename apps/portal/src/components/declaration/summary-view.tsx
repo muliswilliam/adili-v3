@@ -260,7 +260,7 @@ function BioCards({ summary, document }: { summary: LoadedSummary; document: Sum
       'Employment',
       [
         [
-          'Employer and designation',
+          'Reporting entity and designation',
           `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
         ],
         ['Nature of employment', nature],
