@@ -7,7 +7,17 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
-import { type EventEnvelope, OutboxRelay } from '@adili/events';
+import {
+  deadLetterQueue,
+  EVENTS_EXCHANGE,
+  type EventEnvelope,
+  eventsQueue,
+  eventsServerOptions,
+  OutboxRelay,
+} from '@adili/events';
+import { ClientRMQ, type MicroserviceOptions } from '@nestjs/microservices';
+import amqp from 'amqplib';
+import { lastValueFrom } from 'rxjs';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
@@ -134,6 +144,11 @@ export interface DeclarationsApi {
   clock: TestClock;
   /** The directory event consumers, called as the RabbitMQ transport would. */
   consumers: DirectoryEventsConsumer;
+  /**
+   * Publishes a directory event to the RabbitMQ events exchange, as the directory's outbox relay
+   * would (`events` option only): the service's consumers receive it on the suite's own queue.
+   */
+  publish(event: EventEnvelope): Promise<void>;
   /** `GET` as the given caller; returns Fastify's injected response. */
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /** `GET` without a bearer token. */
@@ -153,7 +168,15 @@ export interface DeclarationsApi {
  */
 export async function startDeclarationsApi({
   workflows: mode = 'recording',
-}: { workflows?: WorkflowMode } = {}): Promise<DeclarationsApi> {
+  events = false,
+}: {
+  workflows?: WorkflowMode;
+  /**
+   * Consume events from RabbitMQ (`TEST_RABBITMQ_URL`) on a queue of the suite's own, so events
+   * reach the consumers as in the service; `publish` sends them. Other suites never share it.
+   */
+  events?: boolean;
+} = {}): Promise<DeclarationsApi> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
   const pgSchema = `declarations_test_${process.pid}_${randomUUID().slice(0, 8)}`;
   const url = new URL(baseUrl);
@@ -201,6 +224,22 @@ export async function startDeclarationsApi({
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
+  const rabbitmqUrl = events ? requireEnv('TEST_RABBITMQ_URL') : '';
+  const consumerService = pgSchema.replaceAll('_', '-');
+  let publisher: ClientRMQ | undefined;
+  if (events) {
+    app.connectMicroservice<MicroserviceOptions>(
+      eventsServerOptions({ service: consumerService, rabbitmqUrl }),
+    );
+    await app.startAllMicroservices();
+    publisher = new ClientRMQ({
+      urls: [rabbitmqUrl],
+      exchange: EVENTS_EXCHANGE,
+      exchangeType: 'topic',
+      wildcards: true,
+      persistent: true,
+    });
+  }
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
@@ -225,6 +264,10 @@ export async function startDeclarationsApi({
         headers: { authorization: `Bearer ${token}` },
       });
     },
+    async publish(event) {
+      if (!publisher) throw new Error('start the harness with { events: true } to publish');
+      await lastValueFrom(publisher.emit(event.type, event), { defaultValue: undefined });
+    },
     anonymous(path) {
       return app.inject({ method: 'GET', url: path });
     },
@@ -245,8 +288,21 @@ export async function startDeclarationsApi({
       // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
       await db.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
       await app.close();
+      if (events) {
+        await publisher?.close();
+        await deleteQueues(rabbitmqUrl, consumerService);
+      }
     },
   };
+}
+
+/** Deletes the suite's own events queue and its dead-letter queue. */
+async function deleteQueues(rabbitmqUrl: string, service: string): Promise<void> {
+  const connection = await amqp.connect(rabbitmqUrl);
+  const channel = await connection.createChannel();
+  await channel.deleteQueue(eventsQueue(service));
+  await channel.deleteQueue(deadLetterQueue(service));
+  await connection.close();
 }
 
 /** Deletes the cycle-opening schedules the suite's ingests created (one per Commission). */

@@ -19,20 +19,22 @@ import {
 import { policyVersion, rosterRecord } from '../support/fake-directory.js';
 
 /**
- * S24: an import event ends in a running `FilingObligationWorkflow` on the compose Temporal,
- * hosted by the service's own worker (the suite's task queue) with its real activities against
- * the test database. Time cannot be skipped on a real server, so the workflow is described and
- * queried for its pending step.
+ * S24: an import event published to RabbitMQ ends in a running `FilingObligationWorkflow` on the
+ * compose Temporal: the service's consumer (on the suite's own queue) ingests it, and the
+ * service's own worker (the suite's task queue) runs the workflow with its real activities
+ * against the test database. Time cannot be skipped on a real server, so the workflow is
+ * described, its history read for the pending timer, and queried for its next step.
  *
- * Real time throughout: the officer was appointed two days ago under a policy starting this year,
- * so the initial is due, its 30-day reminder was past at creation and the 14-day one is next.
+ * Real time throughout: the declarant was appointed two days ago under a policy starting this
+ * year, so the initial is due, its 30-day reminder was past at creation and the 14-day one is
+ * next.
  */
 let api: DeclarationsApi;
 let temporal: Client;
 const started: string[] = [];
 
 beforeAll(async () => {
-  api = await startDeclarationsApi({ workflows: 'real' });
+  api = await startDeclarationsApi({ workflows: 'real', events: true });
   temporal = api.app.get<Client>(TEMPORAL_CLIENT);
 }, 60_000);
 
@@ -52,8 +54,39 @@ function asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T> {
   return withTenant(api.db, { tenant: 'platform', subject: 'test' }, work);
 }
 
+/** The workflow's timers started and neither fired nor cancelled, with when each fires. */
+async function pendingTimers(id: string): Promise<{ firesAt: Date }[]> {
+  const events = (await temporal.workflow.getHandle(id).fetchHistory()).events ?? [];
+  const done = new Set(
+    events.flatMap((event) => {
+      const ended = event.timerFiredEventAttributes ?? event.timerCanceledEventAttributes;
+      return ended?.timerId ? [ended.timerId] : [];
+    }),
+  );
+  return events.flatMap((event) => {
+    const started = event.timerStartedEventAttributes;
+    if (!started?.timerId || done.has(started.timerId)) return [];
+    const at = Number(event.eventTime?.seconds ?? 0) * 1000;
+    const timeout = Number(started.startToFireTimeout?.seconds ?? 0) * 1000;
+    return [{ firesAt: new Date(at + timeout) }];
+  });
+}
+
+async function obligationOf(rosterRecordId: string) {
+  const [obligation] = await asPlatform((tx) =>
+    tx
+      .select({
+        id: filingObligations.id,
+        workflowStartedAt: filingObligations.workflowStartedAt,
+      })
+      .from(filingObligations)
+      .where(eq(filingObligations.rosterRecordId, rosterRecordId)),
+  );
+  return obligation;
+}
+
 describe('S24 FilingObligationWorkflow on Temporal', () => {
-  it('starts the workflow of an imported obligation, which reads it and waits for its next reminder; personLinked reaches it', async () => {
+  it('starts the workflow of an obligation imported through RabbitMQ, which waits on a timer for its next reminder; personLinked reaches it', async () => {
     const today = nairobiDate(new Date());
     const appointed = addDays(today, -2);
     api.directory.givenCommission(
@@ -65,22 +98,18 @@ describe('S24 FilingObligationWorkflow on Temporal', () => {
     const importId = randomUUID();
     api.directory.givenImport(importId, [record]);
 
-    await api.consumers.importCompleted(
+    await api.publish(
       directoryEvent(ROSTER_IMPORT_COMPLETED, 'psc', { importId, channel: 'file' }),
     );
 
-    const [obligation] = await asPlatform((tx) =>
-      tx
-        .select({
-          id: filingObligations.id,
-          workflowStartedAt: filingObligations.workflowStartedAt,
-        })
-        .from(filingObligations)
-        .where(eq(filingObligations.rosterRecordId, record.id)),
+    await vi.waitFor(
+      async () => {
+        expect((await obligationOf(record.id))?.workflowStartedAt).toBeInstanceOf(Date);
+      },
+      { timeout: 30_000, interval: 250 },
     );
-    const id = obligation?.id ?? '';
+    const id = (await obligationOf(record.id))?.id ?? '';
     started.push(id);
-    expect(obligation?.workflowStartedAt).toBeInstanceOf(Date);
 
     const handle = temporal.workflow.getHandle(id);
     const description = await handle.describe();
@@ -103,6 +132,10 @@ describe('S24 FilingObligationWorkflow on Temporal', () => {
       },
       { timeout: 30_000, interval: 250 },
     );
+    // One timer pending, for the 14-day reminder: midday in Nairobi, jittered by at most 6 hours.
+    const timers = await pendingTimers(id);
+    expect(timers).toHaveLength(1);
+    expect(nairobiDate(timers[0]?.firesAt ?? new Date(0))).toBe(addDays(appointed, 30 - 14));
 
     api.directory.givenRecords([
       {
@@ -113,12 +146,13 @@ describe('S24 FilingObligationWorkflow on Temporal', () => {
         updatedAt: new Date(Date.now() + 1000).toISOString(),
       },
     ]);
-    await api.consumers.declarantOnboarded(
-      directoryEvent(DECLARANT_ONBOARDED, 'psc', { rosterRecordId: record.id }),
-    );
+    await api.publish(directoryEvent(DECLARANT_ONBOARDED, 'psc', { rosterRecordId: record.id }));
 
-    await vi.waitFor(async () => {
-      expect(await handle.query(stateQuery)).toMatchObject({ personLinked: true });
-    });
+    await vi.waitFor(
+      async () => {
+        expect(await handle.query(stateQuery)).toMatchObject({ personLinked: true });
+      },
+      { timeout: 30_000, interval: 250 },
+    );
   }, 60_000);
 });

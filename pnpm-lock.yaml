@@ -1303,6 +1303,9 @@ importers:
       '@temporalio/testing':
         specifier: ^1.24.0
         version: 1.24.0(esbuild@0.28.2)
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -1312,6 +1315,9 @@ importers:
       ajv-formats:
         specifier: ^3.0.1
         version: 3.0.1(ajv@8.20.0)
+      amqplib:
+        specifier: ^2.0.1
+        version: 2.0.1
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
