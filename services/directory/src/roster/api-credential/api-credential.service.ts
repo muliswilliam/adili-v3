@@ -93,9 +93,11 @@ export class ApiCredentialService {
       return await this.inTenant(principal, slug, async (tx) => {
         const current = await this.active(tx, slug);
         const { secret } = await this.identity.rotateApiClientSecret(current.keycloakClientId);
+        // The time the rotation took effect, not the transaction's start (`now()`): tokens of
+        // the old secret can be minted until the identity provider has rotated it.
         const [row] = await tx
           .update(rosterApiCredentials)
-          .set({ rotatedAt: sql`now()` })
+          .set({ rotatedAt: sql`clock_timestamp()` })
           .where(eq(rosterApiCredentials.tenant, slug))
           .returning();
         await this.record(tx, slug, 'rotated', current.keycloakClientId);
@@ -117,7 +119,7 @@ export class ApiCredentialService {
         await this.identity.disableApiClient(current.keycloakClientId);
         await tx
           .update(rosterApiCredentials)
-          .set({ revokedAt: sql`now()` })
+          .set({ revokedAt: sql`clock_timestamp()` })
           .where(eq(rosterApiCredentials.tenant, slug));
         await this.record(tx, slug, 'revoked', current.keycloakClientId);
       });

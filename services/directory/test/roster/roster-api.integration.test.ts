@@ -471,6 +471,17 @@ describe('credential enforcement', () => {
     expect((await api.get(`${ROSTER}/summary`, PSC_HR)).statusCode).toBe(200);
   });
 
+  it('401s tokens issued in the second of the rotation, which may be of the old secret', async () => {
+    const second = Math.floor(Date.now() / 1000) - 60;
+    await withTenant(api.db, { tenant: 'psc', subject: 'test' }, (tx) =>
+      tx.update(rosterApiCredentials).set({ rotatedAt: new Date(second * 1000 + 500) }),
+    );
+
+    expectProblem(await api.get(`${ROSTER}/summary`, { ...PSC_HR, iat: second }), 401);
+    const next = await api.get(`${ROSTER}/summary`, { ...PSC_HR, iat: second + 1 });
+    expect(next.statusCode).toBe(200);
+  });
+
   it('401s roster:write tokens of a client that is not a credential of the tenant', async () => {
     expectProblem(
       await api.get(`${ROSTER}/summary`, { ...PSC_HR, azp: 'roster-psc-ffffffff' }),

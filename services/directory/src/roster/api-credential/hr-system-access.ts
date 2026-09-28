@@ -38,8 +38,8 @@ const LAST_USED_THROTTLE_SECONDS = 60;
  *
  * An HR system's token is accepted only while the credential it was issued for is current: its
  * client is the tenant's credential, not revoked, and not rotated after the token was issued
- * (`ApiCredentialGuard`), so revoking or rotating takes effect at once rather than when the
- * token expires. Put it below `@Roles`, so the rate limit and the credential check run first.
+ * (`ApiCredentialGuard`; a token issued in the second of the rotation counts as issued before
+ * it), so revoking or rotating takes effect at once rather than when the token expires. Put it below `@Roles`, so the rate limit and the credential check run first.
  *
  * @example
  * @Post()
@@ -95,9 +95,9 @@ export class ApiCredentialGuard implements CanActivate {
       eq(rosterApiCredentials.tenant, tenant),
       eq(rosterApiCredentials.keycloakClientId, clientId),
       isNull(rosterApiCredentials.revokedAt),
-      // `iat` has whole seconds: a token issued in the second of the rotation is still accepted,
-      // rather than refusing one issued just after it.
-      sql`(${rosterApiCredentials.rotatedAt} is null or date_trunc('second', ${rosterApiCredentials.rotatedAt}) <= to_timestamp(${issuedAt}))`,
+      // `iat` has whole seconds, so a token issued in the second of the rotation may be of the
+      // old secret: only tokens issued in a later second are accepted.
+      sql`(${rosterApiCredentials.rotatedAt} is null or ${issuedAt} > floor(extract(epoch from ${rosterApiCredentials.rotatedAt})))`,
     );
     await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const [found] = await tx
