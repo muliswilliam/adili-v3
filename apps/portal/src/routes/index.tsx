@@ -14,19 +14,33 @@ import { z } from 'zod';
 import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
 import { DashboardCards } from '../components/dashboard/dashboard-cards';
+import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { SignOutButton } from '../components/sign-out-button';
+import { getMyObligations, getObligationDetail } from '../server/obligations';
+import type { MyObligationsResult } from '../server/obligations.server';
 import { getViewer, type Viewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
   validateSearch: z.object({ auth_error: z.string().optional() }),
-  loader: () => getViewer(),
+  loader: async () => {
+    const viewer = await getViewer();
+    // Not awaited: the dashboard renders with skeleton cards and the obligations stream in.
+    return { viewer, obligations: viewer ? getMyObligations() : null };
+  },
   component: Home,
 });
 
+const reloadObligations = () => getMyObligations();
+const loadObligationDetail = (id: string) => getObligationDetail({ data: { id } });
+
 function Home() {
-  const viewer = Route.useLoaderData();
+  const { viewer, obligations } = Route.useLoaderData();
   const { auth_error } = Route.useSearch();
-  return viewer ? <Dashboard viewer={viewer} /> : <Landing error={authErrorMessage(auth_error)} />;
+  return viewer && obligations ? (
+    <Dashboard viewer={viewer} obligations={obligations} />
+  ) : (
+    <Landing error={authErrorMessage(auth_error)} />
+  );
 }
 
 function Landing({ error }: { error: string | null }) {
@@ -60,7 +74,13 @@ function Landing({ error }: { error: string | null }) {
   );
 }
 
-function Dashboard({ viewer }: { viewer: Viewer }) {
+function Dashboard({
+  viewer,
+  obligations,
+}: {
+  viewer: Viewer;
+  obligations: Promise<MyObligationsResult>;
+}) {
   const firstName = viewer.user.name.split(' ')[0];
   return (
     <ToastProvider>
@@ -75,14 +95,18 @@ function Dashboard({ viewer }: { viewer: Viewer }) {
         }
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        <div className="grid gap-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
-          <p className="text-muted-foreground">
-            Your declarations and filing obligations will appear here.
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
         <div className="mt-8">
-          <DashboardCards viewer={viewer} />
+          <DashboardCards
+            viewer={viewer}
+            obligations={
+              <ObligationsSection
+                obligations={obligations}
+                reload={reloadObligations}
+                loadDetail={loadObligationDetail}
+              />
+            }
+          />
         </div>
       </main>
       <SiteFooter />
