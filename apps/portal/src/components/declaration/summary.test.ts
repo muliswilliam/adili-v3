@@ -95,11 +95,11 @@ describe('paragraph completeness', () => {
     ]);
     expect(paragraphCompleteness(all, 'bio')).toBe('complete');
     expect(paragraphCompleteness(all, 'household')).toBe('not-started');
-    expect(paragraphCompleteness(all, 'statements')).toBe('incomplete');
-    expect(paragraphCompleteness(sections({ 'statement:officer': 'complete' }), 'statements')).toBe(
+    expect(paragraphCompleteness(all, 'statement')).toBe('incomplete');
+    expect(paragraphCompleteness(sections({ 'statement:officer': 'complete' }), 'statement')).toBe(
       'complete',
     );
-    expect(paragraphCompleteness(sections(), 'statements')).toBe('not-started');
+    expect(paragraphCompleteness(sections(), 'statement')).toBe('not-started');
   });
 });
 

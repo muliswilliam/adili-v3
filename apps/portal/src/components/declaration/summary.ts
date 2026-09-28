@@ -22,7 +22,8 @@ import type {
 import { ageOn, UNANSWERED } from '../../declaration/format';
 import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
 import type { Category } from '../../declaration/statement';
-import { liveSections, sectionKind, stepTitle } from './steps';
+import { type SectionKind, sectionKind } from '../../declaration/section-key';
+import { liveSections, stepTitle } from './steps';
 
 /**
  * The summary's rules and words (FE-8): what the disabled Submit says (S20), the blocking
@@ -90,19 +91,14 @@ export function blockingGroups(
   return { groups, hidden: Math.max(0, blocking.length - limit) };
 }
 
-export type Paragraph = 'bio' | 'household' | 'statements' | 'other';
 export type ParagraphCompleteness = 'not-started' | 'incomplete' | 'complete';
 
-/** A card's badge: its section's completeness; the statements card reads all of them. */
+/** A card's badge: its sections' completeness; the statements card reads every statement. */
 export function paragraphCompleteness(
   sections: DeclarationSection[],
-  paragraph: Paragraph,
+  kind: SectionKind,
 ): ParagraphCompleteness {
-  const live = liveSections(sections).filter((section) =>
-    paragraph === 'statements'
-      ? sectionKind(section.key) === 'statement'
-      : section.key === paragraph,
-  );
+  const live = liveSections(sections).filter((section) => sectionKind(section.key) === kind);
   if (live.length === 0) return 'not-started';
   if (live.every((section) => section.completeness === 'complete')) return 'complete';
   if (live.every((section) => section.completeness === 'not-started')) return 'not-started';

@@ -69,7 +69,8 @@ import {
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from '../../declaration/labels';
 import { fullName } from '../../declaration/format';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
-import { liveSections, personKeyOf, relationship } from './steps';
+import { personKeyOf } from '../../declaration/section-key';
+import { liveSections, relationship } from './steps';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';

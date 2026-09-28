@@ -32,6 +32,7 @@ import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
+import { statementSectionKey } from '../../declaration/section-key';
 import {
   EMPLOYMENT_NATURE_LABELS,
   MARITAL_STATUS_LABELS,
@@ -426,7 +427,7 @@ function StatementItems({
 }
 
 function statementKeyOf(statement: Draft<Statement>) {
-  return `statement:${statement.personKey ?? 'officer'}`;
+  return statementSectionKey(statement.personKey ?? 'officer');
 }
 
 function StatementsCard({
@@ -458,7 +459,7 @@ function StatementsCard({
     <ParagraphCard
       paragraphs="Paragraph 8"
       title={STATEMENTS_TITLE}
-      completeness={paragraphCompleteness(declaration.sections, 'statements')}
+      completeness={paragraphCompleteness(declaration.sections, 'statement')}
     >
       <div className="grid gap-1.5">
         <Table caption="Totals per person, KES">

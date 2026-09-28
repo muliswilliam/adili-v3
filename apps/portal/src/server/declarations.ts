@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
+import { isSectionKey } from '../declaration/section-key';
 import { getBff } from './bff.server';
 import {
   type DeclarationListResult,
@@ -42,9 +43,7 @@ async function asDeclarant<T>(
 }
 
 const id = z.uuid();
-const sectionKey = z
-  .string()
-  .regex(/^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$/);
+const sectionKey = z.string().refine(isSectionKey, 'Not a section key');
 const declarationInput = z.object({ declarationId: id });
 
 export const getMyObligations = createServerFn({ method: 'GET' }).handler(

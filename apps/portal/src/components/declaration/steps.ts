@@ -1,5 +1,13 @@
 import type { SectionStatus } from '@adili/ui';
 
+import {
+  parsePersonKey,
+  parseSectionKey,
+  relationOf,
+  type SectionKind,
+  sectionKind,
+  statementSectionKey,
+} from '../../declaration/section-key';
 import type { DeclarationSection, SectionKey } from '../../server/declarations/types';
 
 /**
@@ -14,17 +22,41 @@ import type { DeclarationSection, SectionKey } from '../../server/declarations/t
  */
 export type Step = SectionKey;
 
-export type SectionKind = 'bio' | 'household' | 'statement' | 'other';
+/** Section and screen titles; every screen, the overview and the summary use these. */
+export const STEP_TITLES = {
+  overview: 'Your declaration',
+  bio: 'Your details',
+  household: 'Spouses and children',
+  other: 'Other information',
+  summary: 'Summary',
+} as const;
 
-export function sectionKind(key: SectionKey): SectionKind {
-  if (key === 'bio' || key === 'household' || key === 'other') return key;
-  return 'statement';
-}
+/** Paragraph 8 as a whole: the navigation group and the summary card. */
+export const STATEMENTS_TITLE = 'Financial statements';
 
-/** `statement:spouse:<uuid>` -> `spouse:<uuid>`; null for other sections. */
-export function personKeyOf(key: SectionKey): string | null {
-  return key.startsWith('statement:') ? key.slice('statement:'.length) : null;
-}
+/**
+ * Each kind of section in one place: its number on the overview (First Schedule order), its
+ * title, and the route that shows it (`segment` is the route's last path segment).
+ */
+export const SECTION_KINDS = {
+  bio: { number: 1, title: STEP_TITLES.bio, to: '/declarations/$id/bio', segment: 'bio' },
+  household: {
+    number: 2,
+    title: STEP_TITLES.household,
+    to: '/declarations/$id/household',
+    segment: 'household',
+  },
+  statement: {
+    number: 3,
+    title: STATEMENTS_TITLE,
+    to: '/declarations/$id/statements/$personKey',
+    segment: 'statements',
+  },
+  other: { number: 4, title: STEP_TITLES.other, to: '/declarations/$id/other', segment: 'other' },
+} as const satisfies Record<
+  SectionKind,
+  { number: number; title: string; to: StepLink['to']; segment: string }
+>;
 
 /** Sections the declarant works on: everything except archived statements. */
 export function liveSections(sections: DeclarationSection[]): DeclarationSection[] {
@@ -79,36 +111,37 @@ export type StepLink =
   | { to: '/declarations/$id/summary'; params: { id: string } }
   | { to: '/declarations/$id/statements/$personKey'; params: { id: string; personKey: string } };
 
+/** Where a step lives; a key that is not a section's opens the overview. */
 export function stepLink(declarationId: string, step: Step): StepLink {
   const params = { id: declarationId };
-  switch (step) {
-    case 'overview':
-      return { to: '/declarations/$id', params };
-    case 'summary':
-      return { to: '/declarations/$id/summary', params };
-    case 'bio':
-      return { to: '/declarations/$id/bio', params };
-    case 'household':
-      return { to: '/declarations/$id/household', params };
-    case 'other':
-      return { to: '/declarations/$id/other', params };
-    default:
-      return {
-        to: '/declarations/$id/statements/$personKey',
-        params: { ...params, personKey: personKeyOf(step) ?? 'officer' },
-      };
+  if (step === 'summary') return { to: '/declarations/$id/summary', params };
+  const parsed = parseSectionKey(step);
+  if (!parsed) return { to: '/declarations/$id', params };
+  if (parsed.kind === 'statement') {
+    return {
+      to: SECTION_KINDS.statement.to,
+      params: { ...params, personKey: parsed.personKey },
+    };
   }
+  return { to: SECTION_KINDS[parsed.kind].to, params };
 }
 
-/** The step a workspace URL shows, or null outside the workspace. */
+/** The step a workspace URL shows, or null outside the workspace or for an unknown screen. */
 export function stepFromPath(pathname: string): Step | null {
   const match = /^\/declarations\/[^/]+(?:\/(.*?))?\/?$/.exec(pathname);
   if (!match) return null;
   const rest = match[1] ? decodeURIComponent(match[1]) : '';
   if (rest === '') return 'overview';
-  if (['bio', 'household', 'other', 'summary'].includes(rest)) return rest;
-  const person = /^statements\/(.+)$/.exec(rest)?.[1];
-  return person ? `statement:${person}` : null;
+  if (rest === 'summary') return 'summary';
+  const [segment, person, ...more] = rest.split('/');
+  if (segment === SECTION_KINDS.statement.segment) {
+    const personKey = person !== undefined && more.length === 0 ? parsePersonKey(person) : null;
+    return personKey ? statementSectionKey(personKey) : null;
+  }
+  const kind = (['bio', 'household', 'other'] as const).find(
+    (candidate) => SECTION_KINDS[candidate].segment === rest,
+  );
+  return kind ?? null;
 }
 
 function section(sections: DeclarationSection[], key: SectionKey) {
@@ -127,28 +160,17 @@ export function personLabel(sections: DeclarationSection[], key: SectionKey): st
 
 /** The relationship shown next to a person, from their statement key. */
 export function relationship(key: SectionKey): 'Spouse' | 'Child' | null {
-  if (key.startsWith('statement:spouse:')) return 'Spouse';
-  if (key.startsWith('statement:child:')) return 'Child';
+  const relation = relationOf(key);
+  if (relation === 'spouse') return 'Spouse';
+  if (relation === 'child') return 'Child';
   return null;
 }
-
-/** Section and screen titles; every screen, the overview and the summary use these. */
-export const STEP_TITLES = {
-  overview: 'Your declaration',
-  bio: 'Your details',
-  household: 'Spouses and children',
-  other: 'Other information',
-  summary: 'Summary',
-} as const;
 
 /** The screen's heading. */
 export function stepTitle(sections: DeclarationSection[], step: Step): string {
   if (step in STEP_TITLES) return STEP_TITLES[step as keyof typeof STEP_TITLES];
   return statementTitle(step, firstName(section(sections, step)?.personName));
 }
-
-/** Paragraph 8 as a whole: the navigation group and the summary card. */
-export const STATEMENTS_TITLE = 'Financial statements';
 
 /** "Your financial statement", "{name}'s financial statement", or "Financial statement". */
 export function statementTitle(key: SectionKey, name: string): string {
@@ -160,7 +182,7 @@ export function statementTitle(key: SectionKey, name: string): string {
 function backLabel(sections: DeclarationSection[], step: Step): string {
   if (step === 'overview') return 'Overview';
   if (step === 'statement:officer') return 'Your statement';
-  if (sectionKindOf(step) === 'statement') {
+  if (sectionKind(step) === 'statement') {
     const name = firstName(section(sections, step)?.personName);
     return name ? `${name}'s statement` : 'Financial statement';
   }
@@ -170,17 +192,13 @@ function backLabel(sections: DeclarationSection[], step: Step): string {
 /** Label for a next button, e.g. "Next: spouses and children". */
 function nextLabel(sections: DeclarationSection[], from: Step, step: Step): string {
   if (step === 'statement:officer') return 'Next: financial statements';
-  if (sectionKindOf(step) === 'statement') {
+  if (sectionKind(step) === 'statement') {
     const name = firstName(section(sections, step)?.personName);
     return name ? `Next: ${name}'s statement` : 'Next: financial statement';
   }
   if (step === 'overview') return 'Overview';
   const title = STEP_TITLES[step as keyof typeof STEP_TITLES];
   return from === 'overview' ? title : `Next: ${title.toLowerCase()}`;
-}
-
-function sectionKindOf(step: Step): SectionKind | null {
-  return step === 'overview' || step === 'summary' ? null : sectionKind(step);
 }
 
 export interface Neighbour {

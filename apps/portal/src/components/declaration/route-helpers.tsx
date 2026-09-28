@@ -2,6 +2,7 @@ import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { Link, notFound, redirect } from '@tanstack/react-router';
 
+import { parsePersonKey, statementSectionKey } from '../../declaration/section-key';
 import { getDeclarationSection } from '../../server/declarations';
 import type { SectionResult } from '../../server/declarations.server';
 import type { SectionKey } from '../../server/declarations/types';
@@ -9,8 +10,6 @@ import type { SectionKey } from '../../server/declarations/types';
 /** Helpers for the workspace's route files, so each section route stays a few lines. */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const PERSON_KEY =
-  /^(officer|(spouse|child):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 /** Throws the router's not-found for a malformed declaration id. */
 export function requireDeclarationId(id: string): string {
@@ -20,8 +19,9 @@ export function requireDeclarationId(id: string): string {
 
 /** `officer`, `spouse:<uuid>` or `child:<uuid>` from the statement route, as a section key. */
 export function statementKey(personKey: string): SectionKey {
-  if (!PERSON_KEY.test(personKey)) throw notFound();
-  return `statement:${personKey}`;
+  const parsed = parsePersonKey(personKey);
+  if (!parsed) throw notFound();
+  return statementSectionKey(parsed);
 }
 
 export function loginHref(returnTo: string) {

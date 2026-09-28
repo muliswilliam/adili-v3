@@ -31,6 +31,7 @@ import type {
   Statement,
 } from '../../declaration/contents';
 import { ATTESTATION_TEXT } from '../../declaration/contents';
+import { isSectionKey, sectionKind } from '../../declaration/section-key';
 import { mockUpload } from '../documents/mock.server';
 import { bioCompleteness, lockedFieldsChanged } from './mock/bio';
 import type { RuleContext } from './mock/context';
@@ -186,11 +187,6 @@ export function mockDeclarationsFetch(request: Request): Promise<Response> {
   return route(request);
 }
 
-const UUID = '[0-9a-f-]{36}';
-const SECTION_KEY = new RegExp(
-  `^(bio|household|other|statement:(officer|spouse:${UUID}|child:${UUID}))$`,
-);
-
 async function route(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   const path = decodeURIComponent(pathname);
@@ -279,7 +275,7 @@ function completeness(stored: Stored, key: string): DeclarationSection['complete
 }
 
 function personName(stored: Stored, key: string): string | null {
-  if (!key.startsWith('statement:')) return null;
+  if (sectionKind(key) !== 'statement') return null;
   const statement = stored.contents.get(key) as Draft<Statement> | undefined;
   return fullName(statement?.personName) || null;
 }
@@ -448,7 +444,7 @@ function sectionContents(stored: Stored, key: string) {
 
 function getSection(id: string, key: string) {
   const stored = draft(id);
-  if (!stored || !SECTION_KEY.test(key) || !stored.contents.has(key)) {
+  if (!stored || !isSectionKey(key) || !stored.contents.has(key)) {
     return problem(404, 'Not found');
   }
   return json(
@@ -470,7 +466,7 @@ function sameVersion(ifMatch: string, stored: Stored) {
 
 async function saveSection(request: Request, id: string, key: string) {
   const stored = draft(id);
-  if (!stored || !SECTION_KEY.test(key) || !stored.contents.has(key) || stored.archived.has(key)) {
+  if (!stored || !isSectionKey(key) || !stored.contents.has(key) || stored.archived.has(key)) {
     return problem(404, 'Not found');
   }
   const ifMatch = request.headers.get('if-match');
@@ -577,7 +573,7 @@ async function linkAttachment(request: Request, id: string) {
     return problem(400, 'sectionKey, itemId and uploadId are required');
   }
   const { sectionKey, itemId, uploadId } = body;
-  if (!sectionKey.startsWith('statement:') || !stored.contents.has(sectionKey)) {
+  if (sectionKind(sectionKey) !== 'statement' || !stored.contents.has(sectionKey)) {
     return problem(404, 'Not found');
   }
   const item = findItem(stored, sectionKey, itemId);
