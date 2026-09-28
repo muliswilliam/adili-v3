@@ -14,16 +14,15 @@ import type { ReactNode } from 'react';
 
 import { ClarificationPage } from '../../components/clarification/clarification-page';
 import { COPY } from '../../clarification/copy';
+import { isUuid } from '../../declaration/section-key';
 import { settleLoad } from '../../components/declaration/route-helpers';
 import { SignOutButton } from '../../components/sign-out-button';
 import { getMyClarification } from '../../server/clarifications';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
 /** A clarification from the declarant's Commission, and their response to it (spec 07a FE-5). */
 export const Route = createFileRoute('/clarifications/$id')({
   loader: async ({ params, location }) => {
-    if (!UUID.test(params.id)) throw notFound();
+    if (!isUuid(params.id)) throw notFound();
     const load = await getMyClarification({ data: { clarificationId: params.id } });
     if (load.status === 'not-found') throw notFound();
     return settleLoad(load, location.href);
