@@ -121,7 +121,7 @@ export const onboardingOtps = pgTable(
     channel: text({ enum: OTP_CHANNELS }).notNull(),
     /** Denormalised from the session for RLS; the foreign key keeps it the session's. */
     tenant: text().notNull(),
-    /** `otpCodeHmac(key, sessionId, channel, code)`. */
+    /** `otpCodeHmac(key, sessionId, channel, code)`: keyed per session (HKDF, `sessionOtpKey`). */
     codeHmac: text().notNull(),
     expiresAt: timestamp({ withTimezone: true }).notNull(),
     /** Wrong codes entered against the current code. */

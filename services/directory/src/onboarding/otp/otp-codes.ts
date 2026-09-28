@@ -1,4 +1,4 @@
-import { randomInt, timingSafeEqual } from 'node:crypto';
+import { hkdfSync, randomInt, timingSafeEqual } from 'node:crypto';
 
 import { keyedHash } from '../secret.js';
 import type { OtpChannel } from '../session-state.js';
@@ -9,12 +9,21 @@ export function generateOtpCode(): string {
 }
 
 /**
- * What `onboarding_otps.code_hmac` stores: an HMAC of the code keyed per session and channel
- * (`ONBOARDING_HMAC_KEY` with the session id), so a code is only ever valid for the session and
- * channel it was sent for.
+ * The session's own code key: HKDF-SHA-256 of `ONBOARDING_HMAC_KEY` with the session id as
+ * context (spec 03, "HMAC with a per-session key"). A code's HMAC then says nothing about any
+ * other session's codes, and the service key itself never keys a code.
+ */
+export function sessionOtpKey(key: string, sessionId: string): Buffer {
+  return Buffer.from(hkdfSync('sha256', key, '', `adili onboarding-otp ${sessionId}`, 32));
+}
+
+/**
+ * What `onboarding_otps.code_hmac` stores: an HMAC of the channel and code under the session's
+ * own key (`sessionOtpKey`), so a code is only ever valid for the session and channel it was
+ * sent for.
  */
 export function otpCodeHmac(key: string, sessionId: string, channel: OtpChannel, code: string) {
-  return keyedHash(key, 'onboarding-otp', sessionId, channel, code);
+  return keyedHash(sessionOtpKey(key, sessionId), 'onboarding-otp', channel, code);
 }
 
 /** Whether `code` is the one whose HMAC is `codeHmac`, in constant time. */
