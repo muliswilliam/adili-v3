@@ -9,6 +9,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -114,6 +115,7 @@ export class InternalUploadsController {
   constructor(private readonly uploads: UploadsService) {}
 
   @Get(':id/download')
+  @AuditedRead({ action: 'upload.download.issued', resource: 'upload' })
   @ApiUploadIdParam()
   @ApiOperation({
     operationId: 'getUploadDownload',

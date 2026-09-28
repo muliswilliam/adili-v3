@@ -13,7 +13,12 @@ import type {
   UploadReservation,
 } from '../../src/uploads/representation.js';
 import { UploadsService } from '../../src/uploads/uploads.service.js';
-import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
+import {
+  componentSchema,
+  contractErrors,
+  contractOperation,
+  okResponse,
+} from '../support/contract.js';
 import { type Caller, type DocumentsApi, startDocumentsApi } from '../support/documents-api.js';
 import { EICAR, fixture, PNG } from '../support/files.js';
 
@@ -404,6 +409,12 @@ describe('internal download', () => {
   beforeAll(async () => {
     clean = await upload(bytes);
     await complete(clean.id);
+  });
+
+  it('is an audited read of the document (ADR-008)', () => {
+    expect(contractOperation('/internal/v1/uploads/{id}/download', 'get')).toMatchObject({
+      'x-audited-read': { action: 'upload.download.issued', resource: 'upload' },
+    });
   });
 
   it('returns a 5-minute presigned GET of the clean bytes to a service acting for the tenant', async () => {

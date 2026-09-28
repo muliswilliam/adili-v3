@@ -187,6 +187,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: upload.download.issued
+        resource: upload
   /internal/v1/documents/issue:
     post:
       tags:

@@ -14,9 +14,20 @@ const contractPath = createRequire(import.meta.url).resolve(
   '@adili/schemas/internal/documents.yaml',
 );
 
+const contract = parse(readFileSync(contractPath, 'utf8')) as {
+  paths: Record<string, Record<string, Record<string, unknown>>>;
+};
+
 const ajv = new Ajv2020({ strict: false, allErrors: true });
 addFormats.default(ajv);
-ajv.addSchema(parse(readFileSync(contractPath, 'utf8')) as object, CONTRACT_ID);
+ajv.addSchema(contract, CONTRACT_ID);
+
+/** The contract's operation object for a path and method, e.g. to read its extensions. */
+export function contractOperation(path: string, method: 'get' | 'post'): Record<string, unknown> {
+  const operation = contract.paths[path]?.[method];
+  if (!operation) throw new Error(`No operation ${method} ${path} in the contract`);
+  return operation;
+}
 
 /**
  * JSON pointer of the success response body of an operation, e.g. `('/v1/commissions', 'get')`
