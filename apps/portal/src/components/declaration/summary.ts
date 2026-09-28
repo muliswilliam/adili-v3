@@ -18,10 +18,10 @@ import type {
   OtherInformation,
   Spouse,
   Statement,
-} from './contents';
-import { ageOn, UNANSWERED } from './format';
-import { changeWord, OCCUPATION_SECTOR_LABELS } from './labels';
-import type { Category } from './statement';
+} from '../../declaration/contents';
+import { ageOn, UNANSWERED } from '../../declaration/format';
+import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
+import type { Category } from '../../declaration/statement';
 import { liveSections, sectionKind, stepTitle } from './steps';
 
 /**

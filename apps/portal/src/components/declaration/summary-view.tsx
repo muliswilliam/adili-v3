@@ -29,17 +29,21 @@ import type { LoadedSummary } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
-import type { Draft, Statement } from './contents';
+import type { Draft, Statement } from '../../declaration/contents';
 import { DiscardDraftButton } from './discard-dialog';
-import { fullName, orUnanswered, UNANSWERED } from './format';
-import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, TYPE_LABELS } from './labels';
+import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
+import {
+  EMPLOYMENT_NATURE_LABELS,
+  MARITAL_STATUS_LABELS,
+  TYPE_LABELS,
+} from '../../declaration/labels';
 import {
   directorshipLine,
   dualCitizenshipLine,
   materialChangeLine,
   membershipLine,
   pendingCaseLine,
-} from './other';
+} from '../../declaration/other';
 import {
   relationship,
   STATEMENTS_TITLE,

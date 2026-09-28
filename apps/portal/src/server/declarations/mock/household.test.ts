@@ -1,8 +1,8 @@
 import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { MaritalStatus } from '../../../components/declaration/contents';
-import { HOUSEHOLD_MESSAGES } from '../../../components/declaration/household';
+import type { MaritalStatus } from '../../../declaration/contents';
+import { HOUSEHOLD_MESSAGES } from '../../../declaration/household';
 import {
   loadDeclaration,
   saveSection,

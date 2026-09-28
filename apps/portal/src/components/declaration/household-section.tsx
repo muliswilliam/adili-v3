@@ -38,8 +38,15 @@ import { Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
-import { BIO_MESSAGES } from './bio';
-import type { Child, Draft, Household, MaritalStatus, OccupationSector, Spouse } from './contents';
+import { BIO_MESSAGES } from '../../declaration/bio';
+import type {
+  Child,
+  Draft,
+  Household,
+  MaritalStatus,
+  OccupationSector,
+  Spouse,
+} from '../../declaration/contents';
 import {
   childInclusion,
   type HouseholdIssue,
@@ -49,8 +56,12 @@ import {
   personTitle,
   spouseState,
   statementsNeeded,
-} from './household';
-import { MARITAL_STATUS_LABELS, OCCUPATION_SECTOR_LABELS, optionsOf } from './labels';
+} from '../../declaration/household';
+import {
+  MARITAL_STATUS_LABELS,
+  OCCUPATION_SECTOR_LABELS,
+  optionsOf,
+} from '../../declaration/labels';
 import { relationship, stepLink } from './steps';
 import { useSectionAutosave, useWorkspace } from './workspace';
 

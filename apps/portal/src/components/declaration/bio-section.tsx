@@ -14,9 +14,13 @@ import { LockIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
-import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from './bio';
-import type { Draft, EmploymentNature, MaritalStatus, Officer } from './contents';
-import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, optionsOf } from './labels';
+import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from '../../declaration/bio';
+import type { Draft, EmploymentNature, MaritalStatus, Officer } from '../../declaration/contents';
+import {
+  EMPLOYMENT_NATURE_LABELS,
+  MARITAL_STATUS_LABELS,
+  optionsOf,
+} from '../../declaration/labels';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const ROSTER_NOTE =

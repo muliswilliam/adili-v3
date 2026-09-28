@@ -35,7 +35,7 @@ import {
   type UploadsState,
   uploadsReducer,
 } from './attachments';
-import type { Attachment, Draft } from './contents';
+import type { Attachment, Draft } from '../../declaration/contents';
 import type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';
 import { useWorkspace } from './workspace';
 

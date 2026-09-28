@@ -15,7 +15,7 @@ import { AlertCircleIcon, ArrowRight01Icon, Calendar03Icon } from '@hugeicons/co
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 
-import { OBLIGATION_TYPE_LABELS } from '../declaration/labels';
+import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
 import { startDeclarationFn } from '../../server/declarations';
 import type { DeclarationListResult, ObligationsResult } from '../../server/declarations.server';
 import type { Obligation, ObligationStatus } from '../../server/declarations/types';

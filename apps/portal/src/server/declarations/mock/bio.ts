@@ -1,5 +1,5 @@
-import { BIO_FIELD_ORDER, BIO_FIELD_PATHS, bioIssues } from '../../../components/declaration/bio';
-import type { Draft, Officer } from '../../../components/declaration/contents';
+import { BIO_FIELD_ORDER, BIO_FIELD_PATHS, bioIssues } from '../../../declaration/bio';
+import type { Draft, Officer } from '../../../declaration/contents';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 

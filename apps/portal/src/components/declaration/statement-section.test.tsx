@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDeclarationSection, saveDeclarationSection } from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
-import { ITEM_MESSAGES } from './statement';
+import { ITEM_MESSAGES } from '../../declaration/statement';
 import {
   NIL_BLOCKED_COPY,
   NIL_COPY,

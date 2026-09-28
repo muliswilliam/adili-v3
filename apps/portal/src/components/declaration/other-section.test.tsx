@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { saveDeclarationSection } from '../../server/declarations';
-import { NO_MATERIAL_CHANGES } from './other';
+import { NO_MATERIAL_CHANGES } from '../../declaration/other';
 import { OtherSection } from './other-section';
 import {
   cardOf,

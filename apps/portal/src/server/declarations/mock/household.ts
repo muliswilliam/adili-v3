@@ -1,13 +1,10 @@
-import {
-  householdIssues,
-  includedAtStatementDate,
-} from '../../../components/declaration/household';
-import type { Draft, Household } from '../../../components/declaration/contents';
+import { householdIssues, includedAtStatementDate } from '../../../declaration/household';
+import type { Draft, Household } from '../../../declaration/contents';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 
-export { fullName } from '../../../components/declaration/format';
-export { householdPersons } from '../../../components/declaration/household';
+export { fullName } from '../../../declaration/format';
+export { householdPersons } from '../../../declaration/household';
 
 /** The service derives `includedAtStatementDate`; the mock does the same on save. */
 export function deriveHousehold(household: Draft<Household>, statementDate: string) {

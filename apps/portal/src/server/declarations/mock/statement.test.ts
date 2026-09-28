@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Draft, Statement } from '../../../components/declaration/contents';
+import type { Draft, Statement } from '../../../declaration/contents';
 import type { RuleContext } from './context';
 import { nilConflictsWithItems, statementCompleteness } from './statement';
 

@@ -3,7 +3,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { saveDeclarationSection } from '../../server/declarations';
-import { BIO_MESSAGES } from './bio';
+import { BIO_MESSAGES } from '../../declaration/bio';
 import { BioSection, ROSTER_NOTE } from './bio-section';
 import { DECLARATION_ID, renderWorkspace, sampleBio } from './testing';
 

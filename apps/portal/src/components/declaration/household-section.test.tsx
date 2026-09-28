@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDeclaration, saveDeclarationSection } from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
-import type { MaritalStatus } from './contents';
-import { HOUSEHOLD_MESSAGES } from './household';
+import type { MaritalStatus } from '../../declaration/contents';
+import { HOUSEHOLD_MESSAGES } from '../../declaration/household';
 import { HOUSEHOLD_COPY, HouseholdSection } from './household-section';
 import {
   cardOf,

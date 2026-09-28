@@ -1,4 +1,4 @@
-import type { SectionContentsByKind } from '../components/declaration/contents';
+import type { SectionContentsByKind } from '../declaration/contents';
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   Declaration,

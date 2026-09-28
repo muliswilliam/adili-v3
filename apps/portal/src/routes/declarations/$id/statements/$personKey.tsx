@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 
-import type { Draft, Household } from '../../../../components/declaration/contents';
+import type { Draft, Household } from '../../../../declaration/contents';
 import {
   loadSectionFor,
   SectionUnavailable,

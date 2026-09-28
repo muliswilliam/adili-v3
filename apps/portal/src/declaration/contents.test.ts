@@ -26,7 +26,7 @@ interface Node {
 const schema = JSON.parse(
   readFileSync(
     fileURLToPath(
-      new URL('../../../node_modules/@adili/schemas/forms/declaration.v1.json', import.meta.url),
+      new URL('../../node_modules/@adili/schemas/forms/declaration.v1.json', import.meta.url),
     ),
     'utf8',
   ),

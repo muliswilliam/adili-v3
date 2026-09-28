@@ -15,7 +15,7 @@ import {
 } from '../../server/documents/uploads';
 import type { UploadCheck } from '../../server/documents/uploads.server';
 import { putToPresignedUrl } from './attachment-upload';
-import type { Attachment } from './contents';
+import type { Attachment } from '../../declaration/contents';
 import { AttachmentUploadsProvider, ItemAttachments } from './item-attachments';
 import { DECLARATION_ID, renderWorkspace, rowOf as row } from './testing';
 

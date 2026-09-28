@@ -25,7 +25,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
-import { OBLIGATION_TYPE_LABELS } from './labels';
+import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
 import { navEntries, neighbours, type Step, stepForNavEntry, stepLink, stepTitle } from './steps';
 import { useWorkspace } from './workspace';
 import { WorkspaceHeader } from './workspace-header';
@@ -189,7 +189,7 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
           <Alert variant="destructive">
             <Icon icon={AlertCircleIcon} />
             <AlertDescription>
-              {refusedCopy(stepTitle(sections, autosave.rejection.key as Step))}
+              {refusedCopy(stepTitle(sections, autosave.rejection.key))}
             </AlertDescription>
           </Alert>
         ) : null}

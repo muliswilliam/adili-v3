@@ -1,6 +1,6 @@
 import type { AttachmentListItem } from '@adili/ui';
 
-import type { Attachment, Draft } from './contents';
+import type { Attachment, Draft } from '../../declaration/contents';
 
 /**
  * Documents attached to assets and liabilities (#125): what the browser accepts, and the pure

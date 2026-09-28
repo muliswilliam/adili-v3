@@ -44,7 +44,7 @@ import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import { getDeclarationSection } from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
-import type { AssetItem, Draft, Statement } from './contents';
+import type { AssetItem, Draft, Statement } from '../../declaration/contents';
 import {
   AMOUNT_KEY,
   type AnyItem,
@@ -65,9 +65,9 @@ import {
   originalCents,
   statementTotal,
   tabState,
-} from './statement';
-import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
-import { fullName } from './format';
+} from '../../declaration/statement';
+import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from '../../declaration/labels';
+import { fullName } from '../../declaration/format';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { liveSections, personKeyOf, relationship } from './steps';
 import { useSectionAutosave, useWorkspace } from './workspace';

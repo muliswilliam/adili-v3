@@ -29,8 +29,8 @@ import type {
   Officer,
   PersonName,
   Statement,
-} from '../../components/declaration/contents';
-import { ATTESTATION_TEXT } from '../../components/declaration/contents';
+} from '../../declaration/contents';
+import { ATTESTATION_TEXT } from '../../declaration/contents';
 import { mockUpload } from '../documents/mock.server';
 import { bioCompleteness, lockedFieldsChanged } from './mock/bio';
 import type { RuleContext } from './mock/context';

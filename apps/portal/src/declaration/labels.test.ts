@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { contractEnum } from '../../test/contract';
+import { contractEnum } from '../test/contract';
 import {
   ASSET_TYPES,
   CHANGE_KINDS,

@@ -19,9 +19,14 @@ import { type ReactNode, useEffect, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import type { Draft, MaterialChangeEntry, MembershipKind, OtherInformation } from './contents';
-import { blank } from './format';
-import { MEMBERSHIP_KIND_LABELS, optionsOf } from './labels';
+import type {
+  Draft,
+  MaterialChangeEntry,
+  MembershipKind,
+  OtherInformation,
+} from '../../declaration/contents';
+import { blank } from '../../declaration/format';
+import { MEMBERSHIP_KIND_LABELS, optionsOf } from '../../declaration/labels';
 import {
   type DraftDirectorship,
   type DraftDualCitizenship,
@@ -32,7 +37,7 @@ import {
   materialChangeLine,
   materialChangeStep,
   NO_MATERIAL_CHANGES,
-} from './other';
+} from '../../declaration/other';
 import { personLabel, stepLink } from './steps';
 import { useSectionAutosave, useWorkspace } from './workspace';
 

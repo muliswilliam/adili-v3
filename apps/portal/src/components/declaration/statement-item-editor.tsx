@@ -15,7 +15,7 @@ import {
 import { LockIcon } from '@hugeicons/core-free-icons';
 import type { ComponentProps, ReactNode } from 'react';
 
-import type { AssetItem, Attachment, Draft, Location, Money } from './contents';
+import type { AssetItem, Attachment, Draft, Location, Money } from '../../declaration/contents';
 import {
   AMOUNT_KEY,
   type AnyItem,
@@ -27,8 +27,8 @@ import {
   type ItemField,
   originalCents,
   withCurrency,
-} from './statement';
-import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from './labels';
+} from '../../declaration/statement';
+import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from '../../declaration/labels';
 
 /**
  * Where #125 mounts the AttachmentList for an item. Called for assets and liabilities (the
