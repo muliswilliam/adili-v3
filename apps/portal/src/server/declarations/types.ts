@@ -18,3 +18,6 @@ export type ProblemDetails = Schemas['ProblemDetails'];
 export type SectionEnvelope = Schemas['SectionEnvelope'];
 export type SectionKey = Schemas['SectionKey'];
 export type SectionSaveResult = Schemas['SectionSaveResult'];
+export type Suggestion = Schemas['Suggestion'];
+export type SuggestionSet = Schemas['SuggestionSet'];
+export type SuggestionSource = Schemas['SuggestionSource'];

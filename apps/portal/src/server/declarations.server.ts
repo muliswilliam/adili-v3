@@ -9,6 +9,8 @@ import type {
   SectionEnvelope,
   SectionKey,
   SectionSaveResult,
+  Suggestion,
+  SuggestionSet,
 } from './declarations/types';
 
 /**
@@ -259,6 +261,214 @@ export function loadSummary(
       params: { path: { declarationId } },
     });
     if (data) return { status: 'ok', summary: { ...data, document: data.document as JsonObject } };
+    return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+/** A suggestion as it crosses to the browser: its free-form objects typed as JSON. */
+export type LoadedSuggestion = Omit<Suggestion, 'fields' | 'sourceRef'> & {
+  fields: JsonObject;
+  sourceRef: JsonObject;
+};
+
+export type LoadedSuggestionSet = Omit<SuggestionSet, 'suggestions'> & {
+  suggestions: LoadedSuggestion[];
+};
+
+/** The registries a lookup can ask (every `SuggestionSource` but `document`). */
+export type RegistrySystem = Exclude<SuggestionSet['source'], 'document'>;
+
+function loadedSuggestion(suggestion: Suggestion): LoadedSuggestion {
+  return {
+    ...suggestion,
+    fields: suggestion.fields as JsonObject,
+    sourceRef: suggestion.sourceRef as JsonObject,
+  };
+}
+
+function loadedSet(set: SuggestionSet): LoadedSuggestionSet {
+  return { ...set, suggestions: set.suggestions.map(loadedSuggestion) };
+}
+
+function problemCode(error: unknown): string | null {
+  const code = (error as { code?: unknown } | undefined)?.code;
+  return typeof code === 'string' ? code : null;
+}
+
+export interface RegistryLookupsInput {
+  declarationId: string;
+  personKey: string;
+  systems: RegistrySystem[];
+  /** The consent text the declarant ticked, by version. */
+  textVersion: string;
+  /** One per logical request; reuse it when retrying the same request. */
+  idempotencyKey: string;
+}
+
+export type RegistryLookupsResult =
+  | { status: 'started'; sets: LoadedSuggestionSet[] }
+  /** 400 `no-id`: the person has no national ID on record. */
+  | { status: 'no-id' }
+  /** Any other 400, e.g. the consent is missing. */
+  | { status: 'rejected'; code: string | null }
+  | NotFound
+  | Unavailable;
+
+/**
+ * `POST /v1/declarations/{id}/suggestions/lookups`: asks the registries about one person with
+ * their consent recorded. Answers one set per registry, usually still `pending`: poll
+ * `listSuggestions` until none is.
+ */
+export function requestLookups(
+  client: DeclarationsClient,
+  input: RegistryLookupsInput,
+): Promise<RegistryLookupsResult> {
+  return attempt(async () => {
+    const { data, error, response } = await client.POST(
+      '/v1/declarations/{declarationId}/suggestions/lookups',
+      {
+        params: {
+          path: { declarationId: input.declarationId },
+          header: { 'Idempotency-Key': input.idempotencyKey },
+        },
+        body: {
+          personKey: input.personKey,
+          systems: input.systems,
+          consent: { requested: true, textVersion: input.textVersion },
+        },
+      },
+    );
+    if (data) return { status: 'started', sets: data.map(loadedSet) };
+    if (response.status === 400) {
+      const code = problemCode(error);
+      return code === 'no-id' ? { status: 'no-id' } : { status: 'rejected', code };
+    }
+    return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+export interface ListSuggestionsInput {
+  declarationId: string;
+  personKey?: string;
+  sectionKey?: SectionKey;
+}
+
+export type SuggestionsResult =
+  { status: 'ok'; sets: LoadedSuggestionSet[] } | NotFound | Unavailable;
+
+/**
+ * `GET /v1/declarations/{id}/suggestions`: the draft's suggestion sets with their suggestions,
+ * narrowed to a person or a section. Also the way to poll a pending lookup or extraction, as
+ * the contract has no per-set read.
+ */
+export function listSuggestions(
+  client: DeclarationsClient,
+  input: ListSuggestionsInput,
+): Promise<SuggestionsResult> {
+  return attempt(async () => {
+    const { data, response } = await client.GET('/v1/declarations/{declarationId}/suggestions', {
+      params: {
+        path: { declarationId: input.declarationId },
+        query: {
+          ...(input.personKey ? { personKey: input.personKey } : {}),
+          ...(input.sectionKey ? { sectionKey: input.sectionKey } : {}),
+        },
+      },
+    });
+    if (data) return { status: 'ok', sets: data.map(loadedSet) };
+    return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+export interface AcceptSuggestionInput {
+  declarationId: string;
+  suggestionId: string;
+  /** The draft-wide ETag last seen. */
+  ifMatch: string;
+  /** The fields to add, after the declarant's edits. */
+  fields: JsonObject;
+  /** The matching item to apply the fields to, or null to add a new item. */
+  applyToItemId: string | null;
+  /** When applying: replace fields the item already has (only empty ones by default). */
+  overwrite?: boolean;
+}
+
+export type AcceptOutcome =
+  | { status: 'accepted'; suggestion: LoadedSuggestion; itemId: string; etag: string }
+  /**
+   * 412, or 409: the draft changed since `ifMatch`, or the suggestion is no longer `new` (the
+   * contract uses 409 for both). Re-read the section and try once more.
+   */
+  | { status: 'conflict'; code: string | null }
+  /** 400: the fields were refused. */
+  | { status: 'rejected'; code: string | null }
+  | NotFound
+  | Unavailable;
+
+/**
+ * `POST .../suggestions/{id}/accept` with `If-Match`: the service adds the item (or fills the
+ * matching one) through the section save path, marks it with its source, and answers the new
+ * ETag. Run it under the workspace's `whileHeld` so autosave waits.
+ */
+export function acceptSuggestion(
+  client: DeclarationsClient,
+  input: AcceptSuggestionInput,
+): Promise<AcceptOutcome> {
+  return attempt(async () => {
+    const { data, error, response } = await client.POST(
+      '/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept',
+      {
+        params: {
+          path: { declarationId: input.declarationId, suggestionId: input.suggestionId },
+          header: { 'If-Match': input.ifMatch },
+        },
+        body: {
+          fields: input.fields,
+          applyToItemId: input.applyToItemId,
+          ...(input.overwrite === undefined ? {} : { overwrite: input.overwrite }),
+        },
+      },
+    );
+    if (data) {
+      return {
+        status: 'accepted',
+        suggestion: loadedSuggestion(data.suggestion),
+        itemId: data.itemId,
+        etag: data.etag,
+      };
+    }
+    if (response.status === 409 || response.status === 412) {
+      return { status: 'conflict', code: problemCode(error) };
+    }
+    if (response.status === 400) return { status: 'rejected', code: problemCode(error) };
+    return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+export type DismissOutcome =
+  | { status: 'dismissed'; suggestion: LoadedSuggestion }
+  /** 409: it was accepted already. */
+  | { status: 'already-accepted' }
+  | NotFound
+  | Unavailable;
+
+/** `POST .../suggestions/{id}/dismiss`: sets the suggestion aside, with an optional reason. */
+export function dismissSuggestion(
+  client: DeclarationsClient,
+  input: { declarationId: string; suggestionId: string; reason?: string },
+): Promise<DismissOutcome> {
+  return attempt(async () => {
+    const { data, response } = await client.POST(
+      '/v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss',
+      {
+        params: {
+          path: { declarationId: input.declarationId, suggestionId: input.suggestionId },
+        },
+        body: input.reason === undefined ? {} : { reason: input.reason },
+      },
+    );
+    if (data) return { status: 'dismissed', suggestion: loadedSuggestion(data) };
+    if (response.status === 409) return { status: 'already-accepted' };
     return response.status === 404 ? notFound : unavailable;
   });
 }
