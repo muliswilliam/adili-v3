@@ -28,7 +28,7 @@ import { SearchBox } from '../search-box';
 import { IdentityMismatchBadge, IdentityMismatchFilterChip } from './identity-mismatch';
 import { messages as m } from './messages';
 import { isFlagged } from './record-imports';
-import { recordOnboarding } from './record-onboarding';
+import { hasIdentityMismatch } from './record-onboarding';
 import {
   appendPage,
   hasRecordFilters,
@@ -315,7 +315,7 @@ function StateBadges({ record }: { record: RosterRecordListItem }) {
     <span className="flex flex-wrap items-center gap-1.5">
       <RecordStateBadge state={record.state} />
       {isFlagged(record) ? <NotInLatestImportBadge /> : null}
-      {recordOnboarding(record).identityMismatchAt ? <IdentityMismatchBadge /> : null}
+      {hasIdentityMismatch(record) ? <IdentityMismatchBadge /> : null}
     </span>
   );
 }

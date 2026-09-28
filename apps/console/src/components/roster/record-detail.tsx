@@ -24,11 +24,11 @@ import { Page, PageHead, SectionCard } from '../page';
 import { IdentityMismatchBadge, IdentityMismatchCallout } from './identity-mismatch';
 import { messages as m } from './messages';
 import {
+  hasIdentityMismatch,
   isIdentityLocked,
   LockedChip,
   OnboardingStatusItems,
   recordOnboarding,
-  type RosterRecordOnboarding,
 } from './record-onboarding';
 import { isFlagged, recordImport } from './record-imports';
 import { ImportOutcomeBadge, NotInLatestImportBadge, RecordStateBadge } from './roster-badges';
@@ -52,8 +52,7 @@ export function RecordDetail({
   readOnly: boolean;
 }) {
   const flagged = isFlagged(record);
-  const onboarding = recordOnboarding(record);
-  const mismatchAt = onboarding.identityMismatchAt;
+  const mismatchAt = recordOnboarding(record).identityMismatchAt;
   return (
     <Page>
       {banner}
@@ -64,7 +63,7 @@ export function RecordDetail({
           </span>
           <RecordStateBadge state={record.state} />
           {flagged ? <NotInLatestImportBadge /> : null}
-          {mismatchAt ? <IdentityMismatchBadge /> : null}
+          {hasIdentityMismatch(record) ? <IdentityMismatchBadge /> : null}
         </div>
       </PageHead>
       {mismatchAt || flagged || record.state === 'exited' ? (
@@ -95,7 +94,7 @@ export function RecordDetail({
           <ImportHistory record={record} />
         </div>
         <div className="min-w-0 min-[1100px]:sticky min-[1100px]:top-[76px]">
-          <StatusCard record={record} onboarding={onboarding} />
+          <StatusCard record={record} />
         </div>
       </div>
     </Page>
@@ -163,13 +162,7 @@ function SeenIn({ record, importId }: { record: RosterRecord; importId: string |
   return <time dateTime={entry.startedAt}>{formatDate(entry.startedAt)}</time>;
 }
 
-function StatusCard({
-  record,
-  onboarding,
-}: {
-  record: RosterRecord;
-  onboarding: RosterRecordOnboarding;
-}) {
+function StatusCard({ record }: { record: RosterRecord }) {
   return (
     <SectionCard id="record-status" icon={UserSquareIcon} title={m.status}>
       <DescriptionList className="px-5 py-4">
@@ -179,7 +172,7 @@ function StatusCard({
         <DescriptionItem term={m.absentFromLatest}>
           {isFlagged(record) ? <NotInLatestImportBadge /> : m.no}
         </DescriptionItem>
-        <OnboardingStatusItems record={onboarding} />
+        <OnboardingStatusItems record={recordOnboarding(record)} />
         <DescriptionItem term={m.exitDate}>
           {record.exitDate ? (
             <time dateTime={record.exitDate}>{formatDate(record.exitDate)}</time>

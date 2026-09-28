@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import type { RosterRecord } from '../../server/directory/client';
 import { RecordDetail } from './record-detail';
@@ -166,7 +166,12 @@ describe('RecordDetail', () => {
 
   it('copies the officer reference and announces it', async () => {
     const writeText = vi.fn(() => Promise.resolve());
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    onTestFinished(() => {
+      if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    });
     render(
       <ToastProvider>
         <RecordDetail
