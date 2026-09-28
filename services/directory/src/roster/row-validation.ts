@@ -49,7 +49,7 @@ export interface RowValidatorOptions {
 
 /**
  * Validates the rows of one file or batch in order. Stateful: a personnel file number or national
- * ID already seen on an earlier row (by its row number) rejects the later row with
+ * ID of an earlier accepted row (by its row number) rejects the later row with
  * `duplicate-in-file`. Only the keys are remembered, never the rows.
  */
 export function createRowValidator(
@@ -122,26 +122,30 @@ export function createRowValidator(
         : fail('phone', 'format', 'Enter a valid phone number, e.g. 0712345678 or +254712345678');
     });
 
-    if (personnelFileNumber !== null) {
-      const key = personnelFileNumber.toLowerCase();
-      const firstRow = fileNumbers.get(key);
-      if (firstRow === undefined) fileNumbers.set(key, rowNumber);
-      else fail('personnelFileNumber', 'duplicate-in-file', `Same file number as row ${firstRow}`);
+    // Duplicates of rows accepted earlier. Only accepted rows claim their file number and national
+    // ID: a row rejected for any reason is not imported, so a corrected copy of it later in the
+    // file is not a duplicate.
+    const fileNumberKey = personnelFileNumber?.toLowerCase();
+    const fileNumberRow = fileNumberKey === undefined ? undefined : fileNumbers.get(fileNumberKey);
+    if (fileNumberRow !== undefined) {
+      fail('personnelFileNumber', 'duplicate-in-file', `Same file number as row ${fileNumberRow}`);
     }
-    if (nationalId !== null) {
-      const firstRow = nationalIds.get(nationalId);
-      if (firstRow === undefined) nationalIds.set(nationalId, rowNumber);
-      else fail('nationalId', 'duplicate-in-file', `Same national ID as row ${firstRow}`);
+    const nationalIdRow = nationalId === null ? undefined : nationalIds.get(nationalId);
+    if (nationalIdRow !== undefined) {
+      fail('nationalId', 'duplicate-in-file', `Same national ID as row ${nationalIdRow}`);
     }
 
     if (
       errors.length > 0 ||
+      fileNumberKey === undefined ||
       personnelFileNumber === null ||
       fullName === null ||
       nationalId === null
     ) {
       return { status: 'rejected', normalised: null, errors };
     }
+    fileNumbers.set(fileNumberKey, rowNumber);
+    nationalIds.set(nationalId, rowNumber);
     return {
       status: 'accepted',
       normalised: {
