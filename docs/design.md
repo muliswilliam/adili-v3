@@ -22,7 +22,7 @@ The kit is throwaway: plain CSS with hex values so the prototypes open by double
 | Font | Inter | `font-sans` (Inter Variable, bundled via `@fontsource-variable/inter`), features `cv11` and `ss01` |
 | Body text | 15px, line height 1.5 | set on `body`; components set their own sizes (labels and table text 14px, hints 13px) |
 | Icons | stroke icons, 16 to 18px | `Icon` from `@adili/ui` with icons from `@hugeicons/core-free-icons`, 16px by default |
-| Focus | 2px ink outline, 2px offset | `focusRing` from `@adili/ui` (`outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring`) on buttons, links, tabs, steppers and drop zones; compose it with `cn` to change the colour or offset. Use `outline-hidden`, never `outline-none`, and keep `focus-visible:outline-solid`: in Tailwind 4 both hiding utilities set the outline style to none and `outline-2` inherits it, so without it the ring never draws. Controls use `shadow-control-focus` |
+| Focus | 2px ink outline, 2px offset | `focusRing` from `@adili/ui` (`outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring`) on buttons, links, tabs, steppers and drop zones; compose it with `cn` to change the colour or offset. Use `outline-hidden`, never `outline-none`, and keep `focus-visible:outline-solid`: in Tailwind 4 both hiding utilities set the outline style to none and `outline-2` inherits it, so without it the ring never draws. The `adili/focus-ring` lint rule (`@adili/eslint-config`) catches both. Controls use `shadow-control-focus` |
 
 ## Colour tokens
 

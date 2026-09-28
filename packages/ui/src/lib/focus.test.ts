@@ -1,8 +1,7 @@
 // @vitest-environment node
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { compile } from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
@@ -11,7 +10,6 @@ import { focusRing } from './focus';
 
 const require = createRequire(import.meta.url);
 const tailwindDir = path.dirname(require.resolve('tailwindcss/package.json'));
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 /** Compiles the given classes with Tailwind's utilities, as an app build would. */
 async function compileClasses(classes: string): Promise<string> {
@@ -35,14 +33,6 @@ function focusVisibleDeclarations(css: string): string {
     .join('\n');
 }
 
-async function sourceFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true, recursive: true });
-  return entries
-    .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
-    .map((entry) => path.join(entry.parentPath, entry.name))
-    .filter((file) => !file.includes(`${path.sep}node_modules${path.sep}`));
-}
-
 describe('focusRing', () => {
   it('compiles to a solid outline while focus is visible', async () => {
     const focused = focusVisibleDeclarations(await compileClasses(focusRing));
@@ -56,32 +46,10 @@ describe('focusRing', () => {
 
   it('guards a real trap: outline-hidden with outline-2 alone draws no ring', async () => {
     const focused = focusVisibleDeclarations(
+      // eslint-disable-next-line adili/focus-ring -- the broken recipe the lint rule catches
       await compileClasses('outline-hidden focus-visible:outline-2'),
     );
 
     expect(focused).not.toMatch(/--tw-outline-style:\s*solid/);
-  });
-
-  it('is used by every class string that hides the outline and shows one on focus', async () => {
-    const roots = [path.join(repoRoot, 'packages/ui/src')];
-    for (const app of await readdir(path.join(repoRoot, 'apps'))) {
-      roots.push(path.join(repoRoot, 'apps', app, 'src'));
-    }
-    const offenders: string[] = [];
-    for (const root of roots) {
-      const files = await sourceFiles(root).catch(() => []);
-      for (const file of files) {
-        if (file === fileURLToPath(import.meta.url)) continue;
-        for (const literal of (await readFile(file, 'utf8')).match(/(['"`])[^'"`]*\1/g) ?? []) {
-          const hides = /(^|\s|['"`])outline-(none|hidden)(\s|['"`])/.test(literal);
-          const shows = /focus-visible:outline-\d/.test(literal);
-          const solid = literal.includes('focus-visible:outline-solid');
-          if (hides && shows && !solid)
-            offenders.push(`${path.relative(repoRoot, file)}: ${literal}`);
-        }
-      }
-    }
-
-    expect(offenders).toEqual([]);
   });
 });
