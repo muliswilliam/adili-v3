@@ -6,6 +6,8 @@ How the designs map to code. The design system lives in [`packages/ui`](../packa
 
 The clickable HTML prototypes are the source of truth. Where they disagree with the Figma style guide, the prototypes win; the Dials logo is the one thing still taken from Figma.
 
+They are published to [muliswilliam.github.io/adili-v3](https://muliswilliam.github.io/adili-v3/) on every push to `main` that touches a `prototype` dir (`.github/workflows/pages.yml`). The site is public.
+
 | | |
 |---|---|
 | Prototype kit | [`packages/ui/prototype/kit.css`](../packages/ui/prototype/kit.css) and `kit.js`: tokens, buttons, inputs, cards, badges, callouts, dialogs, tables, tabs. Index: [`packages/ui/prototype/index.html`](../packages/ui/prototype/index.html) |
