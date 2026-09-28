@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import { CommissionStep } from '../../components/onboarding/commission-step';
-import { resumeInProgress } from '../../components/onboarding/guard';
+import { redirectIfInProgress } from '../../components/onboarding/guard';
 import { getOnboardingCommissions, getOnboardingSession } from '../../server/onboarding';
 
 export const Route = createFileRoute('/get-started/')({
@@ -19,7 +19,7 @@ export const Route = createFileRoute('/get-started/')({
       getOnboardingSession(),
       getOnboardingCommissions(),
     ]);
-    resumeInProgress(lookup);
+    redirectIfInProgress(lookup);
     return { commissions };
   },
   component: ChooseCommission,

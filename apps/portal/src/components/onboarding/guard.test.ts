@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OnboardingSession } from '../../server/directory/types';
 import { getOnboardingSession } from '../../server/onboarding';
 import type { SessionLookup } from '../../server/onboarding.server';
-import { requireCheckEmail, requireStep, resumeInProgress } from './guard';
+import { requireCheckEmail, requireStep, redirectIfInProgress } from './guard';
 
 vi.mock('../../server/onboarding', () => ({
   getOnboardingSession: vi.fn(),
@@ -38,9 +38,9 @@ function givenLookup(lookup: SessionLookup) {
 }
 
 /** The redirect a guard threw, or a failure when it returned instead. */
-async function redirectFrom(guard: Promise<unknown>) {
+async function redirectFrom(guard: Promise<unknown> | (() => unknown)) {
   try {
-    await guard;
+    await (typeof guard === 'function' ? guard() : guard);
   } catch (thrown) {
     return (thrown as { options: unknown }).options;
   }
@@ -137,17 +137,13 @@ describe('requireCheckEmail', () => {
   });
 });
 
-describe('resumeInProgress', () => {
-  it('sends a session in progress back to its step', () => {
-    let thrown: unknown;
-    try {
-      resumeInProgress({ status: 'active', session: session('phone-pending') });
-    } catch (error) {
-      thrown = error;
-    }
-    expect((thrown as { options: unknown }).options).toMatchObject({
-      to: '/get-started/verify-phone',
-    });
+describe('redirectIfInProgress', () => {
+  it('sends a session in progress back to its step', async () => {
+    expect(
+      await redirectFrom(() =>
+        redirectIfInProgress({ status: 'active', session: session('phone-pending') }),
+      ),
+    ).toMatchObject({ to: '/get-started/verify-phone' });
   });
 
   it.each([
@@ -159,7 +155,7 @@ describe('resumeInProgress', () => {
     { status: 'unavailable' },
   ] as const)('starts fresh for a $status $session.state session', (lookup) => {
     expect(() => {
-      resumeInProgress(lookup);
+      redirectIfInProgress(lookup);
     }).not.toThrow();
   });
 });

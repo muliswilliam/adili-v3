@@ -59,7 +59,7 @@ export async function requireCheckEmail(): Promise<CheckEmailGuard> {
  * progress resumes at its step; a finished or ended one does not hold the declarant on its page,
  * so they can start a new onboarding (see `resumeRoute`).
  */
-export function resumeInProgress(lookup: SessionLookup): void {
+export function redirectIfInProgress(lookup: SessionLookup): void {
   const resume = lookup.status === 'active' ? resumeRoute(lookup.session) : null;
   if (resume) throw redirect({ to: resume });
 }
