@@ -167,12 +167,13 @@ export function ReadIntoForm({
   }
 
   // Reading is polled through the suggestions list, as the contract has no per-set read.
+  const readingSetId = step.name === 'reading' ? step.setId : null;
   usePoll({
-    pollKey: step.name === 'reading' ? step.setId : null,
+    pollKey: readingSetId,
     read: () => listDeclarationSuggestions({ data: { declarationId, personKey, sectionKey } }),
     onRead: (listed) => {
-      const setId = step.name === 'reading' ? step.setId : null;
-      const set = listed?.status === 'ok' ? listed.sets.find((each) => each.id === setId) : null;
+      const set =
+        listed?.status === 'ok' ? listed.sets.find((each) => each.id === readingSetId) : null;
       const state = set ? readingState(set) : null;
       if (!state || state.status === 'reading') return false;
       settle(state);
