@@ -12,6 +12,7 @@ import {
   callDeclarations,
   type CommissionObligationsSummary,
   type DeclarationsResult,
+  type NationalObligationsSummary,
   type ObligationDetail,
   type ObligationPage,
 } from './declarations/client';
@@ -68,6 +69,22 @@ export const getObligation = createServerFn({ method: 'GET' })
     asDeclarationsViewer((client) =>
       callDeclarations(() =>
         client.GET('/v1/obligations/{id}', { params: { path: { id: data.id } } }),
+      ),
+    ),
+  );
+
+/**
+ * `GET /v1/obligations/summary`: counts per Commission for a cycle, with totals. EACC staff and
+ * platform admins; 403 for anyone else.
+ */
+export const getNationalObligationsSummary = createServerFn({ method: 'GET' })
+  .validator(z.object({ cycle: z.string().max(40).optional() }))
+  .handler(({ data }): Promise<DeclarationsResult<NationalObligationsSummary>> =>
+    asDeclarationsViewer((client) =>
+      callDeclarations(() =>
+        client.GET('/v1/obligations/summary', {
+          params: { query: data.cycle ? { cycle: data.cycle } : {} },
+        }),
       ),
     ),
   );

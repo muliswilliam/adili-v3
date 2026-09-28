@@ -167,6 +167,54 @@ export const en = {
   detailErrorTitle: 'The obligation could not be loaded',
   detailNotFound: 'This obligation is no longer on record.',
   noValue: '-',
+  // Commission detail card (FE-4)
+  cardCycle: (cycle: string, due: string) => `${cycle} · due ${due}`,
+  cardNotOnboarded: 'Not onboarded',
+  cardNotOnboardedHint: 'Due or overdue, not onboarded',
+  cardError: 'Obligation counts could not be loaded. Reload the page to try again.',
+  openObligations: 'Obligations',
+  // National summary (FE-5)
+  nationalTitle: 'National obligations',
+  nationalDescription: 'Due and overdue counts per Commission.',
+  nationalCycle: (cycle: string, due: string) => `${cycle} · due ${due}`,
+  nationalNotOpen: (cycle: string, opens: string) =>
+    `${cycle} opens on ${opens}. Until then, counts cover initial and final declarations.`,
+  nationalCaption: (cycle: string) => `Obligations per Commission, ${cycle}`,
+  nationalLoadingCaption: 'Obligations per Commission (loading)',
+  columnCommission: 'Commission',
+  columnUpcoming: 'Upcoming',
+  columnDue: 'Due',
+  columnOverdue: 'Overdue',
+  columnNotOnboarded: 'Not onboarded',
+  columnNotOnboardedHint:
+    'Officers with a due or overdue declaration who have no Adili account yet',
+  columnNotOnboardedHintLabel: 'About not onboarded',
+  columnLastImport: 'Last roster import',
+  sortLabel: 'Sort by',
+  sortOption: {
+    name: 'Name, A to Z',
+    upcoming: 'Most upcoming',
+    due: 'Most due',
+    overdue: 'Most overdue',
+    notOnboarded: 'Most not onboarded',
+    lastImport: 'Latest roster import',
+  },
+  noRosterYet: 'No roster yet',
+  nationalTotal: (count: number) =>
+    `Total, ${formatNumber(count)} ${count === 1 ? 'Commission' : 'Commissions'}`,
+  nationalPagination: 'Commission pages',
+  nationalPageRange: (from: number, to: number, total: number) =>
+    `${formatNumber(from)}-${formatNumber(to)} of ${formatNumber(total)}`,
+  nationalPageRows: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'Commission' : 'Commissions'}`,
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
+  nationalEmptyTitle: 'No Commission has obligations yet.',
+  nationalEmptyText: 'Counts appear as rosters are imported.',
+  nationalErrorTitle: 'National obligations could not be loaded',
+  nationalErrorDetail: 'The declarations service did not respond. Try again in a moment.',
+  nationalNoAccess: 'You do not have access to national obligations.',
+  openOwnObligations: "Open your Commission's obligations",
 } as const;
 
 /** Swahili translations, key by key; empty until reviewed. */

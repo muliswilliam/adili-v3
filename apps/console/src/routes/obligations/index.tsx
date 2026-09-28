@@ -1,5 +1,5 @@
 import { Button, Icon } from '@adili/ui';
-import { Upload04Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
+import { Settings01Icon, Upload04Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import {
   createFileRoute,
   getRouteApi,
@@ -15,6 +15,7 @@ import {
   obligationsSearchSchema,
 } from '../../components/obligations/obligations-query';
 import { ObligationsView } from '../../components/obligations/obligations-view';
+import { messages as policyMessages } from '../../components/policy/messages';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { ROSTER_WRITE_ROLES, workspaceFor } from '../../components/workspaces';
 import type { DeclarationsResult, ObligationPage } from '../../server/declarations/client';
@@ -92,6 +93,14 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
       list={pending ? null : list}
       search={search}
       onSearchChange={changeSearch}
+      actions={
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/obligations/policy">
+            <Icon icon={Settings01Icon} />
+            {policyMessages.openPolicy}
+          </Link>
+        </Button>
+      }
       loadPage={(cursor) =>
         listCommissionObligations({
           data: { slug: tenant ?? '', ...committed, cursor, limit: OBLIGATIONS_PAGE_SIZE },

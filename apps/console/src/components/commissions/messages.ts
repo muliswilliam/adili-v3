@@ -67,7 +67,9 @@ export const en = {
   categories: 'Categories',
   policyVersion: 'Policy version',
   policyVersionValue: (version: number) =>
-    version === 1 ? 'Version 1, platform defaults' : `Version ${version}`,
+    version === 1
+      ? 'Version 1, platform defaults'
+      : `Version ${version}, obligations start date changed`,
   created: 'Created',
   officerCardTitle: 'Reporting officer',
   officerNoneTitle: 'No reporting officer',

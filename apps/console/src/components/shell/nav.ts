@@ -2,6 +2,7 @@ import type { IconProps } from '@adili/ui';
 import {
   Building03Icon,
   Calendar03Icon,
+  ChartColumnIcon,
   Key01Icon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
@@ -41,7 +42,13 @@ interface NavDefinition {
  * open it.
  */
 const NAV: { label: string; items: NavDefinition[] }[] = [
-  { label: 'Platform', items: [{ workspace: 'commissions', icon: Building03Icon }] },
+  {
+    label: 'Platform',
+    items: [
+      { workspace: 'commissions', icon: Building03Icon },
+      { workspace: 'national-obligations', icon: ChartColumnIcon },
+    ],
+  },
   {
     label: 'Commission',
     items: [
