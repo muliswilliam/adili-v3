@@ -33,6 +33,8 @@ export const envSchema = baseEnvSchema.extend({
   TEMPORAL_TASK_QUEUE: z.string().min(1).default('directory'),
   /** Base URL of the documents service, whose internal API hands out clean roster files. */
   DOCUMENTS_URL: z.url(),
+  /** Base URL of the notifications service, whose internal API sends onboarding codes. */
+  NOTIFICATIONS_URL: z.url(),
   /**
    * Public origin of the declarant portal, e.g. `https://adili.go.ke`: onboarding links to its
    * sign-in and recover-access routes, and set-password emails send declarants back here.

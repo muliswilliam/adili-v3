@@ -275,7 +275,8 @@ describe('S2 identify', () => {
     const response = await identify(api, asWanjiru, freshIp());
 
     expect(response.statusCode, response.body).toBe(502);
-    expect(response.json()).not.toHaveProperty('code');
+    expect(response.json()).toMatchObject({ code: 'otp-send-failed', status: 502 });
+    expect(contractErrors(componentSchema('OnboardingProblem'), response.json())).toEqual([]);
     const sessions = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
       tx.select().from(onboardingSessions),
     );

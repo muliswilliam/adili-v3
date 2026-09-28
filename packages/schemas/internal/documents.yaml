@@ -510,6 +510,8 @@ components:
             - otp-invalid
             - otp-expired
             - resend-cooldown
+            - otp-send-failed
+            - wrong-step
             - session-expired
             - iprs-unavailable
             - identity-unavailable

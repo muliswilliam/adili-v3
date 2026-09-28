@@ -204,7 +204,7 @@ export type StepProblem =
   | { code: 'ended' }
   | { code: 'too-many' }
   | { code: 'moved' }
-  /** The directory could not send a code (502, which the contract gives no problem code). */
+  /** The directory could not send a code (502 `otp-send-failed`); nothing changed. */
   | { code: 'send-failed' }
   | { code: 'unavailable' };
 

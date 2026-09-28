@@ -51,7 +51,11 @@ export class IdentifyController {
     'Problem code `already-onboarded` (with `links`) or `no-roster`',
     'OnboardingProblem',
   )
-  @ApiProblemResponse(502, 'The first code could not be sent; no session was created')
+  @ApiProblemResponse(
+    502,
+    'Problem code `otp-send-failed`: the first code could not be sent; no session was created',
+    'OnboardingProblem',
+  )
   create(
     @Body(new ZodValidationPipe(identifyDeclarantBody)) body: IdentifyDeclarantBody,
     @Req() request: AuthenticatedRequest,

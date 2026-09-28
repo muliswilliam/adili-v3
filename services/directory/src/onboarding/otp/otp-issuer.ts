@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { errorType, ProblemException } from '@adili/api-kit';
 import { sql } from 'drizzle-orm';
 
@@ -89,15 +89,9 @@ export class OtpIssuer {
   }
 }
 
-/**
- * 502 when a code could not be sent. The registry has no code for it: the portal reads a 502
- * without `identity-unavailable` as "could not send".
- */
+/** 502 `otp-send-failed`: the code could not be sent; the step changed nothing. */
 export function otpNotSent(): ProblemException {
-  return new ProblemException({
-    type: 'otp-not-sent',
-    title: 'Code not sent',
-    status: HttpStatus.BAD_GATEWAY,
+  return ProblemException.fromCode('otp-send-failed', {
     detail: 'The one-time code could not be sent; nothing changed. Try again.',
   });
 }
