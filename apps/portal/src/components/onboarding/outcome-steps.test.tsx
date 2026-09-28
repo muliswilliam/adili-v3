@@ -94,6 +94,21 @@ describe('CheckEmailStep', () => {
     });
   });
 
+  it('holds the next resend for 60 seconds when the directory says it is already allowed', async () => {
+    renderCheckEmail(session({ otp: { ...session().otp, resendAvailableAt: inSeconds(-1) } }));
+    resendMock.mockResolvedValue({
+      ok: true,
+      session: session({ otp: { ...session().otp, resendAvailableAt: inSeconds(-5) } }),
+    });
+
+    fireEvent.click(resendButton());
+
+    expect(await screen.findByText('Email sent again')).toBeDefined();
+    await waitFor(() => {
+      expect(resendButton().textContent).toMatch(/Resend email in (59|60)s/);
+    });
+  });
+
   it('shows where the link went, the officer reference and a way to sign in', () => {
     renderCheckEmail();
 

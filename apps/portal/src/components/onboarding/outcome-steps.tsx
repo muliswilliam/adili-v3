@@ -163,7 +163,9 @@ function ResendEmail({ session }: { session: OnboardingSession }) {
     try {
       const result = await resendSetPasswordEmail();
       if (result.ok) {
-        startCountdown(emailWait(result.session.otp.resendAvailableAt));
+        // It has just gone, so there is always a wait, even if the directory's clock says
+        // the next one is already allowed.
+        startCountdown(emailWait(result.session.otp.resendAvailableAt) || RESEND_COOLDOWN_SECONDS);
         toast({ title: 'Email sent again' });
       } else if (result.code === 'resend-cooldown') {
         startCountdown(result.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);
