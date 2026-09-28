@@ -16,11 +16,9 @@ import { applyRosterPage, type PageContext, type Transaction } from './apply-pag
 import { nairobiDate } from './dates.js';
 import type { CycleCalendar, ObligationPolicy } from './engine.js';
 import { commissionRefs, cycleCalendar, tenantPolicyCache } from './schema.js';
+import { systemContext } from './system-context.js';
 import { CycleOpeningSchedules } from './workflow/cycle-opening-schedules.js';
 import { hasChanges, type ObligationChanges, ObligationWorkflows } from './workflows.js';
-
-/** `app.subject` of the service's own transactions (consumers, schedules). */
-export const SYSTEM_SUBJECT = 'system:declarations';
 
 /** The records a roster event refers to: those of an import or exit batch, or one record. */
 export type RosterSource =
@@ -79,7 +77,7 @@ export class RosterIngest {
     for (;;) {
       const page = await this.pull(tenant, source, cursor);
       const last = page.nextCursor === null;
-      const changes = await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, async (tx) => {
+      const changes = await withTenant(this.db, systemContext(tenant), async (tx) => {
         if (first) await refreshReferenceData(tx, commission, policy, context.policy.rules);
         const applied = await applyRosterPage(tx, this.events, context, page.items);
         if (last) {

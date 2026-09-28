@@ -148,7 +148,7 @@ describe('S13 cycle opening', () => {
         data: { cycleYear: 2027, count: 3 },
       }),
     ]);
-    const [record] = await api.db.select().from(cycleOpenings);
+    const [record] = await api.asPlatform((tx) => tx.select().from(cycleOpenings));
     expect(record).toMatchObject({ tenant: 'psc', cycleYear: 2027, obligationsCreated: 3 });
   });
 

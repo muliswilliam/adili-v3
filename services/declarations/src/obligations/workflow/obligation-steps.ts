@@ -16,7 +16,7 @@ import type { Transaction } from '../apply-page.js';
 import { type CivilDate, nairobiDate } from '../dates.js';
 import type { ObligationStatus } from '../engine.js';
 import { obligationReminderSent, obligationStatusChanged } from '../events.js';
-import { SYSTEM_SUBJECT } from '../roster-ingest.js';
+import { SYSTEM_SUBJECT } from '../system-context.js';
 import {
   commissionRefs,
   filingObligations,

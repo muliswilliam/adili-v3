@@ -10,7 +10,8 @@ import { reconcileSnapshots, type ReconcileContext, type Transaction } from '../
 import { nairobiDate } from '../dates.js';
 import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engine.js';
 import { cycleOpened } from '../events.js';
-import { obligationPolicyOf, SYSTEM_SUBJECT } from '../roster-ingest.js';
+import { obligationPolicyOf } from '../roster-ingest.js';
+import { systemContext } from '../system-context.js';
 import { cycleCalendar, cycleOpenings, rosterSnapshots, tenantPolicyCache } from '../schema.js';
 import { hasChanges, ObligationWorkflows } from '../workflows.js';
 import type { CycleOpened, CycleOpeningPage, CycleOpeningPageRequest } from './contract.js';
@@ -52,10 +53,12 @@ export class CycleOpening {
     const rules = (await this.refreshPolicy(tenant)) ?? cached.rules;
     const [calendar, opened] = await Promise.all([
       this.calendar(),
-      this.db
-        .select({ cycleYear: cycleOpenings.cycleYear })
-        .from(cycleOpenings)
-        .where(eq(cycleOpenings.tenant, tenant)),
+      withTenant(this.db, systemContext(tenant), (tx) =>
+        tx
+          .select({ cycleYear: cycleOpenings.cycleYear })
+          .from(cycleOpenings)
+          .where(eq(cycleOpenings.tenant, tenant)),
+      ),
     ]);
     const done = new Set(opened.map((row) => row.cycleYear));
     return openedCycles(calendar, rules, nairobiDate(this.clock.now())).filter(
@@ -82,21 +85,17 @@ export class CycleOpening {
     };
     const cycleKey = `biennial:${String(cycleYear)}`;
 
-    const { ids, changes } = await withTenant(
-      this.db,
-      { tenant, subject: SYSTEM_SUBJECT },
-      async (tx) => {
-        const page = await activeSnapshots(tx, tenant, cursor);
-        const applied = await reconcileSnapshots(
-          tx,
-          this.events,
-          context,
-          page,
-          (operation) => operation.kind === 'create' && operation.obligation.cycleKey === cycleKey,
-        );
-        return { ids: page, changes: applied };
-      },
-    );
+    const { ids, changes } = await withTenant(this.db, systemContext(tenant), async (tx) => {
+      const page = await activeSnapshots(tx, tenant, cursor);
+      const applied = await reconcileSnapshots(
+        tx,
+        this.events,
+        context,
+        page,
+        (operation) => operation.kind === 'create' && operation.obligation.cycleKey === cycleKey,
+      );
+      return { ids: page, changes: applied };
+    });
     progress();
     if (hasChanges(changes)) {
       try {
@@ -113,7 +112,7 @@ export class CycleOpening {
 
   /** Records the cycle opened for the tenant and announces it, once. */
   async recordOpened(tenant: string, { cycleYear, count }: CycleOpened): Promise<void> {
-    await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, async (tx) => {
+    await withTenant(this.db, systemContext(tenant), async (tx) => {
       const inserted = await tx
         .insert(cycleOpenings)
         .values({ tenant, cycleYear, obligationsCreated: count })
@@ -129,13 +128,15 @@ export class CycleOpening {
   private async cachedPolicy(
     tenant: string,
   ): Promise<{ policyVersionId: string; rules: ObligationPolicy } | undefined> {
-    const [row] = await this.db
-      .select({
-        policyVersionId: tenantPolicyCache.policyVersionId,
-        rules: tenantPolicyCache.policy,
-      })
-      .from(tenantPolicyCache)
-      .where(eq(tenantPolicyCache.tenant, tenant));
+    const [row] = await withTenant(this.db, systemContext(tenant), (tx) =>
+      tx
+        .select({
+          policyVersionId: tenantPolicyCache.policyVersionId,
+          rules: tenantPolicyCache.policy,
+        })
+        .from(tenantPolicyCache)
+        .where(eq(tenantPolicyCache.tenant, tenant)),
+    );
     return row;
   }
 
@@ -155,17 +156,19 @@ export class CycleOpening {
       policy: rules,
       fetchedAt: new Date(),
     };
-    const [kept] = await this.db
-      .update(tenantPolicyCache)
-      .set(cached)
-      // A pull that raced a newer one never puts an older version back.
-      .where(
-        and(
-          eq(tenantPolicyCache.tenant, tenant),
-          sql`${tenantPolicyCache.version} <= ${pulled.version}`,
-        ),
-      )
-      .returning({ policy: tenantPolicyCache.policy });
+    const [kept] = await withTenant(this.db, systemContext(tenant), (tx) =>
+      tx
+        .update(tenantPolicyCache)
+        .set(cached)
+        // A pull that raced a newer one never puts an older version back.
+        .where(
+          and(
+            eq(tenantPolicyCache.tenant, tenant),
+            sql`${tenantPolicyCache.version} <= ${pulled.version}`,
+          ),
+        )
+        .returning({ policy: tenantPolicyCache.policy }),
+    );
     return kept?.policy ?? null;
   }
 

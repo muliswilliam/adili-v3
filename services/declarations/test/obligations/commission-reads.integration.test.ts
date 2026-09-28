@@ -256,9 +256,9 @@ describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
 
   it('counts a cycle as opened once its biennials were created, even before its opening day', async () => {
     api.clock.setToday('2027-06-01');
-    await api.db
-      .insert(cycleOpenings)
-      .values({ tenant: 'psc', cycleYear: 2027, obligationsCreated: 5 });
+    await api.asPlatform((tx) =>
+      tx.insert(cycleOpenings).values({ tenant: 'psc', cycleYear: 2027, obligationsCreated: 5 }),
+    );
 
     expect((await summary(PSC_OFFICER)).cycle).toEqual(cycle(2027, true));
     expect((await summary({ tenant: 'tsc', roles: ['supervisor'] }, 'tsc')).cycle).toEqual(

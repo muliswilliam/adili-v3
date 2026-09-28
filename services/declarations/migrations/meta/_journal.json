@@ -36,6 +36,13 @@
       "when": 1790623746170,
       "tag": "0004_cycle_openings",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790627721822,
+      "tag": "0005_policy_cache_cycle_openings_rls",
+      "breakpoints": true
     }
   ]
 }

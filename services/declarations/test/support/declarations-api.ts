@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
-import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
@@ -16,6 +16,7 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
+import type { Transaction } from '../../src/obligations/apply-page.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
@@ -112,8 +113,13 @@ export type WorkflowMode = 'recording' | 'fake' | 'real';
 
 export interface DeclarationsApi {
   app: NestFastifyApplication;
-  /** Direct database access for arranging fixtures and reading rows the API does not show. */
+  /**
+   * Direct database access for arranging fixtures and reading rows the API does not show. Tables
+   * are under FORCE row-level security: use `asPlatform` to see every tenant's rows.
+   */
   db: Database<DeclarationsSchema>;
+  /** Runs `work` in a platform transaction (every tenant's rows). */
+  asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
   directory: FakeDirectory;
   notifications: FakeNotifications;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
@@ -205,6 +211,7 @@ export async function startDeclarationsApi({
     notifications,
     workflows,
     temporal,
+    asPlatform: (work) => withTenant(db, { tenant: 'platform', subject: 'test' }, work),
     steps: app.get(ObligationSteps),
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
@@ -247,7 +254,9 @@ async function deleteCycleOpeningSchedules(
   temporal: Client,
   db: Database<DeclarationsSchema>,
 ): Promise<void> {
-  const tenants = await db.select({ tenant: tenantPolicyCache.tenant }).from(tenantPolicyCache);
+  const tenants = await withTenant(db, { tenant: 'platform', subject: 'test' }, (tx) =>
+    tx.select({ tenant: tenantPolicyCache.tenant }).from(tenantPolicyCache),
+  );
   const queue = process.env.TEMPORAL_TASK_QUEUE ?? '';
   await Promise.all(
     tenants.map(({ tenant }) =>

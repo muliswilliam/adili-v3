@@ -158,7 +158,7 @@ describe('S7 roster.import.completed.v1', () => {
     // Identifiers and dates only: no names, file numbers or OFRs in events.
     expect(JSON.stringify(created?.envelope)).not.toMatch(/PSC\/|Achieng/);
 
-    const [policy] = await api.db.select().from(tenantPolicyCache);
+    const [policy] = await api.asPlatform((tx) => tx.select().from(tenantPolicyCache));
     expect(policy).toMatchObject({ tenant: 'psc', version: 1 });
   });
 

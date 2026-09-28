@@ -11,7 +11,7 @@ import { and, asc, inArray, isNull, lt, sql } from 'drizzle-orm';
 
 import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
-import { SYSTEM_SUBJECT } from '../roster-ingest.js';
+import { PLATFORM_CONTEXT } from '../system-context.js';
 import { filingObligations } from '../schema.js';
 import { ObligationWorkflows } from '../workflows.js';
 import { OBLIGATIONS_SWEEP_WORKFLOW } from './contract.js';
@@ -55,25 +55,22 @@ export class ObligationsSweep {
     let started = 0;
     let previous: string | undefined;
     for (;;) {
-      const rows = await withTenant(
-        this.db,
-        { tenant: 'platform', subject: SYSTEM_SUBJECT },
-        (tx) =>
-          tx
-            .select({ id: filingObligations.id, tenant: filingObligations.tenant })
-            .from(filingObligations)
-            .where(
-              and(
-                inArray(filingObligations.status, ['upcoming', 'due', 'overdue']),
-                isNull(filingObligations.workflowStartedAt),
-                lt(
-                  filingObligations.createdAt,
-                  sql`now() - make_interval(secs => ${graceMs / 1000})`,
-                ),
+      const rows = await withTenant(this.db, PLATFORM_CONTEXT, (tx) =>
+        tx
+          .select({ id: filingObligations.id, tenant: filingObligations.tenant })
+          .from(filingObligations)
+          .where(
+            and(
+              inArray(filingObligations.status, ['upcoming', 'due', 'overdue']),
+              isNull(filingObligations.workflowStartedAt),
+              lt(
+                filingObligations.createdAt,
+                sql`now() - make_interval(secs => ${graceMs / 1000})`,
               ),
-            )
-            .orderBy(asc(filingObligations.createdAt), asc(filingObligations.id))
-            .limit(BATCH),
+            ),
+          )
+          .orderBy(asc(filingObligations.createdAt), asc(filingObligations.id))
+          .limit(BATCH),
       );
       // The same round again means the starts were not recorded: stop rather than spin.
       if (rows.length === 0 || rows[0]?.id === previous) return started;

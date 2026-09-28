@@ -10,7 +10,7 @@ import { and, inArray, isNull, sql } from 'drizzle-orm';
 
 import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
-import { SYSTEM_SUBJECT } from '../roster-ingest.js';
+import { systemContext } from '../system-context.js';
 import { filingObligations } from '../schema.js';
 import { type ObligationChanges, ObligationWorkflows } from '../workflows.js';
 import {
@@ -91,7 +91,7 @@ export class TemporalObligationWorkflows extends ObligationWorkflows {
   }
 
   private async markStarted(tenant: string, obligationIds: string[]): Promise<void> {
-    await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, (tx) =>
+    await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .update(filingObligations)
         .set({ workflowStartedAt: sql`now()` })

@@ -4,12 +4,13 @@ import {
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { InjectTemporalClient } from '@adili/temporal';
 import { type Client, ScheduleAlreadyRunning, ScheduleOverlapPolicy } from '@temporalio/client';
 
 import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
+import { PLATFORM_CONTEXT } from '../system-context.js';
 import { tenantPolicyCache } from '../schema.js';
 import { CYCLE_OPENING_WORKFLOW, type CycleOpeningInput } from './contract.js';
 import type { cycleOpening } from './workflows.js';
@@ -99,9 +100,9 @@ export class TemporalCycleOpeningSchedules
   /** Every Commission with a roster ingested (a cached policy) has its schedule. */
   private async ensureAll(): Promise<void> {
     try {
-      const tenants = await this.db
-        .select({ tenant: tenantPolicyCache.tenant })
-        .from(tenantPolicyCache);
+      const tenants = await withTenant(this.db, PLATFORM_CONTEXT, (tx) =>
+        tx.select({ tenant: tenantPolicyCache.tenant }).from(tenantPolicyCache),
+      );
       for (const { tenant } of tenants) await this.ensure(tenant);
     } catch (error) {
       if (this.stopped) return;
