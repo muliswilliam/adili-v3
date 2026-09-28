@@ -2,6 +2,7 @@ import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
 import {
   AlertCircleIcon,
   Flag02Icon,
+  InformationCircleIcon,
   MinusSignIcon,
   PencilEdit02Icon,
   Tick02Icon,
@@ -38,8 +39,9 @@ const TILES = [
 
 /**
  * What an ended import did (wizard step 5 and the import report): the five counts, a warning
- * with the way to review them when officers were flagged as absent, then the rejected rows with
- * their CSV, or that none were rejected. Nothing while the import has no counts.
+ * with the way to review them when officers were flagged as absent, a note when some are on
+ * another Commission's roster too, then the rejected rows with their CSV, or that none were
+ * rejected. Nothing while the import has no counts.
  */
 export function ImportReportBody({
   imp,
@@ -88,6 +90,13 @@ export function ImportReportBody({
               <Link to="/roster/flagged">{m.reviewFlaggedButton}</Link>
             </Button>
           </AlertDescription>
+        </Alert>
+      ) : null}
+      {counts.noted > 0 ? (
+        <Alert variant="info" role="status" className="mt-4">
+          <Icon icon={InformationCircleIcon} />
+          <AlertTitle>{m.notedTitle(counts.noted)}</AlertTitle>
+          <AlertDescription>{m.notedText}</AlertDescription>
         </Alert>
       ) : null}
       {counts.rejected === 0 ? (

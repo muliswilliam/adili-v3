@@ -12,6 +12,7 @@ const COUNTS = {
   unchanged: 0,
   rejected: 3,
   flaggedAbsent: 0,
+  noted: 0,
   exitsRecorded: 0,
 };
 

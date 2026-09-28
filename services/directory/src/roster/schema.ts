@@ -18,7 +18,7 @@ import {
 import { commissions } from '../commissions/schema.js';
 import type { ColumnMapping } from './header-mapping.js';
 import type { ImportCounts, ImportFailureCode } from './import/representation.js';
-import type { NormalisedRosterRow, RawRosterRow, RowError } from './row-validation.js';
+import type { NormalisedRosterRow, RawRosterRow, RowError, RowNote } from './row-validation.js';
 
 /**
  * The roster of each Commission (spec #27): its records, reporting entities, imports with their
@@ -139,6 +139,8 @@ export const rosterRecords = pgTable(
       sql`lower(${table.personnelFileNumber})`,
     ),
     index('roster_records_tenant_national_id_idx').on(table.tenant, table.nationalId),
+    /** The same national ID on other Commissions' rosters (import notes, transfers). */
+    index('roster_records_national_id_idx').on(table.nationalId),
     /** The records list's order and keyset cursor. */
     index('roster_records_tenant_full_name_id_idx').on(table.tenant, table.fullName, table.id),
     index('roster_records_tenant_state_idx').on(table.tenant, table.state),
@@ -256,6 +258,8 @@ export const rosterImportRows = pgTable(
     normalised: jsonb().$type<NormalisedRosterRow>(),
     status: text({ enum: IMPORT_ROW_STATUSES }).notNull(),
     errors: jsonb().$type<RowError[]>().notNull().default([]),
+    /** Set when an accepted row is applied, e.g. its national ID is on another roster too. */
+    notes: jsonb().$type<RowNote[]>().notNull().default([]),
     /** Chunk an accepted row is applied in; null for rows rejected when staged. */
     chunkIndex: integer(),
     outcome: text({ enum: IMPORT_ROW_OUTCOMES }),

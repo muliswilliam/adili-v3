@@ -2,7 +2,7 @@ import { problemDetailsSchema } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { ROSTER_COLUMNS, type RosterField } from '../columns.js';
-import { ROW_ERROR_CODES } from '../row-validation.js';
+import { ROW_ERROR_CODES, ROW_NOTE_CODES } from '../row-validation.js';
 import {
   IMPORT_CHANNELS,
   IMPORT_FORMATS,
@@ -63,6 +63,10 @@ export const importCountsSchema = z.object({
   }),
   flaggedAbsent: z.number().int().meta({
     description: 'Records flagged as absent from this complete import',
+  }),
+  noted: z.number().int().meta({
+    description:
+      "Accepted rows with notes (`notes` on the import's rows), e.g. a national ID also on another Commission's roster, which is allowed",
   }),
   exitsRecorded: z.number().int().meta({
     description:
@@ -151,6 +155,15 @@ export const rowErrorSchema = z.object({
   message: z.string().meta({ description: 'What to fix, in English' }),
 });
 
+export const rowNoteSchema = z.object({
+  field: z.enum(fields).meta({ description: 'The roster field the note is about' }),
+  code: z.enum(ROW_NOTE_CODES).meta({
+    description:
+      "`national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed",
+  }),
+  message: z.string().meta({ description: 'The note, in English' }),
+});
+
 const rawValue = z.string().nullable().optional();
 
 export const rosterImportRowSchema = z.object({
@@ -167,6 +180,10 @@ export const rosterImportRowSchema = z.object({
     )
     .meta({ description: 'The values as sent, by field; only the columns the file had' }),
   errors: z.array(rowErrorSchema).meta({ description: 'Why the row was rejected; empty if not' }),
+  notes: z.array(rowNoteSchema).meta({
+    description:
+      'Things to know about an accepted row, set when it is applied; they did not stop it',
+  }),
   outcome: z.enum(IMPORT_ROW_OUTCOMES).nullable().meta({
     description:
       'What applying the row did to its record; null until applied, and for rejected rows',

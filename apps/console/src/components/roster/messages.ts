@@ -299,6 +299,10 @@ export const en = {
   flaggedTitle: (count: number) =>
     `${formatNumber(count)} ${count === 1 ? 'officer was' : 'officers were'} not in this file.`,
   flaggedText: 'Review them to confirm exits.',
+  notedTitle: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'officer is' : 'officers are'} also on another Commission's roster.`,
+  notedText:
+    'That is allowed: officers move between Commissions. They were imported as usual; nothing to do.',
   importAnother: 'Import another file',
   // Rejected rows (step 5 and the import report)
   rejectedRowsTitle: 'Rejected rows',

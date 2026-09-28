@@ -20,6 +20,16 @@ export interface RowError {
   message: string;
 }
 
+export const ROW_NOTE_CODES = ['national-id-on-another-roster'] as const;
+export type RowNoteCode = (typeof ROW_NOTE_CODES)[number];
+
+/** Something to know about an accepted row that does not stop it from applying. */
+export interface RowNote {
+  field: RosterField;
+  code: RowNoteCode;
+  message: string;
+}
+
 /** A row as read from a file or an API batch, keyed by field, before normalisation. */
 export type RawRosterRow = Partial<Record<RosterField, string | null>>;
 

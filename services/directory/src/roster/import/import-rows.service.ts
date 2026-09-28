@@ -153,6 +153,7 @@ function toRosterImportRow(row: StagedRow): RosterImportRow {
     status: row.status,
     raw: row.raw,
     errors: row.errors,
+    notes: row.notes,
     outcome: row.outcome,
     recordId: row.recordId,
   };

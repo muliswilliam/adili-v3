@@ -127,6 +127,20 @@
       "when": 1790585261712,
       "tag": "0017_roster_imports_counts_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790585373084,
+      "tag": "0018_roster_import_rows_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790585373638,
+      "tag": "0019_roster_national_ids_on_other_rosters",
+      "breakpoints": true
     }
   ]
 }

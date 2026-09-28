@@ -196,6 +196,7 @@ describe('WizardReportStep', () => {
     unchanged: 2,
     rejected: 0,
     flaggedAbsent: 0,
+    noted: 0,
     exitsRecorded: 0,
   };
   const completed = imp({
@@ -240,6 +241,13 @@ describe('WizardReportStep', () => {
     expect(tiles.textContent).toBe('Created41Updated1,169Unchanged2Rejected0Flagged absent0');
     expect(screen.getByText('No rows were rejected.')).toBeTruthy();
     expect(screen.queryByText(/not in this file/)).toBeNull();
+    expect(screen.queryByText(/another Commission/)).toBeNull();
+  });
+
+  it("notes officers also on another Commission's roster, as allowed", () => {
+    renderReport({ ...completed, counts: { ...counts, noted: 3 } });
+    const note = screen.getByText("3 officers are also on another Commission's roster.");
+    expect(note.closest('[role="status"]')?.textContent).toContain('That is allowed');
   });
 
   it('warns about officers flagged as absent and lists the rejected rows', async () => {
@@ -259,6 +267,7 @@ describe('WizardReportStep', () => {
                   message: 'National ID must be 5 to 10 digits.',
                 },
               ],
+              notes: [],
               outcome: null,
               recordId: null,
             },

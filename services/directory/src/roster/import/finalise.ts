@@ -103,6 +103,7 @@ async function tally(
       status: rosterImportRows.status,
       outcome: rosterImportRows.outcome,
       rows: count(),
+      noted: sql<number>`count(*) filter (where jsonb_array_length(${rosterImportRows.notes}) > 0)::int`,
     })
     .from(rosterImportRows)
     .where(
@@ -119,11 +120,13 @@ async function tally(
     unchanged: 0,
     rejected: 0,
     flaggedAbsent: extra.flaggedAbsent,
+    noted: 0,
     exitsRecorded: 0,
   };
-  for (const { status, outcome, rows } of groups) {
+  for (const { status, outcome, rows, noted } of groups) {
     counts[status] += rows;
     if (outcome !== null) counts[outcome] += rows;
+    counts.noted += noted;
   }
   return counts;
 }

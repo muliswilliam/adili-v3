@@ -1033,6 +1033,8 @@ export interface components {
             rejected: number;
             /** @description Records flagged as absent from this complete import */
             flaggedAbsent: number;
+            /** @description Accepted rows with notes (`notes` on the import's rows), e.g. a national ID also on another Commission's roster, which is allowed */
+            noted: number;
             /** @description Exits the import itself recorded. No import records exits today (the reporting officer confirms them, or the HR system calls the exit endpoint), so it is 0. Like every count, fixed when the import ends and equal to roster.import.completed.v1's */
             exitsRecorded: number;
         };
@@ -1230,6 +1232,21 @@ export interface components {
             };
             /** @description Why the row was rejected; empty if not */
             errors: components["schemas"]["RowError"][];
+            /** @description Things to know about an accepted row, set when it is applied; they did not stop it */
+            notes: {
+                /**
+                 * @description The roster field the note is about
+                 * @enum {string}
+                 */
+                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+                /**
+                 * @description `national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed
+                 * @enum {string}
+                 */
+                code: "national-id-on-another-roster";
+                /** @description The note, in English */
+                message: string;
+            }[];
             /** @description What applying the row did to its record; null until applied, and for rejected rows */
             outcome: ("created" | "updated" | "unchanged") | null;
             /** @description The record the row applied to, or whose identity lock rejected it */

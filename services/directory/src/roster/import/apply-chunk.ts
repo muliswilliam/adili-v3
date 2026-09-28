@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import type { NormalisedRosterRow, RowError } from '../row-validation.js';
+import type { NormalisedRosterRow, RowError, RowNote } from '../row-validation.js';
 import {
   type ImportChannel,
   type ImportRowOutcome,
@@ -55,7 +55,8 @@ type Decision =
  * named for the first time, creates or updates records by personnel file number (case-insensitive),
  * rejects rows that would change an onboarded record's identity (`identity-locked`), re-activates
  * exited records, marks every record with a row as seen in this import, moves the roster summary
- * by what changed, and marks the rows applied with their outcome.
+ * by what changed, and marks the rows applied with their outcome, noting national IDs that are
+ * on another Commission's roster too.
  *
  * Idempotent: only rows not yet applied are applied, and the import row is locked first, so a
  * re-run (after a crash, or racing a straggling attempt) applies nothing twice and returns zeros.
@@ -108,6 +109,7 @@ export async function applyChunk(
       );
       return {
         rowNumber: row.rowNumber,
+        nationalId: values.nationalId,
         decision: decide(values, existing.get(fileNumberKey(values.personnelFileNumber))),
       };
     });
@@ -132,21 +134,29 @@ export async function applyChunk(
       ),
     );
     await adjustRosterSummary(tx, ref.tenant, summaryDelta(decisions.map((row) => row.decision)));
+    const elsewhere = await nationalIdsOnOtherRosters(
+      tx,
+      ref.tenant,
+      decisions.flatMap(({ nationalId, decision }) =>
+        decision.kind === 'locked' ? [] : [nationalId],
+      ),
+    );
 
     const counts: ChunkCounts = { ...NOTHING_APPLIED };
-    const outcomes = decisions.map(({ rowNumber, decision }) => {
+    const outcomes = decisions.map(({ rowNumber, nationalId, decision }) => {
+      const notes = elsewhere.has(nationalId) ? [NATIONAL_ID_ON_ANOTHER_ROSTER] : [];
       switch (decision.kind) {
         case 'create': {
           counts.created += 1;
           const recordId = requireId(created, fileNumberKey(decision.values.personnelFileNumber));
-          return rowOutcome(rowNumber, 'created', recordId);
+          return rowOutcome(rowNumber, 'created', recordId, notes);
         }
         case 'update':
           counts.updated += 1;
-          return rowOutcome(rowNumber, 'updated', decision.recordId);
+          return rowOutcome(rowNumber, 'updated', decision.recordId, notes);
         case 'unchanged':
           counts.unchanged += 1;
-          return rowOutcome(rowNumber, 'unchanged', decision.recordId);
+          return rowOutcome(rowNumber, 'unchanged', decision.recordId, notes);
         case 'locked':
           counts.rejected += 1;
           return {
@@ -155,6 +165,7 @@ export async function applyChunk(
             outcome: null,
             record_id: decision.recordId,
             errors: decision.errors,
+            notes: [],
           };
       }
     });
@@ -164,9 +175,16 @@ export async function applyChunk(
         outcome = source.outcome,
         record_id = source.record_id,
         errors = source.errors,
+        notes = source.notes,
         applied_at = now()
-      from jsonb_to_recordset(${JSON.stringify(outcomes)}::jsonb)
-        as source(row_number integer, status text, outcome text, record_id uuid, errors jsonb)
+      from jsonb_to_recordset(${JSON.stringify(outcomes)}::jsonb) as source(
+        row_number integer,
+        status text,
+        outcome text,
+        record_id uuid,
+        errors jsonb,
+        notes jsonb
+      )
       where target.import_id = ${ref.importId} and target.row_number = source.row_number
     `);
     await tx
@@ -270,8 +288,49 @@ function recordValues(row: NormalisedRosterRow, reportingEntityId: string | null
   };
 }
 
-function rowOutcome(rowNumber: number, outcome: ImportRowOutcome, recordId: string) {
-  return { row_number: rowNumber, status: 'accepted', outcome, record_id: recordId, errors: [] };
+function rowOutcome(
+  rowNumber: number,
+  outcome: ImportRowOutcome,
+  recordId: string,
+  notes: RowNote[],
+) {
+  return {
+    row_number: rowNumber,
+    status: 'accepted',
+    outcome,
+    record_id: recordId,
+    errors: [],
+    notes,
+  };
+}
+
+/**
+ * The same national ID on another Commission's roster is allowed (people transfer; slice 03
+ * resolves who the declarant is) and noted on the row, without naming the other Commission.
+ */
+const NATIONAL_ID_ON_ANOTHER_ROSTER: RowNote = {
+  field: 'nationalId',
+  code: 'national-id-on-another-roster',
+  message:
+    "This national ID is also on another Commission's roster. That is allowed, for officers who moved; the row was applied.",
+};
+
+/**
+ * Which of the national IDs are on another Commission's roster, through a database function that
+ * sees other rosters for the length of the query and answers only with the IDs asked about
+ * (migration 0019); this transaction stays in the importing tenant's context.
+ */
+async function nationalIdsOnOtherRosters(
+  tx: Transaction,
+  tenant: string,
+  nationalIds: string[],
+): Promise<Set<string>> {
+  if (nationalIds.length === 0) return new Set();
+  const { rows } = await tx.execute<{ national_id: string }>(sql`
+    select national_id from roster_national_ids_on_other_rosters(${tenant}, ${sql.param(nationalIds)}::text[])
+      as national_id
+  `);
+  return new Set(rows.map((row) => row.national_id));
 }
 
 /** Personnel file numbers identify records case-insensitively. */

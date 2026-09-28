@@ -39,6 +39,7 @@ const completed: RosterImport = {
     unchanged: 47_916,
     rejected: 31,
     flaggedAbsent: 14,
+    noted: 0,
     exitsRecorded: 0,
   },
   mapping: null,

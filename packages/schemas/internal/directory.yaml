@@ -2762,6 +2762,9 @@ components:
         flaggedAbsent:
           type: integer
           description: Records flagged as absent from this complete import
+        noted:
+          type: integer
+          description: Accepted rows with notes (`notes` on the import's rows), e.g. a national ID also on another Commission's roster, which is allowed
         exitsRecorded:
           type: integer
           description: Exits the import itself recorded. No import records exits today (the reporting officer confirms them, or the HR system calls the exit endpoint), so it is 0. Like every count, fixed when the import ends and equal to roster.import.completed.v1's
@@ -2772,6 +2775,7 @@ components:
         - unchanged
         - rejected
         - flaggedAbsent
+        - noted
         - exitsRecorded
     RosterImport:
       type: object
@@ -3212,6 +3216,37 @@ components:
           items:
             $ref: '#/components/schemas/RowError'
           description: Why the row was rejected; empty if not
+        notes:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                enum:
+                  - personnelFileNumber
+                  - fullName
+                  - nationalId
+                  - designation
+                  - jobGroup
+                  - reportingEntity
+                  - appointmentDate
+                  - email
+                  - phone
+                description: The roster field the note is about
+              code:
+                type: string
+                enum:
+                  - national-id-on-another-roster
+                description: "`national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed"
+              message:
+                type: string
+                description: The note, in English
+            required:
+              - field
+              - code
+              - message
+          description: Things to know about an accepted row, set when it is applied; they did not stop it
         outcome:
           anyOf:
             - type: string
@@ -3232,6 +3267,7 @@ components:
         - status
         - raw
         - errors
+        - notes
         - outcome
         - recordId
     RosterImportRowPage:
