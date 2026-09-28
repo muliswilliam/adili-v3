@@ -190,7 +190,6 @@ export const extractDeclarationAttachment = createServerFn({ method: 'POST' })
       attachmentId: id,
       documentKindHint: z.enum(DOCUMENT_KINDS),
       targetItemType: z.string().min(1).max(40),
-      language: z.enum(['en', 'sw']).optional(),
       idempotencyKey: id,
     }),
   )

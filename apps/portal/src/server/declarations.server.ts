@@ -485,7 +485,6 @@ export interface ExtractAttachmentInput {
   documentKindHint: DocumentKind;
   /** The declaration.v1 item type the fields are for, e.g. `vehicle`. */
   targetItemType: string;
-  language?: 'en' | 'sw';
   /** One per logical request; reuse it when retrying the same request. */
   idempotencyKey: string;
 }
@@ -519,7 +518,6 @@ export function extractAttachment(
         body: {
           documentKindHint: input.documentKindHint,
           targetItemType: input.targetItemType,
-          ...(input.language ? { language: input.language } : {}),
         },
       },
     );
