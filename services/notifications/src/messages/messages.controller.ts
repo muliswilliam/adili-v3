@@ -1,12 +1,21 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentPrincipal, type Principal, Scopes, ZodValidationPipe } from '@adili/api-kit';
+import {
+  ApiProblemResponse,
+  CurrentPrincipal,
+  type Principal,
+  schemaRef,
+  Scopes,
+  ZodValidationPipe,
+} from '@adili/api-kit';
 import { z } from 'zod';
 
 import { type MessageView, MessagesService } from './messages.service.js';
@@ -24,9 +33,15 @@ export class MessagesController {
   @ApiOperation({
     operationId: 'sendMessage',
     summary: 'Render a template and send it by email or SMS',
-    description: 'Synchronous with a 5-second budget. A provider failure is status failed.',
+    description:
+      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.',
   })
-  @ApiCreatedResponse({ description: 'Message handed to the provider (or failed, see status)' })
+  @ApiBody({ required: true, schema: schemaRef('SendMessage') })
+  @ApiCreatedResponse({
+    description: 'Message handed to the provider (or failed, see status)',
+    schema: schemaRef('Message'),
+  })
+  @ApiProblemResponse(400, 'Unknown template, or a recipient or params the template rejects')
   send(
     @Body(new ZodValidationPipe(sendMessageSchema)) body: SendMessage,
     @CurrentPrincipal() caller: Principal,
@@ -35,8 +50,15 @@ export class MessagesController {
   }
 
   @Get(':id')
-  @ApiOperation({ operationId: 'getMessage', summary: 'Delivery status of a message' })
-  @ApiOkResponse({ description: 'The message' })
+  @ApiOperation({
+    operationId: 'getMessage',
+    summary: 'Delivery status of a message',
+    description: 'Only the service that sent the message sees it.',
+  })
+  @ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } })
+  @ApiOkResponse({ description: 'The message', schema: schemaRef('Message') })
+  @ApiProblemResponse(400, 'The id is not a UUID')
+  @ApiProblemResponse(404, 'No message with this id, or another caller sent it')
   async get(
     @Param('id', new ZodValidationPipe(z.uuid())) id: string,
     @CurrentPrincipal() caller: Principal,

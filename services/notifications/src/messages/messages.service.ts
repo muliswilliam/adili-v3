@@ -24,7 +24,7 @@ export interface MessagesOptions {
   recipientHashKey: string;
 }
 
-/** notifications.yaml `Message`. */
+/** `Message` (see representation.ts). */
 export interface MessageView {
   id: string;
   channel: Channel;

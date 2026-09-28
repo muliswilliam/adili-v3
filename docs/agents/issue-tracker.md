@@ -47,6 +47,6 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 ## Repo conventions
 
 - **The spec is the epic issue.** One user flow = one milestone + one issue labelled `epic` whose body is the full spec (problem, solution, user stories, implementation and testing decisions with scenario IDs, out of scope). Frontend and backend detail are posted as the first two comments on the epic. FE/BE tickets are cut from those comments as GitHub sub-issues and reference scenario IDs (`S1`, `S2`, …).
-- **API contracts live in the repo**, not in issues: the draft the backend converges to goes in `packages/schemas/internal/<service>.yaml`, and the console generates its client from it. For a service that exports its contract (directory and documents so far), that file is generated: drafts go in `packages/schemas/drafts/<service>.yaml` and `pnpm --filter @adili/<service> contracts` merges them in.
+- **API contracts live in the repo**, not in issues: the draft the backend converges to goes in `packages/schemas/internal/<service>.yaml`, and the console generates its client from it. For a service that exports its contract (directory, documents, notifications and integration-gateway so far), that file is generated: drafts go in `packages/schemas/drafts/<service>.yaml` and `pnpm --filter @adili/<service> contracts` merges them in.
 - Labels: `area:frontend|backend|contract|spec`, `app:<portal|console>`, `svc:<service>`, `flow:<name>`, `design-pending`, `blocked`, `epic`.
 - Every ticket links its epic and lists the scenario IDs it satisfies.

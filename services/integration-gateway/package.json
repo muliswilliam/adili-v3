@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:generate": "drizzle-kit generate",
+    "contracts": "node --disable-warning=DEP0205 --env-file=.env.example --import @swc-node/register/esm-register src/contract/export.ts",
     "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts"
   },
   "dependencies": {
