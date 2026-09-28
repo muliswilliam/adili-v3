@@ -84,3 +84,18 @@ export interface CommissionSummary {
   /** Officers with a due or overdue obligation who have not onboarded, each counted once. */
   notOnboarded: { due: number; overdue: number };
 }
+
+export interface NationalSummary {
+  /** The cycle's key, e.g. `biennial:2027`. */
+  cycle: string;
+  /** Every Commission the service has had a roster event for, by name. */
+  commissions: {
+    commission: CommissionRef;
+    total: StatusCounts;
+    /** Officers with a due or overdue obligation who have not onboarded. */
+    notOnboarded: number;
+    /** When the Commission's latest roster import completed; null before any. */
+    lastRosterImportAt: string | null;
+  }[];
+  totals: StatusCounts;
+}

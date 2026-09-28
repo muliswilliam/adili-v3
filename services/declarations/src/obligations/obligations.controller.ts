@@ -24,6 +24,7 @@ import {
 import type {
   CommissionSummary,
   MyObligations,
+  NationalSummary,
   ObligationDetail,
   ObligationPage,
 } from './representation.js';
@@ -52,6 +53,24 @@ export class ObligationsController {
   @ApiProblemResponse(404, NOT_VISIBLE)
   mine(@CurrentPrincipal() principal: Principal): Promise<MyObligations> {
     return this.obligations.mine(principal);
+  }
+
+  @Get('obligations/summary')
+  @Roles(...EACC_ROLES, PLATFORM_ADMIN)
+  @ApiOperation({
+    operationId: 'getNationalObligationsSummary',
+    summary: 'Per-Commission counts for EACC and platform administrators',
+    description:
+      "Every Commission's counts for a cycle (the current one by default), with not-onboarded officers due or overdue, the last roster import, and totals. No officer data.",
+  })
+  @ApiQueryParameters(summaryQuery)
+  @ApiOkResponse({ description: 'Counts per Commission and totals' })
+  @ApiProblemResponse(400, 'Query failed validation')
+  nationalSummary(
+    @CurrentPrincipal() principal: Principal,
+    @Query(new ZodValidationPipe(summaryQuery)) query: SummaryQuery,
+  ): Promise<NationalSummary> {
+    return this.commissions.national(principal, query);
   }
 
   @Get('obligations/:id')

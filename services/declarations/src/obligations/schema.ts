@@ -201,13 +201,16 @@ export const tenantPolicyCache = pgTable('tenant_policy_cache', {
 
 /**
  * How a Commission is named to declarants and staff (slug, issuer code, name), as last pulled
- * from the directory. Public facts, platform-level.
+ * from the directory, and when its latest roster import completed (the national summary). Public
+ * facts, platform-level.
  */
 export const commissionRefs = pgTable('commission_refs', {
   slug: text().primaryKey(),
   issuerCode: text().notNull(),
   name: text().notNull(),
   fetchedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  /** The time of the latest `roster.import.completed.v1` handled; null before any. */
+  lastRosterImportAt: timestamp({ withTimezone: true }),
 });
 
 /**

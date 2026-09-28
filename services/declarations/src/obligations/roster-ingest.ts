@@ -30,6 +30,8 @@ export interface IngestedEvent {
   id: string;
   /** The Commission's slug. */
   tenant: string;
+  /** When the event occurred (CloudEvents `time`). */
+  time: Date;
 }
 
 /**
@@ -77,8 +79,11 @@ export class RosterIngest {
       const changes = await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, async (tx) => {
         if (first) await refreshReferenceData(tx, commission, policy, context.policy.rules);
         const applied = await applyRosterPage(tx, this.events, context, page.items);
-        if (last)
+        if (last) {
+          if (source.kind === 'records' && 'importId' in source.selector)
+            await recordRosterImport(tx, tenant, event.time);
           await tx.insert(inbox).values({ consumer, eventId: event.id }).onConflictDoNothing();
+        }
         return applied;
       });
       await this.tellWorkflows(tenant, changes);
@@ -170,4 +175,14 @@ async function refreshReferenceData(
       // A pull that raced a policy change never puts an older version back.
       setWhere: sql`${tenantPolicyCache.version} <= excluded.version`,
     });
+}
+
+/** Keeps when the Commission's latest roster import completed; an older one handled late is ignored. */
+async function recordRosterImport(tx: Transaction, tenant: string, time: Date): Promise<void> {
+  await tx
+    .update(commissionRefs)
+    .set({
+      lastRosterImportAt: sql`greatest(${commissionRefs.lastRosterImportAt}, ${time.toISOString()}::timestamptz)`,
+    })
+    .where(eq(commissionRefs.slug, tenant));
 }

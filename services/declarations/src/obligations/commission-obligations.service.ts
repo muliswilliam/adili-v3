@@ -37,6 +37,7 @@ import {
 } from './obligations.service.js';
 import type {
   CommissionSummary,
+  NationalSummary,
   ObligationPage,
   StatusCounts,
   SummaryCycle,
@@ -226,6 +227,86 @@ export class CommissionObligationsService {
             : null,
       };
     });
+  }
+
+  /**
+   * Every Commission's counts for a cycle (the current one by default, under the statutory
+   * biennial dates), the officers due or overdue who have not onboarded and the Commission's
+   * last roster import, with totals, in one aggregate query. For EACC and platform admins (the
+   * controller's roles); no officer data.
+   */
+  async national(principal: Principal, query: SummaryQuery): Promise<NationalSummary> {
+    return withTenant(
+      this.db,
+      { tenant: PLATFORM_TENANT, subject: principal.subject },
+      async (tx) => {
+        const year = await this.cycleYear(tx, query.cycle, STATUTORY_BIENNIAL);
+        const rows = await tx.execute<{
+          slug: string;
+          issuer_code: string;
+          name: string;
+          last_roster_import_at: Date | string | null;
+          upcoming: number;
+          due: number;
+          overdue: number;
+          filed: number;
+          not_onboarded: number;
+        }>(sql`
+        with scoped as (
+          select ${filingObligations.tenant} as tenant,
+                 ${filingObligations.rosterRecordId} as roster_record_id,
+                 ${filingObligations.status} as status,
+                 ${filingObligations.personId} as person_id
+          from ${filingObligations}
+          where ${inCycle(year)}
+        ),
+        counts as (
+          select tenant,
+                 count(*) filter (where status = 'upcoming')::int as upcoming,
+                 count(*) filter (where status = 'due')::int as due,
+                 count(*) filter (where status = 'overdue')::int as overdue,
+                 count(*) filter (where status = 'filed')::int as filed,
+                 count(distinct roster_record_id)
+                   filter (where person_id is null and status in ('due', 'overdue'))::int
+                   as not_onboarded
+          from scoped
+          group by tenant
+        )
+        select ${commissionRefs.slug} as slug,
+               ${commissionRefs.issuerCode} as issuer_code,
+               ${commissionRefs.name} as name,
+               ${commissionRefs.lastRosterImportAt} as last_roster_import_at,
+               coalesce(counts.upcoming, 0)::int as upcoming,
+               coalesce(counts.due, 0)::int as due,
+               coalesce(counts.overdue, 0)::int as overdue,
+               coalesce(counts.filed, 0)::int as filed,
+               coalesce(counts.not_onboarded, 0)::int as not_onboarded
+        from ${commissionRefs}
+        left join counts on counts.tenant = ${commissionRefs.slug}
+        order by ${commissionRefs.name}, ${commissionRefs.slug}`);
+
+        const totals = zeroCounts();
+        const commissions = rows.rows.map((row) => {
+          const total = {
+            upcoming: row.upcoming,
+            due: row.due,
+            overdue: row.overdue,
+            filed: row.filed,
+          };
+          for (const status of COUNTED_STATUSES) totals[status] += total[status];
+          return {
+            commission: { slug: row.slug, issuerCode: row.issuer_code, name: row.name },
+            total,
+            notOnboarded: row.not_onboarded,
+            lastRosterImportAt:
+              row.last_roster_import_at === null
+                ? null
+                : new Date(row.last_roster_import_at).toISOString(),
+          };
+        });
+        return { cycle: `biennial:${String(year)}`, commissions, totals };
+      },
+    );
   }
 
   /**
