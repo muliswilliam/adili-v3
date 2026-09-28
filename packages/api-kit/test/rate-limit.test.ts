@@ -169,8 +169,10 @@ describe('RateLimit', () => {
     expect(refused.headers['content-type']).toContain('application/problem+json');
     expect(refused.json()).toMatchObject({
       type: 'rate-limit-exceeded',
+      code: 'rate-limit-exceeded',
       title: 'Too Many Requests',
       status: 429,
+      retryAfterSeconds: 20,
       instance: '/v1/rosters/batches',
     });
     expect(limitHeaders(refused)).toEqual({ limit: '3', remaining: '0', reset: '60' });
@@ -337,5 +339,19 @@ describe('takeToken', () => {
     });
     expect(takeToken(empty, policy, 6_000).decision).toMatchObject({ allowed: true, remaining: 0 });
     expect(takeToken(empty, policy, 60_000).decision).toMatchObject({ remaining: 1 });
+  });
+
+  it('gives a token back for a negative cost, up to the limit', () => {
+    const empty = { tokens: 0, updatedAtMs: 0 };
+    const refunded = takeToken(empty, policy, 0, -1);
+
+    expect(refunded.decision).toEqual({
+      allowed: true,
+      limit: 2,
+      remaining: 1,
+      resetSeconds: 5,
+      retryAfterSeconds: 0,
+    });
+    expect(takeToken(undefined, policy, 0, -1).bucket.tokens).toBe(2);
   });
 });

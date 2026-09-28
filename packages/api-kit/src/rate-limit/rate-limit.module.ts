@@ -8,8 +8,19 @@ import {
 } from '@nestjs/common';
 import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 
-import { RATE_LIMIT_GROUP, RATE_LIMIT_POLICIES, RateLimitGuard } from './rate-limit.guard.js';
-import { type RateLimitPolicy, RateLimitStore } from './rate-limit.store.js';
+import {
+  RATE_LIMIT_POLICIES,
+  RATE_LIMIT_RULES,
+  RateLimitGuard,
+  RateLimitRefundInterceptor,
+  type RateLimitRule,
+} from './rate-limit.guard.js';
+import {
+  RATE_LIMIT_CLOCK,
+  type RateLimitClock,
+  type RateLimitPolicy,
+  RateLimitStore,
+} from './rate-limit.store.js';
 
 export interface RateLimitModuleOptions {
   /** Policy per route group, from configuration: parse an environment variable with `rateLimitsSchema`. */
@@ -20,6 +31,12 @@ export interface RateLimitModuleOptions {
    * in tests.
    */
   store: Type<RateLimitStore> | RateLimitStore;
+  /**
+   * The clock buckets are computed with, provided as `RATE_LIMIT_CLOCK`. By default the store
+   * keeps time itself (Valkey: its server time, the same for every replica); tests pass their
+   * own, or override `RATE_LIMIT_CLOCK`, to exercise refills and resets.
+   */
+  clock?: RateLimitClock;
 }
 
 /** Fails startup when a `@RateLimit` group has no configured policy, not the first request. */
@@ -42,8 +59,10 @@ class RateLimitPolicyCheck implements OnModuleInit {
         .map((name) => (controller.prototype as Record<string, unknown>)[name])
         .filter((handler): handler is Type => typeof handler === 'function');
       for (const target of [controller, ...handlers]) {
-        const group = this.reflector.get<string | undefined>(RATE_LIMIT_GROUP, target);
-        if (group !== undefined && !(group in this.policies)) missing.add(group);
+        const rules = this.reflector.get<RateLimitRule[] | undefined>(RATE_LIMIT_RULES, target);
+        for (const { group } of rules ?? []) {
+          if (!(group in this.policies)) missing.add(group);
+        }
       }
     }
     if (missing.size > 0) {
@@ -73,10 +92,18 @@ export class RateLimitModule {
           ? { provide: RateLimitStore, useValue: store }
           : { provide: RateLimitStore, useClass: store },
         { provide: RATE_LIMIT_POLICIES, useValue: options.policies },
+        { provide: RATE_LIMIT_CLOCK, useValue: options.clock ?? null },
         RateLimitGuard,
+        RateLimitRefundInterceptor,
         RateLimitPolicyCheck,
       ],
-      exports: [RateLimitStore, RATE_LIMIT_POLICIES, RateLimitGuard],
+      exports: [
+        RateLimitStore,
+        RATE_LIMIT_POLICIES,
+        RATE_LIMIT_CLOCK,
+        RateLimitGuard,
+        RateLimitRefundInterceptor,
+      ],
     };
   }
 }

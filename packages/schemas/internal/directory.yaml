@@ -581,7 +581,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -690,7 +690,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -855,7 +855,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -976,7 +976,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1076,7 +1076,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1158,7 +1158,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1468,7 +1468,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -3000,6 +3000,22 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - identity-mismatch
+            - already-registered
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:
@@ -3034,6 +3050,22 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - identity-mismatch
+            - already-registered
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:
@@ -3585,6 +3617,22 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - identity-mismatch
+            - already-registered
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:

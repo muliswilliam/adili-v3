@@ -16,7 +16,7 @@ export {
 } from './auth/service-token-client.js';
 export { TokenVerifier } from './auth/token-verifier.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
-export { type BaseEnv, baseEnvSchema, loadConfig } from './config.js';
+export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from './config.js';
 export { errorType } from './error-type.js';
 export { CoreModule, type CoreModuleOptions } from './core.module.js';
 export { HttpReadinessCheck } from './health/http-readiness-check.js';
@@ -49,6 +49,7 @@ export {
 } from './idempotency/postgres-idempotency.store.js';
 export { idempotencyKeys, idempotencySchema } from './idempotency/schema.js';
 export {
+  type CodedProblemOptions,
   PROBLEM_CONTENT_TYPE,
   type ProblemDetails,
   type ProblemExtensions,
@@ -56,6 +57,7 @@ export {
   ProblemException,
   toProblemDetails,
 } from './problem-details.filter.js';
+export { PROBLEM_CODES, type ProblemCode, problemCodeSchema } from './problem-codes.js';
 export {
   InMemoryRateLimitStore,
   type InMemoryRateLimitStoreOptions,
@@ -68,9 +70,22 @@ export {
   RATE_LIMIT_RESET_HEADER,
   RateLimit,
   RateLimitGuard,
+  type RateLimitOptions,
+  RateLimitRefundInterceptor,
+  type RateLimitRule,
 } from './rate-limit/rate-limit.guard.js';
+export {
+  byCaller,
+  byClientIp,
+  byClientIpAnd,
+  type RateLimitKey,
+  type RequestValue,
+} from './rate-limit/rate-limit.keys.js';
 export { RateLimitModule, type RateLimitModuleOptions } from './rate-limit/rate-limit.module.js';
 export {
+  type ConsumeOptions,
+  RATE_LIMIT_CLOCK,
+  type RateLimitClock,
   type RateLimitDecision,
   type RateLimitPolicy,
   RateLimitStore,

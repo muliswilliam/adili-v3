@@ -26,21 +26,24 @@ export interface TokenBucket {
 }
 
 /**
- * Refills `bucket` for the time elapsed since it was last updated and takes one token if there
- * is one. A missing bucket is a full one. Stores implement exactly this, atomically per key.
+ * Refills `bucket` for the time elapsed since it was last updated, then takes `cost` tokens if
+ * the bucket holds them. A negative cost gives tokens back (up to the limit) and is always
+ * allowed: a request refunded because of its outcome. A missing bucket is a full one. Stores
+ * implement exactly this, atomically per key.
  */
 export function takeToken(
   bucket: TokenBucket | undefined,
   policy: RateLimitPolicy,
   nowMs: number,
+  cost = 1,
 ): { bucket: TokenBucket; decision: RateLimitDecision } {
   const { limit } = policy;
   const tokensPerMs = limit / (policy.windowSeconds * 1000);
   const elapsedMs = bucket ? Math.max(0, nowMs - bucket.updatedAtMs) : 0;
   let tokens = bucket ? Math.min(limit, bucket.tokens + elapsedMs * tokensPerMs) : limit;
-  const allowed = tokens >= 1;
+  const allowed = tokens >= cost;
   if (allowed) {
-    tokens -= 1;
+    tokens = Math.min(limit, tokens - cost);
   }
   return {
     bucket: { tokens, updatedAtMs: nowMs },
@@ -49,13 +52,34 @@ export function takeToken(
       limit,
       remaining: Math.floor(tokens),
       resetSeconds: Math.ceil((limit - tokens) / tokensPerMs / 1000),
-      retryAfterSeconds: allowed ? 0 : Math.ceil((1 - tokens) / tokensPerMs / 1000),
+      retryAfterSeconds: allowed ? 0 : Math.ceil((cost - tokens) / tokensPerMs / 1000),
     },
   };
+}
+
+/** Epoch milliseconds. */
+export type RateLimitClock = () => number;
+
+/**
+ * Injection token of the clock rate limit buckets are computed with: `null` (the default) lets
+ * the store use its own, e.g. the Valkey server's time. Tests replace it to exercise refills
+ * and resets without waiting: `.overrideProvider(RATE_LIMIT_CLOCK).useValue(() => now)`.
+ */
+export const RATE_LIMIT_CLOCK = Symbol('RATE_LIMIT_CLOCK');
+
+export interface ConsumeOptions {
+  /** Tokens to take: 1 (the default) for a request, -1 to give a request's token back. */
+  cost?: number;
+  /** The time to compute the bucket at; the store's own clock when absent. */
+  nowMs?: number;
 }
 
 /** Persistence for `@RateLimit()` buckets, shared by every replica of a service. */
 export abstract class RateLimitStore {
   /** Atomically applies `takeToken` to the bucket under `key`. */
-  abstract consume(key: string, policy: RateLimitPolicy): Promise<RateLimitDecision>;
+  abstract consume(
+    key: string,
+    policy: RateLimitPolicy,
+    options?: ConsumeOptions,
+  ): Promise<RateLimitDecision>;
 }

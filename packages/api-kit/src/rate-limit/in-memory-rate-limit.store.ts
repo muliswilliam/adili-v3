@@ -1,4 +1,5 @@
 import {
+  type ConsumeOptions,
   type RateLimitDecision,
   type RateLimitPolicy,
   RateLimitStore,
@@ -7,7 +8,7 @@ import {
 } from './rate-limit.store.js';
 
 export interface InMemoryRateLimitStoreOptions {
-  /** Clock in epoch milliseconds; tests pass their own to exercise refill. */
+  /** Clock in epoch milliseconds when the caller passes none (see `RATE_LIMIT_CLOCK`). */
   now?: () => number;
 }
 
@@ -24,8 +25,12 @@ export class InMemoryRateLimitStore extends RateLimitStore {
     this.now = options.now ?? Date.now;
   }
 
-  consume(key: string, policy: RateLimitPolicy): Promise<RateLimitDecision> {
-    const { bucket, decision } = takeToken(this.buckets.get(key), policy, this.now());
+  consume(
+    key: string,
+    policy: RateLimitPolicy,
+    { cost = 1, nowMs = this.now() }: ConsumeOptions = {},
+  ): Promise<RateLimitDecision> {
+    const { bucket, decision } = takeToken(this.buckets.get(key), policy, nowMs, cost);
     this.buckets.set(key, bucket);
     return Promise.resolve(decision);
   }
