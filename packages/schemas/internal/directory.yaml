@@ -2397,7 +2397,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '409':
-          description: Problem code `identity-mismatch` (IPRS) or `already-registered`
+          description: The identity document does not match IPRS, or belongs to an existing account
           content:
             application/problem+json:
               schema:
@@ -3478,8 +3478,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -3531,8 +3529,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -4615,8 +4611,6 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
-            - identity-mismatch
-            - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

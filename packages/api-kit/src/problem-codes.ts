@@ -44,10 +44,6 @@ export const PROBLEM_CODES = {
    * no declarant account can be created with it; nothing changed.
    */
   'email-in-use': { status: HttpStatus.CONFLICT, title: 'Email belongs to another account' },
-  /** Applicant onboarding: the names given do not match IPRS for the identity document. */
-  'identity-mismatch': { status: HttpStatus.CONFLICT, title: 'Identity mismatch' },
-  /** Applicant onboarding: the identity document belongs to an existing account. */
-  'already-registered': { status: HttpStatus.CONFLICT, title: 'Already registered' },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;
