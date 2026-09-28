@@ -1,4 +1,4 @@
-/** Response helpers shared by the declarations and documents mocks. */
+/** Response helpers for the in-memory service mocks (directory, declarations, documents). */
 
 export function json(status: number, body: unknown, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {

@@ -41,7 +41,7 @@ import {
   householdCompleteness,
   householdPersons,
 } from './mock/household';
-import { isRecord, json, noContent, problem, readJson } from './mock/http';
+import { isRecord, json, noContent, problem, readJson } from '../mock-http';
 import { composeMaterialChanges, otherCompleteness } from './mock/other';
 import { nilConflictsWithItems, statementCompleteness } from './mock/statement';
 import type {
