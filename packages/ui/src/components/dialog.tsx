@@ -69,8 +69,8 @@ export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> 
  * visible, enabled focusable element in DOM order other than the close button: usually the first
  * field, or the first footer button when nothing before it can take focus. It goes to the close
  * button only when nothing else can. Focus is trapped while open and returns to the trigger on
- * close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there
- * is no DialogDescription.
+ * close. Always render a DialogTitle; pass `aria-describedby={undefined}` if there is no
+ * DialogDescription.
  */
 export function DialogContent({
   busy = false,
@@ -98,7 +98,7 @@ export function DialogContent({
           );
           if (!first) return;
           first.focus();
-          if (document.activeElement === first) event.preventDefault();
+          if (container.ownerDocument.activeElement === first) event.preventDefault();
         }}
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
