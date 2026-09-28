@@ -210,13 +210,10 @@ function Muted({ children, warning = false }: { children: ReactNode; warning?: b
   );
 }
 
-function BioCard({ summary, document }: { summary: LoadedSummary; document: SummaryDocument }) {
+/** Paragraphs 1-5 (Your details), one card each; they all edit and complete as the bio section. */
+function BioCards({ summary, document }: { summary: LoadedSummary; document: SummaryDocument }) {
   const officer = document.officer ?? {};
   const { declaration } = summary;
-  const birth = [
-    officer.birth?.date ? formatDate(officer.birth.date) : undefined,
-    officer.birth?.place?.trim(),
-  ].filter(Boolean);
   const change = officer.maritalStatusChange;
   const employment = officer.employment ?? {};
   const nature = employment.nature
@@ -224,50 +221,76 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
       ? `Other: ${orUnanswered(employment.natureOther)}`
       : EMPLOYMENT_NATURE_LABELS[employment.nature]
     : UNANSWERED;
-  return (
-    <ParagraphCard
-      paragraphs="Paragraphs 1-5"
-      title={STEP_TITLES.bio}
-      completeness={paragraphCompleteness(declaration.sections, 'bio')}
-      edit={<EditLink declarationId={declaration.id} step="bio" name={STEP_TITLES.bio} />}
-    >
-      <Rows
-        rows={[
-          ['Name', orUnanswered(fullName(officer.name))],
-          ['Date and place of birth', birth.length > 0 ? birth.join(', ') : UNANSWERED],
-          [
-            'Marital status',
+  const paragraphs: [number, string, [string, ReactNode][]][] = [
+    [1, 'Name', [['Name', orUnanswered(fullName(officer.name))]]],
+    [
+      2,
+      'Date and place of birth',
+      [
+        ['Date of birth', officer.birth?.date ? formatDate(officer.birth.date) : UNANSWERED],
+        ['Place of birth', orUnanswered(officer.birth?.place)],
+      ],
+    ],
+    [
+      3,
+      'Marital status',
+      [
+        [
+          'Marital status',
+          <>
+            {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : UNANSWERED}
+            {change?.changed ? (
+              <span className="block text-[13px] font-normal text-muted-foreground">
+                Changed since last declaration: {orUnanswered(change.explanation)}
+              </span>
+            ) : null}
+          </>,
+        ],
+      ],
+    ],
+    [
+      4,
+      'Address',
+      [
+        ['Postal address', orUnanswered(officer.address?.postal)],
+        ['Physical address', orUnanswered(officer.address?.physical)],
+      ],
+    ],
+    [
+      5,
+      'Employment',
+      [
+        [
+          'Employer and designation',
+          `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
+        ],
+        ['Nature of employment', nature],
+        [
+          'Responsible Commission',
+          employment.personnelFileNumber ? (
             <>
-              {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : UNANSWERED}
-              {change?.changed ? (
-                <span className="block text-[13px] font-normal text-muted-foreground">
-                  Changed since last declaration: {orUnanswered(change.explanation)}
-                </span>
-              ) : null}
-            </>,
-          ],
-          ['Postal address', orUnanswered(officer.address?.postal)],
-          ['Physical address', orUnanswered(officer.address?.physical)],
-          [
-            'Employer and designation',
-            `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
-          ],
-          ['Nature of employment', nature],
-          [
-            'Responsible Commission',
-            employment.personnelFileNumber ? (
-              <>
-                {declaration.commission.name} · personnel file number{' '}
-                <span className="font-mono">{employment.personnelFileNumber}</span>
-              </>
-            ) : (
-              declaration.commission.name
-            ),
-          ],
-        ]}
-      />
+              {declaration.commission.name} · personnel file number{' '}
+              <span className="font-mono">{employment.personnelFileNumber}</span>
+            </>
+          ) : (
+            declaration.commission.name
+          ),
+        ],
+      ],
+    ],
+  ];
+  const completeness = paragraphCompleteness(declaration.sections, 'bio');
+  return paragraphs.map(([number, title, rows]) => (
+    <ParagraphCard
+      key={number}
+      paragraphs={`Paragraph ${String(number)}`}
+      title={title}
+      completeness={completeness}
+      edit={<EditLink declarationId={declaration.id} step="bio" name={title} />}
+    >
+      <Rows rows={rows} />
     </ParagraphCard>
-  );
+  ));
 }
 
 function SpousesCard({ summary, document }: { summary: LoadedSummary; document: SummaryDocument }) {
@@ -641,7 +664,7 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
         </Alert>
       )}
 
-      <BioCard summary={summary} document={document} />
+      <BioCards summary={summary} document={document} />
       <SpousesCard summary={summary} document={document} />
       <ChildrenCard summary={summary} document={document} />
       <StatementsCard summary={summary} document={document} />

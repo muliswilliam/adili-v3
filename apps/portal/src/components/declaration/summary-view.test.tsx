@@ -199,7 +199,11 @@ describe('SummaryView', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Summary' })).toBeTruthy();
     expect(screen.getByText('Everything is complete.')).toBeTruthy();
     for (const [title, paragraph] of [
-      ['Your details', 'Paragraphs 1-5'],
+      ['Name', 'Paragraph 1'],
+      ['Date and place of birth', 'Paragraph 2'],
+      ['Marital status', 'Paragraph 3'],
+      ['Address', 'Paragraph 4'],
+      ['Employment', 'Paragraph 5'],
       ['Spouses', 'Paragraph 6'],
       ['Dependent children', 'Paragraph 7'],
       ['Financial statements', 'Paragraph 8'],
@@ -210,23 +214,30 @@ describe('SummaryView', () => {
     }
   });
 
-  it('shows your details with Edit links naming the section', () => {
+  it('shows your details one paragraph a card, each editing Your details', () => {
     renderSummary();
 
-    const bio = card('Your details');
-    expect(valueOf(bio, 'Name')).toBe('Mwangi Njoroge Kamau');
-    expect(valueOf(bio, 'Date and place of birth')).toBe('2 Apr 1980, Nyeri');
-    expect(valueOf(bio, 'Marital status')).toBe(
+    expect(valueOf(card('Name'), 'Name')).toBe('Mwangi Njoroge Kamau');
+    expect(valueOf(card('Date and place of birth'), 'Date of birth')).toBe('2 Apr 1980');
+    expect(valueOf(card('Date and place of birth'), 'Place of birth')).toBe('Nyeri');
+    expect(valueOf(card('Marital status'), 'Marital status')).toBe(
       'MarriedChanged since last declaration: Married in April 2025.',
     );
-    expect(valueOf(bio, 'Employer and designation')).toBe('Nyeri High School · Deputy Principal');
-    expect(valueOf(bio, 'Nature of employment')).toBe('Permanent');
-    expect(valueOf(bio, 'Responsible Commission')).toBe(
+    const employment = card('Employment');
+    expect(valueOf(employment, 'Employer and designation')).toBe(
+      'Nyeri High School · Deputy Principal',
+    );
+    expect(valueOf(employment, 'Nature of employment')).toBe('Permanent');
+    expect(valueOf(employment, 'Responsible Commission')).toBe(
       'Teachers Service Commission · personnel file number TSC/999999',
     );
-    expect(within(bio).getByRole('link', { name: 'Edit Your details' }).getAttribute('href')).toBe(
-      `/declarations/${DECLARATION_ID}/bio`,
-    );
+    for (const title of ['Name', 'Date and place of birth', 'Marital status', 'Address']) {
+      expect(
+        within(card(title))
+          .getByRole('link', { name: `Edit ${title}` })
+          .getAttribute('href'),
+      ).toBe(`/declarations/${DECLARATION_ID}/bio`);
+    }
   });
 
   it('shows the household from the summary document', () => {
@@ -330,7 +341,7 @@ describe('SummaryView', () => {
         .getAttribute('href'),
     ).toBe(`/declarations/${DECLARATION_ID}/other?errors=true`);
     expect(screen.queryByText('Everything is complete.')).toBeNull();
-    expect(within(card('Your details')).getByText('Incomplete')).toBeTruthy();
+    expect(within(card('Name')).getByText('Incomplete')).toBeTruthy();
     expect(within(card('Spouses')).getByText('Not started')).toBeTruthy();
     expect(screen.getByText(SUBMIT_NEXT_RELEASE)).toBeTruthy();
   });
@@ -363,13 +374,14 @@ describe('SummaryView', () => {
       ),
     );
 
-    expect(valueOf(card('Your details'), 'Postal address')).toBe('Not answered');
+    expect(valueOf(card('Address'), 'Postal address')).toBe('Not answered');
+    expect(valueOf(card('Date and place of birth'), 'Date of birth')).toBe('Not answered');
     expect(within(card('Spouses')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Dependent children')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Financial statements')).getAllByText('Not answered yet.')).toHaveLength(3);
     expect(valueOf(card('Other information'), 'Material changes')).toBe('None flagged.');
     expect(valueOf(card('Other information'), 'Dual citizenship')).toBe('Not answered');
-    expect(within(card('Your details')).queryByText('-')).toBeNull();
+    expect(within(card('Employment')).queryByText('-')).toBeNull();
   });
 
   it('shows a child not included at the statement date', () => {
