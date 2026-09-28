@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { childInclusion, deriveHeader } from '../../src/drafts/derive.js';
+import { applyChildInclusion, childInclusion, deriveHeader } from '../../src/drafts/derive.js';
+import { CHILD_ID, household } from '../fixtures/sections.js';
 
 describe('deriveHeader (S18)', () => {
   it.each([
@@ -38,6 +39,13 @@ describe('deriveHeader (S18)', () => {
       'an initial covers the year ending on its statement date (S2)',
       { type: 'initial', statementDate: '2027-03-10' },
       { previousStatementDate: '2025-11-01' },
+      { from: '2026-03-10', to: '2027-03-10', fromSource: 'assumed' },
+    ],
+    [
+      // An initial obligation's statement date is the appointment date (cycleKey initial:<date>).
+      'an initial covers the year ending on the appointment date (S2)',
+      { type: 'initial', statementDate: '2027-03-10' },
+      { appointmentDate: '2027-03-10' },
       { from: '2026-03-10', to: '2027-03-10', fromSource: 'assumed' },
     ],
     [
@@ -97,5 +105,51 @@ describe('childInclusion (S18)', () => {
     ],
   ] as const)('a child %s', (_name, dateOfBirth, statementDate, inclusion) => {
     expect(childInclusion(dateOfBirth, statementDate)).toEqual(inclusion);
+  });
+});
+
+describe('applyChildInclusion (S5)', () => {
+  const OLDER = '0192f1a0-5a11-7000-8000-000000000202';
+
+  function children() {
+    const [younger] = household().children.items;
+    if (!younger) throw new Error('the household fixture has a child');
+    return {
+      none: false,
+      items: [
+        younger,
+        {
+          id: OLDER,
+          name: { surname: 'Otieno', firstName: 'Brian' },
+          dateOfBirth: '2009-11-01',
+          // What the client sent is not trusted: inclusion is derived on save.
+          includedAtStatementDate: true,
+        },
+      ],
+    };
+  }
+
+  it('sets each child’s inclusion from the statement date and lists who is left out', () => {
+    const { children: derived, excluded } = applyChildInclusion(children(), '2027-11-01');
+
+    expect(derived.items.map((child) => [child.id, child.includedAtStatementDate])).toEqual([
+      [CHILD_ID, true],
+      [OLDER, false],
+    ]);
+    expect(excluded).toEqual([{ childId: OLDER, reason: 'over-18-at-statement-date' }]);
+  });
+
+  it('keeps every other field of the children as they were', () => {
+    const before = children();
+
+    const { children: derived } = applyChildInclusion(before, '2027-11-01');
+
+    expect(derived).toEqual({
+      ...before,
+      items: before.items.map((child, index) => ({
+        ...child,
+        includedAtStatementDate: index === 0,
+      })),
+    });
   });
 });

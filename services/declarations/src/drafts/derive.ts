@@ -1,15 +1,16 @@
-import type { DECLARATION_TYPES } from '@adili/forms';
+import type { Child, DECLARATION_TYPES, DeclarationV1 } from '@adili/forms';
 
 /**
  * Pure derivations of a declaration's fixed values (spec 05, BE-3): nothing is chosen by hand.
  * Dates are calendar dates as `YYYY-MM-DD`, which compare correctly as strings.
  */
 
-export type DeclarationType = (typeof DECLARATION_TYPES)[number];
+/** declarations.yaml `ObligationType`: initial, biennial or final. */
+export type ObligationType = (typeof DECLARATION_TYPES)[number];
 
 /** What the obligation fixes: the declaration's type and statement date. */
 export interface ObligationFacts {
-  type: DeclarationType;
+  type: ObligationType;
   statementDate: string;
 }
 
@@ -37,7 +38,9 @@ export interface DerivedHeader extends ObligationFacts {
 }
 
 /**
- * The header a draft starts with. An initial covers the year ending on its statement date. A
+ * The header a draft starts with. An initial covers the year ending on its statement date, which
+ * for an initial obligation is the appointment date; its `fromSource` is `assumed` because the
+ * start is derived from the type, not taken from a declaration on Adili. A
  * biennial or final runs from the previous statement date on Adili; without one it assumes two
  * years, or less when the person was appointed within them (the first cycle after appointment).
  */
@@ -63,14 +66,37 @@ export type ChildInclusion =
   { included: true } | { included: false; reason: 'over-18-at-statement-date' };
 
 /**
- * Whether a child is a dependant under eighteen on the statement date (Act s.31(1)), so that
- * they get a financial statement. A child born on 29 February turns eighteen on 1 March in a
+ * Whether a dependent child is under eighteen on the statement date (Act s.31(1)), so that they
+ * get a financial statement. A child born on 29 February turns eighteen on 1 March in a
  * common year: until then they are still included, the side that discloses more.
  */
 export function childInclusion(dateOfBirth: string, statementDate: string): ChildInclusion {
   return addYears(dateOfBirth, 18, 'mar-1') > statementDate
     ? { included: true }
     : { included: false, reason: 'over-18-at-statement-date' };
+}
+
+export interface ChildExclusion {
+  childId: string;
+  reason: 'over-18-at-statement-date';
+}
+
+/**
+ * The household's children with `includedAtStatementDate` derived from their dates of birth, and
+ * the children left out with the reason to show. What the client sent for inclusion is ignored:
+ * clear metadata is derived on save, never trusted.
+ */
+export function applyChildInclusion(
+  children: DeclarationV1['children'],
+  statementDate: string,
+): { children: DeclarationV1['children']; excluded: ChildExclusion[] } {
+  const excluded: ChildExclusion[] = [];
+  const items = children.items.map((child): Child => {
+    const inclusion = childInclusion(child.dateOfBirth, statementDate);
+    if (!inclusion.included) excluded.push({ childId: child.id, reason: inclusion.reason });
+    return { ...child, includedAtStatementDate: inclusion.included };
+  });
+  return { children: { ...children, items }, excluded };
 }
 
 /** `date` moved by whole years; 29 February lands on 28 February or 1 March in a common year. */

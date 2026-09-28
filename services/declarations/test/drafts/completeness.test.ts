@@ -1,7 +1,7 @@
-import type { DeclarationSectionKey, Statement } from '@adili/forms';
+import type { Statement } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
-import { assessSections } from '../../src/drafts/completeness.js';
+import { assessSections, type DraftSections } from '../../src/drafts/completeness.js';
 import {
   assetItem,
   bio,
@@ -20,22 +20,20 @@ interface Contents {
   other: ReturnType<typeof other>;
 }
 
-/** A complete draft with one edit applied; `omit` leaves capture sections out of the call. */
-function draft(edit: (contents: Contents) => void = () => undefined, omit: string[] = []) {
+/** A complete draft with one edit applied. */
+function draft(edit: (contents: Contents) => void = () => undefined): DraftSections {
   const contents = { bio: bio(), household: household(), statement: statement(), other: other() };
   edit(contents);
-  const sections = new Map<DeclarationSectionKey, unknown>([
-    ['bio', contents.bio],
-    ['household', contents.household],
-    ['statement:officer', contents.statement],
-    ['other', contents.other],
-  ]);
-  for (const key of omit) sections.delete(key as DeclarationSectionKey);
-  return sections;
+  return {
+    bio: contents.bio,
+    household: contents.household,
+    statements: new Map([['officer', contents.statement]]),
+    other: contents.other,
+  };
 }
 
 /** Every issue as `sectionKey path code`, for compact tables. */
-function issues(sections: Map<DeclarationSectionKey, unknown>): string[] {
+function issues(sections: DraftSections): string[] {
   return [...assessSections(sections).values()].flatMap(({ issues: found }) =>
     found.map((issue) => `${issue.sectionKey} ${issue.path} ${issue.code}`),
   );
@@ -64,11 +62,10 @@ describe('assessSections', () => {
     });
   });
 
-  it('assesses only the capture sections it is given', () => {
-    expect([...assessSections(draft(undefined, ['bio', 'other'])).keys()]).toEqual([
-      'household',
-      'statement:officer',
-    ]);
+  it('always assesses bio and household, and statements and other when given', () => {
+    const { bio: b, household: h } = draft();
+
+    expect([...assessSections({ bio: b, household: h }).keys()]).toEqual(['bio', 'household']);
   });
 });
 
@@ -243,11 +240,15 @@ describe('marital status and spouses (S6)', () => {
     );
   });
 
-  it('checks marital status only when both capture sections are given', () => {
-    const single = ({ bio: b }: Contents) => (b.maritalStatus = 'single');
+  it('checks marital status whatever else is assessed, as bio and household always are', () => {
+    const { bio: b, household: h } = draft((contents) => {
+      contents.bio.maritalStatus = 'single';
+    });
 
-    expect(issues(draft(single, ['bio']))).toEqual([]);
-    expect(issues(draft(single, ['household']))).toEqual([]);
+    expect(issues({ bio: b, household: h })).toEqual([
+      'bio /maritalStatus spouse-conflicts-with-marital-status',
+      'household /spouses/items spouse-conflicts-with-marital-status',
+    ]);
   });
 });
 

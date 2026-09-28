@@ -92,7 +92,7 @@ const fixedSectionValidator = (key: FixedSectionKey) => {
       : properties[fields[0]],
   );
 };
-const SECTION_PROBLEMS = {
+const SECTION_VALIDATORS = {
   bio: fixedSectionValidator('bio'),
   household: fixedSectionValidator('household'),
   other: fixedSectionValidator('other'),
@@ -104,7 +104,7 @@ const SECTION_PROBLEMS = {
  * `declarationIssues` reports them for the whole declaration.
  */
 export function sectionIssues(key: DeclarationSectionKey, contents: unknown): DeclarationIssue[] {
-  const found = (isStatementKey(key) ? SECTION_PROBLEMS.statement : SECTION_PROBLEMS[key])(
+  const found = (isStatementKey(key) ? SECTION_VALIDATORS.statement : SECTION_VALIDATORS[key])(
     contents,
   );
   return found
