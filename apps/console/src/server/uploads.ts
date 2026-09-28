@@ -21,14 +21,18 @@ export type CreateRosterUploadInput = z.infer<typeof createRosterUploadInput>;
 /**
  * `POST /v1/uploads` for a roster file: reserves an upload with purpose `roster-import` and
  * returns the presigned PUT the browser sends the bytes to. The documents service decides who
- * may upload (403 otherwise) and re-checks the type and size.
+ * may upload (403 otherwise) and re-checks the type and size. The Idempotency-Key is the
+ * upload attempt's, so a retried request reserves nothing twice.
  */
 export const createRosterUpload = createServerFn({ method: 'POST' })
-  .validator(createRosterUploadInput)
-  .handler(({ data }): Promise<DocumentsResult<UploadReservation>> =>
+  .validator(createRosterUploadInput.extend({ idempotencyKey: z.uuid() }))
+  .handler(({ data: { idempotencyKey, ...input } }): Promise<DocumentsResult<UploadReservation>> =>
     asDocumentsViewer((client) =>
       callDocuments(() =>
-        client.POST('/v1/uploads', { body: { purpose: 'roster-import', ...data } }),
+        client.POST('/v1/uploads', {
+          params: { header: { 'Idempotency-Key': idempotencyKey } },
+          body: { purpose: 'roster-import', ...input },
+        }),
       ),
     ),
   );
@@ -36,13 +40,16 @@ export const createRosterUpload = createServerFn({ method: 'POST' })
 /**
  * `POST /v1/uploads/{id}/complete`: checks, scans and moves the uploaded object, answering with
  * the final state (clean, infected or rejected). Takes a few seconds; see `DOCUMENTS_TIMEOUTS_MS`.
+ * A retry with the same Idempotency-Key gets the final state back instead of a 409.
  */
 export const completeUpload = createServerFn({ method: 'POST' })
-  .validator(z.object({ id: z.uuid() }))
+  .validator(z.object({ id: z.uuid(), idempotencyKey: z.uuid() }))
   .handler(({ data }): Promise<DocumentsResult<Upload>> =>
     asDocumentsViewer((client) =>
       callDocuments(() =>
-        client.POST('/v1/uploads/{id}/complete', { params: { path: { id: data.id } } }),
+        client.POST('/v1/uploads/{id}/complete', {
+          params: { path: { id: data.id }, header: { 'Idempotency-Key': data.idempotencyKey } },
+        }),
       ),
     ),
   );

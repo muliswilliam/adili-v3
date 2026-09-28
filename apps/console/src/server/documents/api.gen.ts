@@ -351,7 +351,10 @@ export interface operations {
     createUpload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -381,6 +384,15 @@ export interface operations {
             };
             /** @description Your roles do not allow uploads for this purpose */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -424,7 +436,10 @@ export interface operations {
     completeUpload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
             path: {
                 id: string;
             };
@@ -452,6 +467,15 @@ export interface operations {
             };
             /** @description Problem type `upload-completed` (already clean, infected or rejected), `upload-expired`, or `upload-completing` (another request is completing it). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

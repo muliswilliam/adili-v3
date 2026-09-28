@@ -83,10 +83,16 @@ export type UploadOutcome =
   | { kind: 'unauthenticated' }
   | { kind: 'aborted' };
 
+/** Each call names its Idempotency-Key: one per logical request, reused if it is retried. */
 export interface UploadDeps {
-  createUpload: (input: CreateRosterUploadInput) => Promise<DocumentsResult<UploadReservation>>;
+  createUpload: (
+    input: CreateRosterUploadInput,
+    idempotencyKey: string,
+  ) => Promise<DocumentsResult<UploadReservation>>;
   putFile: typeof putFile;
-  completeUpload: (id: string) => Promise<DocumentsResult<Upload>>;
+  completeUpload: (id: string, idempotencyKey: string) => Promise<DocumentsResult<Upload>>;
+  /** New Idempotency-Keys; `crypto.randomUUID` in the app. */
+  newKey?: () => string;
 }
 
 export interface UploadEvents {
@@ -140,8 +146,9 @@ export async function uploadRosterFile(
       ? { kind: 'unauthenticated' }
       : { kind: 'failed' };
 
+  const newKey = deps.newKey ?? (() => crypto.randomUUID());
   const reservation = await deps
-    .createUpload({ contentType, declaredSize: file.size, fileName: file.name })
+    .createUpload({ contentType, declaredSize: file.size, fileName: file.name }, newKey())
     .catch(() => null);
   if (signal?.aborted) return { kind: 'aborted' };
   if (!reservation) return { kind: 'failed' };
@@ -162,7 +169,7 @@ export async function uploadRosterFile(
   if (put === 'failed') return { kind: 'failed' };
 
   events.onScanning?.();
-  const completed = await deps.completeUpload(reservation.data.id).catch(() => null);
+  const completed = await deps.completeUpload(reservation.data.id, newKey()).catch(() => null);
   if (signal?.aborted) return { kind: 'aborted' };
   if (!completed) return { kind: 'failed' };
   if (!completed.ok) return failed(completed);

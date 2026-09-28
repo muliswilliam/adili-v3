@@ -62,9 +62,10 @@ const STEPS = WIZARD_STEPS.map((id) => ({ id, label: STEP_LABELS[id] }));
 const isStep = (id: string): id is WizardStep => WIZARD_STEPS.some((step) => step === id);
 
 const uploadDeps: UploadDeps = {
-  createUpload: (input) => createRosterUpload({ data: input }),
+  createUpload: (input, idempotencyKey) =>
+    createRosterUpload({ data: { ...input, idempotencyKey } }),
   putFile,
-  completeUpload: (id) => completeUpload({ data: { id } }),
+  completeUpload: (id, idempotencyKey) => completeUpload({ data: { id, idempotencyKey } }),
 };
 
 const returnTo = (importId: string | null) =>

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
@@ -300,6 +300,60 @@ describe('S3 refused files', () => {
 
     expect(again.statusCode).toBe(409);
     expect(again.json<Problem>().type).toBe('upload-completed');
+  });
+});
+
+describe('Idempotency-Key (ADR-013 §7.5)', () => {
+  const request = {
+    purpose: 'roster-import',
+    contentType: CSV,
+    declaredSize: 10,
+    fileName: 'Roster 2026.csv',
+  };
+
+  it('replays a create retried with its key instead of reserving a second upload', async () => {
+    const idempotencyKey = randomUUID();
+
+    const first = await api.post('/v1/uploads', request, OFFICER, { idempotencyKey });
+    const retry = await api.post('/v1/uploads', request, OFFICER, { idempotencyKey });
+
+    expect(first.statusCode).toBe(201);
+    expect(retry.statusCode).toBe(201);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json<UploadReservation>().id).toBe(first.json<UploadReservation>().id);
+  });
+
+  it('replays a completion retried with its key: the final state, not a 409', async () => {
+    const reservation = await upload(fixture('roster.csv'));
+    const idempotencyKey = randomUUID();
+    const path = `/v1/uploads/${reservation.id}/complete`;
+
+    const first = await api.post(path, undefined, OFFICER, { idempotencyKey });
+    const retry = await api.post(path, undefined, OFFICER, { idempotencyKey });
+
+    expect(first.json<Upload>()).toMatchObject({ state: 'clean' });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json<Upload>()).toEqual(first.json<Upload>());
+  });
+
+  it('requires the key on create and complete', async () => {
+    const reservation = await reserve(fixture('roster.csv'));
+
+    const create = await api.post('/v1/uploads', request, OFFICER, { idempotencyKey: null });
+    const completion = await api.post(
+      `/v1/uploads/${reservation.id}/complete`,
+      undefined,
+      OFFICER,
+      {
+        idempotencyKey: null,
+      },
+    );
+
+    for (const response of [create, completion]) {
+      expect(response.statusCode).toBe(400);
+      expect(response.json<Problem>().type).toBe('idempotency-key-missing');
+    }
   });
 });
 

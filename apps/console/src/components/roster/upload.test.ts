@@ -151,6 +151,10 @@ function deps(overrides: Partial<UploadDeps> = {}): UploadDeps {
       return Promise.resolve('ok' as const);
     }),
     completeUpload: vi.fn(() => Promise.resolve({ ok: true as const, data: upload({}) })),
+    newKey: (() => {
+      let keys = 0;
+      return () => `key-${String((keys += 1))}`;
+    })(),
     ...overrides,
   };
 }
@@ -165,18 +169,18 @@ describe('uploadRosterFile', () => {
       onScanning: () => events.push('scanning'),
     });
 
-    expect(d.createUpload).toHaveBeenCalledWith({
-      contentType: 'text/csv',
-      declaredSize: rosterFile.size,
-      fileName: 'roster.csv',
-    });
+    // Each request has an Idempotency-Key of its own.
+    expect(d.createUpload).toHaveBeenCalledWith(
+      { contentType: 'text/csv', declaredSize: rosterFile.size, fileName: 'roster.csv' },
+      'key-1',
+    );
     expect(d.putFile).toHaveBeenCalledWith(
       'https://s3.test/quarantine/key?sig',
       rosterFile,
       'text/csv',
       expect.anything(),
     );
-    expect(d.completeUpload).toHaveBeenCalledWith(uploadId);
+    expect(d.completeUpload).toHaveBeenCalledWith(uploadId, 'key-2');
     expect(events).toEqual(['uploading', '50%', '100%', 'scanning']);
     expect(outcome).toEqual({
       kind: 'clean',
@@ -191,6 +195,7 @@ describe('uploadRosterFile', () => {
       expect.objectContaining({
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }),
+      expect.any(String),
     );
   });
 

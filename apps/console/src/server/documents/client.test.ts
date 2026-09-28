@@ -31,10 +31,12 @@ describe('createDocumentsClient', () => {
       fetch: fetchImpl,
     });
     await client.POST('/v1/uploads', {
+      params: { header: { 'Idempotency-Key': '0199a0b4-0000-7000-8000-000000000001' } },
       body: { purpose: 'roster-import', contentType: 'text/csv', declaredSize: 10 },
     });
     const request = seen[0];
     expect(request?.url).toBe('http://documents.test/v1/uploads');
     expect(request?.headers.get('authorization')).toBe('Bearer token-1');
+    expect(request?.headers.get('idempotency-key')).toBe('0199a0b4-0000-7000-8000-000000000001');
   });
 });

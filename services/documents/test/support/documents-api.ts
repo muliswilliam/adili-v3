@@ -48,7 +48,15 @@ export interface DocumentsApi {
   /** The storage the service uses (compose SeaweedFS), for arranging and inspecting objects. */
   s3: S3Client;
   get(url: string, caller: Caller, headers?: Record<string, string>): Promise<InjectResponse>;
-  post(url: string, body: unknown, caller: Caller): Promise<InjectResponse>;
+  /**
+   * Sends a fresh Idempotency-Key unless `idempotencyKey` names one, or is null to send none.
+   */
+  post(
+    url: string,
+    body: unknown,
+    caller: Caller,
+    options?: { idempotencyKey?: string | null },
+  ): Promise<InjectResponse>;
   close(): Promise<void>;
 }
 
@@ -109,12 +117,15 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
         headers: { authorization: `Bearer ${token}`, ...headers },
       });
     },
-    async post(path, body, caller) {
+    async post(path, body, caller, { idempotencyKey = randomUUID() } = {}) {
       const token = await signer(caller);
       return app.inject({
         method: 'POST',
         url: path,
-        headers: { authorization: `Bearer ${token}` },
+        headers: {
+          authorization: `Bearer ${token}`,
+          ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
+        },
         ...(body === undefined ? {} : { payload: body as Record<string, unknown> }),
       });
     },

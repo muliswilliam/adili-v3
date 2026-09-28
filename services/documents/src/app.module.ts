@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, HttpReadinessCheck, TcpReadinessCheck } from '@adili/api-kit';
-import { DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
+import {
+  CoreModule,
+  HttpReadinessCheck,
+  IdempotencyModule,
+  TcpReadinessCheck,
+} from '@adili/api-kit';
+import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
@@ -32,6 +37,12 @@ import { UploadsModule } from './uploads/uploads.module.js';
       url: config.DATABASE_URL,
       schema,
       applicationName: SERVICE_NAME,
+    }),
+    IdempotencyModule.forRoot({
+      database: DATABASE,
+      // Outlasts the slowest idempotent request, completing an upload (its 60 s scan budget): a
+      // retry sooner is told the first request is still running instead of scanning again.
+      claimTimeoutMs: 2 * 60 * 1000,
     }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     TemporalModule.forRoot({
