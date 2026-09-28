@@ -32,6 +32,17 @@ describe('reminderSent', () => {
   });
 });
 
+describe('reminderSent at the reminder instant', () => {
+  it('counts a response at exactly reminderAt as after the reminder', () => {
+    expect(
+      reminderSent('2026-09-01T08:00:00Z', '2026-09-21T08:00:00Z', '2026-09-28T08:00:00Z'),
+    ).toBe(true);
+    expect(
+      reminderSent('2026-09-01T08:00:00Z', '2026-09-21T07:59:59Z', '2026-09-28T08:00:00Z'),
+    ).toBe(false);
+  });
+});
+
 describe('lateDays', () => {
   it('counts the days after the due date, at least one', () => {
     expect(lateDays('2026-09-01T20:59:00Z', '2026-09-04T08:00:00Z')).toBe(3);
