@@ -73,11 +73,23 @@ if (!all) {
 
 const scripts = (path) => JSON.parse(readFileSync(`${path}/package.json`, 'utf8')).scripts ?? {};
 
-// Service images: the affected services, or all of them when their shared build inputs change.
-const images =
-  all || touches(/^infra\/docker\/service\.Dockerfile$/, /^\.dockerignore$/)
+// Services to package for production. The TypeScript job already compiles every change, so a
+// service can only additionally break on packaging: the Dockerfile, turbo prune and pnpm deploy,
+// driven by the manifests. Source-only changes skip it; manifest changes package the affected
+// services, shared inputs all of them.
+const packagingInputs = touches(/^infra\/docker\/service\.Dockerfile$/, /^\.dockerignore$/);
+const manifests = touches(
+  /(^|\/)package\.json$/,
+  /^pnpm-(lock|workspace)\.yaml$/,
+  /^turbo\.json$/,
+  /^patches\//,
+);
+const packaging =
+  all || packagingInputs
     ? services
-    : services.filter((name) => affected.includes(`services/${name}`));
+    : manifests
+      ? services.filter((name) => affected.includes(`services/${name}`))
+      : [];
 
 // The Keycloak image (themes, OTP extension) and the realm it imports.
 const keycloak =
@@ -101,10 +113,10 @@ const integration =
 // The mocks export the external contracts in packages/schemas.
 const python = all || touches(/^mocks\//, /^packages\/schemas\//);
 
-const plan = { images, keycloak, integration, python };
+const plan = { packaging, keycloak, integration, python };
 if (flag === '--json') {
   console.log(JSON.stringify({ base: everything ? null : base, affected, ...plan }, null, 2));
 } else {
-  console.log(`images=${JSON.stringify(images)}`);
+  console.log(`packaging=${JSON.stringify(packaging)}`);
   for (const key of ['keycloak', 'integration', 'python']) console.log(`${key}=${plan[key]}`);
 }

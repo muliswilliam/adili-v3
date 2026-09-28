@@ -785,7 +785,7 @@ adili-v3/
   - Temporal replay and time-skipping tests
   - Playwright end-to-end tests of the demo journeys
   - AI eval sets
-- **CI (GitHub Actions):** lint, type check, tests, build, container and dependency scanning, schema diff checks. A plan job (`scripts/ci-plan.mjs`) runs only the jobs a change needs: images for the affected services, and the Keycloak, integration and mocks jobs when their inputs change.
+- **CI (GitHub Actions):** lint, type check, tests, build, container and dependency scanning, schema diff checks. A plan job (`scripts/ci-plan.mjs`) runs only the jobs a change needs: when packaging inputs change (Dockerfile, manifests, lockfile), a production install per affected service (`scripts/check-deploy-imports.mjs`) and one service image; the Keycloak, integration and mocks jobs when their inputs change.
 - Conventional commits, protected main branch, PR reviews, ADRs for significant decisions.
 
 ---
