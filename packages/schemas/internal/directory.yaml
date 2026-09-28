@@ -1776,6 +1776,167 @@ paths:
               schema:
                 type: integer
       security: []
+  /v1/onboarding/sessions/{sessionId}/confirm:
+    post:
+      tags:
+        - onboarding
+      summary: Confirm roster details, run the IPRS check and create or link the account
+      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`).'
+      operationId: confirmOnboarding
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Outcome of the confirmation, with the session as it now is
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingConfirmResult'
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'The session is not at the confirm step (the BFF re-reads it), or problem code `email-in-use`: the verified email belongs to another account; nothing changed'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `identity-unavailable`: the account could not be created or linked; nothing changed'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '503':
+          description: 'Problem code `iprs-unavailable`: IPRS could not be checked; try again later, the session is unchanged'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+      security: []
+  /v1/onboarding/sessions/{sessionId}/resend-password-email:
+    post:
+      tags:
+        - onboarding
+      summary: Send the set-password email again
+      description: Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`).
+      operationId: resendSetPasswordEmail
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Email requested
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: The session is not confirmed with a new account (the BFF re-reads it)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: Problem code `resend-cooldown` with `retryAfterSeconds`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '502':
+          description: 'Problem code `identity-unavailable`: the email could not be sent; try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+      security: []
   /v1/onboarding/sessions/{sessionId}/contacts:
     parameters:
       - $ref: '#/components/parameters/SessionId'
@@ -1894,74 +2055,6 @@ paths:
           $ref: '#/components/responses/SessionEnded'
         '429':
           description: Problem code `resend-cooldown` with `retryAfterSeconds`
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-      security: []
-  /v1/onboarding/sessions/{sessionId}/confirm:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-    post:
-      tags:
-        - onboarding
-      summary: Confirm roster details, run the IPRS check and create or link the account
-      operationId: confirmOnboarding
-      x-draft: true
-      responses:
-        '200':
-          description: Outcome of the confirmation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OnboardingConfirmResult'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Session is not at the confirm step
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '410':
-          $ref: '#/components/responses/SessionEnded'
-        '502':
-          description: 'Problem code `identity-unavailable`: account could not be created; nothing changed'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '503':
-          description: 'Problem code `iprs-unavailable`: try again later; session unchanged'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-      security: []
-  /v1/onboarding/sessions/{sessionId}/resend-password-email:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-    post:
-      tags:
-        - onboarding
-      summary: Send the Keycloak set-password email again
-      operationId: resendSetPasswordEmail
-      x-draft: true
-      responses:
-        '202':
-          description: Email requested
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Session is not in the confirmed state with a new account
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '429':
-          description: Problem code `resend-cooldown`
           content:
             application/problem+json:
               schema:
@@ -3149,6 +3242,7 @@ components:
             - session-expired
             - iprs-unavailable
             - identity-unavailable
+            - email-in-use
             - identity-mismatch
             - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
@@ -3199,6 +3293,7 @@ components:
             - session-expired
             - iprs-unavailable
             - identity-unavailable
+            - email-in-use
             - identity-mismatch
             - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
@@ -3897,7 +3992,7 @@ components:
             - resendAvailableAt
             - resendsLeft
             - attemptsLeft
-          description: Resend availability for the channel currently pending
+          description: 'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)'
         outcome:
           description: Set when state is confirmed or identity-mismatch
           anyOf:
@@ -3986,7 +4081,7 @@ components:
             - resendAvailableAt
             - resendsLeft
             - attemptsLeft
-          description: Resend availability for the channel currently pending
+          description: 'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)'
         outcome:
           description: Set when state is confirmed or identity-mismatch
           anyOf:
@@ -4011,6 +4106,16 @@ components:
         - otp
         - expiresAt
         - secret
+    OnboardingConfirmResult:
+      type: object
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OnboardingOutcome'
+        session:
+          $ref: '#/components/schemas/OnboardingSession'
+      required:
+        - outcome
+        - session
     OnboardingProblem:
       type: object
       properties:
@@ -4032,6 +4137,7 @@ components:
             - session-expired
             - iprs-unavailable
             - identity-unavailable
+            - email-in-use
             - rate-limit-exceeded
         detail:
           type: string
@@ -4091,6 +4197,7 @@ components:
             - session-expired
             - iprs-unavailable
             - identity-unavailable
+            - email-in-use
             - identity-mismatch
             - already-registered
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
@@ -4174,16 +4281,6 @@ components:
             - string
             - 'null'
           format: date-time
-    OnboardingConfirmResult:
-      type: object
-      required:
-        - outcome
-        - session
-      properties:
-        outcome:
-          $ref: '#/components/schemas/OnboardingOutcome'
-        session:
-          $ref: '#/components/schemas/OnboardingSession'
     DeclarantProfile:
       type: object
       required:

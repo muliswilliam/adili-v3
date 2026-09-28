@@ -4,8 +4,12 @@ import {
   ApiClientNotFound,
   type ApiClientSecret,
   type CreateApiClientInput,
+  type CreateDeclarantUserInput,
   type CreateStaffUserInput,
+  DECLARANT_REQUIRED_ACTIONS,
+  DECLARANT_ROLE,
   EmailTaken,
+  type ExecuteActionsEmailOptions,
   IdentityProvisioning,
   IdentityUnavailable,
   type IdentityUser,
@@ -136,35 +140,70 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
 
   async createStaffUser(input: CreateStaffUserInput): Promise<string> {
     const email = input.email.trim().toLowerCase();
-    const { firstName, lastName } = splitName(input.name);
-    const response = await this.request('POST', '/users', {
-      body: {
+    return this.createUser(
+      {
         username: email,
         email,
-        firstName,
-        lastName,
+        ...splitName(input.name),
         enabled: true,
         emailVerified: false,
         attributes: { tenant: [input.tenant], phone: [input.phone] },
         requiredActions: input.requiredActions,
       },
-    }).catch((error: unknown) => {
-      throw error instanceof KeycloakHttpError && error.status === 409
-        ? new EmailTaken(email)
-        : error;
+      input.role,
+    );
+  }
+
+  async createDeclarantUser(input: CreateDeclarantUserInput): Promise<string> {
+    return this.createUser(
+      {
+        username: input.ofr,
+        email: input.email.trim().toLowerCase(),
+        ...splitName(input.name),
+        enabled: true,
+        emailVerified: true,
+        attributes: {
+          tenant: [input.tenant],
+          tenants: [input.tenant],
+          ofr: [input.ofr],
+          person_id: [input.personId],
+          phone: [input.phone],
+        },
+        requiredActions: DECLARANT_REQUIRED_ACTIONS,
+      },
+      DECLARANT_ROLE,
+    );
+  }
+
+  async addTenantToUser(userId: string, tenant: string): Promise<Restore | null> {
+    const user = await this.user(userId);
+    const previous = { tenant: user.attributes?.tenant, tenants: user.attributes?.tenants };
+    const tenants = previous.tenants ?? previous.tenant ?? [];
+    if (tenants.includes(tenant)) return null;
+    await this.putUser(userId, {
+      ...user,
+      attributes: {
+        ...user.attributes,
+        tenant: previous.tenant?.length ? previous.tenant : [tenant],
+        tenants: [...tenants, tenant],
+      },
     });
-    const userId = response.headers.get('location')?.split('/').pop();
-    if (!userId) {
-      throw new IdentityUnavailable('Keycloak created the user without returning its location');
-    }
-    try {
-      await this.grantRealmRole(userId, input.role);
-    } catch (error) {
-      // Leave no half-provisioned account behind; the caller retries the whole creation.
-      await this.deleteUser(userId).catch(() => undefined);
-      throw error;
-    }
-    return userId;
+    return async () => {
+      const current = await this.user(userId);
+      const others = Object.fromEntries(
+        Object.entries(current.attributes ?? {}).filter(
+          ([name]) => name !== 'tenant' && name !== 'tenants',
+        ),
+      );
+      await this.putUser(userId, {
+        ...current,
+        attributes: {
+          ...others,
+          ...(previous.tenant === undefined ? {} : { tenant: previous.tenant }),
+          ...(previous.tenants === undefined ? {} : { tenants: previous.tenants }),
+        },
+      });
+    };
   }
 
   async grantRole(userId: string, role: string): Promise<void> {
@@ -225,6 +264,13 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     if (!recorded) {
       await this.putUser(userId, { ...user, attributes: { ...user.attributes, ...invitation } });
     }
+    await this.sendExecuteActionsEmail(userId, options);
+  }
+
+  async sendExecuteActionsEmail(
+    userId: string,
+    options: ExecuteActionsEmailOptions,
+  ): Promise<void> {
     await this.request('PUT', `/users/${userId}/execute-actions-email`, {
       query: {
         lifespan: String(options.lifespanSeconds),
@@ -311,6 +357,36 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
     if (client && client.enabled !== false) {
       await this.request('PUT', `/clients/${client.id}`, { body: { ...client, enabled: false } });
     }
+  }
+
+  /**
+   * Creates the account and grants it `role`; returns its id. A 409 (email or username taken)
+   * becomes EmailTaken. No half-provisioned account is left behind when the role grant fails.
+   */
+  private async createUser(
+    representation: Omit<UserRepresentation, 'id'>,
+    role: string,
+  ): Promise<string> {
+    const email = String(representation.email);
+    const response = await this.request('POST', '/users', { body: representation }).catch(
+      (error: unknown) => {
+        throw error instanceof KeycloakHttpError && error.status === 409
+          ? new EmailTaken(email)
+          : error;
+      },
+    );
+    const userId = response.headers.get('location')?.split('/').pop();
+    if (!userId) {
+      throw new IdentityUnavailable('Keycloak created the user without returning its location');
+    }
+    try {
+      await this.grantRealmRole(userId, role);
+    } catch (error) {
+      // The caller retries the whole creation.
+      await this.deleteUser(userId).catch(() => undefined);
+      throw error;
+    }
+    return userId;
   }
 
   /** The client with this client id (not Keycloak's internal id), or null. */

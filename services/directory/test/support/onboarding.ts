@@ -35,6 +35,7 @@ import type { DirectoryApi } from './directory-api.js';
  *   for confirm tests, optionally with a channel's current code. Returns its id and secret.
  * - `identify`, `getSession`, `onSession`: the public routes as the portal calls them.
  * - `api.otpDelivery`: codes sent (`last(to)?.code`), `failNext()` to make a send fail.
+ * - `api.iprs`: `givenPerson(nationalId, names)` for the confirm step, `failNext()` for an outage.
  *
  * Commissions themselves come from `givenCommissions` (fixtures.ts).
  */

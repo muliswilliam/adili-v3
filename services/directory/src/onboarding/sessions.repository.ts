@@ -211,6 +211,14 @@ export class OnboardingSessions {
     return updated;
   }
 
+  /**
+   * Changes a session's columns without moving its state or recording an event, e.g. when the
+   * set-password email of a confirmed session was sent again.
+   */
+  async amend(tx: Transaction, session: SessionRow, set: SessionChanges): Promise<SessionRow> {
+    return this.update(tx, session, { ...set, state: session.state });
+  }
+
   /** The session as the contract shows it: masked contacts, roster details once due. */
   async view(tx: Transaction, session: SessionRow, now: Date): Promise<OnboardingSession> {
     const [commission] = await tx
@@ -264,7 +272,12 @@ export class OnboardingSessions {
             resendsLeft: ONBOARDING_TIMING.otpResends - (otp?.resends ?? 0),
             attemptsLeft: ONBOARDING_TIMING.otpAttempts - (otp?.attempts ?? 0),
           }
-        : { channel: null, resendAvailableAt: null, resendsLeft: 0, attemptsLeft: 0 },
+        : {
+            channel: null,
+            resendAvailableAt: passwordEmailAvailableAt(session, now),
+            resendsLeft: 0,
+            attemptsLeft: 0,
+          },
       outcome: session.outcome,
       ofr: person?.ofr ?? null,
       expiresAt: session.expiresAt.toISOString(),
@@ -299,6 +312,16 @@ export class OnboardingSessions {
     if (!updated) throw new Error(`Session ${session.id} is gone`);
     return updated;
   }
+}
+
+/**
+ * When the set-password email of a confirmed session with a new account may be sent again: a
+ * minute after the last one, or null once it may (and for every other session without a code).
+ */
+function passwordEmailAvailableAt(session: SessionRow, now: Date): string | null {
+  if (session.state !== 'confirmed' || session.passwordEmailSentAt === null) return null;
+  const availableAt = session.passwordEmailSentAt.getTime() + ONBOARDING_TIMING.resendCooldownMs;
+  return availableAt > now.getTime() ? new Date(availableAt).toISOString() : null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

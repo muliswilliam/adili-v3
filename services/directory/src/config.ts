@@ -34,6 +34,11 @@ export const envSchema = baseEnvSchema.extend({
   /** Base URL of the documents service, whose internal API hands out clean roster files. */
   DOCUMENTS_URL: z.url(),
   /**
+   * Base URL of the integration-gateway, whose internal API looks national IDs up in IPRS when a
+   * declarant confirms (token with the `iprs` scope).
+   */
+  INTEGRATION_GATEWAY_URL: z.url(),
+  /**
    * Public origin of the declarant portal, e.g. `https://adili.go.ke`: onboarding links to its
    * sign-in and recover-access routes, and set-password emails send declarants back here.
    */

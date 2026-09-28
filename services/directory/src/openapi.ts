@@ -21,6 +21,7 @@ import {
   maskedContactSchema,
   ofrSchema,
   onboardingCommissionSchema,
+  onboardingConfirmResultSchema,
   onboardingOutcomeSchema,
   onboardingProblemSchema,
   onboardingSessionCreatedSchema,
@@ -125,5 +126,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   OnboardingOutcome: onboardingOutcomeSchema,
   OnboardingSession: onboardingSessionSchema,
   OnboardingSessionCreated: onboardingSessionCreatedSchema,
+  OnboardingConfirmResult: onboardingConfirmResultSchema,
   OnboardingProblem: onboardingProblemSchema,
 };

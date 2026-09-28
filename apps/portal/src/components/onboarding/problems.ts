@@ -39,6 +39,8 @@ export const PROBLEM_COPY: Record<OnboardingProblemCode, (context: ProblemContex
   'iprs-unavailable': () =>
     'The national register is not responding. Wait a few minutes and try again.',
   'identity-unavailable': () => 'Your account could not be created. Try again.',
+  'email-in-use': () =>
+    'This email address already belongs to another Adili account, so your account could not be created. Contact the EACC helpdesk.',
   'rate-limit-exceeded': ({ retryAfterSeconds }) =>
     `Too many attempts. Try again in ${plural(minutesFrom(retryAfterSeconds ?? 60), 'minute', 'minutes')}.`,
 };

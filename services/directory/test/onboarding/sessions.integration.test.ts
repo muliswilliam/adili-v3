@@ -25,7 +25,11 @@ const SESSION_PATH = '/v1/onboarding/sessions/{sessionId}';
  * Every route on a session, as `[method, path below the session, body]`. The steps added by
  * later tickets (codes, contacts, confirm, resend) join this list so S10 covers them too.
  */
-const SESSION_ROUTES: [method: 'GET' | 'POST', path: string, body?: unknown][] = [['GET', '']];
+const SESSION_ROUTES: [method: 'GET' | 'POST', path: string, body?: unknown][] = [
+  ['GET', ''],
+  ['POST', '/confirm'],
+  ['POST', '/resend-password-email'],
+];
 
 let api: DirectoryApi;
 let recordId: string;

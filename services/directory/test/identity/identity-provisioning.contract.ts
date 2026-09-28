@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -7,8 +7,10 @@ import {
   ApiClientExists,
   ApiClientNotFound,
   type CreateApiClientInput,
+  type CreateDeclarantUserInput,
   type CreateStaffUserInput,
   EmailTaken,
+  type ExecuteActionsEmailOptions,
   type IdentityProvisioning,
   IdentityUserNotFound,
   STAFF_REQUIRED_ACTIONS,
@@ -18,9 +20,14 @@ import {
 export interface InspectedUser {
   username: string;
   email: string;
+  emailVerified: boolean;
   /** Given and family names joined. */
   name: string;
   tenant: string | null;
+  /** The multi-valued `tenants` attribute. */
+  tenants: string[];
+  ofr: string | null;
+  personId: string | null;
   phone: string | null;
   realmRoles: string[];
   requiredActions: string[];
@@ -46,6 +53,12 @@ export interface ContractHarness {
     email: string,
     userId: string,
     options?: ActivationEmailOptions,
+  ): Promise<void>;
+  /** Asserts one execute-actions email for `email` was delivered (or recorded) with `options`. */
+  expectExecuteActionsDelivered(
+    email: string,
+    userId: string,
+    options: ExecuteActionsEmailOptions,
   ): Promise<void>;
   /**
    * Obtains a token with the client credentials grant and verifies it for the `adili-api`
@@ -82,6 +95,30 @@ export function reportingOfficer(email: string): CreateStaffUserInput {
     tenant: 'tsc',
     role: 'reporting-officer',
     requiredActions: STAFF_REQUIRED_ACTIONS,
+  };
+}
+
+/** The set-password email of a new declarant (spec 03): 24 hours, back to the portal. */
+export const SET_PASSWORD: ExecuteActionsEmailOptions = {
+  actions: ['UPDATE_PASSWORD'],
+  lifespanSeconds: 24 * 60 * 60,
+  redirectUri: 'http://localhost:3010/auth/login',
+  clientId: 'portal',
+};
+
+/** An officer reference no other test run uses (the check character is not checked here). */
+export function uniqueOfr(): string {
+  return `OFR-${String(randomInt(10_000_000)).padStart(7, '0')}-X`;
+}
+
+export function declarant(email: string, ofr = uniqueOfr()): CreateDeclarantUserInput {
+  return {
+    ofr,
+    email,
+    name: 'Wanjiru Achieng Otieno',
+    phone: '+254712345123',
+    tenant: 'tsc',
+    personId: randomUUID(),
   };
 }
 
@@ -317,6 +354,87 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       await expect(adapter.sendActivationEmail(UNKNOWN_USER_ID, ACTIVATION)).rejects.toBeInstanceOf(
         IdentityUserNotFound,
       );
+    });
+
+    it('S11: creates a declarant with the OFR as username, verified email, attributes, role and UPDATE_PASSWORD', async () => {
+      const email = uniqueEmail('S11');
+      const input = declarant(email.toUpperCase());
+
+      const userId = await harness().adapter.createDeclarantUser(input);
+      created.push(userId);
+
+      const user = await harness().inspect(userId);
+      // Keycloak keeps usernames lower-case; sign-in with the OFR is case-insensitive.
+      expect(user.username).toBe(input.ofr.toLowerCase());
+      expect(user).toMatchObject({
+        email,
+        emailVerified: true,
+        name: 'Wanjiru Achieng Otieno',
+        tenant: 'tsc',
+        tenants: ['tsc'],
+        ofr: input.ofr,
+        personId: input.personId,
+        phone: '+254712345123',
+        enabled: true,
+        requiredActions: ['UPDATE_PASSWORD'],
+      });
+      expect(user.realmRoles).toContain('declarant');
+      await expect(harness().adapter.findById(userId)).resolves.toMatchObject({
+        tenant: 'tsc',
+        roles: ['declarant'],
+      });
+    });
+
+    it('reports a declarant whose email has an account as EmailTaken', async () => {
+      const email = uniqueEmail('declarant-taken');
+      await create(reportingOfficer(email));
+
+      await expect(
+        harness().adapter.createDeclarantUser(declarant(email.toUpperCase())),
+      ).rejects.toBeInstanceOf(EmailTaken);
+    });
+
+    it('S15: adds a tenant to the tenants attribute, keeping the first tenant, idempotently, and restores it exactly', async () => {
+      const userId = await harness().adapter.createDeclarantUser(declarant(uniqueEmail('S15')));
+      created.push(userId);
+
+      const restore = await harness().adapter.addTenantToUser(userId, 'psc');
+      const linked = await harness().inspect(userId);
+      const again = await harness().adapter.addTenantToUser(userId, 'psc');
+      await restore?.();
+
+      expect(linked).toMatchObject({
+        tenant: 'tsc',
+        tenants: ['tsc', 'psc'],
+        phone: '+254712345123',
+      });
+      expect(linked.realmRoles).toContain('declarant');
+      expect(again).toBeNull();
+      expect(await harness().inspect(userId)).toMatchObject({ tenant: 'tsc', tenants: ['tsc'] });
+      await expect(harness().adapter.addTenantToUser(userId, 'tsc')).resolves.toBeNull();
+    });
+
+    it('S11, S17: sends an execute-actions email each time it is asked, recording nothing on the account', async () => {
+      const email = uniqueEmail('set-password');
+      const userId = await harness().adapter.createDeclarantUser(declarant(email));
+      created.push(userId);
+
+      await harness().adapter.sendExecuteActionsEmail(userId, SET_PASSWORD);
+      await harness().expectExecuteActionsDelivered(email, userId, SET_PASSWORD);
+      await harness().adapter.sendExecuteActionsEmail(userId, SET_PASSWORD);
+      await harness().expectExecuteActionsDelivered(email, userId, SET_PASSWORD);
+
+      expect(await harness().inspect(userId)).toMatchObject({
+        commissionName: null,
+        invitedRole: null,
+        requiredActions: ['UPDATE_PASSWORD'],
+      });
+      await expect(
+        harness().adapter.sendExecuteActionsEmail(UNKNOWN_USER_ID, SET_PASSWORD),
+      ).rejects.toBeInstanceOf(IdentityUserNotFound);
+      await expect(
+        harness().adapter.addTenantToUser(UNKNOWN_USER_ID, 'psc'),
+      ).rejects.toBeInstanceOf(IdentityUserNotFound);
     });
 
     it('S19: creates an API client whose token carries its scope, its tenant and the API audience', async () => {
