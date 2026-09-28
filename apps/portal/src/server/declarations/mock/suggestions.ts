@@ -236,10 +236,6 @@ function household(stored: SuggestionDraft): Draft<Household> {
   return stored.contents.get('household') ?? {};
 }
 
-function person(stored: SuggestionDraft, personKey: PersonKey) {
-  return householdMember(household(stored), personKey);
-}
-
 function statementItems(stored: SuggestionDraft, sectionKey: string, itemType: string): Item[] {
   const category = categoryOf(itemType);
   const statement = stored.contents.get(sectionKey);
@@ -398,7 +394,7 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
   }
   if (
     relationOfPerson(personKey) !== 'officer' &&
-    !person(stored, personKey)?.person.nationalId?.trim()
+    !householdMember(household(stored), personKey)?.person.nationalId?.trim()
   ) {
     return problem(400, 'The person has no national ID', 'no-id');
   }
@@ -504,7 +500,7 @@ export async function acceptSuggestion(
   let itemId: string;
   const fillsTax = suggestionKind(suggestion.itemType).target === 'tax';
   if (fillsTax) {
-    const member = person(stored, set.personKey);
+    const member = householdMember(household(stored), set.personKey);
     const spouse = member?.relation === 'spouse' ? member.person : undefined;
     if (!spouse?.id) return problem(400, 'There are no tax fields to apply to', 'no-target');
     const contents = household(stored);
