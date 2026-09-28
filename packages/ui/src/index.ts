@@ -27,6 +27,13 @@ export {
   type CheckboxProps,
 } from './components/checkbox';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
+export {
+  ConfidenceChip,
+  type ConfidenceChipProps,
+  confidenceLevel,
+  type ConfidenceLevel,
+  type ConfidenceMessages,
+} from './components/confidence-chip';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export { CountrySelect, type CountrySelectProps } from './components/country-select';
 export { CountySelect, type CountySelectProps } from './components/county-select';
@@ -84,6 +91,15 @@ export {
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  type RegistryStatus,
+  type RegistryStatusEntry,
+  RegistryStatusList,
+  type RegistryStatusListProps,
+  type RegistryStatusMessages,
+  RegistryStatusRow,
+  type RegistryStatusRowProps,
+} from './components/registry-status';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,
@@ -105,6 +121,15 @@ export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
+export {
+  describeSource,
+  type ItemSourceDetails,
+  SOURCE_ICONS,
+  SOURCE_NAMES,
+  SourceBadge,
+  type SourceBadgeProps,
+  type SourceKind,
+} from './components/source-badge';
 export { Spinner } from './components/spinner';
 export {
   StatusMark,
