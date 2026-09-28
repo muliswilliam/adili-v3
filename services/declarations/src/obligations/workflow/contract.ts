@@ -75,9 +75,6 @@ export interface FilingObligationState {
 
 /** The declarant onboarded: reminders from now on are sent (the activity reads the person). */
 export const personLinkedSignal = defineSignal('personLinked');
-/** The obligation's dates changed in the database: re-plan every timer. */
-export const datesChangedSignal =
-  defineSignal<[{ statementDate: CivilDate; dueDate: CivilDate }]>('datesChanged');
 /** The obligation was cancelled in the database: the workflow ends. */
 export const cancelSignal = defineSignal<[CancelReason]>('cancel');
 /** A declaration filed the obligation (slice 06): the workflow ends. */

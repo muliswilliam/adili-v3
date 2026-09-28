@@ -19,7 +19,6 @@ import {
   CYCLE_OPENING_PAGES_PER_RUN,
   type CycleOpened,
   type CycleOpeningInput,
-  datesChangedSignal,
   type FilingObligationEnd,
   type FilingObligationInput,
   type FilingObligationState,
@@ -70,15 +69,15 @@ const { cyclesToOpen, openCyclePage, recordCycleOpened } = proxyActivities<Cycle
  * workflow id: turns the obligation due at its statement date, sends each reminder at its offset
  * before the due date (jittered per obligation), turns it overdue after the due date, then waits
  * for signals. Status and reminders are written by activities; the workflow keeps no state the
- * database lacks. `datesChanged` re-plans the timers; `cancel` and `filed` end it.
+ * database lacks. `cancel` and `filed` end it.
+ *
+ * An obligation's dates never change: a corrected appointment or exit date supersedes it (a new
+ * obligation with its own workflow, the old one cancelled), so there is no re-planning signal.
  */
 export async function filingObligation({
   obligationId,
 }: FilingObligationInput): Promise<FilingObligationEnd> {
-  const signals: { ended: FilingObligationEnd | null; replan: boolean } = {
-    ended: null,
-    replan: false,
-  };
+  const signals: { ended: FilingObligationEnd | null } = { ended: null };
   const state: FilingObligationState = {
     obligationId,
     status: null,
@@ -88,15 +87,8 @@ export async function filingObligation({
     remindersRecorded: [],
     next: null,
   };
-  let schedule: ObligationSchedule | undefined;
   setHandler(personLinkedSignal, () => {
     state.personLinked = true;
-  });
-  setHandler(datesChangedSignal, ({ statementDate, dueDate }) => {
-    if (schedule) schedule = { ...schedule, statementDate, dueDate };
-    state.statementDate = statementDate;
-    state.dueDate = dueDate;
-    signals.replan = true;
   });
   setHandler(cancelSignal, () => {
     signals.ended = 'cancelled';
@@ -110,12 +102,11 @@ export async function filingObligation({
   if (!loaded) return 'missing';
   const terminal = endOf(loaded.status);
   if (terminal) return terminal;
-  schedule = {
+  const schedule: ObligationSchedule = {
     obligationId,
     type: loaded.type,
-    // A `datesChanged` that arrived while loading wins over what was read.
-    statementDate: state.statementDate ?? loaded.statementDate,
-    dueDate: state.dueDate ?? loaded.dueDate,
+    statementDate: loaded.statementDate,
+    dueDate: loaded.dueDate,
     reminderOffsetsDays: loaded.reminderOffsetsDays,
     jitterWindowMs: loaded.jitterWindowMs,
   };
@@ -132,11 +123,10 @@ export async function filingObligation({
   };
   state.remindersRecorded = [...recorded].sort((a, b) => b - a);
 
-  /** Waits until `at`; true when a signal cut the wait short (end or re-plan). */
-  const until = async (at: number): Promise<boolean> => {
-    const interrupted = () => signals.ended !== null || signals.replan;
+  /** Waits until `at`, or until a signal ends the workflow. */
+  const until = async (at: number): Promise<void> => {
     const ms = at - Date.now();
-    return ms > 0 ? condition(interrupted, ms) : interrupted();
+    if (ms > 0) await condition(() => signals.ended !== null, ms);
   };
   /** Moves the status on; the end of the workflow when it had become terminal meanwhile. */
   const changeStatus = async (to: ObligationStatus): Promise<FilingObligationEnd | null> => {
@@ -145,55 +135,48 @@ export async function filingObligation({
     return endOf(status);
   };
 
-  for (;;) {
-    signals.replan = false;
-    const plan = timeline(schedule, Date.now(), recorded);
-    if (plan.missed.length > 0) {
-      await recordSkippedReminders(
-        obligationId,
-        plan.missed.map(({ offsetDays, scheduledAt }) => ({
-          offsetDays,
-          scheduledAt: new Date(scheduledAt).toISOString(),
-        })),
-      );
-      for (const { offsetDays } of plan.missed) record(offsetDays);
-    }
-    if (plan.status !== state.status) {
-      const end = await changeStatus(plan.status);
+  const plan = timeline(schedule, Date.now(), recorded);
+  if (plan.missed.length > 0) {
+    await recordSkippedReminders(
+      obligationId,
+      plan.missed.map(({ offsetDays, scheduledAt }) => ({
+        offsetDays,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+      })),
+    );
+    for (const { offsetDays } of plan.missed) record(offsetDays);
+  }
+  if (plan.status !== state.status) {
+    const end = await changeStatus(plan.status);
+    if (end) return end;
+  }
+
+  for (const step of plan.steps) {
+    state.next = nextOf(step);
+    await until(step.at);
+    if (signals.ended) return signals.ended;
+    if (step.kind === 'status') {
+      const end = await changeStatus(step.status);
       if (end) return end;
+      continue;
     }
-
-    for (const step of plan.steps) {
-      state.next = nextOf(step);
-      const interrupted = await until(step.at);
-      if (signals.ended) return signals.ended;
-      if (interrupted) break;
-      if (step.kind === 'status') {
-        const end = await changeStatus(step.status);
-        if (end) return end;
-        continue;
-      }
-      try {
-        const outcome = await sendReminder({
-          obligationId,
-          offsetDays: step.offsetDays,
-          scheduledAt: new Date(step.at).toISOString(),
-        });
-        if (outcome !== 'not-open') record(step.offsetDays);
-      } catch (error) {
-        if (!(error instanceof ActivityFailure)) throw error;
-        // Not even the last attempt could record an outcome (database down): move on.
-        log.warn('Reminder not recorded', { obligationId, offsetDays: step.offsetDays });
-      }
-    }
-
-    // Set by a signal during the awaits above (a read TS would otherwise narrow to false).
-    if (!replanRequested(signals)) {
-      state.next = null;
-      await condition(() => signals.ended !== null || signals.replan);
-      if (signals.ended) return signals.ended;
+    try {
+      const outcome = await sendReminder({
+        obligationId,
+        offsetDays: step.offsetDays,
+        scheduledAt: new Date(step.at).toISOString(),
+      });
+      if (outcome !== 'not-open') record(step.offsetDays);
+    } catch (error) {
+      if (!(error instanceof ActivityFailure)) throw error;
+      // Not even the last attempt could record an outcome (database down): move on.
+      log.warn('Reminder not recorded', { obligationId, offsetDays: step.offsetDays });
     }
   }
+
+  state.next = null;
+  await condition(() => signals.ended !== null);
+  return signals.ended ?? 'cancelled';
 }
 
 /**
@@ -240,10 +223,6 @@ export async function cycleOpening({ tenant, resume }: CycleOpeningInput): Promi
     created = 0;
   }
   return opened;
-}
-
-function replanRequested(signals: { replan: boolean }): boolean {
-  return signals.replan;
 }
 
 function endOf(status: ObligationStatus): FilingObligationEnd | null {

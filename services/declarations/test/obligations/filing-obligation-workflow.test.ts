@@ -9,7 +9,6 @@ import type { ObligationStatus } from '../../src/obligations/engine.js';
 import type { ObligationActivities } from '../../src/obligations/workflow/activities.js';
 import {
   cancelSignal,
-  datesChangedSignal,
   filedSignal,
   type LoadedObligation,
   personLinkedSignal,
@@ -279,41 +278,6 @@ describe('FilingObligationWorkflow', () => {
 
     expect(obligation.sentOffsets()).toEqual([30]);
     expect(obligation.statuses.map((s) => s.status)).toEqual(['due']);
-  }, 60_000);
-
-  it('S12: datesChanged re-plans the timers from the new dates', async () => {
-    const id = '0199a000-0000-7000-8000-00000000a011';
-    await env.skipTime({ until: nairobi('2030-03-10', '05:00') });
-    const obligation = initial(env, id, '2030-03-10');
-
-    await run(obligation, async (handle) => {
-      await env.skipTime({ until: nairobi('2030-03-12') });
-      expect(obligation.sentOffsets()).toEqual([30]);
-
-      // The appointment date was corrected by ten days: due 19 Apr instead of 9 Apr.
-      Object.assign(obligation.row, { statementDate: '2030-03-20', dueDate: '2030-04-19' });
-      await handle.signal(datesChangedSignal, {
-        statementDate: '2030-03-20',
-        dueDate: '2030-04-19',
-      });
-      await env.skipTime({ until: nairobi('2030-04-21') });
-
-      expect(await handle.query(stateQuery)).toMatchObject({
-        status: 'overdue',
-        dueDate: '2030-04-19',
-        remindersRecorded: [30, 14, 7],
-      });
-      await handle.signal(cancelSignal, 'superseded');
-      await handle.result();
-    });
-
-    expect(obligation.reminders.map((r) => r.request.scheduledAt)).toEqual([
-      reminderSlot(id, '2030-03-10'),
-      reminderSlot(id, '2030-04-05'),
-      reminderSlot(id, '2030-04-12'),
-    ]);
-    expect(obligation.statuses.map((s) => s.status)).toEqual(['overdue']);
-    expectAround(obligation.statuses[0]?.at, nairobi('2030-04-20'));
   }, 60_000);
 
   it('records reminders whose day passed before the workflow started as skipped, and sends the rest', async () => {
