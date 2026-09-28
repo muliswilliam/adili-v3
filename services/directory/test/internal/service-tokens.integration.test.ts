@@ -7,8 +7,9 @@ import { givenOnboardedPerson, givenRoster } from '../support/onboarding.js';
 
 /**
  * Spec 04 end to end with the committed realm (Keycloak at TEST_KEYCLOAK_ISSUER_URL): the
- * declarations and notifications services' client credentials tokens carry `directory:internal`
- * and reach the directory's internal API, declarations acting for a tenant.
+ * declarations service's client credentials token carries `directory:internal` and pulls acting
+ * for a tenant; the notifications service's carries `directory:person-contacts` alone and reads
+ * contacts acting for the tenant it sends for.
  */
 const ISSUER = process.env.TEST_KEYCLOAK_ISSUER_URL ?? '';
 
@@ -47,15 +48,16 @@ const internalGet = async (url: string, token: string, tenant?: string) =>
 
 describe('service tokens of the directory internal API', () => {
   it.each([
-    ['declarations', declarations],
-    ['notifications', notifications],
+    ['declarations', 'directory:internal', 'directory:person-contacts', declarations],
+    ['notifications', 'directory:person-contacts', 'directory:internal', notifications],
   ])(
-    '%s carries directory:internal and the adili-api audience, and no tenant',
-    async (id, tokens) => {
+    '%s carries %s and the adili-api audience, not %s, and no tenant',
+    async (id, scope, notScope, tokens) => {
       const principal = await new TokenVerifier(ISSUER, 'adili-api').verify(await tokens.token());
 
       expect(principal).toMatchObject({ clientId: id, tenant: null, personId: null });
-      expect(principal.scopes).toContain('directory:internal');
+      expect(principal.scopes).toContain(scope);
+      expect(principal.scopes).not.toContain(notScope);
     },
   );
 
@@ -79,12 +81,11 @@ describe('service tokens of the directory internal API', () => {
       email: 'mary@example.go.ke',
     });
 
-    const response = await internalGet(
-      `/internal/v1/persons/${person.personId}/contacts`,
-      await notifications.token(),
-    );
+    const url = `/internal/v1/persons/${person.personId}/contacts`;
+    const response = await internalGet(url, await notifications.token(), 'psc');
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toMatchObject({ email: 'mary@example.go.ke', phone: null });
+    expect((await internalGet(url, await declarations.token(), 'psc')).statusCode).toBe(403);
   });
 });

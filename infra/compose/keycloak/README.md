@@ -62,8 +62,9 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 
 ## Directory internal API (spec 04)
 
-- `directory:internal` is a realm client scope (in the token's `scope` claim, adds the `adili-api` audience) for the directory's `/internal/v1` routes: roster records by import or exit batch, one record and the current policy (with `X-Acting-Tenant`, as in "Service-to-service calls"), and a person's verified contacts (no acting tenant; persons are global).
-- The confidential clients `declarations` (default scopes `directory:internal` and `messages`) and `notifications` (`directory:internal`) have only a service account and development secrets `declarations-dev-secret` and `notifications-dev-secret`.
+- `directory:internal` is a realm client scope (in the token's `scope` claim, adds the `adili-api` audience) for the directory's `/internal/v1` routes: the Commission reference, roster records by import or exit batch, one record and the current policy (with `X-Acting-Tenant`, as in "Service-to-service calls").
+- `directory:person-contacts` is a realm client scope of its own (same shape) for a person's verified contacts (`/internal/v1/persons/{personId}/contacts`, with `X-Acting-Tenant`: the person must be onboarded at that tenant). Contacts are personal data, so only the `notifications` client gets it; `pnpm keycloak:check` fails if another client does.
+- The confidential clients `declarations` (default scopes `directory:internal` and `messages`) and `notifications` (`directory:person-contacts`) have only a service account and development secrets `declarations-dev-secret` and `notifications-dev-secret`. A local Keycloak imported before `directory:person-contacts` existed must recreate the realm (or add the scope and swap the `notifications` client's default scope by hand) before notifications can read contacts.
 
 After pulling a change to the extension or the theme, rebuild the image (`docker compose -f infra/compose/docker-compose.yml build keycloak`) and recreate the realm.
 

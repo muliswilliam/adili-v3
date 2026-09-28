@@ -769,7 +769,7 @@ export interface paths {
         };
         /**
          * Verified contacts of a person (notifications)
-         * @description Service tokens with scope directory:internal; audited. The email and phone verified at the latest onboarding, null where none.
+         * @description Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
          */
         get: operations["internalGetPersonContacts"];
         put?: never;
@@ -4575,7 +4575,10 @@ export interface operations {
     internalGetPersonContacts: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
             path: {
                 personId: string;
             };
@@ -4601,7 +4604,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the scopes: directory:internal */
+            /** @description Requires a service token with scope directory:person-contacts */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4610,7 +4613,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No person has this id */
+            /** @description No person has this id, or not one onboarded at the acting tenant */
             404: {
                 headers: {
                     [name: string]: unknown;

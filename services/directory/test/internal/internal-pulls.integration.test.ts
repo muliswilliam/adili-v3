@@ -39,7 +39,7 @@ const DECLARATIONS: Caller = {
 const NOTIFICATIONS: Caller = {
   sub: 'service-account-notifications',
   azp: 'notifications',
-  scope: 'profile directory:internal',
+  scope: 'profile directory:person-contacts',
 };
 const ACTING_PSC = { 'x-acting-tenant': 'psc' };
 
@@ -422,6 +422,7 @@ describe('S18 person contacts', () => {
     const response = await api.get(
       `/internal/v1/persons/${person.personId}/contacts`,
       NOTIFICATIONS,
+      ACTING_PSC,
     );
 
     expect(response.statusCode, response.body).toBe(200);
@@ -442,6 +443,7 @@ describe('S18 person contacts', () => {
     const response = await api.get(
       `/internal/v1/persons/${person.personId}/contacts`,
       NOTIFICATIONS,
+      ACTING_PSC,
     );
 
     expect(response.json<PersonContacts>()).toEqual({
@@ -452,8 +454,16 @@ describe('S18 person contacts', () => {
   });
 
   it('answers 404 for an unknown person and 400 for an id that is not a UUID', async () => {
-    const unknown = await api.get(`/internal/v1/persons/${randomUUID()}/contacts`, NOTIFICATIONS);
-    const invalid = await api.get('/internal/v1/persons/not-a-uuid/contacts', NOTIFICATIONS);
+    const unknown = await api.get(
+      `/internal/v1/persons/${randomUUID()}/contacts`,
+      NOTIFICATIONS,
+      ACTING_PSC,
+    );
+    const invalid = await api.get(
+      '/internal/v1/persons/not-a-uuid/contacts',
+      NOTIFICATIONS,
+      ACTING_PSC,
+    );
 
     expect(unknown.statusCode).toBe(404);
     expect(invalid.statusCode).toBe(400);
@@ -462,13 +472,33 @@ describe('S18 person contacts', () => {
   it('refuses user tokens, whatever their roles', async () => {
     const person = await givenPerson({ email: 'mary@example.go.ke', phone: null });
 
-    const response = await api.get(`/internal/v1/persons/${person.personId}/contacts`, {
-      sub: 'helpdesk-1',
-      tenant: 'platform',
-      roles: ['helpdesk', 'platform-admin'],
-    });
+    const response = await api.get(
+      `/internal/v1/persons/${person.personId}/contacts`,
+      { sub: 'helpdesk-1', tenant: 'platform', roles: ['helpdesk', 'platform-admin'] },
+      ACTING_PSC,
+    );
 
     expect(response.statusCode).toBe(403);
+  });
+
+  it('refuses service tokens with directory:internal only: contacts need their own scope', async () => {
+    const person = await givenPerson({ email: 'mary@example.go.ke', phone: null });
+
+    const response = await api.get(
+      `/internal/v1/persons/${person.personId}/contacts`,
+      DECLARATIONS,
+      ACTING_PSC,
+    );
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('answers 404 for a person not onboarded at the acting tenant, and 400 without one', async () => {
+    const person = await givenPerson({ email: 'mary@example.go.ke', phone: null });
+    const url = `/internal/v1/persons/${person.personId}/contacts`;
+
+    expect((await api.get(url, NOTIFICATIONS, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(404);
+    expect((await api.get(url, NOTIFICATIONS)).statusCode).toBe(400);
   });
 });
 

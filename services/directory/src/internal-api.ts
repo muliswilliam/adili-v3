@@ -3,11 +3,16 @@ import type { TenantContext } from '@adili/data-access';
 
 /**
  * Scope of service tokens allowed to call the directory's internal API (a Keycloak client
- * scope): the services that pull what a directory event referred to (declarations) and the
- * contacts of a person (notifications). Routes under `/internal/v1` are never routed by the
- * public entrypoint.
+ * scope): the services that pull what a directory event referred to (declarations). Routes under
+ * `/internal/v1` are never routed by the public entrypoint.
  */
 export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
+
+/**
+ * Scope of the one service allowed to read a person's verified contacts (notifications, to send a
+ * reminder). Contacts are personal data: `directory:internal` does not reach them (spec 04).
+ */
+export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
 
 /**
  * Guards an internal controller for services acting for a tenant: a token with

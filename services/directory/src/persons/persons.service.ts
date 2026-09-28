@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible } from '@adili/api-kit';
-import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { asc, eq } from 'drizzle-orm';
+import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
+import { and, asc, eq, exists } from 'drizzle-orm';
 
 import { PLATFORM_TENANT } from '../commissions/access.js';
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
@@ -80,11 +80,30 @@ export class PersonsService {
   }
 
   /** The contacts verified at the person's latest onboarding, null where none; 404 if no person. */
-  async contacts(personId: string): Promise<PersonContacts> {
-    const [person] = await this.db
-      .select({ personId: persons.id, email: persons.email, phone: persons.phone })
-      .from(persons)
-      .where(eq(persons.id, personId));
+  async contacts(context: TenantContext, personId: string): Promise<PersonContacts> {
+    const [person] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({ personId: persons.id, email: persons.email, phone: persons.phone })
+        .from(persons)
+        .where(
+          and(
+            eq(persons.id, personId),
+            // Onboarded at the acting tenant: its roster records are the only ones RLS shows.
+            exists(
+              tx
+                .select({ id: rosterRecords.id })
+                .from(rosterRecords)
+                .where(
+                  and(
+                    eq(rosterRecords.personId, persons.id),
+                    eq(rosterRecords.tenant, context.tenant),
+                  ),
+                ),
+            ),
+          ),
+        )
+        .limit(1),
+    );
     return notFoundIfInvisible(person);
   }
 }

@@ -341,7 +341,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "defaultClientScopes": ["basic", "directory:internal"],
+      "defaultClientScopes": ["basic", "directory:person-contacts"],
       "optionalClientScopes": []
     }
   ],
@@ -1055,7 +1055,29 @@
     },
     {
       "name": "directory:internal",
-      "description": "Pull roster records, policy and person contacts from the directory (/internal/v1)",
+      "description": "Pull roster records, Commission references and policy from the directory (/internal/v1)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "directory:person-contacts",
+      "description": "Read a person's verified contacts from the directory (notifications only)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

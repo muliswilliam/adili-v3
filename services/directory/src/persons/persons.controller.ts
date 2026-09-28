@@ -1,13 +1,14 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
+  ActingTenant,
   ApiProblemResponse,
   ApiQueryParameters,
   AuditedRead,
   CurrentPrincipal,
   type Principal,
+  InternalApi,
   Roles,
-  Scopes,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
@@ -15,7 +16,7 @@ import {
 import { z } from 'zod';
 
 import { DECLARANT_ROLE } from '../identity/identity-provisioning.js';
-import { DIRECTORY_INTERNAL_SCOPE } from '../internal-api.js';
+import { DIRECTORY_PERSON_CONTACTS_SCOPE } from '../internal-api.js';
 import { PersonsService } from './persons.service.js';
 import {
   type DeclarantProfile,
@@ -80,12 +81,13 @@ export class DeclarantProfileController {
 }
 
 /**
- * Internal: not routed by the public entrypoint. Persons are global (ADR-006), so no acting
- * tenant: services with `directory:internal` only.
+ * Internal: not routed by the public entrypoint. Contacts are personal data: only the
+ * notifications service's token carries `directory:person-contacts`, and it names the tenant it
+ * sends for in X-Acting-Tenant (ADR-013 §8.1); a person not onboarded there is 404.
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')
-@Scopes(DIRECTORY_INTERNAL_SCOPE)
+@InternalApi(DIRECTORY_PERSON_CONTACTS_SCOPE)
 export class InternalPersonsController {
   constructor(private readonly persons: PersonsService) {}
 
@@ -96,17 +98,19 @@ export class InternalPersonsController {
     operationId: 'internalGetPersonContacts',
     summary: 'Verified contacts of a person (notifications)',
     description:
-      'Service tokens with scope directory:internal; audited. The email and phone verified at the latest onboarding, null where none.',
+      'Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.',
   })
   @ApiOkResponse({
     description: 'Contacts, null where none is verified',
     schema: schemaRef('PersonContacts'),
   })
   @ApiProblemResponse(400, 'personId is not a UUID')
-  @ApiProblemResponse(404, 'No person has this id')
+  @ApiProblemResponse(404, 'No person has this id, or not one onboarded at the acting tenant')
   contacts(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
   ): Promise<PersonContacts> {
-    return this.persons.contacts(personId);
+    return this.persons.contacts({ tenant, subject: principal.subject }, personId);
   }
 }
