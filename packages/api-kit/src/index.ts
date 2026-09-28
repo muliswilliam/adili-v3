@@ -5,7 +5,7 @@ export {
 } from './audit/audited-read.decorator.js';
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
-export { type Principal, principalSchema } from './auth/principal.js';
+export { callerOf, type Principal, principalSchema } from './auth/principal.js';
 export { Public } from './auth/public.decorator.js';
 export { notFoundIfInvisible, Roles, RolesGuard, Scopes } from './auth/roles.js';
 export {
@@ -87,4 +87,5 @@ export {
   schemaRef,
   toOpenApiSchemas,
 } from './openapi.js';
+export { canonicalJson } from './canonical-json.js';
 export { ZodValidationPipe } from './zod-validation.pipe.js';
