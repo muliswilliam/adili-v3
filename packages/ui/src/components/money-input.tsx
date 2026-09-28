@@ -2,7 +2,7 @@ import { type ComponentProps, useId, useLayoutEffect, useRef, useState } from 'r
 
 import { cn } from '../lib/cn';
 import { formatMoney, type MoneyInvalidReason, parseMoney, shapeMoneyText } from '../lib/money';
-import { describedBy } from './form-field';
+import { joinIds } from './form-field';
 import { Input } from './input';
 
 export type MoneyInputProps = Omit<
@@ -98,7 +98,7 @@ export function MoneyInput({
         inputMode="decimal"
         autoComplete="off"
         placeholder={placeholder}
-        aria-describedby={describedBy(ariaDescribedBy, currencyId)}
+        aria-describedby={joinIds(ariaDescribedBy, currencyId)}
         value={text}
         onChange={(event) => {
           const raw = event.target.value;
