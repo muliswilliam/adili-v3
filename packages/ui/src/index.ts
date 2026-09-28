@@ -145,6 +145,15 @@ export {
 } from './components/status-mark';
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
 export {
+  emptyFieldDiff,
+  SuggestionCard,
+  type SuggestionCardProps,
+  type SuggestionField,
+  type SuggestionMatch,
+  type SuggestionMessages,
+  type SuggestionStatus,
+} from './components/suggestion-card';
+export {
   Table,
   TableBody,
   TableCell,
