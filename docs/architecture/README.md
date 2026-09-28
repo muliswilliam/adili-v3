@@ -779,7 +779,7 @@ adili-v3/
 - TypeScript `strict`, ESLint + Prettier, no `any` without justification; Python: ruff, mypy, pytest.
 - **Contracts first:** OpenAPI / JSON Schema / AsyncAPI in `packages/schemas`, with types generated from them.
 - **Tests:**
-  - unit (Vitest, `isolate: false`: test files in a worker share modules and the jsdom environment, so a test resets any module state it changes)
+  - unit (Vitest, `isolate: false`: test files in a worker share modules and the jsdom environment, so a test resets any module state it changes; portal and console, whose files mock the router per file, use `pool: 'vmThreads'` instead)
   - integration against real Postgres/RabbitMQ (Testcontainers)
   - RLS isolation tests
   - Temporal replay and time-skipping tests
