@@ -11,12 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
+import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteImport } from './routes/commissions/$slug'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
+import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id'
+import { Route as ReviewCasesCaseIdClarificationsClarificationIdRouteImport } from './routes/review/cases.$caseId.clarifications.$clarificationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -26,6 +29,11 @@ const IndexRoute = IndexRouteImport.update({
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRouteRoute = ReviewRouteRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -58,75 +66,106 @@ const CommissionsNewRoute = CommissionsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
 } as any)
+const ApiMockFilesIdRoute = ApiMockFilesIdRouteImport.update({
+  id: '/api/mock-files/$id',
+  path: '/api/mock-files/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewCasesCaseIdClarificationsClarificationIdRoute =
+  ReviewCasesCaseIdClarificationsClarificationIdRouteImport.update({
+    id: '/cases/$caseId/clarifications/$clarificationId',
+    path: '/cases/$caseId/clarifications/$clarificationId',
+    getParentRoute: () => ReviewRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/review': typeof ReviewRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/review': typeof ReviewRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/commissions': typeof CommissionsIndexRoute
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/review': typeof ReviewRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/$slug': typeof CommissionsSlugRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/commissions'
+    | '/review'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/$slug'
     | '/commissions/new'
     | '/commissions/'
+    | '/api/mock-files/$id'
+    | '/review/cases/$caseId/clarifications/$clarificationId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/review'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/$slug'
     | '/commissions/new'
     | '/commissions'
+    | '/api/mock-files/$id'
+    | '/review/cases/$caseId/clarifications/$clarificationId'
   id:
     | '__root__'
     | '/'
     | '/commissions'
+    | '/review'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/$slug'
     | '/commissions/new'
     | '/commissions/'
+    | '/api/mock-files/$id'
+    | '/review/cases/$caseId/clarifications/$clarificationId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
+  ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
+  ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -143,6 +182,13 @@ declare module '@tanstack/react-router' {
       path: '/commissions'
       fullPath: '/commissions'
       preLoaderRoute: typeof CommissionsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -187,6 +233,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsNewRouteImport
       parentRoute: typeof CommissionsRouteRoute
     }
+    '/api/mock-files/$id': {
+      id: '/api/mock-files/$id'
+      path: '/api/mock-files/$id'
+      fullPath: '/api/mock-files/$id'
+      preLoaderRoute: typeof ApiMockFilesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review/cases/$caseId/clarifications/$clarificationId': {
+      id: '/review/cases/$caseId/clarifications/$clarificationId'
+      path: '/cases/$caseId/clarifications/$clarificationId'
+      fullPath: '/review/cases/$caseId/clarifications/$clarificationId'
+      preLoaderRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRouteImport
+      parentRoute: typeof ReviewRouteRoute
+    }
   }
 }
 
@@ -205,12 +265,27 @@ const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
 const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
 
+interface ReviewRouteRouteChildren {
+  ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
+}
+
+const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
+  ReviewCasesCaseIdClarificationsClarificationIdRoute:
+    ReviewCasesCaseIdClarificationsClarificationIdRoute,
+}
+
+const ReviewRouteRouteWithChildren = ReviewRouteRoute._addFileChildren(
+  ReviewRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
+  ReviewRouteRoute: ReviewRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
+  ApiMockFilesIdRoute: ApiMockFilesIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
