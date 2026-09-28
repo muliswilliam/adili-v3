@@ -21,14 +21,18 @@ import { noChanges, type ObligationChanges } from './workflows.js';
 
 export type Transaction = Parameters<Parameters<Database<DeclarationsSchema>['transaction']>[0]>[0];
 
-/** What a page of pulled records is reconciled against. */
-export interface PageContext {
-  /** The Commission the records belong to; records of any other are ignored. */
+/** What roster records are reconciled against. */
+export interface ReconcileContext {
+  /** The Commission the records belong to. */
   tenant: string;
   policy: { id: string; rules: ObligationPolicy };
   calendar: CycleCalendar;
   /** Today in Nairobi. */
   today: CivilDate;
+}
+
+/** What a page of pulled records is reconciled against. */
+export interface PageContext extends ReconcileContext {
   /** The import or exit batch pulled; null for a single record. */
   syncedFrom: string | null;
 }
@@ -38,13 +42,10 @@ const INSERT_CHUNK = 1_000;
 
 /**
  * Applies one page of roster records pulled from the directory, in the caller's transaction
- * (scoped to the page's tenant): upserts their snapshots, runs the obligation engine per record
- * against its obligations and applies the plan (cancel, supersede, create, link the person) with
- * one event per created or cancelled obligation. Re-applying the same records changes nothing, so
- * a retried page is a no-op. Returns what the obligations' workflows must be told after commit.
- *
- * The snapshot upsert locks the page's records, so two events touching the same record (an import
- * and an onboarding) apply one after the other rather than planning from the same state.
+ * (scoped to the page's tenant): upserts their snapshots, then reconciles their obligations
+ * (`reconcileSnapshots`). Records of another tenant are ignored. Re-applying the same records
+ * changes nothing, so a retried page is a no-op. Returns what the obligations' workflows must be
+ * told after commit.
  */
 export async function applyRosterPage(
   tx: Transaction,
@@ -54,9 +55,34 @@ export async function applyRosterPage(
 ): Promise<ObligationChanges> {
   const own = records.filter((record) => record.tenant === context.tenant);
   if (own.length === 0) return noChanges();
-  const ids = own.map((record) => record.id);
-
   await upsertSnapshots(tx, context, own);
+  return reconcileSnapshots(
+    tx,
+    events,
+    context,
+    own.map((record) => record.id),
+  );
+}
+
+/**
+ * Runs the obligation engine for the given roster snapshots against their obligations and applies
+ * the plan (cancel, supersede, create, link the person) with one event per created or cancelled
+ * obligation, in the caller's transaction. `keep` narrows the plan (the cycle opening only
+ * creates the cycle's biennials). Returns what the obligations' workflows must be told after
+ * commit.
+ *
+ * The snapshots are locked, so two events touching the same record (an import and an onboarding,
+ * or the cycle opening) apply one after the other rather than planning from the same state.
+ */
+export async function reconcileSnapshots(
+  tx: Transaction,
+  events: EventPublisher,
+  context: ReconcileContext,
+  rosterRecordIds: readonly string[],
+  keep: (operation: PlanOperation) => boolean = () => true,
+): Promise<ObligationChanges> {
+  if (rosterRecordIds.length === 0) return noChanges();
+  const ids = [...rosterRecordIds];
   const snapshots = await tx
     .select()
     .from(rosterSnapshots)
@@ -96,7 +122,7 @@ export async function applyRosterPage(
       today: context.today,
       existing: existingByRecord.get(snapshot.rosterRecordId) ?? [],
     });
-    for (const operation of operations) {
+    for (const operation of operations.filter(keep)) {
       plan.push({ rosterRecordId: snapshot.rosterRecordId, operation });
     }
   }
@@ -153,7 +179,7 @@ async function upsertSnapshots(
 async function applyPlan(
   tx: Transaction,
   events: EventPublisher,
-  context: PageContext,
+  context: ReconcileContext,
   plan: readonly { rosterRecordId: string; operation: PlanOperation }[],
   statusOf: ReadonlyMap<string, ObligationStatus>,
 ): Promise<ObligationChanges> {

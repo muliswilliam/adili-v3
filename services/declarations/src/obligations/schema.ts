@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -67,6 +68,8 @@ export const rosterSnapshots = pgTable(
   (table) => [
     index('roster_snapshots_tenant_state_idx').on(table.tenant, table.state),
     index('roster_snapshots_person_id_idx').on(table.personId),
+    // The cycle opening pages through a tenant's snapshots by id.
+    index('roster_snapshots_tenant_id_idx').on(table.tenant, table.rosterRecordId),
     check(
       'roster_snapshots_state_check',
       sql`${table.state} in ('not_onboarded', 'onboarded', 'exited')`,
@@ -222,6 +225,23 @@ export const cycleCalendar = pgTable('cycle_calendar', {
   openingLeadDays: integer().notNull(),
 });
 
+/**
+ * The cycles opened for each Commission: written when its `CycleOpeningWorkflow` has created the
+ * cycle's biennial obligations for every active officer, with how many it created. A cycle recorded
+ * here is not opened again (a second firing of the schedule creates nothing). Platform-level.
+ */
+export const cycleOpenings = pgTable(
+  'cycle_openings',
+  {
+    tenant: text().notNull(),
+    cycleYear: integer().notNull(),
+    /** Biennial obligations the opening created (officers ingested earlier had theirs already). */
+    obligationsCreated: integer().notNull(),
+    openedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.tenant, table.cycleYear] })],
+);
+
 export const obligationsSchema = {
   rosterSnapshots,
   filingObligations,
@@ -229,4 +249,5 @@ export const obligationsSchema = {
   tenantPolicyCache,
   commissionRefs,
   cycleCalendar,
+  cycleOpenings,
 };

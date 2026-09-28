@@ -12,6 +12,7 @@ import type { ReminderOutcome } from '../schema.js';
 /** Workflow type names, for starting by name (the worker bundles the code, not the caller). */
 export const FILING_OBLIGATION_WORKFLOW = 'filingObligation';
 export const OBLIGATIONS_SWEEP_WORKFLOW = 'obligationsSweep';
+export const CYCLE_OPENING_WORKFLOW = 'cycleOpening';
 
 /** Attempts of `sendReminder`; the last one records the outcome instead of failing. */
 export const REMINDER_ATTEMPTS = 3;
@@ -73,5 +74,45 @@ export const datesChangedSignal =
 export const cancelSignal = defineSignal<[CancelReason]>('cancel');
 /** A declaration filed the obligation (slice 06): the workflow ends. */
 export const filedSignal = defineSignal('filed');
+
+/**
+ * `CycleOpeningWorkflow` for one Commission, started by its schedule with the tenant only. The
+ * rest is set when a run continues as new mid-opening.
+ */
+export interface CycleOpeningInput {
+  tenant: string;
+  resume?: {
+    /** The cycles still to open, the first one in progress. */
+    cycleYears: number[];
+    /** Where the cycle in progress stopped (the last roster record id of the page before). */
+    cursor: string | null;
+    /** Obligations created for it so far. */
+    created: number;
+  };
+}
+
+/** Pages a run of `CycleOpeningWorkflow` opens before it continues as new (short histories). */
+export const CYCLE_OPENING_PAGES_PER_RUN = 100;
+
+/** One page of a Commission's active roster snapshots to open a cycle for. */
+export interface CycleOpeningPageRequest {
+  tenant: string;
+  cycleYear: number;
+  /** The last roster record id of the previous page; null for the first. */
+  cursor: string | null;
+}
+
+export interface CycleOpeningPage {
+  /** Biennial obligations the page created. */
+  created: number;
+  /** The cursor of the next page; null after the last. */
+  nextCursor: string | null;
+}
+
+/** A cycle opened for a Commission, and how many obligations the opening created. */
+export interface CycleOpened {
+  cycleYear: number;
+  count: number;
+}
 
 export const stateQuery = defineQuery<FilingObligationState>('state');

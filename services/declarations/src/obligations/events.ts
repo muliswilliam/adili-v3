@@ -62,6 +62,20 @@ export function obligationReminderSent(
   return { type: OBLIGATION_REMINDER_SENT, subject: data.obligationId, tenant, data };
 }
 
+export const CYCLE_OPENED = 'obligations.cycle-opened.v1';
+
+/** A Commission's biennial cycle opened: its active officers' obligations for it exist. */
+export interface CycleOpenedData extends Record<string, unknown> {
+  cycleYear: number;
+  /** Biennial obligations the opening created. */
+  count: number;
+}
+
+/** Subject: the cycle key (`biennial:<year>`); tenant: the Commission. */
+export function cycleOpened(tenant: string, data: CycleOpenedData): NewEvent<CycleOpenedData> {
+  return { type: CYCLE_OPENED, subject: `biennial:${String(data.cycleYear)}`, tenant, data };
+}
+
 /** The directory events the declarations service consumes, and their data (ids only). */
 export const ROSTER_IMPORT_COMPLETED = 'roster.import.completed.v1';
 export const ROSTER_EXITS_CONFIRMED = 'roster.exits.confirmed.v1';

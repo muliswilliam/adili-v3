@@ -29,6 +29,13 @@
       "when": 1790622013676,
       "tag": "0003_commission_last_roster_import",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790623746170,
+      "tag": "0004_cycle_openings",
+      "breakpoints": true
     }
   ]
 }

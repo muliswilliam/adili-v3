@@ -9,16 +9,21 @@ import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
+import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
-import { type DeclarationsSchema, schema } from '../../src/db/schema.js';
+import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { RosterEventsConsumer } from '../../src/obligations/roster-events.consumer.js';
+import {
+  cycleOpeningScheduleId,
+  CycleOpeningSchedules,
+} from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
 import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
 import { type ObligationChanges, ObligationWorkflows } from '../../src/obligations/workflows.js';
@@ -82,10 +87,26 @@ export class RecordingWorkflows extends ObligationWorkflows {
   }
 }
 
+/** Records the Commissions whose cycle-opening schedule was ensured, standing in for Temporal. */
+export class RecordingCycleOpeningSchedules extends CycleOpeningSchedules {
+  readonly ensured: string[] = [];
+
+  ensure(tenant: string): Promise<void> {
+    if (!this.ensured.includes(tenant)) this.ensured.push(tenant);
+    return Promise.resolve();
+  }
+
+  reset(): void {
+    this.ensured.length = 0;
+  }
+}
+
 /**
  * How obligation workflows are started: `recording` (default) records what `ObligationWorkflows`
  * is told; `fake` runs the real `TemporalObligationWorkflows` against `FakeTemporal`; `real` uses
  * the compose Temporal, with the service's worker polling the suite's own task queue.
+ * Cycle-opening schedules are recorded, except in `real` mode, where they are created on the
+ * compose Temporal (for the suite's queue) and deleted by `close`.
  */
 export type WorkflowMode = 'recording' | 'fake' | 'real';
 
@@ -102,6 +123,8 @@ export interface DeclarationsApi {
   /** The steps the workflow activities take. */
   steps: ObligationSteps;
   sweep: ObligationsSweep;
+  /** The Commissions whose cycle-opening schedule was ensured (not in `real` mode). */
+  cycleSchedules: RecordingCycleOpeningSchedules;
   clock: TestClock;
   /** The directory event consumers, called as the RabbitMQ transport would. */
   consumers: RosterEventsConsumer;
@@ -143,6 +166,7 @@ export async function startDeclarationsApi({
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
   const clock = new TestClock();
+  const cycleSchedules = new RecordingCycleOpeningSchedules();
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -164,6 +188,9 @@ export async function startDeclarationsApi({
   } else if (mode === 'fake') {
     builder = builder.overrideProvider(TEMPORAL_CLIENT).useValue(temporal);
   }
+  if (mode !== 'real') {
+    builder = builder.overrideProvider(CycleOpeningSchedules).useValue(cycleSchedules);
+  }
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
@@ -180,6 +207,7 @@ export async function startDeclarationsApi({
     temporal,
     steps: app.get(ObligationSteps),
     sweep: app.get(ObligationsSweep),
+    cycleSchedules,
     clock,
     consumers: app.get(RosterEventsConsumer),
     async get(path, caller) {
@@ -195,8 +223,10 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, outbox, inbox`,
+        sql`truncate obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
+      await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
+      cycleSchedules.reset();
       directory.reset();
       notifications.reset();
       workflows.reset();
@@ -204,11 +234,29 @@ export async function startDeclarationsApi({
       clock.reset();
     },
     async close() {
+      if (mode === 'real') await deleteCycleOpeningSchedules(app.get<Client>(TEMPORAL_CLIENT), db);
       // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
       await db.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
       await app.close();
     },
   };
+}
+
+/** Deletes the cycle-opening schedules the suite's ingests created (one per Commission). */
+async function deleteCycleOpeningSchedules(
+  temporal: Client,
+  db: Database<DeclarationsSchema>,
+): Promise<void> {
+  const tenants = await db.select({ tenant: tenantPolicyCache.tenant }).from(tenantPolicyCache);
+  const queue = process.env.TEMPORAL_TASK_QUEUE ?? '';
+  await Promise.all(
+    tenants.map(({ tenant }) =>
+      temporal.schedule
+        .getHandle(cycleOpeningScheduleId(queue, tenant))
+        .delete()
+        .catch(() => undefined),
+    ),
+  );
 }
 
 /** A directory event as the RabbitMQ transport delivers it. */
