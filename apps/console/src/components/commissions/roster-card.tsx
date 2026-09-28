@@ -1,10 +1,10 @@
-import { Button, Card, EmptyState, Icon } from '@adili/ui';
+import { Button, Card, EmptyState, formatDate, Icon } from '@adili/ui';
 import { SquareLock02Icon, UserGroupIcon, ViewIcon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import type { Commission, DirectoryResult, RosterImportPage } from '../../server/directory/client';
-import { formatDate, formatNumber, formatRelativeTime } from '../format';
+import { formatNumber, formatRelativeTime } from '../format';
 import { SectionCard } from '../page';
 import { onboardedPercent } from '../roster/coverage';
 import { ImportHistoryResults } from '../roster/import-history-table';

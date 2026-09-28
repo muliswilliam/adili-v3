@@ -9,7 +9,9 @@ import {
   obligationTypeShortLabel,
   reminderChannelsLabel,
   reminderOffsetLabel,
+  type ReminderOutcome,
   reminderOutcomeLabel,
+  reminderOutcomeMeta,
   remindersSentLabel,
 } from './obligations';
 
@@ -43,13 +45,19 @@ describe('obligationCycleLabel', () => {
 });
 
 describe('obligationStatusMeta', () => {
-  it('gives every shown status a word and a badge variant', () => {
-    expect(obligationStatusMeta).toEqual({
+  it('gives every status a word and a badge variant', () => {
+    expect(obligationStatusMeta).toMatchObject({
       upcoming: { label: 'Upcoming', variant: 'neutral' },
       due: { label: 'Due', variant: 'info' },
       overdue: { label: 'Overdue', variant: 'warning' },
       filed: { label: 'Filed', variant: 'success' },
+      cancelled: { label: 'Cancelled', variant: 'neutral' },
     });
+  });
+
+  it('marks cancelled with its own icon rather than the upcoming clock', () => {
+    expect(obligationStatusMeta.cancelled.icon).toBeDefined();
+    expect(obligationStatusMeta.upcoming.icon).toBeUndefined();
   });
 });
 
@@ -71,6 +79,25 @@ describe('reminderOutcomeLabel', () => {
       'Skipped: the date had passed when this obligation was created',
     );
     expect(reminderOutcomeLabel('failed', ['sms'])).toBe('Failed');
+  });
+});
+
+describe('reminderOutcomeMeta', () => {
+  it('colours sent green, failed red and every skip muted', () => {
+    const tones: Record<ReminderOutcome, string> = {
+      sent: 'text-success',
+      failed: 'text-destructive',
+      'skipped-not-onboarded': 'text-muted-foreground',
+      'skipped-no-contact': 'text-muted-foreground',
+      'skipped-past-due-at-creation': 'text-muted-foreground',
+    };
+    for (const [outcome, tone] of Object.entries(tones)) {
+      expect(reminderOutcomeMeta[outcome as ReminderOutcome].iconClassName).toBe(tone);
+    }
+    expect(reminderOutcomeMeta.failed.icon).not.toBe(reminderOutcomeMeta.sent.icon);
+    expect(reminderOutcomeMeta.failed.icon).not.toBe(
+      reminderOutcomeMeta['skipped-no-contact'].icon,
+    );
   });
 });
 

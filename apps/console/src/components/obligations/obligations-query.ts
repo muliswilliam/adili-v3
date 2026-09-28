@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
 import type {
+  Assert,
   CommissionObligationsSummary,
   ListObligationsQuery,
+  ObligationType,
+  Same,
 } from '../../server/declarations/client';
 
 export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
@@ -11,6 +14,16 @@ export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
 export const OBLIGATION_FILTER_STATUSES = ['upcoming', 'due', 'overdue'] as const;
 
 export type ObligationFilterStatus = (typeof OBLIGATION_FILTER_STATUSES)[number];
+
+/**
+ * Fails to compile when the lists drift from the contract: every obligation type is offered,
+ * and every filter status is one the list operation accepts.
+ */
+export type FiltersMatchContract = [
+  Assert<Same<(typeof OBLIGATION_TYPES)[number], ObligationType>>,
+  Assert<Same<(typeof OBLIGATION_TYPES)[number], NonNullable<ListObligationsQuery['type']>>>,
+  Assert<ObligationFilterStatus extends NonNullable<ListObligationsQuery['status']> ? true : false>,
+];
 
 /** Page size of the obligations list: the declarations service's default. */
 export const OBLIGATIONS_PAGE_SIZE = 50;
@@ -83,7 +96,7 @@ export function toggleStatus(
 }
 
 /**
- * "Show in list" on the not-onboarded callout: officers who have not onboarded, whatever their
+ * "Show in list" on the not-onboarded callout: declarants who have not onboarded, whatever their
  * status (the callout counts due and overdue together). The other filters stay.
  */
 export function showNotOnboarded(search: ObligationsSearch): ObligationsSearch {
@@ -153,7 +166,7 @@ export function cycleOptions(
   return options;
 }
 
-/** Officers with a due or overdue obligation who have not onboarded. */
+/** Declarants with a due or overdue obligation who have not onboarded. */
 export function notOnboardedCount(summary: CommissionObligationsSummary): number {
   return summary.notOnboarded.due + summary.notOnboarded.overdue;
 }

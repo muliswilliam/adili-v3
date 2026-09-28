@@ -156,6 +156,11 @@ export {
   type StatusBadgeVariant,
 } from './components/status-badge';
 export {
+  ObligationStatusBadge,
+  type ObligationStatusBadgeProps,
+} from './components/obligation-status-badge';
+export { ReminderOutcomeText } from './components/reminder-outcome';
+export {
   StatusMark,
   type StatusMarkProps,
   type StatusMarkTone,
@@ -213,6 +218,9 @@ export {
   reminderOffsetLabel,
   type ReminderOutcome,
   reminderOutcomeLabel,
+  reminderOutcomeMeta,
+  type ReminderOutcomeMeta,
   remindersSentLabel,
-  type ShownObligationStatus,
+  type ObligationStatusMeta,
 } from './lib/obligations';
+export { useObligationDetail } from './lib/use-obligation-detail';

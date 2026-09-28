@@ -14,6 +14,7 @@ import {
   type ObligationsSearch,
   obligationsSearchSchema,
 } from '../../components/obligations/obligations-query';
+import { notOnboardedRosterLink } from '../../components/obligations/roster-links';
 import { ObligationsView } from '../../components/obligations/obligations-view';
 import { messages as policyMessages } from '../../components/policy/messages';
 import { signInRedirect } from '../../components/sign-in-redirect';
@@ -112,7 +113,7 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
           ? {
               notOnboardedLink: (
                 <Button asChild variant="secondary" size="sm" className="bg-card">
-                  <Link to="/roster/records" search={{ state: 'not_onboarded' }}>
+                  <Link {...notOnboardedRosterLink()}>
                     <Icon icon={UserGroupIcon} />
                     {m.viewRoster}
                   </Link>

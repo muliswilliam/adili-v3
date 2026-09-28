@@ -130,7 +130,7 @@ describe('toggleStatus', () => {
 });
 
 describe('showNotOnboarded', () => {
-  it('lists officers not onboarded in any status, keeping search, type and cycle', () => {
+  it('lists declarants not onboarded in any status, keeping search, type and cycle', () => {
     expect(showNotOnboarded({ status: 'upcoming', search: 'PSC', onboarded: true })).toEqual({
       search: 'PSC',
       onboarded: false,
@@ -210,7 +210,7 @@ describe('cycleLabel', () => {
 });
 
 describe('notOnboardedCount', () => {
-  it('adds due and overdue officers who have not onboarded', () => {
+  it('adds due and overdue declarants who have not onboarded', () => {
     expect(notOnboardedCount(summary())).toBe(13);
   });
 });

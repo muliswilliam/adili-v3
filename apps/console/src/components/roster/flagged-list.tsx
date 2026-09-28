@@ -6,6 +6,7 @@ import {
   type DataTableColumn,
   Dialog,
   EmptyState,
+  formatDate,
   Icon,
   Skeleton,
   Table,
@@ -26,7 +27,6 @@ import type {
   RosterRecordPage,
 } from '../../server/directory/client';
 import { keepRosterRecords } from '../../server/roster-exits';
-import { formatDate } from '../format';
 import { LoadError, NoAccess } from '../load-error';
 import { goToSignIn } from '../sign-in-redirect';
 import { ConfirmExitsDialogContent } from './confirm-exits-dialog';

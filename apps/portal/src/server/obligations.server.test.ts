@@ -1,9 +1,9 @@
 import createClient from 'openapi-fetch';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mockDeclarationsFetch } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
-import { loadMyObligations, loadObligation } from './obligations.server';
+import { asDeclarant, loadMyObligations, loadObligation } from './obligations.server';
 
 /** An unsigned token carrying just the claims the mock reads. */
 function token(claims: Record<string, unknown>) {
@@ -116,5 +116,24 @@ describe('loadObligation', () => {
     expect(await loadObligation(client(declarant, unreachable), id)).toEqual({
       status: 'unavailable',
     });
+  });
+});
+
+describe('asDeclarant', () => {
+  it('answers unauthenticated without calling the service when there is no session', async () => {
+    const send = vi.fn(mockDeclarationsFetch);
+    const work = vi.fn(loadMyObligations);
+
+    const result = await asDeclarant(null, (accessToken) => client(accessToken, send), work);
+
+    expect(result).toEqual({ status: 'unauthenticated' });
+    expect(work).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('calls the service as the session user', async () => {
+    const result = await asDeclarant({ accessToken: declarant }, client, loadMyObligations);
+
+    expect(result.status).toBe('ok');
   });
 });

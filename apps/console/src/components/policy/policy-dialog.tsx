@@ -10,6 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  formatDate,
   FormField,
   Icon,
   Input,
@@ -23,7 +24,6 @@ import {
 import { type SyntheticEvent, useId, useRef, useState } from 'react';
 
 import type { DirectoryResult, TenantPolicyVersion } from '../../server/directory/client';
-import { formatDate } from '../format';
 import { messages as m } from './messages';
 import { checkStartDate, type PolicyAlert, policyFailure } from './policy-form';
 
@@ -141,7 +141,7 @@ export function PolicyDialogContent({
         className="flex min-h-0 flex-1 flex-col"
       >
         <DialogBody>
-          <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-[18px] border-0 p-0">
+          <fieldset disabled={submitting} className="m-0 grid min-w-0 gap-4.5 border-0 p-0">
             <div ref={alertsRef} tabIndex={-1} className="outline-none empty:hidden">
               {state.alert ? (
                 <SaveAlert
@@ -197,7 +197,7 @@ export function PolicyDialogContent({
               {m.cancel}
             </Button>
           </DialogClose>
-          <Button type="submit" disabled={submitting} className="min-w-[220px]">
+          <Button type="submit" disabled={submitting} className="min-w-55">
             {submitting ? (
               <>
                 <Icon icon={Loading03Icon} className="animate-spin" />

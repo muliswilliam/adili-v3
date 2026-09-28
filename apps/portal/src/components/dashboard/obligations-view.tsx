@@ -23,6 +23,7 @@ import {
   type LoadObligationDetail,
   ObligationStatus,
   OverdueNote,
+  SessionEnded,
   StartDeclarationButton,
   StatementDateTerm,
 } from './obligation-parts';
@@ -87,6 +88,15 @@ export function ObligationsView({ result, onRetry, loadDetail, now }: ViewProps)
     </h2>
   );
 
+  if (result.status === 'unauthenticated') {
+    return (
+      <section aria-labelledby={headingId}>
+        {heading}
+        <SessionEnded />
+      </section>
+    );
+  }
+
   if (result.status === 'unavailable') {
     return (
       <section aria-labelledby={headingId}>
@@ -141,7 +151,7 @@ export function ObligationsView({ result, onRetry, loadDetail, now }: ViewProps)
   );
 
   return (
-    <section aria-labelledby={headingId} className="grid gap-[18px]">
+    <section aria-labelledby={headingId} className="grid gap-4.5">
       {heading}
       {grouped
         ? groups.map((group) => (
@@ -173,12 +183,11 @@ export function ObligationsView({ result, onRetry, loadDetail, now }: ViewProps)
 
 const cardTone = {
   // A warm tint and a glow in the corner for what needs doing now, as in the prototype.
-  due: 'bg-linear-135 from-brand-faint to-brand-subtle ring-1 ring-brand/20 before:from-brand/14',
-  overdue:
-    'bg-linear-135 from-warning-subtle/50 to-warning-subtle ring-1 ring-warning/25 before:from-warning/12',
-  upcoming: 'bg-card shadow-card',
-  filed: 'bg-linear-135 from-success-subtle/50 to-success-subtle ring-1 ring-success/20',
-  cancelled: 'bg-card shadow-card',
+  due: 'bg-linear-135 from-brand-faint to-brand-subtle before:from-brand/14',
+  overdue: 'bg-linear-135 from-warning-subtle/50 to-warning-subtle before:from-warning/12',
+  upcoming: '',
+  filed: 'bg-linear-135 from-success-subtle/50 to-success-subtle',
+  cancelled: '',
 } satisfies Record<Obligation['status'], string>;
 
 function ObligationCard({
@@ -199,49 +208,56 @@ function ObligationCard({
   const pressing = status === 'due' || status === 'overdue';
   return (
     // The whole card opens the drawer for pointer users; Details is the keyboard way in.
-    <article
-      aria-labelledby={headingId}
-      onClick={(event: MouseEvent) => {
-        if (!(event.target instanceof Element) || !event.target.closest('button, a, [tabindex]')) {
-          onOpen();
-        }
-      }}
+    <Card
+      asChild
       className={cn(
-        'relative cursor-pointer overflow-hidden rounded-[20px] p-[22px] transition-shadow hover:shadow-card sm:px-7 sm:py-[26px]',
+        'relative cursor-pointer overflow-hidden transition-shadow hover:shadow-control-hover',
         pressing &&
-          'before:pointer-events-none before:absolute before:top-0 before:right-0 before:h-[200px] before:w-[240px] before:bg-radial-[circle_at_100%_0] before:to-transparent before:to-65%',
+          'before:pointer-events-none before:absolute before:top-0 before:right-0 before:h-50 before:w-60 before:bg-radial-[circle_at_100%_0] before:to-transparent before:to-65%',
         cardTone[status],
       )}
     >
-      <div className="relative flex flex-wrap items-center gap-2">
-        <ObligationStatus obligation={obligation} now={now} onCard />
-      </div>
-      <Heading
-        id={headingId}
-        className="relative mt-2.5 text-xl leading-tight font-semibold tracking-[-0.02em] sm:text-[22px]"
+      <article
+        aria-labelledby={headingId}
+        onClick={(event: MouseEvent) => {
+          if (
+            !(event.target instanceof Element) ||
+            !event.target.closest('button, a, [tabindex]')
+          ) {
+            onOpen();
+          }
+        }}
       >
-        {title}
-      </Heading>
-      <dl className="relative mt-[18px] mb-5 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-[repeat(3,auto)] sm:justify-start sm:gap-x-10">
-        <CardFact pressing={pressing} term={<StatementDateTerm />}>
-          {formatDate(obligation.statementDate)}
-        </CardFact>
-        <CardFact pressing={pressing} term={m.due}>
-          {formatDate(obligation.dueDate)}
-        </CardFact>
-        <CardFact pressing={pressing} term={m.reminders} className="col-span-2 sm:col-span-1">
-          {remindersSentLabel(obligation.remindersSent)}
-        </CardFact>
-      </dl>
-      {status === 'overdue' ? <OverdueNote className="relative -mt-1.5 mb-4" /> : null}
-      <div className="relative flex flex-wrap items-center gap-2.5">
-        <StartDeclarationButton />
-        <Button variant="secondary" onClick={onOpen}>
-          {m.details}
-          <span className="sr-only">{m.detailsOf(title)}</span>
-        </Button>
-      </div>
-    </article>
+        <div className="relative flex flex-wrap items-center gap-2">
+          <ObligationStatus obligation={obligation} now={now} onCard />
+        </div>
+        <Heading
+          id={headingId}
+          className="relative mt-2.5 text-xl leading-tight font-semibold tracking-tight"
+        >
+          {title}
+        </Heading>
+        <dl className="relative mt-4.5 mb-5 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-[repeat(3,auto)] sm:justify-start sm:gap-x-10">
+          <CardFact pressing={pressing} term={<StatementDateTerm />}>
+            {formatDate(obligation.statementDate)}
+          </CardFact>
+          <CardFact pressing={pressing} term={m.due}>
+            {formatDate(obligation.dueDate)}
+          </CardFact>
+          <CardFact pressing={pressing} term={m.reminders} className="col-span-2 sm:col-span-1">
+            {remindersSentLabel(obligation.remindersSent)}
+          </CardFact>
+        </dl>
+        {status === 'overdue' ? <OverdueNote className="relative -mt-1.5 mb-4" /> : null}
+        <div className="relative flex flex-wrap items-center gap-2.5">
+          <StartDeclarationButton />
+          <Button variant="secondary" onClick={onOpen}>
+            {m.details}
+            <span className="sr-only">{m.detailsOf(title)}</span>
+          </Button>
+        </div>
+      </article>
+    </Card>
   );
 }
 
@@ -276,13 +292,13 @@ export function ObligationsSkeleton() {
   return (
     <section aria-busy="true" aria-label={m.loading} className="grid gap-3.5">
       {[0, 1].map((key) => (
-        <div key={key} className="grid gap-3 rounded-[20px] bg-card p-6 shadow-card">
-          <Skeleton className="h-[22px] w-[90px] rounded-full" />
-          <Skeleton className="h-5 w-[55%]" />
+        <Card key={key} className="grid gap-3">
+          <Skeleton className="h-6 w-22 rounded-full" />
+          <Skeleton className="h-5 w-1/2" />
           <Skeleton className="w-4/5" />
           <Skeleton className="w-2/5" />
-          <Skeleton className="h-10 w-[150px] rounded-lg" />
-        </div>
+          <Skeleton className="h-11 w-40 rounded-lg" />
+        </Card>
       ))}
     </section>
   );

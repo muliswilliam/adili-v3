@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   CardIcon,
+  formatDateTime,
   Icon,
   type IconProps,
   Menu,
@@ -31,7 +32,7 @@ import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
-import { formatDateTime, formatNumber, formatRelativeTime } from '../../components/format';
+import { formatNumber, formatRelativeTime } from '../../components/format';
 import { LoadError } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { type CredentialState, credentialState } from '../../components/roster/api-credential';

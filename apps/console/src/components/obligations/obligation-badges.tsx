@@ -1,16 +1,10 @@
-import { Badge, Icon, obligationStatusLabel, obligationStatusMeta, StatusBadge } from '@adili/ui';
+import { Badge, DateText, Icon } from '@adili/ui';
 import { MinusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 
-import type { ObligationStatus } from '../../server/declarations/client';
+import type { ObligationListItem } from '../../server/declarations/client';
 import { messages as m } from './messages';
 
-/** An obligation's status as a badge with its word (spec 04: the variants of the shared table). */
-export function ObligationStatusBadge({ status }: { status: ObligationStatus }) {
-  const variant = status === 'cancelled' ? 'neutral' : obligationStatusMeta[status].variant;
-  return <StatusBadge variant={variant}>{obligationStatusLabel(status)}</StatusBadge>;
-}
-
-/** Whether the officer has onboarded: "Yes" with a tick, or a plain "No". */
+/** Whether the declarant has onboarded: "Yes" with a tick, or a plain "No". */
 export function OnboardedBadge({ onboarded }: { onboarded: boolean }) {
   return onboarded ? (
     <Badge variant="success">
@@ -23,4 +17,25 @@ export function OnboardedBadge({ onboarded }: { onboarded: boolean }) {
       {m.no}
     </Badge>
   );
+}
+
+/**
+ * Days left or overdue ("Due in 12 days", "3 days overdue"), or when an upcoming one opens.
+ * Nothing for a filed or cancelled obligation: its due date no longer counts down.
+ */
+export function ObligationWhen({
+  obligation,
+}: {
+  obligation: Pick<ObligationListItem, 'status' | 'statementDate' | 'dueDate'>;
+}) {
+  switch (obligation.status) {
+    case 'upcoming':
+      return <DateText date={obligation.statementDate} kind="opens" />;
+    case 'due':
+    case 'overdue':
+      return <DateText date={obligation.dueDate} />;
+    case 'filed':
+    case 'cancelled':
+      return null;
+  }
 }
