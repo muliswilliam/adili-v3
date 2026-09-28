@@ -22,7 +22,7 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     outputs:
-      images: ${{ steps.plan.outputs.images }}
+      packaging: ${{ steps.plan.outputs.packaging }}
       keycloak: ${{ steps.plan.outputs.keycloak }}
       integration: ${{ steps.plan.outputs.integration }}
       python: ${{ steps.plan.outputs.python }}
@@ -39,6 +39,7 @@ jobs:
   typescript:
     name: TypeScript (lint, typecheck, test, build, contracts)
     runs-on: ubuntu-latest
+    needs: plan
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v6
@@ -71,6 +72,21 @@ jobs:
       # committed packages/schemas/internal/<service>.yaml (directory, documents).
       - name: Internal contracts match the services
         run: pnpm contracts:drift
+      # What the image does after the build (infra/docker/service.Dockerfile), on this job's
+      # install: a production install per service, whose code must load without dev packages.
+      - name: Services package for production
+        if: needs.plan.outputs.packaging != '[]'
+        env:
+          SERVICES: ${{ needs.plan.outputs.packaging }}
+        run: |
+          for service in $(echo "$SERVICES" | jq -r '.[]'); do
+            echo "::group::$service"
+            pnpm --filter "@adili/$service" deploy --prod --legacy "$RUNNER_TEMP/deploy/$service"
+            node --experimental-import-meta-resolve scripts/check-deploy-imports.mjs \
+              "$RUNNER_TEMP/deploy/$service"
+            rm -rf "$RUNNER_TEMP/deploy/$service"
+            echo '::endgroup::'
+          done
 
   keycloak:
     name: Keycloak
@@ -287,34 +303,18 @@ jobs:
       - name: External contracts match the mocks
         run: uv run python manage.py export_contracts && git diff --exit-code ../packages/schemas
 
-  # One job for all affected services: the builds share the runner's pnpm store instead of each
-  # exporting ~200 MB of layers to the Actions cache.
-  images:
-    name: Service images
+  # Every service builds from the same Dockerfile, so one image checks it end to end; the
+  # TypeScript job packages each affected service the way the image does.
+  image:
+    name: Service image (${{ fromJson(needs.plan.outputs.packaging)[0] }})
     runs-on: ubuntu-latest
     needs: [plan, typescript]
-    if: needs.plan.outputs.images != '[]'
-    env:
-      SERVICES: ${{ needs.plan.outputs.images }}
+    if: needs.plan.outputs.packaging != '[]'
     steps:
       - uses: actions/checkout@v5
-      - name: Build the images
-        run: |
-          failed=''
-          for service in $(echo "$SERVICES" | jq -r '.[]'); do
-            echo "::group::$service"
-            docker build -f infra/docker/service.Dockerfile --build-arg SERVICE="$service" \
-              -t "adili/$service:ci" . || failed="$failed $service"
-            # Kept layers filled the runner's disk after six builds. Pruning only regular layers
-            # keeps the pnpm store cache mount for the next build.
-            docker image rm "adili/$service:ci" > /dev/null 2>&1 || true
-            docker builder prune -af --filter type=regular > /dev/null
-            echo '::endgroup::'
-          done
-          if [ -n "$failed" ]; then
-            echo "::error::Image builds failed:$failed"
-            exit 1
-          fi
+      - env:
+          SERVICE: ${{ fromJson(needs.plan.outputs.packaging)[0] }}
+        run: docker build -f infra/docker/service.Dockerfile --build-arg SERVICE="$SERVICE" .
 
   ci-passed:
     name: CI passed
