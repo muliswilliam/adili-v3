@@ -34,6 +34,13 @@ export {
   type DataTableSelection,
 } from './components/data-table';
 export {
+  DateText,
+  type DateTextKind,
+  type DateTextProps,
+  type DateTextState,
+  duePhrase,
+} from './components/date-text';
+export {
   DeadlineChip,
   type DeadlineChipProps,
   deadlineSoonDays,
@@ -58,6 +65,19 @@ export {
   DialogTitle,
   DialogTrigger,
 } from './components/dialog';
+export {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  type DrawerContentProps,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  drawerVariants,
+} from './components/drawer';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
 export {
   FileDropZone,
@@ -125,6 +145,17 @@ export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
 export { Spinner } from './components/spinner';
 export {
+  StatTile,
+  type StatTileBreakdownItem,
+  type StatTileProps,
+  type StatTileTone,
+} from './components/stat-tile';
+export {
+  StatusBadge,
+  type StatusBadgeProps,
+  type StatusBadgeVariant,
+} from './components/status-badge';
+export {
   StatusMark,
   type StatusMarkProps,
   type StatusMarkTone,
@@ -157,9 +188,12 @@ export {
   useCountdownAnnouncement,
 } from './lib/countdown';
 export {
+  calendarDaysUntil,
   formatCalendarDate,
   formatDate,
   formatDateTime,
+  formatLongDate,
   formatMonth,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { useToday } from './lib/use-today';

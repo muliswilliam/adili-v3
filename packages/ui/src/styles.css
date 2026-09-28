@@ -213,14 +213,23 @@
   --shadow-button-destructive: var(--elevation-button-destructive);
 }
 
-/* Skeleton shimmer and the indeterminate progress sweep. */
+/* Skeleton shimmer, the indeterminate progress sweep and the drawer's slide in. */
 @theme {
   --animate-shimmer: shimmer 1.2s linear infinite;
   --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
+  --animate-drawer-in: drawer-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
 
   @keyframes shimmer {
     to {
       background-position: -200% 0;
+    }
+  }
+
+  /* The kit's .drawer slidein. */
+  @keyframes drawer-in {
+    from {
+      transform: translateX(30px);
+      opacity: 0;
     }
   }
 
