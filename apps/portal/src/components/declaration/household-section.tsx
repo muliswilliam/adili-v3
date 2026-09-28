@@ -63,6 +63,7 @@ import {
   optionsOf,
 } from '../../declaration/labels';
 import { relationship, stepLink } from './steps';
+import { useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const HOUSEHOLD_COPY = {
@@ -150,7 +151,7 @@ export function HouseholdSection({
   const [editing, setEditing] = useState<string | null>(() =>
     showErrors ? firstItemWithIssue(issues) : null,
   );
-  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  const { touch: touchKey, shown } = useShownErrors(showErrors);
   const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
   const [badDates, setBadDates] = useState<ReadonlySet<string>>(new Set());
   const [removal, setRemoval] = useState<PendingRemoval | null>(null);
@@ -169,8 +170,7 @@ export function HouseholdSection({
   }
 
   function touch(id: string, field: PersonField) {
-    const key = `${id}:${field}`;
-    setTouched((current) => (current.has(key) ? current : new Set([...current, key])));
+    touchKey(`${id}:${field}`);
   }
 
   function itemIssues(id: string | undefined) {
@@ -183,9 +183,9 @@ export function HouseholdSection({
     }
     const found = itemIssues(id).find((candidate) => candidate.field === field);
     if (!found) return undefined;
-    const shown =
-      found.kind === 'invalid' || showErrors || visited.has(id) || touched.has(`${id}:${field}`);
-    return shown ? found.message : undefined;
+    return found.kind === 'invalid' || visited.has(id) || shown(`${id}:${field}`)
+      ? found.message
+      : undefined;
   }
 
   function setBadDate(key: string, invalid: boolean) {

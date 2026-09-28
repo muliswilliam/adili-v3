@@ -15,7 +15,7 @@ import {
 } from '@adili/ui';
 import { RepeatIcon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
@@ -39,6 +39,7 @@ import {
   NO_MATERIAL_CHANGES,
 } from '../../declaration/other';
 import { personLabel, stepLink } from './steps';
+import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 type Other = Draft<OtherInformation>;
@@ -73,18 +74,6 @@ function cardAt(path: string | undefined): OpenCard | null {
     path ?? '',
   );
   return match ? { list: match[1] as ListName, index: Number(match[2]) } : null;
-}
-
-/** Focuses the field at a path, or in a card the first invalid field, else its first field. */
-function focusPath(path: string) {
-  const element = document.getElementById(idFor(path));
-  if (!element) return;
-  const target =
-    element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
-      ? element
-      : (element.querySelector<HTMLElement>('[aria-invalid="true"]') ??
-        element.querySelector<HTMLElement>('input, textarea, [role="combobox"]'));
-  target?.focus();
 }
 
 function MaterialChanges({
@@ -273,7 +262,7 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
     return { ...section, contents };
   });
   const { value, update, issues } = useSectionAutosave<Other>(editable, etag);
-  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  const { touch, shown } = useShownErrors(showErrors);
   // With every issue shown, the first card with one opens so its fields can be fixed.
   const [editing, setEditing] = useState<OpenCard | null>(() =>
     showErrors ? cardAt(issues[0]?.path) : null,
@@ -286,26 +275,19 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
   const dual: DraftDualCitizenship = interests.dualCitizenship ?? {};
   const freeText = value.freeText ?? '';
 
-  function touch(path: string) {
-    setTouched((current) => (current.has(path) ? current : new Set([...current, path])));
-  }
-
   function issueAt(path: string): CompletenessIssue | undefined {
     return issues.find((candidate) => candidate.path === path);
   }
 
   function error(path: string) {
     const found = issueAt(path);
-    return found && (showErrors || touched.has(path)) ? found.message : undefined;
+    return found && shown(path) ? found.message : undefined;
   }
 
-  useEffect(() => {
-    if (!showErrors) return;
+  useFocusFirstError(showErrors, () => {
     const first = issues[0];
-    if (first) focusPath(first.path);
-    // Only when arriving with errors shown.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showErrors]);
+    return first ? idFor(first.path) : null;
+  });
 
   const setInterests = (patch: (current: Interests) => Interests) => {
     update((current) => ({
