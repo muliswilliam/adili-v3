@@ -1,6 +1,6 @@
 import { formatDateTime } from '@adili/ui';
 
-import type { Label } from './labels';
+import { en, english } from './translatable';
 
 /**
  * The one table of copy for spec 05b in the portal: Check registries, Read into the form, the
@@ -11,27 +11,6 @@ import type { Label } from './labels';
  * (`suggestions.ts`, `extraction.ts`, `roster-prefill.ts`) hold no words of their own, and the
  * ui components keep their own copy, replaced through their `messages` props.
  */
-
-/** Copy with values: English, and a Swahili slot of the same shape, empty until translated. */
-export interface Phrase<A extends unknown[]> {
-  en: (...args: A) => string;
-  /** Empty until translated. */
-  sw: ((...args: A) => string) | '';
-}
-
-function en(text: string): Label;
-function en<A extends unknown[]>(text: (...args: A) => string): Phrase<A>;
-function en<T>(text: T): { en: T; sw: '' } {
-  return { en: text, sw: '' };
-}
-
-type English<T> = { [K in keyof T]: T[K] extends { en: infer E } ? E : never };
-
-function english<T extends Record<string, { en: unknown; sw: unknown }>>(table: T): English<T> {
-  return Object.fromEntries(
-    Object.entries(table).map(([key, entry]) => [key, entry.en]),
-  ) as English<T>;
-}
 
 export const PREFILL_COPY = {
   /** The Check registries panel on a statement (#312). */

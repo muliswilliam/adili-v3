@@ -11,6 +11,7 @@ import type {
   OccupationSector,
 } from './contents';
 import type { Category } from './statement';
+import { en, english, type Label } from './translatable';
 
 /**
  * The one table of labels for declaration capture (the spec's i18n table): the declaration.v1
@@ -26,21 +27,7 @@ import type { Category } from './statement';
  * `copy.ts`, with the same treatment.
  */
 
-export interface Label {
-  en: string;
-  /** Empty until translated. */
-  sw: string;
-}
-
 type Labels<T extends string> = Record<T, Label>;
-
-function english<T extends string>(labels: Labels<T>): Record<T, string> {
-  return Object.fromEntries(
-    (Object.entries(labels) as [T, Label][]).map(([value, label]) => [value, label.en]),
-  ) as Record<T, string>;
-}
-
-const en = (text: string): Label => ({ en: text, sw: '' });
 
 export const LABELS = {
   obligationType: {
