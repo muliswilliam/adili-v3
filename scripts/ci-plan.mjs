@@ -41,7 +41,15 @@ function withoutPrototypes() {
   const prototypes = changed.filter((file) => /(^|\/)prototype\//.test(file));
   if (prototypes.length === 0) return 'HEAD';
   const dir = mkdtempSync(join(tmpdir(), 'ci-plan-'));
-  const env = { ...process.env, GIT_INDEX_FILE: join(dir, 'index') };
+  // commit-tree needs an identity, and CI runners have none configured.
+  const env = {
+    ...process.env,
+    GIT_INDEX_FILE: join(dir, 'index'),
+    GIT_AUTHOR_NAME: 'ci-plan',
+    GIT_AUTHOR_EMAIL: 'ci-plan@localhost',
+    GIT_COMMITTER_NAME: 'ci-plan',
+    GIT_COMMITTER_EMAIL: 'ci-plan@localhost',
+  };
   const gitWith = (...args) => execFileSync('git', args, { encoding: 'utf8', env }).trim();
   try {
     gitWith('read-tree', 'HEAD');
