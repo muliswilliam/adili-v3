@@ -5,6 +5,7 @@ export {
   declarationIssues,
   type PersonKey,
   sectionContents,
+  sectionIssues,
   sectionSchema,
   validateDeclaration,
 } from './declaration.js';

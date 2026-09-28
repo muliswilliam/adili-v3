@@ -74,6 +74,53 @@ const FIXED_SECTIONS: Record<
 
 const PERSON_KEY = new RegExp(schema.$defs.PersonKey.pattern, 'u');
 
+// One validator per capture section, over the same schema, so a draft's section can be checked
+// on its own when it is saved. Each keeps the root's $defs so its references resolve.
+const sectionValidator = (sectionSchema: object) =>
+  compileFieldProblems({ $defs: schema.$defs, ...sectionSchema });
+const fixedSectionValidator = (key: FixedSectionKey) => {
+  const { fields, keepsFieldName } = FIXED_SECTIONS[key];
+  const { properties } = schema;
+  return sectionValidator(
+    keepsFieldName
+      ? {
+          type: 'object',
+          required: fields,
+          additionalProperties: false,
+          properties: Object.fromEntries(fields.map((field) => [field, properties[field]])),
+        }
+      : properties[fields[0]],
+  );
+};
+// Typed so that a section key without a validator fails typecheck.
+const SECTION_VALIDATORS: Record<
+  FixedSectionKey | 'statement',
+  ReturnType<typeof sectionValidator>
+> = {
+  bio: fixedSectionValidator('bio'),
+  household: fixedSectionValidator('household'),
+  other: fixedSectionValidator('other'),
+  statement: sectionValidator({ $ref: '#/$defs/Statement' }),
+};
+
+/**
+ * What a capture section's contents still need or get wrong under `declaration.v1`, as
+ * `declarationIssues` reports them for the whole declaration.
+ */
+export function sectionIssues(key: DeclarationSectionKey, contents: unknown): DeclarationIssue[] {
+  const found = (isStatementKey(key) ? SECTION_VALIDATORS.statement : SECTION_VALIDATORS[key])(
+    contents,
+  );
+  return found
+    .filter((problem) => problem.code !== 'if')
+    .map(({ segments, code, message }) => ({
+      sectionKey: key,
+      path: jsonPointer(segments),
+      code,
+      message,
+    }));
+}
+
 function isStatementKey(key: DeclarationSectionKey): key is `statement:${PersonKey}` {
   return key.startsWith('statement:');
 }
