@@ -77,7 +77,8 @@ function percentOf(value: number, max: number): number {
 
 interface PlotProps {
   series: readonly ChartSeries[];
-  data: readonly ChartDatum[];
+  /** Category labels, one per datum. */
+  labels: readonly string[];
   /** `values[datumIndex][seriesIndex]`, read once from `data`. */
   values: readonly (readonly ChartValue[])[];
   max: number;
@@ -118,7 +119,8 @@ export function Chart({
   const gapLabels = { suppressed: suppressedLabel, missing: missingLabel };
   const valueText = (value: ChartValue) =>
     isPlotted(value) ? formatValue(value) : gapLabels[valueState(value)];
-  const plot: PlotProps = { series, data, values, max: axisMax };
+  const labels = data.map((datum) => datum.label);
+  const plot: PlotProps = { series, labels, values, max: axisMax };
 
   return (
     <figure className={cn('flex flex-col gap-3', className)} {...props}>
@@ -169,7 +171,7 @@ export function Chart({
                       key={s.key}
                       className={cn(
                         'text-right tabular-nums',
-                        valueState(value) !== 'value' && 'text-muted-foreground',
+                        !isPlotted(value) && 'text-muted-foreground',
                       )}
                     >
                       {valueText(value)}
@@ -185,13 +187,13 @@ export function Chart({
   );
 }
 
-function BarPlot({ series, data, values, max, valueText }: BarPlotProps) {
+function BarPlot({ series, labels, values, max, valueText }: BarPlotProps) {
   return (
     // Subgrids share one value column, so every track ends at the same place whatever the label.
     <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-3">
-      {data.map((datum, datumIndex) => (
+      {labels.map((label, datumIndex) => (
         <div key={datumIndex} className="col-span-2 grid grid-cols-subgrid gap-y-1">
-          <span className="col-span-2 text-sm text-foreground">{datum.label}</span>
+          <span className="col-span-2 text-sm text-foreground">{label}</span>
           {series.map((s, seriesIndex) => {
             const value = values[datumIndex]?.[seriesIndex];
             return (
@@ -221,11 +223,11 @@ function BarPlot({ series, data, values, max, valueText }: BarPlotProps) {
   );
 }
 
-function LinePlot({ series, data, values, max, ticks, formatValue }: LinePlotProps) {
+function LinePlot({ series, labels, values, max, ticks, formatValue }: LinePlotProps) {
   const xOf = (datumIndex: number) =>
-    data.length > 1 ? roundFloatNoise((datumIndex / (data.length - 1)) * 100) : 50;
+    labels.length > 1 ? roundFloatNoise((datumIndex / (labels.length - 1)) * 100) : 50;
   const yOf = (value: number) => roundFloatNoise(100 - percentOf(value, max));
-  const lastIndex = data.length - 1;
+  const lastIndex = labels.length - 1;
   const point = ({ index, value }: { index: number; value: number }) =>
     `${xOf(index)},${yOf(value)}`;
   // End labels align inwards so they never spill past the plot on narrow screens.
@@ -302,14 +304,14 @@ function LinePlot({ series, data, values, max, ticks, formatValue }: LinePlotPro
           ))}
         </div>
         <div className="relative mt-1.5 h-4 text-xs text-muted-foreground">
-          {labelledIndexes(data.length, MAX_X_LABELS).map((datumIndex) => (
+          {labelledIndexes(labels.length, MAX_X_LABELS).map((datumIndex) => (
             <span
               key={datumIndex}
               data-chart-x-label=""
               className={cn('absolute whitespace-nowrap', alignOf(datumIndex))}
               style={{ left: `${xOf(datumIndex)}%` }}
             >
-              {data[datumIndex]?.label}
+              {labels[datumIndex]}
             </span>
           ))}
         </div>
