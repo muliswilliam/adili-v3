@@ -6,6 +6,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
+import { ownTenantContext } from '../../commissions/access.js';
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
@@ -141,8 +142,7 @@ export class ApiCredentialService {
     slug: string,
     work: (tx: Transaction) => Promise<T>,
   ): Promise<T> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
-    return withTenant(this.db, { tenant: slug, subject: principal.subject }, work);
+    return withTenant(this.db, ownTenantContext(principal, slug), work);
   }
 
   /**

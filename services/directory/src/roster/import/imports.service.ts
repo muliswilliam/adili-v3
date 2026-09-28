@@ -1,11 +1,11 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { InjectTemporalClient } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
-import { canSeeCommission, tenantContextOf } from '../../commissions/access.js';
+import { canSeeCommission, ownTenantContext, tenantContextOf } from '../../commissions/access.js';
 import { requireCommission } from '../../commissions/require-commission.js';
 import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
@@ -66,7 +66,7 @@ export class RosterImportsService {
     slug: string,
     body: StartFileImportBody,
   ): Promise<RosterImport> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    const context = ownTenantContext(principal, slug);
     if (isHrSystem(principal)) {
       throw new ProblemException({
         type: 'about:blank',
@@ -80,7 +80,7 @@ export class RosterImportsService {
       .catch((error: unknown) => {
         throw this.asProblem(error);
       });
-    return this.start(principal, slug, {
+    return this.start(principal, context, {
       channel: 'file',
       declaredComplete: body.declaredComplete,
       uploadId: upload.id,
@@ -100,10 +100,9 @@ export class RosterImportsService {
     slug: string,
     body: StartBatchImportBody,
   ): Promise<RosterImport> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
     return this.start(
       principal,
-      slug,
+      ownTenantContext(principal, slug),
       { channel: 'api', declaredComplete: false, uploadId: null, fileName: null, format: 'json' },
       body.rows,
     );
@@ -119,11 +118,11 @@ export class RosterImportsService {
    */
   private async start(
     principal: Principal,
-    slug: string,
+    context: TenantContext,
     source: Pick<ImportRow, 'channel' | 'declaredComplete' | 'uploadId' | 'fileName' | 'format'>,
     batchRows?: RawRosterRow[],
   ): Promise<RosterImport> {
-    const context = { tenant: slug, subject: principal.subject };
+    const slug = context.tenant;
     let row: ImportRow;
     try {
       row = await withTenant(this.db, context, async (tx) => {
@@ -142,7 +141,7 @@ export class RosterImportsService {
       });
     } catch (error) {
       if (violatedUniqueConstraint(error) === 'roster_imports_one_in_progress_key') {
-        const running = await this.runningImport(slug, principal);
+        const running = await this.runningImport(context);
         if (running?.state === 'pending') await this.recoverPending(running);
         throw new ProblemException(
           {
@@ -179,10 +178,7 @@ export class RosterImportsService {
    * the workflow did start after all (the start's outcome was lost) and has picked it up: then
    * returns it as it is now.
    */
-  private async withdraw(
-    row: ImportRow,
-    context: { tenant: string; subject: string },
-  ): Promise<ImportRow | undefined> {
+  private async withdraw(row: ImportRow, context: TenantContext): Promise<ImportRow | undefined> {
     return withTenant(this.db, context, async (tx) => {
       const deleted = await tx
         .delete(rosterImports)
@@ -266,9 +262,9 @@ export class RosterImportsService {
     slug: string,
     body: PreviewRosterImportBody,
   ): Promise<RosterImportPreview> {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
+    const { tenant } = ownTenantContext(principal, slug);
     try {
-      const upload = await this.uploads.open({ tenant: slug, uploadId: body.uploadId });
+      const upload = await this.uploads.open({ tenant, uploadId: body.uploadId });
       return { uploadId: upload.id, ...(await previewRosterFile(upload)) };
     } catch (error) {
       throw this.asProblem(error);
@@ -276,20 +272,17 @@ export class RosterImportsService {
   }
 
   /** The tenant's pending or processing import, if it has not ended in the meantime. */
-  private async runningImport(slug: string, principal: Principal): Promise<ImportRow | undefined> {
-    const [running] = await withTenant(
-      this.db,
-      { tenant: slug, subject: principal.subject },
-      (tx) =>
-        tx
-          .select()
-          .from(rosterImports)
-          .where(
-            and(
-              eq(rosterImports.tenant, slug),
-              inArray(rosterImports.state, ['pending', 'processing']),
-            ),
+  private async runningImport(context: TenantContext): Promise<ImportRow | undefined> {
+    const [running] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select()
+        .from(rosterImports)
+        .where(
+          and(
+            eq(rosterImports.tenant, context.tenant),
+            inArray(rosterImports.state, ['pending', 'processing']),
           ),
+        ),
     );
     return running;
   }

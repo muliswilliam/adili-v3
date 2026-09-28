@@ -5,6 +5,7 @@ import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/ap
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { and, asc, eq, gt } from 'drizzle-orm';
 
+import { ownTenantContext } from '../../commissions/access.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { isHrSystem } from '../api-credential/hr-system-access.js';
 import { recordsReadContext } from '../records/access.js';
@@ -141,8 +142,7 @@ export class RosterImportRowsService {
  */
 function rowsReadContext(principal: Principal, slug: string): TenantContext {
   if (isHrSystem(principal)) {
-    notFoundIfInvisible(slug, () => principal.tenant === slug);
-    return { tenant: slug, subject: principal.subject };
+    return ownTenantContext(principal, slug);
   }
   return recordsReadContext(principal, slug);
 }
