@@ -20,6 +20,7 @@ import {
   RadioCard,
   RadioGroup,
   Spinner,
+  SUGGESTION_MESSAGES,
 } from '@adili/ui';
 import {
   Alert02Icon,
@@ -514,7 +515,7 @@ function Review({
         {working === 'refreshing' ? (
           <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner className="size-4" />
-            {COPY.refreshing}
+            {SUGGESTION_MESSAGES.refreshing}
           </p>
         ) : null}
       </DialogBody>

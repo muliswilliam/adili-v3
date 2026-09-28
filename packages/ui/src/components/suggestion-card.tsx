@@ -66,7 +66,8 @@ export interface SuggestionMessages {
   refreshing: string;
 }
 
-const DEFAULT_MESSAGES: SuggestionMessages = {
+/** The card's default copy; screens that show the same states reuse it. */
+export const SUGGESTION_MESSAGES: SuggestionMessages = {
   source: (source, date) => `From ${source}, ${date}`,
   add: 'Add',
   editAndAdd: 'Edit and add',
@@ -156,7 +157,7 @@ export function SuggestionCard({
   className,
   ...props
 }: SuggestionCardProps) {
-  const messages = { ...DEFAULT_MESSAGES, ...overrides };
+  const messages = { ...SUGGESTION_MESSAGES, ...overrides };
   const titleId = useId();
   const Heading = `h${String(headingLevel)}` as 'h3';
   const sourceLine = messages.source(SOURCE_NAMES[source], formatDate(at));

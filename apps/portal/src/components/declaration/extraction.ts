@@ -8,6 +8,7 @@ import type {
 } from '../../server/declarations.server';
 import {
   editFields,
+  fieldText as text,
   type PatchEntry,
   readPath,
   suggestionKind,
@@ -67,7 +68,6 @@ export const EXTRACTION_COPY = {
     `Could not read this document (${reason}). You can enter the details manually.`,
   tryAgain: 'Try again',
   notEnabledBody: 'Reading documents into the form is not enabled for your Commission.',
-  refreshing: 'Section changed. Refreshing…',
   applied: 'Details applied to this item',
   added: 'Added as a new item',
   applyFailed: 'The details could not be added. Try again.',
@@ -98,12 +98,6 @@ function score(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
     ? value
     : null;
-}
-
-function text(value: unknown): string {
-  if (typeof value === 'string') return value.trim();
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return '';
 }
 
 /** Labels for fields "Edit and add" does not offer. */

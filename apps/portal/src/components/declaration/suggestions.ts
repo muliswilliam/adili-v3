@@ -11,7 +11,7 @@ import type {
 import { ASSET_TYPES, type Draft, INCOME_TYPES, LIABILITY_TYPES, type Statement } from './contents';
 import { countyName } from './format';
 import { TYPE_LABELS } from './labels';
-import { type Category, type Item, NIL_KEY } from './statement';
+import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
 
 /**
  * Pure rules for registry suggestions (spec 05b), shared by the Check registries panel and the
@@ -42,7 +42,7 @@ export interface SuggestionLike {
 }
 
 /** A field's value as text: trimmed strings and numbers; anything else is empty. */
-function text(value: unknown): string {
+export function fieldText(value: unknown): string {
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   return '';
@@ -67,13 +67,13 @@ const COMPLIANCE_WORDS: Record<string, string> = {
 
 /** A KRA compliance status in words; unknown values are shown as sent. */
 export function complianceText(value: unknown): string {
-  const status = text(value);
+  const status = fieldText(value);
   return COMPLIANCE_WORDS[status.toLowerCase()] ?? status;
 }
 
 /** 500 → "500 shares"; "12.5%" or "500 shares" as sent. */
 export function sharesText(value: unknown): string {
-  const shares = text(value);
+  const shares = fieldText(value);
   return /^\d[\d,]*$/.test(shares) ? `${shares} shares` : shares;
 }
 
@@ -128,20 +128,23 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     title: (fields) =>
       joined(
         [
-          text(fields.registration),
-          joined([text(fields.make), text(fields.model), text(fields.year)], ' '),
+          fieldText(fields.registration),
+          joined([fieldText(fields.make), fieldText(fields.model), fieldText(fields.year)], ' '),
         ],
         ' · ',
       ),
     patch: (fields) => [
-      ...entry('details.registration', 'Registration', text(fields.registration)),
+      ...entry('details.registration', 'Registration', fieldText(fields.registration)),
       ...entry(
         'details.makeModel',
         'Make and model',
-        joined([joined([text(fields.make), text(fields.model)], ' '), text(fields.year)], ', '),
+        joined(
+          [joined([fieldText(fields.make), fieldText(fields.model)], ' '), fieldText(fields.year)],
+          ', ',
+        ),
       ),
     ],
-    description: (fields) => joined([text(fields.make), text(fields.model)], ' '),
+    description: (fields) => joined([fieldText(fields.make), fieldText(fields.model)], ' '),
     identifier: 'details.registration',
     editFields: [
       { key: 'registration', label: 'Registration' },
@@ -154,18 +157,18 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
   land: {
     key: 'land',
     target: 'item',
-    title: (fields) => joined([text(fields.parcelNumber), text(fields.size)], ' · '),
+    title: (fields) => joined([fieldText(fields.parcelNumber), fieldText(fields.size)], ' · '),
     patch: (fields) => {
-      const county = text(fields.county);
+      const county = fieldText(fields.county);
       return [
-        ...entry('details.parcelNumber', 'Parcel or plot number', text(fields.parcelNumber)),
-        ...entry('details.size', 'Size', text(fields.size)),
-        ...entry('location.detail', 'Location', text(fields.location)),
+        ...entry('details.parcelNumber', 'Parcel or plot number', fieldText(fields.parcelNumber)),
+        ...entry('details.size', 'Size', fieldText(fields.size)),
+        ...entry('location.detail', 'Location', fieldText(fields.location)),
         ...entry('location.county', 'County', county, countyName(county) ?? county),
       ];
     },
     description: (fields) => {
-      const location = text(fields.location);
+      const location = fieldText(fields.location);
       return location ? `Land in ${location}` : '';
     },
     identifier: 'details.parcelNumber',
@@ -180,13 +183,16 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     key: 'shares',
     target: 'item',
     title: (fields) =>
-      joined([text(fields.companyName), sharesText(fields.shares) || text(fields.role)], ' · '),
+      joined(
+        [fieldText(fields.companyName), sharesText(fields.shares) || fieldText(fields.role)],
+        ' · ',
+      ),
     patch: (fields) => [
-      ...entry('details.issuer', 'Company or issuer', text(fields.companyName)),
+      ...entry('details.issuer', 'Company or issuer', fieldText(fields.companyName)),
       ...entry('details.quantityOrPercent', 'Number or percentage', sharesText(fields.shares)),
     ],
     description: (fields) => {
-      const company = text(fields.companyName);
+      const company = fieldText(fields.companyName);
       return company ? `Shares in ${company}` : '';
     },
     identifier: 'details.issuer',
@@ -210,7 +216,7 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     key: 'tax',
     target: 'tax',
     title: (fields) => {
-      const pin = text(fields.kraPin);
+      const pin = fieldText(fields.kraPin);
       const compliance = complianceText(fields.complianceStatus);
       return joined(
         [pin ? `KRA PIN ${maskKraPin(pin)}` : '', compliance ? `Compliance: ${compliance}` : ''],
@@ -218,7 +224,7 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
       );
     },
     patch: (fields) => {
-      const pin = text(fields.kraPin);
+      const pin = fieldText(fields.kraPin);
       return entry('kraPin', 'KRA PIN', pin, maskKraPin(pin));
     },
     identifier: null,
@@ -289,7 +295,9 @@ export function typeWord(itemType: string): string {
  * Falls back to the item type in words when the fields say nothing usable.
  */
 export function suggestionTitle({ itemType, fields }: SuggestionLike): string {
-  return suggestionKind(itemType).title(fields) || text(fields.description) || typeWord(itemType);
+  return (
+    suggestionKind(itemType).title(fields) || fieldText(fields.description) || typeWord(itemType)
+  );
 }
 
 /**
@@ -303,7 +311,11 @@ export function suggestionPatch({ itemType, fields }: SuggestionLike): PatchEntr
   if (!kind.description) return patch;
   return [
     ...patch,
-    ...entry('description', 'Description', text(fields.description) || kind.description(fields)),
+    ...entry(
+      'description',
+      'Description',
+      fieldText(fields.description) || kind.description(fields),
+    ),
   ];
 }
 
@@ -315,7 +327,7 @@ export function identifierPath(itemType: string): string | null {
 /** Identifiers compare without case, spaces or separators: "kca-123 a" is "KCA123A". */
 export function sameIdentifier(a: unknown, b: unknown): boolean {
   const normal = (value: unknown) =>
-    text(value)
+    fieldText(value)
       .toUpperCase()
       .replace(/[\s/.,-]+/g, '');
   return normal(a) !== '' && normal(a) === normal(b);
@@ -476,6 +488,23 @@ export function withSuggestion(
   );
 }
 
+/** The category and item with this id in a statement-shaped object, or null. */
+function locateItem(statement: object, itemId: string): { category: Category; item: Item } | null {
+  for (const category of CATEGORIES) {
+    const items = (statement as Record<string, unknown>)[category];
+    if (!Array.isArray(items)) continue;
+    const item: unknown = items.find(
+      (candidate: unknown) =>
+        typeof candidate === 'object' &&
+        candidate !== null &&
+        !Array.isArray(candidate) &&
+        (candidate as { id?: unknown }).id === itemId,
+    );
+    if (item) return { category, item: item as Item };
+  }
+  return null;
+}
+
 /**
  * The statement as the declarant has it, with the item an accept added or filled taken from
  * the section as the service now holds it. Everything else stays as edited on screen.
@@ -485,38 +514,23 @@ export function withAcceptedItem(
   fresh: JsonObject,
   itemId: string,
 ): Draft<Statement> {
-  for (const category of ['income', 'assets', 'liabilities'] as const) {
-    const items = fresh[category];
-    if (!Array.isArray(items)) continue;
-    const item = items.find(
-      (candidate) =>
-        typeof candidate === 'object' &&
-        candidate !== null &&
-        !Array.isArray(candidate) &&
-        candidate.id === itemId,
-    );
-    if (!item) continue;
-    const accepted = item as Item;
-    const current: Item[] = local[category] ?? [];
-    const exists = current.some((each) => each.id === itemId);
-    return {
-      ...local,
-      [NIL_KEY[category]]: false,
-      [category]: exists
-        ? current.map((each) => (each.id === itemId ? accepted : each))
-        : [...current, accepted],
-    };
-  }
-  return local;
+  const found = locateItem(fresh, itemId);
+  if (!found) return local;
+  const { category, item: accepted } = found;
+  const current: Item[] = local[category] ?? [];
+  const exists = current.some((each) => each.id === itemId);
+  return {
+    ...local,
+    [NIL_KEY[category]]: false,
+    [category]: exists
+      ? current.map((each) => (each.id === itemId ? accepted : each))
+      : [...current, accepted],
+  };
 }
 
 /** Where an item lives in a statement, to open it from an accepted card. */
 export function categoryOfItem(statement: Draft<Statement>, itemId: string): Category | null {
-  for (const category of ['income', 'assets', 'liabilities'] as const) {
-    const items: Item[] = statement[category] ?? [];
-    if (items.some((item) => item.id === itemId)) return category;
-  }
-  return null;
+  return locateItem(statement, itemId)?.category ?? null;
 }
 
 /** The editable fields for a suggestion's type, then Description. */
@@ -529,7 +543,7 @@ export function editValue(suggestion: SuggestionLike, key: string): string {
   if (key === 'description') {
     return suggestionPatch(suggestion).find((each) => each.path === 'description')?.value ?? '';
   }
-  return text(suggestion.fields[key]);
+  return fieldText(suggestion.fields[key]);
 }
 
 /**

@@ -154,6 +154,7 @@ export {
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
 export {
   emptyFieldDiff,
+  SUGGESTION_MESSAGES,
   SuggestionCard,
   type SuggestionCardProps,
   type SuggestionField,
