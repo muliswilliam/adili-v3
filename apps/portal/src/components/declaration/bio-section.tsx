@@ -39,7 +39,7 @@ function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commiss
     ['Responsible Commission', commission],
   ];
   return (
-    <section aria-labelledby="roster-heading" className="grid gap-3 rounded-xl bg-muted p-5">
+    <section aria-labelledby="roster-heading" className="grid gap-3 rounded-lg bg-muted p-5">
       <div className="flex items-center gap-2">
         <Icon icon={LockIcon} className="size-4 text-muted-foreground" />
         <h2 id="roster-heading" className="text-base font-semibold">

@@ -320,7 +320,7 @@ export function HouseholdSection({
 
             {state === 'not-expected' ? (
               <EmptyState
-                className="rounded-xl bg-muted py-6"
+                className="rounded-lg bg-muted py-6"
                 icon={<Icon icon={FavouriteIcon} />}
                 title={HOUSEHOLD_COPY.noSpouse}
                 text={

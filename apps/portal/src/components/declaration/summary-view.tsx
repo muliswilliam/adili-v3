@@ -122,10 +122,7 @@ function BlockingPanel({ summary, sections }: { summary: LoadedSummary; sections
   const headingId = useId();
   const { groups, hidden } = blockingGroups(summary.blocking, sections);
   return (
-    <section
-      aria-labelledby={headingId}
-      className="grid gap-3 rounded-xl border border-warning/40 bg-warning-subtle p-5"
-    >
+    <section aria-labelledby={headingId} className="grid gap-3 rounded-lg bg-warning-subtle p-5">
       <h2 id={headingId} className="flex items-center gap-2 text-base font-semibold">
         <Icon icon={Alert02Icon} className="size-5 text-warning" />
         {blockingTitle(summary.blocking.length)}
@@ -523,11 +520,7 @@ function StatementsCard({
         {persons.map((person, index) => {
           const title = statementTitle(person.key, person.name);
           return (
-            <details
-              key={person.key}
-              open={index === 0}
-              className="group rounded-xl border border-border"
-            >
+            <details key={person.key} open={index === 0} className="group rounded-2xl shadow-card">
               <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-4 py-3">
                 <h3 className="flex-1 font-semibold">
                   {person.name}
@@ -674,7 +667,7 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
       <StatementsCard summary={summary} document={document} />
       <OtherCard summary={summary} document={document} />
 
-      <section aria-labelledby={solemnId} className="grid gap-2 rounded-xl bg-muted p-5">
+      <section aria-labelledby={solemnId} className="grid gap-2 rounded-lg bg-muted p-5">
         <h2 id={solemnId} className="text-base font-semibold">
           Solemn declaration
         </h2>

@@ -107,7 +107,7 @@ function MaterialChanges({
           </div>
         </div>
         {entries.length === 0 ? (
-          <p className="rounded-xl bg-muted px-4 py-5 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg bg-muted px-4 py-5 text-center text-sm text-muted-foreground">
             {NO_MATERIAL_CHANGES}
           </p>
         ) : (
