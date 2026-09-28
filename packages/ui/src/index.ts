@@ -87,6 +87,14 @@ export {
   maskEmail,
   maskPhone,
 } from './components/masked-contact';
+export {
+  Menu,
+  MenuItem,
+  type MenuItemProps,
+  MenuNote,
+  type MenuNoteProps,
+  type MenuProps,
+} from './components/menu';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
