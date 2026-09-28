@@ -18,8 +18,9 @@ const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea
 
 /**
  * Whether an element can take initial focus: it is not the built-in close button, not disabled,
- * not taken out of the tab order, not inside a hidden or inert subtree and not hidden by CSS. Walks up the tree with
- * getComputedStyle rather than using getClientRects, which is empty for everything in jsdom.
+ * not taken out of the tab order, not inside a hidden or inert subtree and not hidden by CSS.
+ * Walks up the tree with getComputedStyle rather than using getClientRects, which is empty for
+ * everything in jsdom.
  */
 function isInitialFocusTarget(element: HTMLElement, container: HTMLElement): boolean {
   if (element.tabIndex < 0 || element.matches(':disabled')) return false;
