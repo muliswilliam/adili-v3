@@ -5,24 +5,24 @@ import { and, eq, sql } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import { PLATFORM_TENANT } from '../../commissions/access.js';
-import { commissions } from '../../commissions/schema.js';
 import { config } from '../../config.js';
 import type { DirectorySchema } from '../../db/schema.js';
-import { rosterRecords, rosterSummaries } from '../../roster/schema.js';
-import { normaliseFileNumber, normaliseNationalId } from '../normalise.js';
+import { fileNumberKey, normaliseNationalId } from '../../roster/normalise.js';
+import { rosterRecords } from '../../roster/schema.js';
+import { findActiveCommission } from '../commissions/onboarding-commission.js';
+import { OnboardingFailures } from '../failures/onboarding-failures.js';
 import { OtpIssuer } from '../otp/otp-issuer.js';
 import { reject, unwrap } from '../rejection.js';
 import type { IdentifyDeclarantBody, OnboardingSessionCreated } from '../representation.js';
 import { keyedHash } from '../secret.js';
 import { ONBOARDING_SUBJECT, OnboardingSessions } from '../sessions.repository.js';
-import { IdentifyFailureCounter } from './failure-counter.js';
 
 /**
  * Identify (spec 03, step 2): matches a personnel file number and national ID against one
  * Commission's roster and starts an onboarding session for the record.
  *
  * - The Commission must be active and have imported a roster, else 409 `no-roster` (the route's
- *   rate limits refund it: the Commission list already says so).
+ *   rate limits refund it: the Commission list already says so). An unknown slug is the same.
  * - Match rule: the record of that Commission whose file number equals the input trimmed and
  *   case-insensitively, and whose national ID equals the input's digits.
  * - No such record, or an `exited` one: 404 `no-match`, one answer for every cause (wrong ID,
@@ -30,7 +30,8 @@ import { IdentifyFailureCounter } from './failure-counter.js';
  *   failure count), so neither the body nor the timing says which. Counted per Commission.
  * - An `onboarded` record: 409 `already-onboarded` with sign-in and recover-access links.
  * - Otherwise a session starts. With an email on the record its code is sent at once
- *   (`email-pending`); without one the declarant supplies it (`email-contact-required`).
+ *   (`email-pending`, the send outside the transaction: `OtpIssuer.sending`); without one the
+ *   declarant supplies it (`email-contact-required`).
  */
 @Injectable()
 export class IdentifyService {
@@ -38,7 +39,7 @@ export class IdentifyService {
     @InjectDatabase() private readonly db: Database<DirectorySchema>,
     private readonly sessions: OnboardingSessions,
     private readonly otp: OtpIssuer,
-    private readonly failures: IdentifyFailureCounter,
+    private readonly failures: OnboardingFailures,
     private readonly clock: Clock,
   ) {}
 
@@ -46,17 +47,19 @@ export class IdentifyService {
     body: IdentifyDeclarantBody,
     clientIp: string | undefined,
   ): Promise<OnboardingSessionCreated> {
-    const now = this.clock.now();
-    const commission = await this.commission(body.commission);
-    if (!commission) throw noMatch();
-    if (!commission.hasRoster) throw ProblemException.fromCode('no-roster');
-
-    const fileNumber = normaliseFileNumber(body.personnelFileNumber);
-    const nationalId = normaliseNationalId(body.nationalId);
-    const result = await withTenant(
+    const commission = await withTenant(
       this.db,
-      { tenant: commission.slug, subject: ONBOARDING_SUBJECT },
-      async (tx) => {
+      { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT },
+      (tx) => findActiveCommission(tx, body.commission),
+    );
+    if (!commission?.hasRoster) throw ProblemException.fromCode('no-roster');
+
+    const fileNumber = fileNumberKey(body.personnelFileNumber);
+    const nationalId = normaliseNationalId(body.nationalId);
+    const clientIpHash = clientIp ? keyedHash(config.ONBOARDING_HMAC_KEY, 'ip', clientIp) : null;
+    const result = await this.otp.sending((issue) =>
+      withTenant(this.db, { tenant: commission.slug, subject: ONBOARDING_SUBJECT }, async (tx) => {
+        const now = this.clock.now();
         const [record] = await tx
           .select({
             id: rosterRecords.id,
@@ -85,13 +88,13 @@ export class IdentifyService {
             rosterRecordId: record.id,
             email: record.email,
             phone: record.phone,
-            clientIpHash: clientIp ? keyedHash(config.ONBOARDING_HMAC_KEY, 'ip', clientIp) : null,
+            clientIpHash,
           },
           now,
         );
         let current;
         if (session.email) {
-          await this.otp.issue(tx, session, 'email', { commissionName: commission.name, now });
+          await issue(tx, session, 'email', { commissionName: commission.name, now });
           current = await this.sessions.transition(tx, session, 'email-pending', now, {
             extend: false,
           });
@@ -101,27 +104,9 @@ export class IdentifyService {
           });
         }
         return { ...(await this.sessions.view(tx, current, now)), secret };
-      },
+      }),
     );
     return unwrap(result);
-  }
-
-  private async commission(slug: string) {
-    const [row] = await withTenant(
-      this.db,
-      { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT },
-      (tx) =>
-        tx
-          .select({
-            slug: commissions.slug,
-            name: commissions.name,
-            lastImportId: rosterSummaries.lastImportId,
-          })
-          .from(commissions)
-          .leftJoin(rosterSummaries, eq(rosterSummaries.tenant, commissions.slug))
-          .where(and(eq(commissions.slug, slug), eq(commissions.status, 'active'))),
-    );
-    return row && { slug: row.slug, name: row.name, hasRoster: row.lastImportId !== null };
   }
 }
 

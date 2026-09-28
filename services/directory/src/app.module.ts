@@ -21,6 +21,7 @@ import { RosterExitsModule } from './roster/exits/exits.module.js';
 import { RosterImportModule } from './roster/import/import.module.js';
 import { RosterRecordsModule } from './roster/records/records.module.js';
 import { RosterModule } from './roster/roster.module.js';
+import { DirectoryWorkerModule } from './worker.module.js';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { RosterModule } from './roster/roster.module.js';
     RosterExitsModule,
     OnboardingModule,
     PersonsModule,
+    DirectoryWorkerModule,
   ],
   controllers: [MeController],
 })

@@ -1,16 +1,17 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { type Database, InjectDatabase, switchTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { Clock } from '../clock.js';
 import { PLATFORM_TENANT } from '../commissions/access.js';
 import type { Transaction } from '../commissions/commissions.service.js';
-import { commissions } from '../commissions/schema.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { persons } from '../persons/schema.js';
-import { reportingEntities, rosterRecords, rosterSummaries } from '../roster/schema.js';
+import { reportingEntities, rosterRecords } from '../roster/schema.js';
+import { commissionOfSession } from './commissions/onboarding-commission.js';
+import { sessionContact } from './contacts.js';
 import {
   onboardingSessionAdvanced,
   onboardingSessionEnded,
@@ -96,14 +97,14 @@ export class OnboardingSessions {
     if (!UUID.test(sessionId) || !secret) throw sessionNotFound();
     const now = this.clock.now();
     const result = await this.db.transaction(async (tx) => {
-      await setContext(tx, PLATFORM_TENANT);
+      await switchTenant(tx, { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT });
       const [session] = await tx
         .select()
         .from(onboardingSessions)
         .where(eq(onboardingSessions.id, sessionId))
         .for('update');
       if (!session || !secretMatches(secret, session.secretHash)) return reject(sessionNotFound());
-      await setContext(tx, session.tenant);
+      await switchTenant(tx, { tenant: session.tenant, subject: ONBOARDING_SUBJECT });
       if (hasExpired(session, now)) {
         if (!isTerminal(session.state)) await this.end(tx, session, 'expired', now);
         return reject(sessionEnded());
@@ -221,18 +222,7 @@ export class OnboardingSessions {
 
   /** The session as the contract shows it: masked contacts, roster details once due. */
   async view(tx: Transaction, session: SessionRow, now: Date): Promise<OnboardingSession> {
-    const [commission] = await tx
-      .select({
-        slug: commissions.slug,
-        name: commissions.name,
-        lastImportId: rosterSummaries.lastImportId,
-      })
-      .from(commissions)
-      .leftJoin(rosterSummaries, eq(rosterSummaries.tenant, commissions.slug))
-      .where(eq(commissions.slug, session.tenant));
-    if (!commission)
-      throw new Error(`Commission ${session.tenant} of session ${session.id} is gone`);
-
+    const commission = await commissionOfSession(tx, session);
     const channel = pendingChannel(session.state);
     const [otp] = channel
       ? await tx
@@ -247,12 +237,7 @@ export class OnboardingSessions {
     return {
       id: session.id,
       state: session.state,
-      commission: {
-        slug: commission.slug,
-        issuerCode: commission.slug.toUpperCase(),
-        name: commission.name,
-        hasRoster: commission.lastImportId !== null,
-      },
+      commission,
       contacts: {
         email: contactView(session, 'email'),
         phone: contactView(session, 'phone'),
@@ -326,16 +311,8 @@ function passwordEmailAvailableAt(session: SessionRow, now: Date): string | null
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function setContext(tx: Transaction, tenant: string): Promise<void> {
-  await tx.execute(
-    sql`select set_config('app.tenant', ${tenant}, true), set_config('app.subject', ${ONBOARDING_SUBJECT}, true)`,
-  );
-}
-
 function contactView(session: SessionRow, channel: OtpChannel) {
-  const value = channel === 'email' ? session.email : session.phone;
-  const source = channel === 'email' ? session.emailSource : session.phoneSource;
-  const verifiedAt = channel === 'email' ? session.emailVerifiedAt : session.phoneVerifiedAt;
+  const { value, source, verifiedAt } = sessionContact(session, channel);
   if (value === null || source === null) return null;
   return { masked: maskContact(channel, value), source, verified: verifiedAt !== null };
 }
@@ -343,7 +320,7 @@ function contactView(session: SessionRow, channel: OtpChannel) {
 /** 404 for an unknown session, a malformed id and a missing or wrong secret alike. */
 export function sessionNotFound(): ProblemException {
   return new ProblemException({
-    type: 'not-found',
+    type: 'about:blank',
     title: 'Not Found',
     status: HttpStatus.NOT_FOUND,
     detail: 'No such onboarding session.',

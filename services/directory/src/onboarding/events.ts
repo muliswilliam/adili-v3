@@ -89,8 +89,8 @@ export interface OnboardingAbuseThresholdData extends Record<string, unknown> {
 }
 
 /**
- * Failed identify attempts against the Commission reached `ONBOARDING_ABUSE_THRESHOLD` in one
- * hour: a stale roster or an attack. Recorded once per window.
+ * Failed onboarding attempts against the Commission (`onboarding_failures`) reached
+ * `ONBOARDING_ABUSE_THRESHOLD` in one hour: a stale roster or an attack. Recorded once per window.
  */
 export const onboardingAbuseThreshold = tenantEvent<OnboardingAbuseThresholdData>(
   ONBOARDING_ABUSE_THRESHOLD,

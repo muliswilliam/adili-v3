@@ -3,7 +3,13 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
-import { onboardingOtps, onboardingSessions, outbox, rosterRecords } from '../../src/db/schema.js';
+import {
+  onboardingFailures,
+  onboardingOtps,
+  onboardingSessions,
+  outbox,
+  rosterRecords,
+} from '../../src/db/schema.js';
 import type {
   OnboardingSession,
   OnboardingSessionCreated,
@@ -100,6 +106,14 @@ function codeSentTo(to: string): string {
 
 /** A 6-digit code other than `code`. */
 const otherThan = (code: string) => (code === '000000' ? '111111' : '000000');
+
+/** Failed attempts counted against `tenant`, over every window. */
+async function failuresOf(tenant: string) {
+  const rows = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+    tx.select().from(onboardingFailures).where(eq(onboardingFailures.tenant, tenant)),
+  );
+  return rows.reduce((sum, row) => sum + row.failures, 0);
+}
 
 async function sessionRow(id: string) {
   const [row] = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
@@ -266,7 +280,10 @@ describe('S7 email code', () => {
       expectProblem(await verify(session, 'email', wrong), 400, 'otp-invalid', { attemptsLeft });
     }
     expect((await read(session)).json<OnboardingSession>().otp.attemptsLeft).toBe(1);
+    expect(await failuresOf('tsc')).toBe(0);
     expectProblem(await verify(session, 'email', wrong), 410, 'session-expired');
+    // Running out of codes counts against the Commission as a no-match at identify does.
+    expect(await failuresOf('tsc')).toBe(1);
 
     expect(await sessionRow(session.id)).toMatchObject({
       state: 'expired',
@@ -391,6 +408,7 @@ describe('S8 resend', () => {
     api.clock.advance(MINUTE);
     expectProblem(await resend(session, 'email'), 410, 'session-expired');
 
+    expect(await failuresOf('tsc')).toBe(1);
     expect(api.otpDelivery.sent()).toHaveLength(4);
     expect(await sessionRow(session.id)).toMatchObject({
       state: 'expired',
@@ -418,6 +436,23 @@ describe('S8 resend', () => {
     api.clock.advance(MINUTE);
     expect((await resend(session, 'phone')).statusCode).toBe(202);
     expect(api.otpDelivery.sent(WANJIRU.phone)).toHaveLength(2);
+  });
+
+  it('sends the code outside its transaction: the session stays readable meanwhile', async () => {
+    const session = await start(WANJIRU);
+    api.clock.advance(MINUTE);
+    const release = api.otpDelivery.holdNext();
+
+    const resending = resend(session, 'email');
+    await expect.poll(() => api.otpDelivery.holding).toBe(true);
+    const during = await read(session);
+    release();
+
+    expect(during.statusCode).toBe(200);
+    expect(during.json<OnboardingSession>().otp.resendsLeft).toBe(3);
+
+    expect((await resending).statusCode).toBe(202);
+    expect((await read(session)).json<OnboardingSession>().otp.resendsLeft).toBe(2);
   });
 
   it('changes nothing when the new code cannot be sent: no resend used, no cooldown started', async () => {

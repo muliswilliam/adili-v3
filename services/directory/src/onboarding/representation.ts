@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { slugSchema } from '../commissions/create-commission.js';
 import { CONTACT_SOURCES } from '../roster/schema.js';
-import { normaliseEmail, normalisePhone } from './contact.js';
+import { normaliseEmail, normalisePhone } from '../roster/normalise.js';
 import { ONBOARDING_OUTCOMES, ONBOARDING_STATES, OTP_CHANNELS } from './session-state.js';
 
 /** Representations of the public onboarding API (contract components of the same names). */

@@ -11,6 +11,7 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 
+import { DECLARANT_ROLE } from '../identity/identity-provisioning.js';
 import { PersonsService } from './persons.service.js';
 import {
   type DeclarantProfile,
@@ -58,15 +59,16 @@ export class DeclarantProfileController {
   constructor(private readonly persons: PersonsService) {}
 
   @Get('declarant')
+  @Roles(DECLARANT_ROLE)
   @ApiOperation({
     operationId: 'getMyDeclarantProfile',
     summary: "The signed-in declarant's person, OFR, Commissions and verified contacts",
     description:
-      "Any authenticated caller; the person is the one whose account is the token's subject, so a caller only ever reads their own. The portal dashboard reads it.",
+      'Declarants only, their own: the person is the one whose account is the token\'s subject. The portal dashboard reads it, and takes 403 and 404 alike as "not a declarant".',
   })
   @ApiOkResponse({ description: 'Profile', schema: schemaRef('DeclarantProfile') })
   @ApiProblemResponse(401, 'Missing, expired or invalid access token')
-  @ApiProblemResponse(404, 'The caller is not an onboarded declarant')
+  @ApiProblemResponse(404, 'The account has the declarant role but no onboarded person')
   profile(@CurrentPrincipal() principal: Principal): Promise<DeclarantProfile> {
     return this.persons.declarantProfile(principal.subject);
   }

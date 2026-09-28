@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
+import { fileNumberKey } from '../normalise.js';
 import type { NormalisedRosterRow, RowError, RowNote } from '../row-validation.js';
 import {
   type ImportChannel,
@@ -333,11 +334,6 @@ async function nationalIdsOnOtherRosters(
   `);
   const found = rows[0]?.found ?? [];
   return new Set(nationalIds.filter((_, index) => found[index] === true));
-}
-
-/** Personnel file numbers identify records case-insensitively. */
-function fileNumberKey(fileNumber: string): string {
-  return fileNumber.toLowerCase();
 }
 
 /** Reporting entities are identified by lower-cased, whitespace-collapsed name. */

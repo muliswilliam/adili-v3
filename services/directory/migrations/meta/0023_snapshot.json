@@ -1,6 +1,6 @@
 {
-  "id": "ed3ca26e-011e-4279-a137-9c6e9e9d1233",
-  "prevId": "5f3bb99f-a3a7-4539-8546-ffeeee6b1e4a",
+  "id": "54cda2bc-ac8a-45dc-a316-091c25736229",
+  "prevId": "3961af23-0d59-4284-b374-c8649efa6efb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -481,8 +481,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.onboarding_attempts": {
-      "name": "onboarding_attempts",
+    "public.onboarding_failures": {
+      "name": "onboarding_failures",
       "schema": "",
       "columns": {
         "tenant": {
@@ -506,9 +506,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "onboarding_attempts_tenant_commissions_slug_fk": {
-          "name": "onboarding_attempts_tenant_commissions_slug_fk",
-          "tableFrom": "onboarding_attempts",
+        "onboarding_failures_tenant_commissions_slug_fk": {
+          "name": "onboarding_failures_tenant_commissions_slug_fk",
+          "tableFrom": "onboarding_failures",
           "columnsFrom": [
             "tenant"
           ],
@@ -521,8 +521,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "onboarding_attempts_tenant_window_start_pk": {
-          "name": "onboarding_attempts_tenant_window_start_pk",
+        "onboarding_failures_tenant_window_start_pk": {
+          "name": "onboarding_failures_tenant_window_start_pk",
           "columns": [
             "tenant",
             "window_start"
@@ -597,15 +597,17 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "onboarding_otps_session_id_onboarding_sessions_id_fk": {
-          "name": "onboarding_otps_session_id_onboarding_sessions_id_fk",
+        "onboarding_otps_session_fk": {
+          "name": "onboarding_otps_session_fk",
           "tableFrom": "onboarding_otps",
           "columnsFrom": [
-            "session_id"
+            "session_id",
+            "tenant"
           ],
           "tableTo": "onboarding_sessions",
           "columnsTo": [
-            "id"
+            "id",
+            "tenant"
           ],
           "onUpdate": "no action",
           "onDelete": "cascade"
@@ -860,7 +862,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "onboarding_sessions_id_tenant_key": {
+          "name": "onboarding_sessions_id_tenant_key",
+          "columns": [
+            "id",
+            "tenant"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "onboarding_sessions_state_check": {

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-  type OnApplicationShutdown,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, asc, lte, notInArray } from 'drizzle-orm';
 
@@ -14,43 +9,22 @@ import { onboardingSessions } from '../schema.js';
 import { TERMINAL_STATES } from '../session-state.js';
 import { OnboardingSessions } from '../sessions.repository.js';
 
-const SWEEP_INTERVAL_MS = 60 * 1000;
 const BATCH_SIZE = 500;
 
 /**
- * Ends live sessions past their expiry (`expired`, event outcome `expired`), every minute, so the
- * audit trail shows abandoned sessions end without a request touching them (spec 03). Requests on
- * an expired session end it themselves, so the sweep is never needed for correctness. Every
- * replica runs it; sessions are locked and skipped when another replica has them.
+ * Ends live sessions past their expiry (`expired`, event outcome `expired`), so the audit trail
+ * shows abandoned sessions end without a request touching them (spec 03). Run every minute by
+ * the `onboarding-session-expiry` Temporal schedule (`expiry-schedule.ts`, ADR-003), once for the
+ * whole service, not per replica. Requests on an expired session end it themselves, so the sweep
+ * is never needed for correctness; sessions a request holds are skipped until the next run.
  */
 @Injectable()
-export class OnboardingSessionSweeper implements OnApplicationBootstrap, OnApplicationShutdown {
-  private readonly logger = new Logger(OnboardingSessionSweeper.name);
-  private timer: NodeJS.Timeout | undefined;
-
+export class OnboardingSessionSweeper {
   constructor(
     @InjectDatabase() private readonly db: Database<DirectorySchema>,
     private readonly sessions: OnboardingSessions,
     private readonly clock: Clock,
   ) {}
-
-  onApplicationBootstrap(): void {
-    this.timer = setInterval(() => {
-      this.sweep().then(
-        (ended) => {
-          if (ended > 0) this.logger.log(`Ended ${ended} expired onboarding sessions`);
-        },
-        (error: unknown) => {
-          this.logger.warn({ err: error }, 'Sweeping expired onboarding sessions failed');
-        },
-      );
-    }, SWEEP_INTERVAL_MS);
-    this.timer.unref();
-  }
-
-  onApplicationShutdown(): void {
-    clearInterval(this.timer);
-  }
 
   /** Ends every live session past its expiry at the clock's time; returns how many. */
   async sweep(): Promise<number> {

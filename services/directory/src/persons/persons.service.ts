@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { notFoundIfInvisible } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { asc, eq } from 'drizzle-orm';
 
@@ -19,16 +19,8 @@ export class PersonsService {
   /** The person whose Keycloak account is `subject`, with their roster records; 404 if none. */
   async declarantProfile(subject: string): Promise<DeclarantProfile> {
     return withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, async (tx) => {
-      const [person] = await tx.select().from(persons).where(eq(persons.keycloakUserId, subject));
-      if (!person) {
-        throw new ProblemException({
-          type: 'about:blank',
-          title: 'Not Found',
-          status: HttpStatus.NOT_FOUND,
-          detail: 'The signed-in account is not an onboarded declarant.',
-        });
-      }
-      const found = person;
+      const [found] = await tx.select().from(persons).where(eq(persons.keycloakUserId, subject));
+      const person = notFoundIfInvisible(found);
       const records = await tx
         .select({
           slug: commissions.slug,
@@ -40,13 +32,13 @@ export class PersonsService {
         })
         .from(rosterRecords)
         .innerJoin(commissions, eq(commissions.slug, rosterRecords.tenant))
-        .where(eq(rosterRecords.personId, found.id))
+        .where(eq(rosterRecords.personId, person.id))
         .orderBy(asc(commissions.name), asc(rosterRecords.id));
       return {
-        personId: found.id,
-        ofr: found.ofr,
-        fullName: found.fullName,
-        contacts: { email: found.email, phone: found.phone },
+        personId: person.id,
+        ofr: person.ofr,
+        fullName: person.fullName,
+        contacts: { email: person.email, phone: person.phone },
         commissions: records.map((record) => ({
           ...record,
           onboardedAt: record.onboardedAt?.toISOString() ?? null,

@@ -14,6 +14,8 @@ import {
 } from '@adili/api-kit';
 import { createValkey, VALKEY } from '@adili/cache';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { TEMPORAL_CLIENT } from '@adili/temporal';
+import { type Client as TemporalClient, ScheduleNotFoundError } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 
@@ -31,6 +33,10 @@ import { InMemoryIprsLookup } from '../../src/onboarding/iprs/in-memory-iprs-loo
 import { IprsLookup } from '../../src/onboarding/iprs/iprs-lookup.js';
 import { InMemoryOtpDelivery } from '../../src/onboarding/otp/in-memory-otp-delivery.js';
 import { OtpDelivery } from '../../src/onboarding/otp/otp-delivery.js';
+import {
+  OnboardingExpirySchedule,
+  onboardingExpiryScheduleId,
+} from '../../src/onboarding/sessions/expiry-schedule.js';
 import { InMemoryRosterUploads } from '../../src/roster/import/in-memory-roster-uploads.js';
 import { RosterUploads } from '../../src/roster/import/roster-uploads.js';
 import { TestClock } from './clock.js';
@@ -91,6 +97,8 @@ export interface DirectoryApi {
   otpDelivery: InMemoryOtpDelivery;
   /** IPRS as the confirm step sees it (standing in for the integration-gateway). */
   iprs: InMemoryIprsLookup;
+  /** The suite's onboarding session expiry schedule, paused: trigger it to run the sweep. */
+  expirySchedule: ReturnType<TemporalClient['schedule']['getHandle']>;
   /** A request without a bearer token, as the portal BFF calls the public onboarding routes. */
   anonymous(request: AnonymousRequest): ReturnType<NestFastifyApplication['inject']>;
   /** `GET` as the given caller; returns Fastify's injected response. */
@@ -185,6 +193,14 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
   );
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
+  // The suite's own expiry schedule (its task queue is the suite's) stays paused, so no sweep
+  // ends sessions under a test that moves the clock; the schedule's test triggers it.
+  const temporal = app.get<TemporalClient>(TEMPORAL_CLIENT);
+  const expirySchedule = temporal.schedule.getHandle(onboardingExpiryScheduleId());
+  if (!(await app.get(OnboardingExpirySchedule).ensure())) {
+    throw new Error('The onboarding session expiry schedule could not be created');
+  }
+  await expirySchedule.pause('Tests trigger the sweep themselves');
 
   const write = async (
     method: 'POST' | 'PUT',
@@ -214,6 +230,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     clock,
     otpDelivery,
     iprs,
+    expirySchedule,
     anonymous({ method = 'GET', url: path, body, headers = {}, ip = '203.0.113.10' }) {
       return app.inject({
         method,
@@ -247,7 +264,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     },
     async reset() {
       await db.execute(
-        sql`truncate onboarding_otps, onboarding_sessions, onboarding_attempts, persons, numbering_counters, roster_import_batches, roster_import_rows, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
+        sql`truncate onboarding_otps, onboarding_sessions, onboarding_failures, persons, numbering_counters, roster_import_batches, roster_import_rows, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
       otpDelivery.reset();
@@ -257,6 +274,10 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
       activationLookups.expireAll();
     },
     async close() {
+      // Suites that start a second app share its task queue, and so its schedule.
+      await expirySchedule.delete().catch((error: unknown) => {
+        if (!(error instanceof ScheduleNotFoundError)) throw error;
+      });
       // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
       await db.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
       await app.close();

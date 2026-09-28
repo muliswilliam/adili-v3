@@ -1,12 +1,14 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   integer,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -83,6 +85,8 @@ export const onboardingSessions = pgTable(
     ...timestamps,
   },
   (table) => [
+    /** The target of `onboarding_otps`' foreign key: a code belongs to its session's tenant. */
+    unique('onboarding_sessions_id_tenant_key').on(table.id, table.tenant),
     index('onboarding_sessions_tenant_created_at_idx').on(table.tenant, table.createdAt),
     index('onboarding_sessions_roster_record_id_idx').on(table.rosterRecordId),
     /** The expiry sweep: live sessions by expiry. */
@@ -113,11 +117,9 @@ export const onboardingSessions = pgTable(
 export const onboardingOtps = pgTable(
   'onboarding_otps',
   {
-    sessionId: uuid()
-      .notNull()
-      .references(() => onboardingSessions.id, { onDelete: 'cascade' }),
+    sessionId: uuid().notNull(),
     channel: text({ enum: OTP_CHANNELS }).notNull(),
-    /** Denormalised from the session for RLS. */
+    /** Denormalised from the session for RLS; the foreign key keeps it the session's. */
     tenant: text().notNull(),
     /** `otpCodeHmac(key, sessionId, channel, code)`. */
     codeHmac: text().notNull(),
@@ -131,17 +133,23 @@ export const onboardingOtps = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.sessionId, table.channel] }),
+    foreignKey({
+      name: 'onboarding_otps_session_fk',
+      columns: [table.sessionId, table.tenant],
+      foreignColumns: [onboardingSessions.id, onboardingSessions.tenant],
+    }).onDelete('cascade'),
     check('onboarding_otps_channel_check', sql`${table.channel} in ('email', 'phone')`),
   ],
 );
 
 /**
- * Failed identify attempts (`no-match`) per Commission and hour, whatever the cause and caller:
- * a stale roster or an attack. Past `ONBOARDING_ABUSE_THRESHOLD` in one window the directory
+ * Failed onboarding attempts per Commission and hour, whatever the caller: identify answered
+ * `no-match`, or a session ran out of codes or resends. A stale roster or an attack; reporting
+ * officers read the recent count. Past `ONBOARDING_ABUSE_THRESHOLD` in one window the directory
  * records `onboarding.abuse-threshold.v1`.
  */
-export const onboardingAttempts = pgTable(
-  'onboarding_attempts',
+export const onboardingFailures = pgTable(
+  'onboarding_failures',
   {
     tenant: text()
       .notNull()
@@ -155,5 +163,5 @@ export const onboardingAttempts = pgTable(
 export const onboardingSchema = {
   onboardingSessions,
   onboardingOtps,
-  onboardingAttempts,
+  onboardingFailures,
 };

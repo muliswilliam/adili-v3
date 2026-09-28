@@ -35,7 +35,7 @@ export class IdentifyController {
     operationId: 'identifyDeclarant',
     summary: "Match personnel file number and national ID against a Commission's roster",
     description:
-      'Public, rate-limited per client IP and per client IP and Commission (a Commission without a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.',
+      'Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.',
   })
   @ApiBody({ schema: schemaRef('IdentifyDeclarant') })
   @ApiCreatedResponse({
@@ -48,7 +48,7 @@ export class IdentifyController {
   @ApiProblemResponse(404, 'Problem code `no-match`', 'OnboardingProblem')
   @ApiProblemResponse(
     409,
-    'Problem code `already-onboarded` (with `links`) or `no-roster`',
+    'Problem code `already-onboarded` (with `links`), or `no-roster`: no active Commission with that slug, or it has not imported a roster',
     'OnboardingProblem',
   )
   @ApiProblemResponse(

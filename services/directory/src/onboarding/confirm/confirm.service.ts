@@ -11,21 +11,22 @@ import {
   IdentityUnavailable,
   IdentityUserNotFound,
   type Restore,
+  UsernameTaken,
 } from '../../identity/identity-provisioning.js';
 import { persons } from '../../persons/schema.js';
 import { recomputeRosterSummary } from '../../roster/summary.js';
 import { rosterRecords } from '../../roster/schema.js';
+import { writeBackDeclarantContact } from '../contacts.js';
 import { declarantOnboarded, onboardingIdentityMismatch } from '../events.js';
 import { IprsLookup, IprsUnavailable } from '../iprs/iprs-lookup.js';
 import { namesMatch } from '../iprs/name-rule.js';
-import { reject } from '../rejection.js';
+import { reject, Rejection } from '../rejection.js';
 import type { OnboardingConfirmResult } from '../representation.js';
-import { extendedExpiry, type OnboardingOutcome } from '../session-state.js';
+import { extendedExpiry, type OnboardingOutcome, OTP_CHANNELS } from '../session-state.js';
 import {
   OnboardingSessions,
   sessionEnded,
   type SessionContext,
-  type SessionRow,
   wrongStep,
 } from '../sessions.repository.js';
 import { setPasswordEmail } from './set-password-email.js';
@@ -35,27 +36,45 @@ type RosterRecord = Pick<
   'id' | 'state' | 'fullName' | 'nationalId'
 >;
 
+type IprsVerdict = 'match' | 'mismatch' | 'not-found';
+
+/** What a confirm committed, and the set-password email it still has to send. */
+interface Confirmed {
+  result: OnboardingConfirmResult;
+  setPasswordEmailTo?: string;
+}
+
+/** The record changed between the IPRS check and the lock: check it again. */
+const RECHECK = Symbol('recheck');
+/** Rounds of IPRS check and lock before giving up on a record that keeps changing. */
+const MAX_ROUNDS = 3;
+
 /**
  * Confirm (spec 03, steps 5 and 6): the IPRS check, then the account.
  *
  * - The session must be `phone-verified` (409 otherwise). A record that exited, or onboarded
  *   through another session meanwhile, ends the session (410): starting again says why.
- * - IPRS through the integration-gateway, by the record's national ID. Unavailable: 503
- *   `iprs-unavailable`, nothing changes. No such person, or names that break the name rule
- *   (`name-rule.ts`): the record is flagged (`identityMismatchAt`), the session ends
- *   `identity-mismatch`, 200 with that outcome.
- * - Match, in one transaction with the identity provider's calls inside it: a person new to the
- *   platform gets an OFR, a person row and a declarant account with its set-password email
- *   (`account-created`); a person onboarded with another Commission gets this Commission added
- *   to their account (`linked-existing-account`). The record becomes `onboarded`, linked to the
- *   person, with the contacts the declarant supplied written back; the summary is recomputed; the
- *   session is `confirmed`; `declarant.onboarded.v1` is recorded.
+ * - IPRS through the integration-gateway, by the record's national ID, before any lock is taken:
+ *   a slow IPRS holds no row and no transaction. Unavailable: 503 `iprs-unavailable`, nothing
+ *   changes. The record is then locked and checked again; should its national ID or name have
+ *   changed meanwhile (an import), IPRS is asked again.
+ * - No such person, or names that break the name rule (`name-rule.ts`): the record is flagged
+ *   (`identityMismatchAt`), the session ends `identity-mismatch`, 200 with that outcome.
+ * - Match, in one transaction with the identity provider's calls inside it (spec 03): a person
+ *   new to the platform gets an OFR, a person row and a declarant account (`account-created`);
+ *   a person onboarded with another Commission gets this Commission added to their account
+ *   (`linked-existing-account`), their person's contacts left as they are. The record becomes
+ *   `onboarded`, linked to the person, with the contacts the declarant supplied written back
+ *   where the record still has none; the summary is recomputed; the session is `confirmed`;
+ *   `declarant.onboarded.v1` is recorded.
+ * - After the commit, a new account's set-password email is sent. Should that fail, the account
+ *   stands and the declarant uses "resend" on the check-email step.
  * - The identity provider failing: everything rolls back, what it had already done is undone
- *   (account deleted, tenant removed), 502 `identity-unavailable`; the declarant retries. The
- *   verified email on another account: 409 `email-in-use`, nothing changed.
+ *   (account deleted, the added tenant removed), 502 `identity-unavailable`; the declarant
+ *   retries. The verified email on another account: 409 `email-in-use`, nothing changed.
  *
- * The session row stays locked while IPRS and the identity provider answer, so a double submit
- * waits and then sees `confirmed` (409) instead of creating a second account.
+ * The session row stays locked while the identity provider answers, so a double submit waits and
+ * then sees `confirmed` (409) instead of creating a second account.
  */
 @Injectable()
 export class ConfirmService {
@@ -69,27 +88,82 @@ export class ConfirmService {
   ) {}
 
   async confirm(sessionId: string, secret: string | undefined): Promise<OnboardingConfirmResult> {
+    for (let round = 1; round <= MAX_ROUNDS; round++) {
+      const record = await this.sessions.withLiveSession(sessionId, secret, (context) =>
+        this.confirmable(context, { lock: false }),
+      );
+      const verdict = await this.lookUp(sessionId, record);
+      const confirmed = await this.decide(sessionId, secret, record, verdict);
+      if (confirmed === RECHECK) continue;
+      if (confirmed.setPasswordEmailTo) {
+        await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailTo);
+      }
+      return confirmed.result;
+    }
+    this.logger.warn({ sessionId }, 'Roster record kept changing during confirm');
+    throw wrongStep();
+  }
+
+  /**
+   * The session's record (locked if `lock`), if the session is at the confirm step and the
+   * record can still onboard; a record that exited or onboarded otherwise ends the session.
+   */
+  private async confirmable(
+    { tx, session, now }: SessionContext,
+    { lock }: { lock: boolean },
+  ): Promise<RosterRecord | Rejection> {
+    if (session.state !== 'phone-verified') throw wrongStep();
+    const record = await readRecord(tx, session.rosterRecordId, { lock });
+    if (record.state !== 'not_onboarded') {
+      await this.sessions.end(tx, session, 'expired', now);
+      return reject(sessionEnded());
+    }
+    return record;
+  }
+
+  /** Whether IPRS knows the record's national ID under the record's names. */
+  private async lookUp(sessionId: string, record: RosterRecord): Promise<IprsVerdict> {
+    try {
+      const person = await this.iprs.find(record.nationalId);
+      if (!person) return 'not-found';
+      return namesMatch(person, record.fullName) ? 'match' : 'mismatch';
+    } catch (error) {
+      if (!(error instanceof IprsUnavailable)) throw error;
+      this.logger.warn({ sessionId, err: errorType(error) }, 'IPRS check not run');
+      throw ProblemException.fromCode('iprs-unavailable');
+    }
+  }
+
+  /** Under the locks: the mismatch, or the account, for the record IPRS was asked about. */
+  private async decide(
+    sessionId: string,
+    secret: string | undefined,
+    checked: RosterRecord,
+    verdict: IprsVerdict,
+  ): Promise<Confirmed | typeof RECHECK> {
     // What the identity provider did, to undo if the transaction does not commit.
     const undo: Restore[] = [];
     try {
       return await this.sessions.withLiveSession(sessionId, secret, async (context) => {
-        const { tx, session, now } = context;
-        if (session.state !== 'phone-verified') throw wrongStep();
-        const record = await lockRecord(tx, session.rosterRecordId);
-        if (record.state !== 'not_onboarded') {
-          await this.sessions.end(tx, session, 'expired', now);
-          return reject(sessionEnded());
+        // Records before the summary, as every roster change locks them.
+        const record = await this.confirmable(context, { lock: true });
+        if (record instanceof Rejection) return record;
+        if (record.nationalId !== checked.nationalId || record.fullName !== checked.fullName) {
+          return RECHECK;
         }
-        const person = await this.lookUp(session, record);
-        if (person === 'not-found' || person === 'mismatch') {
-          return this.mismatch(context, record, person);
+        if (verdict !== 'match') {
+          return { result: await this.mismatch(context, record, verdict) };
         }
         return this.onboard(context, record, undo);
       });
     } catch (error) {
       await this.undo(undo, sessionId);
       if (error instanceof EmailTaken) throw ProblemException.fromCode('email-in-use');
-      if (error instanceof IdentityUnavailable || error instanceof IdentityUserNotFound) {
+      if (
+        error instanceof IdentityUnavailable ||
+        error instanceof IdentityUserNotFound ||
+        error instanceof UsernameTaken
+      ) {
         this.logger.warn(
           { sessionId, err: errorType(error) },
           'Declarant account not created or linked',
@@ -97,22 +171,6 @@ export class ConfirmService {
         throw ProblemException.fromCode('identity-unavailable');
       }
       throw error;
-    }
-  }
-
-  /** Whether IPRS knows the record's national ID under the record's names. */
-  private async lookUp(
-    session: SessionRow,
-    record: RosterRecord,
-  ): Promise<'match' | 'mismatch' | 'not-found'> {
-    try {
-      const person = await this.iprs.find(record.nationalId);
-      if (!person) return 'not-found';
-      return namesMatch(person, record.fullName) ? 'match' : 'mismatch';
-    } catch (error) {
-      if (!(error instanceof IprsUnavailable)) throw error;
-      this.logger.warn({ sessionId: session.id, err: errorType(error) }, 'IPRS check not run');
-      throw ProblemException.fromCode('iprs-unavailable');
     }
   }
 
@@ -144,7 +202,7 @@ export class ConfirmService {
     { tx, session, now }: SessionContext,
     record: RosterRecord,
     undo: Restore[],
-  ): Promise<OnboardingConfirmResult> {
+  ): Promise<Confirmed> {
     const { email, phone } = session;
     if (email === null || phone === null) {
       throw new Error(`Session ${session.id} is phone-verified without both contacts`);
@@ -161,12 +219,10 @@ export class ConfirmService {
     let person: { id: string; ofr: string; keycloakUserId: string };
     let outcome: OnboardingOutcome;
     if (existing) {
+      // Linking adds the Commission and nothing else: the person's contacts (and the account's)
+      // stay as their first onboarding verified them.
       const restore = await this.identity.addTenantToUser(existing.keycloakUserId, session.tenant);
       if (restore) undo.push(restore);
-      await tx
-        .update(persons)
-        .set({ email, phone, updatedAt: now })
-        .where(eq(persons.id, existing.id));
       person = existing;
       outcome = 'linked-existing-account';
     } else {
@@ -203,12 +259,12 @@ export class ConfirmService {
         personId: person.id,
         onboardedAt: now,
         identityMismatchAt: null,
-        // Contacts the declarant supplied (the record had none) become the record's.
-        ...(session.emailSource === 'declarant' ? { email, emailSource: 'declarant' } : {}),
-        ...(session.phoneSource === 'declarant' ? { phone, phoneSource: 'declarant' } : {}),
         updatedAt: now,
       })
       .where(eq(rosterRecords.id, record.id));
+    for (const channel of OTP_CHANNELS) {
+      await writeBackDeclarantContact(tx, session, channel, now);
+    }
     await recomputeRosterSummary(tx, session.tenant);
     const ended = await this.sessions.end(tx, session, 'confirmed', now, {
       outcome,
@@ -228,11 +284,28 @@ export class ConfirmService {
         linked: outcome === 'linked-existing-account',
       }),
     );
-    // Last, so nothing after it can fail and leave an email pointing at an undone account.
-    if (outcome === 'account-created') {
-      await this.identity.sendExecuteActionsEmail(person.keycloakUserId, setPasswordEmail());
+    return {
+      result: { outcome, session: await this.sessions.view(tx, ended, now) },
+      ...(outcome === 'account-created' ? { setPasswordEmailTo: person.keycloakUserId } : {}),
+    };
+  }
+
+  /**
+   * The set-password email of a committed new account. Not sent, the account stands: the
+   * check-email step offers "resend" once its minute is up.
+   */
+  private async sendSetPasswordEmail(sessionId: string, keycloakUserId: string): Promise<void> {
+    try {
+      await this.identity.sendExecuteActionsEmail(keycloakUserId, setPasswordEmail());
+    } catch (error) {
+      if (!(error instanceof IdentityUnavailable || error instanceof IdentityUserNotFound)) {
+        throw error;
+      }
+      this.logger.warn(
+        { sessionId, err: errorType(error) },
+        'Set-password email of a new declarant account not sent; the declarant can resend it',
+      );
     }
-    return { outcome, session: await this.sessions.view(tx, ended, now) };
   }
 
   /** Undoes what the identity provider did for a confirm that did not commit, latest first. */
@@ -250,21 +323,24 @@ export class ConfirmService {
   }
 }
 
-/** The session's record, locked (records before the summary, as every roster change). */
-async function lockRecord(tx: Transaction, recordId: string): Promise<RosterRecord> {
-  const [record] = await tx
-    .select({
-      id: rosterRecords.id,
-      state: rosterRecords.state,
-      fullName: rosterRecords.fullName,
-      nationalId: rosterRecords.nationalId,
-    })
-    .from(rosterRecords)
-    .where(eq(rosterRecords.id, recordId))
-    .for('update');
+/** The session's record, locked for the rest of the transaction if `lock`. */
+async function readRecord(
+  tx: Transaction,
+  recordId: string,
+  { lock }: { lock: boolean },
+): Promise<RosterRecord> {
+  const query = tx.select(RECORD_COLUMNS).from(rosterRecords).where(eq(rosterRecords.id, recordId));
+  const [record] = lock ? await query.for('update') : await query;
   if (!record) throw new Error(`Roster record ${recordId} is gone`);
   return record;
 }
+
+const RECORD_COLUMNS = {
+  id: rosterRecords.id,
+  state: rosterRecords.state,
+  fullName: rosterRecords.fullName,
+  nationalId: rosterRecords.nationalId,
+};
 
 /** A person id before the row exists: the account carries it as `person_id`. */
 async function newPersonId(tx: Transaction): Promise<string> {

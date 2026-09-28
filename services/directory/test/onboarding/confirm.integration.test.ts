@@ -431,15 +431,20 @@ describe('S15 a person onboarded with another Commission', () => {
     // No password to set: nothing to resend.
     expect(result.session.otp.resendAvailableAt).toBeNull();
 
+    // Linking adds the Commission only: the person keeps the contacts their account has.
     expect(await allPersons()).toEqual([
       expect.objectContaining({
         id: person?.id,
         ofr: first.session.ofr,
         keycloakUserId,
-        email: 'wanjiru@example.com',
-        phone: '+254700111222',
+        email: WANJIRU.email,
+        phone: WANJIRU.phone,
       }),
     ]);
+    expect(api.identity.user(keycloakUserId)).toMatchObject({
+      email: WANJIRU.email,
+      phone: WANJIRU.phone,
+    });
     expect(api.identity.calls('createDeclarantUser')).toHaveLength(1);
     expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(1);
     expect(api.identity.calls('addTenantToUser')).toEqual([
@@ -449,10 +454,15 @@ describe('S15 a person onboarded with another Commission', () => {
       tenant: 'tsc',
       tenants: ['tsc', 'psc'],
     });
+    // The new Commission's record still gets the contacts verified for it.
     expect(await record(pscRecord)).toMatchObject({
       state: 'onboarded',
       personId: person?.id,
       onboardedAt: NOW,
+      email: 'wanjiru@example.com',
+      emailSource: 'declarant',
+      phone: '+254700111222',
+      phoneSource: 'declarant',
     });
     expect(await onboardedCount('psc')).toBe(1);
     expect(await events('declarant.onboarded.v1')).toEqual([
@@ -504,20 +514,56 @@ describe('S16 transaction boundaries', () => {
     expect(retry.session.ofr?.slice(0, 12)).toBe('OFR-0000001-');
   });
 
-  it('deletes the account it created when the set-password email fails, changing nothing', async () => {
+  it('keeps the committed account when the set-password email fails, for the declarant to resend', async () => {
     const session = await atConfirm(tscRecord);
     api.identity.failNext('sendExecuteActionsEmail', new IdentityUnavailable('SMTP is down'));
 
     const response = await confirm(session);
 
-    expect(response.statusCode).toBe(502);
-    expect(response.json()).toMatchObject({ code: 'identity-unavailable' });
-    await expectNothingChanged(session);
-    const [created] = api.identity.calls('sendExecuteActionsEmail');
-    expect(api.identity.calls('deleteUser')).toEqual([
-      { operation: 'deleteUser', userId: created?.userId },
-    ]);
-    expect(api.identity.user(created?.userId ?? '')).toBeUndefined();
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject({ outcome: 'account-created' });
+    const [person] = await allPersons();
+    expect(person).toBeDefined();
+    expect(api.identity.calls('deleteUser')).toEqual([]);
+    expect(api.identity.user(person?.keycloakUserId ?? '')).toBeDefined();
+    expect(await record(tscRecord)).toMatchObject({ state: 'onboarded', personId: person?.id });
+
+    // The email is sent after the commit; the check-email step's resend delivers it.
+    api.clock.advance(60 * SECOND);
+    expect((await resendPasswordEmail(session)).statusCode).toBe(202);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(2);
+  });
+
+  it('sends the set-password email only once the account and record are committed', async () => {
+    const session = await atConfirm(tscRecord);
+
+    const refused = await withOutboxRefusing(api, () => confirm(session));
+
+    expect(refused.statusCode).toBe(500);
+    expect(api.identity.calls('createDeclarantUser')).toHaveLength(1);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toEqual([]);
+  });
+
+  it('recovers from an account whose undo failed: the next confirm reuses its OFR', async () => {
+    const session = await atConfirm(tscRecord);
+    api.identity.failNext('deleteUser', new IdentityUnavailable('Keycloak is down'));
+
+    const refused = await withOutboxRefusing(api, () => confirm(session));
+    const [leftover] = api.identity.calls('createDeclarantUser');
+    const retry = await confirm(session);
+
+    expect(refused.statusCode).toBe(500);
+    expect(retry.statusCode, retry.body).toBe(200);
+    const result = retry.json<OnboardingConfirmResult>();
+    expect(result.outcome).toBe('account-created');
+    expect(result.session.ofr).toBe(leftover?.input.ofr);
+    // The leftover (same OFR, same email) was replaced by the person's account.
+    const [person] = await allPersons();
+    expect(person?.ofr).toBe(leftover?.input.ofr);
+    expect(api.identity.userByEmail(WANJIRU.email)).toMatchObject({
+      userId: person?.keycloakUserId,
+      ofr: person?.ofr,
+    });
   });
 
   it('deletes the account it created when the transaction fails after it', async () => {
@@ -563,6 +609,70 @@ describe('S16 transaction boundaries', () => {
     expect(response.json()).toMatchObject({ code: 'email-in-use', status: 409 });
     expect(contractErrors(componentSchema('OnboardingProblem'), response.json())).toEqual([]);
     await expectNothingChanged(session);
+  });
+});
+
+describe('confirm against a changing roster', () => {
+  it('keeps a contact an import added to the record during the session', async () => {
+    const session = await atConfirm(pscRecord, {
+      email: 'wanjiru@example.com',
+      emailSource: 'declarant',
+      phone: '+254700111222',
+      phoneSource: 'declarant',
+    });
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .update(rosterRecords)
+        .set({ phone: '+254733000111', phoneSource: 'roster' })
+        .where(eq(rosterRecords.id, pscRecord)),
+    );
+
+    expect((await confirm(session)).statusCode).toBe(200);
+
+    expect(await record(pscRecord)).toMatchObject({
+      email: 'wanjiru@example.com',
+      emailSource: 'declarant',
+      phone: '+254733000111',
+      phoneSource: 'roster',
+    });
+  });
+
+  it('holds no lock while IPRS answers: the session stays readable meanwhile', async () => {
+    const session = await atConfirm(tscRecord);
+    const release = api.iprs.holdNext();
+
+    const confirming = confirm(session);
+    await expect.poll(() => api.iprs.calls().length).toBe(1);
+    const read = await getSession(api, session.id, session.secret);
+    release();
+
+    expect(read.statusCode).toBe(200);
+    expect(read.json()).toMatchObject({ state: 'phone-verified' });
+    expect((await confirming).json()).toMatchObject({ outcome: 'account-created' });
+  });
+
+  it('asks IPRS again when the record changed while it answered', async () => {
+    const session = await atConfirm(tscRecord);
+    api.iprs.givenPerson('87654321', { firstName: 'Kamau', middleName: null, lastName: 'Njoroge' });
+    const release = api.iprs.holdNext();
+
+    const confirming = confirm(session);
+    await expect.poll(() => api.iprs.calls().length).toBe(1);
+    // An import corrects the record's national ID and name while IPRS answers for the old ones.
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .update(rosterRecords)
+        .set({ nationalId: '87654321', fullName: 'Kamau Njoroge' })
+        .where(eq(rosterRecords.id, tscRecord)),
+    );
+    release();
+    const response = await confirming;
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(api.iprs.calls()).toEqual([WANJIRU.nationalId, '87654321']);
+    expect(await allPersons()).toEqual([
+      expect.objectContaining({ nationalId: '87654321', fullName: 'Kamau Njoroge' }),
+    ]);
   });
 });
 

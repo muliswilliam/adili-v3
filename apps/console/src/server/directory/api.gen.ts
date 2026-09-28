@@ -451,7 +451,7 @@ export interface paths {
         put?: never;
         /**
          * Match personnel file number and national ID against a Commission's roster
-         * @description Public, rate-limited per client IP and per client IP and Commission (a Commission without a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+         * @description Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
          */
         post: operations["identifyDeclarant"];
         delete?: never;
@@ -580,6 +580,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/roster/onboarding-failures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Failed onboarding attempts against the Commission in the last 24 hours
+         * @description The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission. Counts only, no identifiers: many failures point to a stale roster or an attack (spec 03, story 30).
+         */
+        get: operations["getOnboardingFailures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/declarant": {
         parameters: {
             query?: never;
@@ -589,7 +609,7 @@ export interface paths {
         };
         /**
          * The signed-in declarant's person, OFR, Commissions and verified contacts
-         * @description Any authenticated caller; the person is the one whose account is the token's subject, so a caller only ever reads their own. The portal dashboard reads it.
+         * @description Declarants only, their own: the person is the one whose account is the token's subject. The portal dashboard reads it, and takes 403 and 404 alike as "not a declarant".
          */
         get: operations["getMyDeclarantProfile"];
         put?: never;
@@ -1527,6 +1547,21 @@ export interface components {
                 /** Format: uri */
                 recoverAccess?: string;
             };
+        };
+        OnboardingFailures: {
+            /**
+             * Format: date-time
+             * @description Start of the earliest hour counted: the current hour and the 23 before it
+             */
+            since: string;
+            /** @description Failed onboarding attempts against the Commission since `since`, by anyone: identify answered `no-match` (wrong or unknown identifiers, or an exited record), or a session ended because its codes or resends ran out */
+            failedAttempts: number;
+            /** @description Hours with failed attempts, oldest first */
+            hours: {
+                /** Format: date-time */
+                windowStart: string;
+                failedAttempts: number;
+            }[];
         };
         DeclarantProfile: {
             /** Format: uuid */
@@ -3407,7 +3442,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            /** @description Problem code `already-onboarded` (with `links`) or `no-roster` */
+            /** @description Problem code `already-onboarded` (with `links`), or `no-roster`: no active Commission with that slug, or it has not imported a roster */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3949,6 +3984,46 @@ export interface operations {
             };
         };
     };
+    getOnboardingFailures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Failed attempts by hour */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingFailures"];
+                };
+            };
+            /** @description Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found: another Commission, or the Commission does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getMyDeclarantProfile: {
         parameters: {
             query?: never;
@@ -3976,7 +4051,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The caller is not an onboarded declarant */
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The account has the declarant role but no onboarded person */
             404: {
                 headers: {
                     [name: string]: unknown;

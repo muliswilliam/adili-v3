@@ -3,7 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
-import { onboardingSessions, outbox } from '../../src/db/schema.js';
+import { onboardingOtps, onboardingSessions, outbox } from '../../src/db/schema.js';
 import type { OnboardingSession } from '../../src/onboarding/representation.js';
 import { OnboardingSessionSweeper } from '../../src/onboarding/sessions/expiry-sweep.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
@@ -193,6 +193,61 @@ describe('S10 expiry', () => {
     expect(await endedEvents()).toEqual([
       { tenant: 'tsc', data: { sessionId: stale.id, outcome: 'expired' } },
     ]);
+  });
+});
+
+describe('S10 expiry schedule', () => {
+  it('sweeps from the Temporal schedule on the directory worker, every minute, skipping overlaps', async () => {
+    const stale = await givenSession(api, {
+      recordId,
+      state: 'email-contact-required',
+      createdAt: new Date(NOW.getTime() - 45 * MINUTE),
+    });
+
+    const { action, spec, policies } = await api.expirySchedule.describe();
+    expect(action).toMatchObject({
+      type: 'startWorkflow',
+      workflowType: 'onboardingSessionExpiry',
+      taskQueue: process.env.TEMPORAL_TASK_QUEUE,
+    });
+    expect(spec.intervals).toEqual([expect.objectContaining({ every: MINUTE })]);
+    expect(policies.overlap).toBe('SKIP');
+
+    // Paused in tests; a run now goes through the worker to the sweep.
+    await api.expirySchedule.trigger();
+    await expect
+      .poll(async () => (await sessionRow(stale.id))?.state, { timeout: 20_000, interval: 250 })
+      .toBe('expired');
+    expect(await endedEvents()).toEqual([
+      { tenant: 'tsc', data: { sessionId: stale.id, outcome: 'expired' } },
+    ]);
+  });
+});
+
+describe('session storage', () => {
+  it("keeps a session's codes in the session's Commission", async () => {
+    await givenCommissions(api.db, [{ slug: 'psc', name: 'Public Service Commission' }]);
+    const session = await givenSession(api, {
+      recordId,
+      state: 'email-pending',
+      email: 'wanjiru.otieno@tsc.go.ke',
+    });
+    const code = (tenant: string) =>
+      withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+        tx.insert(onboardingOtps).values({
+          sessionId: session.id,
+          channel: 'phone',
+          tenant,
+          codeHmac: 'x',
+          expiresAt: NOW,
+          lastSentAt: NOW,
+        }),
+      );
+
+    await expect(code('psc')).rejects.toMatchObject({
+      cause: expect.objectContaining({ code: '23503' }) as unknown,
+    });
+    await expect(code('tsc')).resolves.toBeDefined();
   });
 });
 
