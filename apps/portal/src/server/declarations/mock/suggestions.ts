@@ -373,9 +373,9 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
   }
 
   const body = await readJson(request);
-  const personKey =
-    isRecord(body) && typeof body.personKey === 'string' ? parsePersonKey(body.personKey) : null;
-  if (!isRecord(body) || !personKey) return problem(400, 'personKey is required');
+  if (!isRecord(body)) return problem(400, 'personKey is required');
+  const personKey = typeof body.personKey === 'string' ? parsePersonKey(body.personKey) : null;
+  if (!personKey) return problem(400, 'personKey is required');
   const consent = body.consent;
   if (!isRecord(consent) || consent.requested !== true || typeof consent.textVersion !== 'string') {
     return problem(400, 'The declarant must request the check', 'consent-required');
