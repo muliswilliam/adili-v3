@@ -9,6 +9,7 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../../src/roster/import/roster-uploads.js';
+import { componentSchema, contractErrors } from '../support/contract.js';
 
 /**
  * The documents adapter against a stub documents service and object store on a local port:
@@ -64,20 +65,25 @@ function documents(
     return {
       status: download.status ?? 200,
       raw: download.raw,
-      body: download.body ?? {
-        id: UPLOAD_ID,
-        purpose: 'roster-import',
-        state: 'clean',
-        downloadUrl: `${baseUrl}/files/${UPLOAD_ID}`,
-        expiresAt: '2026-09-28T10:05:00.000Z',
-        sha256: 'ab'.repeat(32),
-        size: FILE.length,
-        fileName: 'roster.csv',
-        detectedType: CSV,
-      },
+      body: download.body ?? uploadDownload(),
     };
   };
 }
+
+/** Documents' answer to the download request for UPLOAD_ID, as its contract describes it. */
+const uploadDownload = (): Record<string, unknown> => ({
+  id: UPLOAD_ID,
+  purpose: 'roster-import',
+  state: 'clean',
+  downloadUrl: `${baseUrl}/files/${UPLOAD_ID}`,
+  expiresAt: '2026-09-28T10:05:00.000Z',
+  sha256: 'ab'.repeat(32),
+  size: FILE.length,
+  fileName: 'roster.csv',
+  detectedType: CSV,
+});
+
+const UPLOAD_DOWNLOAD = componentSchema('UploadDownload');
 
 function adapter(
   tokens = ['token-1', 'token-2'],
@@ -186,6 +192,23 @@ describe('HttpRosterUploads', () => {
     handler = documents(download);
 
     await expect(adapter().uploads.describe(REF)).rejects.toBeInstanceOf(error);
+  });
+
+  it("stubs documents' answer as its contract describes it", () => {
+    expect(contractErrors(UPLOAD_DOWNLOAD, uploadDownload(), 'documents')).toEqual([]);
+  });
+
+  it.each([
+    ['without a download URL', { downloadUrl: undefined }],
+    ['with a size that is not a number', { size: '12' }],
+    ['with an id that is not a UUID', { id: 'upload-1' }],
+    ['with a file name that is not a string', { fileName: 12 }],
+  ])('refuses an answer %s, which breaks the contract, as unavailable', async (_case, change) => {
+    const body = { ...uploadDownload(), ...change };
+    expect(contractErrors(UPLOAD_DOWNLOAD, body, 'documents')).not.toEqual([]);
+    handler = documents({ body });
+
+    await expect(adapter().uploads.describe(REF)).rejects.toBeInstanceOf(DocumentsUnavailable);
   });
 
   describe('reading a large file', () => {

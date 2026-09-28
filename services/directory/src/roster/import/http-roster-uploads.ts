@@ -12,6 +12,7 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from './roster-uploads.js';
+import { uploadDownloadSchema } from './upload-download.js';
 
 /** The scope the directory's service token needs for documents' internal API (decision 2). */
 export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
@@ -38,9 +39,10 @@ export interface HttpRosterUploadsOptions {
 /**
  * Reads roster uploads through the documents service's internal API, with the client generated
  * from its contract (packages/schemas/internal/documents.yaml → documents-api.gen.ts via
- * `pnpm generate:api`): the directory's own token (client credentials, `documents:internal`)
- * with the tenant in `X-Acting-Tenant`; documents checks the upload is that tenant's. The file
- * is then streamed from the presigned URL.
+ * `pnpm generate:api`) and its answers validated at the boundary (`uploadDownloadSchema`): the
+ * directory's own token (client credentials, `documents:internal`) with the tenant in
+ * `X-Acting-Tenant`; documents checks the upload is that tenant's. The file is then streamed from
+ * the presigned URL.
  */
 export class HttpRosterUploads extends RosterUploads {
   private readonly fetch: typeof fetch;
@@ -99,15 +101,21 @@ export class HttpRosterUploads extends RosterUploads {
     if (response.status === 404) throw new UploadNotFound(ref.uploadId);
     if (response.status === 409) throw new UploadNotClean(ref.uploadId);
     if (!data) throw new DocumentsUnavailable(`Documents answered ${String(response.status)}`);
-    const format = rosterFormatOf(data.detectedType);
-    // Widened: documents' purposes grow with later slices, and only roster imports are rosters.
-    const purpose: string = data.purpose;
-    if (purpose !== 'roster-import' || format === undefined) {
+    const parsed = uploadDownloadSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new DocumentsUnavailable('Documents answered a download that breaks its contract', {
+        cause: parsed.error,
+      });
+    }
+    const upload = parsed.data;
+    const format = rosterFormatOf(upload.detectedType);
+    // Only roster imports are rosters.
+    if (upload.purpose !== 'roster-import' || format === undefined) {
       throw new UploadNotFound(ref.uploadId);
     }
     return {
-      upload: { id: data.id, fileName: data.fileName, format, size: data.size },
-      downloadUrl: data.downloadUrl,
+      upload: { id: upload.id, fileName: upload.fileName, format, size: upload.size },
+      downloadUrl: upload.downloadUrl,
     };
   }
 
