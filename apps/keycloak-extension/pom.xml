@@ -12,7 +12,8 @@
   <description>Adili OTP authenticator: sign-in codes for declarants and applicants by SMS or email through the notifications service.</description>
 
   <properties>
-    <maven.compiler.release>17</maven.compiler.release>
+    <!-- Keycloak 26 runs on Java 21. -->
+    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- Keep in step with KEYCLOAK_VERSION in infra/docker/keycloak.Dockerfile. -->
     <keycloak.version>26.7.4</keycloak.version>
