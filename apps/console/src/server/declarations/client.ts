@@ -1,3 +1,9 @@
+import type {
+  ObligationStatus as SharedObligationStatus,
+  ObligationType as SharedObligationType,
+  ReminderChannel as SharedReminderChannel,
+  ReminderOutcome as SharedReminderOutcome,
+} from '@adili/ui';
 import createClient, { type Client } from 'openapi-fetch';
 
 import { callDirectory, type DirectoryResult } from '../directory/client';
@@ -27,6 +33,18 @@ export type ObligationPage =
 export type ListObligationsQuery = NonNullable<
   paths['/v1/commissions/{slug}/obligations']['get']['parameters']['query']
 >;
+
+/** True when A and B are the same union; for compile-time checks against the contract. */
+export type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+export type Assert<T extends true> = T;
+
+/** Fails to compile when the contract and the shared copy table in @adili/ui drift apart. */
+export type ContractMatchesSharedCopy = [
+  Assert<Same<ObligationType, SharedObligationType>>,
+  Assert<Same<ObligationStatus, SharedObligationStatus>>,
+  Assert<Same<ReminderOutcome, SharedReminderOutcome>>,
+  Assert<Same<Reminder['channels'][number], SharedReminderChannel>>,
+];
 
 /** How long the console waits for the declarations service: its reads are quick. */
 export const DECLARATIONS_TIMEOUT_MS = 5_000;
