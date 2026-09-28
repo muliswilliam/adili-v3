@@ -26,7 +26,8 @@ function version(v: number, overrides: Partial<TenantPolicyVersion> = {}): Tenan
     reminderOffsetsDays: [30, 14, 7],
     clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
     formMDue: '07-31',
-    createdBy: 'Amina Wanjiru',
+    createdBy: '0199a0b4-0000-7000-8000-0000000000aa',
+    createdByName: 'Amina Wanjiru',
     createdAt: `2026-0${v}-01T06:00:00Z`,
     ...overrides,
   };

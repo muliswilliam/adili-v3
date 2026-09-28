@@ -26,7 +26,8 @@ function version(v: number, overrides: Partial<TenantPolicyVersion> = {}): Tenan
     reminderOffsetsDays: [30, 14, 7],
     clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
     formMDue: '07-31',
-    createdBy: 'Amina Wanjiru',
+    createdBy: '0199a0b4-0000-7000-8000-0000000000aa',
+    createdByName: 'Amina Wanjiru',
     createdAt: '2026-08-03T06:14:00Z',
     ...overrides,
   };
@@ -36,7 +37,7 @@ const v1 = version(1);
 const v2 = version(2, {
   effectiveFrom: '2026-09-26T07:30:00Z',
   obligationsStartDate: '2026-07-01',
-  createdBy: 'Daniel Kiprop',
+  createdByName: 'Daniel Kiprop',
 });
 
 function renderCard(history: TenantPolicyHistory, save?: SavePolicyVersion) {
@@ -69,6 +70,14 @@ describe('S19 policy card', () => {
       'v2Effective 26 Sep 2026, 10:30In forceObligations start date 1 Jul 2026 · by Daniel Kiprop',
       'v1Effective 3 Aug 2026, 09:14Platform defaults · by Amina Wanjiru',
     ]);
+  });
+
+  it('leaves out who created a version when the directory does not know their name', () => {
+    renderCard({ current: version(1, { createdByName: null }), previous: [] });
+    const card = screen.getByRole('region', { name: 'Policy' });
+    expect(within(card).getByRole('listitem').textContent).toBe(
+      'v1Effective 3 Aug 2026, 09:14In forcePlatform defaults',
+    );
   });
 
   it('has no Change action when read only (reviewer, supervisor)', () => {

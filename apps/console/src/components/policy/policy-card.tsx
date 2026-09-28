@@ -168,8 +168,8 @@ function VersionHistory({ history }: { history: TenantPolicyHistory }) {
                 <p className="mt-0.5 text-[13px] text-muted-foreground">
                   {version.version === 1
                     ? m.platformDefaults
-                    : m.historyStartDate(formatDate(version.obligationsStartDate))}{' '}
-                  · {m.historyBy(version.createdBy)}
+                    : m.historyStartDate(formatDate(version.obligationsStartDate))}
+                  {version.createdByName ? ` · ${m.historyBy(version.createdByName)}` : null}
                 </p>
               </div>
             </li>
