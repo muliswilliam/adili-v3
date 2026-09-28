@@ -994,14 +994,22 @@
         }
       }
     });
-    // Fixed-position tooltip for Kit.tip (never clipped by scrolling panes). Files with their own tooltip set cfg.ownTooltips.
+    // Fixed-position tooltip for Kit.tip and icon-only buttons (never clipped by scrolling panes). Files with their own tooltip set cfg.ownTooltips.
+    // Icon buttons show data-tip, else their title, else their aria-label.
     if (!c.ownTooltips) {
       const box = document.createElement('div');
       box.id = 'kit-tipbox';
       box.setAttribute('aria-hidden', 'true');
       document.body.appendChild(box);
+      const TIPPED = '.kit-tip, .icon-btn';
       const show = (t) => {
-        box.textContent = t.dataset.tip;
+        if (t.title) {
+          t.dataset.tip = t.dataset.tip || t.title;
+          t.removeAttribute('title');
+        }
+        const text = t.dataset.tip || t.getAttribute('aria-label');
+        if (!text) return;
+        box.textContent = text;
         box.classList.add('show');
         const r = t.getBoundingClientRect();
         const b = box.getBoundingClientRect();
@@ -1014,18 +1022,20 @@
       };
       const hide = () => box.classList.remove('show');
       document.addEventListener('mouseover', (e) => {
-        const t = e.target.closest?.('.kit-tip');
+        const t = e.target.closest?.(TIPPED);
         if (t) show(t);
       });
       document.addEventListener('mouseout', (e) => {
-        if (e.target.closest?.('.kit-tip')) hide();
+        if (e.target.closest?.(TIPPED)) hide();
       });
       document.addEventListener('focusin', (e) => {
-        const t = e.target.closest?.('.kit-tip');
+        const t = e.target.closest?.(TIPPED);
         if (t) show(t);
         else hide();
       });
       document.addEventListener('focusout', hide);
+      // clicks usually re-render, which drops the button without a mouseout
+      document.addEventListener('click', hide, true);
       document.addEventListener('scroll', hide, true);
     }
     document.getElementById('proto').addEventListener('change', (e) => {

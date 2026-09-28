@@ -789,6 +789,9 @@
         align-items: center;
         gap: 12px;
       }
+      .item.srow.locked .t {
+        color: var(--muted);
+      }
       .snav .sub {
         list-style: none;
         margin: 8px 0 10px 22px;
@@ -837,6 +840,21 @@
       }
       .snav .sub .st.incomplete {
         box-shadow: inset 0 0 0 1.5px #e0b35c;
+      }
+      .snav li.locked > button,
+      .snav .sub li.locked button {
+        cursor: not-allowed;
+        color: var(--muted);
+      }
+      .snav li.locked > button:hover,
+      .snav .sub li.locked button:hover {
+        background: none;
+      }
+      .snav li.locked .n,
+      .snav .sub li.locked .st {
+        box-shadow: none;
+        background: var(--sunken);
+        color: var(--muted);
       }
       .snav .foot {
         margin-top: 18px;
@@ -1673,6 +1691,17 @@
           display: flex;
           align-items: center;
         }
+      }
+      .ov-list .item.locked {
+        cursor: not-allowed;
+      }
+      .ov-list .item.locked .t,
+      .ov-list .item.locked .t button {
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+      .ov-list .item.locked:hover {
+        background: none;
       }
       .ov-list .item:hover {
         background: #fcfbfa;
@@ -5293,6 +5322,7 @@
             : s === 'archived'
               ? Kit.badge('Archived')
               : Kit.badge('Not started');
+      const lockBadge = () => Kit.badge(`${icon('lock', 12)} Locked`);
       function fieldErr(D, key, fieldName) {
         const cmp = completeness(D);
         const s = cmp.sec(key);
@@ -5466,6 +5496,35 @@
         };
         return m[S.screen];
       }
+      /* Steps open in order: an unfinished step unlocks once every step before it is complete,
+         so a declarant never reaches the summary to find an earlier step unfinished. Finished
+         steps and the one on screen stay open. */
+      function stepKey(scr, pk) {
+        const m = { 'decl-bio': 'bio', 'decl-household': 'household', 'decl-other': 'other' };
+        return scr === 'decl-statement' ? pk : scr === 'decl-summary' ? 'summary' : m[scr];
+      }
+      function blockingStep(cmp) {
+        return cmp.secs.find((s) => s.issues.length) || null;
+      }
+      function stepOpen(cmp, key) {
+        const b = blockingStep(cmp);
+        if (!key || !b || cmp.sec(key)?.state === 'complete') return true;
+        if (key === stepKey(S.screen, S.ui.person)) return true;
+        const keys = [...cmp.secs.map((s) => s.key), 'summary'];
+        return keys.indexOf(key) <= keys.indexOf(b.key);
+      }
+      function stepName(cmp, key) {
+        const p = cmp.persons.find((x) => x.key === key);
+        if (p) return p.kind === 'self' ? 'your financial statement' : `${p.short}'s statement`;
+        return {
+          bio: 'Your details',
+          household: 'Spouses and children',
+          other: 'Other information',
+        }[key];
+      }
+      function lockedToast(cmp) {
+        Kit.toast(`Finish ${stepName(cmp, blockingStep(cmp).key)} first`, true);
+      }
       function sectionNav() {
         const D = cur();
         const c = comm(D.commission);
@@ -5481,6 +5540,7 @@
             : k === 'summary'
               ? ''
               : cmp.sec(k).state;
+        const lockOf = (k) => !stepOpen(cmp, k === 'statements' ? cmp.persons[0].key : k);
         return `<nav class="snav" aria-label="Declaration sections">
     <button class="btn btn-ghost btn-sm" style="margin-left:-10px" data-act="go" data-arg="declarations">${icon('left', 16)} My declarations</button>
     <button class="linklike" style="display:block;margin-top:14px;text-decoration:none;text-align:left" data-act="go" data-arg="decl-overview"><div style="font-weight:600;font-size:15.5px">${TYPE_LABEL[D.type]}</div><div class="small muted" style="font-weight:400">To ${esc(c.name)}</div></button>
@@ -5493,11 +5553,13 @@
               .map((pp) => {
                 const ps = cmp.sec(pp.key).state;
                 const pOn = isOn && S.ui.person === pp.key;
-                return `<li class="${pOn ? 'on' : ''}"><button data-act="openPerson" data-arg="${pp.key}" ${pOn ? 'aria-current="page"' : ''}><span class="st ${ps}">${ps === 'complete' ? icon('check', 10, 3) : ''}</span><span class="truncate" style="flex:1">${esc(pp.kind === 'self' ? 'You' : pp.name)}</span><span class="sr-only">${stateWord[ps]}</span></button></li>`;
+                const pLock = !stepOpen(cmp, pp.key);
+                return `<li class="${pOn ? 'on' : ''} ${pLock ? 'locked' : ''}"><button data-act="openPerson" data-arg="${pp.key}" ${pOn ? 'aria-current="page"' : ''} ${pLock ? 'aria-disabled="true"' : ''}><span class="st ${ps}">${pLock ? icon('lock', 9, 2.4) : ps === 'complete' ? icon('check', 10, 3) : ''}</span><span class="truncate" style="flex:1">${esc(pp.kind === 'self' ? 'You' : pp.name)}</span><span class="sr-only">${pLock ? 'Locked' : stateWord[ps]}</span></button></li>`;
               })
               .join('')}</ol>`
           : '';
-      return `<li class="${s} ${isOn ? 'on' : ''}"><button data-act="navSec" data-arg="${scr}" ${isOn ? 'aria-current="page"' : ''}><span class="n">${s === 'complete' && !isOn ? icon('check', 12, 3) : k === 'summary' ? icon('listCheck', 13) : i + 1}</span><span class="lb">${l}<small>${[p, s && stateWord[s]].filter(Boolean).join(' · ')}</small></span></button>${sub}</li>`;
+      const lock = !isOn && lockOf(k);
+      return `<li class="${s} ${isOn ? 'on' : ''} ${lock ? 'locked' : ''}"><button data-act="navSec" data-arg="${scr}" ${isOn ? 'aria-current="page"' : ''} ${lock ? 'aria-disabled="true"' : ''}><span class="n">${lock ? icon('lock', 12, 2.2) : s === 'complete' && !isOn ? icon('check', 12, 3) : k === 'summary' ? icon('listCheck', 13) : i + 1}</span><span class="lb">${l}<small>${[p, s && stateWord[s]].filter(Boolean).join(' · ')}</small></span></button>${sub}</li>`;
     }).join('')}</ol>
     <div class="foot">${saveInd()}<div>${icon('calendar', 15)} ${relText(obl(D.obligationId), obl(D.obligationId).status)} · ${fmtDate(D.dueDate)}</div></div>
   </nav>`;
@@ -5510,8 +5572,13 @@
       modals.sections = () => {
         const D = cur();
         const cmp = completeness(D);
-        const row = (label, sub, s, act, arg) =>
-          `<button class="item srow" style="width:100%;border:0;background:none;text-align:left;cursor:pointer;font:inherit" data-act="${act}" data-arg="${arg}"><div class="item-body"><div class="t">${label}</div>${sub ? `<div class="d">${sub}</div>` : ''}</div>${s ? stateBadge(s) : ''}</button>`;
+        const row = (label, sub, s, act, arg) => {
+          const lock =
+            act === 'openPerson'
+              ? !stepOpen(cmp, arg)
+              : !stepOpen(cmp, stepKey(arg, cmp.persons[0].key));
+          return `<button class="item srow ${lock ? 'locked' : ''}" style="width:100%;border:0;background:none;text-align:left;cursor:${lock ? 'not-allowed' : 'pointer'};font:inherit" data-act="${act}" data-arg="${arg}" ${lock ? 'aria-disabled="true"' : ''}><div class="item-body"><div class="t">${label}</div>${sub ? `<div class="d">${sub}</div>` : ''}</div>${lock ? lockBadge() : s ? stateBadge(s) : ''}</button>`;
+        };
         return dialog({
           title: 'Sections',
           sub: `${TYPE_LABEL[D.type]} · ${comm(D.commission).code}`,
@@ -5534,12 +5601,16 @@
         });
       };
       actions.navSec = (scr) => {
+        const cmp = completeness(cur());
+        if (!stepOpen(cmp, stepKey(scr, S.ui.person || 'officer'))) return lockedToast(cmp);
         S.ui.open = null;
         S.ui.picker = null;
         if (scr === 'decl-statement') S.ui.person = S.ui.person || 'officer';
         flushThen(() => Kit.go(scr));
       };
       actions.openPerson = (k) => {
+        const cmp = completeness(cur());
+        if (!stepOpen(cmp, k)) return lockedToast(cmp);
         S.ui.person = k;
         S.ui.open = null;
         S.ui.picker = null;
@@ -5569,7 +5640,7 @@
         const D = cur();
         const foot =
           prev || next
-            ? `<div class="dnav-foot">${prev ? `<button class="btn btn-secondary" data-act="${prev[2] || 'navSec'}" data-arg="${prev[0]}" aria-label="Back: ${esc(String(prev[1]).replace(/<[^>]+>/g, ''))}">${icon('left', 16)}<span class="pl">${prev[1]}</span></button>` : ''}<span class="spacer"></span>${next ? `<button class="btn btn-primary" data-act="${next[2] || 'navSec'}" data-arg="${next[0]}">${next[1]} ${icon('right', 16)}</button>` : ''}</div>`
+            ? `<div class="dnav-foot">${prev ? `<button class="btn btn-secondary" data-act="${prev[2] || 'navSec'}" data-arg="${prev[0]}" aria-label="Back: ${esc(String(prev[1]).replace(/<[^>]+>/g, ''))}">${icon('left', 16)}<span class="pl">${prev[1]}</span></button>` : ''}<span class="spacer"></span>${next ? `<button class="btn btn-secondary" data-act="nextStep" data-arg="${esc(JSON.stringify([next[2] || 'navSec', next[0]]))}">${next[1]} ${icon('right', 16)}</button>` : ''}</div>`
             : '';
         return portalShell(
           `<div class="dws">${sectionNav()}<section class="dmain">
@@ -5583,6 +5654,18 @@
           { active: 'Declarations', tabbar: false, topbar: false },
         );
       }
+      /* Next stays enabled; with required answers missing it shows them and stays on the step */
+      actions.nextStep = (a) => {
+        const [act, arg] = JSON.parse(a);
+        const here = completeness(cur()).sec(stepKey(S.screen, S.ui.person));
+        if (here && here.issues.length) {
+          actions.goIssue(JSON.stringify(here.issues[0].go));
+          Kit.toast('Complete this step to continue', true);
+          return;
+        }
+        S.ui.showErrors = false;
+        actions[act](arg);
+      };
       actions.reloadConflict = () => {
         S.save = 'saved';
         Kit.toast('Reloaded the latest saved version');
@@ -5593,8 +5676,10 @@
         const D = cur();
         const cmp = completeness(D);
         const arch = [...D.hh.spouses, ...D.hh.children].filter((p) => p.archived);
-        const line = (n, label, sub, s, act, arg) =>
-          `<div class="item" data-act="${act}" data-arg="${arg}"><span class="ico" style="${s === 'complete' ? 'background:var(--ok-soft);color:var(--ok)' : ''}">${s === 'complete' ? icon('check', 16, 2.6) : n}</span><div class="item-body"><div class="t"><button class="linklike" style="text-decoration:none;font-weight:500;text-align:left" data-act="${act}" data-arg="${arg}">${label}</button></div>${sub ? `<div class="d">${sub}</div>` : ''}</div>${stateBadge(s)}${icon('right', 17)}</div>`;
+        const line = (n, label, sub, s, act, arg) => {
+          const lock = act === 'openPerson' ? !stepOpen(cmp, arg) : !stepOpen(cmp, stepKey(arg));
+          return `<div class="item ${lock ? 'locked' : ''}" data-act="${act}" data-arg="${arg}"><span class="ico" style="${s === 'complete' ? 'background:var(--ok-soft);color:var(--ok)' : ''}">${lock ? icon('lock', 15) : s === 'complete' ? icon('check', 16, 2.6) : n}</span><div class="item-body"><div class="t"><button class="linklike" style="text-decoration:none;font-weight:500;text-align:left" data-act="${act}" data-arg="${arg}" ${lock ? 'aria-disabled="true"' : ''}>${label}</button></div>${sub ? `<div class="d">${sub}</div>` : ''}</div>${lock ? lockBadge() : stateBadge(s)}${lock ? '' : icon('right', 17)}</div>`;
+        };
         const firstOpen = cmp.secs.find((s) => s.state !== 'complete');
         const target = !firstOpen
           ? ['navSec', 'decl-summary']
@@ -5982,13 +6067,20 @@
               `${icon('clip', 12)} ${plural(it.atts.filter((a) => a.st === 'linked').length, 'document')}`,
             ),
           );
-        if (!open && errKeys.length && (S.ui.showErrors || D.touched[p.key]))
-          tags.push(Kit.badge(`${icon('alert', 12)} ${errs[errKeys[0]]}`, 'warn'));
+        const warn = !open && errKeys.length && (S.ui.showErrors || D.touched[p.key]);
+        if (warn) tags.push(Kit.badge(`${icon('alert', 12)} ${errs[errKeys[0]]}`, 'warn'));
         const menuId = 'm-' + it.id;
-        const sum = `<div class="rep-sum"><span class="ico">${icon(t ? t[2] : 'plus', 18)}</span><div class="body"><div class="t"><h3 style="font:inherit;display:inline">${title}</h3></div><div class="d">${esc(itemSummary(cat, it)) || '<span class="muted">No description yet</span>'}</div>${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}</div>
+        const desc = esc(itemSummary(cat, it));
+        const itemLabel = `${esc(title)}${it.desc ? ': ' + esc(it.desc) : ''}`;
+        const removeArg = `${cat}|${p.key}|${it.id}`;
+        /* only assets have a second action, so the others get a plain trash button instead of a menu */
+        const more =
+          cat === 'assets'
+            ? `<div class="menu-wrap"><button class="btn btn-ghost icon-btn" data-act="menu" data-arg="${menuId}" aria-label="More actions for ${esc(title)}" data-tip="More actions" aria-haspopup="menu" aria-expanded="${S.menu === menuId}">${icon('moreV', 16)}</button>${S.menu === menuId ? `<div class="menu" role="menu"><button role="menuitem" data-act="askCopyAsset" data-arg="${p.key}|${it.id}">${icon('users', 16)} Also declare for…</button><button role="menuitem" class="danger" data-act="askRemoveItem" data-arg="${removeArg}">${icon('trash', 16)} Remove</button></div>` : ''}</div>`
+            : `<button class="btn btn-danger-ghost icon-btn" data-act="askRemoveItem" data-arg="${removeArg}" aria-label="Remove ${itemLabel}" data-tip="Remove">${icon('trash', 16)}</button>`;
+        const sum = `<div class="rep-sum"><span class="ico">${icon(t ? t[2] : 'plus', 18)}</span><div class="body"><div class="t"><h3 style="font:inherit;display:inline">${title}</h3></div>${desc ? `<div class="d">${desc}</div>` : warn ? '' : '<div class="d"><span class="muted">No description yet</span></div>'}${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}</div>
     <div class="amt">${amt != null && !isNaN(amt) ? fmtCents(amt) : '<span class="muted" style="font-weight:400">-</span>'}${cat === 'assets' && it.joint && amt ? `<small>whole value</small>` : ''}</div>
-    <div class="acts">${open ? '' : `<button class="btn btn-ghost icon-btn" data-act="openEditor" data-arg="${it.id}" aria-label="Edit ${esc(title)}${it.desc ? ': ' + esc(it.desc) : ''}" ${nil ? 'disabled' : ''}>${icon('pencil', 16)}</button>`}
-      ${open ? '' : `<div class="menu-wrap"><button class="btn btn-ghost icon-btn" data-act="menu" data-arg="${menuId}" aria-label="More actions for ${esc(title)}" aria-haspopup="menu" aria-expanded="${S.menu === menuId}">${icon('moreV', 16)}</button>${S.menu === menuId ? `<div class="menu" role="menu">${cat === 'assets' ? `<button role="menuitem" data-act="askCopyAsset" data-arg="${p.key}|${it.id}">${icon('users', 16)} Also declare for…</button>` : ''}<button role="menuitem" class="danger" data-act="askRemoveItem" data-arg="${cat}|${p.key}|${it.id}">${icon('trash', 16)} Remove</button></div>` : ''}</div>`}</div></div>`;
+    <div class="acts">${open ? '' : `<button class="btn btn-ghost icon-btn" data-act="openEditor" data-arg="${it.id}" aria-label="Edit ${itemLabel}" data-tip="Edit" ${nil ? 'disabled' : ''}>${icon('pencil', 16)}</button>${more}`}</div></div>`;
         if (!open)
           return `<div class="rep-card ${nil ? 'dis' : ''}" id="card-${it.id}">${sum}</div>`;
         const tl = typeList(cat);
@@ -6563,7 +6655,11 @@
             ? document.getElementById('card-' + id)
             : document.querySelector('#view .is-invalid, #view .err-text, #view .alert-warn');
           el?.scrollIntoView({ block: 'center' });
-          (el?.querySelector?.('input,select,textarea') || el)?.focus?.();
+          (
+            el?.querySelector?.('.is-invalid') ||
+            el?.querySelector?.('input,select,textarea') ||
+            el
+          )?.focus?.();
         }, 30);
       };
 
@@ -10059,10 +10155,14 @@
         J('decl-summary', '#128 #139 Summary: complete, ready to submit', () =>
           setupDraft('complete'),
         ),
-        J('j-sum-blocking', '#128 Summary: blocking issues', () => {
-          setupDraft('blocking');
-          to('decl-summary');
-        }),
+        J(
+          'j-sum-blocking',
+          '#128 Summary: server says incomplete (steps are gated, so rare)',
+          () => {
+            setupDraft('blocking');
+            to('decl-summary');
+          },
+        ),
         J('j-sum-release', '#128 Summary: Submit disabled, next release (slice 05)', () => {
           setupDraft('complete');
           S.submitMode = 's05-release';
@@ -10079,7 +10179,7 @@
           S.ui.srcFold = true;
           to('decl-summary');
         }),
-        J('j-sum-hints', '#340 Summary: hints under each residual', () => {
+        J('j-sum-hints', '#340 Summary: server says incomplete, hints under each residual', () => {
           setupDraft('blocking');
           to('decl-summary');
         }),
