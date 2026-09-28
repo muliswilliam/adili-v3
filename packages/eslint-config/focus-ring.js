@@ -9,6 +9,9 @@
  * (`cn('outline-none', 'focus-visible:outline-2')`) is not caught, and every string is checked,
  * not only class names. A ring is checked against the outline hidden on the same element, so
  * `[&_a]:outline-none` goes with `[&_a]:focus-visible:outline-2` and not with an unprefixed ring.
+ * Only `focus-visible`, `after` and `before` are ignored when matching; any other variant, such
+ * as `hover:` or `group-hover:`, counts as a separate element, so `outline-none` with
+ * `hover:focus-visible:outline-2` is not caught.
  */
 
 /** A variant-prefixed outline or ring width, e.g. `focus-visible:after:outline-2`. */

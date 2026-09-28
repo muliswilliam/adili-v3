@@ -72,6 +72,15 @@ describe('focusRingProblems', () => {
       assert.deepEqual(focusRingProblems(text), [], text);
     }
   });
+
+  it('treats other state variants as a separate element (a documented limit)', () => {
+    for (const text of [
+      'outline-none hover:focus-visible:outline-2',
+      'outline-none group-hover:focus-visible:ring-2',
+    ]) {
+      assert.deepEqual(focusRingProblems(text), [], text);
+    }
+  });
 });
 
 describe('adili/focus-ring', () => {
