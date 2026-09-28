@@ -56,5 +56,5 @@ export class RosterEventsConsumer {
 }
 
 function ingested(event: EventEnvelope): IngestedEvent {
-  return { id: event.id, tenant: tenantSchema.parse(event.tenant) };
+  return { id: event.id, tenant: tenantSchema.parse(event.tenant), time: new Date(event.time) };
 }
