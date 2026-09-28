@@ -490,10 +490,10 @@ function nameLink(recordLink: FlaggedListProps['recordLink'], record: RosterReco
 }
 
 const IMPORT_LINK =
-  'underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-none [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
+  'underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-hidden [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
 
 const NAME_LINK =
-  'font-medium underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-none [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
+  'font-medium underline decoration-input underline-offset-[3px] hover:decoration-foreground [&_a]:rounded-sm [&_a]:outline-hidden [&_a]:focus-visible:outline-2 [&_a]:focus-visible:outline-solid [&_a]:focus-visible:outline-offset-2 [&_a]:focus-visible:outline-ring';
 
 /** When the record was flagged, linked to the flagging import's report when it names one. */
 function flaggedIn(
