@@ -1,5 +1,10 @@
 import type { IconProps } from '@adili/ui';
-import { Building03Icon, Key01Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
+import {
+  Building03Icon,
+  Calendar03Icon,
+  Key01Icon,
+  UserGroupIcon,
+} from '@hugeicons/core-free-icons';
 
 import { type WorkspaceHref, workspacesFor } from '../workspaces';
 
@@ -49,6 +54,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         to: '/roster/api-access',
         writeOnly: true,
       },
+      { workspace: 'obligations', icon: Calendar03Icon },
     ],
   },
 ];

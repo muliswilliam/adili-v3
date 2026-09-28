@@ -9,7 +9,7 @@ export interface Workspace {
 }
 
 /** Routes of workspaces that exist so far. */
-export type WorkspaceHref = '/commissions' | '/roster';
+export type WorkspaceHref = '/commissions' | '/roster' | '/obligations';
 
 interface WorkspaceDefinition {
   id: string;
@@ -29,6 +29,14 @@ export const COMMISSION_WRITE_ROLES = ['platform-admin'] as const;
 
 /** Roles that import and maintain a Commission's roster; commission admins only read it. */
 export const ROSTER_WRITE_ROLES = ['reporting-officer'] as const;
+
+/** The Commission's own staff, who see its officers' obligations (spec 04). */
+export const OBLIGATIONS_ROLES = [
+  'reporting-officer',
+  'reviewer',
+  'supervisor',
+  'commission-admin',
+] as const;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
@@ -68,6 +76,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     href: '/roster',
     roles: ['reporting-officer', 'commission-admin'],
     writeRoles: ROSTER_WRITE_ROLES,
+  },
+  {
+    id: 'obligations',
+    title: 'Obligations',
+    description: 'Who must declare, by when, and who has been reminded.',
+    href: '/obligations',
+    roles: OBLIGATIONS_ROLES,
   },
   {
     id: 'commission',
