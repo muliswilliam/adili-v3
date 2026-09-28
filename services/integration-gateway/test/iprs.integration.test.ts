@@ -40,6 +40,10 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
     t = await createTestApp({ baseUrl: iprs.baseUrl, timeoutMs: 300 });
     t.app.useLogger(logger);
     auth = { authorization: `Bearer ${await t.token()}` };
+    // The first fetch in a process pays undici's lazy start-up, which on a busy CI runner can
+    // outlast the 300ms IPRS timeout. Pay it here, without a timeout, so no test's first
+    // lookup times out and its late request lands in the next test's call count.
+    await (await fetch(`${iprs.baseUrl}/v1/persons/warm-up`)).body?.cancel();
   });
 
   afterAll(async () => {
