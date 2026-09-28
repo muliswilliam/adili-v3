@@ -21,7 +21,8 @@ export const en = {
   remindersNone: 'No reminders',
   remindersBeforeDue: (list: string) => `${list} days before due`,
   startDate: 'Obligations start date',
-  startDateTip: 'Initial declarations are created only for appointments on or after this date.',
+  startDateTip:
+    'Declarations of every type are owed on Adili only when their statement date is on or after this date.',
   startDateTipLabel: 'About the obligations start date',
   change: 'Change',
   readOnlyNote: 'Only your Commission administrator can change the start date.',
@@ -36,7 +37,7 @@ export const en = {
   currentStartDate: 'Current start date:',
   currentVersion: (version: number) => `(version ${formatNumber(version)})`,
   startDateHint:
-    'Initial declarations are created only for appointments on or after this date. Earlier appointments are assumed to have declared outside Adili.',
+    'Initial, biennial and final declarations are created only when their statement date (appointment, 1 November of the cycle, exit) is on or after this date. Earlier ones are assumed to have been declared outside Adili.',
   savesAs: (version: number) => `Saves as version ${formatNumber(version)}, effective now.`,
   cancel: 'Cancel',
   submit: 'Save as new policy version',

@@ -15,7 +15,7 @@ export const tenantPolicyVersionSchema = z.object({
   effectiveFrom: z.iso.datetime().meta({ description: 'In force from its creation' }),
   obligationsStartDate: z.iso.date().meta({
     description:
-      "Obligations are created only for statement dates on or after this date, so officers appointed earlier owe no initial declaration on Adili. Version 1's is the date the Commission was created (Africa/Nairobi).",
+      "Obligations of every type (initial, biennial, final) are created only for statement dates on or after this date; earlier ones are assumed declared outside Adili. Version 1's is the date the Commission was created (Africa/Nairobi).",
   }),
   initialDueAfterAppointmentDays: z.int().meta({
     description: 'Initial declaration due this many days after appointment (Act s.34(1))',
@@ -61,7 +61,7 @@ export type TenantPolicyHistory = z.infer<typeof tenantPolicyHistorySchema>;
 export const createTenantPolicyVersionBody = z.strictObject({
   obligationsStartDate: z.iso.date().meta({
     description:
-      'Initial declarations are created only for appointments on or after this date. Earlier appointments are assumed to have declared outside Adili.',
+      'Obligations of every type are created only for statement dates on or after this date (appointments, biennial statement dates and exits). Earlier ones are assumed declared outside Adili.',
   }),
 });
 export type CreateTenantPolicyVersionBody = z.infer<typeof createTenantPolicyVersionBody>;

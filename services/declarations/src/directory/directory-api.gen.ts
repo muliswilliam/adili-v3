@@ -999,7 +999,7 @@ export interface components {
             effectiveFrom: string;
             /**
              * Format: date
-             * @description Obligations are created only for statement dates on or after this date, so officers appointed earlier owe no initial declaration on Adili. Version 1's is the date the Commission was created (Africa/Nairobi).
+             * @description Obligations of every type (initial, biennial, final) are created only for statement dates on or after this date; earlier ones are assumed declared outside Adili. Version 1's is the date the Commission was created (Africa/Nairobi).
              */
             obligationsStartDate: string;
             /** @description Initial declaration due this many days after appointment (Act s.34(1)) */
@@ -1054,7 +1054,7 @@ export interface components {
         CreateTenantPolicyVersion: {
             /**
              * Format: date
-             * @description Initial declarations are created only for appointments on or after this date. Earlier appointments are assumed to have declared outside Adili.
+             * @description Obligations of every type are created only for statement dates on or after this date (appointments, biennial statement dates and exits). Earlier ones are assumed declared outside Adili.
              */
             obligationsStartDate: string;
         };
