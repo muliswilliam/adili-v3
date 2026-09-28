@@ -7,7 +7,14 @@ import {
   MoreVerticalIcon,
   Upload04Icon,
 } from '@hugeicons/core-free-icons';
-import { type ComponentProps, type ReactNode, useId, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 
 import { cn } from '../lib/cn';
 import { Button } from './button';
@@ -112,10 +119,10 @@ export type AttachmentListProps = Omit<ComponentProps<'div'>, 'children'> & {
   onRetry?: (attachment: AttachmentListItem) => void;
   /**
    * More actions for an attached file, as MenuItem and MenuNote entries (e.g. "Read into the
-   * form"). When it returns something, the row's actions become a Menu named "Actions for
-   * {name}" holding them, then Remove (still confirmed first) when `onRemove` is set.
+   * form"), or null when the file has none. With entries, the row's actions become a Menu named
+   * "Actions for {name}" holding them, then Remove (still confirmed first) when `onRemove` is set.
    */
-  menuItems?: (attachment: AttachmentListItem) => ReactNode;
+  menuItems?: (attachment: AttachmentListItem) => ReactElement | null;
   /** Replaces any of the default copy. */
   messages?: Partial<AttachmentMessages>;
   disabled?: boolean;
@@ -183,9 +190,8 @@ export function AttachmentList({
     }
   }
 
-  function menuFor(attachment: AttachmentListItem): ReactNode {
-    const entries = menuItems?.(attachment);
-    return entries === undefined || entries === null || entries === false ? null : entries;
+  function menuFor(attachment: AttachmentListItem): ReactElement | null {
+    return menuItems?.(attachment) ?? null;
   }
 
   function statusLine(attachment: AttachmentListItem): ReactNode {
