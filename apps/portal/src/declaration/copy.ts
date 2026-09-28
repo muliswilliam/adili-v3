@@ -40,7 +40,7 @@ export const PREFILL_COPY = {
     dismissedFold: en((count: number) => `Dismissed (${String(count)})`),
     dismissedAnnounce: en((title: string) => `Dismissed ${title}`),
     addValue: en((type: string) => `${type} · add the value yourself`),
-    officerTax: en('Shown in Your details'),
+    ownTax: en('Shown in Your details'),
     spouseTax: en((first: string) => `Adds to ${first}'s details in Household`),
     theirKraPin: en((first: string) => `${first}'s KRA PIN`),
     nothingToFill: en('Nothing to fill.'),

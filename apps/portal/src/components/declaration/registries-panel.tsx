@@ -325,7 +325,7 @@ export function RegistriesPanel({
             key={suggestion.id}
             {...common}
             acceptedAs={acceptedAs}
-            description={REGISTRY_COPY.officerTax}
+            description={REGISTRY_COPY.ownTax}
           />
         );
       }
