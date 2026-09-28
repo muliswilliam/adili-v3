@@ -1,12 +1,14 @@
-import type { DeclarationV1 } from '@adili/forms';
+import type { ChangeFlag, DeclarationV1, MaterialChangeEntry } from '@adili/forms';
 
 import {
+  CATEGORIES,
   type Category,
   match,
   type MatchedPair,
   normalise,
-  type Placed,
+  type PlacedItem,
   placedItems,
+  statementSectionKey,
   valueOf,
 } from './match.js';
 import { RULES, type RuleId, type Severity } from './registry.js';
@@ -27,7 +29,7 @@ export type Evidence = Record<string, string | number | boolean | null | string[
 
 export interface ItemRef {
   personKey: string;
-  /** The item concerned, or null when the flag is about a whole category or section. */
+  /** The item concerned, or null when the flag is about a whole category or statement. */
   itemId: string | null;
   sectionKey: string | null;
 }
@@ -41,15 +43,21 @@ export interface Flag {
   itemRefs: ItemRef[];
 }
 
-/** The change kind that marks an item as new: a new source of income, or an acquisition. */
-const NEW_KIND: Record<Category, string> = {
+type ChangeKind = NonNullable<ChangeFlag['kind']>;
+
+/** The change kind that marks an item as new in its category. */
+const NEW_KIND: Record<Category, ChangeKind> = {
   income: 'new-source',
   assets: 'acquisition',
   liabilities: 'acquisition',
 };
 
-/** Paragraph 9 kinds that account for an item no longer declared. */
-const GONE_KINDS = new Set(['disposal', 'source-ended', 'settled']);
+/** The paragraph 9 kind that accounts for an item of each category no longer declared. */
+const GONE_KIND: Record<Category, MaterialChangeEntry['kind']> = {
+  income: 'source-ended',
+  assets: 'disposal',
+  liabilities: 'settled',
+};
 
 /**
  * The deterministic checks run on each submitted version (spec 07a, BE-1). Flags are indicators
@@ -58,19 +66,14 @@ const GONE_KINDS = new Set(['disposal', 'source-ended', 'settled']);
  */
 export function runRules({ current, previous, late, schemaIssues = 0 }: RulesInput): Flag[] {
   const flags: Flag[] = [];
-  if (schemaIssues > 0)
+  if (schemaIssues > 0) {
     flags.push(flag('completeness-residual', 'info', { issues: schemaIssues }, []));
+  }
   if (previous) flags.push(...comparisonFlags(previous, current));
   else flags.push(flag('no-previous-version', 'info', {}, []));
   if (late) {
-    flags.push(
-      flag(
-        'late-filing',
-        'low',
-        { ...late, daysLate: daysBetween(late.dueDate, late.submittedOn) },
-        [],
-      ),
-    );
+    const daysLate = daysBetween(late.dueDate, late.submittedOn);
+    flags.push(flag('late-filing', 'low', { ...late, daysLate }, []));
   }
   flags.push(...foreignHoldings(current), ...jointShares(current));
   return flags;
@@ -78,9 +81,9 @@ export function runRules({ current, previous, late, schemaIssues = 0 }: RulesInp
 
 function comparisonFlags(previous: DeclarationV1, current: DeclarationV1): Flag[] {
   const { matched, onlyPrevious, onlyCurrent } = match(previous, current);
-  const nil = nilAfterPopulated(previous, current);
-  const nilCategories = new Set(nil.map(({ personKey, category }) => `${personKey} ${category}`));
-  const currentPeople = new Set(current.statements.map((statement) => statement.personKey));
+  const nilCategories = nilAfterPopulated(previous, current);
+  const nilKeys = new Set(nilCategories.map(categoryKey));
+  const { materialChanges } = current.otherInformation;
 
   return [
     ...matched.flatMap(valueChange),
@@ -91,58 +94,56 @@ function comparisonFlags(previous: DeclarationV1, current: DeclarationV1): Flag[
         : [flag('acquisition-unflagged', 'medium', { category: placed.category }, [ref(placed)])];
     }),
     ...onlyPrevious
-      // A category now nil, or a person no longer declared for, is covered elsewhere.
-      .filter((placed) => currentPeople.has(placed.personKey))
-      .filter((placed) => !nilCategories.has(`${placed.personKey} ${placed.category}`))
-      .filter((placed) => !recordedAsGone(placed, current))
+      // A category now declared nil has its own flag below.
+      .filter((placed) => !nilKeys.has(categoryKey(placed)))
+      .filter((placed) => !recordedAsGone(placed, materialChanges))
       .map((placed) =>
         flag('disposal-unflagged', 'medium', { category: placed.category }, [ref(placed)]),
       ),
-    ...nil.map(({ personKey, category, previousItems }) =>
+    ...nilCategories.map(({ personKey, category, previousItems }) =>
       flag('nil-after-populated', 'medium', { category, previousItems }, [
-        { personKey, itemId: null, sectionKey: `statement:${personKey}` },
+        { personKey, itemId: null, sectionKey: statementSectionKey(personKey) },
       ]),
     ),
     ...incomeVersusAssetGrowth(previous, current),
   ];
 }
 
-/** A matched item's value change of 25% or more, and whether the declarant's marking agrees. */
+/**
+ * A matched item's value change of 25% or more (high above 100%), and whether the declarant's
+ * marking agrees: a value change is marked as one, and an item declared before is not marked as
+ * new. Thresholds apply to the exact ratio; the evidence gives it as a whole percentage.
+ */
 function valueChange(pair: MatchedPair): Flag[] {
   const before = valueOf(pair.previous);
   const after = valueOf(pair.current);
-  // With nothing before there is no percentage; the item is effectively new.
-  if (before === 0) return [];
-  const changePercent = Math.round((Math.abs(after - before) / before) * 100);
-  const material = changePercent >= 25;
-  const marked = pair.current.change.changed;
+  // Up from nothing is more than any percentage, and there is none to give.
+  const ratio = before === 0 ? (after === 0 ? 0 : Infinity) : Math.abs(after - before) / before;
+  const changePercent = Number.isFinite(ratio) ? Math.round(ratio * 100) : null;
+  const material = ratio >= 0.25;
+  const { changed, kind } = pair.current.change;
+  const markedAsNew = changed && kind === NEW_KIND[pair.category];
   const refs = [ref({ personKey: pair.personKey, category: pair.category, item: pair.current })];
   const flags: Flag[] = [];
   if (material) {
+    const direction = after > before ? 'up' : 'down';
     flags.push(
-      flag(
-        'value-change-25',
-        changePercent > 100 ? 'high' : 'medium',
-        {
-          changePercent,
-          direction: after > before ? 'up' : 'down',
-        },
-        refs,
-      ),
+      flag('value-change-25', ratio > 1 ? 'high' : 'medium', { changePercent, direction }, refs),
     );
   }
-  if (material !== marked) {
+  if (material !== changed || markedAsNew) {
     flags.push(
-      flag('change-flag-mismatch', 'low', { changePercent, markedAsChanged: marked }, refs),
+      flag('change-flag-mismatch', 'low', { changePercent, markedAsChanged: changed }, refs),
     );
   }
   return flags;
 }
 
-function recordedAsGone(placed: Placed, current: DeclarationV1): boolean {
-  return current.otherInformation.materialChanges.some(
+/** Whether paragraph 9 records the item as gone, with the kind its category calls for. */
+function recordedAsGone(placed: PlacedItem, materialChanges: MaterialChangeEntry[]): boolean {
+  return materialChanges.some(
     (entry) =>
-      GONE_KINDS.has(entry.kind) &&
+      entry.kind === GONE_KIND[placed.category] &&
       (entry.itemId === placed.item.id ||
         (entry.personKey === placed.personKey &&
           entry.itemDescription !== undefined &&
@@ -150,10 +151,16 @@ function recordedAsGone(placed: Placed, current: DeclarationV1): boolean {
   );
 }
 
-function nilAfterPopulated(previous: DeclarationV1, current: DeclarationV1) {
+interface NilCategory {
+  personKey: string;
+  category: Category;
+  previousItems: number;
+}
+
+function nilAfterPopulated(previous: DeclarationV1, current: DeclarationV1): NilCategory[] {
   return current.statements.flatMap((statement) => {
     const before = previous.statements.find((s) => s.personKey === statement.personKey);
-    return (['income', 'assets', 'liabilities'] as const).flatMap((category) => {
+    return CATEGORIES.flatMap((category) => {
       const previousItems = before?.[category].length ?? 0;
       return statement[`${category}Nil`] && previousItems > 0
         ? [{ personKey: statement.personKey, category, previousItems }]
@@ -162,7 +169,14 @@ function nilAfterPopulated(previous: DeclarationV1, current: DeclarationV1) {
   });
 }
 
-/** Growth in total assets against total income for the period: medium above it, high above three times. */
+const categoryKey = ({ personKey, category }: { personKey: string; category: Category }) =>
+  JSON.stringify([personKey, category]);
+
+/**
+ * Growth in total assets since the previous version against total income for the period: medium
+ * above it, high above three times. The current version's income period runs from the previous
+ * statement date (spec 05's derivation), so its income is the income since that version.
+ */
 function incomeVersusAssetGrowth(previous: DeclarationV1, current: DeclarationV1): Flag[] {
   const total = (document: DeclarationV1, category: Category) =>
     placedItems(document)
@@ -171,17 +185,14 @@ function incomeVersusAssetGrowth(previous: DeclarationV1, current: DeclarationV1
   const income = total(current, 'income');
   const growth = total(current, 'assets') - total(previous, 'assets');
   if (growth <= income) return [];
-  const growthToIncome = income > 0 ? Math.round((growth / income) * 10) / 10 : null;
-  const severity = growthToIncome === null || growthToIncome > 3 ? 'high' : 'medium';
-  return [flag('income-vs-asset-growth', severity, { growthToIncome }, [])];
+  const ratio = income > 0 ? growth / income : Infinity;
+  const growthToIncome = Number.isFinite(ratio) ? Math.round(ratio * 10) / 10 : null;
+  return [flag('income-vs-asset-growth', ratio > 3 ? 'high' : 'medium', { growthToIncome }, [])];
 }
 
 function foreignHoldings(current: DeclarationV1): Flag[] {
   const abroad = placedItems(current).filter(
-    (placed) =>
-      placed.category !== 'liabilities' &&
-      'location' in placed.item &&
-      !placed.item.location.inKenya,
+    (placed) => placed.category !== 'liabilities' && !placed.item.location.inKenya,
   );
   if (abroad.length === 0) return [];
   const countries = [
@@ -190,30 +201,27 @@ function foreignHoldings(current: DeclarationV1): Flag[] {
   return [flag('foreign-holdings', 'info', { items: abroad.length, countries }, abroad.map(ref))];
 }
 
-/** Joint shares of one asset (same type and description) across household statements must sum to 100%. */
+/** Joint shares of one asset (same description) across household statements must sum to 100%. */
 function jointShares(current: DeclarationV1): Flag[] {
-  const joint = placedItems(current).filter(
-    (placed) => placed.category === 'assets' && 'joint' in placed.item && placed.item.joint.isJoint,
+  const joint = placedItems(current).flatMap((placed) =>
+    placed.category === 'assets' && 'joint' in placed.item && placed.item.joint.isJoint
+      ? [{ placed, sharePercent: placed.item.joint.sharePercent ?? 0 }]
+      : [],
   );
-  const groups = Map.groupBy(joint, (placed) =>
-    JSON.stringify([placed.item.type, normalise(placed.item.description)]),
-  );
+  const groups = Map.groupBy(joint, ({ placed }) => normalise(placed.item.description));
   return [...groups.values()].flatMap((group) => {
-    if (new Set(group.map((placed) => placed.personKey)).size < 2) return [];
-    const sharePercentTotal = group.reduce(
-      (sum, placed) => sum + ('joint' in placed.item ? (placed.item.joint.sharePercent ?? 0) : 0),
-      0,
-    );
-    return sharePercentTotal === 100
-      ? []
-      : [
-          flag(
-            'joint-share-inconsistent',
-            'info',
-            { sharePercentTotal, statements: group.length },
-            group.map(ref),
-          ),
-        ];
+    if (new Set(group.map(({ placed }) => placed.personKey)).size < 2) return [];
+    const sharePercentTotal = group.reduce((sum, { sharePercent }) => sum + sharePercent, 0);
+    if (sharePercentTotal === 100) return [];
+    const refs = group.map(({ placed }) => ref(placed));
+    return [
+      flag(
+        'joint-share-inconsistent',
+        'info',
+        { sharePercentTotal, statements: group.length },
+        refs,
+      ),
+    ];
   });
 }
 
@@ -221,8 +229,8 @@ function flag(ruleId: RuleId, severity: Severity, evidence: Evidence, itemRefs: 
   return { ruleId, severity, ...RULES[ruleId], evidence, itemRefs };
 }
 
-function ref({ personKey, item }: Placed): ItemRef {
-  return { personKey, itemId: item.id, sectionKey: `statement:${personKey}` };
+function ref({ personKey, item }: PlacedItem): ItemRef {
+  return { personKey, itemId: item.id, sectionKey: statementSectionKey(personKey) };
 }
 
 function daysBetween(from: string, to: string): number {

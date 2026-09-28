@@ -4,8 +4,8 @@ export {
   type MatchedPair,
   type MatchResult,
   normalise,
-  type Placed,
+  type PlacedItem,
 } from './match.js';
 export { RULES, type RuleId, type Severity } from './registry.js';
 export { type Evidence, type Flag, type ItemRef, runRules, type RulesInput } from './rules.js';
-export { band, score } from './score.js';
+export { type Band, band, score } from './score.js';

@@ -7,8 +7,10 @@ export function score(flags: readonly { severity: Severity }[]): number {
   return flags.reduce((sum, flag) => sum + WEIGHTS[flag.severity], 0);
 }
 
+export type Band = 'low' | 'medium' | 'high';
+
 /** The priority band a score falls in: low under 3, medium 3 to 9, high 10 and above. */
-export function band(value: number): 'low' | 'medium' | 'high' {
+export function band(value: number): Band {
   if (value >= 10) return 'high';
   return value >= 3 ? 'medium' : 'low';
 }

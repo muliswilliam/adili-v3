@@ -47,7 +47,7 @@ export const RULES = {
       'This category is declared nil although the previous declaration listed items in it.',
   },
   'late-filing': {
-    title: 'Filed after the due date',
+    title: 'Submitted after the due date',
     indicator: 'This declaration was submitted after it was due.',
   },
   'foreign-holdings': {

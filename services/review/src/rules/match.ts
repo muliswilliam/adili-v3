@@ -6,7 +6,7 @@ export type Item = IncomeItem | AssetItem | LiabilityItem;
 export const CATEGORIES: readonly Category[] = ['income', 'assets', 'liabilities'];
 
 /** An item where it sits in a declaration: whose statement and which category. */
-export interface Placed {
+export interface PlacedItem {
   personKey: string;
   category: Category;
   item: Item;
@@ -21,8 +21,8 @@ export interface MatchedPair {
 
 export interface MatchResult {
   matched: MatchedPair[];
-  onlyPrevious: Placed[];
-  onlyCurrent: Placed[];
+  onlyPrevious: PlacedItem[];
+  onlyCurrent: PlacedItem[];
 }
 
 /** Lower case, letters and digits only, single spaces: "Plot in Kisumu." and "plot in  KISUMU" agree. */
@@ -33,11 +33,16 @@ export function normalise(description: string): string {
     .trim();
 }
 
+/** A statement's key in the draft and review contracts. */
+export function statementSectionKey(personKey: string): string {
+  return `statement:${personKey}`;
+}
+
 /** Every item of a declaration, in document order. */
-export function placedItems(document: DeclarationV1): Placed[] {
+export function placedItems(document: DeclarationV1): PlacedItem[] {
   return document.statements.flatMap((statement) =>
     CATEGORIES.flatMap((category) =>
-      statement[category].map((item): Placed => ({
+      statement[category].map((item): PlacedItem => ({
         personKey: statement.personKey,
         category,
         item,
@@ -53,8 +58,13 @@ export function valueOf(item: Item): number {
   return item.outstanding.kesCents;
 }
 
-const matchKey = ({ personKey, category, item }: Placed) =>
-  JSON.stringify([personKey, category, item.type, normalise(item.description)]);
+/** What makes two items the same thing: their type and normalised description. */
+export function sameItemKey(item: Item): string {
+  return JSON.stringify([item.type, normalise(item.description)]);
+}
+
+const matchKey = ({ personKey, category, item }: PlacedItem) =>
+  JSON.stringify([personKey, category, sameItemKey(item)]);
 
 /**
  * Pairs the items of two versions (spec 07a, BE-1). Items have no identity across cycles, so a
@@ -62,7 +72,7 @@ const matchKey = ({ personKey, category, item }: Placed) =>
  * in document order. The comparison rules and the reviewer's diff both use it.
  */
 export function match(previous: DeclarationV1, current: DeclarationV1): MatchResult {
-  const waiting = new Map<string, Placed[]>();
+  const waiting = new Map<string, PlacedItem[]>();
   for (const placed of placedItems(previous)) {
     waiting.set(matchKey(placed), [...(waiting.get(matchKey(placed)) ?? []), placed]);
   }
