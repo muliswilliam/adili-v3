@@ -7,6 +7,7 @@ import {
   formatDateTime,
   formatMoney,
   Icon,
+  SourceBadge,
   Table,
   TableBody,
   TableCell,
@@ -32,6 +33,7 @@ import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from './contents';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from './format';
+import { sourceDetails } from './item-source';
 import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, TYPE_LABELS } from './labels';
 import {
   directorshipLine,
@@ -247,6 +249,16 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
             'Employer and designation',
             `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
           ],
+          ...(
+            [
+              ['Job group', employment.jobGroup?.trim()],
+              [
+                'Date of appointment',
+                employment.appointmentDate ? formatDate(employment.appointmentDate) : undefined,
+              ],
+              ['Work station', employment.workStation?.trim()],
+            ] as const
+          ).flatMap(([term, value]): [string, ReactNode][] => (value ? [[term, value]] : [])),
           ['Nature of employment', nature],
           [
             'Responsible Commission',
@@ -389,10 +401,12 @@ function StatementItems({
                     const documents = (item.attachments ?? [])
                       .map((attachment) => attachment.fileName)
                       .filter(Boolean);
+                    const source = sourceDetails(item);
                     return (
                       <TableRow key={item.id ?? index}>
                         <TableCell>{typeLabel(category.key, item.type)}</TableCell>
                         <TableCell>
+                          {source ? <SourceBadge {...source} className="mb-1" /> : null}
                           <span className="block">{orUnanswered(item.description)}</span>
                           {flags.length > 0 ? (
                             <span className="block text-[13px] text-muted-foreground">
@@ -418,6 +432,60 @@ function StatementItems({
         );
       })}
     </div>
+  );
+}
+
+interface SourcedPerson {
+  key: Step;
+  short: string;
+  statement: Draft<Statement>;
+}
+
+/** S11: every item that came from a registry or a document, with a link to check it. */
+function SourcedItems({
+  declarationId,
+  persons,
+}: {
+  declarationId: string;
+  persons: SourcedPerson[];
+}) {
+  const rows = persons.flatMap((person) =>
+    CATEGORIES.flatMap((category) =>
+      (person.statement[category.key] ?? []).flatMap((item: AnyItem, index) => {
+        const source = sourceDetails(item);
+        if (!source) return [];
+        const description =
+          [item.description?.trim(), typeLabel(category.key, item.type)].find(Boolean) ?? '';
+        return [{ id: `${person.key}:${item.id ?? String(index)}`, person, source, description }];
+      }),
+    ),
+  );
+  if (rows.length === 0) return null;
+  return (
+    <details className="group rounded-xl bg-muted">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+        {rows.length === 1 ? '1 item' : `${String(rows.length)} items`} from registries or documents
+      </summary>
+      <ul className="grid gap-2 px-4 pb-3">
+        {rows.map((row) => (
+          <li key={row.id} className="flex flex-wrap items-center gap-2 text-sm">
+            <SourceBadge {...row.source} />
+            <span className="min-w-0 flex-1">
+              {row.description}
+              <span className="text-muted-foreground"> · {row.person.short}</span>
+            </span>
+            <Button asChild variant="ghost" size="sm">
+              <Link
+                {...stepLink(declarationId, row.person.key)}
+                aria-label={`Check ${row.description}`}
+              >
+                Check
+              </Link>
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -487,6 +555,7 @@ function StatementsCard({
           KES, approximate. Joint assets at whole value.
         </p>
       </div>
+      <SourcedItems declarationId={declaration.id} persons={persons} />
       <div className="grid gap-3">
         {persons.map((person, index) => {
           const title = statementTitle(person.key, person.name);

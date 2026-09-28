@@ -221,12 +221,34 @@ describe('SummaryView', () => {
     );
     expect(valueOf(bio, 'Employer and designation')).toBe('Nyeri High School · Deputy Principal');
     expect(valueOf(bio, 'Nature of employment')).toBe('Permanent');
+    expect(within(bio).queryByText('Job group')).toBeNull();
     expect(valueOf(bio, 'Responsible Commission')).toBe(
       'Teachers Service Commission · personnel file number TSC/999999',
     );
     expect(within(bio).getByRole('link', { name: 'Edit Your details' }).getAttribute('href')).toBe(
       `/declarations/${DECLARATION_ID}/bio`,
     );
+  });
+
+  it('S8: shows the HR fields the roster pre-filled', () => {
+    const document = {
+      ...COMPLETE_DOCUMENT,
+      officer: {
+        ...COMPLETE_DOCUMENT.officer,
+        employment: {
+          ...COMPLETE_DOCUMENT.officer.employment,
+          jobGroup: 'D3 (T-Scale 13)',
+          appointmentDate: '2026-09-02',
+          workStation: 'Eldoret, Uasin Gishu',
+        },
+      },
+    };
+    renderSummary(summaryOf({ document: document as unknown as LoadedSummary['document'] }));
+
+    const bio = card('Your details');
+    expect(valueOf(bio, 'Job group')).toBe('D3 (T-Scale 13)');
+    expect(valueOf(bio, 'Date of appointment')).toBe('2 Sep 2026');
+    expect(valueOf(bio, 'Work station')).toBe('Eldoret, Uasin Gishu');
   });
 
   it('shows the household from the summary document', () => {
@@ -263,6 +285,67 @@ describe('SummaryView', () => {
         .getByRole('link', { name: "Edit Mary Wanjiru Kennedy's financial statement" })
         .getAttribute('href'),
     ).toBe(`/declarations/${DECLARATION_ID}/statements/${encodeURIComponent(SPOUSE)}`);
+  });
+
+  it('S11: lists the items from registries or documents with their badges', () => {
+    const at = '2026-09-26T08:00:00Z';
+    const suggestionId = '7d1f7a64-3c41-4c55-9d0e-6a9b1b3e2f10';
+    type Stated = (typeof COMPLETE_DOCUMENT.statements)[number];
+    const [officer, spouse] = COMPLETE_DOCUMENT.statements as [Stated, Stated];
+    const vehicle = {
+      id: 'b1',
+      type: 'vehicle',
+      description: 'Toyota Probox',
+      details: { registration: 'KCA 123A' },
+      value: { kesCents: 85_000_000 },
+      joint: { isJoint: false },
+      location: { inKenya: true },
+      change: { changed: false },
+      source: { kind: 'ntsa', suggestionId, at },
+    };
+    const document = {
+      ...COMPLETE_DOCUMENT,
+      statements: [
+        {
+          ...officer,
+          assets: officer.assets.map((asset) => ({
+            ...asset,
+            source: { kind: 'document', suggestionId, at },
+          })),
+        },
+        { ...spouse, assetsNil: false, assets: [vehicle] },
+      ],
+    };
+    renderSummary(summaryOf({ document: document as unknown as LoadedSummary['document'] }));
+
+    const statements = card('Financial statements');
+    const fold = within(statements).getByText('2 items from registries or documents');
+    const list = within(fold.closest('details') as HTMLElement).getByRole('list');
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((row) => row.textContent),
+    ).toEqual(['DocumentPlot in Kapsoya · YouCheck', 'NTSAToyota Probox · MaryCheck']);
+    expect(
+      within(list).getByRole('img', { name: 'Source: From NTSA, 26 Sep 2026 · KCA 123A' }),
+    ).toBeTruthy();
+    expect(
+      within(list).getByRole('link', { name: 'Check Toyota Probox' }).getAttribute('href'),
+    ).toBe(`/declarations/${DECLARATION_ID}/statements/${encodeURIComponent(SPOUSE)}`);
+
+    const assets = within(statements).getByRole('table', {
+      name: 'You: Assets as at 1 Nov 2027, KES',
+    });
+    expect(
+      within(assets).getByRole('img', {
+        name: 'Source: Read from title-deed.pdf, 26 Sep 2026',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('lists no sourced items when nothing came from a registry or document', () => {
+    renderSummary();
+    expect(screen.queryByText(/from registries or documents$/)).toBeNull();
   });
 
   it('renders paragraph 9 after the composed material changes', () => {
