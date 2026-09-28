@@ -10,7 +10,6 @@ import {
   MenuTrigger,
   ProgressBar,
   Skeleton,
-  Tooltip,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -23,7 +22,6 @@ import {
   Key01Icon,
   LeftToRightListBulletIcon,
   Search01Icon,
-  Upload04Icon,
   UserCheck01Icon,
   UserGroupIcon,
   Xls02Icon,
@@ -39,6 +37,7 @@ import { type CredentialState, credentialState } from '../../components/roster/a
 import { onboardedPercent, toOnboard } from '../../components/roster/coverage';
 import { messages as m } from '../../components/roster/messages';
 import { importRunning } from '../../components/roster/import-report';
+import { ImportRosterButton } from '../../components/roster/import-roster-button';
 import { type NextStep, nextSteps } from '../../components/roster/next-steps';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
 import { RunningImportBanner } from '../../components/roster/running-import-banner';
@@ -112,7 +111,7 @@ function RosterOverview() {
   const readOnly = workspace.readOnly;
   const result = data.commission;
   const banner = running ? <RunningImportBanner imp={running} /> : null;
-  const importButton = readOnly ? null : <ImportButton running={running !== null} />;
+  const importButton = readOnly ? null : <ImportRosterButton running={running !== null} />;
 
   if (!result.ok) {
     return (
@@ -281,31 +280,6 @@ function useRunningImport(slug: string | null, loaded: RosterImport | null): Ros
   if (!loaded || polling.error === 'not-found') return null;
   const current = polling.imp ?? loaded;
   return importRunning(current) ? current : null;
-}
-
-/** The way into the import wizard; disabled, saying why, while an import runs. */
-function ImportButton({ running }: { running: boolean }) {
-  if (running) {
-    return (
-      <Tooltip content={m.waitForImport}>
-        {/* A disabled button takes no focus or hover; the wrapper explains it. */}
-        <span tabIndex={0} className="inline-flex rounded-lg">
-          <Button disabled>
-            <Icon icon={Upload04Icon} />
-            {m.importRoster}
-          </Button>
-        </span>
-      </Tooltip>
-    );
-  }
-  return (
-    <Button asChild>
-      <Link to="/roster/import">
-        <Icon icon={Upload04Icon} />
-        {m.importRoster}
-      </Link>
-    </Button>
-  );
 }
 
 function SummaryTiles({ roster }: { roster: RosterSummary }) {
