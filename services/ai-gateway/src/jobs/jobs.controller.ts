@@ -108,13 +108,24 @@ export class JobsController {
 }
 
 function readKey(header: string | undefined): string {
+  if (!header) {
+    throw new ProblemException({
+      type: 'idempotency-key-missing',
+      title: 'Idempotency-Key required',
+      status: HttpStatus.BAD_REQUEST,
+      detail:
+        'Send one Idempotency-Key header holding a UUID, unique per logical request, and reuse it on retry.',
+    });
+  }
   const key = idempotencyKey.safeParse(header);
-  if (key.success) return key.data;
-  throw new ProblemException({
-    type: 'idempotency-key-missing',
-    title: 'Idempotency-Key required',
-    status: HttpStatus.BAD_REQUEST,
-    detail:
-      'Send one Idempotency-Key header holding a UUID, unique per logical request, and reuse it on retry. A key derived from the request can be a name-based UUID (v5).',
-  });
+  if (!key.success) {
+    throw new ProblemException({
+      type: 'idempotency-key-invalid',
+      title: 'Idempotency-Key is not a UUID',
+      status: HttpStatus.BAD_REQUEST,
+      detail: 'A key derived from the request can be a name-based UUID (v5).',
+    });
+  }
+  // UUIDs are case-insensitive; one spelling per key keeps the unique index honest.
+  return key.data.toLowerCase();
 }

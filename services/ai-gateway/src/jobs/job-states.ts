@@ -1,5 +1,3 @@
-import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
-
 /** Contract enums of the job state machine: queued → running → succeeded | failed | blocked. */
 
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'blocked'] as const;
@@ -18,16 +16,12 @@ export function isTerminal(status: JobStatus): status is TerminalStatus {
   return !(LIVE_STATUSES as readonly JobStatus[]).includes(status);
 }
 
-/** `status in ('a', 'b')` for a partial index predicate; the values are constants, not input. */
-export function statusIn(column: SQL.Aliased | AnyColumn, statuses: readonly JobStatus[]): SQL {
-  return sql`${column} in (${sql.raw(statuses.map((status) => `'${status}'`).join(', '))})`;
-}
-
 /**
  * Why a job failed or was blocked:
  * - `validation`: the output did not match the task schema, or was cut off.
  * - `refused`: the model declined.
- * - `provider`: the provider call failed after retries, or cannot succeed.
+ * - `provider`: the provider call failed after retries, or cannot succeed; also any other
+ *   failure that ends a job without a result (the contract has no internal reason yet).
  * - `timeout`: the provider kept timing out.
  * - `policy`, `budget`, `provider-unavailable`: set by the policy layer.
  */

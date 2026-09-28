@@ -225,7 +225,23 @@ describe('task jobs', () => {
       });
 
       expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
+      expect(response.json()).toMatchObject({ type: 'idempotency-key-invalid' });
+    });
+
+    it('treats an Idempotency-Key in either case as the same key', async () => {
+      const input = freshInput();
+      await recordSuccess(input);
+      const key = randomUUID();
+      const first = (
+        await runTask('summarize-declaration', taskRequest(input), { key })
+      ).json<Job>();
+
+      const replay = await runTask('summarize-declaration', taskRequest(input), {
+        key: key.toUpperCase(),
+      });
+
+      expect(replay.headers['idempotent-replayed']).toBe('true');
+      expect(replay.json<Job>().id).toBe(first.id);
     });
 
     it('creates one job for concurrent equal requests', async () => {

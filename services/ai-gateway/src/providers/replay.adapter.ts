@@ -26,7 +26,7 @@ interface Fixture<TResponse> {
 }
 
 /** Identifies a recorded response: SHA-256 over the operation and the canonical neutral request. */
-export function requestHash(operation: Operation, request: GenerateRequest): string {
+export function fixtureKey(operation: Operation, request: GenerateRequest): string {
   return hashJson({ operation, request });
 }
 
@@ -219,7 +219,7 @@ export class ReplayAdapter implements ModelProvider {
     operation: Operation,
     request: GenerateRequest,
   ): Promise<TResponse> {
-    const hash = requestHash(operation, request);
+    const hash = fixtureKey(operation, request);
     const path = this.path(hash);
     let raw: string;
     try {
@@ -239,7 +239,7 @@ export class ReplayAdapter implements ModelProvider {
     response: unknown,
   ): Promise<void> {
     const fixture: Fixture<unknown> = { version: 1, operation, request, response };
-    await this.writeFile(this.path(requestHash(operation, request)), fixture);
+    await this.writeFile(this.path(fixtureKey(operation, request)), fixture);
   }
 
   private async writeFile(path: string, content: unknown): Promise<void> {

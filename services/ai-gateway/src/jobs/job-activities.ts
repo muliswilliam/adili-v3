@@ -4,7 +4,7 @@ import { ApplicationFailure } from '@temporalio/common';
 import { ProviderError } from '../providers/port.js';
 import { ReplayFixtureMissingError } from '../providers/replay.adapter.js';
 import { PROVIDER_ERROR } from './failures.js';
-import { JobExecutor } from './job-executor.js';
+import { JobExecutor, ResultNotRecordedError } from './job-executor.js';
 import type { JobReason } from './job-states.js';
 
 /**
@@ -39,6 +39,9 @@ function toFailure(error: unknown): unknown {
       nextRetryDelay:
         error.retryAfterSeconds === undefined ? undefined : `${error.retryAfterSeconds} seconds`,
     });
+  }
+  if (error instanceof ResultNotRecordedError) {
+    return ApplicationFailure.nonRetryable(error.message, error.name);
   }
   if (error instanceof ReplayFixtureMissingError) {
     // Replays cannot conjure a fixture on retry.

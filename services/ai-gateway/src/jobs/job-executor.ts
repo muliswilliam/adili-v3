@@ -33,17 +33,30 @@ interface AttemptMetrics {
 }
 
 const NO_CALL: AttemptMetrics = { usage: null, latencyMs: 0 };
-const FINISH_RETRY_DELAYS_MS = [250, 1000, 4000];
+/** About 15 s in all, well inside the attempt's margin over the provider timeout. */
+const RECORD_RETRY_DELAYS_MS = [250, 750, 2000, 4000, 8000];
 
-/** Runs `write`, retrying briefly on failure; rethrows once the pauses are spent. */
-async function retried(write: () => Promise<void>): Promise<void> {
+/**
+ * A provider result that could not be recorded. Not retried: another attempt would call, and
+ * pay, the provider again; the workflow fails the job instead.
+ */
+export class ResultNotRecordedError extends Error {
+  override readonly name = 'ResultNotRecordedError';
+}
+
+/** Runs `write`, retrying on failure; throws `ResultNotRecordedError` once the pauses are spent. */
+async function retryWrite(jobId: string, write: () => Promise<void>): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {
       await write();
       return;
     } catch (error) {
-      const delay = FINISH_RETRY_DELAYS_MS[attempt];
-      if (delay === undefined) throw error;
+      const delay = RECORD_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) {
+        throw new ResultNotRecordedError(`Could not record the result of job ${jobId}`, {
+          cause: error,
+        });
+      }
       await sleep(delay);
     }
   }
@@ -81,9 +94,12 @@ export class JobExecutor {
     const startedAt = performance.now();
     const result = await this.provider.generateStructured(request);
     const metrics = { usage: result.usage, latencyMs: Math.round(performance.now() - startedAt) };
-    // The call is paid for: a database blip while recording it must not send the job back to
-    // the workflow's retry, which would call the provider again.
-    await retried(() => this.finish(job, this.outcome(job, task, result), metrics));
+    const outcome = this.outcome(job, task, result);
+    // The call is paid for: a database outage while recording it must not send the job back to
+    // the workflow's retry, which would call the provider again. A worker that dies between
+    // the call and the commit still leads to a second call; only storing the raw result first
+    // would prevent that.
+    await retryWrite(job.id, () => this.finish(job, outcome, metrics));
   }
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */

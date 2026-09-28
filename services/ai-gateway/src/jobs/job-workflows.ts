@@ -19,7 +19,10 @@ export interface JobWorkflowsOptions {
 /** Whether a job's workflow runs, has ended, or does not exist (never started, or purged). */
 export type WorkflowState = 'running' | 'closed' | 'missing';
 
-/** The `aiJob` workflow of each job (one per job, keyed by the job id): starts it, reads its state, waits for its end. */
+/**
+ * The `aiJob` workflow of each job, one per job keyed by the job id: starts it, reads its
+ * state and waits for its end.
+ */
 @Injectable()
 export class JobWorkflows {
   constructor(

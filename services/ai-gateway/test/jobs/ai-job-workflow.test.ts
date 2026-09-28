@@ -4,7 +4,7 @@ import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { JobActivities } from '../../src/jobs/job-activities.js';
-import type { JobExecutor } from '../../src/jobs/job-executor.js';
+import { type JobExecutor, ResultNotRecordedError } from '../../src/jobs/job-executor.js';
 import type { JobReason } from '../../src/jobs/job-states.js';
 import { aiJob } from '../../src/jobs/workflows.js';
 import { ProviderError, type ProviderErrorKind } from '../../src/providers/port.js';
@@ -81,6 +81,12 @@ describe('aiJob workflow', { timeout: 60_000 }, () => {
 
   it('does not retry a provider error that cannot succeed', async () => {
     const calls = await run([providerError('bad-request')]);
+
+    expect(calls).toEqual({ execute: 1, failed: ['provider'] });
+  });
+
+  it('fails the job instead of calling the provider again when its result was not recorded', async () => {
+    const calls = await run([new ResultNotRecordedError('database down')]);
 
     expect(calls).toEqual({ execute: 1, failed: ['provider'] });
   });

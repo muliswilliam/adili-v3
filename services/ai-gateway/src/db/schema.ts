@@ -1,5 +1,5 @@
 import { eventsSchema } from '@adili/events/schema';
-import { sql } from 'drizzle-orm';
+import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
 import {
   check,
   index,
@@ -16,11 +16,16 @@ import {
   CACHEABLE_STATUSES,
   JOB_REASONS,
   JOB_STATUSES,
+  type JobStatus,
   LIVE_STATUSES,
-  statusIn,
 } from '../jobs/job-states.js';
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { TASK_NAMES } from '../tasks/task.js';
+
+/** `status in ('a', 'b')` for a partial index predicate; the values are constants, not input. */
+export function statusIn(column: AnyColumn, statuses: readonly JobStatus[]): SQL {
+  return sql`${column} in (${sql.raw(statuses.map((status) => `'${status}'`).join(', '))})`;
+}
 
 /**
  * The result cache key, in index order. The spec keys the cache by (task, prompt version,

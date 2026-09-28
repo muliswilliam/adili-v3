@@ -17,7 +17,7 @@ import type {
 import {
   ReplayAdapter,
   ReplayFixtureMissingError,
-  requestHash,
+  fixtureKey,
 } from '../../src/providers/replay.adapter.js';
 
 const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -105,7 +105,7 @@ async function collect(events: AsyncIterable<StreamEvent>): Promise<StreamEvent[
   return all;
 }
 
-describe('requestHash', () => {
+describe('fixtureKey', () => {
   it('ignores key order and undefined fields', () => {
     const reordered = {
       maxOutputTokens: 1000,
@@ -114,18 +114,18 @@ describe('requestHash', () => {
       model: 'claude-opus-5',
       effort: undefined,
     };
-    expect(requestHash('generate', reordered)).toBe(requestHash('generate', request));
+    expect(fixtureKey('generate', reordered)).toBe(fixtureKey('generate', request));
   });
 
   it('distinguishes operations and content', () => {
-    expect(requestHash('generate', request)).not.toBe(requestHash('stream', request));
-    expect(requestHash('generate', request)).not.toBe(
-      requestHash('generate', { ...request, model: 'claude-sonnet-5' }),
+    expect(fixtureKey('generate', request)).not.toBe(fixtureKey('stream', request));
+    expect(fixtureKey('generate', request)).not.toBe(
+      fixtureKey('generate', { ...request, model: 'claude-sonnet-5' }),
     );
   });
 
   it('is a hex sha-256', () => {
-    expect(requestHash('generate', request)).toMatch(/^[0-9a-f]{64}$/);
+    expect(fixtureKey('generate', request)).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 
@@ -154,7 +154,7 @@ describe('ReplayAdapter', () => {
       model: 'm-1',
       usage,
     });
-    const file = join(dir, `${requestHash('generateStructured', structured)}.json`);
+    const file = join(dir, `${fixtureKey('generateStructured', structured)}.json`);
     const fixture = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
     expect(fixture).toMatchObject({
       operation: 'generateStructured',
@@ -172,7 +172,7 @@ describe('ReplayAdapter', () => {
   });
 
   it('fails clearly when no fixture matches the request', async () => {
-    const hash = requestHash('generateStructured', structured);
+    const hash = fixtureKey('generateStructured', structured);
     const error = await replayer()
       .generateStructured(structured)
       .catch((e: unknown) => e);
@@ -225,7 +225,7 @@ describe('ReplayAdapter', () => {
 
     expect(recorded).toMatchObject({ status: 'ended' });
     // Only results are fixtures; errors are transient and must be re-recorded.
-    expect(await readdir(dir)).toEqual([`${requestHash('generateStructured', structured)}.json`]);
+    expect(await readdir(dir)).toEqual([`${fixtureKey('generateStructured', structured)}.json`]);
 
     const replay = replayer();
     const replayedBatch = await replay.submitBatch(items.slice(0, 1));
@@ -244,7 +244,7 @@ describe('ReplayAdapter', () => {
 
     await recorder().pollBatch(batchId);
 
-    expect(await readdir(dir)).toEqual([`${requestHash('generateStructured', structured)}.json`]);
+    expect(await readdir(dir)).toEqual([`${fixtureKey('generateStructured', structured)}.json`]);
     expect(await replayer().generateStructured(structured)).toMatchObject({ output: { n: 0 } });
   });
 
