@@ -3,7 +3,13 @@ import { TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CommissionRef, Obligation, ObligationDetail } from '../../server/declarations/types';
+import type {
+  CommissionRef,
+  Obligation,
+  ObligationDetail,
+  Reminder,
+  ReminderOutcome,
+} from '../../server/declarations/types';
 import type { MyObligationsResult, ObligationDetailResult } from '../../server/obligations.server';
 import { ObligationsSection, ObligationsView } from './obligations-view';
 
@@ -307,6 +313,58 @@ describe('Obligation drawer', () => {
     const start = within(drawer).getByRole('button', { name: 'Start declaration' });
     expect(start.hasAttribute('disabled')).toBe(true);
     expect(drawer.textContent).toContain('Filing opens soon. You will be reminded.');
+  });
+
+  // A Record over the contract's enum: a new outcome in declarations.yaml fails typecheck here.
+  const everyOutcome: Record<ReminderOutcome, { channels: Reminder['channels']; words: string }[]> =
+    {
+      sent: [
+        { channels: ['sms', 'email'], words: 'Sent by SMS and email' },
+        { channels: ['sms'], words: 'Sent by SMS' },
+        { channels: ['email'], words: 'Sent by email' },
+      ],
+      'skipped-not-onboarded': [{ channels: [], words: 'Skipped: not yet onboarded' }],
+      'skipped-no-contact': [{ channels: [], words: 'Skipped: no contact details' }],
+      'skipped-past-due-at-creation': [
+        { channels: [], words: 'Skipped: the date had passed when this obligation was created' },
+      ],
+      failed: [{ channels: ['sms', 'email'], words: 'Failed' }],
+    };
+
+  it('puts every reminder outcome in the contract into plain words', async () => {
+    const cases = Object.entries(everyOutcome).flatMap(([outcome, variants]) =>
+      variants.map((variant) => ({ outcome: outcome as ReminderOutcome, ...variant })),
+    );
+    const history = cases.map(({ outcome, channels }, index): Reminder => ({
+      offsetDays: 30 - index,
+      scheduledAt: `2026-12-${String(3 + index).padStart(2, '0')}T06:12:00Z`,
+      sentAt: outcome === 'sent' ? `2026-12-${String(3 + index).padStart(2, '0')}T06:12:30Z` : null,
+      channels,
+      outcome,
+    }));
+    const loadDetail = () =>
+      Promise.resolve<ObligationDetailResult>({
+        status: 'ok',
+        obligation: detailOf(obligation(), history),
+      });
+    renderView(
+      { status: 'ok', groups: [{ commission: TSC, obligations: [obligation()] }] },
+      { loadDetail },
+    );
+
+    await act(async () => {
+      fireEvent.click(within(card('Initial declaration')).getByRole('button', { name: /Details/ }));
+      await Promise.resolve();
+    });
+
+    const table = within(screen.getByRole('dialog')).getByRole('table', {
+      name: 'Reminder history',
+    });
+    const outcomes = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell').at(-1)?.textContent);
+    expect(outcomes).toEqual(cases.map(({ words }) => words));
   });
 
   it('opens when the card is clicked and returns focus to Details on close', async () => {

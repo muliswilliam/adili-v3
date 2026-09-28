@@ -233,7 +233,7 @@ function ReminderTable({ reminders }: { reminders: Reminder[] }) {
             key={`${String(reminder.offsetDays)}-${reminder.scheduledAt}`}
             className="max-sm:grid max-sm:gap-y-0.5 max-sm:py-2.5"
           >
-            <TableCell className="py-2.5 pl-0 align-top font-medium first:pl-0 max-sm:p-0">
+            <TableCell className="py-2.5 pl-0 align-top font-medium whitespace-nowrap first:pl-0 max-sm:p-0">
               {reminderOffsetLabel(reminder.offsetDays)}
             </TableCell>
             <TableCell
