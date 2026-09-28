@@ -1815,6 +1815,9 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
@@ -1849,6 +1852,9 @@ importers:
       '@adili/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@adili/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -1879,6 +1885,9 @@ importers:
       vitest:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   services/verification-api:
     dependencies:
