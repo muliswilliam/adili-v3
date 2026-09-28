@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "form-m.v1",
+  "partI": {
+    "commissionName": "Teachers Service Commission",
+    "issuerCode": "TSC",
+    "contactDetails": "",
+    "physicalAddress": "",
+    "emailAddress": "info@tsc.go.ke",
+    "period": { "from": "2026-07-01", "to": "2027-06-30", "financialYearStart": 2026 }
+  },
+  "partII": {
+    "initial": { "expected": 0, "declared": 0, "notDeclared": 0, "nonFilers": [] },
+    "biennial": {
+      "expected": 0,
+      "declared": 0,
+      "notDeclared": 0,
+      "nonFilers": [],
+      "noCycleInPeriod": true
+    },
+    "final": { "expected": 0, "declared": 0, "notDeclared": 0, "nonFilers": [] },
+    "clarifications": { "items": [] },
+    "accessRequests": {
+      "received": 0,
+      "granted": 0,
+      "declined": 0,
+      "declineReasons": [],
+      "dataUnavailable": true
+    },
+    "complaints": { "registerMaintained": null, "items": [] }
+  },
+  "partIII": {
+    "compiledBy": { "name": null, "designation": null, "date": null },
+    "confirmedBy": { "name": null, "designation": null, "date": null }
+  },
+  "meta": { "compiledAt": "2027-07-01T06:00:00+03:00", "source": "hosted" }
+}

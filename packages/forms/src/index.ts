@@ -1,3 +1,66 @@
+export {
+  type DeclarationIssue,
+  type DeclarationProblems,
+  type DeclarationSectionKey,
+  declarationIssues,
+  type PersonKey,
+  sectionContents,
+  sectionIssues,
+  sectionSchema,
+  validateDeclaration,
+} from './declaration.js';
+export type {
+  AssetItem,
+  Attachment,
+  ChangeFlag,
+  Child,
+  DeclarationV1,
+  IncomeItem,
+  ItemSource,
+  LiabilityItem,
+  Location,
+  MaritalStatusChange,
+  MaterialChangeEntry,
+  Money,
+  PersonName,
+  RegistrableInterests,
+  Spouse,
+  Statement,
+} from './declaration.v1.gen.js';
+export {
+  ASSET_TYPES,
+  ATTESTATION_TEXT,
+  CHANGE_KINDS,
+  DECLARATION_TYPES,
+  DeclarationSchema,
+  EMPLOYMENT_NATURES,
+  INCOME_PERIOD_SOURCES,
+  INCOME_TYPES,
+  ITEM_SOURCE_KINDS,
+  LIABILITY_TYPES,
+  MARITAL_STATUSES,
+  MATERIAL_CHANGE_KINDS,
+  MEMBERSHIP_KINDS,
+  OCCUPATION_SECTORS,
+} from './declaration.v1.zod.gen.js';
 export { validateFormK } from './form-k.js';
 export type { FormKV1 } from './form-k.v1.gen.js';
+export {
+  FORM_M_SECTIONS,
+  type FormMIssue,
+  type FormMProblems,
+  type FormMSectionKey,
+  formMIssues,
+  validateFormM,
+} from './form-m.js';
+export type { FormMV1 } from './form-m.v1.gen.js';
+export {
+  ACTIONS_TAKEN,
+  CLARIFICATION_STATUSES,
+  COMPLIANCE_STATUSES,
+  DECLINE_REASONS,
+  FormMSchema,
+  REPORT_SOURCES,
+} from './form-m.v1.zod.gen.js';
+export { COUNTIES, COUNTRIES, CURRENCIES } from './reference-data.js';
 export { type FormValidationError, type FormValidationResult } from './validate.js';

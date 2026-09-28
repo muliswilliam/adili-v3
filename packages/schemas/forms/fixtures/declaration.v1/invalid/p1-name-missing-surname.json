@@ -1,0 +1,479 @@
+{
+  "description": "Paragraph 1: the officer's surname is missing (S17)",
+  "errors": ["officer.name.surname"],
+  "issues": [
+    {
+      "sectionKey": "bio",
+      "path": "/name/surname",
+      "code": "required",
+      "message": "is required"
+    }
+  ],
+  "document": {
+    "schemaVersion": "declaration.v1",
+    "type": "biennial",
+    "statementDate": "2025-12-31",
+    "incomePeriod": {
+      "from": "2024-01-01",
+      "to": "2025-12-31",
+      "fromSource": "declared"
+    },
+    "officer": {
+      "name": {
+        "firstName": "James",
+        "otherNames": "Ochieng"
+      },
+      "birth": {
+        "date": "1974-03-12",
+        "place": "Kisumu"
+      },
+      "maritalStatus": "married",
+      "maritalStatusChange": {
+        "changed": true,
+        "explanation": "Married my second spouse, Akinyi, under customary law in March 2025."
+      },
+      "address": {
+        "postal": "P.O. Box 40123-00100, Nairobi",
+        "physical": "Lavington, James Gichuru Road, Nairobi"
+      },
+      "employment": {
+        "designation": "Deputy Director, Procurement",
+        "employer": "Ministry of Roads and Transport",
+        "nature": "permanent",
+        "responsibleCommission": "psc",
+        "personnelFileNumber": "PF-2003-001184"
+      }
+    },
+    "spouses": {
+      "none": false,
+      "items": [
+        {
+          "id": "0192f1a0-5a11-7000-8000-000000000101",
+          "name": {
+            "surname": "Otieno",
+            "firstName": "Grace",
+            "otherNames": "Wambui"
+          },
+          "nationalId": "20411873",
+          "kraPin": "A002345678Z",
+          "occupationSector": "private",
+          "separated": false
+        },
+        {
+          "id": "0192f1a0-5a11-7000-8000-000000000102",
+          "name": {
+            "surname": "Akinyi",
+            "firstName": "Mary"
+          },
+          "nationalId": "31988021",
+          "occupationSector": "public",
+          "separated": false
+        }
+      ]
+    },
+    "children": {
+      "none": false,
+      "items": [
+        {
+          "id": "0192f1a0-5a11-7000-8000-000000000201",
+          "name": {
+            "surname": "Otieno",
+            "firstName": "Brian"
+          },
+          "dateOfBirth": "2004-06-02",
+          "nationalId": "40122934",
+          "includedAtStatementDate": false
+        },
+        {
+          "id": "0192f1a0-5a11-7000-8000-000000000202",
+          "name": {
+            "surname": "Otieno",
+            "firstName": "Faith"
+          },
+          "dateOfBirth": "2010-09-15",
+          "includedAtStatementDate": true
+        },
+        {
+          "id": "0192f1a0-5a11-7000-8000-000000000203",
+          "name": {
+            "surname": "Otieno",
+            "firstName": "Kevin"
+          },
+          "dateOfBirth": "2016-01-20",
+          "includedAtStatementDate": true
+        }
+      ]
+    },
+    "statements": [
+      {
+        "personKey": "officer",
+        "personName": {
+          "surname": "Otieno",
+          "firstName": "James",
+          "otherNames": "Ochieng"
+        },
+        "statementDate": "2025-12-31",
+        "incomePeriod": {
+          "from": "2024-01-01",
+          "to": "2025-12-31"
+        },
+        "incomeNil": false,
+        "income": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000001001",
+            "type": "salary-emoluments",
+            "description": "Salary from the Ministry of Roads and Transport",
+            "amount": {
+              "kesCents": 480000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "047"
+            },
+            "change": {
+              "changed": false
+            }
+          },
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000001002",
+            "type": "rent",
+            "description": "Rent from two flats in Kisumu",
+            "amount": {
+              "kesCents": 96000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "042",
+              "detail": "Milimani, Kisumu"
+            },
+            "change": {
+              "changed": true,
+              "kind": "new-source",
+              "explanation": "Tenants moved into the second flat in February 2024."
+            }
+          }
+        ],
+        "assetsNil": false,
+        "assets": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000002001",
+            "type": "land",
+            "description": "Residential plot with two flats",
+            "details": {
+              "parcelNumber": "KISUMU/MUNICIPALITY BLOCK 7/412",
+              "size": "0.1 ha"
+            },
+            "value": {
+              "kesCents": 1800000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "042"
+            },
+            "joint": {
+              "isJoint": true,
+              "sharePercent": 50,
+              "coOwner": "Grace Wambui Otieno"
+            },
+            "change": {
+              "changed": false
+            }
+          },
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000002002",
+            "type": "bank-account",
+            "description": "Savings account held while on study leave",
+            "details": {
+              "institution": "Wells Fargo Bank",
+              "accountType": "Savings"
+            },
+            "value": {
+              "kesCents": 129000000,
+              "original": {
+                "currency": "USD",
+                "minorUnits": 1000000
+              }
+            },
+            "location": {
+              "inKenya": false,
+              "country": "US",
+              "detail": "Seattle, Washington"
+            },
+            "joint": {
+              "isJoint": false
+            },
+            "change": {
+              "changed": true,
+              "kind": "value-change",
+              "explanation": "Interest and a transfer of USD 4,000 from my Kenyan savings."
+            }
+          },
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000002003",
+            "type": "vehicle",
+            "description": "Toyota Prado",
+            "details": {
+              "registration": "KDK 482M",
+              "makeModel": "Toyota Land Cruiser Prado"
+            },
+            "value": {
+              "kesCents": 650000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "047"
+            },
+            "joint": {
+              "isJoint": false
+            },
+            "change": {
+              "changed": true,
+              "kind": "acquisition",
+              "explanation": "Bought in June 2025 from savings and the sale of my previous vehicle."
+            },
+            "attachments": [
+              {
+                "uploadId": "0192f1a0-5a11-7000-8000-000000009001",
+                "fileName": "logbook-KDK482M.pdf",
+                "sha256": "3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"
+              }
+            ]
+          }
+        ],
+        "liabilitiesNil": true,
+        "liabilities": []
+      },
+      {
+        "personKey": "spouse:0192f1a0-5a11-7000-8000-000000000101",
+        "personName": {
+          "surname": "Otieno",
+          "firstName": "Grace",
+          "otherNames": "Wambui"
+        },
+        "statementDate": "2025-12-31",
+        "incomePeriod": {
+          "from": "2024-01-01",
+          "to": "2025-12-31"
+        },
+        "incomeNil": false,
+        "income": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000001101",
+            "type": "business",
+            "description": "Profit from a pharmacy",
+            "amount": {
+              "kesCents": 210000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "047"
+            },
+            "change": {
+              "changed": false
+            }
+          }
+        ],
+        "assetsNil": false,
+        "assets": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000002101",
+            "type": "land",
+            "description": "Share of the residential plot in Kisumu",
+            "details": {
+              "parcelNumber": "KISUMU/MUNICIPALITY BLOCK 7/412"
+            },
+            "value": {
+              "kesCents": 1800000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "042"
+            },
+            "joint": {
+              "isJoint": true,
+              "sharePercent": 50,
+              "coOwner": "James Ochieng Otieno"
+            },
+            "change": {
+              "changed": false
+            }
+          }
+        ],
+        "liabilitiesNil": false,
+        "liabilities": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000003101",
+            "type": "loan",
+            "description": "Stock financing for the pharmacy",
+            "creditor": "Equity Bank Kenya",
+            "outstanding": {
+              "kesCents": 75000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "047"
+            },
+            "change": {
+              "changed": true,
+              "kind": "value-change",
+              "explanation": "Repaid KES 500,000 of the principal."
+            }
+          }
+        ]
+      },
+      {
+        "personKey": "spouse:0192f1a0-5a11-7000-8000-000000000102",
+        "personName": {
+          "surname": "Akinyi",
+          "firstName": "Mary"
+        },
+        "statementDate": "2025-12-31",
+        "incomePeriod": {
+          "from": "2024-01-01",
+          "to": "2025-12-31"
+        },
+        "incomeNil": false,
+        "income": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000001201",
+            "type": "salary-emoluments",
+            "description": "Salary as a teacher",
+            "amount": {
+              "kesCents": 168000000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "042"
+            },
+            "change": {
+              "changed": false
+            }
+          }
+        ],
+        "assetsNil": true,
+        "assets": [],
+        "liabilitiesNil": true,
+        "liabilities": []
+      },
+      {
+        "personKey": "child:0192f1a0-5a11-7000-8000-000000000202",
+        "personName": {
+          "surname": "Otieno",
+          "firstName": "Faith"
+        },
+        "statementDate": "2025-12-31",
+        "incomePeriod": {
+          "from": "2024-01-01",
+          "to": "2025-12-31"
+        },
+        "incomeNil": true,
+        "income": [],
+        "assetsNil": false,
+        "assets": [
+          {
+            "id": "0192f1a0-5a11-7000-8000-000000002401",
+            "type": "securities",
+            "description": "Money market fund units",
+            "details": {
+              "issuer": "CIC Asset Management",
+              "quantityOrPercent": "12,400 units"
+            },
+            "value": {
+              "kesCents": 12400000
+            },
+            "location": {
+              "inKenya": true,
+              "county": "047"
+            },
+            "joint": {
+              "isJoint": false
+            },
+            "change": {
+              "changed": false
+            }
+          }
+        ],
+        "liabilitiesNil": true,
+        "liabilities": []
+      },
+      {
+        "personKey": "child:0192f1a0-5a11-7000-8000-000000000203",
+        "personName": {
+          "surname": "Otieno",
+          "firstName": "Kevin"
+        },
+        "statementDate": "2025-12-31",
+        "incomePeriod": {
+          "from": "2024-01-01",
+          "to": "2025-12-31"
+        },
+        "incomeNil": true,
+        "income": [],
+        "assetsNil": true,
+        "assets": [],
+        "liabilitiesNil": true,
+        "liabilities": []
+      }
+    ],
+    "otherInformation": {
+      "materialChanges": [
+        {
+          "kind": "marital-status",
+          "explanation": "Married my second spouse, Akinyi, under customary law in March 2025."
+        },
+        {
+          "personKey": "officer",
+          "itemId": "0192f1a0-5a11-7000-8000-000000001002",
+          "itemDescription": "Rent from two flats in Kisumu",
+          "kind": "new-source",
+          "explanation": "Tenants moved into the second flat in February 2024."
+        },
+        {
+          "personKey": "officer",
+          "itemId": "0192f1a0-5a11-7000-8000-000000002002",
+          "itemDescription": "Savings account held while on study leave",
+          "kind": "value-change",
+          "explanation": "Interest and a transfer of USD 4,000 from my Kenyan savings."
+        },
+        {
+          "personKey": "officer",
+          "itemId": "0192f1a0-5a11-7000-8000-000000002003",
+          "itemDescription": "Toyota Prado",
+          "kind": "acquisition",
+          "explanation": "Bought in June 2025 from savings and the sale of my previous vehicle."
+        },
+        {
+          "personKey": "spouse:0192f1a0-5a11-7000-8000-000000000101",
+          "itemId": "0192f1a0-5a11-7000-8000-000000003101",
+          "itemDescription": "Stock financing for the pharmacy",
+          "kind": "value-change",
+          "explanation": "Repaid KES 500,000 of the principal."
+        }
+      ],
+      "registrableInterests": {
+        "directorships": [
+          {
+            "company": "Lake Basin Pharmacy Ltd",
+            "role": "Non-executive director",
+            "remunerated": false
+          }
+        ],
+        "memberships": [
+          {
+            "entity": "Kisumu Golf Club",
+            "kind": "club"
+          }
+        ],
+        "dualCitizenship": {
+          "holds": false,
+          "pendingApplication": false
+        },
+        "pendingCases": []
+      },
+      "freeText": ""
+    },
+    "attestation": {
+      "text": "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete."
+    }
+  }
+}

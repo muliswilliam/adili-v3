@@ -2,7 +2,7 @@
   "name": "@adili/forms",
   "version": "0.0.0",
   "private": true,
-  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (form-k.v1), shared by the services and the apps.",
+  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (declaration.v1, form-k.v1, form-m.v1), with Zod schemas for declaration.v1 and form-m.v1, shared by the services and the apps.",
   "type": "module",
   "files": [
     "dist"
@@ -24,7 +24,8 @@
   "dependencies": {
     "@adili/schemas": "workspace:*",
     "ajv": "^8.18.0",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
@@ -32,7 +33,9 @@
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
     "json-schema-to-typescript": "^16.0.0",
+    "prettier": "^3.9.9",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }
