@@ -39,8 +39,16 @@ export interface LoadedObligation {
   jitterWindowMs: number;
 }
 
-export interface ReminderRequest {
+/**
+ * An obligation as activities after `loadObligation` name it: with its tenant, so their database
+ * work runs in that tenant's RLS context rather than across tenants.
+ */
+export interface ObligationRef {
   obligationId: string;
+  tenant: string;
+}
+
+export interface ReminderRequest extends ObligationRef {
   offsetDays: number;
   /** The reminder's planned instant (ISO), jitter included. */
   scheduledAt: string;

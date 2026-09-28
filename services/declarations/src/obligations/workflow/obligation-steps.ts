@@ -17,17 +17,20 @@ import type { Transaction } from '../apply-page.js';
 import { type CivilDate, nairobiDate } from '../dates.js';
 import type { ObligationStatus } from '../engine.js';
 import { obligationReminderSent, obligationStatusChanged } from '../events.js';
-import { SYSTEM_SUBJECT } from '../system-context.js';
+import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
 import {
   commissionRefs,
   filingObligations,
   obligationReminders,
   type ReminderOutcome,
 } from '../schema.js';
-import type { LoadedObligation, ReminderRequest, SendReminderResult } from './contract.js';
+import type {
+  LoadedObligation,
+  ObligationRef,
+  ReminderRequest,
+  SendReminderResult,
+} from './contract.js';
 
-/** Platform work: every tenant's rows (the workflow knows the obligation, not its tenant). */
-const PLATFORM = { tenant: 'platform', subject: SYSTEM_SUBJECT } as const;
 const CHANNELS: readonly ReminderChannel[] = ['sms', 'email'];
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -67,6 +70,8 @@ const FINAL_REASONS = new Set(['no-contact', 'rejected-recipient']);
  * What the obligation workflows do to the database and the outside world (the activities
  * delegate here): read an obligation, move its status on, send or skip its reminders. Every
  * method is safe to repeat: status changes are conditional and reminder rows unique per offset.
+ * `load` finds the obligation across tenants (the workflow knows only its id); every other step
+ * runs in the obligation's tenant's RLS context.
  */
 @Injectable()
 export class ObligationSteps {
@@ -80,7 +85,7 @@ export class ObligationSteps {
   ) {}
 
   async load(obligationId: string): Promise<LoadedObligation | null> {
-    return withTenant(this.db, PLATFORM, async (tx) => {
+    return withTenant(this.db, PLATFORM_CONTEXT, async (tx) => {
       const [row] = await tx
         .select({
           tenant: filingObligations.tenant,
@@ -118,8 +123,11 @@ export class ObligationSteps {
    * Moves an open obligation to `to` with an `obligation.status-changed.v1` event. A terminal
    * obligation (cancelled, filed) is left alone. Returns the status it has afterwards.
    */
-  async setStatus(obligationId: string, to: ObligationStatus): Promise<ObligationStatus> {
-    return withTenant(this.db, PLATFORM, async (tx) => {
+  async setStatus(
+    { obligationId, tenant }: ObligationRef,
+    to: ObligationStatus,
+  ): Promise<ObligationStatus> {
+    return withTenant(this.db, systemContext(tenant), async (tx) => {
       const [row] = await tx
         .select({ tenant: filingObligations.tenant, status: filingObligations.status })
         .from(filingObligations)
@@ -146,11 +154,11 @@ export class ObligationSteps {
 
   /** Records reminders whose day passed before they could be sent: never sent. */
   async recordSkipped(
-    obligationId: string,
+    { obligationId, tenant }: ObligationRef,
     reminders: readonly { offsetDays: number; scheduledAt: string }[],
   ): Promise<void> {
     if (reminders.length === 0) return;
-    await withTenant(this.db, PLATFORM, async (tx) => {
+    await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [row] = await tx
         .select({ tenant: filingObligations.tenant })
         .from(filingObligations)
@@ -198,10 +206,9 @@ export class ObligationSteps {
     request: ReminderRequest,
     attempt: ReminderAttempt,
   ): Promise<SendReminderResult> {
-    const { obligationId, offsetDays } = request;
-    const recorded = await this.recordedOutcome(obligationId, offsetDays);
+    const recorded = await this.recordedOutcome(request);
     if (recorded) return recorded;
-    const obligation = await this.reminderContext(obligationId);
+    const obligation = await this.reminderContext(request);
     if (!obligation || (obligation.status !== 'upcoming' && obligation.status !== 'due')) {
       return 'not-open';
     }
@@ -243,7 +250,7 @@ export class ObligationSteps {
       } catch (error) {
         if (error instanceof NotificationsRejected) {
           this.logger.error(
-            { err: error, obligationId, channel },
+            { err: error, obligationId: request.obligationId, channel },
             'Reminder refused by notifications',
           );
           progress[channel] = { status: 'failed', error: 'rejected-request' };
@@ -274,11 +281,12 @@ export class ObligationSteps {
     return this.record(obligation.tenant, request, noContact ? 'skipped-no-contact' : 'failed', {});
   }
 
-  private async recordedOutcome(
-    obligationId: string,
-    offsetDays: number,
-  ): Promise<ReminderOutcome | undefined> {
-    const [row] = await withTenant(this.db, PLATFORM, (tx) =>
+  private async recordedOutcome({
+    obligationId,
+    tenant,
+    offsetDays,
+  }: ReminderRequest): Promise<ReminderOutcome | undefined> {
+    const [row] = await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .select({ outcome: obligationReminders.outcome })
         .from(obligationReminders)
@@ -292,8 +300,8 @@ export class ObligationSteps {
     return row?.outcome;
   }
 
-  private async reminderContext(obligationId: string) {
-    const [row] = await withTenant(this.db, PLATFORM, (tx) =>
+  private async reminderContext({ obligationId, tenant }: ObligationRef) {
+    const [row] = await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .select({
           tenant: filingObligations.tenant,
@@ -320,7 +328,7 @@ export class ObligationSteps {
   ): Promise<ReminderOutcome> {
     const { obligationId, offsetDays } = request;
     const channels = sent.channels ?? [];
-    return withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, async (tx: Transaction) => {
+    return withTenant(this.db, systemContext(tenant), async (tx: Transaction) => {
       const inserted = await tx
         .insert(obligationReminders)
         .values({

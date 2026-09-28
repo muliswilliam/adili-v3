@@ -74,8 +74,10 @@ async function officer(personId: string | null = null) {
 }
 
 function reminder(obligationId: string, offsetDays = 14) {
-  return { obligationId, offsetDays, scheduledAt: '2027-07-17T10:41:07.000Z' };
+  return { obligationId, tenant: 'psc', offsetDays, scheduledAt: '2027-07-17T10:41:07.000Z' };
 }
+
+const psc = (obligationId: string) => ({ obligationId, tenant: 'psc' });
 
 /** An attempt as Temporal would run it; `saved` is what it heartbeated. */
 function attempt(last = true, progress: ChannelProgress = {}) {
@@ -307,19 +309,34 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   it('moves an open obligation on with one status-changed event, and leaves a cancelled one', async () => {
     const { initial, biennial } = await officer();
 
-    await expect(api.steps.setStatus(biennial, 'due')).resolves.toBe('due');
-    await expect(api.steps.setStatus(biennial, 'due')).resolves.toBe('due');
+    await expect(api.steps.setStatus(psc(biennial), 'due')).resolves.toBe('due');
+    await expect(api.steps.setStatus(psc(biennial), 'due')).resolves.toBe('due');
     await asPlatform((tx) =>
       tx
         .update(filingObligations)
         .set({ status: 'cancelled', cancelReason: 'superseded' })
         .where(eq(filingObligations.id, initial)),
     );
-    await expect(api.steps.setStatus(initial, 'overdue')).resolves.toBe('cancelled');
+    await expect(api.steps.setStatus(psc(initial), 'overdue')).resolves.toBe('cancelled');
 
     expect((await events('obligation.status-changed.v1')).map((e) => e.data)).toEqual([
       { obligationId: biennial, from: 'upcoming', to: 'due', reason: null },
     ]);
+  });
+
+  it("runs in the obligation's tenant: named with another tenant, a step finds nothing", async () => {
+    const { biennial } = await officer();
+
+    await expect(
+      api.steps.setStatus({ obligationId: biennial, tenant: 'tsc' }, 'due'),
+    ).resolves.toBe('cancelled');
+    const [row] = await asPlatform((tx) =>
+      tx
+        .select({ status: filingObligations.status })
+        .from(filingObligations)
+        .where(eq(filingObligations.id, biennial)),
+    );
+    expect(row?.status).toBe('upcoming');
   });
 
   it('loads what the workflow plans from: dates, status, offsets of its policy version, reminders recorded', async () => {
@@ -359,8 +376,8 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     const { biennial } = await officer();
     const missed = [{ offsetDays: 30, scheduledAt: '2027-12-01T09:41:07.000Z' }];
 
-    await api.steps.recordSkipped(biennial, missed);
-    await api.steps.recordSkipped(biennial, missed);
+    await api.steps.recordSkipped(psc(biennial), missed);
+    await api.steps.recordSkipped(psc(biennial), missed);
 
     const rows = await asPlatform((tx) =>
       tx

@@ -102,6 +102,7 @@ export async function filingObligation({
   if (!loaded) return 'missing';
   const terminal = endOf(loaded.status);
   if (terminal) return terminal;
+  const ref = { obligationId, tenant: loaded.tenant };
   const schedule: ObligationSchedule = {
     obligationId,
     type: loaded.type,
@@ -130,7 +131,7 @@ export async function filingObligation({
   };
   /** Moves the status on; the end of the workflow when it had become terminal meanwhile. */
   const changeStatus = async (to: ObligationStatus): Promise<FilingObligationEnd | null> => {
-    const status = await setStatus(obligationId, to);
+    const status = await setStatus(ref, to);
     state.status = status;
     return endOf(status);
   };
@@ -138,7 +139,7 @@ export async function filingObligation({
   const plan = timeline(schedule, Date.now(), recorded);
   if (plan.missed.length > 0) {
     await recordSkippedReminders(
-      obligationId,
+      ref,
       plan.missed.map(({ offsetDays, scheduledAt }) => ({
         offsetDays,
         scheduledAt: new Date(scheduledAt).toISOString(),
@@ -162,7 +163,7 @@ export async function filingObligation({
     }
     try {
       const outcome = await sendReminder({
-        obligationId,
+        ...ref,
         offsetDays: step.offsetDays,
         scheduledAt: new Date(step.at).toISOString(),
       });

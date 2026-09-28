@@ -12,6 +12,7 @@ import {
   filedSignal,
   type LoadedObligation,
   personLinkedSignal,
+  type ObligationRef,
   type ReminderRequest,
   type SendReminderResult,
   stateQuery,
@@ -62,14 +63,14 @@ class FakeObligation {
   activities(): Activities {
     return {
       loadObligation: vi.fn(() => Promise.resolve({ ...this.row })),
-      setStatus: vi.fn(async (_id: string, status: ObligationStatus) => {
+      setStatus: vi.fn(async (_obligation: ObligationRef, status: ObligationStatus) => {
         if (this.row.status === 'cancelled' || this.row.status === 'filed') return this.row.status;
         this.row.status = status;
         this.statuses.push({ status, at: await this.env.now() });
         return status;
       }),
       recordSkippedReminders: vi.fn(
-        (_id: string, reminders: { offsetDays: number; scheduledAt: string }[]) => {
+        (_obligation: ObligationRef, reminders: { offsetDays: number; scheduledAt: string }[]) => {
           this.skipped.push(...reminders);
           return Promise.resolve();
         },
@@ -201,16 +202,19 @@ describe('FilingObligationWorkflow', () => {
     expect(first.reminders.map((r) => r.request)).toEqual([
       {
         obligationId: BIENNIAL_ID,
+        tenant: 'psc',
         offsetDays: 30,
         scheduledAt: reminderSlot(BIENNIAL_ID, '2027-12-01'),
       },
       {
         obligationId: BIENNIAL_ID,
+        tenant: 'psc',
         offsetDays: 14,
         scheduledAt: reminderSlot(BIENNIAL_ID, '2027-12-17'),
       },
       {
         obligationId: BIENNIAL_ID,
+        tenant: 'psc',
         offsetDays: 7,
         scheduledAt: reminderSlot(BIENNIAL_ID, '2027-12-24'),
       },

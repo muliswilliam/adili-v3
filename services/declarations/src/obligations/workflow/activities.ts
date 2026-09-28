@@ -4,6 +4,7 @@ import { Context } from '@temporalio/activity';
 import type { ObligationStatus } from '../engine.js';
 import {
   type LoadedObligation,
+  type ObligationRef,
   REMINDER_ATTEMPTS,
   type ReminderRequest,
   type SendReminderResult,
@@ -23,22 +24,25 @@ export class ObligationActivities {
     private readonly sweep: ObligationsSweep,
   ) {}
 
-  /** The obligation's dates, status, reminder offsets and recorded reminders; null if unknown. */
+  /**
+   * The obligation's tenant, dates, status, reminder offsets and recorded reminders; null if
+   * unknown. The one step that reads across tenants: the workflow knows only the obligation id.
+   */
   loadObligation(obligationId: string): Promise<LoadedObligation | null> {
     return this.steps.load(obligationId);
   }
 
   /** Moves an open obligation to `status`; returns the status it has afterwards. */
-  setStatus(obligationId: string, status: ObligationStatus): Promise<ObligationStatus> {
-    return this.steps.setStatus(obligationId, status);
+  setStatus(obligation: ObligationRef, status: ObligationStatus): Promise<ObligationStatus> {
+    return this.steps.setStatus(obligation, status);
   }
 
   /** Records reminders whose day passed before they could be sent. */
   recordSkippedReminders(
-    obligationId: string,
+    obligation: ObligationRef,
     reminders: { offsetDays: number; scheduledAt: string }[],
   ): Promise<void> {
-    return this.steps.recordSkipped(obligationId, reminders);
+    return this.steps.recordSkipped(obligation, reminders);
   }
 
   /**
