@@ -519,7 +519,11 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
     expect(fold.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(fold);
     expect(fold.getAttribute('aria-expanded')).toBe('true');
-    expect(registries().textContent).toContain('KCA 123A · Toyota Probox 2016 · NTSA');
+    const card = suggestionCard('KCA 123A · Toyota Probox 2016');
+    expect(card.dataset.status).toBe('dismissed');
+    expect(card.textContent).toContain('From NTSA');
+    expect(card.textContent).toContain('Dismissed');
+    expect(within(card).queryAllByRole('button')).toHaveLength(0);
   });
 
   it("shows the officer's KRA PIN without Apply", () => {

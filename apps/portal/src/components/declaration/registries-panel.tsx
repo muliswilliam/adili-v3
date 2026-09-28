@@ -563,16 +563,7 @@ export function RegistriesPanel({
                 <Icon icon={foldOpen ? ArrowDown01Icon : ArrowRight01Icon} />
                 {REGISTRY_COPY.dismissedFold(dismissed.length)}
               </Button>
-              {foldOpen ? (
-                <ul className="grid gap-1 pl-3 text-sm">
-                  {dismissed.map(({ suggestion, source }) => (
-                    <li key={suggestion.id}>
-                      {suggestionTitle(suggestion)}{' '}
-                      <span className="text-muted-foreground">· {SOURCE_NAMES[source]}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              {foldOpen ? <div className="grid gap-2">{dismissed.map(card)}</div> : null}
             </div>
           ) : null}
         </>
