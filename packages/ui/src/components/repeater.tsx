@@ -7,6 +7,7 @@ import {
 import { type ComponentProps, type ReactNode, useEffect, useId, useRef } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Button } from './button';
 import { Icon, type IconProps } from './icon';
 
@@ -247,7 +248,10 @@ export function Repeater<T>({
         type="button"
         disabled={disabled}
         onClick={onAdd}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-item border-[1.5px] border-dashed border-input text-sm font-medium text-secondary-foreground outline-none hover:border-foreground hover:bg-brand-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-input disabled:hover:bg-transparent"
+        className={cn(
+          focusRing,
+          'flex h-12 w-full items-center justify-center gap-2 rounded-item border-[1.5px] border-dashed border-input text-sm font-medium text-secondary-foreground hover:border-foreground hover:bg-brand-faint hover:text-foreground disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-input disabled:hover:bg-transparent',
+        )}
       >
         <Icon icon={PlusSignIcon} />
         {addLabel}
