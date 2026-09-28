@@ -150,6 +150,7 @@ jobs:
             --add-host host.docker.internal:host-gateway \
             -e KC_HOSTNAME=http://localhost:8080 -e KC_DB=dev-file \
             -e ADILI_NOTIFICATIONS_URL=http://host.docker.internal:4010 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin_dev \
             -v "$PWD/infra/compose/keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro" \
             -v "$PWD/infra/compose/keycloak/vault-dev:/opt/keycloak/vault:ro" \
             adili/keycloak:dev start-dev --import-realm

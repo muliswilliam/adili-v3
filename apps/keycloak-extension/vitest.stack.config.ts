@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 // Needs the compose stack with Keycloak built from this branch (`pnpm infra:up`), the notifications
 // service (`pnpm --filter @adili/notifications dev`) and the mocks (`pnpm --filter @adili/mocks dev`).
+// Some cases use Keycloak's admin (admin / admin_dev, as compose bootstraps it).
 // CI runs it at the end of the integration job; locally, `pnpm --filter @adili/keycloak-extension test:stack`.
 export default defineConfig({
   test: {
