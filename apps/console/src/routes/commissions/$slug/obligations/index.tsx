@@ -14,6 +14,7 @@ import {
   type ObligationsSearch,
   obligationsSearchSchema,
 } from '../../../../components/obligations/obligations-query';
+import { commissionNotOnboardedRosterLink } from '../../../../components/obligations/roster-links';
 import { ObligationsView } from '../../../../components/obligations/obligations-view';
 import { signInRedirect } from '../../../../components/sign-in-redirect';
 import type { DeclarationsResult, ObligationPage } from '../../../../server/declarations/client';
@@ -89,11 +90,7 @@ function CommissionObligationsPage({ list }: { list: DeclarationsResult<Obligati
       roster={{
         notOnboardedLink: (
           <Button asChild variant="secondary" size="sm" className="bg-card">
-            <Link
-              to="/commissions/$slug/records"
-              params={{ slug }}
-              search={{ state: 'not_onboarded' }}
-            >
+            <Link {...commissionNotOnboardedRosterLink(slug)}>
               <Icon icon={UserGroupIcon} />
               {m.viewRoster}
             </Link>
