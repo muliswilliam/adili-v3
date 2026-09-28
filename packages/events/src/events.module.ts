@@ -16,37 +16,13 @@ import { eq, isNull, sql } from 'drizzle-orm';
 import { lastValueFrom } from 'rxjs';
 
 import { AuditedReadInterceptor } from './audited-read.interceptor.js';
-import { createEnvelope, type EventEnvelope, type NewEvent } from './envelope.js';
+import { EventPublisher, EVENTS_OPTIONS, type EventsModuleOptions } from './event-publisher.js';
 import { outbox } from './schema.js';
 import { DEAD_LETTER_EXCHANGE, deadLetterQueue, EVENTS_EXCHANGE, eventsQueue } from './topology.js';
 
-export interface EventsModuleOptions {
-  service: string;
-  rabbitmqUrl: string;
-}
-
-const EVENTS_OPTIONS = Symbol('EVENTS_OPTIONS');
 const EVENTS_CLIENT = Symbol('EVENTS_CLIENT');
 const RELAY_BATCH_SIZE = 100;
 const RELAY_IDLE_MS = 500;
-
-/** Any Drizzle handle that can insert into the outbox: the database or an open transaction. */
-type Executor = Pick<Database, 'insert'>;
-
-/** Records events in the outbox, inside the caller's transaction. */
-@Injectable()
-export class EventPublisher {
-  constructor(@Inject(EVENTS_OPTIONS) private readonly options: EventsModuleOptions) {}
-
-  async record<TData extends Record<string, unknown>>(
-    tx: Executor,
-    event: NewEvent<TData>,
-  ): Promise<EventEnvelope<TData>> {
-    const envelope = createEnvelope(`adili/${this.options.service}`, event);
-    await tx.insert(outbox).values({ id: envelope.id, eventType: envelope.type, envelope });
-    return envelope;
-  }
-}
 
 /**
  * Relays committed outbox rows to the events exchange in order. Rows are claimed with

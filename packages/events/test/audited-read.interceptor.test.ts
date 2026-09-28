@@ -10,7 +10,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AUDIT_READ, AuditedReadInterceptor } from '../src/audited-read.interceptor.js';
 import type { NewEvent } from '../src/envelope.js';
-import { EventPublisher } from '../src/events.module.js';
+import { EventPublisher } from '../src/event-publisher.js';
 
 @Controller('v1/commissions/:slug/records')
 class RecordsController {

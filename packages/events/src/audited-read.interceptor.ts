@@ -14,7 +14,7 @@ import {
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { mergeMap, type Observable } from 'rxjs';
 
-import { EventPublisher } from './events.module.js';
+import { EventPublisher } from './event-publisher.js';
 import type { NewEvent } from './envelope.js';
 
 /** A read of sensitive data, for the audit trail (ADR-008 "Reads and denials"). */
