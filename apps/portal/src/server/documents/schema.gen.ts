@@ -4,605 +4,586 @@
  */
 
 export interface paths {
-  '/v1/uploads': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reserve an upload and get a presigned PUT to quarantine */
+        post: operations["createUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reserve an upload and get a presigned PUT to quarantine */
-    post: operations['createUpload'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/uploads/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: components['parameters']['UploadId'];
-      };
-      cookie?: never;
+    "/v1/uploads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        /** Upload state and metadata */
+        get: operations["getUpload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Upload state and metadata */
-    get: operations['getUpload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/uploads/{id}/complete': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: components['parameters']['UploadId'];
-      };
-      cookie?: never;
+    "/v1/uploads/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify, scan and move the uploaded object to the clean bucket
+         * @description Synchronous for purposes with small size limits (roster-import, 50 MB). Returns the
+         *     final state: clean, infected or rejected (type, size, missing, timeout).
+         */
+        post: operations["completeUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Verify, scan and move the uploaded object to the clean bucket
-     * @description Synchronous for purposes with small size limits (roster-import, 50 MB). Returns the
-     *     final state: clean, infected or rejected (type, size, missing, timeout).
-     */
-    post: operations['completeUpload'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/uploads/{id}/download': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: components['parameters']['UploadId'];
-      };
-      cookie?: never;
+    "/internal/v1/uploads/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Short-lived presigned GET on a clean object, for services
+         * @description Not routed by the public entrypoint. Caller acts for the upload's tenant.
+         */
+        get: operations["getUploadDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Short-lived presigned GET on a clean object, for services
-     * @description Not routed by the public entrypoint. Caller acts for the upload's tenant.
-     */
-    get: operations['getUploadDownload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/documents/issue': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/documents/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Render, sign and register a document (services)
+         * @description Gotenberg PDF from a versioned template with the verification code and QR in the footer,
+         *     PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
+         */
+        post: operations["issueDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Render, sign and register a document (services)
-     * @description Gotenberg PDF from a versioned template with the verification code and QR in the footer,
-     *     PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
-     */
-    post: operations['issueDocument'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/documents/{documentId}/supersede': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        documentId: components['parameters']['DocumentId'];
-      };
-      cookie?: never;
+    "/internal/v1/documents/{documentId}/supersede": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a document superseded by a newer one */
+        post: operations["supersedeDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Mark a document superseded by a newer one */
-    post: operations['supersedeDocument'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/documents/{documentId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        documentId: components['parameters']['DocumentId'];
-      };
-      cookie?: never;
+    "/v1/documents/{documentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        /** Metadata of an issued document (owner) */
+        get: operations["getDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Metadata of an issued document (owner) */
-    get: operations['getDocument'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/documents/{documentId}/download': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        documentId: components['parameters']['DocumentId'];
-      };
-      cookie?: never;
+    "/v1/documents/{documentId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        /** Short-lived presigned download of an issued PDF (owner; audited; emits document.downloaded.v1) */
+        get: operations["getDocumentDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Short-lived presigned download of an issued PDF (owner; audited; emits document.downloaded.v1) */
-    get: operations['getDocumentDownload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * @description Sets allowed content types and the size limit
-     * @enum {string}
-     */
-    UploadPurpose:
-      | 'roster-import'
-      | 'declaration-attachment'
-      | 'clarification-attachment'
-      | 'action-response'
-      | 'access-representation';
-    /** @enum {string} */
-    UploadState: 'awaiting-upload' | 'clean' | 'infected' | 'rejected' | 'expired';
-    /** @enum {string} */
-    UploadRejection: 'type' | 'size' | 'missing' | 'timeout';
-    CreateUpload: {
-      purpose: components['schemas']['UploadPurpose'];
-      /**
-       * @example text/csv
-       * @example application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-       */
-      contentType: string;
-      /** @description Bytes; must be within the purpose's limit */
-      declaredSize: number;
-      /** @description Display only; never used as an object key */
-      fileName?: string;
-    };
-    UploadReservation: {
-      /** Format: uuid */
-      id: string;
-      /**
-       * Format: uri
-       * @description Presigned PUT; send the raw bytes with the declared content type
-       */
-      uploadUrl: string;
-      /** Format: date-time */
-      expiresAt: string;
-      maxSize: number;
-    };
-    Upload: {
-      /** Format: uuid */
-      id: string;
-      purpose: components['schemas']['UploadPurpose'];
-      state: components['schemas']['UploadState'];
-      rejection?: components['schemas']['UploadRejection'] | null;
-      /** @description Declared type; detectedType is set after completion */
-      contentType: string;
-      detectedType?: string | null;
-      declaredSize: number;
-      size?: number | null;
-      /** @description Hex digest, set when clean */
-      sha256?: string | null;
-      fileName: string | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      completedAt?: string | null;
-    };
-    UploadDownload: {
-      /** Format: uuid */
-      id: string;
-      /** @constant */
-      state: 'clean';
-      /** Format: uri */
-      downloadUrl: string;
-      /** Format: date-time */
-      expiresAt: string;
-      sha256: string;
-      size: number;
-    };
-    ProblemDetails: {
-      type: string;
-      title: string;
-      status: number;
-      detail?: string;
-      instance?: string;
-      errors?: {
-        path: string;
-        message: string;
-      }[];
-    };
-    /** @enum {string} */
-    DocumentType:
-      | 'acknowledgement-slip'
-      | 'clarification-letter'
-      | 'decision-letter'
-      | 'notice-to-comply'
-      | 'warning'
-      | 'salary-stoppage'
-      | 'disciplinary-referral'
-      | 'referral-package'
-      | 'form-m'
-      | 'compliance-report-receipt'
-      | 'ncr'
-      | 'access-package'
-      | 'certified-copy'
-      | 'open-data-manifest';
-    /** @enum {string} */
-    DisclosureLevel: 'public' | 'restricted' | 'confidential';
-    /** @enum {string} */
-    DocumentStatus: 'valid' | 'superseded' | 'revoked' | 'expired';
-    IssueDocument: {
-      type: components['schemas']['DocumentType'];
-      templateVersion: number;
-      disclosureLevel: components['schemas']['DisclosureLevel'];
-      issuerTenant: string;
-      /** @description Owning record, e.g. declaration-version:<uuid> */
-      subjectRef: string;
-      /**
-       * Format: uuid
-       * @description Person allowed to download the document
-       */
-      subjectPersonId: string | null;
-      /** @description Fields the template renders; never stored beyond the PDF */
-      payload: {
-        [key: string]: unknown;
-      };
-      /** @description Fields shown on the verify page for public and restricted levels */
-      publicPayload: {
-        [key: string]: unknown;
-      };
-      /** @description Rendered on every page (access packages) */
-      watermark?: components['schemas']['Watermark'] | null;
-      /** @description Downloads refused after issuedAt + window (410); null means no window */
-      downloadWindowDays?: number | null;
-    };
-    Watermark: {
-      recipientName: string;
-      /** @description ARQ or LEA reference */
-      reference: string;
-      /** Format: date */
-      date: string;
-    };
-    IssuedDocument: {
-      /** Format: uuid */
-      id: string;
-      type: components['schemas']['DocumentType'];
-      templateVersion: number;
-      disclosureLevel: components['schemas']['DisclosureLevel'];
-      issuerTenant: string;
-      subjectRef: string;
-      /** @description e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K */
-      verificationId: string;
-      sha256: string;
-      status: components['schemas']['DocumentStatus'];
-      /** Format: uuid */
-      supersededBy: string | null;
-      /** Format: date-time */
-      issuedAt: string;
-      /** Format: date-time */
-      downloadExpiresAt: string | null;
-    };
-  };
-  responses: {
-    /** @description Request failed validation */
-    ValidationProblem: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-    /** @description Caller lacks the required role */
-    Forbidden: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-    /** @description Not found, or not visible to the caller */
-    NotFound: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-  };
-  parameters: {
-    UploadId: string;
-    DocumentId: string;
-  };
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
-}
-export type $defs = Record<string, never>;
-export interface operations {
-  createUpload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateUpload'];
-      };
-    };
-    responses: {
-      /** @description Upload reserved; PUT the bytes to uploadUrl before expiresAt */
-      201: {
-        headers: {
-          [name: string]: unknown;
+    schemas: {
+        /**
+         * @description Sets allowed content types and the size limit
+         * @enum {string}
+         */
+        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "action-response" | "access-representation";
+        /** @enum {string} */
+        UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired";
+        /** @enum {string} */
+        UploadRejection: "type" | "size" | "missing" | "timeout";
+        CreateUpload: {
+            purpose: components["schemas"]["UploadPurpose"];
+            /**
+             * @example text/csv
+             * @example application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+             */
+            contentType: string;
+            /** @description Bytes; must be within the purpose's limit */
+            declaredSize: number;
+            /** @description Display only; never used as an object key */
+            fileName?: string;
         };
-        content: {
-          'application/json': components['schemas']['UploadReservation'];
+        UploadReservation: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uri
+             * @description Presigned PUT; send the raw bytes with the declared content type
+             */
+            uploadUrl: string;
+            /** Format: date-time */
+            expiresAt: string;
+            maxSize: number;
         };
-      };
-      400: components['responses']['ValidationProblem'];
-      403: components['responses']['Forbidden'];
-    };
-  };
-  getUpload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: components['parameters']['UploadId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The upload */
-      200: {
-        headers: {
-          [name: string]: unknown;
+        Upload: {
+            /** Format: uuid */
+            id: string;
+            purpose: components["schemas"]["UploadPurpose"];
+            state: components["schemas"]["UploadState"];
+            rejection?: components["schemas"]["UploadRejection"] | null;
+            /** @description Declared type; detectedType is set after completion */
+            contentType: string;
+            detectedType?: string | null;
+            declaredSize: number;
+            size?: number | null;
+            /** @description Hex digest, set when clean */
+            sha256?: string | null;
+            fileName: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
         };
-        content: {
-          'application/json': components['schemas']['Upload'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  completeUpload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: components['parameters']['UploadId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Final state after scanning */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Upload'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Upload already completed or expired */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getUploadDownload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: components['parameters']['UploadId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Download URL valid for a few minutes */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['UploadDownload'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Upload is not clean */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  issueDocument: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['IssueDocument'];
-      };
-    };
-    responses: {
-      /** @description Issued */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['IssuedDocument'];
-        };
-      };
-      400: components['responses']['ValidationProblem'];
-      /** @description Renderer or signer unavailable; nothing registered */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  supersedeDocument: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        documentId: components['parameters']['DocumentId'];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** Format: uuid */
-          supersededBy: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Superseded */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['IssuedDocument'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Already superseded or revoked */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getDocument: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        documentId: components['parameters']['DocumentId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Metadata */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['IssuedDocument'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getDocumentDownload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        documentId: components['parameters']['DocumentId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Download URL valid for five minutes */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
+        UploadDownload: {
+            /** Format: uuid */
+            id: string;
+            /** @constant */
+            state: "clean";
             /** Format: uri */
             downloadUrl: string;
             /** Format: date-time */
             expiresAt: string;
             sha256: string;
-          };
+            size: number;
         };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Download window has ended */
-      410: {
-        headers: {
-          [name: string]: unknown;
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            instance?: string;
+            errors?: {
+                path: string;
+                message: string;
+            }[];
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
+        /** @enum {string} */
+        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "form-m" | "compliance-report-receipt" | "ncr" | "access-package" | "certified-copy" | "open-data-manifest";
+        /** @enum {string} */
+        DisclosureLevel: "public" | "restricted" | "confidential";
+        /** @enum {string} */
+        DocumentStatus: "valid" | "superseded" | "revoked" | "expired";
+        IssueDocument: {
+            type: components["schemas"]["DocumentType"];
+            templateVersion: number;
+            disclosureLevel: components["schemas"]["DisclosureLevel"];
+            issuerTenant: string;
+            /** @description Owning record, e.g. declaration-version:<uuid> */
+            subjectRef: string;
+            /**
+             * Format: uuid
+             * @description Person allowed to download the document
+             */
+            subjectPersonId: string | null;
+            /** @description Fields the template renders; never stored beyond the PDF */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** @description Fields shown on the verify page for public and restricted levels */
+            publicPayload: {
+                [key: string]: unknown;
+            };
+            /** @description Rendered on every page (access packages) */
+            watermark?: components["schemas"]["Watermark"] | null;
+            /** @description Downloads refused after issuedAt + window (410); null means no window */
+            downloadWindowDays?: number | null;
         };
-      };
+        Watermark: {
+            recipientName: string;
+            /** @description ARQ or LEA reference */
+            reference: string;
+            /** Format: date */
+            date: string;
+        };
+        IssuedDocument: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["DocumentType"];
+            templateVersion: number;
+            disclosureLevel: components["schemas"]["DisclosureLevel"];
+            issuerTenant: string;
+            subjectRef: string;
+            /** @description e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K */
+            verificationId: string;
+            sha256: string;
+            status: components["schemas"]["DocumentStatus"];
+            /** Format: uuid */
+            supersededBy: string | null;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            downloadExpiresAt: string | null;
+        };
     };
-  };
+    responses: {
+        /** @description Request failed validation */
+        ValidationProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Caller lacks the required role */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Not found, or not visible to the caller */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+    };
+    parameters: {
+        UploadId: string;
+        DocumentId: string;
+    };
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+    createUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUpload"];
+            };
+        };
+        responses: {
+            /** @description Upload reserved; PUT the bytes to uploadUrl before expiresAt */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadReservation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The upload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Upload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    completeUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Final state after scanning */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Upload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Upload already completed or expired */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getUploadDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["UploadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Download URL valid for a few minutes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadDownload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Upload is not clean */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    issueDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueDocument"];
+            };
+        };
+        responses: {
+            /** @description Issued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            /** @description Renderer or signer unavailable; nothing registered */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    supersedeDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    supersededBy: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Superseded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Already superseded or revoked */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDocumentDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Download URL valid for five minutes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        downloadUrl: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                        sha256: string;
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Download window has ended */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
 }

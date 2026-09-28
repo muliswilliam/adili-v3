@@ -4,2676 +4,2662 @@
  */
 
 export interface paths {
-  '/v1/me/obligations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in declarant's obligations across Commissions
+         * @description Authorised by the person_id claim. Staff tokens without it get 404.
+         */
+        get: operations["getMyObligations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * The signed-in declarant's obligations across Commissions
-     * @description Authorised by the person_id claim. Staff tokens without it get 404.
-     */
-    get: operations['getMyObligations'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/obligations/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
+    "/v1/obligations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** One obligation with its reminder history */
+        get: operations["getObligation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** One obligation with its reminder history */
-    get: operations['getObligation'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/obligations/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/obligations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-Commission counts for EACC and platform administrators */
+        get: operations["getNationalObligationsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Per-Commission counts for EACC and platform administrators */
-    get: operations['getNationalObligationsSummary'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/obligations/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
+    "/v1/commissions/{slug}/obligations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        /** Counts by type and status, and not-onboarded among due and overdue */
+        get: operations["getCommissionObligationsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Counts by type and status, and not-onboarded among due and overdue */
-    get: operations['getCommissionObligationsSummary'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/obligations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
+    "/v1/commissions/{slug}/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Officers and their obligations for a Commission
+         * @description Staff of the tenant and platform-admin. EACC roles get 403 (summaries only).
+         */
+        get: operations["listCommissionObligations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Officers and their obligations for a Commission
-     * @description Staff of the tenant and platform-admin. EACC roles get 403 (summaries only).
-     */
-    get: operations['listCommissionObligations'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/obligations/{id}/declaration': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
+    "/v1/obligations/{id}/declaration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start (or return the existing) draft declaration for the declarant's obligation
+         * @description Type, statement date and income period are derived from the obligation. Declarant only.
+         */
+        post: operations["startDeclaration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Start (or return the existing) draft declaration for the declarant's obligation
-     * @description Type, statement date and income period are derived from the obligation. Declarant only.
-     */
-    post: operations['startDeclaration'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/declarations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/declarations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The declarant's declarations (drafts now; submitted later) */
+        get: operations["getMyDeclarations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** The declarant's declarations (drafts now; submitted later) */
-    get: operations['getMyDeclarations'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        /** Draft header and section completeness (no contents) */
+        get: operations["getDeclaration"];
+        put?: never;
+        post?: never;
+        /** Discard the draft */
+        delete: operations["discardDeclaration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Draft header and section completeness (no contents) */
-    get: operations['getDeclaration'];
-    put?: never;
-    post?: never;
-    /** Discard the draft */
-    delete: operations['discardDeclaration'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/sections/{sectionKey}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        sectionKey: components['parameters']['SectionKey'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/sections/{sectionKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                sectionKey: components["parameters"]["SectionKey"];
+            };
+            cookie?: never;
+        };
+        /** One section's contents (decrypted for the owning declarant) */
+        get: operations["getDeclarationSection"];
+        /** Save a section (autosave); requires If-Match with the current draft version */
+        put: operations["saveDeclarationSection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** One section's contents (decrypted for the owning declarant) */
-    get: operations['getDeclarationSection'];
-    /** Save a section (autosave); requires If-Match with the current draft version */
-    put: operations['saveDeclarationSection'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/attachments': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Link a clean upload (purpose declaration-attachment) to an item */
+        post: operations["linkDeclarationAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Link a clean upload (purpose declaration-attachment) to an item */
-    post: operations['linkDeclarationAttachment'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/attachments/{attachmentId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        attachmentId: string;
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/attachments/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an attachment from its item */
+        delete: operations["unlinkDeclarationAttachment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Remove an attachment from its item */
-    delete: operations['unlinkDeclarationAttachment'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        /** The assembled declaration validated against declaration.v1, with completeness */
+        get: operations["getDeclarationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** The assembled declaration validated against declaration.v1, with completeness */
-    get: operations['getDeclarationSummary'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/submit': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit the declaration (the legal act)
+         * @description Requires a token with the step-up ACR and auth_time within 5 minutes, and an
+         *     Idempotency-Key. One transaction: validate, allocate the reference (first version),
+         *     write the immutable version and items, mark submitted, file the obligation, emit events.
+         *     The acknowledgement slip is issued asynchronously afterwards.
+         */
+        post: operations["submitDeclaration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Submit the declaration (the legal act)
-     * @description Requires a token with the step-up ACR and auth_time within 5 minutes, and an
-     *     Idempotency-Key. One transaction: validate, allocate the reference (first version),
-     *     write the immutable version and items, mark submitted, file the obligation, emit events.
-     *     The acknowledgement slip is issued asynchronously afterwards.
-     */
-    post: operations['submitDeclaration'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/amend': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/amend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen a submitted declaration for amendment (before the due date) */
+        post: operations["amendDeclaration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reopen a submitted declaration for amendment (before the due date) */
-    post: operations['amendDeclaration'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/amend/discard': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/amend/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discard an amendment in progress; the submitted version stays in force */
+        post: operations["discardAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Discard an amendment in progress; the submitted version stays in force */
-    post: operations['discardAmendment'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/versions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        /** Submitted versions, newest first */
+        get: operations["listDeclarationVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Submitted versions, newest first */
-    get: operations['listDeclarationVersions'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/versions/{version}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
+        };
+        /** One immutable version with its document (decrypted for the owner) */
+        get: operations["getDeclarationVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** One immutable version with its document (decrypted for the owner) */
-    get: operations['getDeclarationVersion'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/versions/{version}/acknowledgement': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/versions/{version}/acknowledgement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
+        };
+        /** Acknowledgement slip status and download link for a version */
+        get: operations["getAcknowledgement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Acknowledgement slip status and download link for a version */
-    get: operations['getAcknowledgement'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask for the slip again when issuance failed */
+        post: operations["reissueAcknowledgement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Ask for the slip again when issuance failed */
-    post: operations['reissueAcknowledgement'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
+    "/internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
+        };
+        /** Fields the acknowledgement slip needs (documents service) */
+        get: operations["internalGetAcknowledgementPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Fields the acknowledgement slip needs (documents service) */
-    get: operations['internalGetAcknowledgementPayload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/declarations/{declarationId}/versions/{version}/document': {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
-        'X-Acting-Subject': string;
-        'X-Review-Case'?: string;
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
+    "/internal/v1/declarations/{declarationId}/versions/{version}/document": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
+                "X-Acting-Subject": string;
+                "X-Review-Case"?: string;
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
+        };
+        /** Decrypted declaration.v1 document of a submitted version, for the review service (audited read) */
+        get: operations["internalGetVersionDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Decrypted declaration.v1 document of a submitted version, for the review service (audited read) */
-    get: operations['internalGetVersionDocument'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/declarations/previous-version': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/declarations/previous-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest earlier submitted version of the same person at the same Commission */
+        get: operations["internalFindPreviousVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Latest earlier submitted version of the same person at the same Commission */
-    get: operations['internalFindPreviousVersion'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/declarations/disclosures': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/declarations/disclosures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Render the scoped disclosure of a person's submitted declarations for a grant (audited)
+         * @description Only the versions, household members and sections in the granted scope are decrypted and
+         *     returned. The read is audited with the grant reference as legal basis and the recipient.
+         */
+        post: operations["internalRenderDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Render the scoped disclosure of a person's submitted declarations for a grant (audited)
-     * @description Only the versions, household members and sections in the granted scope are decrypted and
-     *     returned. The read is audited with the grant reference as legal basis and the recipient.
-     */
-    post: operations['internalRenderDisclosure'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/declarations/{declarationId}/versions/{version}/full-document': {
-    parameters: {
-      query?: never;
-      header: {
-        'X-Acting-Subject': string;
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
+    "/internal/v1/declarations/{declarationId}/versions/{version}/full-document": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Acting-Subject": string;
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
+        };
+        /** The full immutable document of a version for the declarant's certified copy (audited as self-access) */
+        get: operations["internalGetFullDocumentForCertifiedCopy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** The full immutable document of a version for the declarant's certified copy (audited as self-access) */
-    get: operations['internalGetFullDocumentForCertifiedCopy'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/persons/{personId}/obligations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        personId: string;
-      };
-      cookie?: never;
+    "/internal/v1/persons/{personId}/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        /** A person's filing obligations across cycles (for the referral sweep) */
+        get: operations["internalListPersonObligations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** A person's filing obligations across cycles (for the referral sweep) */
-    get: operations['internalListPersonObligations'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/suggestions/lookups': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/suggestions/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check registries for a household person with recorded consent (declarant); results arrive as suggestions */
+        post: operations["requestRegistryLookups"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Check registries for a household person with recorded consent (declarant); results arrive as suggestions */
-    post: operations['requestRegistryLookups'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/suggestions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        /** Suggestion sets and suggestions for the draft (declarant) */
+        get: operations["listSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Suggestion sets and suggestions for the draft (declarant) */
-    get: operations['listSuggestions'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        suggestionId: components['parameters']['SuggestionId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                suggestionId: components["parameters"]["SuggestionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an item from the suggestion, or apply it to an existing item (declarant); uses the section save path */
+        post: operations["acceptSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create an item from the suggestion, or apply it to an existing item (declarant); uses the section save path */
-    post: operations['acceptSuggestion'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        suggestionId: components['parameters']['SuggestionId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                suggestionId: components["parameters"]["SuggestionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss a suggestion for this draft (declarant) */
+        post: operations["dismissSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Dismiss a suggestion for this draft (declarant) */
-    post: operations['dismissSuggestion'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/attachments/{attachmentId}/extract': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        attachmentId: string;
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/attachments/{attachmentId}/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated */
+        post: operations["extractAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated */
-    post: operations['extractAttachment'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/assistant/conversations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open or resume the conversation for a draft (or for the declarant without a draft) */
+        post: operations["openAssistantConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Open or resume the conversation for a draft (or for the declarant without a draft) */
-    post: operations['openAssistantConversation'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/assistant/conversations/{conversationId}/messages': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        conversationId: components['parameters']['ConversationId'];
-      };
-      cookie?: never;
+    "/v1/me/assistant/conversations/{conversationId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion */
+        post: operations["askAssistant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion */
-    post: operations['askAssistant'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        conversationId: components['parameters']['ConversationId'];
-        messageId: string;
-      };
-      cookie?: never;
+    "/v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Rate an answer */
+        put: operations["rateAssistantMessage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /** Rate an answer */
-    put: operations['rateAssistantMessage'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/assistant/suggested-questions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/assistant/suggested-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Curated and popular questions for a section in a language */
+        get: operations["getSuggestedQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Curated and popular questions for a section in a language */
-    get: operations['getSuggestedQuestions'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/declarations/{declarationId}/hints': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    "/v1/declarations/{declarationId}/hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        /** Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present) */
+        get: operations["getCompletenessHints"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present) */
-    get: operations['getCompletenessHints'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/help/search': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/help/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Full-text search over the legal corpus and help articles in force (signed-in users) */
+        get: operations["searchHelp"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Full-text search over the legal corpus and help articles in force (signed-in users) */
-    get: operations['searchHelp'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/help/articles': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
+    "/v1/commissions/{slug}/help/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        /** Commission help articles (commission-admin edit, reporting-officer read) */
+        get: operations["listHelpArticles"];
+        put?: never;
+        /** Create a Commission help article (commission-admin) */
+        post: operations["createHelpArticle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Commission help articles (commission-admin edit, reporting-officer read) */
-    get: operations['listHelpArticles'];
-    put?: never;
-    /** Create a Commission help article (commission-admin) */
-    post: operations['createHelpArticle'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/help/articles/{articleId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-        articleId: string;
-      };
-      cookie?: never;
+    "/v1/commissions/{slug}/help/articles/{articleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+                articleId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Update or publish a Commission help article (commission-admin) */
+        put: operations["updateHelpArticle"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /** Update or publish a Commission help article (commission-admin) */
-    put: operations['updateHelpArticle'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/help/themes': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
+    "/v1/commissions/{slug}/help/themes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        /** Anonymised question theme counts and unanswered counts per month (commission-admin, reporting-officer) */
+        get: operations["getQuestionThemes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Anonymised question theme counts and unanswered counts per month (commission-admin, reporting-officer) */
-    get: operations['getQuestionThemes'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    DisclosureRequest: {
-      /** Format: uuid */
-      personId: string;
-      tenant: string;
-      /** @description ARQ or LEA reference */
-      grantReference: string;
-      /** @enum {string} */
-      legalBasis: 'act-s36-1' | 'act-s36-2';
-      recipientSubject: string;
-      years: number[];
-      includeSpouses: boolean;
-      includeChildren: boolean;
-      sections: ('bio' | 'income' | 'assets' | 'liabilities' | 'other')[];
-    };
-    DisclosureDocument: {
-      /** @constant */
-      schemaVersion: 'disclosure.v1';
-      grantReference: string;
-      personName: string;
-      commission: components['schemas']['CommissionRef'];
-      versions: {
-        reference: components['schemas']['DeclarationReference'];
-        version: number;
-        type: components['schemas']['ObligationType'];
-        /** Format: date */
-        statementDate: string;
-        /** Format: date-time */
-        submittedAt: string;
-        /** @description Subset of the declaration.v1 document limited to the granted persons and sections */
-        content: {
-          [key: string]: unknown;
+    schemas: {
+        DisclosureRequest: {
+            /** Format: uuid */
+            personId: string;
+            tenant: string;
+            /** @description ARQ or LEA reference */
+            grantReference: string;
+            /** @enum {string} */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            recipientSubject: string;
+            years: number[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
         };
-      }[];
-    };
-    /** @enum {string} */
-    ObligationType: 'initial' | 'biennial' | 'final';
-    /** @enum {string} */
-    ObligationStatus: 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
-    /** @enum {string} */
-    CancelReason: 'exited-before-statement-date' | 'exit-reversed' | 'superseded';
-    /** @enum {string} */
-    ReminderOutcome:
-      | 'sent'
-      | 'skipped-not-onboarded'
-      | 'skipped-no-contact'
-      | 'skipped-past-due-at-creation'
-      | 'failed';
-    CommissionRef: {
-      slug: string;
-      issuerCode: string;
-      name: string;
-    };
-    Obligation: {
-      /** Format: uuid */
-      id: string;
-      commission: components['schemas']['CommissionRef'];
-      type: components['schemas']['ObligationType'];
-      /**
-       * @example biennial:2027
-       * @example initial:2027-03-10
-       * @example final:2027-09-15
-       */
-      cycleKey: string;
-      /** Format: date */
-      statementDate: string;
-      /** Format: date */
-      dueDate: string;
-      status: components['schemas']['ObligationStatus'];
-      cancelReason: components['schemas']['CancelReason'] | null;
-      remindersSent: number;
-      policyVersion: number;
-      /** Format: date-time */
-      createdAt: string;
-    };
-    Reminder: {
-      offsetDays: number;
-      /** Format: date-time */
-      scheduledAt: string;
-      /** Format: date-time */
-      sentAt: string | null;
-      channels: ('sms' | 'email')[];
-      outcome: components['schemas']['ReminderOutcome'];
-    };
-    ObligationDetail: components['schemas']['Obligation'] & {
-      reminders: components['schemas']['Reminder'][];
-      /** @description Present for staff callers; null for the declarant's own view */
-      officer: components['schemas']['OfficerRef'] | null;
-    };
-    OfficerRef: {
-      /** Format: uuid */
-      rosterRecordId: string;
-      personnelFileNumber: string;
-      fullName: string;
-      onboarded: boolean;
-      ofr: string | null;
-    };
-    MyObligations: {
-      groups: {
-        commission: components['schemas']['CommissionRef'];
-        obligations: components['schemas']['Obligation'][];
-      }[];
-    };
-    ObligationListItem: components['schemas']['Obligation'] & {
-      officer: components['schemas']['OfficerRef'];
-    };
-    StatusCounts: {
-      upcoming: number;
-      due: number;
-      overdue: number;
-      filed: number;
-    };
-    CommissionSummary: {
-      commission: components['schemas']['CommissionRef'];
-      cycle: {
-        key: string;
-        /** Format: date */
-        statementDate: string;
-        /** Format: date */
-        dueDate: string;
-      };
-      total: components['schemas']['StatusCounts'];
-      byType: {
-        initial: components['schemas']['StatusCounts'];
-        biennial: components['schemas']['StatusCounts'];
-        final: components['schemas']['StatusCounts'];
-      };
-      /** @description Officers with a due or overdue obligation who have not onboarded */
-      notOnboarded: {
-        due: number;
-        overdue: number;
-      };
-    };
-    NationalSummary: {
-      cycle: string;
-      commissions: {
-        commission: components['schemas']['CommissionRef'];
-        total: components['schemas']['StatusCounts'];
-        notOnboarded: number;
-        /** Format: date-time */
-        lastRosterImportAt: string | null;
-      }[];
-      totals: components['schemas']['StatusCounts'];
-    };
-    ProblemDetails: {
-      type: string;
-      title: string;
-      status: number;
-      detail?: string;
-      instance?: string;
-      code?: string;
-    };
-    /** @description bio, household, other, or statement:<personKey> */
-    SectionKey: string;
-    /** @enum {string} */
-    Completeness: 'not-started' | 'incomplete' | 'complete' | 'archived';
-    /** @enum {string} */
-    DeclarationStatus: 'draft' | 'amending' | 'submitted' | 'discarded';
-    Declaration: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      obligationId: string;
-      commission: components['schemas']['CommissionRef'];
-      type: components['schemas']['ObligationType'];
-      /** Format: date */
-      statementDate: string;
-      incomePeriod: {
-        /** Format: date */
-        from: string;
-        /** Format: date */
-        to: string;
+        DisclosureDocument: {
+            /** @constant */
+            schemaVersion: "disclosure.v1";
+            grantReference: string;
+            personName: string;
+            commission: components["schemas"]["CommissionRef"];
+            versions: {
+                reference: components["schemas"]["DeclarationReference"];
+                version: number;
+                type: components["schemas"]["ObligationType"];
+                /** Format: date */
+                statementDate: string;
+                /** Format: date-time */
+                submittedAt: string;
+                /** @description Subset of the declaration.v1 document limited to the granted persons and sections */
+                content: {
+                    [key: string]: unknown;
+                };
+            }[];
+        };
         /** @enum {string} */
-        fromSource: 'declared' | 'assumed';
-      };
-      status: components['schemas']['DeclarationStatus'];
-      /** @constant */
-      schemaVersion: 'declaration.v1';
-      draftVersion: number;
-      /** @description Live sections in First Schedule order; archived statements listed with completeness archived */
-      sections: {
-        key: components['schemas']['SectionKey'];
-        completeness: components['schemas']['Completeness'];
-        /** Format: date-time */
-        updatedAt: string | null;
-        /** @description For statement sections */
-        personName: string | null;
-        counts?: {
-          [key: string]: number;
-        };
-      }[];
-      lastSection?: components['schemas']['SectionKey'] | null;
-      reference?: components['schemas']['DeclarationReference'] | null;
-      currentVersion?: number | null;
-      amendingFromVersion?: number | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    DeclarationListItem: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      obligationId: string;
-      commission: components['schemas']['CommissionRef'];
-      type: components['schemas']['ObligationType'];
-      /** Format: date */
-      statementDate: string;
-      status: components['schemas']['DeclarationStatus'];
-      completenessPercent: number;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    /** @description The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation */
-    SectionContents: {
-      [key: string]: unknown;
-    };
-    SectionEnvelope: {
-      key: components['schemas']['SectionKey'];
-      completeness: components['schemas']['Completeness'];
-      contents: components['schemas']['SectionContents'];
-      issues?: components['schemas']['CompletenessIssue'][];
-      draftVersion: number;
-    };
-    SectionSaveResult: {
-      key: components['schemas']['SectionKey'];
-      completeness: components['schemas']['Completeness'];
-      draftVersion: number;
-      issues: components['schemas']['CompletenessIssue'][];
-      /** @description Statement sections created or archived by a household save */
-      sectionsChanged: {
-        key: components['schemas']['SectionKey'];
+        ObligationType: "initial" | "biennial" | "final";
         /** @enum {string} */
-        action: 'created' | 'archived' | 'restored';
-      }[];
-    };
-    CompletenessIssue: {
-      sectionKey: components['schemas']['SectionKey'];
-      /** @description JSON pointer within the section contents */
-      path: string;
-      code: string;
-      message: string;
-    };
-    /** @enum {string} */
-    SuggestionSource: 'kra' | 'ntsa' | 'brs' | 'ardhisasa' | 'document';
-    SuggestionSet: {
-      /** Format: uuid */
-      id: string;
-      personKey: string;
-      source: components['schemas']['SuggestionSource'];
-      /** @enum {string} */
-      status: 'pending' | 'ready' | 'unavailable' | 'no-id' | 'not-enabled' | 'failed';
-      /** Format: date-time */
-      requestedAt: string;
-      /** Format: date-time */
-      readyAt: string | null;
-      /** Format: uuid */
-      verificationResultId: string | null;
-      /** Format: uuid */
-      aiJobId: string | null;
-      suggestions: components['schemas']['Suggestion'][];
-    };
-    Suggestion: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      setId: string;
-      personKey: string;
-      sectionKey: components['schemas']['SectionKey'];
-      /** @description Second Schedule item type from declaration.v1, or `bio-tax` for KRA PIN and compliance */
-      itemType: string;
-      fields: {
-        [key: string]: unknown;
-      };
-      /** @description Registration, title or company number, or document page and field */
-      sourceRef: {
-        [key: string]: unknown;
-      };
-      confidence: number | null;
-      /** Format: uuid */
-      matchItemId: string | null;
-      /** @enum {string} */
-      status: 'new' | 'accepted' | 'dismissed' | 'superseded';
-      /** Format: uuid */
-      acceptedItemId: string | null;
-    };
-    AssistantConversation: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      declarationId: string | null;
-      /** @enum {string} */
-      language: 'en' | 'sw';
-      messages: components['schemas']['AssistantMessage'][];
-      /** Format: date-time */
-      expiresAt: string | null;
-    };
-    AssistantMessage: {
-      /** Format: uuid */
-      id: string;
-      /** @enum {string} */
-      role: 'user' | 'assistant';
-      text: string;
-      citations: components['schemas']['HelpPassage'][];
-      sectionLink: {
-        sectionKey: string;
-        fieldPath: string | null;
-      } | null;
-      declined: boolean;
-      /** @description ai-gateway AiLabel for assistant turns */
-      label: {
-        [key: string]: unknown;
-      } | null;
-      /** @enum {string|null} */
-      rating: 'helpful' | 'not-helpful' | null;
-      /** Format: date-time */
-      at: string;
-    };
-    HelpPassage: {
-      id: string;
-      /** @enum {string} */
-      source: 'act' | 'regs' | 'am' | 'help';
-      /**
-       * @example Act s.31(4)
-       * @example Regs r.21
-       * @example AM 24
-       */
-      citation: string;
-      title: string;
-      snippet: string;
-      /** @enum {string} */
-      language: 'en' | 'sw';
-    };
-    HelpArticleInput: {
-      title: string;
-      bodyEn: string;
-      bodySw: string | null;
-      tags: string[];
-      /** Format: date */
-      effectiveFrom: string;
-      /** Format: date */
-      effectiveTo: string | null;
-      published: boolean;
-    };
-    HelpArticle: components['schemas']['HelpArticleInput'] & {
-      /** Format: uuid */
-      id: string;
-      tenant: string | null;
-      version: number;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    DeclarationAttachment: {
-      /** Format: uuid */
-      id: string;
-      sectionKey: components['schemas']['SectionKey'];
-      /** Format: uuid */
-      itemId: string;
-      /** Format: uuid */
-      uploadId: string;
-      fileName: string;
-      sha256: string;
-      size: number;
-      /** Format: date-time */
-      linkedAt: string;
-    };
-    DeclarationSummary: {
-      declaration: components['schemas']['Declaration'];
-      /** @description The assembled declaration.v1 document (decrypted for the owner) */
-      document: {
-        [key: string]: unknown;
-      };
-      /** @description Validates against declaration.v1 */
-      valid: boolean;
-      blocking: components['schemas']['CompletenessIssue'][];
-      /** @description Always false in slice 05 */
-      canSubmit: boolean;
-      /** @enum {string|null} */
-      cannotSubmitReason:
-        'submission-not-available' | 'before-statement-date' | 'incomplete' | null;
-      attestationText: string;
-    };
-    /**
-     * @description ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>
-     * @example DCB-TSC-2027-0012345-K
-     */
-    DeclarationReference: string;
-    /** @enum {string} */
-    AcknowledgementStatus: 'pending' | 'issued' | 'failed';
-    SubmitProblem: components['schemas']['ProblemDetails'] & {
-      /** @enum {string} */
-      code:
-        | 'step-up-required'
-        | 'incomplete'
-        | 'before-statement-date'
-        | 'amendment-window-closed'
-        | 'not-a-draft'
-        | 'not-submitted'
-        | 'obligation-cancelled';
-      /**
-       * Format: uri
-       * @description Present for step-up-required
-       */
-      stepUpUrl?: string;
-      blocking?: components['schemas']['CompletenessIssue'][];
-    };
-    DeclarationVersion: {
-      version: number;
-      reference: components['schemas']['DeclarationReference'];
-      /** Format: date-time */
-      submittedAt: string;
-      late: boolean;
-      canonicalSha256: string;
-      /** Format: date-time */
-      supersededAt: string | null;
-      acknowledgement: components['schemas']['Acknowledgement'];
-    };
-    DeclarationVersionDetail: components['schemas']['DeclarationVersion'] & {
-      /** @description The immutable declaration.v1 document (decrypted for the owner) */
-      document: {
-        [key: string]: unknown;
-      };
-    };
-    Acknowledgement: {
-      status: components['schemas']['AcknowledgementStatus'];
-      /** Format: uuid */
-      documentId: string | null;
-      /** @description Verification code printed under the QR */
-      verificationId: string | null;
-      /** Format: date-time */
-      issuedAt: string | null;
-      verifiedCount: number;
-      /**
-       * Format: uri
-       * @description Short-lived presigned URL; fetched fresh on each call
-       */
-      downloadUrl: string | null;
-    };
-    SubmissionResult: {
-      declaration: components['schemas']['Declaration'];
-      version: components['schemas']['DeclarationVersion'];
-      obligationStatus: components['schemas']['ObligationStatus'];
-    };
-    AcknowledgementPayload: {
-      declarantName: string;
-      commission: components['schemas']['CommissionRef'];
-      type: components['schemas']['ObligationType'];
-      /** Format: date */
-      statementDate: string;
-      reference: components['schemas']['DeclarationReference'];
-      version: number;
-      /** Format: date-time */
-      submittedAt: string;
-      late: boolean;
-      counts: {
-        statements: number;
-        income: number;
-        assets: number;
-        liabilities: number;
-        attachments: number;
-      };
-    };
-    InternalVersionDocument: {
-      /** Format: uuid */
-      declarationId: string;
-      /** Format: uuid */
-      versionId: string;
-      version: number;
-      reference: components['schemas']['DeclarationReference'];
-      type: components['schemas']['ObligationType'];
-      /** Format: date */
-      statementDate: string;
-      /** Format: date-time */
-      submittedAt: string;
-      late: boolean;
-      /** Format: date */
-      dueDate: string;
-      declarantName: string;
-      personnelFileNumber: string;
-      /** @description The immutable declaration.v1 document, decrypted */
-      document: {
-        [key: string]: unknown;
-      };
-      attachments: {
-        /** Format: uuid */
-        uploadId: string;
-        /** Format: uuid */
-        itemId: string;
-        personKey: string;
-        fileName: string;
-        sha256: string;
-      }[];
-    };
-  };
-  responses: {
-    /** @description Not found, or not visible to the caller */
-    NotFound: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-    /** @description Caller lacks the required role */
-    Forbidden: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-    /** @description Request failed validation */
-    ValidationProblem: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        'application/problem+json': components['schemas']['ProblemDetails'];
-      };
-    };
-  };
-  parameters: {
-    Slug: string;
-    DeclarationId: string;
-    SectionKey: components['schemas']['SectionKey'];
-    VersionNumber: number;
-    SuggestionId: string;
-    ConversationId: string;
-    /** @description Client-generated UUID, unique per logical request; reuse on retry */
-    IdempotencyKey: string;
-  };
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
-}
-export type $defs = Record<string, never>;
-export interface operations {
-  getMyObligations: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Obligations grouped by Commission */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MyObligations'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getObligation: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The obligation */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ObligationDetail'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getNationalObligationsSummary: {
-    parameters: {
-      query?: {
-        cycle?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Counts per Commission and totals */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['NationalSummary'];
-        };
-      };
-      403: components['responses']['Forbidden'];
-    };
-  };
-  getCommissionObligationsSummary: {
-    parameters: {
-      query?: {
-        cycle?: string;
-      };
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The summary */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CommissionSummary'];
-        };
-      };
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-    };
-  };
-  listCommissionObligations: {
-    parameters: {
-      query?: {
-        type?: components['schemas']['ObligationType'];
-        status?: components['schemas']['ObligationStatus'];
-        onboarded?: boolean;
-        cycle?: string;
-        /** @description Personnel file number prefix or name fragment */
-        search?: string;
-        cursor?: string;
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Page ordered by due date, overdue first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['ObligationListItem'][];
-            nextCursor: string | null;
-          };
-        };
-      };
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-    };
-  };
-  startDeclaration: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Existing draft */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Declaration'];
-        };
-      };
-      /** @description Draft created with pre-filled bio */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Declaration'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Obligation is filed or cancelled */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getMyDeclarations: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description List */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarationListItem'][];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getDeclaration: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The draft */
-      200: {
-        headers: {
-          /** @description Draft version for If-Match on section saves */
-          ETag?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Declaration'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  discardDeclaration: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Discarded */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      404: components['responses']['NotFound'];
-      /** @description Not a draft */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getDeclarationSection: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        sectionKey: components['parameters']['SectionKey'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Section contents */
-      200: {
-        headers: {
-          ETag?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['SectionEnvelope'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  saveDeclarationSection: {
-    parameters: {
-      query?: never;
-      header: {
-        'If-Match': string;
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        sectionKey: components['parameters']['SectionKey'];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SectionContents'];
-      };
-    };
-    responses: {
-      /** @description Saved; new version in ETag */
-      200: {
-        headers: {
-          ETag?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['SectionSaveResult'];
-        };
-      };
-      /** @description Validation failed, or a locked field was changed (code `identity-locked-field`), or nil flag conflicts with items (code `nil-conflicts-with-items`) */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description If-Match does not match the current draft version; reload */
-      412: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description If-Match header missing */
-      428: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  linkDeclarationAttachment: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          sectionKey: components['schemas']['SectionKey'];
-          /** Format: uuid */
-          itemId: string;
-          /** Format: uuid */
-          uploadId: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Linked */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarationAttachment'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Upload is not clean, has the wrong purpose, or belongs to another tenant */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  unlinkDeclarationAttachment: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        attachmentId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Unlinked */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getDeclarationSummary: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Summary */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarationSummary'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  submitDeclaration: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': components['parameters']['IdempotencyKey'];
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Submitted; acknowledgement pending */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['SubmissionResult'];
-        };
-      };
-      /** @description Incomplete (blocking issues) or missing Idempotency-Key */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['SubmitProblem'];
-        };
-      };
-      /** @description Problem code `step-up-required` with `stepUpUrl` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['SubmitProblem'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Problem code `before-statement-date`, `amendment-window-closed`, `not-a-draft` or `obligation-cancelled` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['SubmitProblem'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  amendDeclaration: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Declaration in state amending with sections copied from the current version */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Declaration'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Problem code `amendment-window-closed` or `not-submitted` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['SubmitProblem'];
-        };
-      };
-    };
-  };
-  discardAmendment: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Declaration back to submitted */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Declaration'];
-        };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Not amending */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  listDeclarationVersions: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Versions */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarationVersion'][];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getDeclarationVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Version */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarationVersionDetail'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  getAcknowledgement: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Status */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Acknowledgement'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  reissueAcknowledgement: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Reissue requested */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      404: components['responses']['NotFound'];
-      /** @description Slip already issued or issuance in progress */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Cooldown */
-      429: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalGetAcknowledgementPayload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Payload */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AcknowledgementPayload'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  internalGetVersionDocument: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
-        'X-Acting-Subject': string;
-        'X-Review-Case'?: string;
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Document and metadata */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['InternalVersionDocument'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  internalFindPreviousVersion: {
-    parameters: {
-      query: {
-        personId: string;
-        tenant: string;
-        beforeVersionId: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Previous version reference */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
+        ObligationStatus: "upcoming" | "due" | "overdue" | "filed" | "cancelled";
+        /** @enum {string} */
+        CancelReason: "exited-before-statement-date" | "exit-reversed" | "superseded";
+        /** @enum {string} */
+        ReminderOutcome: "sent" | "skipped-not-onboarded" | "skipped-no-contact" | "skipped-past-due-at-creation" | "failed";
+        CommissionRef: {
+            slug: string;
+            issuerCode: string;
+            name: string;
+        };
+        Obligation: {
+            /** Format: uuid */
+            id: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /**
+             * @example biennial:2027
+             * @example initial:2027-03-10
+             * @example final:2027-09-15
+             */
+            cycleKey: string;
+            /** Format: date */
+            statementDate: string;
+            /** Format: date */
+            dueDate: string;
+            status: components["schemas"]["ObligationStatus"];
+            cancelReason: components["schemas"]["CancelReason"] | null;
+            remindersSent: number;
+            policyVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Reminder: {
+            offsetDays: number;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** Format: date-time */
+            sentAt: string | null;
+            channels: ("sms" | "email")[];
+            outcome: components["schemas"]["ReminderOutcome"];
+        };
+        ObligationDetail: components["schemas"]["Obligation"] & {
+            reminders: components["schemas"]["Reminder"][];
+            /** @description Present for staff callers; null for the declarant's own view */
+            officer: components["schemas"]["OfficerRef"] | null;
+        };
+        OfficerRef: {
+            /** Format: uuid */
+            rosterRecordId: string;
+            personnelFileNumber: string;
+            fullName: string;
+            onboarded: boolean;
+            ofr: string | null;
+        };
+        MyObligations: {
+            groups: {
+                commission: components["schemas"]["CommissionRef"];
+                obligations: components["schemas"]["Obligation"][];
+            }[];
+        };
+        ObligationListItem: components["schemas"]["Obligation"] & {
+            officer: components["schemas"]["OfficerRef"];
+        };
+        StatusCounts: {
+            upcoming: number;
+            due: number;
+            overdue: number;
+            filed: number;
+        };
+        CommissionSummary: {
+            commission: components["schemas"]["CommissionRef"];
+            cycle: {
+                key: string;
+                /** Format: date */
+                statementDate: string;
+                /** Format: date */
+                dueDate: string;
+            };
+            total: components["schemas"]["StatusCounts"];
+            byType: {
+                initial: components["schemas"]["StatusCounts"];
+                biennial: components["schemas"]["StatusCounts"];
+                final: components["schemas"]["StatusCounts"];
+            };
+            /** @description Officers with a due or overdue obligation who have not onboarded */
+            notOnboarded: {
+                due: number;
+                overdue: number;
+            };
+        };
+        NationalSummary: {
+            cycle: string;
+            commissions: {
+                commission: components["schemas"]["CommissionRef"];
+                total: components["schemas"]["StatusCounts"];
+                notOnboarded: number;
+                /** Format: date-time */
+                lastRosterImportAt: string | null;
+            }[];
+            totals: components["schemas"]["StatusCounts"];
+        };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            instance?: string;
+            code?: string;
+        };
+        /** @description bio, household, other, or statement:<personKey> */
+        SectionKey: string;
+        /** @enum {string} */
+        Completeness: "not-started" | "incomplete" | "complete" | "archived";
+        /** @enum {string} */
+        DeclarationStatus: "draft" | "amending" | "submitted" | "discarded";
+        Declaration: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            obligationId: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            incomePeriod: {
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+                /** @enum {string} */
+                fromSource: "declared" | "assumed";
+            };
+            status: components["schemas"]["DeclarationStatus"];
+            /** @constant */
+            schemaVersion: "declaration.v1";
+            draftVersion: number;
+            /** @description Live sections in First Schedule order; archived statements listed with completeness archived */
+            sections: {
+                key: components["schemas"]["SectionKey"];
+                completeness: components["schemas"]["Completeness"];
+                /** Format: date-time */
+                updatedAt: string | null;
+                /** @description For statement sections */
+                personName: string | null;
+                counts?: {
+                    [key: string]: number;
+                };
+            }[];
+            lastSection?: components["schemas"]["SectionKey"] | null;
+            reference?: components["schemas"]["DeclarationReference"] | null;
+            currentVersion?: number | null;
+            amendingFromVersion?: number | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DeclarationListItem: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            obligationId: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            status: components["schemas"]["DeclarationStatus"];
+            completenessPercent: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation */
+        SectionContents: {
+            [key: string]: unknown;
+        };
+        SectionEnvelope: {
+            key: components["schemas"]["SectionKey"];
+            completeness: components["schemas"]["Completeness"];
+            contents: components["schemas"]["SectionContents"];
+            issues?: components["schemas"]["CompletenessIssue"][];
+            draftVersion: number;
+        };
+        SectionSaveResult: {
+            key: components["schemas"]["SectionKey"];
+            completeness: components["schemas"]["Completeness"];
+            draftVersion: number;
+            issues: components["schemas"]["CompletenessIssue"][];
+            /** @description Statement sections created or archived by a household save */
+            sectionsChanged: {
+                key: components["schemas"]["SectionKey"];
+                /** @enum {string} */
+                action: "created" | "archived" | "restored";
+            }[];
+        };
+        CompletenessIssue: {
+            sectionKey: components["schemas"]["SectionKey"];
+            /** @description JSON pointer within the section contents */
+            path: string;
+            code: string;
+            message: string;
+        };
+        /** @enum {string} */
+        SuggestionSource: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+        SuggestionSet: {
+            /** Format: uuid */
+            id: string;
+            personKey: string;
+            source: components["schemas"]["SuggestionSource"];
+            /** @enum {string} */
+            status: "pending" | "ready" | "unavailable" | "no-id" | "not-enabled" | "failed";
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            readyAt: string | null;
+            /** Format: uuid */
+            verificationResultId: string | null;
+            /** Format: uuid */
+            aiJobId: string | null;
+            suggestions: components["schemas"]["Suggestion"][];
+        };
+        Suggestion: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            setId: string;
+            personKey: string;
+            sectionKey: components["schemas"]["SectionKey"];
+            /** @description Second Schedule item type from declaration.v1, or `bio-tax` for KRA PIN and compliance */
+            itemType: string;
+            fields: {
+                [key: string]: unknown;
+            };
+            /** @description Registration, title or company number, or document page and field */
+            sourceRef: {
+                [key: string]: unknown;
+            };
+            confidence: number | null;
+            /** Format: uuid */
+            matchItemId: string | null;
+            /** @enum {string} */
+            status: "new" | "accepted" | "dismissed" | "superseded";
+            /** Format: uuid */
+            acceptedItemId: string | null;
+        };
+        AssistantConversation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            declarationId: string | null;
+            /** @enum {string} */
+            language: "en" | "sw";
+            messages: components["schemas"]["AssistantMessage"][];
+            /** Format: date-time */
+            expiresAt: string | null;
+        };
+        AssistantMessage: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            text: string;
+            citations: components["schemas"]["HelpPassage"][];
+            sectionLink: {
+                sectionKey: string;
+                fieldPath: string | null;
+            } | null;
+            declined: boolean;
+            /** @description ai-gateway AiLabel for assistant turns */
+            label: {
+                [key: string]: unknown;
+            } | null;
+            /** @enum {string|null} */
+            rating: "helpful" | "not-helpful" | null;
+            /** Format: date-time */
+            at: string;
+        };
+        HelpPassage: {
+            id: string;
+            /** @enum {string} */
+            source: "act" | "regs" | "am" | "help";
+            /**
+             * @example Act s.31(4)
+             * @example Regs r.21
+             * @example AM 24
+             */
+            citation: string;
+            title: string;
+            snippet: string;
+            /** @enum {string} */
+            language: "en" | "sw";
+        };
+        HelpArticleInput: {
+            title: string;
+            bodyEn: string;
+            bodySw: string | null;
+            tags: string[];
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveTo: string | null;
+            published: boolean;
+        };
+        HelpArticle: components["schemas"]["HelpArticleInput"] & {
+            /** Format: uuid */
+            id: string;
+            tenant: string | null;
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DeclarationAttachment: {
+            /** Format: uuid */
+            id: string;
+            sectionKey: components["schemas"]["SectionKey"];
+            /** Format: uuid */
+            itemId: string;
+            /** Format: uuid */
+            uploadId: string;
+            fileName: string;
+            sha256: string;
+            size: number;
+            /** Format: date-time */
+            linkedAt: string;
+        };
+        DeclarationSummary: {
+            declaration: components["schemas"]["Declaration"];
+            /** @description The assembled declaration.v1 document (decrypted for the owner) */
+            document: {
+                [key: string]: unknown;
+            };
+            /** @description Validates against declaration.v1 */
+            valid: boolean;
+            blocking: components["schemas"]["CompletenessIssue"][];
+            /** @description Always false in slice 05 */
+            canSubmit: boolean;
+            /** @enum {string|null} */
+            cannotSubmitReason: "submission-not-available" | "before-statement-date" | "incomplete" | null;
+            attestationText: string;
+        };
+        /**
+         * @description ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>
+         * @example DCB-TSC-2027-0012345-K
+         */
+        DeclarationReference: string;
+        /** @enum {string} */
+        AcknowledgementStatus: "pending" | "issued" | "failed";
+        SubmitProblem: components["schemas"]["ProblemDetails"] & {
+            /** @enum {string} */
+            code: "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled";
+            /**
+             * Format: uri
+             * @description Present for step-up-required
+             */
+            stepUpUrl?: string;
+            blocking?: components["schemas"]["CompletenessIssue"][];
+        };
+        DeclarationVersion: {
+            version: number;
+            reference: components["schemas"]["DeclarationReference"];
+            /** Format: date-time */
+            submittedAt: string;
+            late: boolean;
+            canonicalSha256: string;
+            /** Format: date-time */
+            supersededAt: string | null;
+            acknowledgement: components["schemas"]["Acknowledgement"];
+        };
+        DeclarationVersionDetail: components["schemas"]["DeclarationVersion"] & {
+            /** @description The immutable declaration.v1 document (decrypted for the owner) */
+            document: {
+                [key: string]: unknown;
+            };
+        };
+        Acknowledgement: {
+            status: components["schemas"]["AcknowledgementStatus"];
+            /** Format: uuid */
+            documentId: string | null;
+            /** @description Verification code printed under the QR */
+            verificationId: string | null;
+            /** Format: date-time */
+            issuedAt: string | null;
+            verifiedCount: number;
+            /**
+             * Format: uri
+             * @description Short-lived presigned URL; fetched fresh on each call
+             */
+            downloadUrl: string | null;
+        };
+        SubmissionResult: {
+            declaration: components["schemas"]["Declaration"];
+            version: components["schemas"]["DeclarationVersion"];
+            obligationStatus: components["schemas"]["ObligationStatus"];
+        };
+        AcknowledgementPayload: {
+            declarantName: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            reference: components["schemas"]["DeclarationReference"];
+            version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            late: boolean;
+            counts: {
+                statements: number;
+                income: number;
+                assets: number;
+                liabilities: number;
+                attachments: number;
+            };
+        };
+        InternalVersionDocument: {
             /** Format: uuid */
             declarationId: string;
             /** Format: uuid */
             versionId: string;
             version: number;
+            reference: components["schemas"]["DeclarationReference"];
+            type: components["schemas"]["ObligationType"];
             /** Format: date */
             statementDate: string;
             /** Format: date-time */
             submittedAt: string;
-          };
-        };
-      };
-      /** @description No earlier submitted version */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalRenderDisclosure: {
-    parameters: {
-      query?: never;
-      header: {
-        'X-Acting-Subject': string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['DisclosureRequest'];
-      };
-    };
-    responses: {
-      /** @description Disclosure document */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DisclosureDocument'];
-        };
-      };
-      400: components['responses']['ValidationProblem'];
-      404: components['responses']['NotFound'];
-    };
-  };
-  internalGetFullDocumentForCertifiedCopy: {
-    parameters: {
-      query?: never;
-      header: {
-        'X-Acting-Subject': string;
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        version: components['parameters']['VersionNumber'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Document */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['InternalVersionDocument'];
-        };
-      };
-      404: components['responses']['NotFound'];
-    };
-  };
-  internalListPersonObligations: {
-    parameters: {
-      query: {
-        tenant: string;
-      };
-      header?: never;
-      path: {
-        personId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Obligations */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            /** Format: uuid */
-            obligationId: string;
-            type: components['schemas']['ObligationType'];
-            cycleKey: string;
-            status: components['schemas']['ObligationStatus'];
+            late: boolean;
             /** Format: date */
             dueDate: string;
-            /** Format: date-time */
-            filedAt: string | null;
-            late: boolean;
-          }[];
+            declarantName: string;
+            personnelFileNumber: string;
+            /** @description The immutable declaration.v1 document, decrypted */
+            document: {
+                [key: string]: unknown;
+            };
+            attachments: {
+                /** Format: uuid */
+                uploadId: string;
+                /** Format: uuid */
+                itemId: string;
+                personKey: string;
+                fileName: string;
+                sha256: string;
+            }[];
         };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  requestRegistryLookups: {
+    responses: {
+        /** @description Not found, or not visible to the caller */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Caller lacks the required role */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Request failed validation */
+        ValidationProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+    };
     parameters: {
-      query?: never;
-      header: {
+        Slug: string;
+        DeclarationId: string;
+        SectionKey: components["schemas"]["SectionKey"];
+        VersionNumber: number;
+        SuggestionId: string;
+        ConversationId: string;
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': components['parameters']['IdempotencyKey'];
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+        IdempotencyKey: string;
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          personKey: string;
-          systems: ('kra' | 'ntsa' | 'brs' | 'ardhisasa')[];
-          consent: {
-            /** @constant */
-            requested: true;
-            textVersion: string;
-          };
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+    getMyObligations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Obligations grouped by Commission */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyObligations"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
     };
-    responses: {
-      /** @description Lookups started; one set per system */
-      202: {
-        headers: {
-          [name: string]: unknown;
+    getObligation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['SuggestionSet'][];
+        requestBody?: never;
+        responses: {
+            /** @description The obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      /** @description Consent missing or person has no national ID (`no-id`) */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  listSuggestions: {
-    parameters: {
-      query?: {
-        personKey?: string;
-        sectionKey?: components['schemas']['SectionKey'];
-      };
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
+    getNationalObligationsSummary: {
+        parameters: {
+            query?: {
+                cycle?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts per Commission and totals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NationalSummary"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Sets with suggestions */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getCommissionObligationsSummary: {
+        parameters: {
+            query?: {
+                cycle?: string;
+            };
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['SuggestionSet'][];
+        requestBody?: never;
+        responses: {
+            /** @description The summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionSummary"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  acceptSuggestion: {
-    parameters: {
-      query?: never;
-      header: {
-        'If-Match': string;
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        suggestionId: components['parameters']['SuggestionId'];
-      };
-      cookie?: never;
+    listCommissionObligations: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["ObligationType"];
+                status?: components["schemas"]["ObligationStatus"];
+                onboarded?: boolean;
+                cycle?: string;
+                /** @description Personnel file number prefix or name fragment */
+                search?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page ordered by due date, overdue first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ObligationListItem"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @description Final fields after the declarant's edits */
-          fields: {
-            [key: string]: unknown;
-          };
-          /** Format: uuid */
-          applyToItemId: string | null;
-          /**
-           * @description When applying to an existing item, overwrite non-empty fields
-           * @default false
-           */
-          overwrite?: boolean;
+    startDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Existing draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            /** @description Draft created with pre-filled bio */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Obligation is filed or cancelled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Item created or updated */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getMyDeclarations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': {
-            suggestion: components['schemas']['Suggestion'];
-            /** Format: uuid */
-            itemId: string;
-            etag: string;
-          };
+        requestBody?: never;
+        responses: {
+            /** @description List */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationListItem"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      400: components['responses']['ValidationProblem'];
-      404: components['responses']['NotFound'];
-      /** @description Suggestion not `new`, or section ETag mismatch */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description If-Match failed */
-      412: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  dismissSuggestion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        suggestionId: components['parameters']['SuggestionId'];
-      };
-      cookie?: never;
+    getDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft */
+            200: {
+                headers: {
+                    /** @description Draft version for If-Match on section saves */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
     };
-    requestBody?: {
-      content: {
-        'application/json': {
-          reason?: string;
+    discardDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Discarded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Not a draft */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Dismissed */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getDeclarationSection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                sectionKey: components["parameters"]["SectionKey"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Suggestion'];
+        requestBody?: never;
+        responses: {
+            /** @description Section contents */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Suggestion already accepted */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  extractAttachment: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': components['parameters']['IdempotencyKey'];
-      };
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-        attachmentId: string;
-      };
-      cookie?: never;
+    saveDeclarationSection: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                sectionKey: components["parameters"]["SectionKey"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionContents"];
+            };
+        };
+        responses: {
+            /** @description Saved; new version in ETag */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionSaveResult"];
+                };
+            };
+            /** @description Validation failed, or a locked field was changed (code `identity-locked-field`), or nil flag conflicts with items (code `nil-conflicts-with-items`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description If-Match does not match the current draft version; reload */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description If-Match header missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @enum {string} */
-          documentKindHint:
-            'title-deed' | 'logbook' | 'payslip' | 'bank-letter' | 'share-certificate' | 'other';
-          targetItemType: string;
-          /**
-           * @default en
-           * @enum {string}
-           */
-          language?: 'en' | 'sw';
+    linkDeclarationAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
         };
-      };
+        requestBody: {
+            content: {
+                "application/json": {
+                    sectionKey: components["schemas"]["SectionKey"];
+                    /** Format: uuid */
+                    itemId: string;
+                    /** Format: uuid */
+                    uploadId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Linked */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationAttachment"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Upload is not clean, has the wrong purpose, or belongs to another tenant */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Extraction requested; a suggestion set of source `document` */
-      202: {
-        headers: {
-          [name: string]: unknown;
+    unlinkDeclarationAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                attachmentId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['SuggestionSet'];
+        requestBody?: never;
+        responses: {
+            /** @description Unlinked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`) */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  openAssistantConversation: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    getDeclarationSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationSummary"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** Format: uuid */
-          declarationId: string | null;
-          /** @enum {string} */
-          language: 'en' | 'sw';
+    submitDeclaration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Submitted; acknowledgement pending */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionResult"];
+                };
+            };
+            /** @description Incomplete (blocking issues) or missing Idempotency-Key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SubmitProblem"];
+                };
+            };
+            /** @description Problem code `step-up-required` with `stepUpUrl` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SubmitProblem"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Problem code `before-statement-date`, `amendment-window-closed`, `not-a-draft` or `obligation-cancelled` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SubmitProblem"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Conversation */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    amendDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['AssistantConversation'];
+        requestBody?: never;
+        responses: {
+            /** @description Declaration in state amending with sections copied from the current version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Problem code `amendment-window-closed` or `not-submitted` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SubmitProblem"];
+                };
+            };
         };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  askAssistant: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        conversationId: components['parameters']['ConversationId'];
-      };
-      cookie?: never;
+    discardAmendment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declaration back to submitted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Not amending */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          text: string;
-          sectionKey: string | null;
+    listDeclarationVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationVersion"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
     };
-    responses: {
-      /** @description SSE stream ending with the stored message */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getDeclarationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
         };
-        content: {
-          'text/event-stream': string;
+        requestBody?: never;
+        responses: {
+            /** @description Version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationVersionDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      404: components['responses']['NotFound'];
-      /** @description Per-person rate limit */
-      429: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Assistant unavailable; use help search */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  rateAssistantMessage: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        conversationId: components['parameters']['ConversationId'];
-        messageId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @enum {string} */
-          rating: 'helpful' | 'not-helpful';
-          /** @enum {string|null} */
-          reason: 'inaccurate' | 'missed-something' | 'unclear' | 'too-long' | 'other' | null;
-          note?: string | null;
+    getAcknowledgement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
         };
-      };
-    };
-    responses: {
-      /** @description Recorded */
-      200: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Acknowledgement"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-        content?: never;
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  getSuggestedQuestions: {
-    parameters: {
-      query: {
-        sectionKey?: string;
-        language: 'en' | 'sw';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Questions */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    reissueAcknowledgement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': string[];
+        requestBody?: never;
+        responses: {
+            /** @description Reissue requested */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Slip already issued or issuance in progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Cooldown */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
     };
-  };
-  getCompletenessHints: {
-    parameters: {
-      query: {
-        language: 'en' | 'sw';
-      };
-      header?: never;
-      path: {
-        declarationId: components['parameters']['DeclarationId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Hints */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    internalGetAcknowledgementPayload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': {
-            ruleId: string;
-            fieldPath: string;
-            /** @description Deterministic residual text */
-            text: string;
-            /** @description AI-assisted hint when available */
-            hint: string | null;
-          }[];
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcknowledgementPayload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  searchHelp: {
-    parameters: {
-      query: {
-        q: string;
-        language: 'en' | 'sw';
-        sectionKey?: string;
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Passages */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    internalGetVersionDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
+                "X-Acting-Subject": string;
+                "X-Review-Case"?: string;
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['HelpPassage'][];
+        requestBody?: never;
+        responses: {
+            /** @description Document and metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalVersionDocument"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
     };
-  };
-  listHelpArticles: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Articles */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    internalFindPreviousVersion: {
+        parameters: {
+            query: {
+                personId: string;
+                tenant: string;
+                beforeVersionId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['HelpArticle'][];
+        requestBody?: never;
+        responses: {
+            /** @description Previous version reference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        declarationId: string;
+                        /** Format: uuid */
+                        versionId: string;
+                        version: number;
+                        /** Format: date */
+                        statementDate: string;
+                        /** Format: date-time */
+                        submittedAt: string;
+                    };
+                };
+            };
+            /** @description No earlier submitted version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
-  createHelpArticle: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['HelpArticleInput'];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
+    internalRenderDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['HelpArticle'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisclosureRequest"];
+            };
         };
-      };
-      403: components['responses']['Forbidden'];
-    };
-  };
-  updateHelpArticle: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-        articleId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['HelpArticleInput'];
-      };
-    };
-    responses: {
-      /** @description Updated */
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Disclosure document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisclosureDocument"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            404: components["responses"]["NotFound"];
         };
-        content: {
-          'application/json': components['schemas']['HelpArticle'];
-        };
-      };
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
     };
-  };
-  getQuestionThemes: {
-    parameters: {
-      query?: {
-        month?: string;
-      };
-      header?: never;
-      path: {
-        slug: components['parameters']['Slug'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Counts */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    internalGetFullDocumentForCertifiedCopy: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Acting-Subject": string;
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                version: components["parameters"]["VersionNumber"];
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': {
-            month: string;
-            theme: string;
-            count: number;
-            unanswered: number;
-          }[];
+        requestBody?: never;
+        responses: {
+            /** @description Document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalVersionDocument"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
-      };
-      404: components['responses']['NotFound'];
     };
-  };
+    internalListPersonObligations: {
+        parameters: {
+            query: {
+                tenant: string;
+            };
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Obligations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        obligationId: string;
+                        type: components["schemas"]["ObligationType"];
+                        cycleKey: string;
+                        status: components["schemas"]["ObligationStatus"];
+                        /** Format: date */
+                        dueDate: string;
+                        /** Format: date-time */
+                        filedAt: string | null;
+                        late: boolean;
+                    }[];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    requestRegistryLookups: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    personKey: string;
+                    systems: ("kra" | "ntsa" | "brs" | "ardhisasa")[];
+                    consent: {
+                        /** @constant */
+                        requested: true;
+                        textVersion: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Lookups started; one set per system */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionSet"][];
+                };
+            };
+            /** @description Consent missing or person has no national ID (`no-id`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSuggestions: {
+        parameters: {
+            query?: {
+                personKey?: string;
+                sectionKey?: components["schemas"]["SectionKey"];
+            };
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sets with suggestions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionSet"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    acceptSuggestion: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                suggestionId: components["parameters"]["SuggestionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Final fields after the declarant's edits */
+                    fields: {
+                        [key: string]: unknown;
+                    };
+                    /** Format: uuid */
+                    applyToItemId: string | null;
+                    /**
+                     * @description When applying to an existing item, overwrite non-empty fields
+                     * @default false
+                     */
+                    overwrite?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Item created or updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        suggestion: components["schemas"]["Suggestion"];
+                        /** Format: uuid */
+                        itemId: string;
+                        etag: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            404: components["responses"]["NotFound"];
+            /** @description Suggestion not `new`, or section ETag mismatch */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description If-Match failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    dismissSuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                suggestionId: components["parameters"]["SuggestionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dismissed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suggestion"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Suggestion already accepted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    extractAttachment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
+                    targetItemType: string;
+                    /**
+                     * @default en
+                     * @enum {string}
+                     */
+                    language?: "en" | "sw";
+                };
+            };
+        };
+        responses: {
+            /** @description Extraction requested; a suggestion set of source `document` */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionSet"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    openAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    declarationId: string | null;
+                    /** @enum {string} */
+                    language: "en" | "sw";
+                };
+            };
+        };
+        responses: {
+            /** @description Conversation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversation"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    askAssistant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    text: string;
+                    sectionKey: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description SSE stream ending with the stored message */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Per-person rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Assistant unavailable; use help search */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    rateAssistantMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    rating: "helpful" | "not-helpful";
+                    /** @enum {string|null} */
+                    reason: "inaccurate" | "missed-something" | "unclear" | "too-long" | "other" | null;
+                    note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSuggestedQuestions: {
+        parameters: {
+            query: {
+                sectionKey?: string;
+                language: "en" | "sw";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Questions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    getCompletenessHints: {
+        parameters: {
+            query: {
+                language: "en" | "sw";
+            };
+            header?: never;
+            path: {
+                declarationId: components["parameters"]["DeclarationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hints */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ruleId: string;
+                        fieldPath: string;
+                        /** @description Deterministic residual text */
+                        text: string;
+                        /** @description AI-assisted hint when available */
+                        hint: string | null;
+                    }[];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    searchHelp: {
+        parameters: {
+            query: {
+                q: string;
+                language: "en" | "sw";
+                sectionKey?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Passages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpPassage"][];
+                };
+            };
+        };
+    };
+    listHelpArticles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Articles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpArticleInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+                articleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpArticleInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getQuestionThemes: {
+        parameters: {
+            query?: {
+                month?: string;
+            };
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        month: string;
+                        theme: string;
+                        count: number;
+                        unanswered: number;
+                    }[];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
 }
