@@ -30,6 +30,8 @@ const SESSION_ROUTES: [method: 'GET' | 'POST', path: string, body?: unknown][] =
   ['POST', '/otp/email/verify', { code: '123456' }],
   ['POST', '/otp/email/resend'],
   ['POST', '/contacts', { channel: 'email', value: 'someone@example.com' }],
+  ['POST', '/confirm'],
+  ['POST', '/resend-password-email'],
 ];
 
 let api: DirectoryApi;

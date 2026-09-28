@@ -540,6 +540,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/onboarding/sessions/{sessionId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm roster details, run the IPRS check and create or link the account
+         * @description Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`).
+         */
+        post: operations["confirmOnboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/sessions/{sessionId}/resend-password-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the set-password email again
+         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`).
+         */
+        post: operations["resendSetPasswordEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/declarant": {
         parameters: {
             query?: never;
@@ -574,50 +614,6 @@ export interface paths {
         get: operations["findPersonByOfr"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/onboarding/sessions/{sessionId}/confirm": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Confirm roster details, run the IPRS check and create or link the account */
-        post: operations["confirmOnboarding"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/onboarding/sessions/{sessionId}/resend-password-email": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send the Keycloak set-password email again */
-        post: operations["resendSetPasswordEmail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1150,7 +1146,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
             /** @description Field-level errors */
@@ -1170,7 +1166,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1461,7 +1457,7 @@ export interface components {
                 designation: string | null;
                 reportingEntity: string | null;
             } | null;
-            /** @description Resend availability for the channel currently pending */
+            /** @description Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now) */
             otp: {
                 channel: components["schemas"]["OtpChannel"] | null;
                 resendAvailableAt: string | null;
@@ -1490,7 +1486,7 @@ export interface components {
                 designation: string | null;
                 reportingEntity: string | null;
             } | null;
-            /** @description Resend availability for the channel currently pending */
+            /** @description Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now) */
             otp: {
                 channel: components["schemas"]["OtpChannel"] | null;
                 resendAvailableAt: string | null;
@@ -1505,12 +1501,16 @@ export interface components {
             /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
             secret: string;
         };
+        OnboardingConfirmResult: {
+            outcome: components["schemas"]["OnboardingOutcome"];
+            session: components["schemas"]["OnboardingSession"];
+        };
         OnboardingProblem: {
             type: string;
             title: string;
             status: number;
             /** @enum {string} */
-            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "otp-send-failed" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limit-exceeded" | "wrong-step";
+            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "otp-send-failed" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "rate-limit-exceeded" | "wrong-step";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1581,7 +1581,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1616,10 +1616,6 @@ export interface components {
             activatedAt: string | null;
             /** Format: date-time */
             revokedAt: string | null;
-        };
-        OnboardingConfirmResult: {
-            outcome: components["schemas"]["OnboardingOutcome"];
-            session: components["schemas"]["OnboardingSession"];
         };
         TenantPolicyVersion: {
             /** Format: uuid */
@@ -3786,6 +3782,173 @@ export interface operations {
             };
         };
     };
+    confirmOnboarding: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Outcome of the confirmation, with the session as it now is */
+            200: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingConfirmResult"];
+                };
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The session is not at the confirm step (the BFF re-reads it), or problem code `email-in-use`: the verified email belongs to another account; nothing changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `identity-unavailable`: the account could not be created or linked; nothing changed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `iprs-unavailable`: IPRS could not be checked; try again later, the session is unchanged */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+        };
+    };
+    resendSetPasswordEmail: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Email requested */
+            202: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The session is not confirmed with a new account (the BFF re-reads it) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `identity-unavailable`: the email could not be sent; try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+        };
+    };
     getMyDeclarantProfile: {
         parameters: {
             query?: never;
@@ -3874,102 +4037,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    confirmOnboarding: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Outcome of the confirmation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingConfirmResult"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not at the confirm step */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            410: components["responses"]["SessionEnded"];
-            /** @description Problem code `identity-unavailable`: account could not be created; nothing changed */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            /** @description Problem code `iprs-unavailable`: try again later; session unchanged */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-        };
-    };
-    resendSetPasswordEmail: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Email requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Session is not in the confirmed state with a new account */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
-                };
-            };
-            /** @description Problem code `resend-cooldown` */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
         };

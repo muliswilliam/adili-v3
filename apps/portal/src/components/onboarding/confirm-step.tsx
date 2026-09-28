@@ -21,7 +21,7 @@ import { useSettle } from './settle';
 import { SessionUnavailable, StepFailureAlert } from './step-alerts';
 
 /** Why confirming failed. The register being down is a wait; the rest are errors. */
-type Failure = 'iprs-unavailable' | 'identity-unavailable' | 'unavailable';
+type Failure = 'iprs-unavailable' | 'identity-unavailable' | 'email-in-use' | 'unavailable';
 
 /**
  * Step 5, Confirm your details. The roster's details, read-only; confirming runs the national
@@ -57,7 +57,11 @@ function ConfirmDetails({
       // A confirmed session moves on to its outcome; if another tab confirmed first, the
       // loader guard sends this one after it.
       const problem = await settle(await confirmOnboarding());
-      if (problem?.code === 'iprs-unavailable' || problem?.code === 'identity-unavailable') {
+      if (
+        problem?.code === 'iprs-unavailable' ||
+        problem?.code === 'identity-unavailable' ||
+        problem?.code === 'email-in-use'
+      ) {
         setFailure(problem.code);
       } else if (problem) {
         setFailure('unavailable');
@@ -146,9 +150,7 @@ function ConfirmFailureAlert({ ref, failure }: { ref: Ref<HTMLDivElement>; failu
     <StepFailureAlert
       ref={ref}
       className="mt-4"
-      message={
-        failure === 'identity-unavailable' ? problemMessage('identity-unavailable') : GENERIC_ERROR
-      }
+      message={failure === 'unavailable' ? GENERIC_ERROR : problemMessage(failure)}
     />
   );
 }

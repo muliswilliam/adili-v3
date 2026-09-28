@@ -40,6 +40,7 @@ import type { DirectoryApi } from './directory-api.js';
  *   lookup tests. `givenIdentityMismatch(api, recordId)`: as a confirm refused by IPRS leaves it.
  * - `identify`, `getSession`, `onSession`: the public routes as the portal calls them.
  * - `api.otpDelivery`: codes sent (`last(to)?.code`), `failNext()` to make a send fail.
+ * - `api.iprs`: `givenPerson(nationalId, names)` for the confirm step, `failNext()` for an outage.
  *
  * Commissions themselves come from `givenCommissions` (fixtures.ts).
  */

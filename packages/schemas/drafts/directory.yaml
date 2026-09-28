@@ -4,70 +4,6 @@
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/onboarding/sessions/{sessionId}/confirm:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-    post:
-      tags: [onboarding]
-      operationId: confirmOnboarding
-      summary: Confirm roster details, run the IPRS check and create or link the account
-      security: []
-      responses:
-        '200':
-          description: Outcome of the confirmation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OnboardingConfirmResult'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Session is not at the confirm step
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '410':
-          $ref: '#/components/responses/SessionEnded'
-        '502':
-          description: 'Problem code `identity-unavailable`: account could not be created; nothing changed'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '503':
-          description: 'Problem code `iprs-unavailable`: try again later; session unchanged'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-  /v1/onboarding/sessions/{sessionId}/resend-password-email:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-    post:
-      tags: [onboarding]
-      operationId: resendSetPasswordEmail
-      summary: Send the Keycloak set-password email again
-      security: []
-      responses:
-        '202':
-          description: Email requested
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Session is not in the confirmed state with a new account
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '429':
-          description: 'Problem code `resend-cooldown`'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
   /v1/onboarding/applicants:
     post:
       tags: [onboarding]
@@ -491,14 +427,6 @@ components:
         revokedAt:
           type: [string, 'null']
           format: date-time
-    OnboardingConfirmResult:
-      type: object
-      required: [outcome, session]
-      properties:
-        outcome:
-          $ref: '#/components/schemas/OnboardingOutcome'
-        session:
-          $ref: '#/components/schemas/OnboardingSession'
     TenantPolicyVersion:
       type: object
       required:

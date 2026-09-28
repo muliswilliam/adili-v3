@@ -96,7 +96,10 @@ export const onboardingSessionSchema = z.object({
       resendsLeft: z.number().int(),
       attemptsLeft: z.number().int(),
     })
-    .meta({ description: 'Resend availability for the channel currently pending' }),
+    .meta({
+      description:
+        'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)',
+    }),
   outcome: onboardingOutcomeSchema
     .nullable()
     .optional()
@@ -106,6 +109,14 @@ export const onboardingSessionSchema = z.object({
 });
 
 export type OnboardingSession = z.infer<typeof onboardingSessionSchema>;
+
+/** Response of `POST /v1/onboarding/sessions/{sessionId}/confirm`. */
+export const onboardingConfirmResultSchema = z.object({
+  outcome: onboardingOutcomeSchema,
+  session: onboardingSessionSchema,
+});
+
+export type OnboardingConfirmResult = z.infer<typeof onboardingConfirmResultSchema>;
 
 export const onboardingSessionCreatedSchema = onboardingSessionSchema.extend({
   secret: z.string().meta({
@@ -169,6 +180,7 @@ export const ONBOARDING_PROBLEM_CODES = [
   'session-expired',
   'iprs-unavailable',
   'identity-unavailable',
+  'email-in-use',
   'rate-limit-exceeded',
   'wrong-step',
 ] as const;
