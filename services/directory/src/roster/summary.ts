@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 import type { Transaction } from '../commissions/commissions.service.js';
 import type { RosterSummary } from '../commissions/representation.js';
@@ -46,19 +46,20 @@ export interface CompletedImport {
 
 /**
  * Recomputes the tenant's roster summary from its records and stores it, in the caller's
- * transaction, so the summary changes atomically with the roster (spec #27). A full count of the
- * tenant's records, run once per import when it ends; every change to records in between moves
- * the summary by its exact delta (`adjustRosterSummary`), so the count finds nothing to correct
- * and the summary is exact at all times. `completedImport` also records the import as the latest
+ * transaction, so the summary changes atomically with the roster (spec #27: recomputed by SQL in
+ * the same transaction as the change). Every change to a tenant's records calls it after the
+ * change: import chunks, flagging, exits and keeps, and the import's end. One aggregate over the
+ * tenant's records (about 30 ms at 436,000, TSC's size, on the covering index
+ * `roster_records_tenant_summary_idx`). `completedImport` also records the import as the latest
  * one (and as the latest complete one when declared complete); its time is the transaction's.
  *
- * The summary row is locked before counting, so the count sees every record change whose
- * adjustment came first and none that adjusts after: a delta is never overwritten by a count
- * taken before it committed, nor applied to a count that already includes it. Lock order is the
- * same everywhere: adjusters lock the records they change, then the summary row; this locks only
- * the summary row and counts without locking records, so the two cannot deadlock.
+ * The summary row is locked before counting, so concurrent changes store their counts in turn,
+ * each counted after the ones before it committed: a count taken before a change committed never
+ * overwrites one that includes it. Lock order is the same everywhere: callers lock the records
+ * they change, then this locks the summary row and counts without locking records, so two
+ * changes cannot deadlock.
  */
-export async function refreshRosterSummary(
+export async function recomputeRosterSummary(
   tx: Transaction,
   tenant: string,
   completedImport?: CompletedImport,
@@ -98,37 +99,4 @@ export async function refreshRosterSummary(
         coalesce(excluded.last_complete_import_at, roster_summaries.last_complete_import_at),
       updated_at = excluded.updated_at
   `);
-}
-
-/** How a change to some records moves the summary's counts. */
-export interface RosterSummaryDelta {
-  expected: number;
-  onboarded: number;
-  flagged: number;
-}
-
-/**
- * Moves the tenant's roster summary by `delta`, in the caller's transaction, for a change to
- * records whose before and after the caller knows exactly, having locked (or created) them first:
- * import chunks, flagging, exits and keeps. The cost of the change, not of the roster. Updating
- * the summary row locks it until the commit, so concurrent adjustments and full counts apply in
- * turn. Without a summary row yet, counts the records instead (they include this change).
- */
-export async function adjustRosterSummary(
-  tx: Transaction,
-  tenant: string,
-  delta: RosterSummaryDelta,
-): Promise<void> {
-  if (delta.expected === 0 && delta.onboarded === 0 && delta.flagged === 0) return;
-  const adjusted = await tx
-    .update(rosterSummaries)
-    .set({
-      expected: sql`greatest(0, ${rosterSummaries.expected} + ${delta.expected})`,
-      onboarded: sql`greatest(0, ${rosterSummaries.onboarded} + ${delta.onboarded})`,
-      flagged: sql`greatest(0, ${rosterSummaries.flagged} + ${delta.flagged})`,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(rosterSummaries.tenant, tenant))
-    .returning({ tenant: rosterSummaries.tenant });
-  if (adjusted.length === 0) await refreshRosterSummary(tx, tenant);
 }

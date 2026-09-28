@@ -6,7 +6,7 @@ import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { eventActorOf, type RosterActor } from '../actor.js';
 import { rosterRecords } from '../schema.js';
-import { adjustRosterSummary } from '../summary.js';
+import { recomputeRosterSummary } from '../summary.js';
 import { type ExitSource, rosterExitsConfirmed, rosterRecordsKept } from './events.js';
 
 /**
@@ -77,7 +77,6 @@ export async function confirmExits(
   const found = await lockRecords(tx, command.tenant, recordIds);
   const exited = recordIds.filter((id) => found.get(id)?.state === 'exited');
   if (exited.length > 0) throw new RosterRecordsExited(exited);
-  const records = [...found.values()];
 
   const source = command.exits.map((exit) => ({ id: exit.recordId, exit_date: exit.exitDate }));
   await tx.execute(sql`
@@ -95,12 +94,7 @@ export async function confirmExits(
     from jsonb_to_recordset(${JSON.stringify(source)}::jsonb) as source(id uuid, exit_date date)
     where target.id = source.id and target.tenant = ${command.tenant}
   `);
-  // None had exited: each stops counting as expected, and as onboarded or flagged if it did.
-  await adjustRosterSummary(tx, command.tenant, {
-    expected: -records.length,
-    onboarded: -records.filter((record) => record.state === 'onboarded').length,
-    flagged: -records.filter((record) => record.absentFromLatestImport).length,
-  });
+  await recomputeRosterSummary(tx, command.tenant);
 
   const batchId = randomUUID();
   await events.record(
@@ -154,11 +148,7 @@ export async function keepRecords(
     .returning({ id: rosterRecords.id });
   if (kept.length === 0) return { count: 0 };
 
-  await adjustRosterSummary(tx, command.tenant, {
-    expected: 0,
-    onboarded: 0,
-    flagged: -kept.length,
-  });
+  await recomputeRosterSummary(tx, command.tenant);
   await events.record(
     tx,
     rosterRecordsKept(command.tenant, {
@@ -172,12 +162,11 @@ export async function keepRecords(
 
 interface LockedRecord {
   state: typeof rosterRecords.$inferSelect.state;
-  absentFromLatestImport: boolean;
 }
 
 /**
- * Locks the tenant's records with these ids until the commit and returns their state and flag by
- * id; throws `RosterRecordsNotFound` for ids not on the roster. Locked in id order, as everywhere
+ * Locks the tenant's records with these ids until the commit and returns their state by id;
+ * throws `RosterRecordsNotFound` for ids not on the roster. Locked in id order, as everywhere
  * records are locked (imports too), so overlapping transactions never deadlock.
  */
 async function lockRecords(
@@ -189,7 +178,6 @@ async function lockRecords(
     .select({
       id: rosterRecords.id,
       state: rosterRecords.state,
-      absentFromLatestImport: rosterRecords.absentFromLatestImport,
     })
     .from(rosterRecords)
     .where(and(eq(rosterRecords.tenant, tenant), inArray(rosterRecords.id, [...recordIds])))

@@ -7,7 +7,7 @@ import type { Commission, RosterSummary } from '../../src/commissions/representa
 import { outbox, rosterRecords } from '../../src/db/schema.js';
 import type { RosterImport } from '../../src/roster/import/representation.js';
 import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
-import { refreshRosterSummary } from '../../src/roster/summary.js';
+import { recomputeRosterSummary } from '../../src/roster/summary.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenApiCredential, givenCommissions } from '../support/fixtures.js';
@@ -92,7 +92,7 @@ async function givenRecord(
       .where(
         and(eq(rosterRecords.tenant, tenant), eq(rosterRecords.personnelFileNumber, fileNumber)),
       );
-    await refreshRosterSummary(tx, tenant);
+    await recomputeRosterSummary(tx, tenant);
   });
 }
 

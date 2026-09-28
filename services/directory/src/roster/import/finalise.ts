@@ -6,7 +6,7 @@ import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { eventActorOf, startedByOf } from '../actor.js';
 import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
-import { refreshRosterSummary } from '../summary.js';
+import { recomputeRosterSummary } from '../summary.js';
 import { rosterImportCompleted, rosterImportFailed } from './events.js';
 import type { ImportCounts } from './representation.js';
 import { IMPORT_SUBJECT } from './staging.js';
@@ -59,9 +59,9 @@ export async function finaliseImport(
     // An API batch never staged (the import failed first) is not kept: its rows are personal data.
     await tx.delete(rosterImportBatches).where(eq(rosterImportBatches.importId, ref.importId));
 
-    // Chunks applied before a failure changed records too, so the summary is refreshed either way.
+    // Records the import as the latest in the summary; after a failure, recounts all the same.
     if (result.state === 'completed') {
-      await refreshRosterSummary(tx, ref.tenant, {
+      await recomputeRosterSummary(tx, ref.tenant, {
         id: ref.importId,
         declaredComplete: current.declaredComplete,
       });
@@ -76,7 +76,7 @@ export async function finaliseImport(
         }),
       );
     } else {
-      await refreshRosterSummary(tx, ref.tenant);
+      await recomputeRosterSummary(tx, ref.tenant);
       await events.record(
         tx,
         rosterImportFailed(ref.tenant, {

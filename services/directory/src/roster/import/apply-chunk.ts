@@ -12,7 +12,7 @@ import {
   rosterImports,
   rosterRecords,
 } from '../schema.js';
-import { adjustRosterSummary, type RosterSummaryDelta } from '../summary.js';
+import { recomputeRosterSummary } from '../summary.js';
 import { IMPORT_SUBJECT } from './staging.js';
 import type { ChunkCounts, ImportRef } from './workflow-contract.js';
 
@@ -133,7 +133,7 @@ export async function applyChunk(
         decision.kind === 'unchanged' || decision.kind === 'locked' ? [decision.recordId] : [],
       ),
     );
-    await adjustRosterSummary(tx, ref.tenant, summaryDelta(decisions.map((row) => row.decision)));
+    await recomputeRosterSummary(tx, ref.tenant);
     const elsewhere = await nationalIdsOnOtherRosters(
       tx,
       decisions.flatMap(({ nationalId, decision }) =>
@@ -219,23 +219,6 @@ function decide(values: RecordValues, existing: ExistingRecord | undefined): Dec
 function activeState(record: ExistingRecord): 'not_onboarded' | 'onboarded' {
   if (record.state === 'exited') return record.stateBeforeExit ?? 'not_onboarded';
   return record.state;
-}
-
-/**
- * How the chunk moves the roster summary: created records and re-activated ones count as expected
- * again (and as onboarded when that is the state they get back). Neither is flagged: new records
- * never were, and an exit cleared the flag.
- */
-function summaryDelta(decisions: Decision[]): RosterSummaryDelta {
-  const delta: RosterSummaryDelta = { expected: 0, onboarded: 0, flagged: 0 };
-  for (const decision of decisions) {
-    if (decision.kind === 'create') delta.expected += 1;
-    if (decision.kind === 'update' && decision.reactivates !== null) {
-      delta.expected += 1;
-      if (decision.reactivates === 'onboarded') delta.onboarded += 1;
-    }
-  }
-  return delta;
 }
 
 function identityChanges(existing: RecordValues, values: RecordValues): RowError[] {

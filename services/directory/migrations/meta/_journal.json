@@ -148,6 +148,13 @@
       "when": 1790588183142,
       "tag": "0020_roster_national_ids_lookup_definer",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790588535210,
+      "tag": "0021_roster_records_summary_index",
+      "breakpoints": true
     }
   ]
 }

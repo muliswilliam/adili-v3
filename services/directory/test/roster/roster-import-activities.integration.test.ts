@@ -25,7 +25,7 @@ import {
 } from '../../src/roster/import/roster-uploads.js';
 import { IMPORT_SUBJECT, StagingSuperseded, stageImport } from '../../src/roster/import/staging.js';
 import type { ImportRef } from '../../src/roster/import/workflow-contract.js';
-import { refreshRosterSummary } from '../../src/roster/summary.js';
+import { recomputeRosterSummary } from '../../src/roster/summary.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
 
@@ -515,7 +515,7 @@ describe('the roster summary', () => {
 
     const commit = Promise.withResolvers<undefined>();
     const adjusted = Promise.withResolvers<undefined>();
-    // The exit has moved the summary and holds its row until released.
+    // The exit has recounted the summary and holds its row until released.
     const exit = withTenant(api.db, { tenant: 'psc', subject: 'officer-psc' }, async (tx) => {
       await confirmExits(tx, events, {
         tenant: 'psc',
@@ -531,7 +531,7 @@ describe('the roster summary', () => {
     const count = withTenant(api.db, { tenant: 'psc', subject: IMPORT_SUBJECT }, async (tx) => {
       const { rows } = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
       backend.resolve(rows[0]?.pid ?? 0);
-      await refreshRosterSummary(tx, 'psc');
+      await recomputeRosterSummary(tx, 'psc');
     });
     await waitsForALock(backend.promise);
     commit.resolve(undefined);
@@ -548,7 +548,7 @@ describe('the roster summary', () => {
     const counted = Promise.withResolvers<undefined>();
     // The count holds the summary row until released.
     const count = withTenant(api.db, { tenant: 'psc', subject: IMPORT_SUBJECT }, async (tx) => {
-      await refreshRosterSummary(tx, 'psc');
+      await recomputeRosterSummary(tx, 'psc');
       counted.resolve(undefined);
       await commit.promise;
     });
@@ -572,7 +572,7 @@ describe('the roster summary', () => {
     await expectSummaryExact();
   });
 
-  it('is exact while an import runs: chunks and flags move it, exits meanwhile too', async () => {
+  it('is exact while an import runs: chunks, flags and exits meanwhile recount it', async () => {
     await givenCompletedImport();
     const ref = await givenImport(
       [
@@ -623,7 +623,7 @@ describe('the roster summary', () => {
     }: Partial<typeof rosterSummaries.$inferSelect>) => ({ expected, onboarded, flagged });
     const stored = counts((await summary()) ?? {});
     await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
-      refreshRosterSummary(tx, 'psc'),
+      recomputeRosterSummary(tx, 'psc'),
     );
     expect(stored).toEqual(counts((await summary()) ?? {}));
   }

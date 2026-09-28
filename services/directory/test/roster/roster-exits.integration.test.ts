@@ -11,7 +11,7 @@ import type { ExitsResult, KeepResult } from '../../src/roster/exits/representat
 import type { RosterImport } from '../../src/roster/import/representation.js';
 import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
 import { todayInNairobi } from '../../src/roster/row-validation.js';
-import { refreshRosterSummary } from '../../src/roster/summary.js';
+import { recomputeRosterSummary } from '../../src/roster/summary.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -545,7 +545,7 @@ describe('S13 import row for an exited officer', () => {
         .update(rosterRecords)
         .set({ state: 'onboarded' })
         .where(eq(rosterRecords.id, wanjiru));
-      await refreshRosterSummary(tx, 'psc');
+      await recomputeRosterSummary(tx, 'psc');
     });
     await confirmExits({ records: [{ recordId: wanjiru }], exitDate: daysAgo(10) });
     expect(await summary()).toMatchObject({ expectedDeclarants: 3, onboardedDeclarants: 0 });
@@ -590,7 +590,7 @@ describe('S13 import row for an exited officer', () => {
 describe('roster summary after exits and keeps', () => {
   const recount = () =>
     withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
-      refreshRosterSummary(tx, 'psc'),
+      recomputeRosterSummary(tx, 'psc'),
     );
 
   const storedSummary = () =>

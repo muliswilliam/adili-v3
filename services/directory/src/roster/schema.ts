@@ -147,7 +147,15 @@ export const rosterRecords = pgTable(
     index('roster_records_national_id_idx').on(table.nationalId),
     /** The records list's order and keyset cursor. */
     index('roster_records_tenant_full_name_id_idx').on(table.tenant, table.fullName, table.id),
-    index('roster_records_tenant_state_idx').on(table.tenant, table.state),
+    /**
+     * Covers `recomputeRosterSummary`'s aggregate, which reads only these columns of the tenant's
+     * records (an index-only scan), and lookups by state.
+     */
+    index('roster_records_tenant_summary_idx').on(
+      table.tenant,
+      table.state,
+      table.absentFromLatestImport,
+    ),
     index('roster_records_tenant_flagged_idx')
       .on(table.tenant)
       .where(sql`${table.absentFromLatestImport}`),
