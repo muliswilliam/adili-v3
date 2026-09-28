@@ -86,7 +86,7 @@ export const SUGGESTION_MESSAGES: SuggestionMessages = {
   applied: 'Applied',
   dismissed: 'Dismissed',
   saving: 'Saving…',
-  refreshing: 'Section changed. Refreshing…',
+  refreshing: 'Your statement changed. Refreshing…',
 };
 
 export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | 'title'> & {
@@ -113,7 +113,7 @@ export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | '
   acceptedAs?: 'added' | 'applied';
   /**
    * Replaces the actions with a spinner and a status while accepting: `saving`, or `refreshing`
-   * after the section changed underneath (409 or 412) and the accept is being retried.
+   * after the statement changed underneath (409 or 412) and the accept is being retried.
    */
   busy?: 'saving' | 'refreshing';
   /** Adds the item as found: the main action, or a secondary one when it matches an item. */

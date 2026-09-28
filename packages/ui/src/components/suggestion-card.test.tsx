@@ -148,7 +148,7 @@ describe('SuggestionCard', () => {
     const { card, element } = renderCard({ busy: 'refreshing' });
 
     expect(element.getAttribute('aria-busy')).toBe('true');
-    expect(card.getByRole('status').textContent).toBe('Section changed. Refreshing…');
+    expect(card.getByRole('status').textContent).toBe('Your statement changed. Refreshing…');
     expect(card.queryAllByRole('button')).toHaveLength(0);
   });
 

@@ -313,7 +313,7 @@ describe('Read into the form (S6, S11)', () => {
     await review();
     fireEvent.click(within(sheet()).getByRole('checkbox', { name: /I checked this/ }));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Apply to this item' }));
-    expect(await within(sheet()).findByText('Section changed. Refreshing…')).toBeTruthy();
+    expect(await within(sheet()).findByText('Your statement changed. Refreshing…')).toBeTruthy();
     answer({
       status: 'accepted',
       suggestion: suggestion({ status: 'accepted', acceptedItemId: ITEM_ID }),

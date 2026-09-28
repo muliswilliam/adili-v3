@@ -462,7 +462,7 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add: KCA 123A · Toyota Probox 2016' }));
 
-    expect(await screen.findByText('Section refreshed, then added')).toBeTruthy();
+    expect(await screen.findByText('Refreshed your statement, then added')).toBeTruthy();
     expect(acceptMock).toHaveBeenCalledTimes(2);
     expect(acceptMock.mock.calls[1]?.[0].data.ifMatch).toBe('"5"');
   });
