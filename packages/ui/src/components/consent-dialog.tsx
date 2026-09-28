@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from './dialog';
 import { Icon } from './icon';
-import { SOURCE_NAMES } from './source-badge';
+import { SOURCE_KINDS, SOURCE_NAMES } from './source-badge';
 
 /** A national ID with all but its last three digits hidden: "12345678" → "•••••678". */
 export function maskNationalId(id: string): string {
@@ -23,13 +23,10 @@ export function maskNationalId(id: string): string {
   return '•'.repeat(Math.max(0, trimmed.length - 3)) + trimmed.slice(-3);
 }
 
-/** Every registry a check can ask, by name. */
-const EVERY_REGISTRY = [
-  SOURCE_NAMES.kra,
-  SOURCE_NAMES.ntsa,
-  SOURCE_NAMES.brs,
-  SOURCE_NAMES.ardhisasa,
-];
+/** Every registry a check can ask, by name: every source but a document. */
+const EVERY_REGISTRY = SOURCE_KINDS.filter((kind) => kind !== 'document').map(
+  (kind) => SOURCE_NAMES[kind],
+);
 
 export interface ConsentMessages {
   title: string;
