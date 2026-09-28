@@ -6,7 +6,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   isIdentityLocked,
   LockedChip,
+  hasIdentityMismatch,
   OnboardingStatusItems,
+  recordOnboarding,
   type RosterRecordOnboarding,
 } from './record-onboarding';
 
@@ -112,5 +114,30 @@ describe('locked identity', () => {
 
     const chip = screen.getByTitle('Locked because the declarant has onboarded');
     expect(chip.textContent).toBe('Locked because the declarant has onboarded');
+  });
+});
+
+describe('recordOnboarding', () => {
+  it('reads the spec 03 fields off a roster record', () => {
+    expect(
+      recordOnboarding({
+        state: 'onboarded',
+        ofr: 'OFR-0482913-H',
+        onboardedAt: '2026-09-26T07:42:00Z',
+        identityMismatchAt: null,
+      }),
+    ).toEqual(onboarded);
+  });
+
+  it('treats fields the directory does not send yet as not set', () => {
+    expect(recordOnboarding({ state: 'not_onboarded' })).toEqual(notOnboarded);
+  });
+});
+
+describe('hasIdentityMismatch', () => {
+  it('is true only once an identity check has failed', () => {
+    expect(hasIdentityMismatch(mismatch)).toBe(true);
+    expect(hasIdentityMismatch(notOnboarded)).toBe(false);
+    expect(hasIdentityMismatch({ state: 'onboarded' })).toBe(false);
   });
 });

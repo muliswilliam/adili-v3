@@ -21,8 +21,15 @@ import type { RosterRecord } from '../../server/directory/client';
 import { formatPhone } from '../commissions/phone';
 import { formatDate, formatDateTime } from '../format';
 import { Page, PageHead, SectionCard } from '../page';
+import { IdentityMismatchBadge, IdentityMismatchCallout } from './identity-mismatch';
 import { messages as m } from './messages';
-import { isIdentityLocked, LockedChip } from './record-onboarding';
+import {
+  isIdentityLocked,
+  LockedChip,
+  OnboardingStatusItems,
+  recordOnboarding,
+  type RosterRecordOnboarding,
+} from './record-onboarding';
 import { isFlagged, recordImport } from './record-imports';
 import { ImportOutcomeBadge, NotInLatestImportBadge, RecordStateBadge } from './roster-badges';
 
@@ -45,6 +52,8 @@ export function RecordDetail({
   readOnly: boolean;
 }) {
   const flagged = isFlagged(record);
+  const onboarding = recordOnboarding(record);
+  const mismatchAt = onboarding.identityMismatchAt;
   return (
     <Page>
       {banner}
@@ -55,10 +64,12 @@ export function RecordDetail({
           </span>
           <RecordStateBadge state={record.state} />
           {flagged ? <NotInLatestImportBadge /> : null}
+          {mismatchAt ? <IdentityMismatchBadge /> : null}
         </div>
       </PageHead>
-      {flagged || record.state === 'exited' ? (
+      {mismatchAt || flagged || record.state === 'exited' ? (
         <div className="mb-5 grid gap-3">
+          {mismatchAt ? <IdentityMismatchCallout at={mismatchAt} /> : null}
           {flagged ? (
             <Alert variant="warning" role="status">
               <Icon icon={Flag02Icon} />
@@ -84,7 +95,7 @@ export function RecordDetail({
           <ImportHistory record={record} />
         </div>
         <div className="min-w-0 min-[1100px]:sticky min-[1100px]:top-[76px]">
-          <StatusCard record={record} />
+          <StatusCard record={record} onboarding={onboarding} />
         </div>
       </div>
     </Page>
@@ -152,7 +163,13 @@ function SeenIn({ record, importId }: { record: RosterRecord; importId: string |
   return <time dateTime={entry.startedAt}>{formatDate(entry.startedAt)}</time>;
 }
 
-function StatusCard({ record }: { record: RosterRecord }) {
+function StatusCard({
+  record,
+  onboarding,
+}: {
+  record: RosterRecord;
+  onboarding: RosterRecordOnboarding;
+}) {
   return (
     <SectionCard id="record-status" icon={UserSquareIcon} title={m.status}>
       <DescriptionList className="px-5 py-4">
@@ -162,6 +179,7 @@ function StatusCard({ record }: { record: RosterRecord }) {
         <DescriptionItem term={m.absentFromLatest}>
           {isFlagged(record) ? <NotInLatestImportBadge /> : m.no}
         </DescriptionItem>
+        <OnboardingStatusItems record={onboarding} />
         <DescriptionItem term={m.exitDate}>
           {record.exitDate ? (
             <time dateTime={record.exitDate}>{formatDate(record.exitDate)}</time>
