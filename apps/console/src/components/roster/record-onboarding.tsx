@@ -35,11 +35,6 @@ export function recordOnboarding(record: RecordWithOnboarding): RosterRecordOnbo
   };
 }
 
-/** Whether the record's identity check against the national register failed. */
-export function hasIdentityMismatch(record: RecordWithOnboarding): boolean {
-  return recordOnboarding(record).identityMismatchAt !== null;
-}
-
 /** Full name and national ID can no longer be changed by an import once the declarant onboarded. */
 export function isIdentityLocked(record: Pick<RosterRecordOnboarding, 'state'>): boolean {
   return record.state === 'onboarded';

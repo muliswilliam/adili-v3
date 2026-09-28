@@ -6,7 +6,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   isIdentityLocked,
   LockedChip,
-  hasIdentityMismatch,
   OnboardingStatusItems,
   recordOnboarding,
   type RosterRecordOnboarding,
@@ -131,13 +130,5 @@ describe('recordOnboarding', () => {
 
   it('treats fields the directory does not send yet as not set', () => {
     expect(recordOnboarding({ state: 'not_onboarded' })).toEqual(notOnboarded);
-  });
-});
-
-describe('hasIdentityMismatch', () => {
-  it('is true only once an identity check has failed', () => {
-    expect(hasIdentityMismatch(mismatch)).toBe(true);
-    expect(hasIdentityMismatch(notOnboarded)).toBe(false);
-    expect(hasIdentityMismatch({ state: 'onboarded' })).toBe(false);
   });
 });
