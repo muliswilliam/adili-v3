@@ -1,6 +1,6 @@
 # ADR-012: One polyglot monorepo (TypeScript + Python)
 
-- **Status:** Accepted
+- **Status:** Accepted; the two-language scope (TypeScript and Python) partly superseded by [ADR-015](0015-java-for-keycloak-providers.md)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-009](0009-api-first-interoperability.md), [architecture §16](../architecture/README.md#16-repository-and-engineering-standards)

@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { callerOf, type Principal } from '@adili/api-kit';
+import { callerOf, errorType, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
@@ -128,12 +128,6 @@ async function withBudget<T>(ms: number, work: (signal: AbortSignal) => Promise<
   } finally {
     clearTimeout(timer);
   }
-}
-
-function errorType(error: unknown): string {
-  if (!(error instanceof Error)) return typeof error;
-  const code = (error as { code?: unknown }).code;
-  return typeof code === 'string' ? `${error.name}:${code}` : error.name;
 }
 
 function toView(row: typeof messages.$inferSelect): MessageView {

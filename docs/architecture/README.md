@@ -808,6 +808,7 @@ adili-v3/
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
 | [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
+| [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
 
 ---
 

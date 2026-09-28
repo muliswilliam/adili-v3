@@ -121,8 +121,16 @@ services:
       # Where the login theme sends staff and declarants to sign in (apps/keycloak-theme).
       ADILI_CONSOLE_URL: http://localhost:3020
       ADILI_PORTAL_URL: http://localhost:3010
+      # Where the adili-otp authenticator sends sign-in codes: the notifications service on the host.
+      ADILI_NOTIFICATIONS_URL: http://host.docker.internal:4010
+    # Podman resolves host.docker.internal itself; Docker on Linux needs the mapping.
+    extra_hosts: ['host.docker.internal:host-gateway']
     ports: ['8080:8080']
-    volumes: [./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro]
+    volumes:
+      - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
+      # Development-only secrets for the file vault, never deployed (realm expressions such as
+      # ${vault.keycloak-extension-secret}). Deployments mount their own.
+      - ./keycloak/vault-dev:/opt/keycloak/vault:ro
     healthcheck:
       <<: *healthcheck-defaults
       start_period: 30s

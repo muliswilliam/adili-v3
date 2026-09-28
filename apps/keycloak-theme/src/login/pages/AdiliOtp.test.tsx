@@ -67,6 +67,13 @@ describe('OTP page', () => {
     expect((waiting as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('holds "Send it by email instead" for the same cooldown', async () => {
+    renderStory('otp');
+
+    const button = await screen.findByRole('button', { name: 'Send it by email instead' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('announces the resend wait politely at 10-second steps only', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
     try {

@@ -18,6 +18,7 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
     alternativeDestination: 'j***@gmail.com',
     attemptsLeft: 5,
     resendsLeft: 3,
+    codeLifetimeMinutes: 10,
   },
   'login-update-password.ftl': {},
 };
