@@ -3,6 +3,7 @@ import {
   AlertTitle,
   Button,
   CardIcon,
+  cn,
   DialogBody,
   DialogClose,
   DialogContent,
@@ -12,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   FieldError,
+  focusRing,
   FormField,
   Icon,
   Input,
@@ -186,7 +188,12 @@ export function ConfirmExitsDialogContent({
               }}
               className="group rounded-lg shadow-control"
             >
-              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3.5 py-3 text-[14.5px] font-medium outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+              <summary
+                className={cn(
+                  focusRing,
+                  'flex cursor-pointer list-none items-center gap-2 rounded-lg px-3.5 py-3 text-[14.5px] font-medium [&::-webkit-details-marker]:hidden',
+                )}
+              >
                 <Icon icon={Calendar03Icon} className="size-4 text-secondary-foreground" />
                 {m.exitsPerOfficer}
                 <Icon

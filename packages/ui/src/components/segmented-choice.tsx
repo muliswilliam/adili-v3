@@ -1,7 +1,7 @@
 import { type ComponentProps, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
-import { describedBy, FieldError, FieldHint } from './form-field';
+import { FieldError, FieldHint, joinIds } from './form-field';
 
 export interface SegmentedChoiceOption {
   value: string;
@@ -50,7 +50,7 @@ export function SegmentedChoice({
     <fieldset
       id={groupId}
       disabled={disabled}
-      aria-describedby={describedBy(hintId, errorId)}
+      aria-describedby={joinIds(hintId, errorId)}
       className={cn('grid gap-1.5', className)}
       {...props}
     >

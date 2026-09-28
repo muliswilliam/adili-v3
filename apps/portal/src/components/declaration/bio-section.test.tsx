@@ -66,7 +66,7 @@ describe('BioSection', () => {
     expect(rosterValue('Surname')).toBe('Kamau');
     expect(rosterValue('First name')).toBe('Mwangi');
     expect(rosterValue('Other names')).toBe('Njoroge');
-    expect(rosterValue('Employer')).toBe('Nyeri High School');
+    expect(rosterValue('Reporting entity')).toBe('Nyeri High School');
     expect(rosterValue('Designation')).toBe('Deputy Principal');
     expect(rosterValue('Responsible Commission')).toBe('Teachers Service Commission');
     expect(screen.queryByRole('textbox', { name: 'Surname' })).toBeNull();

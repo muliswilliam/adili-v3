@@ -37,7 +37,7 @@ function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commiss
     ['Surname', officer.name?.surname],
     ['First name', officer.name?.firstName],
     ['Other names', officer.name?.otherNames],
-    ['Employer', officer.employment?.employer],
+    ['Reporting entity', officer.employment?.employer],
     ['Designation', officer.employment?.designation],
     ['Responsible Commission', commission],
   ];

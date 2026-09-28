@@ -256,7 +256,9 @@ describe('jointCopy and addJointCopy (story 30)', () => {
     const source: Draft<AssetItem> = {
       ...land,
       change: { changed: true, kind: 'acquisition', explanation: 'Bought' },
-      attachments: [{ uploadId: 'u', fileName: 'deed.pdf', sha256: 'a'.repeat(64) }],
+      attachments: [
+        { attachmentId: 'a', uploadId: 'u', fileName: 'deed.pdf', sha256: 'a'.repeat(64) },
+      ],
     };
     const { source: updated, copy } = jointCopy(source, 60);
 

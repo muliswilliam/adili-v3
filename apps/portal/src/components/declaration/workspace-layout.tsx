@@ -2,12 +2,14 @@ import {
   Alert,
   AlertDescription,
   Button,
+  cn,
   Dialog,
   DialogBody,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  focusRing,
   Icon,
   SaveIndicator,
   SectionNav,
@@ -107,7 +109,10 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
           <Link
             {...stepLink(declaration.id, 'overview')}
             aria-current={step === 'overview' ? 'page' : undefined}
-            className="grid rounded-md px-2.5 py-1.5 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+            className={cn(
+              focusRing,
+              'grid rounded-md px-2.5 py-1.5 hover:bg-muted focus-visible:outline-offset-0',
+            )}
           >
             <span className="text-sm font-semibold">{typeLabel}</span>
             <span className="text-[13px] text-muted-foreground">

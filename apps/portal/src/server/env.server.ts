@@ -9,10 +9,14 @@ export const envSchema = bffEnvSchema.extend({
    */
   DIRECTORY_MOCK: z.stringbool().default(false),
   /**
-   * Proxies in front of the portal that append to X-Forwarded-For (e.g. 1 behind one load
-   * balancer). 0 ignores the header and uses the socket address; see server/client-ip.ts.
+   * Trusted proxies in front of the portal that append to X-Forwarded-For; see
+   * server/client-ip.ts. Defaults to 1: every deployment serves the portal behind one edge proxy
+   * (Traefik on Dokploy, the ingress on Kubernetes), and with 0 every browser would share that
+   * proxy's address and so one per-IP rate limit. Must equal the real number of proxies: a
+   * higher value lets a client pick its own address. Without a proxy (local dev) the header is
+   * short and the socket address is used anyway.
    */
-  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
   DECLARATIONS_API_URL: z.url(),
   DOCUMENTS_API_URL: z.url(),
   /**

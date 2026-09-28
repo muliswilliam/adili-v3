@@ -32,6 +32,14 @@ describe('Stepper', () => {
     expect(onSelect).toHaveBeenCalledWith('template');
   });
 
+  it('keeps a visible focus outline on completed steps', () => {
+    render(<Stepper label="Import steps" steps={steps} current="check" onSelect={vi.fn()} />);
+
+    const button = screen.getByRole('button', { name: /Template/ });
+    expect(button.className).not.toContain('outline-none');
+    expect(button.className).toContain('outline-hidden');
+  });
+
   it('keeps upcoming and disabled steps out of the tab order', () => {
     render(
       <Stepper
