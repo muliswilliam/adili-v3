@@ -275,7 +275,7 @@ export const rosterImportBatches = pgTable('roster_import_batches', {
   importId: uuid()
     .primaryKey()
     .references(() => rosterImports.id, { onDelete: 'cascade' }),
-  /** Denormalised from the import for RLS. */
+  /** Denormalised from the import for RLS (policy in migration 0014). */
   tenant: text().notNull(),
   rows: jsonb().$type<RawRosterRow[]>().notNull(),
 });
