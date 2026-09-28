@@ -14,6 +14,7 @@ import {
 import { ReadinessCheck } from '@adili/api-kit';
 import {
   bundleWorkflowCode,
+  type Logger as TemporalLogger,
   type LogLevel,
   type LogMetadata,
   NativeConnection,
@@ -156,12 +157,13 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
   }
 
   private bundleWorkflows(): Promise<WorkflowBundleWithSourceMap> {
-    this.bundle ??= bundleWorkflowCode({ workflowsPath: this.options.workflowsPath }).catch(
-      (error: unknown) => {
-        this.bundle = undefined;
-        throw error;
-      },
-    );
+    this.bundle ??= bundleWorkflowCode({
+      workflowsPath: this.options.workflowsPath,
+      logger: nestLogger({ infoAsDebug: true }),
+    }).catch((error: unknown) => {
+      this.bundle = undefined;
+      throw error;
+    });
     return this.bundle;
   }
 
@@ -260,33 +262,9 @@ let runtimeLoggerInstalled = false;
 function installRuntimeLogger(): void {
   if (runtimeLoggerInstalled) return;
   runtimeLoggerInstalled = true;
-  const logger = new Logger('Temporal');
-  const write = (level: LogLevel, message: string, meta: LogMetadata = {}) => {
-    if (level === 'ERROR') logger.error(meta, message);
-    else if (level === 'WARN') logger.warn(meta, message);
-    else if (level === 'INFO') logger.log(meta, message);
-    else logger.debug(meta, message);
-  };
   try {
     Runtime.install({
-      logger: {
-        log: write,
-        trace: (message, meta) => {
-          write('TRACE', message, meta);
-        },
-        debug: (message, meta) => {
-          write('DEBUG', message, meta);
-        },
-        info: (message, meta) => {
-          write('INFO', message, meta);
-        },
-        warn: (message, meta) => {
-          write('WARN', message, meta);
-        },
-        error: (message, meta) => {
-          write('ERROR', message, meta);
-        },
-      },
+      logger: nestLogger(),
       // Native (Rust core) warnings, such as lost server connections, go the same way.
       telemetryOptions: { logging: { filter: { core: 'WARN', other: 'WARN' }, forward: {} } },
       // Nest owns shutdown (beforeApplicationShutdown drains the worker in order); the runtime's
@@ -296,4 +274,36 @@ function installRuntimeLogger(): void {
   } catch {
     // Something (a test environment, another worker) created the runtime first; keep its logger.
   }
+}
+
+/**
+ * An SDK logger writing to Nest's logger. `infoAsDebug` demotes info lines, for the workflow
+ * bundler, whose info output is Webpack's full build report.
+ */
+function nestLogger({ infoAsDebug = false } = {}): TemporalLogger {
+  const logger = new Logger('Temporal');
+  const log = (level: LogLevel, message: string, meta: LogMetadata = {}) => {
+    if (level === 'ERROR') logger.error(meta, message);
+    else if (level === 'WARN') logger.warn(meta, message);
+    else if (level === 'INFO' && !infoAsDebug) logger.log(meta, message);
+    else logger.debug(meta, message);
+  };
+  return {
+    log,
+    trace: (message, meta) => {
+      log('TRACE', message, meta);
+    },
+    debug: (message, meta) => {
+      log('DEBUG', message, meta);
+    },
+    info: (message, meta) => {
+      log('INFO', message, meta);
+    },
+    warn: (message, meta) => {
+      log('WARN', message, meta);
+    },
+    error: (message, meta) => {
+      log('ERROR', message, meta);
+    },
+  };
 }

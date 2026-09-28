@@ -7,6 +7,7 @@ import {
   type StreamEvent,
   type StructuredRequest,
 } from '../../src/providers/port.js';
+import { TASKS } from '../../src/tasks/registry.js';
 
 interface Captured {
   method: string;
@@ -123,6 +124,46 @@ describe('AnthropicAdapter', () => {
       model: 'claude-opus-5',
       usage: { inputTokens: 120, outputTokens: 30, cacheReadTokens: 2048, cacheWriteTokens: 0 },
     });
+  });
+
+  it('sends constraints structured outputs cannot enforce as schema descriptions', async () => {
+    const { adapter, requests } = fakeAnthropic(() => json(message()));
+
+    await adapter.generateStructured({
+      ...structured,
+      schema: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string', maxLength: 1200 },
+          refs: { type: 'array', items: { type: 'string', format: 'uuid' }, minItems: 2 },
+        },
+        required: ['summary', 'refs'],
+      },
+    });
+
+    const outputConfig = nth(requests, 0).body?.output_config as { format: { schema: unknown } };
+    expect(outputConfig.format.schema).toEqual({
+      type: 'object',
+      properties: {
+        summary: { type: 'string', description: '{maxLength: 1200}' },
+        refs: {
+          type: 'array',
+          items: { type: 'string', format: 'uuid' },
+          description: '{minItems: 2}',
+        },
+      },
+      required: ['summary', 'refs'],
+      additionalProperties: false,
+    });
+  });
+
+  it.each(Object.values(TASKS))('accepts the output schema of task $name', async (task) => {
+    const { adapter, requests } = fakeAnthropic(() => json(message()));
+
+    await adapter.generateStructured({ ...structured, schema: task.outputJsonSchema });
+
+    const outputConfig = nth(requests, 0).body?.output_config as { format: { schema: unknown } };
+    expect(JSON.stringify(outputConfig.format.schema)).not.toMatch(/"(maxLength|minLength)"/);
   });
 
   it('generates text and sends attachments as vendor content blocks', async () => {
