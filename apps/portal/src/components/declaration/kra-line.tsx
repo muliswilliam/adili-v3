@@ -2,6 +2,7 @@ import { Card, CardIcon, formatDate, Icon } from '@adili/ui';
 import { BankIcon } from '@hugeicons/core-free-icons';
 
 import type { LoadedSuggestionSet } from '../../server/declarations.server';
+import { KRA_COPY } from '../../declaration/copy';
 import {
   complianceText,
   latestSets,
@@ -25,7 +26,8 @@ export function kraLineText(sets: LoadedSuggestionSet[]): string | null {
   if (!set || typeof pin !== 'string' || pin.trim() === '') return null;
   const compliance = complianceText(suggestion?.fields.complianceStatus);
   const checked = formatDate(set.readyAt ?? set.requestedAt);
-  return `KRA PIN ${maskKraPin(pin)}${compliance ? ` · Compliance: ${compliance}` : ''} (checked ${checked})`;
+  const status = compliance ? ` · ${KRA_COPY.compliance(compliance)}` : '';
+  return `${KRA_COPY.pin(maskKraPin(pin))}${status} ${KRA_COPY.checked(checked)}`;
 }
 
 export function KraLine({ sets }: { sets: LoadedSuggestionSet[] }) {

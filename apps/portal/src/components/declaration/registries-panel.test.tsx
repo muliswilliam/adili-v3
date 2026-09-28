@@ -16,7 +16,8 @@ import type {
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
-import { REGISTRY_COPY, type RegistryPerson } from './registries-panel';
+import { REGISTRY_COPY } from '../../declaration/copy';
+import type { RegistryPerson } from './registries-panel';
 import { StatementSection } from './statement-section';
 import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
 import { navigate } from './testing-mocks';
@@ -192,7 +193,7 @@ describe('Check registries: before a check', () => {
   it('offers the check per person, with the registries it asks', () => {
     renderPanel();
 
-    expect(within(registries()).getByText(REGISTRY_COPY.registries)).toBeTruthy();
+    expect(within(registries()).getByText('KRA, NTSA, BRS and ArdhiSasa')).toBeTruthy();
     const check = within(registries()).getByRole('button', { name: 'Check registries' });
     expect((check as HTMLButtonElement).disabled).toBe(false);
     expect(within(registries()).queryByRole('list', { name: 'Registry status' })).toBeNull();

@@ -13,10 +13,10 @@ import {
   DialogTitle,
   emptyFieldDiff,
   formatDate,
-  formatDateTime,
   FormField,
   Icon,
   Input,
+  listNames,
   maskNationalId,
   RegistryStatusList,
   SOURCE_NAMES,
@@ -71,6 +71,7 @@ import {
   valuesAt,
   withSuggestion,
 } from '../../declaration/suggestions';
+import { REGISTRY_COPY } from '../../declaration/copy';
 import { TYPE_LABELS } from '../../declaration/labels';
 import { useWorkspace } from './workspace';
 
@@ -80,44 +81,6 @@ import { useWorkspace } from './workspace';
  * cards grouped by registry with Add, Edit and add, Apply to this item and Dismiss, the
  * dismissed fold, and re-check. Accepting runs through `useAcceptSuggestion`.
  */
-
-export const REGISTRY_COPY = {
-  heading: 'Registries',
-  registries: 'KRA, NTSA, BRS and ArdhiSasa',
-  check: 'Check registries',
-  checkAgain: 'Check again',
-  checking: 'Checking…',
-  checked: (at: string) => `Checked ${formatDateTime(at)}`,
-  toReview: (count: number) => `${String(count)} to review`,
-  noId: (first: string) => `Add ${first}'s national ID in Household to check registries.`,
-  noOwnId: 'Add your national ID in Household to check registries.',
-  hide: 'Hide registry suggestions',
-  show: 'Show registry suggestions',
-  finished: (name: string) => `Registry check finished for ${name}`,
-  stoppedWaiting: (name: string) =>
-    `Registry check stopped for ${name}: some registries did not answer. You can retry them.`,
-  dismissedFold: (count: number) => `Dismissed (${String(count)})`,
-  dismissedAnnounce: (title: string) => `Dismissed ${title}`,
-  addValue: (type: string) => `${type} · add the value yourself`,
-  officerTax: 'Shown in Your details',
-  spouseTax: (first: string) => `Adds to ${first}'s details in Household`,
-  ownKraPin: 'your KRA PIN',
-  theirKraPin: (first: string) => `${first}'s KRA PIN`,
-  pinOnFile: 'Nothing to fill.',
-  apply: 'Apply',
-  added: 'Added. Enter its value.',
-  addedEdited: 'Added',
-  applied: 'Applied',
-  refreshedAdded: 'Refreshed your statement, then added',
-  refreshedApplied: 'Refreshed your statement, then applied',
-  startFailed: 'The registries could not be asked just now. Try again.',
-  acceptFailed: 'That could not be added just now. Try again.',
-  dismissFailed: 'That could not be dismissed just now. Try again.',
-  editTitle: 'Edit and add',
-  editSource: (registry: string, date: string) => `From ${registry}, ${date}`,
-  cancel: 'Cancel',
-  add: 'Add',
-} as const;
 
 /** How often a pending check is read again, and how many times at most (about a minute). */
 export const REGISTRY_POLL_MS = 1_000;
@@ -511,7 +474,7 @@ export function RegistriesPanel({
     ? REGISTRY_COPY.checking
     : checkedAt
       ? REGISTRY_COPY.checked(checkedAt)
-      : REGISTRY_COPY.registries;
+      : listNames(REGISTRIES.map((source) => SOURCE_NAMES[source]));
 
   return (
     <section aria-labelledby={headingId}>

@@ -15,6 +15,7 @@ import {
   type PersonKey,
   type Statement,
 } from './contents';
+import { COMPLIANCE_WORDS, FIELD_LABELS, KRA_COPY, SUGGESTION_COPY } from './copy';
 import { countyName } from './format';
 import { TYPE_LABELS } from './labels';
 import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
@@ -65,12 +66,6 @@ export function maskKraPin(pin: string): string {
   return `${trimmed.slice(0, 3)}•••••${trimmed.slice(-3)}`;
 }
 
-const COMPLIANCE_WORDS: Record<string, string> = {
-  compliant: 'Compliant',
-  'non-compliant': 'Not compliant',
-  'not-compliant': 'Not compliant',
-};
-
 /** A KRA compliance status in words; unknown values are shown as sent. */
 export function complianceText(value: unknown): string {
   const status = fieldText(value);
@@ -80,7 +75,7 @@ export function complianceText(value: unknown): string {
 /** 500 → "500 shares"; "12.5%" or "500 shares" as sent. */
 export function sharesText(value: unknown): string {
   const shares = fieldText(value);
-  return /^\d[\d,]*$/.test(shares) ? `${shares} shares` : shares;
+  return /^\d[\d,]*$/.test(shares) ? SUGGESTION_COPY.shareCount(shares) : shares;
 }
 
 /** One item field a suggestion fills: its path in the item, label, value and how it reads. */
@@ -140,10 +135,10 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
         ' · ',
       ),
     patch: (fields) => [
-      ...entry('details.registration', 'Registration', fieldText(fields.registration)),
+      ...entry('details.registration', FIELD_LABELS.registration, fieldText(fields.registration)),
       ...entry(
         'details.makeModel',
-        'Make and model',
+        FIELD_LABELS.makeModel,
         joined(
           [joined([fieldText(fields.make), fieldText(fields.model)], ' '), fieldText(fields.year)],
           ', ',
@@ -153,10 +148,10 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     description: (fields) => joined([fieldText(fields.make), fieldText(fields.model)], ' '),
     identifier: 'details.registration',
     editFields: [
-      { key: 'registration', label: 'Registration' },
-      { key: 'make', label: 'Make' },
-      { key: 'model', label: 'Model' },
-      { key: 'year', label: 'Year' },
+      { key: 'registration', label: FIELD_LABELS.registration },
+      { key: 'make', label: FIELD_LABELS.make },
+      { key: 'model', label: FIELD_LABELS.model },
+      { key: 'year', label: FIELD_LABELS.year },
     ],
     documentKind: 'logbook',
   },
@@ -167,21 +162,21 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     patch: (fields) => {
       const county = fieldText(fields.county);
       return [
-        ...entry('details.parcelNumber', 'Parcel or plot number', fieldText(fields.parcelNumber)),
-        ...entry('details.size', 'Size', fieldText(fields.size)),
-        ...entry('location.detail', 'Location', fieldText(fields.location)),
-        ...entry('location.county', 'County', county, countyName(county) ?? county),
+        ...entry('details.parcelNumber', FIELD_LABELS.parcelNumber, fieldText(fields.parcelNumber)),
+        ...entry('details.size', FIELD_LABELS.size, fieldText(fields.size)),
+        ...entry('location.detail', FIELD_LABELS.location, fieldText(fields.location)),
+        ...entry('location.county', FIELD_LABELS.county, county, countyName(county) ?? county),
       ];
     },
     description: (fields) => {
       const location = fieldText(fields.location);
-      return location ? `Land in ${location}` : '';
+      return location ? SUGGESTION_COPY.landIn(location) : '';
     },
     identifier: 'details.parcelNumber',
     editFields: [
-      { key: 'parcelNumber', label: 'Parcel or plot number' },
-      { key: 'size', label: 'Size' },
-      { key: 'location', label: 'Location' },
+      { key: 'parcelNumber', label: FIELD_LABELS.parcelNumber },
+      { key: 'size', label: FIELD_LABELS.size },
+      { key: 'location', label: FIELD_LABELS.location },
     ],
     documentKind: 'title-deed',
   },
@@ -194,17 +189,17 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
         ' · ',
       ),
     patch: (fields) => [
-      ...entry('details.issuer', 'Company or issuer', fieldText(fields.companyName)),
-      ...entry('details.quantityOrPercent', 'Number or percentage', sharesText(fields.shares)),
+      ...entry('details.issuer', FIELD_LABELS.issuer, fieldText(fields.companyName)),
+      ...entry('details.quantityOrPercent', FIELD_LABELS.shares, sharesText(fields.shares)),
     ],
     description: (fields) => {
       const company = fieldText(fields.companyName);
-      return company ? `Shares in ${company}` : '';
+      return company ? SUGGESTION_COPY.sharesIn(company) : '';
     },
     identifier: 'details.issuer',
     editFields: [
-      { key: 'companyName', label: 'Company' },
-      { key: 'shares', label: 'Number or percentage' },
+      { key: 'companyName', label: FIELD_LABELS.companyName },
+      { key: 'shares', label: FIELD_LABELS.shares },
     ],
     documentKind: 'share-certificate',
   },
@@ -225,13 +220,16 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
       const pin = fieldText(fields.kraPin);
       const compliance = complianceText(fields.complianceStatus);
       return joined(
-        [pin ? `KRA PIN ${maskKraPin(pin)}` : '', compliance ? `Compliance: ${compliance}` : ''],
+        [
+          pin ? KRA_COPY.pin(maskKraPin(pin)) : '',
+          compliance ? KRA_COPY.compliance(compliance) : '',
+        ],
         ' · ',
       );
     },
     patch: (fields) => {
       const pin = fieldText(fields.kraPin);
-      return entry('kraPin', 'KRA PIN', pin, maskKraPin(pin));
+      return entry('kraPin', FIELD_LABELS.kraPin, pin, maskKraPin(pin));
     },
     identifier: null,
     editFields: [],
@@ -289,9 +287,11 @@ export function categoryOf(itemType: string): Category | null {
 
 /** The item type in words, e.g. "Vehicle"; "KRA PIN" for `bio-tax`. */
 export function typeWord(itemType: string): string {
-  if (suggestionKind(itemType).target === 'tax') return 'KRA PIN';
+  if (suggestionKind(itemType).target === 'tax') return KRA_COPY.typeWord;
   const category = categoryOf(itemType);
-  return (category && TYPE_LABELS[category][declaredType(itemType)]) ?? 'Suggestion';
+  return (
+    (category && TYPE_LABELS[category][declaredType(itemType)]) ?? SUGGESTION_COPY.fallbackType
+  );
 }
 
 /**
@@ -319,7 +319,7 @@ export function suggestionPatch({ itemType, fields }: SuggestionLike): PatchEntr
     ...patch,
     ...entry(
       'description',
-      'Description',
+      FIELD_LABELS.description,
       fieldText(fields.description) || kind.description(fields),
     ),
   ];
@@ -532,7 +532,10 @@ export function categoryOfItem(statement: Draft<Statement>, itemId: string): Cat
 
 /** The editable fields for a suggestion's type, then Description. */
 export function editFields(itemType: string): EditField[] {
-  return [...suggestionKind(itemType).editFields, { key: 'description', label: 'Description' }];
+  return [
+    ...suggestionKind(itemType).editFields,
+    { key: 'description', label: FIELD_LABELS.description },
+  ];
 }
 
 /** The text an edit field starts with: the suggestion's field, or the description it would add. */

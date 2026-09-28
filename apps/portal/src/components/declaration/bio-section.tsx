@@ -21,12 +21,8 @@ import {
   MARITAL_STATUS_LABELS,
   optionsOf,
 } from '../../declaration/labels';
-import {
-  isFromRoster,
-  ROSTER_HINT,
-  type RosterField,
-  rosterPrefill,
-} from '../../declaration/roster-prefill';
+import { ROSTER_HINT } from '../../declaration/copy';
+import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
 import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 

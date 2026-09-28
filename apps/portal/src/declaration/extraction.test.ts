@@ -8,11 +8,11 @@ import {
   defaultKind,
   DOCUMENT_KINDS,
   readingNotEnabledIn,
-  FAILURE_REASONS,
   levelOf,
   readingState,
   readSuggestion,
 } from './extraction';
+import { FAILURE_REASONS } from './copy';
 
 function suggestion(overrides: Partial<LoadedSuggestion> = {}): LoadedSuggestion {
   return {

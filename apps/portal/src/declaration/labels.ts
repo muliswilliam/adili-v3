@@ -21,7 +21,9 @@ import type { Category } from './statement';
  * declarations contract for obligation types and completeness), so a value the schema adds is a
  * type error here until it has a label; `labels.test.ts` checks the order. The words themselves
  * are copy and are written, not generated. Every value has an English label and a Swahili slot,
- * empty until the Swahili copy is done (out of scope for spec 05); screens read English.
+ * empty until the Swahili copy is done (out of scope for spec 05); screens read English. The
+ * sentences of spec 05b (registries, reading documents, the roster and KRA lines) are in
+ * `copy.ts`, with the same treatment.
  */
 
 export interface Label {

@@ -14,6 +14,7 @@ import {
   suggestionKind,
   suggestionPatch,
 } from './suggestions';
+import { FAILURE_REASONS, FIELD_LABELS } from './copy';
 import { DOCUMENT_KIND_LABELS } from './labels';
 
 /**
@@ -33,48 +34,6 @@ import { DOCUMENT_KIND_LABELS } from './labels';
 /** Every kind the contract has, in the order the sheet offers them. */
 export const DOCUMENT_KINDS = Object.keys(DOCUMENT_KIND_LABELS) as readonly DocumentKind[];
 
-export const EXTRACTION_COPY = {
-  menu: 'Read into the form',
-  notEnabled: 'Read into the form: not enabled for your Commission',
-  title: 'Read into the form',
-  kindLegend: 'What is this document?',
-  aiLabel: 'AI-assisted',
-  aiNote: 'You check every field before anything is added.',
-  read: 'Read document',
-  cancel: 'Cancel',
-  close: 'Close',
-  reading: 'Reading…',
-  readingHint: 'This can take up to a minute.',
-  reviewTitle: 'Check what was read',
-  reviewHint: 'Edit anything that is wrong.',
-  page: (page: number) => `Page ${String(page)}`,
-  checked: 'I checked this against the document',
-  kept: (value: string) => `You entered: ${value} (kept)`,
-  replaced: (value: string) => `You entered: ${value} (replaced)`,
-  replace: 'Replace details I already entered',
-  tickLow: (count: number) => `Tick the Low field${count === 1 ? '' : 's'} to continue.`,
-  addNew: 'Add as new item',
-  applyHere: 'Apply to this item',
-  nothingRead: 'Nothing could be read from this document. You can enter the details manually.',
-  failed: (reason: string) =>
-    `Could not read this document (${reason}). You can enter the details manually.`,
-  tryAgain: 'Try again',
-  notEnabledBody: 'Reading documents into the form is not enabled for your Commission.',
-  applied: 'Details applied to this item',
-  added: 'Added as a new item',
-  applyFailed: 'The details could not be added. Try again.',
-  rowDetail: 'Read into the form',
-} as const;
-
-/** Why a reading failed, when the service did not say (the contract has no reason: gap 3). */
-export const FAILURE_REASONS = {
-  unknown: 'the document could not be processed',
-  timeout: 'it took too long',
-  unavailable: 'the service is not available now',
-  refused: 'the file is not ready to be read',
-  missing: 'the file is no longer attached',
-} as const;
-
 /** The kind to offer first for an item of this type. */
 export function defaultKind(itemType: string | undefined): DocumentKind {
   return suggestionKind(itemType).documentKind;
@@ -93,7 +52,7 @@ function score(value: unknown): number | null {
 }
 
 /** Labels for fields "Edit and add" does not offer. */
-const EXTRA_LABELS: Record<string, string> = { county: 'County' };
+const EXTRA_LABELS: Record<string, string> = { county: FIELD_LABELS.county };
 
 export interface ReadField {
   /** The suggestion field name, e.g. `registration`. */

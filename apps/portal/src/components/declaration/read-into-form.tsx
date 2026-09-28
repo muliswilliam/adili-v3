@@ -37,14 +37,13 @@ import {
 import type { JsonObject, LoadedSuggestion } from '../../server/declarations.server';
 import type { DocumentKind } from '../../server/declarations/types';
 import { markExtractionOff } from './extraction-availability';
+import { EXTRACTION_COPY as COPY, FAILURE_REASONS } from '../../declaration/copy';
 import { DOCUMENT_KIND_LABELS } from '../../declaration/labels';
 import {
   acceptedFields,
   clashes,
   defaultKind,
   DOCUMENT_KINDS,
-  EXTRACTION_COPY as COPY,
-  FAILURE_REASONS,
   levelOf,
   readingState,
   readSuggestion,

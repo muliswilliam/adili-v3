@@ -14,8 +14,6 @@ export type RosterValues = Partial<Record<RosterField, string>>;
 /** No values from the roster; one object, so a React snapshot of it stays stable. */
 export const NO_ROSTER_VALUES: RosterValues = Object.freeze({});
 
-export const ROSTER_HINT = "From your Commission's roster";
-
 /** The roster-fillable answers in a bio as it stands. */
 export function rosterValuesOf(officer: Draft<Officer>): RosterValues {
   const values: RosterValues = {
