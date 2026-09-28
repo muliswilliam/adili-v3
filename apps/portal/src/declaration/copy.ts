@@ -23,7 +23,10 @@ export const PREFILL_COPY = {
     checked: en((at: string) => `Checked ${formatDateTime(at)}`),
     toReview: en((count: number) => `${String(count)} to review`),
     noId: en((first: string) => `Add ${first}'s national ID in Household to check registries.`),
-    noOwnId: en('Add your national ID in Household to check registries.'),
+    // The declarant's own ID comes from their record, not Household, so only the roster can fix it.
+    noOwnId: en(
+      "Your record has no national ID. Ask your Commission's reporting officer to correct the roster, then check registries.",
+    ),
     hide: en('Hide registry suggestions'),
     show: en('Show registry suggestions'),
     finished: en((name: string) => `Registry check finished for ${name}`),
