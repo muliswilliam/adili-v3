@@ -5,27 +5,30 @@ import type { Child, DECLARATION_TYPES, DeclarationV1 } from '@adili/forms';
  * Dates are calendar dates as `YYYY-MM-DD`, which compare correctly as strings.
  */
 
+/** A calendar date as `YYYY-MM-DD`; such dates compare correctly as strings. */
+export type IsoDate = string;
+
 /** declarations.yaml `ObligationType`: initial, biennial or final. */
 export type ObligationType = (typeof DECLARATION_TYPES)[number];
 
 /** What the obligation fixes: the declaration's type and statement date. */
 export interface ObligationFacts {
   type: ObligationType;
-  statementDate: string;
+  statementDate: IsoDate;
 }
 
 /** What Adili knows of the person's past, for the start of the income period. */
 export interface PersonHistory {
   /** Statement date of the person's most recent submitted declaration on Adili. */
-  previousStatementDate?: string;
+  previousStatementDate?: IsoDate;
   /** Appointment date on the roster record the obligation is for. */
-  appointmentDate?: string;
+  appointmentDate?: IsoDate;
 }
 
 export interface IncomePeriod {
   /** Exclusive: the income period is (from, to]. */
-  from: string;
-  to: string;
+  from: IsoDate;
+  to: IsoDate;
   /**
    * `declared`: from is the statement date of a declaration on Adili. `assumed`: there is none,
    * so from is derived from the type, and reviewers can see the period was not declared.
@@ -70,7 +73,7 @@ export type ChildInclusion =
  * get a financial statement. A child born on 29 February turns eighteen on 1 March in a
  * common year: until then they are still included, the side that discloses more.
  */
-export function childInclusion(dateOfBirth: string, statementDate: string): ChildInclusion {
+export function childInclusion(dateOfBirth: IsoDate, statementDate: IsoDate): ChildInclusion {
   return addYears(dateOfBirth, 18, 'mar-1') > statementDate
     ? { included: true }
     : { included: false, reason: 'over-18-at-statement-date' };
@@ -78,7 +81,7 @@ export function childInclusion(dateOfBirth: string, statementDate: string): Chil
 
 export interface ChildExclusion {
   childId: string;
-  reason: 'over-18-at-statement-date';
+  reason: Extract<ChildInclusion, { included: false }>['reason'];
 }
 
 /**
@@ -88,7 +91,7 @@ export interface ChildExclusion {
  */
 export function applyChildInclusion(
   children: DeclarationV1['children'],
-  statementDate: string,
+  statementDate: IsoDate,
 ): { children: DeclarationV1['children']; excluded: ChildExclusion[] } {
   const excluded: ChildExclusion[] = [];
   const items = children.items.map((child): Child => {

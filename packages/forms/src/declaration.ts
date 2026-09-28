@@ -92,7 +92,11 @@ const fixedSectionValidator = (key: FixedSectionKey) => {
       : properties[fields[0]],
   );
 };
-const SECTION_VALIDATORS = {
+// Typed so that a section key without a validator fails typecheck.
+const SECTION_VALIDATORS: Record<
+  FixedSectionKey | 'statement',
+  ReturnType<typeof sectionValidator>
+> = {
   bio: fixedSectionValidator('bio'),
   household: fixedSectionValidator('household'),
   other: fixedSectionValidator('other'),

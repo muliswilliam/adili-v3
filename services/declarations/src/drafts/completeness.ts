@@ -17,7 +17,10 @@ import {
  * storing it.
  */
 
-/** The codes the rules add to the schema's own (`required`, `pattern`, `minItems`...). */
+/**
+ * The codes the rules report beside the schema's own. `required` is the schema keyword, reused for
+ * the one field the schema cannot require: a separated spouse's separation date.
+ */
 export type RuleCode =
   | 'nil-conflicts-with-items'
   | 'nil-or-items-required'
@@ -47,7 +50,8 @@ export interface DraftSections {
 export function assessSections(
   draft: DraftSections,
 ): Map<DeclarationSectionKey, SectionAssessment> {
-  const paired = spouseConflict(draft.bio, draft.household);
+  const status = maritalStatus(draft.bio);
+  const paired = spouseConflict(status, draft.household);
   const pairedOn = (key: DeclarationSectionKey) =>
     paired.filter((found) => found.sectionKey === key);
   const sections: [DeclarationSectionKey, unknown, DeclarationIssue[]][] = [
@@ -55,7 +59,7 @@ export function assessSections(
     [
       'household',
       draft.household,
-      [...householdRules(draft.household, draft.bio), ...pairedOn('household')],
+      [...householdRules(draft.household, status), ...pairedOn('household')],
     ],
   ];
   for (const [personKey, contents] of draft.statements ?? []) {
@@ -66,6 +70,8 @@ export function assessSections(
 
   return new Map(
     sections.map(([key, contents, rules]) => {
+      // A rule replaces every schema issue on its path, whatever the keyword: the rule's message
+      // is the one that says what to do (a malformed /spouses shows as spouse-required too).
       const ruled = new Set(rules.map((issue) => issue.path));
       const found = [
         ...rules,
@@ -133,16 +139,21 @@ function statementRules(key: DeclarationSectionKey, contents: unknown): Declarat
 /** Statuses with no current spouse; the others (married, separated) need one or "none". */
 const WITHOUT_SPOUSE = new Set(['single', 'divorced', 'widowed']);
 
+/** The marital status bio holds, if it holds one. */
+function maritalStatus(bio: unknown): string | undefined {
+  const status = record(bio).maritalStatus;
+  return typeof status === 'string' ? status : undefined;
+}
+
 /**
  * "None" is an answer only for an empty list, children need one or the other, and spouses do
  * when marital status says there is one (S5, S6). A separated spouse needs the date.
  */
-function householdRules(contents: unknown, bio: unknown): DeclarationIssue[] {
+function householdRules(contents: unknown, status: string | undefined): DeclarationIssue[] {
   const household = record(contents);
   const spouses = record(household.spouses);
   const children = record(household.children);
-  const status = record(bio).maritalStatus;
-  const needsSpouse = typeof status === 'string' && !WITHOUT_SPOUSE.has(status);
+  const needsSpouse = status !== undefined && !WITHOUT_SPOUSE.has(status);
   return [
     ...presenceRule('household', {
       flagged: spouses.none === true,
@@ -192,10 +203,9 @@ function householdRules(contents: unknown, bio: unknown): DeclarationIssue[] {
 }
 
 /** A status with no current spouse blocks a listed spouse, with a message on each side (S6). */
-function spouseConflict(bio: unknown, household: unknown): DeclarationIssue[] {
-  const status = record(bio).maritalStatus;
+function spouseConflict(status: string | undefined, household: unknown): DeclarationIssue[] {
   const listed = listOf(record(record(household).spouses).items).length;
-  if (typeof status !== 'string' || !WITHOUT_SPOUSE.has(status) || listed === 0) return [];
+  if (status === undefined || !WITHOUT_SPOUSE.has(status) || listed === 0) return [];
   const code = 'spouse-conflicts-with-marital-status';
   return [
     issue(
