@@ -470,6 +470,27 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
     expect(acceptMock.mock.calls[0]?.[0].data.applyToItemId).toBe(FIELDER_ID);
   });
 
+  it('matches only the item the service names, not one it guesses', () => {
+    const ours = {
+      id: FIELDER_ID,
+      type: 'vehicle',
+      description: 'Our Probox',
+      details: { registration: 'KCA 123A' },
+      location: { inKenya: true },
+      change: { changed: false },
+      joint: { isJoint: false },
+    };
+    renderPanel({ section: statement({ assets: [ours] }), sets: readySets([probox()]) });
+
+    const card = suggestionCard('KCA 123A · Toyota Probox 2016');
+    expect(card.textContent).not.toContain('Matches');
+    expect(
+      within(card)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Add', 'Edit and add', 'Dismiss']);
+  });
+
   it('adds with edited fields', async () => {
     const one = probox();
     acceptMock.mockResolvedValue({

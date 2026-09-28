@@ -56,7 +56,6 @@ import {
   CONSENT_TEXT_VERSION,
   editFields,
   editValue,
-  findMatch,
   isChecking,
   lastChecked,
   REGISTRIES,
@@ -409,7 +408,7 @@ export function RegistriesPanel({
         setEditing(each);
       },
     };
-    const matchId = suggestion.matchItemId ?? findMatch(suggestion, items);
+    const matchId = suggestion.matchItemId;
     const matched = matchId ? items.find((item) => item.id === matchId) : undefined;
     const acceptedAs =
       applied.has(suggestion.id) ||
