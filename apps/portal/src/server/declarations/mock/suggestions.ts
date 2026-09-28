@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Draft, Household, ItemSource } from '../../../declaration/contents';
-import { DOCUMENT_KINDS } from '../../../components/declaration/extraction';
+import { DOCUMENT_KINDS } from '../../../declaration/extraction';
 import { type Item, NIL_KEY } from '../../../declaration/statement';
 import {
   categoryOf,
@@ -13,7 +13,7 @@ import {
   suggestionKind,
   suggestionPatch,
   suggestionTitle,
-} from '../../../components/declaration/suggestions';
+} from '../../../declaration/suggestions';
 import type {
   DeclarationAttachment,
   DocumentKind,

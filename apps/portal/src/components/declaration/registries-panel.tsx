@@ -69,7 +69,7 @@ import {
   typeWord,
   valuesAt,
   withSuggestion,
-} from './suggestions';
+} from '../../declaration/suggestions';
 import { TYPE_LABELS } from '../../declaration/labels';
 import { useWorkspace } from './workspace';
 

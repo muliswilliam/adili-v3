@@ -2,7 +2,12 @@ import { Card, CardIcon, formatDate, Icon } from '@adili/ui';
 import { BankIcon } from '@hugeicons/core-free-icons';
 
 import type { LoadedSuggestionSet } from '../../server/declarations.server';
-import { complianceText, latestSets, maskKraPin, suggestionKind } from './suggestions';
+import {
+  complianceText,
+  latestSets,
+  maskKraPin,
+  suggestionKind,
+} from '../../declaration/suggestions';
 
 /**
  * What KRA answered about the officer's PIN in their last registry check, as the line under Your

@@ -47,7 +47,7 @@ import {
   levelOf,
   readingState,
   readSuggestion,
-} from './extraction';
+} from '../../declaration/extraction';
 import { useAcceptSuggestion } from './suggestion-accept';
 import { useWorkspace } from './workspace';
 

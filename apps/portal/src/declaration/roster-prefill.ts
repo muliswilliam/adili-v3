@@ -1,4 +1,4 @@
-import type { Draft, Officer } from '../../declaration/contents';
+import type { Draft, Officer } from './contents';
 
 /** The Your details answers the Commission's roster can pre-fill (spec 05b S8); all editable. */
 export const ROSTER_FIELDS = [

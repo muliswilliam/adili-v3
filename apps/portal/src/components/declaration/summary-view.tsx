@@ -33,7 +33,7 @@ import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
-import { sourceDetails } from './item-source';
+import { sourceDetails } from '../../declaration/item-source';
 import { statementSectionKey } from '../../declaration/section-key';
 import {
   EMPLOYMENT_NATURE_LABELS,

@@ -1,7 +1,7 @@
 import type { ItemSourceDetails } from '@adili/ui';
 
-import { ITEM_SOURCE_KINDS, type ItemSourceKind } from '../../declaration/contents';
-import type { Item } from '../../declaration/statement';
+import { ITEM_SOURCE_KINDS, type ItemSourceKind } from './contents';
+import type { Item } from './statement';
 
 /** A statement item's fields the source identifier can come from, most specific first. */
 const REFERENCE_FIELDS = ['registration', 'parcelNumber', 'issuer'] as const;

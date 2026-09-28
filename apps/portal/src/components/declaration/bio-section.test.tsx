@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveDeclarationSection } from '../../server/declarations';
 import { BIO_MESSAGES } from '../../declaration/bio';
 import { BioSection, ROSTER_NOTE } from './bio-section';
-import { ROSTER_HINT } from './roster-prefill';
+import { ROSTER_HINT } from '../../declaration/roster-prefill';
 import { DECLARATION_ID, renderWorkspace, sampleBio } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());

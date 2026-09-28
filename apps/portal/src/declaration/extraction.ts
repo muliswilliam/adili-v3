@@ -5,7 +5,7 @@ import type {
   JsonObject,
   LoadedSuggestion,
   LoadedSuggestionSet,
-} from '../../server/declarations.server';
+} from '../server/declarations.server';
 import {
   editFields,
   fieldText as text,

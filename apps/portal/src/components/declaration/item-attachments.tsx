@@ -45,7 +45,7 @@ import {
   uploadsReducer,
 } from './attachments';
 import type { Attachment, Draft } from '../../declaration/contents';
-import { EXTRACTION_COPY } from './extraction';
+import { EXTRACTION_COPY } from '../../declaration/extraction';
 import { useExtractionEnabled } from './extraction-availability';
 import { ReadIntoForm, type ReadTarget } from './read-into-form';
 import type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';

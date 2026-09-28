@@ -73,15 +73,15 @@ import {
   tabState,
 } from '../../declaration/statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from '../../declaration/labels';
-import { readingNotEnabledIn } from './extraction';
+import { readingNotEnabledIn } from '../../declaration/extraction';
 import { markExtractionOff } from './extraction-availability';
 import { fullName } from '../../declaration/format';
-import { sourceDetails } from './item-source';
+import { sourceDetails } from '../../declaration/item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { personKeyOf } from '../../declaration/section-key';
 import { liveSections, relationship, stepLink } from './steps';
-import { categoryOfItem, withAcceptedItem } from './suggestions';
+import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
 import { focusControl, useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 

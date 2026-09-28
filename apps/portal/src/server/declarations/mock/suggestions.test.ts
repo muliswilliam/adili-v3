@@ -1,9 +1,9 @@
 import createClient from 'openapi-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { sourceDetails } from '../../../components/declaration/item-source';
+import { sourceDetails } from '../../../declaration/item-source';
 import type { Item } from '../../../declaration/statement';
-import { suggestionPatch } from '../../../components/declaration/suggestions';
+import { suggestionPatch } from '../../../declaration/suggestions';
 import {
   acceptSuggestion,
   dismissSuggestion,

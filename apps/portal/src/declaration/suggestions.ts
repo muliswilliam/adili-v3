@@ -7,17 +7,11 @@ import type {
   LoadedSuggestion,
   LoadedSuggestionSet,
   RegistrySystem,
-} from '../../server/declarations.server';
-import {
-  ASSET_TYPES,
-  type Draft,
-  INCOME_TYPES,
-  LIABILITY_TYPES,
-  type Statement,
-} from '../../declaration/contents';
-import { countyName } from '../../declaration/format';
-import { TYPE_LABELS } from '../../declaration/labels';
-import { CATEGORIES, type Category, type Item, NIL_KEY } from '../../declaration/statement';
+} from '../server/declarations.server';
+import { ASSET_TYPES, type Draft, INCOME_TYPES, LIABILITY_TYPES, type Statement } from './contents';
+import { countyName } from './format';
+import { TYPE_LABELS } from './labels';
+import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
 
 /**
  * Pure rules for registry suggestions (spec 05b), shared by the Check registries panel and the

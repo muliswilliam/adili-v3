@@ -5,10 +5,10 @@ import type {
   JsonObject,
   LoadedSuggestion,
   LoadedSuggestionSet,
-} from '../../server/declarations.server';
-import { contractEnum } from '../../test/contract';
-import type { Draft, Statement } from '../../declaration/contents';
-import type { Item } from '../../declaration/statement';
+} from '../server/declarations.server';
+import { contractEnum } from '../test/contract';
+import type { Draft, Statement } from './contents';
+import type { Item } from './statement';
 import {
   categoryOf,
   editFields,

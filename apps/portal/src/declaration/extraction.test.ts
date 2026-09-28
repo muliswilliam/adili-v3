@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { LoadedSuggestion, LoadedSuggestionSet } from '../../server/declarations.server';
+import type { LoadedSuggestion, LoadedSuggestionSet } from '../server/declarations.server';
 import {
   acceptedFields,
   clashes,
