@@ -20,14 +20,6 @@ const INSERT_BATCH = 1000;
 /** `app.subject` of the import activities' transactions. */
 export const IMPORT_SUBJECT = 'roster-import';
 
-/** The import started, but its transaction has not committed yet or rolled back. Retry. */
-export class ImportNotFound extends Error {
-  constructor(importId: string) {
-    super(`Roster import ${importId} not found`);
-    this.name = 'ImportNotFound';
-  }
-}
-
 /** Rows to stage: from a file or (spec #27 API channel) an inline batch, already validated. */
 export type StagingSource =
   | {
@@ -77,8 +69,10 @@ export async function stageImport(
       .where(eq(rosterImports.id, ref.importId));
     return row;
   });
-  if (!current) throw new ImportNotFound(ref.importId);
-  if (current.state === 'completed' || current.state === 'failed') return { outcome: 'ended' };
+  // The import commits before its workflow starts: one not found was withdrawn.
+  if (!current || current.state === 'completed' || current.state === 'failed') {
+    return { outcome: 'ended' };
+  }
   if (current.chunkCount !== null) {
     return {
       outcome: 'staged',

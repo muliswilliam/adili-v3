@@ -96,10 +96,11 @@ export class RosterImportsService {
   }
 
   /**
-   * Records the import as `pending` (with the batch's rows, for an API batch) and starts its
-   * workflow before the transaction ends. No import is left pending without a workflow (which
-   * would block the tenant's imports); a workflow whose import then fails to be saved finds
-   * none and ends (staging retries briefly, for the transaction to land).
+   * Records the import as `pending` (with the batch's rows, for an API batch), then starts its
+   * workflow once that has committed, so the workflow always finds its import. When the workflow
+   * cannot be started the import is withdrawn (503, nothing imported, safe to retry); an import
+   * left pending anyway (a crash between the two) gets its workflow when the next import of the
+   * tenant runs into it.
    * 409 `import-in-progress` while another import of the tenant is pending or processing.
    */
   private async start(
@@ -108,25 +109,27 @@ export class RosterImportsService {
     source: Pick<ImportRow, 'channel' | 'declaredComplete' | 'uploadId' | 'fileName' | 'format'>,
     batchRows?: RawRosterRow[],
   ): Promise<RosterImport> {
+    const context = { tenant: slug, subject: principal.subject };
+    let row: ImportRow;
     try {
-      return await withTenant(this.db, { tenant: slug, subject: principal.subject }, async (tx) => {
+      row = await withTenant(this.db, context, async (tx) => {
         await requireCommission(tx, slug);
-        const [row] = await tx
+        const [inserted] = await tx
           .insert(rosterImports)
           .values({ tenant: slug, ...source, ...startedBy(principal) })
           .returning();
-        if (!row) throw new Error('insert returned no row');
+        if (!inserted) throw new Error('insert returned no row');
         if (batchRows) {
           await tx
             .insert(rosterImportBatches)
-            .values({ importId: row.id, tenant: slug, rows: batchRows });
+            .values({ importId: inserted.id, tenant: slug, rows: batchRows });
         }
-        await this.startWorkflow(row);
-        return toRosterImport(row);
+        return inserted;
       });
     } catch (error) {
       if (violatedUniqueConstraint(error) === 'roster_imports_one_in_progress_key') {
-        const running = await this.runningImportId(slug, principal);
+        const running = await this.runningImport(slug, principal);
+        if (running?.state === 'pending') await this.recoverPending(running);
         throw new ProblemException(
           {
             type: 'import-in-progress',
@@ -135,10 +138,58 @@ export class RosterImportsService {
             detail:
               'Another roster import for this Commission is still running. Start this one when it has finished.',
           },
-          running === null ? {} : { importId: running },
+          running === undefined ? {} : { importId: running.id },
         );
       }
       throw error;
+    }
+
+    try {
+      await this.ensureWorkflow(row);
+    } catch (error) {
+      this.logger.error({ err: error }, `Could not start the workflow of roster import ${row.id}`);
+      const started = await this.withdraw(row, context);
+      if (started) return toRosterImport(started);
+      throw new ProblemException({
+        type: 'import-unavailable',
+        title: 'Imports unavailable',
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        detail: 'Imports cannot start right now, so nothing was imported. Try again shortly.',
+      });
+    }
+    return toRosterImport(row);
+  }
+
+  /**
+   * Deletes an import whose workflow could not be started (its batch rows go with it), unless
+   * the workflow did start after all (the start's outcome was lost) and has picked it up: then
+   * returns it as it is now.
+   */
+  private async withdraw(
+    row: ImportRow,
+    context: { tenant: string; subject: string },
+  ): Promise<ImportRow | undefined> {
+    return withTenant(this.db, context, async (tx) => {
+      const deleted = await tx
+        .delete(rosterImports)
+        .where(and(eq(rosterImports.id, row.id), eq(rosterImports.state, 'pending')))
+        .returning({ id: rosterImports.id });
+      if (deleted.length > 0) return undefined;
+      const [current] = await tx.select().from(rosterImports).where(eq(rosterImports.id, row.id));
+      return current;
+    });
+  }
+
+  /**
+   * Starts the workflow of a pending import whose start was cut short, so it cannot block the
+   * tenant's imports forever. A no-op while its workflow runs. Best effort: the caller answers
+   * 409 either way.
+   */
+  private async recoverPending(row: ImportRow): Promise<void> {
+    try {
+      await this.ensureWorkflow(row);
+    } catch (error) {
+      this.logger.warn({ err: error }, `Could not recover roster import ${row.id}`);
     }
   }
 
@@ -211,13 +262,13 @@ export class RosterImportsService {
   }
 
   /** The tenant's pending or processing import, if it has not ended in the meantime. */
-  private async runningImportId(slug: string, principal: Principal): Promise<string | null> {
+  private async runningImport(slug: string, principal: Principal): Promise<ImportRow | undefined> {
     const [running] = await withTenant(
       this.db,
       { tenant: slug, subject: principal.subject },
       (tx) =>
         tx
-          .select({ id: rosterImports.id })
+          .select()
           .from(rosterImports)
           .where(
             and(
@@ -226,25 +277,20 @@ export class RosterImportsService {
             ),
           ),
     );
-    return running?.id ?? null;
+    return running;
   }
 
-  private async startWorkflow(row: ImportRow): Promise<void> {
-    try {
-      await this.temporal.workflow.start<typeof rosterImport>(ROSTER_IMPORT_WORKFLOW, {
-        taskQueue: config.TEMPORAL_TASK_QUEUE,
-        workflowId: row.id,
-        args: [{ importId: row.id, tenant: row.tenant }],
-      });
-    } catch (error) {
-      this.logger.error({ err: error }, `Could not start the workflow of roster import ${row.id}`);
-      throw new ProblemException({
-        type: 'import-unavailable',
-        title: 'Imports unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'Imports cannot start right now, so nothing was imported. Try again shortly.',
-      });
-    }
+  /**
+   * Starts the import's workflow (workflow id = import id), or leaves the one already running:
+   * safe to repeat. A workflow that ended while its import is still pending is run again.
+   */
+  private async ensureWorkflow(row: ImportRow): Promise<void> {
+    await this.temporal.workflow.start<typeof rosterImport>(ROSTER_IMPORT_WORKFLOW, {
+      taskQueue: config.TEMPORAL_TASK_QUEUE,
+      workflowId: row.id,
+      workflowIdConflictPolicy: 'USE_EXISTING',
+      args: [{ importId: row.id, tenant: row.tenant }],
+    });
   }
 
   /** Maps failures to read an upload to the problems callers receive; others pass through. */
