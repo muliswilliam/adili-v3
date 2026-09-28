@@ -229,30 +229,6 @@ describe('FileDropZone', () => {
     expect(screen.getByRole('alert').textContent).toBe('Use a .csv file.');
   });
 
-  it('keeps a client message when an inline node error re-renders', () => {
-    function Upload() {
-      const [, setTick] = useState(0);
-      return (
-        <FileDropZone
-          label="Drop your roster file here or browse."
-          accept={['.csv']}
-          messages={{ type: () => 'Use a .csv file.', size: () => 'Too big.' }}
-          onFileAccepted={vi.fn()}
-          onFileRejected={() => {
-            setTick((tick) => tick + 1);
-          }}
-          error={<span>Server said no</span>}
-        />
-      );
-    }
-    render(<Upload />);
-    const zone = screen.getByRole('button', { name: 'Drop your roster file here or browse.' });
-
-    drop(zone, file('roster.pdf', MB, 'application/pdf'));
-
-    expect(screen.getByRole('alert').textContent).toBe('Use a .csv file.');
-  });
-
   it('shows the same server message again once the parent sets it after a rejection', () => {
     function Upload() {
       const [error, setError] = useState<string | undefined>('Server said no');

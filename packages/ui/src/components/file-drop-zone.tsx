@@ -45,12 +45,10 @@ export type FileDropZoneProps = Omit<ComponentProps<'button'>, 'onSelect' | 'chi
    * An error from outside, e.g. the server rejected the upload. A client message (a file rejected
    * in the browser) is shown in place of this until either the next file is accepted or this
    * changes to a new error. Clearing this never hides a client message, so a parent may reset
-   * it in `onFileRejected` or `onFileAccepted`. Strings and numbers are compared by value, so
-   * setting the same string again after clearing it shows it again; any other node only counts
-   * as new when it follows an empty value, so an inline element does not hide the client
-   * message on every render.
+   * it in `onFileRejected` or `onFileAccepted`; setting the same message again after clearing
+   * it shows it again.
    */
-  error?: ReactNode;
+  error?: string | undefined;
 };
 
 /**
@@ -78,15 +76,6 @@ export function matchesAccept(file: File, accept: string[]): boolean {
 
 function acceptRules(accept: string[]) {
   return accept.map((entry) => entry.trim()).filter((rule) => rule !== '');
-}
-
-const NODE_ERROR = Symbol('node error');
-
-/** Strings and numbers by value; any other non-empty node as one "there is an error" key. */
-function errorKeyOf(error: ReactNode): string | number | typeof NODE_ERROR | null {
-  if (!error || error === true) return null;
-  if (typeof error === 'string' || typeof error === 'number') return error;
-  return NODE_ERROR;
 }
 
 function rejectionFor(file: File, accept: string[], maxSize?: number): FileRejection | null {
@@ -130,11 +119,10 @@ export function FileDropZone({
   const [dragging, setDragging] = useState(false);
   const [rejection, setRejection] = useState<ReactNode>(null);
   // A new outside error replaces the client message, so the latest of the two is shown.
-  const errorKey = errorKeyOf(error);
-  const [previousErrorKey, setPreviousErrorKey] = useState(errorKey);
-  if (errorKey !== previousErrorKey) {
-    setPreviousErrorKey(errorKey);
-    if (errorKey !== null) setRejection(null);
+  const [previousError, setPreviousError] = useState(error);
+  if (error !== previousError) {
+    setPreviousError(error);
+    if (error) setRejection(null);
   }
   const shownError = rejection ?? error;
   const errorId = shownError ? `${partId}-error` : undefined;
