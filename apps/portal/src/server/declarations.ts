@@ -1,9 +1,8 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { isSectionKey } from '../declaration/section-key';
-import { getBff } from './bff.server';
+import { asDeclarant as asDeclarantOf } from './bff.server';
 import {
   type DeclarationListResult,
   type DeclarationResult,
@@ -27,19 +26,12 @@ import {
   type UnlinkResult,
 } from './declarations.server';
 import { declarationsClient, type DeclarationsClient } from './declarations/client.server';
+import type { Unauthenticated } from './results';
 
 /** Server functions for the declaration workspace. Tokens stay on the server. */
 
-export interface Unauthenticated {
-  status: 'unauthenticated';
-}
-
-async function asDeclarant<T>(
-  call: (client: DeclarationsClient) => Promise<T>,
-): Promise<T | Unauthenticated> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { status: 'unauthenticated' };
-  return call(declarationsClient(session.accessToken));
+function asDeclarant<T>(call: (client: DeclarationsClient) => Promise<T>) {
+  return asDeclarantOf(declarationsClient, call);
 }
 
 const id = z.uuid();

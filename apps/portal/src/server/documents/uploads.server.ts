@@ -1,3 +1,4 @@
+import { attempt, type NotFound, notFound, type Unavailable, unavailable } from '../results';
 import type { DocumentsClient } from './client.server';
 import type { CreateUpload, Upload, UploadRejection, UploadReservation } from './types';
 
@@ -10,24 +11,6 @@ import type { CreateUpload, Upload, UploadRejection, UploadReservation } from '.
  * reserve (`POST /v1/uploads`) -> browser PUT -> complete (`POST /v1/uploads/{id}/complete`,
  * scans) -> poll `GET /v1/uploads/{id}` while the scan has not finished.
  */
-
-export interface Unavailable {
-  status: 'unavailable';
-}
-export interface NotFound {
-  status: 'not-found';
-}
-
-const unavailable: Unavailable = { status: 'unavailable' };
-const notFound: NotFound = { status: 'not-found' };
-
-async function attempt<T>(call: () => Promise<T>): Promise<T | Unavailable> {
-  try {
-    return await call();
-  } catch {
-    return unavailable;
-  }
-}
 
 export interface AttachmentFile {
   contentType: string;
