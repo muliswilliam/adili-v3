@@ -1,4 +1,15 @@
-import { Badge, Button, cn, Dialog, DialogTrigger, Icon, Tooltip, useToast } from '@adili/ui';
+import {
+  Badge,
+  Button,
+  cn,
+  Dialog,
+  DialogTrigger,
+  formatDate,
+  formatDateTime,
+  Icon,
+  Tooltip,
+  useToast,
+} from '@adili/ui';
 import {
   InformationCircleIcon,
   PencilEdit02Icon,
@@ -9,7 +20,6 @@ import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
 import type { TenantPolicyHistory, TenantPolicyVersion } from '../../server/directory/client';
-import { formatDate, formatDateTime } from '../format';
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { PolicyDialogContent, type SavePolicyVersion } from './policy-dialog';
@@ -126,7 +136,7 @@ function PolicyRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-1 py-3 text-[14.5px] min-[520px]:grid-cols-[170px_minmax(0,1fr)] min-[520px]:items-center min-[520px]:gap-4">
+    <div className="grid gap-1 py-3 text-sm min-[520px]:grid-cols-[170px_minmax(0,1fr)] min-[520px]:items-center min-[520px]:gap-4">
       <dt className="text-muted-foreground">{term}</dt>
       <dd className="flex min-w-0 items-center justify-between gap-4 leading-[1.5] font-medium">
         <div className="min-w-0">{children}</div>
@@ -150,7 +160,7 @@ function VersionHistory({ history }: { history: TenantPolicyHistory }) {
             <li key={version.id} className="flex items-start gap-3 py-2.5">
               <span
                 className={cn(
-                  'mt-px inline-grid h-6 min-w-[30px] place-items-center rounded-md px-1.5 text-[12.5px] font-semibold tabular-nums',
+                  'mt-px inline-grid h-6 min-w-7.5 place-items-center rounded-md px-1.5 text-[12.5px] font-semibold tabular-nums',
                   inForce ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
                 )}
               >
@@ -184,7 +194,7 @@ function VersionHistory({ history }: { history: TenantPolicyHistory }) {
 export function PolicyReadOnlyNote() {
   return (
     <p className="flex items-center gap-2 px-1 text-[13px] text-muted-foreground">
-      <Icon icon={SquareLock02Icon} className="size-[15px] shrink-0" />
+      <Icon icon={SquareLock02Icon} className="size-3.75 shrink-0" />
       <span>{m.readOnlyNote}</span>
     </p>
   );

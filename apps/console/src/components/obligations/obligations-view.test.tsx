@@ -9,6 +9,7 @@ import type {
   ObligationListItem,
   ObligationPage,
 } from '../../server/declarations/client';
+import { ObligationDrawer } from './obligation-drawer';
 import { ObligationsView, type ObligationsViewProps } from './obligations-view';
 
 // LoadError's Retry reruns loaders through the router; no router is needed to render it here.
@@ -436,5 +437,56 @@ describe('obligation drawer', () => {
     expect((await within(drawer).findByRole('alert')).textContent).toBe(
       'The obligation could not be loaded',
     );
+  });
+
+  it('badges a cancelled obligation and marks a failed reminder red', async () => {
+    const cancelled = obligation({ status: 'cancelled' });
+    const failed: DeclarationsResult<ObligationDetail> = {
+      ok: true,
+      data: {
+        ...cancelled,
+        reminders: [
+          {
+            offsetDays: 14,
+            scheduledAt: '2026-09-05T06:00:00Z',
+            sentAt: null,
+            channels: ['sms'],
+            outcome: 'failed',
+          },
+        ],
+      },
+    };
+    renderView({
+      list: page([cancelled]),
+      loadObligation: vi.fn(() => Promise.resolve(failed)),
+    });
+    fireEvent.click(within(table()).getByRole('button', { name: 'Achieng Otieno' }));
+    const drawer = await screen.findByRole('dialog');
+
+    const badge = within(drawer).getByText('Cancelled');
+    expect(badge.getAttribute('data-variant')).toBe('neutral');
+    const outcome = await within(drawer).findByText('Failed');
+    expect(outcome.parentElement?.querySelector('svg')?.getAttribute('class')).toContain(
+      'text-destructive',
+    );
+  });
+});
+
+describe('ObligationDrawer', () => {
+  it('hands over to sign-in when the session has ended', async () => {
+    const onUnauthenticated = vi.fn();
+    render(
+      <ObligationDrawer
+        obligation={obligation()}
+        onClose={vi.fn()}
+        load={() => Promise.resolve({ ok: false, error: { kind: 'unauthenticated' } })}
+        onUnauthenticated={onUnauthenticated}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onUnauthenticated).toHaveBeenCalledOnce();
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

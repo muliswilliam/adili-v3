@@ -11,36 +11,36 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
+  formatDate,
+  formatDateTime,
   formatLongDate,
   Icon,
+  ObligationStatusBadge,
   obligationTypeLabel,
   reminderChannelsLabel,
   reminderOffsetLabel,
-  reminderOutcomeLabel,
+  ReminderOutcomeText,
   Skeleton,
   Tooltip,
+  useObligationDetail,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  Cancel01Icon,
-  MinusSignIcon,
-  Tick02Icon,
-} from '@hugeicons/core-free-icons';
-import { type ReactNode, useEffect, useEffectEvent, useState } from 'react';
+import { AlertCircleIcon } from '@hugeicons/core-free-icons';
+import { type ReactNode, useEffect, useEffectEvent } from 'react';
 
 import type {
   DeclarationsResult,
   ObligationDetail,
   ObligationListItem,
   DeclarantRef,
-  Reminder,
 } from '../../server/declarations/client';
-import { formatDate, formatDateTime } from '../format';
 import { DetailItem, DetailList } from '../page';
-import { ObligationStatusBadge, OnboardedBadge } from './obligation-badges';
+import { OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
 
-const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } as const;
+const unavailable: DeclarationsResult<ObligationDetail> = {
+  ok: false,
+  error: { kind: 'unavailable', detail: null },
+};
 
 export interface ObligationDrawerProps {
   /** The row that was opened; null when the drawer is closed. */
@@ -64,7 +64,12 @@ export function ObligationDrawer({
   onUnauthenticated,
   recordLink,
 }: ObligationDrawerProps) {
-  const detail = useObligationDetail(obligation?.id ?? null, load, onUnauthenticated);
+  const { detail } = useObligationDetail(obligation?.id ?? null, load, unavailable);
+  const signIn = useEffectEvent(onUnauthenticated);
+  const ended = detail?.ok === false && detail.error.kind === 'unauthenticated';
+  useEffect(() => {
+    if (ended) signIn();
+  }, [ended]);
   return (
     <Drawer
       open={obligation !== null}
@@ -94,40 +99,6 @@ export function ObligationDrawer({
       ) : null}
     </Drawer>
   );
-}
-
-/** Reads the obligation `id` when it changes; null while reading (or with no id). */
-function useObligationDetail(
-  id: string | null,
-  load: ObligationDrawerProps['load'],
-  onUnauthenticated: () => void,
-): DeclarationsResult<ObligationDetail> | null {
-  const [found, setFound] = useState<{
-    id: string;
-    result: DeclarationsResult<ObligationDetail>;
-  } | null>(null);
-  const read = useEffectEvent((at: string) => load(at));
-  const unauthenticated = useEffectEvent(() => {
-    onUnauthenticated();
-  });
-  useEffect(() => {
-    if (id === null) return;
-    let stopped = false;
-    void read(id)
-      .catch(() => unavailable)
-      .then((result) => {
-        if (stopped) return;
-        if (!result.ok && result.error.kind === 'unauthenticated') {
-          unauthenticated();
-          return;
-        }
-        setFound({ id, result });
-      });
-    return () => {
-      stopped = true;
-    };
-  }, [id]);
-  return found?.id === id ? found.result : null;
 }
 
 function Fields({ obligation }: { obligation: ObligationListItem }) {
@@ -211,7 +182,8 @@ function Reminders({
 }
 
 function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDetail> | null }) {
-  if (detail === null) {
+  // Also while the session has ended and sign-in takes over.
+  if (detail === null || (!detail.ok && detail.error.kind === 'unauthenticated')) {
     return (
       <div aria-busy="true" aria-label={m.reminderHistory} className="grid gap-2.5 py-2">
         <Skeleton className="w-full" />
@@ -235,7 +207,7 @@ function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDeta
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[600px] border-collapse text-[13.5px]">
+      <table className="w-full min-w-150 border-collapse text-[13.5px]">
         <caption className="sr-only">{m.reminderHistory}</caption>
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
@@ -273,33 +245,12 @@ function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDeta
                 {reminderChannelsLabel(reminder.channels)}
               </td>
               <td className="py-2.5 align-top">
-                <Outcome reminder={reminder} />
+                <ReminderOutcomeText outcome={reminder.outcome} channels={reminder.channels} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  );
-}
-
-const OUTCOME_STYLES = {
-  sent: { icon: Tick02Icon, className: 'text-success' },
-  failed: { icon: Cancel01Icon, className: 'text-destructive' },
-  skipped: { icon: MinusSignIcon, className: 'text-muted-foreground' },
-} as const;
-
-function Outcome({ reminder }: { reminder: Reminder }) {
-  const style =
-    reminder.outcome === 'sent'
-      ? OUTCOME_STYLES.sent
-      : reminder.outcome === 'failed'
-        ? OUTCOME_STYLES.failed
-        : OUTCOME_STYLES.skipped;
-  return (
-    <span className={`inline-flex items-start gap-1.5 font-medium ${style.className}`}>
-      <Icon icon={style.icon} strokeWidth={2.2} className="mt-0.5 size-3.5 shrink-0" />
-      <span>{reminderOutcomeLabel(reminder.outcome, reminder.channels)}</span>
-    </span>
   );
 }

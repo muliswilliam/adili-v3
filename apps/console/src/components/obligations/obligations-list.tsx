@@ -4,7 +4,9 @@ import {
   cn,
   DateText,
   EmptyState,
+  formatDate,
   Icon,
+  ObligationStatusBadge,
   obligationStatusMeta,
   obligationTypeNames,
   obligationTypeShortLabel,
@@ -36,12 +38,11 @@ import type {
   ObligationListItem,
   ObligationPage,
 } from '../../server/declarations/client';
-import { formatDate } from '../format';
 import { LoadError } from '../load-error';
 import { appendPage, type LoadedPages } from '../roster/records-query';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
-import { ObligationStatusBadge, OnboardedBadge } from './obligation-badges';
+import { OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
 import {
   type CycleOption,
@@ -116,7 +117,7 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         maxLength={100}
         applied={search.search ?? ''}
         disabled={disabled}
-        className="max-w-[320px] min-w-[220px] flex-1"
+        className="max-w-80 min-w-55 flex-1"
         onSearch={(value) => {
           onSearchChange(withFilter(search, 'search', value || undefined), { replace: true });
         }}
@@ -128,7 +129,7 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         id={`${id}-type`}
         value={search.type ?? ALL}
         disabled={disabled}
-        className="h-9 w-auto min-w-[130px] text-sm"
+        className="h-9 w-auto min-w-32.5 text-sm"
         onValueChange={(value) => {
           onSearchChange(
             withFilter(
@@ -153,7 +154,7 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         id={`${id}-status`}
         value={search.status ?? ALL}
         disabled={disabled}
-        className="h-9 w-auto min-w-[140px] text-sm"
+        className="h-9 w-auto min-w-35 text-sm"
         onValueChange={(value) => {
           onSearchChange(
             withFilter(
@@ -189,7 +190,7 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         id={`${id}-cycle`}
         value={search.cycle ?? ALL}
         disabled={disabled}
-        className="h-9 w-auto min-w-[140px] text-sm"
+        className="h-9 w-auto min-w-35 text-sm"
         onValueChange={(value) => {
           onSearchChange(withFilter(search, 'cycle', value === ALL ? undefined : value));
         }}
@@ -238,13 +239,13 @@ function Segmented({
   onChange: (value: string) => void;
 }) {
   return (
-    <fieldset className="flex shrink-0 gap-0.5 rounded-[10px] bg-muted p-[3px]" disabled={disabled}>
+    <fieldset className="flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.75" disabled={disabled}>
       <legend className="sr-only">{label}</legend>
       {choices.map((choice) => (
         <label
           key={choice.value}
           className={cn(
-            'relative flex h-[30px] cursor-pointer items-center rounded-lg px-3 text-[13.5px] font-medium whitespace-nowrap text-secondary-foreground select-none',
+            'relative flex h-7.5 cursor-pointer items-center rounded-md px-3 text-[13.5px] font-medium whitespace-nowrap text-secondary-foreground select-none',
             'has-checked:bg-card has-checked:text-foreground has-checked:shadow-card',
             'has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-ring',
             'has-disabled:cursor-default has-disabled:opacity-50',
@@ -490,7 +491,7 @@ function ObligationsTable({
       <TableBody>
         {items.map((obligation) => (
           <TableRow key={obligation.id}>
-            <TableHead scope="row" className="min-w-[190px] font-normal">
+            <TableHead scope="row" className="min-w-47.5 font-normal">
               <OpenButton obligation={obligation} onOpen={onOpen} />
               <FileNumber value={obligation.declarant.personnelFileNumber} />
             </TableHead>
@@ -566,15 +567,7 @@ function ObligationsCards({
   );
 }
 
-const SKELETON_WIDTHS = [
-  'w-[150px]',
-  'w-[70px]',
-  'w-[90px]',
-  'w-[90px]',
-  'w-[80px]',
-  'w-[40px]',
-  'w-[30px]',
-];
+const SKELETON_WIDTHS = ['w-37.5', 'w-17.5', 'w-22.5', 'w-22.5', 'w-20', 'w-10', 'w-7.5'];
 
 /** Placeholder rows under the real header while the first page loads; the table is marked busy. */
 export function ObligationsTableSkeleton() {

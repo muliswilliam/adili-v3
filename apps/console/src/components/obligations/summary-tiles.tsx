@@ -38,7 +38,7 @@ export interface SummaryTilesProps {
 
 /**
  * Upcoming, Due and Overdue for the Commission with their split by type, each a toggle that
- * filters the list by its status, then the officers due or overdue who have not onboarded.
+ * filters the list by its status, then the declarants due or overdue who have not onboarded.
  */
 export function SummaryTiles({ summary, search, onSearchChange }: SummaryTilesProps) {
   if (!summary) return <SummaryTilesSkeleton />;
@@ -99,12 +99,12 @@ export interface NotOnboardedCalloutProps {
   summary: CommissionObligationsSummary;
   /** "View roster", to the roster records filtered to not onboarded, for those who may open it. */
   rosterLink?: ReactNode;
-  /** Filters the list below to officers who have not onboarded. */
+  /** Filters the list below to declarants who have not onboarded. */
   onShowInList: () => void;
 }
 
 /**
- * Officers with a declaration due who have not onboarded get no reminders from Adili: the
+ * Declarants with a declaration due who have not onboarded get no reminders from Adili: the
  * Commission is told to chase them itself, with a way to the roster. Hidden when there are none.
  */
 export function NotOnboardedCallout({
@@ -119,8 +119,8 @@ export function NotOnboardedCallout({
       role="status"
       className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-warning-subtle py-2.5 pr-3 pl-4 text-sm text-warning-subtle-foreground"
     >
-      <Icon icon={UserRemove01Icon} className="size-[18px] shrink-0" />
-      <p className="min-w-[240px] flex-1">{m.notOnboardedCallout(count)}</p>
+      <Icon icon={UserRemove01Icon} className="size-4.5 shrink-0" />
+      <p className="min-w-60 flex-1">{m.notOnboardedCallout(count)}</p>
       <div className="ml-auto flex flex-wrap gap-2">
         {rosterLink}
         <Button type="button" variant="ghost" size="sm" onClick={onShowInList}>

@@ -1,4 +1,4 @@
-import { cn, EmptyState, Icon, obligationStatusMeta } from '@adili/ui';
+import { cn, EmptyState, formatDate, Icon, obligationStatusMeta } from '@adili/ui';
 import { AlertCircleIcon, Calendar03Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
@@ -6,7 +6,7 @@ import type {
   CommissionObligationsSummary,
   DeclarationsResult,
 } from '../../server/declarations/client';
-import { formatDate, formatNumber } from '../format';
+import { formatNumber } from '../format';
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { cycleLabel, notOnboardedCount } from './obligations-query';
@@ -14,15 +14,15 @@ import { cycleLabel, notOnboardedCount } from './obligations-query';
 export interface CommissionObligationsCardProps {
   /** The Commission's counts; null when not loaded. */
   summary: DeclarationsResult<CommissionObligationsSummary>;
-  /** "Obligations", to the Commission's officer list, for platform admins only. */
+  /** "Obligations", to the Commission's declarant list, for platform admins only. */
   link?: ReactNode;
   className?: string;
 }
 
 /**
  * The Commission detail's obligations card (spec 04 FE-4) for platform admins and EACC: the
- * cycle, then Upcoming, Due, Overdue and officers due or overdue who have not onboarded. Counts
- * only, no officer.
+ * cycle, then Upcoming, Due, Overdue and declarants due or overdue who have not onboarded. Counts
+ * only, no declarant.
  */
 export function CommissionObligationsCard({
   summary,

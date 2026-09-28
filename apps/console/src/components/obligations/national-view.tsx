@@ -4,6 +4,8 @@ import {
   Card,
   cn,
   EmptyState,
+  formatDate,
+  formatDateTime,
   Icon,
   Select,
   SelectItem,
@@ -32,7 +34,7 @@ import type {
   NationalObligationsSummary,
 } from '../../server/declarations/client';
 import { CursorPager } from '../cursor-pager';
-import { formatDate, formatDateTime, formatNumber } from '../format';
+import { formatNumber } from '../format';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { messages as m } from './messages';
@@ -86,8 +88,8 @@ const problemStatus = (result: DeclarationsResult<unknown> | null) =>
 
 /**
  * EACC's national obligations summary (spec 04 FE-5): per Commission the cycle's upcoming, due
- * and overdue counts, officers not onboarded and the last roster import, most overdue first,
- * with totals. Counts only, no officer.
+ * and overdue counts, declarants not onboarded and the last roster import, most overdue first,
+ * with totals. Counts only, no declarant.
  */
 export function NationalView(props: NationalViewProps) {
   const { result } = props;
@@ -105,10 +107,10 @@ export function NationalView(props: NationalViewProps) {
     <Page>
       <PageHead title={m.nationalTitle}>
         {result === null ? (
-          <Skeleton className="mt-2 h-4 w-[240px] max-w-full" />
+          <Skeleton className="mt-2 h-4 w-60 max-w-full" />
         ) : summary ? (
           <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-secondary-foreground">
-            <Icon icon={Calendar03Icon} className="size-[15px]" />
+            <Icon icon={Calendar03Icon} className="size-3.75" />
             {m.nationalCycle(cycleLabel(summary.cycle.key), formatDate(summary.cycle.dueDate))}
           </p>
         ) : null}
@@ -188,7 +190,7 @@ function NationalTable({
               <TableRow key={row.commission.slug}>
                 <TableHead scope="row" className="py-3 font-normal">
                   {commissionLink(row)}
-                  <span className="mt-0.5 block font-mono text-[12px] tracking-[0.04em] text-muted-foreground">
+                  <span className="mt-0.5 block font-mono text-xs tracking-[0.04em] text-muted-foreground">
                     {row.commission.issuerCode}
                   </span>
                 </TableHead>
@@ -295,7 +297,7 @@ function NationalCards({
           onValueChange={(value) => {
             onSortChange(value as NationalSort);
           }}
-          className="h-9 w-auto min-w-[180px] text-sm"
+          className="h-9 w-auto min-w-45 text-sm"
         >
           {COLUMNS.map((column) => (
             <SelectItem key={column.sort} value={column.sort}>
@@ -313,7 +315,7 @@ function NationalCards({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 leading-snug">
                 {commissionLink(row)}
-                <span className="mt-0.5 block font-mono text-[12px] tracking-[0.04em] text-muted-foreground">
+                <span className="mt-0.5 block font-mono text-xs tracking-[0.04em] text-muted-foreground">
                   {row.commission.issuerCode}
                 </span>
               </div>
@@ -355,7 +357,7 @@ function CardCounts({
     <dl className="grid grid-cols-4 gap-2">
       {items.map(([label, value, warn]) => (
         <div key={label} className="flex min-w-0 flex-col justify-end gap-0.5">
-          <dt className="text-[12px] leading-tight text-muted-foreground">{label}</dt>
+          <dt className="text-xs leading-tight text-muted-foreground">{label}</dt>
           <dd
             className={cn(
               'text-[15px] font-semibold tabular-nums',
@@ -450,7 +452,7 @@ function NationalSkeleton() {
         {Array.from({ length: 6 }, (_, row) => (
           <TableRow key={row}>
             <TableCell>
-              <Skeleton className="w-[220px] max-w-full" />
+              <Skeleton className="w-55 max-w-full" />
               <Skeleton className="mt-1.5 w-12" />
             </TableCell>
             {Array.from({ length: 4 }, (_, column) => (

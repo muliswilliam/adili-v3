@@ -52,11 +52,11 @@ describe('FE-4 Commission obligations card (EACC, platform admin)', () => {
     const card = screen.getByRole('region', { name: 'Obligations' });
     expect(card.textContent).toContain('Biennial 2027 · due 31 Dec 2027');
     expect(values(card)).toEqual(['Upcoming 0', 'Due 47', 'Overdue 26', 'Not onboarded 48']);
-    // EACC gets counts only: no way to the officer list.
+    // EACC gets counts only: no way to the declarant list.
     expect(within(card).queryByRole('link')).toBeNull();
   });
 
-  it('offers the officer list to platform admins', () => {
+  it('offers the declarant list to platform admins', () => {
     render(
       <CommissionObligationsCard
         summary={summary()}

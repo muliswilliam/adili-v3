@@ -127,7 +127,7 @@ export const en = {
   columnOverdue: 'Overdue',
   columnNotOnboarded: 'Not onboarded',
   columnNotOnboardedHint:
-    'Officers with a due or overdue declaration who have no Adili account yet',
+    'Declarants with a due or overdue declaration who have no Adili account yet',
   columnNotOnboardedHintLabel: 'About not onboarded',
   columnLastImport: 'Last roster import',
   sortLabel: 'Sort by',

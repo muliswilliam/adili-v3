@@ -1,4 +1,4 @@
-import { Badge, Card, EmptyState, Icon, Skeleton } from '@adili/ui';
+import { Badge, Card, EmptyState, formatDate, Icon, Skeleton } from '@adili/ui';
 import { Calendar03Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import { type ReactNode, useState } from 'react';
 
@@ -10,7 +10,6 @@ import type {
   ObligationPage,
   DeclarantRef,
 } from '../../server/declarations/client';
-import { formatDate } from '../format';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { goToSignIn } from '../sign-in-redirect';
@@ -149,7 +148,7 @@ function CycleLine({
   summary: DeclarationsResult<CommissionObligationsSummary> | null;
 }) {
   if (summary === null) {
-    return <Skeleton className="mt-2 h-4 w-[360px] max-w-full" />;
+    return <Skeleton className="mt-2 h-4 w-90 max-w-full" />;
   }
   if (!summary.ok) return null;
   const { commission, cycle } = summary.data;
@@ -158,7 +157,7 @@ function CycleLine({
       <span>{commission.name}</span>
       <span aria-hidden="true" className="hidden size-1 rounded-full bg-input min-[700px]:block" />
       <span className="inline-flex items-center gap-2 font-medium text-secondary-foreground">
-        <Icon icon={Calendar03Icon} className="size-[15px]" />
+        <Icon icon={Calendar03Icon} className="size-3.75" />
         {m.cycleLine(
           cycleLabel(cycle.key),
           formatDate(cycle.statementDate),
