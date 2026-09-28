@@ -17,7 +17,7 @@ import { mergeMap, type Observable } from 'rxjs';
 import { EventPublisher } from './event-publisher.js';
 import type { NewEvent } from './envelope.js';
 
-/** A read of sensitive data, for the audit trail (ADR-008 "Reads and denials"). */
+/** A read of sensitive data, for the audit trail (ADR-008 Pipeline step 2). */
 export const AUDIT_READ = 'audit.read.v1';
 
 export interface AuditReadData extends Record<string, unknown> {
