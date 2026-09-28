@@ -9,7 +9,7 @@ export const SERVICE_CALL_TIMEOUT_MS = 2_000;
 export interface ServiceClientOptions {
   /** Base URL of the service called, e.g. `http://localhost:4006`. */
   baseUrl: string;
-  /** The service called, as error messages name it, e.g. `the integration-gateway`. */
+  /** Name of the service called, e.g. `integration-gateway`; error messages say `The integration-gateway service ...`. */
   service: string;
   /** Client credentials tokens of the calling service, with the scopes the callee requires. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
@@ -83,7 +83,7 @@ export class ServiceCallFailed extends Error {
  *
  * @example
  * const gateway = createServiceClient<paths>({
- *   baseUrl, service: 'the integration-gateway', tokens, unavailable: (m, o) => new IprsUnavailable(m, o),
+ *   baseUrl, service: 'integration-gateway', tokens, unavailable: (m, o) => new IprsUnavailable(m, o),
  * });
  * const person = await gateway.call(
  *   (api) => api.POST('/internal/v1/iprs/person-lookups', { body }),
@@ -94,7 +94,8 @@ export function createServiceClient<Paths extends object>(
   options: ServiceClientOptions,
 ): ServiceClient<Paths> {
   const api = createAuthenticatedClient<Paths>(options);
-  const { service, unavailable } = options;
+  const { unavailable } = options;
+  const service = `The ${options.service} service`;
 
   return {
     async call(request, expected) {

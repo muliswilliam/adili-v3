@@ -321,6 +321,8 @@ export class ConfirmService {
   /**
    * Records that the set-password email did not go: the session forgets when it was sent, so it
    * says `setPasswordEmail: failed` and resend is open at once, and the answer says so too.
+   * A replay of this confirm (same Idempotency-Key) returns that stored `failed` answer even after
+   * a later resend succeeded; the portal re-reads the session, which has the current state.
    */
   private async setPasswordEmailFailed(
     sessionId: string,

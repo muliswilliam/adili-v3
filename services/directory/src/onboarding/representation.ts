@@ -1,4 +1,4 @@
-import { problemDetailsSchema } from '@adili/api-kit';
+import { type ProblemCode, problemDetailsSchema } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { slugSchema } from '../commissions/create-commission.js';
@@ -192,7 +192,7 @@ export const ONBOARDING_PROBLEM_CODES = [
   'email-in-use',
   'rate-limit-exceeded',
   'wrong-step',
-] as const;
+] as const satisfies readonly ProblemCode[];
 
 export const onboardingProblemSchema = problemDetailsSchema.extend({
   code: z.enum(ONBOARDING_PROBLEM_CODES),

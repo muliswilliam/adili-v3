@@ -44,7 +44,7 @@ export class HttpIprsLookup extends IprsLookup {
     super();
     this.gateway = createServiceClient<paths>({
       baseUrl: options.integrationGatewayUrl,
-      service: 'the integration-gateway',
+      service: 'integration-gateway',
       tokens: options.tokens,
       unavailable: (message, options) => new IprsUnavailable(message, options),
       timeoutMs: options.timeoutMs,

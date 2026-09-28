@@ -149,22 +149,22 @@ describe('createServiceClient', () => {
   });
 
   it.each<[string, ServiceClientOptions['fetch'], RegExp]>([
-    ['another status', recordingFetch([503]).fetch, /^things answered 503$/],
-    ['a second 401', recordingFetch([401, 401]).fetch, /^things answered 401$/],
+    ['another status', recordingFetch([503]).fetch, /^The things service answered 503$/],
+    ['a second 401', recordingFetch([401, 401]).fetch, /^The things service answered 401$/],
     [
       'a body that breaks the contract',
       recordingFetch([201], () => ({ id: 7 })).fetch,
-      /^things answered a body that breaks its contract$/,
+      /^The things service answered a body that breaks its contract$/,
     ],
     [
       'a success whose body is not JSON',
       () => Promise.resolve(new Response('<html>proxy error</html>', { status: 201 })),
-      /^things did not answer$/,
+      /^The things service did not answer$/,
     ],
     [
       'no connection',
       () => Promise.reject(new TypeError('fetch failed')),
-      /^things did not answer$/,
+      /^The things service did not answer$/,
     ],
   ])("maps %s to the caller's unavailable error", async (_case, fetch, message) => {
     const call = things({ fetch }).call(

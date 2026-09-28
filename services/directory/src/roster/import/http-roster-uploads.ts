@@ -52,7 +52,7 @@ export class HttpRosterUploads extends RosterUploads {
     this.fetch = options.fetch ?? globalThis.fetch;
     this.documents = createServiceClient<paths>({
       baseUrl: options.documentsUrl,
-      service: 'The documents service',
+      service: 'documents',
       tokens: options.tokens,
       unavailable: (message, options) => new DocumentsUnavailable(message, options),
       timeoutMs: options.timeoutMs,
