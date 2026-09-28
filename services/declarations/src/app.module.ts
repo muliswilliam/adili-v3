@@ -9,7 +9,11 @@ import {
   OpenBaoTransitCipher,
 } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
-import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
+import {
+  TemporalModule,
+  TemporalReadinessCheck,
+  TemporalWorkerReadinessCheck,
+} from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
@@ -26,6 +30,7 @@ const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
         DatabaseReadinessCheck,
         RabbitMqReadinessCheck,
         TemporalReadinessCheck,
+        TemporalWorkerReadinessCheck,
         ValkeyReadinessCheck,
         new OpenBaoReadinessCheck(openbao),
       ],

@@ -1,25 +1,50 @@
-import { Module } from '@nestjs/common';
+import { fileURLToPath } from 'node:url';
 
-import { Clock, SystemClock } from '../clock.js';
+import { Module } from '@nestjs/common';
+import { TemporalWorkerModule } from '@adili/temporal';
+
+import { ClockModule } from '../clock.js';
+import { config } from '../config.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { ObligationsController } from './obligations.controller.js';
 import { ObligationsService } from './obligations.service.js';
 import { RosterEventsConsumer } from './roster-events.consumer.js';
 import { RosterIngest } from './roster-ingest.js';
-import { DeferredObligationWorkflows, ObligationWorkflows } from './workflows.js';
+import { ObligationActivities } from './workflow/activities.js';
+import { ObligationWorkflowsModule } from './workflow/obligation-workflows.module.js';
+import { SweepSchedule } from './workflow/sweep.js';
+
+/**
+ * The workflows module: `workflows.ts` when running from source (dev server, tests),
+ * `workflows.js` in the build.
+ */
+const workflowsPath = fileURLToPath(
+  new URL(
+    `./workflow/workflows${import.meta.url.endsWith('.ts') ? '.ts' : '.js'}`,
+    import.meta.url,
+  ),
+);
 
 /**
  * Filing obligations (spec 04): derived from roster events by the obligation engine, read by
- * declarants and staff.
+ * declarants and staff, and driven through their dates and reminders by one
+ * `FilingObligationWorkflow` each on the declarations worker.
  */
 @Module({
-  imports: [DirectoryModule],
-  controllers: [ObligationsController, RosterEventsConsumer],
-  providers: [
-    ObligationsService,
-    RosterIngest,
-    { provide: Clock, useClass: SystemClock },
-    { provide: ObligationWorkflows, useClass: DeferredObligationWorkflows },
+  imports: [
+    DirectoryModule,
+    ClockModule,
+    ObligationWorkflowsModule,
+    TemporalWorkerModule.forRoot({
+      address: config.TEMPORAL_ADDRESS,
+      namespace: config.TEMPORAL_NAMESPACE,
+      taskQueue: config.TEMPORAL_TASK_QUEUE,
+      workflowsPath,
+      activities: [ObligationActivities],
+      imports: [ObligationWorkflowsModule],
+    }),
   ],
+  controllers: [ObligationsController, RosterEventsConsumer],
+  providers: [ObligationsService, RosterIngest, SweepSchedule],
 })
 export class ObligationsModule {}

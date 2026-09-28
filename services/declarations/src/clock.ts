@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Module } from '@nestjs/common';
 
 /**
  * The time obligations are computed against (today in Nairobi, creation statuses, reminders
@@ -14,3 +14,7 @@ export class SystemClock extends Clock {
     return new Date();
   }
 }
+
+/** The system clock as the `Clock` token, for every module that computes "today". */
+@Module({ providers: [{ provide: Clock, useClass: SystemClock }], exports: [Clock] })
+export class ClockModule {}
