@@ -6,12 +6,12 @@ import { getDeclarationSection } from '../../server/declarations';
 import {
   DeclarationNotFound,
   loadSectionFor,
-  loginHref,
   requireDeclarationId,
   SectionUnavailable,
   settleLoad,
   statementKey,
 } from './route-helpers';
+import { loginHref } from '../sign-in';
 
 vi.mock('@tanstack/react-router', async () => ({
   ...(await import('./testing-mocks')).routerMock(),

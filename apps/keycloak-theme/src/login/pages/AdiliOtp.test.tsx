@@ -67,34 +67,51 @@ describe('OTP page', () => {
     expect((waiting as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('holds "Send it by email instead" for the same cooldown', async () => {
+    renderStory('otp');
+
+    const button = await screen.findByRole('button', { name: 'Send it by email instead' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('announces the resend wait politely at 10-second steps only', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
     try {
       renderStory('otp');
       await screen.findByRole('button', { name: 'Resend in 1:00' });
-      const live = document.querySelector('.sr-only[aria-live="polite"]');
-      if (!live) throw new Error('no live region for the resend wait');
-      expect(live.textContent).toBe('');
+      // The page is lazy, so React can commit it outside act and start the countdown's interval
+      // a task later; advancing the clock before the interval exists would skip its ticks.
+      await vi.waitFor(() => {
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+      });
+      // Looked up each time rather than held, so a re-render that replaces the node cannot
+      // leave the test reading a detached element.
+      const live = () => {
+        const region = document.querySelector('.sr-only[aria-live="polite"]');
+        if (!region) throw new Error('no live region for the resend wait');
+        return region.textContent;
+      };
+      expect(live()).toBe('');
 
       act(() => {
         vi.advanceTimersByTime(9000);
       });
-      expect(live.textContent).toBe('');
+      expect(live()).toBe('');
 
       act(() => {
         vi.advanceTimersByTime(1000);
       });
-      expect(live.textContent).toBe('You can ask for a new code in 50 seconds.');
+      expect(live()).toBe('You can ask for a new code in 50 seconds.');
 
       act(() => {
         vi.advanceTimersByTime(10_000);
       });
-      expect(live.textContent).toBe('You can ask for a new code in 40 seconds.');
+      expect(live()).toBe('You can ask for a new code in 40 seconds.');
 
       act(() => {
         vi.advanceTimersByTime(40_000);
       });
-      expect(live.textContent).toBe('You can ask for a new code now.');
+      expect(live()).toBe('You can ask for a new code now.');
     } finally {
       vi.useRealTimers();
     }

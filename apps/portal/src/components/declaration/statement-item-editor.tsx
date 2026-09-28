@@ -536,7 +536,7 @@ export function ItemEditor({
 
       <div className="grid gap-3">
         <CheckboxItem
-          label="Changed since my last declaration"
+          label="Changed since last declaration"
           hint="Value up or down 25% or more, acquired, disposed of or settled."
           checked={any.change?.changed === true}
           onChange={(event) => {

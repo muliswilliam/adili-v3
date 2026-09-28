@@ -27,6 +27,7 @@ import {
 } from './autosave';
 import type { Draft, Household } from '../../declaration/contents';
 import { renamesPerson } from '../../declaration/household';
+import { signInAgain } from '../sign-in';
 
 /**
  * The declaration workspace's shared state: the draft's header and section completeness, the
@@ -73,6 +74,7 @@ async function save(
   sectionKey: SectionKey,
   contents: unknown,
   ifMatch: string,
+  onSignedOut: () => void,
 ): Promise<SaveOutcome> {
   const outcome = await saveDeclarationSection({
     data: {
@@ -82,8 +84,10 @@ async function save(
       contents: contents as Record<string, unknown>,
     },
   });
-  // An expired session is retried like an outage; the next page load signs the declarant in.
-  return outcome.status === 'unauthenticated' ? { status: 'unavailable' } : outcome;
+  if (outcome.status !== 'unauthenticated') return outcome;
+  // The edit stays queued and is retried like an outage while the declarant signs in.
+  onSignedOut();
+  return { status: 'unavailable' };
 }
 
 function withSaveResult(declaration: Declaration, result: SectionSaveResult): Declaration {
@@ -119,14 +123,21 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     setDeclaration(loaded);
   }
 
-  const [queue] = useState(
-    () =>
-      new AutosaveQueue({
-        etag,
-        version: loaded.draftVersion,
-        save: (key, contents, ifMatch) => save(declarationId, key, contents, ifMatch),
-      }),
-  );
+  const [queue] = useState(() => {
+    let signingIn = false;
+    // The session ended mid-edit: sign in and come back here. Once only, so a declarant who
+    // stays (the page warns about the unsaved edit) is not sent again on every retry.
+    const signIn = () => {
+      if (signingIn) return;
+      signingIn = true;
+      signInAgain();
+    };
+    return new AutosaveQueue({
+      etag,
+      version: loaded.draftVersion,
+      save: (key, contents, ifMatch) => save(declarationId, key, contents, ifMatch, signIn),
+    });
+  });
 
   const refresh = useCallback(async () => {
     const result = await getDeclaration({ data: { declarationId } });

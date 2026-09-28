@@ -1,5 +1,12 @@
+import { attempt, type NotFound, notFound, type Unavailable, unavailable } from '../results';
 import type { DocumentsClient } from './client.server';
-import type { Upload, UploadPurpose, UploadReservation } from './types';
+import type {
+  CreateUpload,
+  Upload,
+  UploadPurpose,
+  UploadRejection,
+  UploadReservation,
+} from './types';
 
 /**
  * The documents service's upload flow for declaration and clarification attachments
@@ -10,24 +17,6 @@ import type { Upload, UploadPurpose, UploadReservation } from './types';
  * reserve (`POST /v1/uploads`) -> browser PUT -> complete (`POST /v1/uploads/{id}/complete`,
  * scans) -> poll `GET /v1/uploads/{id}` while the scan has not finished.
  */
-
-export interface Unavailable {
-  status: 'unavailable';
-}
-export interface NotFound {
-  status: 'not-found';
-}
-
-const unavailable: Unavailable = { status: 'unavailable' };
-const notFound: NotFound = { status: 'not-found' };
-
-async function attempt<T>(call: () => Promise<T>): Promise<T | Unavailable> {
-  try {
-    return await call();
-  } catch {
-    return unavailable;
-  }
-}
 
 export interface AttachmentFile {
   contentType: string;
@@ -57,13 +46,16 @@ export function reserveAttachmentUpload(
   purpose: AttachmentPurpose = 'declaration-attachment',
 ): Promise<ReserveResult> {
   return attempt(async () => {
+    const body: CreateUpload = {
+      purpose,
+      contentType: file.contentType,
+      declaredSize: file.size,
+      fileName: file.fileName.slice(0, 255),
+    };
     const { data, error, response } = await client.POST('/v1/uploads', {
-      body: {
-        purpose,
-        contentType: file.contentType,
-        declaredSize: file.size,
-        fileName: file.fileName.slice(0, 255),
-      },
+      params: { header: { 'Idempotency-Key': crypto.randomUUID() } },
+      // The contract gains the attachment purposes with #113 and spec 07a; see `UploadPurpose`.
+      body: body as never,
     });
     if (data) return { status: 'reserved', reservation: data };
     if (response.status === 400) {
@@ -84,6 +76,11 @@ export type UploadCheck =
   | NotFound
   | Unavailable;
 
+/** `encoding` is about CSV text, so for an attachment it reads as the wrong type. */
+function rejectionOf(rejection: UploadRejection | null): 'type' | 'size' | 'missing' | 'timeout' {
+  return rejection === null || rejection === 'encoding' ? 'type' : rejection;
+}
+
 function checkOf(upload: Upload): UploadCheck {
   switch (upload.state) {
     case 'clean':
@@ -93,7 +90,7 @@ function checkOf(upload: Upload): UploadCheck {
     case 'infected':
       return { status: 'infected' };
     case 'rejected':
-      return { status: 'rejected', reason: upload.rejection ?? 'type' };
+      return { status: 'rejected', reason: rejectionOf(upload.rejection) };
     case 'expired':
       return { status: 'expired' };
     case 'awaiting-upload':
@@ -119,7 +116,7 @@ export function checkUpload(client: DocumentsClient, id: string): Promise<Upload
 export function completeUpload(client: DocumentsClient, id: string): Promise<UploadCheck> {
   return attempt(async () => {
     const { data, response } = await client.POST('/v1/uploads/{id}/complete', {
-      params: { path: { id } },
+      params: { path: { id }, header: { 'Idempotency-Key': crypto.randomUUID() } },
     });
     if (data) return checkOf(data);
     if (response.status === 409) return checkUpload(client, id);

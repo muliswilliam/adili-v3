@@ -94,7 +94,7 @@ describe('BioSection', () => {
 
     expect(screen.queryByRole('textbox', { name: 'Explain the change' })).toBeNull();
     fireEvent.click(
-      screen.getByRole('checkbox', { name: 'My marital status changed since my last declaration' }),
+      screen.getByRole('checkbox', { name: 'Marital status changed since last declaration' }),
     );
 
     expect(textbox('Explain the change')).toBeTruthy();

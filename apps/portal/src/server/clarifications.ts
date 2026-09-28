@@ -1,25 +1,20 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { getBff } from './bff.server';
+import { asDeclarant as asDeclarantOf } from './bff.server';
 import {
   type ClarificationPageResult,
   loadClarificationPage,
   respondToClarification,
   type RespondResult,
 } from './clarifications.server';
-import type { Unauthenticated } from './declarations';
+import type { Unauthenticated } from './results';
 import { reviewClient, type ReviewClient } from './review/client.server';
 
 /** Server functions for the declarant's clarifications (spec 07a). Tokens stay on the server. */
 
-async function asDeclarant<T>(
-  call: (client: ReviewClient) => Promise<T>,
-): Promise<T | Unauthenticated> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { status: 'unauthenticated' };
-  return call(reviewClient(session.accessToken));
+function asDeclarant<T>(call: (client: ReviewClient) => Promise<T>) {
+  return asDeclarantOf(reviewClient, call);
 }
 
 /** The page, and the server's clock so the countdown reads the same on server and browser. */

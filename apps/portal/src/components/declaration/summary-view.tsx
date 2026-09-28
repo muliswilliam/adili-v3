@@ -46,6 +46,7 @@ import {
   pendingCaseLine,
 } from '../../declaration/other';
 import {
+  OFFICER_LABEL,
   relationship,
   STATEMENTS_TITLE,
   STEP_TITLES,
@@ -121,10 +122,7 @@ function BlockingPanel({ summary, sections }: { summary: LoadedSummary; sections
   const headingId = useId();
   const { groups, hidden } = blockingGroups(summary.blocking, sections);
   return (
-    <section
-      aria-labelledby={headingId}
-      className="grid gap-3 rounded-xl border border-warning/40 bg-warning-subtle p-5"
-    >
+    <section aria-labelledby={headingId} className="grid gap-3 rounded-lg bg-warning-subtle p-5">
       <h2 id={headingId} className="flex items-center gap-2 text-base font-semibold">
         <Icon icon={Alert02Icon} className="size-5 text-warning" />
         {blockingTitle(summary.blocking.length)}
@@ -469,9 +467,12 @@ function StatementsCard({
     return {
       key,
       statement,
-      name: you ? 'You' : name || 'Unnamed person',
-      short: you ? 'You' : (statement.personName?.firstName?.trim() ?? name) || 'Unnamed person',
-      relation: you ? 'You' : relationship(key),
+      name: you ? OFFICER_LABEL : name || 'Unnamed person',
+      short: you
+        ? OFFICER_LABEL
+        : (statement.personName?.firstName?.trim() ?? name) || 'Unnamed person',
+      /** Spouse or child; none for the declarant. */
+      relation: you ? null : relationship(key),
       totals: statementTotals(statement),
       completeness: (declaration.sections.find((section) => section.key === key)?.completeness ??
         'not-started') as ParagraphCompleteness,
@@ -519,15 +520,11 @@ function StatementsCard({
         {persons.map((person, index) => {
           const title = statementTitle(person.key, person.name);
           return (
-            <details
-              key={person.key}
-              open={index === 0}
-              className="group rounded-xl border border-border"
-            >
+            <details key={person.key} open={index === 0} className="group rounded-2xl shadow-card">
               <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-4 py-3">
                 <h3 className="flex-1 font-semibold">
                   {person.name}
-                  {person.relation && person.relation !== 'You' ? (
+                  {person.relation ? (
                     <span className="font-normal text-muted-foreground"> · {person.relation}</span>
                   ) : null}
                 </h3>
@@ -556,7 +553,7 @@ function OtherCard({ summary, document }: { summary: LoadedSummary; document: Su
   const other = document.otherInformation ?? {};
   const interests = other.registrableInterests ?? {};
   const names = (personKey: string) => {
-    if (personKey === 'officer') return 'You';
+    if (personKey === 'officer') return OFFICER_LABEL;
     const statement = document.statements?.find((entry) => entry.personKey === personKey);
     return fullName(statement?.personName) || 'Unnamed person';
   };
@@ -670,7 +667,7 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
       <StatementsCard summary={summary} document={document} />
       <OtherCard summary={summary} document={document} />
 
-      <section aria-labelledby={solemnId} className="grid gap-2 rounded-xl bg-muted p-5">
+      <section aria-labelledby={solemnId} className="grid gap-2 rounded-lg bg-muted p-5">
         <h2 id={solemnId} className="text-base font-semibold">
           Solemn declaration
         </h2>

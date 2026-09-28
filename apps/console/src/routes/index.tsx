@@ -8,6 +8,7 @@ import {
   CardIcon,
   Icon,
   type IconProps,
+  SiteFooter,
   SiteHeader,
 } from '@adili/ui';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -33,6 +34,7 @@ import { authErrorMessage } from '../components/auth-error';
 import { IdentityCard } from '../components/identity-card';
 import { NoStaffRoles } from '../components/load-error';
 import { Page, PageHead } from '../components/page';
+import { rosterNavCounts } from '../components/roster/nav-counts';
 import { ConsoleShell } from '../components/shell/console-shell';
 import { type Workspace, workspacesFor } from '../components/workspaces';
 import { type DashboardViewer, getDashboardViewer } from '../server/viewer';
@@ -109,6 +111,7 @@ function Landing({ error }: { error: string | null }) {
           </ul>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }
@@ -131,7 +134,11 @@ function Dashboard({ viewer }: { viewer: DashboardViewer }) {
   const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
   const workspaces = workspacesFor(roles);
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
+    <ConsoleShell
+      userName={viewer.user.name}
+      roles={roles}
+      navCounts={rosterNavCounts(viewer.roster)}
+    >
       <Page>
         <PageHead title="Overview">
           <p className="mt-1 text-sm text-muted-foreground">Signed in as {viewer.user.name}.</p>
@@ -181,7 +188,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
   if (!workspace.href) {
     return (
       <li className="flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card">
-        <CardIcon className="mb-0 size-[38px] rounded-[10px] text-muted-foreground [&_svg]:size-[19px]">
+        <CardIcon className="mb-0 size-[38px] text-muted-foreground [&_svg]:size-[19px]">
           <Icon icon={icon} />
         </CardIcon>
         <div className="flex flex-wrap items-center gap-2">
@@ -194,7 +201,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
   }
   return (
     <li className="relative flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--input),0_6px_20px_-8px_rgb(0_0_0/0.15)]">
-      <CardIcon className="mb-0 size-[38px] rounded-[10px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">
+      <CardIcon className="mb-0 size-[38px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">
         <Icon icon={icon} />
       </CardIcon>
       <div className="flex flex-wrap items-center gap-2">

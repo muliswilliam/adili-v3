@@ -17,6 +17,7 @@ import { AlertCircleIcon, Delete02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
 import { discardMyDeclaration } from '../../server/declarations';
+import { signInAgain } from '../sign-in';
 
 export const DISCARD_TITLE = 'Discard this draft?';
 export const DISCARD_BODY = 'Everything you entered will be deleted.';
@@ -66,9 +67,7 @@ export function DiscardDraftButton({
       return;
     }
     if (result.status === 'unauthenticated') {
-      window.location.assign(
-        `/auth/login?returnTo=${encodeURIComponent(window.location.pathname)}`,
-      );
+      signInAgain();
       return;
     }
     setBusy(false);

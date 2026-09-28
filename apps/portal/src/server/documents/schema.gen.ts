@@ -13,7 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reserve an upload and get a presigned PUT to quarantine */
+        /**
+         * Reserve an upload and get a presigned PUT to quarantine
+         * @description The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
+         */
         post: operations["createUpload"];
         delete?: never;
         options?: never;
@@ -25,12 +28,13 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: components["parameters"]["UploadId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Upload state and metadata */
+        /**
+         * Upload state and metadata
+         * @description Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.
+         */
         get: operations["getUpload"];
         put?: never;
         post?: never;
@@ -44,17 +48,14 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: components["parameters"]["UploadId"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
         /**
          * Verify, scan and move the uploaded object to the clean bucket
-         * @description Synchronous for purposes with small size limits (roster-import, 50 MB). Returns the
-         *     final state: clean, infected or rejected (type, size, missing, timeout).
+         * @description Synchronous, bounded by a 60-second budget. Returns the final state: clean, infected or rejected (type, size, missing, timeout). The quarantine object is deleted in every case.
          */
         post: operations["completeUpload"];
         delete?: never;
@@ -67,14 +68,12 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: components["parameters"]["UploadId"];
-            };
+            path?: never;
             cookie?: never;
         };
         /**
          * Short-lived presigned GET on a clean object, for services
-         * @description Not routed by the public entrypoint. Caller acts for the upload's tenant.
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes.
          */
         get: operations["getUploadDownload"];
         put?: never;
@@ -117,7 +116,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark a document superseded by a newer one */
+        /**
+         * Mark a document superseded by a newer one
+         * @description Sets `status` to superseded and `supersededBy` to the newer document. A document
+         *     already superseded or revoked is refused with 409.
+         */
         post: operations["supersedeDocument"];
         delete?: never;
         options?: never;
@@ -134,7 +137,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Metadata of an issued document (owner) */
+        /**
+         * Metadata of an issued document (owner)
+         * @description The subject person (`subjectPersonId`) only; anyone else gets 404.
+         */
         get: operations["getDocument"];
         put?: never;
         post?: never;
@@ -153,7 +159,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Short-lived presigned download of an issued PDF (owner; audited; emits document.downloaded.v1) */
+        /**
+         * Short-lived presigned download of an issued PDF (owner)
+         * @description The subject person only; audited, and emits `document.downloaded.v1`. Refused with 410
+         *     once the document's download window has ended.
+         */
         get: operations["getDocumentDownload"];
         put?: never;
         post?: never;
@@ -171,19 +181,23 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "action-response" | "access-representation";
+        UploadPurpose: "roster-import";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired";
-        /** @enum {string} */
-        UploadRejection: "type" | "size" | "missing" | "timeout";
+        /**
+         * @description Why a rejected upload was refused: `type` the bytes are not the declared type; `encoding` a CSV that is not UTF-8 text (save it as CSV UTF-8); `size` over the limit or not the declared size; `missing` nothing was uploaded; `timeout` the checks did not finish
+         * @enum {string}
+         */
+        UploadRejection: "type" | "encoding" | "size" | "missing" | "timeout";
         CreateUpload: {
             purpose: components["schemas"]["UploadPurpose"];
             /**
+             * @description One of the purpose's types; the PUT to uploadUrl must send it as Content-Type
              * @example text/csv
              * @example application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
              */
             contentType: string;
-            /** @description Bytes; must be within the purpose's limit */
+            /** @description Bytes; within the purpose's limit. The PUT must send exactly this many bytes */
             declaredSize: number;
             /** @description Display only; never used as an object key */
             fileName?: string;
@@ -193,7 +207,7 @@ export interface components {
             id: string;
             /**
              * Format: uri
-             * @description Presigned PUT; send the raw bytes with the declared content type
+             * @description Presigned PUT; send the raw bytes with the declared Content-Type and size before expiresAt
              */
             uploadUrl: string;
             /** Format: date-time */
@@ -205,23 +219,23 @@ export interface components {
             id: string;
             purpose: components["schemas"]["UploadPurpose"];
             state: components["schemas"]["UploadState"];
-            rejection?: components["schemas"]["UploadRejection"] | null;
+            rejection: components["schemas"]["UploadRejection"] | null;
             /** @description Declared type; detectedType is set after completion */
             contentType: string;
-            detectedType?: string | null;
+            detectedType: string | null;
             declaredSize: number;
-            size?: number | null;
+            size: number | null;
             /** @description Hex digest, set when clean */
-            sha256?: string | null;
+            sha256: string | null;
             fileName: string | null;
             /** Format: date-time */
             createdAt: string;
-            /** Format: date-time */
-            completedAt?: string | null;
+            completedAt: string | null;
         };
         UploadDownload: {
             /** Format: uuid */
             id: string;
+            purpose: components["schemas"]["UploadPurpose"];
             /** @constant */
             state: "clean";
             /** Format: uri */
@@ -230,6 +244,10 @@ export interface components {
             expiresAt: string;
             sha256: string;
             size: number;
+            /** @description As given at createUpload; display only */
+            fileName: string | null;
+            /** @description Sniffed content type, e.g. text/csv or the XLSX type */
+            detectedType: string;
         };
         ProblemDetails: {
             type: string;
@@ -237,6 +255,7 @@ export interface components {
             status: number;
             detail?: string;
             instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
             errors?: {
                 path: string;
                 message: string;
@@ -310,15 +329,6 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
-        /** @description Caller lacks the required role */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
         /** @description Not found, or not visible to the caller */
         NotFound: {
             headers: {
@@ -330,7 +340,6 @@ export interface components {
         };
     };
     parameters: {
-        UploadId: string;
         DocumentId: string;
     };
     requestBodies: never;
@@ -342,7 +351,10 @@ export interface operations {
     createUpload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -361,8 +373,33 @@ export interface operations {
                     "application/json": components["schemas"]["UploadReservation"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Request failed validation, or the type or size is not the purpose's */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Your roles do not allow uploads for this purpose */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getUpload: {
@@ -370,7 +407,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["UploadId"];
+                id: string;
             };
             cookie?: never;
         };
@@ -385,15 +422,26 @@ export interface operations {
                     "application/json": components["schemas"]["Upload"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     completeUpload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
             path: {
-                id: components["parameters"]["UploadId"];
+                id: string;
             };
             cookie?: never;
         };
@@ -408,9 +456,35 @@ export interface operations {
                     "application/json": components["schemas"]["Upload"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Upload already completed or expired */
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upload-completed` (already clean, infected or rejected), `upload-expired`, or `upload-completing` (another request is completing it). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upload-check-unavailable`: storage or the scanner failed; nothing changed, retry. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -423,9 +497,12 @@ export interface operations {
     getUploadDownload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
             path: {
-                id: components["parameters"]["UploadId"];
+                id: string;
             };
             cookie?: never;
         };
@@ -440,8 +517,34 @@ export interface operations {
                     "application/json": components["schemas"]["UploadDownload"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Upload is not clean */
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's upload */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -35,7 +35,6 @@ import { historyOf, periodOf } from '../../clarification/view';
 import { respondToMyClarification } from '../../server/clarifications';
 import type { ClarificationLink } from '../../server/clarifications.server';
 import type { DeclarantClarification } from '../../server/review/types';
-import { loginHref } from '../declaration/route-helpers';
 import {
   ConfirmResponseDialog,
   PointAnswer,
@@ -44,6 +43,7 @@ import {
   type SubmitError,
   useResponseForm,
 } from './response-form';
+import { loginHref } from '../sign-in';
 
 /**
  * A clarification as the declarant sees it (spec 07a FE-5, S14, S20): what the Commission asks

@@ -126,8 +126,14 @@ export async function officerOf(api: DirectoryApi) {
 
 export async function assignedEvents(api: DirectoryApi) {
   return (
-    await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox)
-  ).filter((event) => event.type === 'commission.reporting-officer.assigned.v1');
+    // In the order they were recorded (UUIDv7 ids), not whatever order the table returns.
+    (
+      await api.db
+        .select({ type: outbox.eventType, envelope: outbox.envelope })
+        .from(outbox)
+        .orderBy(asc(outbox.id))
+    ).filter((event) => event.type === 'commission.reporting-officer.assigned.v1')
+  );
 }
 
 /**

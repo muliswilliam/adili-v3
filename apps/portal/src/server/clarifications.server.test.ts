@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { loadClarificationPage, respondToClarification } from './clarifications.server';
 import { mockDocumentsFetch, receiveMockUpload, resetDocumentsMock } from './documents/mock.server';
 import type { paths as DocumentsPaths } from './documents/schema.gen';
+import type { CreateUpload, UploadPurpose } from './documents/types';
 import {
   failNextResponse,
   MOCK_CLARIFICATION_IDS as IDS,
@@ -25,16 +26,19 @@ const documents = createClient<DocumentsPaths>({
 
 async function cleanUpload(fileName = 'statement.pdf', purpose = 'clarification-attachment') {
   const { data } = await documents.POST('/v1/uploads', {
+    params: { header: { 'Idempotency-Key': crypto.randomUUID() } },
     body: {
-      purpose: purpose as 'clarification-attachment',
+      purpose: purpose as UploadPurpose,
       contentType: 'application/pdf',
       declaredSize: 1000,
       fileName,
-    },
+    } satisfies CreateUpload as never,
   });
   if (!data) throw new Error('not reserved');
   receiveMockUpload(data.id, 1000);
-  await documents.POST('/v1/uploads/{id}/complete', { params: { path: { id: data.id } } });
+  await documents.POST('/v1/uploads/{id}/complete', {
+    params: { path: { id: data.id }, header: { 'Idempotency-Key': crypto.randomUUID() } },
+  });
   return data.id;
 }
 

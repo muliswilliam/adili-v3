@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "declaration.v1",
+  "type": "initial",
+  "statementDate": "2026-08-15",
+  "incomePeriod": { "from": "2025-08-16", "to": "2026-08-15", "fromSource": "assumed" },
+  "officer": {
+    "name": { "surname": "Chebet", "firstName": "Winnie" },
+    "birth": { "date": "2001-11-04", "place": "Eldoret" },
+    "maritalStatus": "single",
+    "address": {
+      "postal": "P.O. Box 2210-30100, Eldoret",
+      "physical": "Elgon View, Eldoret"
+    },
+    "employment": {
+      "designation": "Graduate Intern, Accounts",
+      "employer": "County Government of Uasin Gishu",
+      "nature": "temporary",
+      "responsibleCommission": "cpsbuasingishu"
+    }
+  },
+  "spouses": { "none": true, "items": [] },
+  "children": { "none": true, "items": [] },
+  "statements": [
+    {
+      "personKey": "officer",
+      "personName": { "surname": "Chebet", "firstName": "Winnie" },
+      "statementDate": "2026-08-15",
+      "incomePeriod": { "from": "2025-08-16", "to": "2026-08-15" },
+      "incomeNil": true,
+      "income": [],
+      "assetsNil": true,
+      "assets": [],
+      "liabilitiesNil": true,
+      "liabilities": []
+    }
+  ],
+  "otherInformation": {
+    "materialChanges": [],
+    "registrableInterests": {
+      "directorships": [],
+      "memberships": [],
+      "dualCitizenship": { "holds": false, "pendingApplication": false },
+      "pendingCases": []
+    },
+    "freeText": ""
+  },
+  "attestation": {
+    "text": "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete."
+  }
+}

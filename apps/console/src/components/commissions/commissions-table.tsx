@@ -13,7 +13,8 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import type { Commission } from '../../server/directory/client';
-import { formatDateTime, formatRelativeDate } from '../format';
+import { formatDateTime, formatRelativeDate, formatRelativeTime } from '../format';
+import { rosterCoverage } from '../roster/coverage';
 import { CommissionTypeBadge, IssuerCode, OfficerStateBadge } from './badges';
 import { messages as m } from './messages';
 
@@ -101,6 +102,61 @@ function Officer({ officer }: { officer: Commission['reportingOfficer'] }) {
   );
 }
 
+/**
+ * Roster coverage: "No roster yet" until one is imported, then "{onboarded} of {expected}
+ * onboarded" with any flagged officers, and when the last import ran.
+ */
+function RosterCoverageCell({ roster }: { roster: Commission['roster'] }) {
+  const coverage = rosterCoverage(roster);
+  if (!coverage) return <Muted>{m.noRoster}</Muted>;
+  return (
+    <span className="flex flex-col items-start gap-px">
+      <span className="flex flex-wrap items-center gap-1.5">
+        <span className="font-medium whitespace-nowrap tabular-nums">
+          {m.rosterCoverage(coverage.onboarded, coverage.expected)}
+        </span>
+        {coverage.flagged > 0 ? (
+          <Badge variant="warning">{m.rosterFlagged(coverage.flagged)}</Badge>
+        ) : null}
+      </span>
+      {coverage.lastImportAt ? (
+        <span className="text-[12.5px] whitespace-nowrap text-muted-foreground">
+          <LastImport iso={coverage.lastImportAt} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** The same, on one line of a mobile card. */
+function RosterCoverageLine({ roster }: { roster: Commission['roster'] }) {
+  const coverage = rosterCoverage(roster);
+  if (!coverage) return <p className="text-[13px] text-muted-foreground">{m.noRoster}</p>;
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-muted-foreground">
+      <span className="font-medium text-foreground tabular-nums">
+        {m.rosterCoverage(coverage.onboarded, coverage.expected)}
+      </span>
+      {coverage.lastImportAt ? (
+        <span>
+          · <LastImport iso={coverage.lastImportAt} />
+        </span>
+      ) : null}
+      {coverage.flagged > 0 ? (
+        <Badge variant="warning">{m.rosterFlagged(coverage.flagged)}</Badge>
+      ) : null}
+    </p>
+  );
+}
+
+function LastImport({ iso }: { iso: string }) {
+  return (
+    <time dateTime={iso} title={formatDateTime(iso)} suppressHydrationWarning>
+      {m.rosterLastImport(formatRelativeTime(iso))}
+    </time>
+  );
+}
+
 function Created({ iso }: { iso: string }) {
   return (
     <Tooltip content={formatDateTime(iso)}>
@@ -132,8 +188,7 @@ function CommissionsTable({ items }: { items: readonly Commission[] }) {
               <Officer officer={commission.reportingOfficer} />
             </TableCell>
             <TableCell>
-              {/* Coverage ("X of Y onboarded") arrives with the roster import (spec 02). */}
-              <Muted>{m.noRoster}</Muted>
+              <RosterCoverageCell roster={commission.roster} />
             </TableCell>
             <TableCell className="whitespace-nowrap">
               <Created iso={commission.createdAt} />
@@ -171,7 +226,7 @@ function CommissionsCards({ items }: { items: readonly Commission[] }) {
               m.officerNotAssigned
             )}
           </p>
-          <p className="text-[13px] text-muted-foreground">{m.noRoster}</p>
+          <RosterCoverageLine roster={commission.roster} />
         </li>
       ))}
     </ul>

@@ -19,6 +19,7 @@ import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
 import { startMyDeclaration } from '../../server/declarations';
 import type { DeclarationListResult, ObligationsResult } from '../../server/declarations.server';
 import type { Obligation, ObligationStatus } from '../../server/declarations/types';
+import { signInAgain } from '../sign-in';
 import { startAvailability } from './obligations';
 
 /** What the dashboard loads for an onboarded declarant's obligations card. */
@@ -64,7 +65,7 @@ function StartButton({ obligationId }: { obligationId: string }) {
       return;
     }
     if (result.status === 'unauthenticated') {
-      window.location.assign(`/auth/login?returnTo=${encodeURIComponent('/')}`);
+      signInAgain('/');
       return;
     }
     setBusy(false);

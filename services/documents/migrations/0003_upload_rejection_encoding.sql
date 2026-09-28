@@ -1,0 +1,2 @@
+ALTER TABLE "uploads" DROP CONSTRAINT "uploads_rejection_check";--> statement-breakpoint
+ALTER TABLE "uploads" ADD CONSTRAINT "uploads_rejection_check" CHECK (("uploads"."state" = 'rejected') = ("uploads"."rejection" is not null) and ("uploads"."rejection" is null or "uploads"."rejection" in ('type', 'encoding', 'size', 'missing', 'timeout')));

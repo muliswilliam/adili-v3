@@ -1,3 +1,4 @@
+import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 import type { ReviewClient } from './review/client.server';
 import type { ClarificationResponseInput, DeclarantClarification } from './review/types';
 
@@ -6,24 +7,6 @@ import type { ClarificationResponseInput, DeclarantClarification } from './revie
  * results the clarification page can branch on. Pure: the caller injects the client (see
  * `clarifications.ts` for the server functions that call these as the signed-in declarant).
  */
-
-export interface Unavailable {
-  status: 'unavailable';
-}
-export interface NotFound {
-  status: 'not-found';
-}
-
-const unavailable: Unavailable = { status: 'unavailable' };
-const notFound: NotFound = { status: 'not-found' };
-
-async function attempt<T>(call: () => Promise<T>): Promise<T | Unavailable> {
-  try {
-    return await call();
-  } catch {
-    return unavailable;
-  }
-}
 
 /** Another clarification on the same thread, by reference for the page's banners. */
 export interface ClarificationLink {
