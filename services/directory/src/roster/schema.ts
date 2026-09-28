@@ -178,6 +178,12 @@ export const rosterImports = pgTable(
     processedRows: integer().notNull().default(0),
     /** Chunks of accepted rows to apply; null until staging finishes. */
     chunkCount: integer(),
+    /**
+     * The staging attempt that owns the import's staged rows: each attempt claims it when it
+     * starts over, and writes only while it still holds it, so an attempt Temporal gave up on
+     * (and retried) cannot write alongside its successor.
+     */
+    stagingAttempt: uuid(),
     /** Set when the import ends. Its `exitsRecorded` is as at the end; the column is current. */
     counts: jsonb().$type<ImportCounts>(),
     /**

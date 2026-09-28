@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { heartbeat } from '@temporalio/activity';
+import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
 
 import type { DirectorySchema } from '../../db/schema.js';
 import { applyChunk } from './apply-chunk.js';
 import { finaliseImport } from './finalise.js';
+import { keepHeartbeating } from './heartbeats.js';
 import { flagAbsent } from './flag-absent.js';
 import { DocumentsUnavailable, RosterUploads } from './roster-uploads.js';
 import { stageImport } from './staging.js';
@@ -31,14 +32,15 @@ export class RosterImportActivities {
     private readonly uploads: RosterUploads,
   ) {}
 
-  /** Reads, validates and stages the import's rows; heartbeats per batch of staged rows. */
+  /**
+   * Reads, validates and stages the import's rows; heartbeats throughout, with the rows staged
+   * so far.
+   */
   async stage(ref: ImportRef): Promise<StageResult> {
     try {
-      return await stageImport(this.db, this.uploads, ref, {
-        heartbeat: (rows) => {
-          heartbeat(rows);
-        },
-      });
+      return await keepHeartbeating(Context.current(), (progress) =>
+        stageImport(this.db, this.uploads, ref, { heartbeat: progress }),
+      );
     } catch (error) {
       if (error instanceof DocumentsUnavailable) {
         throw ApplicationFailure.retryable(error.message, STORAGE_ERROR);

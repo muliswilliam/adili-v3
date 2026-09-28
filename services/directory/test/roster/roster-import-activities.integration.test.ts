@@ -16,8 +16,13 @@ import { confirmExits } from '../../src/roster/exits/exits.js';
 import { applyChunk } from '../../src/roster/import/apply-chunk.js';
 import { finaliseImport } from '../../src/roster/import/finalise.js';
 import { flagAbsent } from '../../src/roster/import/flag-absent.js';
-import { DocumentsUnavailable } from '../../src/roster/import/roster-uploads.js';
-import { IMPORT_SUBJECT, stageImport } from '../../src/roster/import/staging.js';
+import {
+  DocumentsUnavailable,
+  type OpenedRosterUpload,
+  type RosterUpload,
+  RosterUploads,
+} from '../../src/roster/import/roster-uploads.js';
+import { IMPORT_SUBJECT, StagingSuperseded, stageImport } from '../../src/roster/import/staging.js';
 import type { ImportRef } from '../../src/roster/import/workflow-contract.js';
 import { refreshRosterSummary } from '../../src/roster/summary.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -181,7 +186,78 @@ describe('stage', () => {
     expect(await stagedRows(ref)).toEqual([]);
     expect(await importRow(ref)).toMatchObject({ state: 'processing', chunkCount: null });
   });
+
+  it('stops an attempt still running when its successor starts over, which stages alone', async () => {
+    const lines = Array.from(
+      { length: 2000 },
+      (_, index) => `PSC/${index + 1},Officer Number${index + 1},${10_000_000 + index}\n`,
+    );
+    const uploads = new GatedUploads([
+      `personnel_file_number,full_name,national_id\n${lines.slice(0, 1001).join('')}`,
+      lines.slice(1001).join(''),
+    ]);
+    const ref = await givenImport();
+    const staging = (flushed: PromiseWithResolvers<undefined>) =>
+      stageImport(api.db, uploads, ref, {
+        heartbeat: (rows) => {
+          if (rows === 1000) flushed.resolve(undefined);
+        },
+      });
+
+    // The first attempt has written its first batch and waits for more of the file ...
+    const firstFlushed = Promise.withResolvers<undefined>();
+    const first = staging(firstFlushed);
+    await firstFlushed.promise;
+    // ... when Temporal, taking it for lost, starts the next, which gets as far.
+    const secondFlushed = Promise.withResolvers<undefined>();
+    const second = staging(secondFlushed);
+    await secondFlushed.promise;
+    uploads.release(0);
+    await expect(first).rejects.toBeInstanceOf(StagingSuperseded);
+    uploads.release(1);
+
+    expect(await second).toEqual({ outcome: 'staged', chunkCount: 2, declaredComplete: true });
+    const rows = await stagedRows(ref);
+    expect(rows).toHaveLength(2000);
+    expect(rows.at(-1)?.rowNumber).toBe(2001);
+    expect(await importRow(ref)).toMatchObject({ totalRows: 2000, chunkCount: 2 });
+  });
 });
+
+/** Serves one CSV in two parts; each opening waits before its second part until released. */
+class GatedUploads extends RosterUploads {
+  private readonly gates: PromiseWithResolvers<undefined>[] = [];
+
+  constructor(private readonly parts: [string, string]) {
+    super();
+  }
+
+  release(opening: number): void {
+    this.gates[opening]?.resolve(undefined);
+  }
+
+  describe(): Promise<RosterUpload> {
+    return Promise.reject(new Error('not used'));
+  }
+
+  open(_tenant: string, uploadId: string): Promise<OpenedRosterUpload> {
+    const gate = Promise.withResolvers<undefined>();
+    this.gates.push(gate);
+    const [head, tail] = this.parts.map((part) => new TextEncoder().encode(part));
+    async function* body(): AsyncGenerator<Uint8Array> {
+      if (head) yield head;
+      await gate.promise;
+      if (tail) yield tail;
+    }
+    return Promise.resolve({
+      id: uploadId,
+      fileName: 'roster.csv',
+      format: 'csv',
+      size: 0,
+      body: body(),
+    });
+  }
+}
 
 describe('applyChunk', () => {
   it('applies nothing twice when a chunk runs again', async () => {

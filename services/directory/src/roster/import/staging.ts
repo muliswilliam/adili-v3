@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { type Database, withTenant } from '@adili/data-access';
 import { and, eq, sql } from 'drizzle-orm';
 
@@ -42,9 +44,12 @@ type ImportRow = typeof rosterImports.$inferSelect;
  * errors, then records the totals and the column mapping. Moves the import to `processing`.
  *
  * Restart-safe: an import already staged returns its plan without reading the input again; a
- * staging cut short (crash, retry) starts over, deleting the rows it had written. Input that
- * cannot be imported (missing required columns, unreadable file, upload gone) returns `failed`
- * with no rows staged. Throws `DocumentsUnavailable` when the file cannot be fetched, for a retry.
+ * staging cut short (crash, retry) starts over, deleting the rows it had written. Each attempt
+ * claims the import when it starts over and writes only while it holds the claim, so an attempt
+ * still running when its successor starts (one Temporal took for lost) stops with
+ * `StagingSuperseded` at its next write instead of writing alongside it. Input that cannot be
+ * imported (missing required columns, unreadable file, upload gone) returns `failed` with no rows
+ * staged. Throws `DocumentsUnavailable` when the file cannot be fetched, for a retry.
  */
 export async function stageImport(
   db: Database<DirectorySchema>,
@@ -53,6 +58,7 @@ export async function stageImport(
   options: StageOptions = {},
 ): Promise<StageResult> {
   const context = { tenant: ref.tenant, subject: IMPORT_SUBJECT };
+  const attempt = randomUUID();
   const current = await withTenant(db, context, async (tx) => {
     const [row] = await tx
       .select()
@@ -65,7 +71,7 @@ export async function stageImport(
     await tx.delete(rosterImportRows).where(eq(rosterImportRows.importId, ref.importId));
     await tx
       .update(rosterImports)
-      .set({ state: 'processing', processedRows: 0 })
+      .set({ state: 'processing', processedRows: 0, stagingAttempt: attempt })
       .where(eq(rosterImports.id, ref.importId));
     return row;
   });
@@ -81,24 +87,26 @@ export async function stageImport(
     };
   }
 
+  const claim: StagingClaim = { ...ref, attempt };
   const source = await openSource(db, uploads, current);
   if (!source.ok) {
-    await recordUnimportable(db, ref, source.mapping);
+    await recordUnimportable(db, claim, source.mapping);
     return { outcome: 'failed', failure: source.failure };
   }
 
-  const writer = new RowWriter(db, ref, options);
+  const writer = new RowWriter(db, claim, options);
   try {
     for await (const row of source.rows) await writer.add(row);
     await writer.flush();
   } catch (error) {
     if (!(error instanceof RosterFileError)) throw error;
-    await recordUnimportable(db, ref, source.mapping);
+    await recordUnimportable(db, claim, source.mapping);
     return { outcome: 'failed', failure: { code: 'parse-error', detail: error.message } };
   }
 
   const chunkCount = Math.ceil(writer.accepted / CHUNK_SIZE);
   await withTenant(db, context, async (tx) => {
+    await holdClaim(tx, claim);
     await tx
       .update(rosterImports)
       .set({
@@ -237,13 +245,43 @@ async function openBatch(db: Database<DirectorySchema>, row: ImportRow): Promise
 /** Leaves an import that cannot be imported with its mapping (if read) and no staged rows. */
 async function recordUnimportable(
   db: Database<DirectorySchema>,
-  ref: ImportRef,
+  claim: StagingClaim,
   mapping: ColumnMapping | null,
 ): Promise<void> {
-  await withTenant(db, { tenant: ref.tenant, subject: IMPORT_SUBJECT }, async (tx) => {
-    await tx.delete(rosterImportRows).where(eq(rosterImportRows.importId, ref.importId));
-    await tx.update(rosterImports).set({ mapping }).where(eq(rosterImports.id, ref.importId));
+  await withTenant(db, { tenant: claim.tenant, subject: IMPORT_SUBJECT }, async (tx) => {
+    await holdClaim(tx, claim);
+    await tx.delete(rosterImportRows).where(eq(rosterImportRows.importId, claim.importId));
+    await tx.update(rosterImports).set({ mapping }).where(eq(rosterImports.id, claim.importId));
   });
+}
+
+/** A later staging attempt of the import has started over: this one must stop writing. */
+export class StagingSuperseded extends Error {
+  constructor(importId: string) {
+    super(`A later staging attempt of roster import ${importId} took over`);
+    this.name = 'StagingSuperseded';
+  }
+}
+
+/** The import a staging attempt works on, and the attempt's claim on it. */
+interface StagingClaim extends ImportRef {
+  attempt: string;
+}
+
+/**
+ * Holds the attempt's claim until the transaction ends (a share lock on the import, which a
+ * successor's claim waits for), so what the transaction writes cannot land after a successor has
+ * started over. Throws `StagingSuperseded` when a successor already has.
+ */
+async function holdClaim(tx: Transaction, claim: StagingClaim): Promise<void> {
+  const [held] = await tx
+    .select({ id: rosterImports.id })
+    .from(rosterImports)
+    .where(
+      and(eq(rosterImports.id, claim.importId), eq(rosterImports.stagingAttempt, claim.attempt)),
+    )
+    .for('share');
+  if (!held) throw new StagingSuperseded(claim.importId);
 }
 
 /** Writes staged rows in batches, numbering accepted rows into chunks. */
@@ -254,7 +292,7 @@ class RowWriter {
 
   constructor(
     private readonly db: Database<DirectorySchema>,
-    private readonly ref: ImportRef,
+    private readonly ref: StagingClaim,
     private readonly options: StageOptions,
   ) {}
 
@@ -283,9 +321,10 @@ class RowWriter {
     if (this.batch.length === 0) return;
     const rows = this.batch;
     this.batch = [];
-    await withTenant(this.db, { tenant: this.ref.tenant, subject: IMPORT_SUBJECT }, (tx) =>
-      tx.insert(rosterImportRows).values(rows),
-    );
+    await withTenant(this.db, { tenant: this.ref.tenant, subject: IMPORT_SUBJECT }, async (tx) => {
+      await holdClaim(tx, this.ref);
+      await tx.insert(rosterImportRows).values(rows);
+    });
     this.options.heartbeat?.(this.accepted + this.rejected);
   }
 }
