@@ -1,4 +1,4 @@
-import { Badge, Icon, Spinner, Tooltip } from '@adili/ui';
+import { Badge, cn, focusRing, Icon, Spinner, Tooltip } from '@adili/ui';
 import {
   AlertCircleIcon,
   File02Icon,
@@ -110,10 +110,7 @@ export function ImportOutcomeBadge({
 export function CompletenessBadge({ declaredComplete }: { declaredComplete: boolean }) {
   return (
     <Tooltip content={declaredComplete ? m.completeRosterTip : m.partialUpdateTip} side="right">
-      <Badge
-        tabIndex={0}
-        className="cursor-default outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      >
+      <Badge tabIndex={0} className={cn(focusRing, 'cursor-default')}>
         {declaredComplete ? m.completeRoster : m.partialUpdate}
       </Badge>
     </Tooltip>

@@ -1,4 +1,4 @@
-import { Button, CheckboxItem, cn, Icon, Input, Label, Spinner } from '@adili/ui';
+import { Button, CheckboxItem, cn, focusRingInset, Icon, Input, Label, Spinner } from '@adili/ui';
 import {
   AlertCircleIcon,
   Tick02Icon,
@@ -282,7 +282,10 @@ function PasswordInput({
       />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          focusRingInset,
+          'absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground',
+        )}
         aria-label={msgStr(revealed ? 'hidePassword' : 'showPassword')}
         aria-controls={props.id}
         onClick={() => {
