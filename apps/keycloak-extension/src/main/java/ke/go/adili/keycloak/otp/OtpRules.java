@@ -8,11 +8,14 @@ import java.time.Duration;
  */
 public record OtpRules(Duration codeLifetime, int maxAttempts, Duration resendCooldown, int maxResends) {
 
-    public static final OtpRules DEFAULTS = new OtpRules(Duration.ofMinutes(10), 5, Duration.ofSeconds(60), 3);
-
+    static final Duration MAX_CODE_LIFETIME = Duration.ofMinutes(60);
     public OtpRules {
         if (codeLifetime.isNegative() || codeLifetime.isZero()) {
             throw new IllegalArgumentException("codeLifetime must be positive");
+        }
+        // The notifications templates quote at most 60 minutes and refuse longer lifetimes.
+        if (codeLifetime.compareTo(MAX_CODE_LIFETIME) > 0) {
+            throw new IllegalArgumentException("codeLifetime must be at most 60 minutes");
         }
         if (maxAttempts < 1) {
             throw new IllegalArgumentException("maxAttempts must be at least 1");

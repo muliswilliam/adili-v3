@@ -19,6 +19,7 @@ import org.keycloak.vault.VaultStringSecret;
 public final class AdiliOtpAuthenticatorFactory implements AuthenticatorFactory {
 
     public static final String PROVIDER_ID = "adili-otp";
+    static final String REFERENCE_CATEGORY = "otp";
 
     private static final Logger LOG = Logger.getLogger(AdiliOtpAuthenticatorFactory.class);
 
@@ -28,8 +29,11 @@ public final class AdiliOtpAuthenticatorFactory implements AuthenticatorFactory 
         AuthenticationExecutionModel.Requirement.DISABLED
     };
 
-    /** One client per distinct configuration, so service tokens are reused across sign-ins. */
-    private final Map<OtpSettings, NotificationsClient> clients = new ConcurrentHashMap<>();
+    /**
+     * The client for each authenticator config (by config id), so service tokens are reused across
+     * sign-ins. An edited config or rotated secret replaces its entry instead of adding one.
+     */
+    private final Map<String, AdiliOtpAuthenticator.Setup> setups = new ConcurrentHashMap<>();
 
     @Override
     public Authenticator create(KeycloakSession session) {
@@ -47,7 +51,10 @@ public final class AdiliOtpAuthenticatorFactory implements AuthenticatorFactory 
                         return secret.get().orElse(raw);
                     }
                 });
-        return new AdiliOtpAuthenticator.Setup(settings, clients.computeIfAbsent(settings, this::client));
+        String key = context.getAuthenticatorConfig() == null ? "" : context.getAuthenticatorConfig().getId();
+        return setups.compute(key, (k, existing) -> existing != null && existing.settings().equals(settings)
+                ? existing
+                : new AdiliOtpAuthenticator.Setup(settings, client(settings)));
     }
 
     private NotificationsClient client(OtpSettings settings) {
@@ -77,7 +84,7 @@ public final class AdiliOtpAuthenticatorFactory implements AuthenticatorFactory 
 
     @Override
     public String getReferenceCategory() {
-        return "otp";
+        return REFERENCE_CATEGORY;
     }
 
     @Override
@@ -113,6 +120,6 @@ public final class AdiliOtpAuthenticatorFactory implements AuthenticatorFactory 
 
     @Override
     public void close() {
-        clients.clear();
+        setups.clear();
     }
 }

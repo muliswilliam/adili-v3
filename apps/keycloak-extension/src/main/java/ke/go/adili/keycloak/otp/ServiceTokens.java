@@ -22,6 +22,12 @@ public final class ServiceTokens {
     /** Refresh this long before expiry so a token never expires in flight. */
     private static final Duration EARLY = Duration.ofSeconds(30);
 
+    /**
+     * After a failed fetch (wrong secret, unreachable endpoint), wait this long before trying
+     * again, so a broken setup fails sends at once instead of queueing each behind a timeout.
+     */
+    private static final Duration RETRY_AFTER_FAILURE = Duration.ofSeconds(30);
+
     private final URI tokenUrl;
     private final String clientId;
     private final String clientSecret;
@@ -30,6 +36,7 @@ public final class ServiceTokens {
 
     private String token;
     private Instant expiresAt = Instant.MIN;
+    private Instant nextAttemptAt = Instant.MIN;
 
     public ServiceTokens(URI tokenUrl, String clientId, String clientSecret, Duration timeout) {
         this.tokenUrl = tokenUrl;
@@ -39,12 +46,20 @@ public final class ServiceTokens {
         this.http = HttpClient.newBuilder().connectTimeout(timeout).build();
     }
 
-    /** A token valid for at least the next 30 seconds, or empty when Keycloak refused one. */
+    /**
+     * A token valid for at least the next 30 seconds, or empty when none could be had. One fetch
+     * at a time: callers arriving meanwhile wait for it and reuse its token.
+     */
     public synchronized Optional<String> current() throws IOException, InterruptedException {
-        if (token == null || !Instant.now().isBefore(expiresAt)) {
+        Instant now = Instant.now();
+        if ((token == null || !now.isBefore(expiresAt)) && !now.isBefore(nextAttemptAt)) {
+            nextAttemptAt = now.plus(RETRY_AFTER_FAILURE);
             fetch();
+            if (token != null) {
+                nextAttemptAt = Instant.MIN;
+            }
         }
-        return Optional.ofNullable(token);
+        return token != null && Instant.now().isBefore(expiresAt) ? Optional.of(token) : Optional.empty();
     }
 
     /** Drops the cached token after the service rejected it (e.g. the signing key rotated). */

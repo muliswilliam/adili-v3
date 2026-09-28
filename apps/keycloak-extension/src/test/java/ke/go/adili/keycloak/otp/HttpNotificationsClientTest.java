@@ -26,6 +26,7 @@ class HttpNotificationsClientTest {
     private final List<String> messageBodies = new CopyOnWriteArrayList<>();
     private final List<String> authorizations = new CopyOnWriteArrayList<>();
     private final AtomicInteger tokensIssued = new AtomicInteger();
+    private final AtomicInteger tokenRequests = new AtomicInteger();
     private volatile int messageStatus = 201;
     private volatile String messageOutcome = "sent";
     private volatile long messageDelayMs = 0;
@@ -35,6 +36,7 @@ class HttpNotificationsClientTest {
     void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/token", exchange -> {
+            tokenRequests.incrementAndGet();
             String form = read(exchange);
             if (!form.contains("grant_type=client_credentials")
                     || !form.contains("client_id=keycloak-extension")
@@ -64,10 +66,14 @@ class HttpNotificationsClientTest {
     }
 
     private HttpNotificationsClient client(Duration timeout) {
+        return client(timeout, "s3cret");
+    }
+
+    private HttpNotificationsClient client(Duration timeout, String secret) {
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
         return new HttpNotificationsClient(
                 URI.create(base),
-                new ServiceTokens(URI.create(base + "/token"), "keycloak-extension", "s3cret", timeout),
+                new ServiceTokens(URI.create(base + "/token"), "keycloak-extension", secret, timeout),
                 timeout);
     }
 
@@ -112,6 +118,17 @@ class HttpNotificationsClientTest {
 
         assertTrue(sent);
         assertEquals(List.of("Bearer token-1", "Bearer token-2"), authorizations);
+    }
+
+    @Test
+    void failsFastWithoutAskingForTokensAgainAfterARefusal() {
+        HttpNotificationsClient client = client(Duration.ofSeconds(2), "wrong");
+
+        assertFalse(client.send(Channel.SMS, "+254712345678", "111111", 10));
+        assertFalse(client.send(Channel.SMS, "+254712345678", "222222", 10));
+
+        assertEquals(1, tokenRequests.get());
+        assertTrue(messageBodies.isEmpty());
     }
 
     @Test

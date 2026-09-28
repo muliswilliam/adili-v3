@@ -207,6 +207,37 @@ describe('S22: declarant sign-in with a one-time code', () => {
     }
   });
 
+  it('ends the session when a step-up runs out of attempts, so the password is asked again', async () => {
+    const admin = await adminToken();
+    const before = await latestSmsCode(MOCKS, DECLARANT.phone);
+    const { browser, page } = await signInWithPassword(DECLARANT);
+    const first = await waitForNew(() => latestSmsCode(MOCKS, DECLARANT.phone), before);
+    const signedIn = await post(browser, page, { action: 'verify', otp: first.code });
+    expect(signedIn.location).toMatch(new RegExp(`^${REDIRECT_URI}\\?`));
+
+    // Let the code step (LoA 2) lapse while the password (LoA 1) holds: a step-up.
+    const restoreMaxAge = await setLoa2MaxAge(admin, 2);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      const beforeStepUp = await latestSmsCode(MOCKS, DECLARANT.phone);
+      let stepUp = await startSignIn(browser);
+      expect(context(stepUp)).toMatchObject({ pageId: 'login-adili-otp.ftl', isStepUp: true });
+      const code = await waitForNew(() => latestSmsCode(MOCKS, DECLARANT.phone), beforeStepUp);
+
+      for (let i = 0; i < 5; i += 1) {
+        stepUp = await post(browser, stepUp, { action: 'verify', otp: wrongCode(code.code) });
+        await humanPause();
+      }
+
+      expect(context(stepUp).pageId).toBe('login.ftl');
+      expect(context(stepUp).message?.summary).toContain('Too many wrong codes');
+      // The session is gone: a new sign-in starts from the password.
+      expect(context(await startSignIn(browser)).pageId).toBe('login.ftl');
+    } finally {
+      await restoreMaxAge();
+    }
+  });
+
   it('leaves staff on TOTP', async () => {
     const { page } = await signInWithPassword(REVIEWER);
 
@@ -310,6 +341,30 @@ async function createDeclarant(
     body: JSON.stringify([role]),
   });
   return userId;
+}
+
+/** Sets the LoA 2 (code) max age in seconds and returns how to put it back. */
+async function setLoa2MaxAge(token: string, seconds: number): Promise<() => Promise<void>> {
+  const executions = (await (
+    await adminFetch(token, `/authentication/flows/${encodeURIComponent('adili otp')}/executions`)
+  ).json()) as { authenticationConfig?: string; providerId?: string }[];
+  const configId = executions.find(
+    (execution) => execution.providerId === 'conditional-level-of-authentication',
+  )?.authenticationConfig;
+  if (!configId) throw new Error('adili otp has no level-of-authentication condition');
+  const config = (await (await adminFetch(token, `/authentication/config/${configId}`)).json()) as {
+    config: Record<string, string>;
+  };
+  const original = config.config['loa-max-age'] ?? '300';
+  const put = (value: string) =>
+    adminFetch(token, `/authentication/config/${configId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...config, config: { ...config.config, 'loa-max-age': value } }),
+    });
+  await put(String(seconds));
+  return async () => {
+    await put(original);
+  };
 }
 
 function requireEnv(name: string): string {

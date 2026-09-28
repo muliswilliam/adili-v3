@@ -80,7 +80,7 @@ public final class OtpChallenge {
 
     /**
      * Records `code` (see {@link #newCode()}) as sent on `channel` and returns it. Call only after
-     * the code went out, so a failed send neither replaces a working code nor uses up a resend.
+     * the code went out, so a failed send never replaces a working code.
      */
     public String issue(Channel channel, String code) {
         Instant now = clock.get();
@@ -93,6 +93,19 @@ public final class OtpChallenge {
         notes.set(LAST_SENT_AT, Long.toString(now.toEpochMilli()));
         notes.set(SENDS, Integer.toString(sends() + 1));
         return code;
+    }
+
+    /**
+     * Records a send that did not go out. It uses up a resend like a sent code, because the
+     * provider may have delivered it anyway, and it starts no cooldown.
+     */
+    public void recordFailedSend() {
+        notes.set(SENDS, Integer.toString(sends() + 1));
+    }
+
+    /** Whether any code was sent, or tried, in this sign-in. */
+    public boolean anySendAttempted() {
+        return sends() > 0;
     }
 
     /** A fresh 6-digit code, uniformly distributed. */

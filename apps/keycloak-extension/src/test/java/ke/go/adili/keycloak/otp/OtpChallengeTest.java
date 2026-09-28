@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
@@ -161,6 +162,37 @@ class OtpChallengeTest {
 
         now = now.plus(Duration.ofMinutes(10));
         assertFalse(challenge().hasLiveCode());
+    }
+
+    @Test
+    void failedSendsUseUpResendsSoRetriesAreBounded() {
+        challenge().recordFailedSend();
+        assertTrue(challenge().anySendAttempted());
+        assertEquals(3, challenge().resendsLeft());
+
+        for (int i = 0; i < 3; i++) {
+            assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canSwitchChannel());
+            challenge().recordFailedSend();
+        }
+
+        assertEquals(0, challenge().resendsLeft());
+        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canResend());
+        assertEquals(OtpChallenge.SendDecision.EXHAUSTED, challenge().canSwitchChannel());
+    }
+
+    @Test
+    void aFailedSendStartsNoCooldown() {
+        challenge().recordFailedSend();
+
+        assertEquals(Optional.empty(), challenge().resendAvailableAt());
+        assertEquals(OtpChallenge.SendDecision.ALLOWED, challenge().canResend());
+    }
+
+    @Test
+    void rulesRejectLifetimesTheTemplatesCannotQuote() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new OtpRules(Duration.ofMinutes(61), 5, Duration.ofSeconds(60), 3));
+        new OtpRules(Duration.ofMinutes(60), 5, Duration.ofSeconds(60), 3);
     }
 
     private record MapNotes(Map<String, String> map) implements OtpChallenge.Notes {
