@@ -34,6 +34,12 @@ export {
   type ConfidenceLevel,
   type ConfidenceMessages,
 } from './components/confidence-chip';
+export {
+  ConsentDialog,
+  type ConsentDialogProps,
+  type ConsentMessages,
+  maskNationalId,
+} from './components/consent-dialog';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export { CountrySelect, type CountrySelectProps } from './components/country-select';
 export { CountySelect, type CountySelectProps } from './components/county-select';
