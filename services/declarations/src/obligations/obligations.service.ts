@@ -27,12 +27,14 @@ export const COMMISSION_STAFF_ROLES = [
   'commission-admin',
 ] as const;
 
-const PLATFORM_ADMIN = 'platform-admin';
-const PLATFORM_TENANT = 'platform';
+export const PLATFORM_ADMIN = 'platform-admin';
+/** `app.tenant` of reads across every Commission. */
+export const PLATFORM_TENANT = 'platform';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const obligationColumns = {
+/** The columns `toObligation` reads; select them from obligations left-joined to `commission_refs`. */
+export const obligationColumns = {
   id: filingObligations.id,
   tenant: filingObligations.tenant,
   rosterRecordId: filingObligations.rosterRecordId,
@@ -49,7 +51,7 @@ const obligationColumns = {
   remindersSent: sql<number>`(select count(*)::int from ${obligationReminders} where ${obligationReminders.obligationId} = ${filingObligations.id} and ${obligationReminders.outcome} = 'sent')`,
 };
 
-type ObligationRow = Awaited<ReturnType<typeof selectObligations>>[number];
+export type ObligationRow = Awaited<ReturnType<typeof selectObligations>>[number];
 
 function selectObligations(tx: Transaction) {
   return tx
@@ -179,7 +181,7 @@ async function readOfficer(tx: Transaction, rosterRecordId: string): Promise<Off
   return { ...officer, onboarded: personId !== null };
 }
 
-function toObligation(row: ObligationRow): Obligation {
+export function toObligation(row: ObligationRow): Obligation {
   return {
     id: row.id,
     commission: commissionOf(row),

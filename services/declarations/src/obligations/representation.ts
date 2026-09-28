@@ -51,3 +51,36 @@ export interface ObligationDetail extends Obligation {
 export interface MyObligations {
   groups: { commission: CommissionRef; obligations: Obligation[] }[];
 }
+
+export interface ObligationListItem extends Obligation {
+  officer: OfficerRef;
+}
+
+export interface ObligationPage {
+  items: ObligationListItem[];
+  nextCursor: string | null;
+}
+
+/** Obligations by status; cancelled ones are never counted. */
+export interface StatusCounts {
+  upcoming: number;
+  due: number;
+  overdue: number;
+  filed: number;
+}
+
+/** A biennial cycle with its dates under the Commission's policy. */
+export interface SummaryCycle {
+  key: string;
+  statementDate: string;
+  dueDate: string;
+}
+
+export interface CommissionSummary {
+  commission: CommissionRef;
+  cycle: SummaryCycle;
+  total: StatusCounts;
+  byType: Record<ObligationType, StatusCounts>;
+  /** Officers with a due or overdue obligation who have not onboarded, each counted once. */
+  notOnboarded: { due: number; overdue: number };
+}

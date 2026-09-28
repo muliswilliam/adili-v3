@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { Clock, SystemClock } from '../clock.js';
 import { DirectoryModule } from '../directory/directory.module.js';
+import { CommissionObligationsService } from './commission-obligations.service.js';
 import { ObligationsController } from './obligations.controller.js';
 import { ObligationsService } from './obligations.service.js';
 import { RosterEventsConsumer } from './roster-events.consumer.js';
@@ -17,6 +18,7 @@ import { DeferredObligationWorkflows, ObligationWorkflows } from './workflows.js
   controllers: [ObligationsController, RosterEventsConsumer],
   providers: [
     ObligationsService,
+    CommissionObligationsService,
     RosterIngest,
     { provide: Clock, useClass: SystemClock },
     { provide: ObligationWorkflows, useClass: DeferredObligationWorkflows },
