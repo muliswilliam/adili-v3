@@ -43,13 +43,13 @@
       "citation": "Act s.34",
       "title": "Timelines for declaration",
       "text": "(1) A public officer shall, within thirty days of appointment as a public officer, submit an initial declaration relating to his or her financial affairs for the period of one year prior to appointment. (2) Every public officer shall, once every two years within the period of service, submit a declaration relating to the financial affairs of the public officer as at first day of November of the declaration year, and such declaration shall be made within the month of December next following. (3) A public officer shall, within thirty days after ceasing to be a public officer, submit a final declaration relating to his financial affairs as at the date he ceases to be a public officer.",
-      "tags": ["deadline", "initial", "biennial", "final", "statement-date", "income-period"]
+      "tags": ["due-date", "initial", "biennial", "final", "statement-date", "income-period"]
     },
     {
       "citation": "Act s.35",
       "title": "Clarification",
       "text": "(1) Upon receipt of the declaration made under section 31, a responsible Commission shall analyse the declaration to ascertain— (a) whether the declaration raises possible issues of conflict of interest; (b) whether on the face of it, the declaration contains any discrepancy or inconsistency; and (c) its completeness and correctness. (2) The responsible Commission may, within six months of receipt of a declaration, request, in writing, for clarification from the public officer who submitted the declaration under section 31. (3) A public officer from whom clarification is sought under sub section (2) shall, within thirty days of receipt of the request, provide the clarification to the Commission. (4) A request for clarification may include a requirement that— (a) the omitted information be provided; or (b) any discrepancy or inconsistency, including a discrepancy or inconsistency arising out of the omission, be explained or corrected. (5) The responsible Commission may verify any information provided in the declaration.",
-      "tags": ["clarification", "deadline"]
+      "tags": ["clarification", "due-date"]
     },
     {
       "citation": "Act s.36",
@@ -67,7 +67,7 @@
       "citation": "Act s.38",
       "title": "Failure to submit information",
       "text": "A public officer who fails to submit any information required under this Act, within the prescribed period, commits an offence.",
-      "tags": ["offence", "deadline"]
+      "tags": ["offence", "due-date"]
     },
     {
       "citation": "Act s.39",
@@ -205,7 +205,7 @@
       "citation": "Act First Schedule, note 1",
       "title": "Guideline 1",
       "text": "Where the responsible Commission has a web application for filing the declaration, a public officer may fill and submit the declaration online. In such a case, a physical signature or delivery acknowledgment slip will not be necessary.",
-      "tags": ["submission"]
+      "tags": ["filing"]
     },
     {
       "citation": "Act First Schedule, note 2",
@@ -217,7 +217,7 @@
       "citation": "Act First Schedule, note 3",
       "title": "Guideline 3",
       "text": "All public officers are required to complete and submit their declarations to their responsible Commission, unless their responsible Commission has delegated its functions to another body.",
-      "tags": ["responsible-commission", "submission"]
+      "tags": ["responsible-commission", "filing"]
     },
     {
       "citation": "Act First Schedule, note 4",
@@ -229,25 +229,25 @@
       "citation": "Act First Schedule, note 5",
       "title": "Guideline 5",
       "text": "The responsibility of ensuring that a declaration has been received by the appropriate reporting authority or its agent lies on the public officer. Provided that where the officer sends the form under confidential cover directly to the responsible Commission, the officer should label the envelope with the words “Declaration of Incomes, Assets and Liabilities”. The organization and job group of the officer should also be indicated on the envelope.",
-      "tags": ["submission"]
+      "tags": ["filing"]
     },
     {
       "citation": "Act First Schedule, note 6",
       "title": "Guideline 6",
       "text": "A public officer is required to complete an initial declaration within thirty days of appointment and the statement date of the declaration will be the date the officer became a public officer.",
-      "tags": ["initial", "statement-date", "deadline"]
+      "tags": ["initial", "statement-date", "due-date"]
     },
     {
       "citation": "Act First Schedule, note 7",
       "title": "Guideline 7",
       "text": "A public officer is required to make a biennial declaration on or before the 31st day of December every other year or as may be provided for under the Act. The statement date for the biennial declaration will be 1st of November of the year in which the declaration is required.",
-      "tags": ["biennial", "statement-date", "deadline"]
+      "tags": ["biennial", "statement-date", "due-date"]
     },
     {
       "citation": "Act First Schedule, note 8",
       "title": "Guideline 8",
       "text": "A public officer is required to make a final declaration within thirty days of ceasing to be a public officer. The statement date of the final declaration shall be the date the public official ceased to be a public official.",
-      "tags": ["final", "statement-date", "deadline"]
+      "tags": ["final", "statement-date", "due-date"]
     },
     {
       "citation": "Act First Schedule, note 9",
@@ -265,13 +265,13 @@
       "citation": "Act First Schedule, note 11",
       "title": "Guideline 11",
       "text": "For each form submitted, there will be an acknowledgment slip issued by the responsible Commission or its agent.",
-      "tags": ["submission"]
+      "tags": ["filing"]
     },
     {
       "citation": "Act First Schedule, note 12",
       "title": "Guideline 12",
       "text": "Where a declaration is submitted electronically in accordance with the regulations made under this Act or administrative procedures adopted by the responsible Commission or any other competent authority, the declaration shall be valid notwithstanding the absence of a signature or acknowledgement stamp or receipt or slip.",
-      "tags": ["submission"]
+      "tags": ["filing"]
     },
     {
       "citation": "Act First Schedule, note 13",
@@ -343,7 +343,7 @@
       "citation": "Act First Schedule, solemn declaration",
       "title": "Solemn declaration",
       "text": "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.",
-      "tags": ["submission", "declaration"]
+      "tags": ["filing", "declaration"]
     },
     {
       "citation": "Act Second Schedule",

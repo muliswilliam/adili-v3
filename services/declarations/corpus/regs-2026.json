@@ -11,10 +11,28 @@
       "tags": ["definition"]
     },
     {
-      "citation": "Regs r.2",
-      "title": "Interpretation",
-      "text": "In these Regulations, unless the context otherwise requires— “Act” means the Conflict of Interest Act, 2025 (No. 11 of 2025); “gift” means anything that confers a benefit to the recipient without payment or other consideration; “recuse” means to remove oneself from any discussion, decision, debate or vote on a particular matter due to conflict of interest but does not include abstention; and “value of gift” means the prevailing or fair market value of a gift at the time and the place it is presented or received.",
-      "tags": ["definition", "gifts", "recusal"]
+      "citation": "Regs r.2 \"Act\"",
+      "title": "Meaning of \"Act\"",
+      "text": "“Act” means the Conflict of Interest Act, 2025 (No. 11 of 2025);",
+      "tags": ["definition"]
+    },
+    {
+      "citation": "Regs r.2 \"gift\"",
+      "title": "Meaning of \"gift\"",
+      "text": "“gift” means anything that confers a benefit to the recipient without payment or other consideration;",
+      "tags": ["definition", "gifts"]
+    },
+    {
+      "citation": "Regs r.2 \"recuse\"",
+      "title": "Meaning of \"recuse\"",
+      "text": "“recuse” means to remove oneself from any discussion, decision, debate or vote on a particular matter due to conflict of interest but does not include abstention; and",
+      "tags": ["definition", "recusal"]
+    },
+    {
+      "citation": "Regs r.2 \"value of gift\"",
+      "title": "Meaning of \"value of gift\"",
+      "text": "“value of gift” means the prevailing or fair market value of a gift at the time and the place it is presented or received.",
+      "tags": ["definition", "gifts"]
     },
     {
       "citation": "Regs r.3",
@@ -153,7 +171,7 @@
       "citation": "Regs r.25",
       "title": "Compliance reports",
       "text": "(1) Every reporting entity shall, within six months after the end of the financial year, file compliance reports with the Commission in Form L set out in the Schedule. (2) Every responsible Commission shall— (a) in relation to a two-year declaration, file a compliance report with the Commission in Form M set out in the Schedule by the 31st July of the year following the declaration year; and (b) in relation to initial and final declarations, file a compliance report with the Commission in Form M set out in the Schedule by the 31st July following the end of the financial year. (3) The compliance reports under paragraph (1) or (2) may be filed electronically",
-      "tags": ["compliance-report", "deadline"]
+      "tags": ["compliance-report", "due-date"]
     },
     {
       "citation": "Regs r.26",
@@ -201,7 +219,7 @@
       "citation": "Regs r.33",
       "title": "Electronic submission of information",
       "text": "Any report, declaration or other information required to be made under the Act and these Regulations may be made or submitted in electronic format.",
-      "tags": ["submission"]
+      "tags": ["filing"]
     },
     {
       "citation": "Regs r.34",

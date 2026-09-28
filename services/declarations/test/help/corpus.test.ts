@@ -5,10 +5,10 @@ import {
   type CorpusFile,
   corpusVersion,
   importCorpus,
-  InMemoryCorpusStore,
   loadCorpus,
   planImport,
 } from '../../src/help/corpus.js';
+import { InMemoryCorpusStore } from '../../src/help/in-memory-corpus-store.js';
 
 const committed = loadCorpus();
 
@@ -23,7 +23,7 @@ function file(overrides: Partial<CorpusFile> = {}): CorpusFile {
         citation: 'Act s.34',
         title: 'Timelines for declaration',
         text: '(1) A public officer shall, within thirty days of appointment ...',
-        tags: ['deadline', 'initial'],
+        tags: ['due-date', 'initial'],
       },
       {
         citation: 'Act s.35',
@@ -38,7 +38,11 @@ function file(overrides: Partial<CorpusFile> = {}): CorpusFile {
 
 describe('the committed corpus', () => {
   const passages = committed.flatMap((corpusFile) =>
-    corpusFile.passages.map((passage) => ({ ...passage, source: corpusFile.source })),
+    corpusFile.passages.map((passage) => ({
+      ...passage,
+      source: corpusFile.source,
+      effectiveFrom: passage.effectiveFrom ?? corpusFile.effectiveFrom,
+    })),
   );
 
   it('holds the Act (Part IV, definitions, schedules) and the Regulations', () => {
@@ -61,7 +65,11 @@ describe('the committed corpus', () => {
         'Regs r.34',
       ]),
     );
-    expect(passages.filter((passage) => passage.source === 'regs')).toHaveLength(34);
+    const regulations = new Set(
+      passages.flatMap((passage) => /^Regs r\.(\d+)/u.exec(passage.citation)?.[1] ?? []),
+    );
+    expect(regulations.size).toBe(34);
+    expect(citations).toEqual(expect.arrayContaining(['Regs r.2 "gift"', 'Act s.2 "family"']));
   });
 
   it('gives every passage a citation, title, English text and at least one known tag', () => {
@@ -78,10 +86,10 @@ describe('the committed corpus', () => {
     expect(incomplete.map((passage) => passage.citation)).toEqual([]);
   });
 
-  it('cites each passage once', () => {
-    const citations = passages.map((passage) => passage.citation);
+  it('has one wording of each citation per effective date', () => {
+    const wordings = passages.map((passage) => `${passage.citation} from ${passage.effectiveFrom}`);
 
-    expect(citations.length).toBe(new Set(citations).size);
+    expect(wordings.length).toBe(new Set(wordings).size);
   });
 
   it('keeps the text as published: no ligatures, page furniture or stray whitespace', () => {
@@ -128,6 +136,7 @@ describe('importCorpus', () => {
       skipped: false,
       inserted: 2,
       updated: 0,
+      removed: 0,
       unchanged: 0,
     });
     expect(store.version).toBe(corpusVersion([file()]));
@@ -138,7 +147,7 @@ describe('importCorpus', () => {
     expect(store.rows[0]).toMatchObject({
       source: 'act',
       textSw: null,
-      tags: ['deadline', 'initial'],
+      tags: ['due-date', 'initial'],
     });
   });
 
@@ -161,7 +170,7 @@ describe('importCorpus', () => {
       citation: 'Act s.34',
       title: 'Timelines for declaration',
       text: '(1) A public officer shall, within sixty days of appointment ...',
-      tags: ['deadline', 'initial'],
+      tags: ['due-date', 'initial'],
       effectiveFrom: '2027-01-01',
     });
 
@@ -175,6 +184,44 @@ describe('importCorpus', () => {
     ).toEqual([
       ['2025-08-19', '2027-01-01', false],
       ['2027-01-01', null, true],
+    ]);
+  });
+
+  it('withdraws a wording the files no longer hold, restoring the one it had ended', async () => {
+    const store = new InMemoryCorpusStore();
+    const misdated = file();
+    misdated.passages.push({
+      citation: 'Act s.34',
+      title: 'Timelines for declaration',
+      text: '(1) An amendment entered with the wrong date ...',
+      tags: ['due-date'],
+      effectiveFrom: '2026-01-01',
+    });
+    await importCorpus(store, [misdated]);
+
+    const result = await importCorpus(store, [file()]);
+
+    expect(result).toMatchObject({ removed: 1, updated: 1 });
+    expect(
+      store.rows
+        .filter((row) => row.citation === 'Act s.34')
+        .map((row) => [row.effectiveFrom, row.effectiveTo]),
+    ).toEqual([['2025-08-19', null]]);
+  });
+
+  it('records on each passage the corpus version that last wrote it', async () => {
+    const store = new InMemoryCorpusStore();
+    await importCorpus(store, [file()]);
+    const corrected = file();
+    const [first] = corrected.passages;
+    if (!first) throw new Error('the file has passages');
+    first.text = `${first.text} (corrected)`;
+
+    await importCorpus(store, [corrected]);
+
+    expect(store.rows.map((row) => [row.citation, row.version])).toEqual([
+      ['Act s.34', corpusVersion([corrected])],
+      ['Act s.35', corpusVersion([file()])],
     ]);
   });
 
@@ -211,7 +258,7 @@ describe('planImport', () => {
     if (!first) throw new Error('the file has passages');
     duplicated.passages.push({ ...first, title: 'Again' });
 
-    expect(() => planImport([duplicated], [])).toThrow(
+    expect(() => planImport([duplicated], [], 'v')).toThrow(
       'Act s.34 is in the corpus twice from 2025-08-19',
     );
   });

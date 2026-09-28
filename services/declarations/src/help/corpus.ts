@@ -32,13 +32,14 @@ export const CORPUS_TAGS = [
   'compliance-report',
   'confidentiality',
   'conflict-of-interest',
-  'deadline',
   'declaration',
   'definition',
   'dependent-child',
   'directorship',
   'dual-citizenship',
+  'due-date',
   'employment',
+  'filing',
   'final',
   'foreign',
   'gifts',
@@ -56,7 +57,6 @@ export const CORPUS_TAGS = [
   'responsible-commission',
   'spouse',
   'statement-date',
-  'submission',
 ] as const;
 
 export type CorpusTag = (typeof CORPUS_TAGS)[number];
@@ -102,6 +102,8 @@ export interface CorpusPassage {
   effectiveFrom: string;
   /** Exclusive: the day the next wording took effect; null while current. */
   effectiveTo: string | null;
+  /** The corpus version that last wrote this passage. */
+  version: string;
 }
 
 const DEFAULT_DIR = join(import.meta.dirname, '..', '..', 'corpus');
@@ -125,29 +127,45 @@ export function corpusVersion(files: CorpusFile[]): string {
 
 export interface ImportPlan {
   insert: CorpusPassage[];
-  /** Stored passages with new content or a new end date, keyed as stored. */
+  /** Stored passages with new content or a new end date. */
   update: CorpusPassage[];
+  /** Stored passages the files no longer hold, e.g. an amendment entered with the wrong date. */
+  remove: CorpusPassage[];
   unchanged: number;
 }
 
-const key = ({
-  source,
-  citation,
-  effectiveFrom,
-}: Pick<CorpusPassage, 'source' | 'citation' | 'effectiveFrom'>) =>
-  `${source}\u0000${citation}\u0000${effectiveFrom}`;
+type PassageId = Pick<CorpusPassage, 'source' | 'citation' | 'effectiveFrom'>;
+
+/** One wording: a citation of a source from its effective date. */
+export const passageKey = ({ source, citation, effectiveFrom }: PassageId) =>
+  JSON.stringify([source, citation, effectiveFrom]);
+
+const citationKey = ({ source, citation }: PassageId) => JSON.stringify([source, citation]);
+
+/** Stored order: by source, citation, then effective date. */
+export function byWording(a: PassageId, b: PassageId): number {
+  return (
+    a.source.localeCompare(b.source) ||
+    a.citation.localeCompare(b.citation) ||
+    a.effectiveFrom.localeCompare(b.effectiveFrom)
+  );
+}
 
 /**
- * What an import changes. A passage is one wording of a citation from its effective date: new
- * ones are inserted, changed ones (a transcription correction) updated in place, and every
- * wording of a citation ends where the next begins. Stored passages the files no longer hold are
- * left as they are.
+ * What an import changes. The files are the whole statutory corpus: a wording they hold is
+ * inserted, or updated in place when its content changed (a transcription correction); a stored
+ * wording they no longer hold is removed; and every wording of a citation ends where the next
+ * begins. Help articles are not statutory and not part of this.
  */
-export function planImport(files: CorpusFile[], stored: CorpusPassage[]): ImportPlan {
+export function planImport(
+  files: CorpusFile[],
+  stored: CorpusPassage[],
+  version: string,
+): ImportPlan {
   const incoming = new Map<string, CorpusPassage>();
   for (const file of files) {
     for (const passage of file.passages) {
-      const next: CorpusPassage = {
+      const wording: CorpusPassage = {
         source: file.source,
         citation: passage.citation,
         title: passage.title,
@@ -156,33 +174,34 @@ export function planImport(files: CorpusFile[], stored: CorpusPassage[]): Import
         tags: passage.tags,
         effectiveFrom: passage.effectiveFrom ?? file.effectiveFrom,
         effectiveTo: null,
+        version,
       };
-      if (incoming.has(key(next))) {
-        throw new Error(`${next.citation} is in the corpus twice from ${next.effectiveFrom}`);
+      if (incoming.has(passageKey(wording))) {
+        throw new Error(`${wording.citation} is in the corpus twice from ${wording.effectiveFrom}`);
       }
-      incoming.set(key(next), next);
+      incoming.set(passageKey(wording), wording);
     }
   }
 
-  const byKey = new Map(stored.map((passage) => [key(passage), passage]));
-  const merged = new Map([...byKey, ...incoming]);
   // Each wording of a citation ends where the next one begins.
-  const byCitation = Map.groupBy(
-    merged.values(),
-    (passage) => `${passage.source}\u0000${passage.citation}`,
-  );
-  const ends = new Map<string, string | null>();
-  for (const wordings of byCitation.values()) {
-    const ordered = wordings.toSorted((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
-    ordered.forEach((passage, index) =>
-      ends.set(key(passage), ordered[index + 1]?.effectiveFrom ?? null),
+  const effectiveToByKey = new Map<string, string | null>();
+  for (const wordings of Map.groupBy(incoming.values(), citationKey).values()) {
+    const ordered = wordings.toSorted(byWording);
+    ordered.forEach((wording, index) =>
+      effectiveToByKey.set(passageKey(wording), ordered[index + 1]?.effectiveFrom ?? null),
     );
   }
 
-  const plan: ImportPlan = { insert: [], update: [], unchanged: 0 };
-  for (const [passageKey, passage] of merged) {
-    const current = byKey.get(passageKey);
-    const next = { ...passage, effectiveTo: ends.get(passageKey) ?? null };
+  const storedByKey = new Map(stored.map((passage) => [passageKey(passage), passage]));
+  const plan: ImportPlan = {
+    insert: [],
+    update: [],
+    remove: stored.filter((passage) => !incoming.has(passageKey(passage))),
+    unchanged: 0,
+  };
+  for (const [key, wording] of incoming) {
+    const next = { ...wording, effectiveTo: effectiveToByKey.get(key) ?? null };
+    const current = storedByKey.get(key);
     if (!current) plan.insert.push(next);
     else if (sameContent(current, next)) plan.unchanged += 1;
     else plan.update.push(next);
@@ -214,6 +233,7 @@ export interface ImportResult {
   skipped: boolean;
   inserted: number;
   updated: number;
+  removed: number;
   unchanged: number;
 }
 
@@ -221,41 +241,16 @@ export interface ImportResult {
 export async function importCorpus(store: CorpusStore, files: CorpusFile[]): Promise<ImportResult> {
   const version = corpusVersion(files);
   if ((await store.currentVersion()) === version) {
-    return { version, skipped: true, inserted: 0, updated: 0, unchanged: 0 };
+    return { version, skipped: true, inserted: 0, updated: 0, removed: 0, unchanged: 0 };
   }
-  const plan = planImport(files, await store.passages());
+  const plan = planImport(files, await store.passages(), version);
   await store.apply(plan, version);
   return {
     version,
     skipped: false,
     inserted: plan.insert.length,
     updated: plan.update.length,
+    removed: plan.remove.length,
     unchanged: plan.unchanged,
   };
-}
-
-/** A store in memory, for tests and for the import's dry runs. */
-export class InMemoryCorpusStore implements CorpusStore {
-  version: string | null = null;
-  rows: CorpusPassage[] = [];
-
-  currentVersion(): Promise<string | null> {
-    return Promise.resolve(this.version);
-  }
-
-  passages(): Promise<CorpusPassage[]> {
-    return Promise.resolve(structuredClone(this.rows));
-  }
-
-  apply(plan: ImportPlan, version: string): Promise<void> {
-    const updates = new Map(plan.update.map((passage) => [key(passage), passage]));
-    this.rows = [...this.rows.map((row) => updates.get(key(row)) ?? row), ...plan.insert].sort(
-      (a, b) =>
-        a.source.localeCompare(b.source) ||
-        a.citation.localeCompare(b.citation) ||
-        a.effectiveFrom.localeCompare(b.effectiveFrom),
-    );
-    this.version = version;
-    return Promise.resolve();
-  }
 }
