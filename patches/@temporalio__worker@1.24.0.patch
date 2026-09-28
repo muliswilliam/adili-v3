@@ -1,0 +1,41 @@
+diff --git a/lib/workflow/threaded-vm.js b/lib/workflow/threaded-vm.js
+index 79c071a22ae8f3403c46b92cda1ad7d70e51c39c..5b746dd73ce44f7c7336e7ceb6a0a1d2ba65afee 100644
+--- a/lib/workflow/threaded-vm.js
++++ b/lib/workflow/threaded-vm.js
+@@ -53,10 +53,15 @@ class WorkerThreadClient {
+         this.logger = logger;
+         this.patchActivationCallback = patchActivationCallback;
+         workerThread.on('message', (message) => {
+-            if (!('requestId' in message)) {
++            if (message?.type === 'patch-activation-callback') {
+                 this.handlePatchActivationCallback(message);
+                 return;
+             }
++            // Messages the SDK did not send, such as the dependency reports Node's watch mode
++            // (--watch, nodejs/node#62368) posts from every worker thread, are not for this client.
++            if (typeof message !== 'object' || message === null || !('requestId' in message)) {
++                return;
++            }
+             const { requestId, result } = message;
+             const completion = this.requestIdToCompletion.get(requestId);
+             if (completion === undefined) {
+diff --git a/src/workflow/threaded-vm.ts b/src/workflow/threaded-vm.ts
+index 898748befe43a99629cbd5d1cc3e6f04f1f1a4bb..ca27fd3da954a8203891f62cc9a1a2f63311a43e 100644
+--- a/src/workflow/threaded-vm.ts
++++ b/src/workflow/threaded-vm.ts
+@@ -77,8 +77,13 @@ export class WorkerThreadClient {
+     protected patchActivationCallback?: PatchActivationCallback
+   ) {
+     workerThread.on('message', (message: WorkerThreadResponse | PatchActivationCallbackRequest) => {
+-      if (!('requestId' in message)) {
+-        this.handlePatchActivationCallback(message);
++      if ((message as Partial<PatchActivationCallbackRequest> | null)?.type === 'patch-activation-callback') {
++        this.handlePatchActivationCallback(message as PatchActivationCallbackRequest);
++        return;
++      }
++      // Messages the SDK did not send, such as the dependency reports Node's watch mode
++      // (--watch, nodejs/node#62368) posts from every worker thread, are not for this client.
++      if (typeof message !== 'object' || message === null || !('requestId' in message)) {
+         return;
+       }
+       const { requestId, result } = message;

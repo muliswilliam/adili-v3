@@ -70,7 +70,9 @@ describe('IdentifyStep', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain("Teachers Service Commission's roster");
-    expect(document.activeElement).toBe(alert);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(alert);
+    });
     expect(field('Personnel file number').value).toBe('TSC/1');
   });
 

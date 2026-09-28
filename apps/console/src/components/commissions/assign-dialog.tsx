@@ -31,6 +31,7 @@ import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
 
 import { assignReportingOfficer } from '../../server/commissions';
 import type { Commission } from '../../server/directory/client';
+import { goToSignIn } from '../sign-in-redirect';
 import {
   ASSIGN_FIELDS,
   type AssignAlert,
@@ -166,9 +167,7 @@ export function AssignDialogContent({
       return;
     }
     if (result.error.kind === 'unauthenticated') {
-      window.location.assign(
-        `/auth/login?returnTo=${encodeURIComponent(`/commissions/${commission.slug}`)}`,
-      );
+      goToSignIn(`/commissions/${commission.slug}`);
       return;
     }
     const failure = assignFailure(result.error);

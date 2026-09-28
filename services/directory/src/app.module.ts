@@ -1,21 +1,37 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, IdempotencyModule } from '@adili/api-kit';
-import { CacheModule, ValkeyReadinessCheck } from '@adili/cache';
+import { CoreModule, IdempotencyModule, RateLimitModule } from '@adili/api-kit';
+import { CacheModule, ValkeyRateLimitStore, ValkeyReadinessCheck } from '@adili/cache';
 import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
+import {
+  TemporalModule,
+  TemporalReadinessCheck,
+  TemporalWorkerReadinessCheck,
+} from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { CommissionsModule } from './commissions/commissions.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { MeController } from './me/me.controller.js';
+import { ApiCredentialModule } from './roster/api-credential/api-credential.module.js';
+import { RosterExitsModule } from './roster/exits/exits.module.js';
+import { RosterImportModule } from './roster/import/import.module.js';
+import { RosterRecordsModule } from './roster/records/records.module.js';
+import { RosterModule } from './roster/roster.module.js';
 
 @Module({
   imports: [
     CoreModule.forRoot({
       serviceName: SERVICE_NAME,
       config,
-      readiness: [DatabaseReadinessCheck, RabbitMqReadinessCheck, ValkeyReadinessCheck],
+      readiness: [
+        DatabaseReadinessCheck,
+        RabbitMqReadinessCheck,
+        ValkeyReadinessCheck,
+        TemporalReadinessCheck,
+        TemporalWorkerReadinessCheck,
+      ],
     }),
     DatabaseModule.forRoot({
       url: config.DATABASE_URL,
@@ -31,8 +47,18 @@ import { MeController } from './me/me.controller.js';
     }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    RateLimitModule.forRoot({ policies: config.RATE_LIMITS, store: ValkeyRateLimitStore }),
+    TemporalModule.forRoot({
+      address: config.TEMPORAL_ADDRESS,
+      namespace: config.TEMPORAL_NAMESPACE,
+    }),
     IdentityModule,
     CommissionsModule,
+    RosterModule,
+    ApiCredentialModule,
+    RosterImportModule,
+    RosterRecordsModule,
+    RosterExitsModule,
   ],
   controllers: [MeController],
 })

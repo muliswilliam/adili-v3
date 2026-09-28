@@ -1,10 +1,10 @@
+import { formatNumber } from '@adili/ui';
+
 /**
  * Dates as the console shows them, in Kenyan time. Built from numeric parts rather than
  * locale month names so the server-rendered and hydrated text agree across ICU versions and
  * machine time zones.
  */
-export { formatNumber } from '@adili/ui';
-
 const TIME_ZONE = 'Africa/Nairobi';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,6 +65,35 @@ export function formatRelativeDate(iso: string, now: Date = new Date()): string 
   if (months < 12) return months <= 1 ? '1 month ago' : `${months} months ago`;
   const years = Math.round(days / 365.25);
   return years <= 1 ? '1 year ago' : `${years} years ago`;
+}
+
+/**
+ * How long ago, to the minute within a day as the prototype words it (`just now`,
+ * `12 minutes ago`, `4 hours ago`), then as `formatRelativeDate`. For recent activity such as a
+ * credential's last use.
+ */
+export function formatRelativeTime(iso: string, now: Date = new Date()): string {
+  const minutes = Math.round((now.getTime() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  return formatRelativeDate(iso, now);
+}
+
+/** `48,312`, as `@adili/ui` prints it, so console copy and charts agree. */
+export { formatNumber };
+
+const MEBIBYTE = 1024 * 1024;
+
+/**
+ * `4.3 MB`, `12 KB`: binary units as upload limits count them. Rounded up, so a file just over
+ * a limit never reads as the limit itself ("50.1 MB", not "50.0 MB").
+ */
+export function formatFileSize(bytes: number): string {
+  // The epsilon keeps float noise (4.3 MiB is 43.000000001 tenths) from rounding up a tenth.
+  if (bytes >= MEBIBYTE) return `${(Math.ceil((bytes / MEBIBYTE) * 10 - 1e-9) / 10).toFixed(1)} MB`;
+  return `${formatNumber(Math.max(1, Math.ceil(bytes / 1024)))} KB`;
 }
 
 /** Midnight of the Kenyan calendar day, as epoch milliseconds. */

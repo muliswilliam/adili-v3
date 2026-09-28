@@ -1,6 +1,6 @@
 import type { MessageKey_defaultSet } from 'keycloakify/login';
 
-import type { en, I18n } from './i18n';
+import type { I18n } from './i18n';
 import type { KcContext } from './KcContext';
 
 /** Declarants sign in through the portal client; staff through the console client. */
@@ -29,7 +29,7 @@ export function signInUrlOf(
 }
 
 /** A key of the theme's own copy (i18n.ts). */
-export type MessageKey = keyof typeof en;
+export type MessageKey = Exclude<Parameters<I18n['msgStr']>[0], MessageKey_defaultSet>;
 
 /** Copy that differs by audience: the message key each one reads. */
 const AUDIENCE_COPY = {

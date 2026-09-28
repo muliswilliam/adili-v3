@@ -74,9 +74,12 @@ const commission = async (slug = 'tsc') =>
   (await api.get(`/v1/commissions/${slug}`, PLATFORM_ADMIN)).json<CommissionBody>();
 
 const activatedEvents = async () =>
-  (await api.db.select({ type: outbox.eventType, envelope: outbox.envelope }).from(outbox)).filter(
-    (event) => event.type === 'commission.reporting-officer.activated.v1',
-  );
+  (
+    await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .orderBy(outbox.id)
+  ).filter((event) => event.type === 'commission.reporting-officer.activated.v1');
 
 describe('S13 activation observed', () => {
   it('activates the assignment on the officer’s first GET /v1/me', async () => {
