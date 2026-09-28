@@ -42,7 +42,9 @@ describe('sourceDetails', () => {
       sourceDetails({
         type: 'vehicle',
         details: { registration: 'KCB 782M' },
-        attachments: [{ uploadId: 'u', fileName: 'logbook-KCB782M.pdf', sha256: 'x' }],
+        attachments: [
+          { attachmentId: 'a', uploadId: 'u', fileName: 'logbook-KCB782M.pdf', sha256: 'x' },
+        ],
         source: { kind: 'document', suggestionId, at: AT },
       }),
     ).toEqual({ kind: 'document', at: AT, reference: 'logbook-KCB782M.pdf' });
@@ -54,8 +56,8 @@ describe('sourceDetails', () => {
         type: 'vehicle',
         details: { registration: 'KCB 782M' },
         attachments: [
-          { uploadId: 'u', fileName: 'logbook-KCB782M.pdf', sha256: 'x' },
-          { uploadId: 'v', fileName: 'insurance.pdf', sha256: 'y' },
+          { attachmentId: 'a', uploadId: 'u', fileName: 'logbook-KCB782M.pdf', sha256: 'x' },
+          { attachmentId: 'b', uploadId: 'v', fileName: 'insurance.pdf', sha256: 'y' },
         ],
         source: { kind: 'document', suggestionId, at: AT },
       })?.reference,
