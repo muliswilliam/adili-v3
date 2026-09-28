@@ -24,14 +24,14 @@ export interface SuggestionMatch {
 }
 
 /**
- * `new` waits for the user, `accepted` has been added or applied, `dismissed` was set aside.
- * Superseded suggestions are not shown.
+ * `new` is waiting for a decision, `accepted` has been added or applied, `dismissed` was set
+ * aside. Superseded suggestions are not shown.
  */
 export type SuggestionStatus = 'new' | 'accepted' | 'dismissed';
 
 /**
  * The suggested fields that would fill a gap in an existing item: those with a value whose key
- * is empty (missing, null or blank) in `existing`. Never overwrites what the user entered.
+ * is empty (missing, null or blank) in `existing`. Never overwrites what is already entered.
  */
 export function emptyFieldDiff(
   suggested: SuggestionField[],
@@ -134,7 +134,7 @@ export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | '
 
 /**
  * One thing a registry or document suggests adding to the declaration: its title, where and when
- * it came from, a preview of its fields and what the user can do with it. New suggestions offer
+ * it came from, a preview of its fields and what can be done with it. New suggestions offer
  * Add, Edit and add, and Dismiss; one matching an existing item leads with "Apply to this item"
  * (listing the empty fields it fills), then Add, Edit and add, and Dismiss. Accepted cards collapse to "Added" (or "Applied") with a View
  * action; dismissed ones to "Dismissed". Every action's accessible name includes the title, and

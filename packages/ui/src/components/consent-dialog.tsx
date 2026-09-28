@@ -71,7 +71,9 @@ export interface ConsentDialogProps {
    * every registry.
    */
   registries?: readonly string[];
-  /** Called when the user has ticked the request and pressed Continue. Close the dialog here. */
+  /**
+   * Called when the declarant has ticked the request and pressed Continue. Close the dialog here.
+   */
   onContinue: () => void;
   /** Set while the consent is being recorded: nothing can be changed or closed. */
   busy?: boolean;
@@ -80,7 +82,7 @@ export interface ConsentDialogProps {
 }
 
 /**
- * Asks the user to request a registry check for one person before anything is looked up. A
+ * Asks the declarant to request a registry check for one person before anything is looked up. A
  * modal: focus is trapped while it is open and returns to the button that opened it. Continue
  * stays disabled until "I request this check" is ticked, and the tick is cleared every time the
  * dialog opens. The open state is controlled by the caller.
