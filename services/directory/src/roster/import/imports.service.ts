@@ -11,6 +11,7 @@ import { config } from '../../config.js';
 import { violatedUniqueConstraint } from '../../db/errors.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { rosterActorOf } from '../actor.js';
+import { isHrSystem } from '../api-credential/hr-system-access.js';
 import type { RawRosterRow } from '../row-validation.js';
 import { rosterImportBatches, rosterImports } from '../schema.js';
 import { RosterFileError } from '../sheet.js';
@@ -56,13 +57,24 @@ export class RosterImportsService {
     @InjectTemporalClient() private readonly temporal: Client,
   ) {}
 
-  /** Starts importing a clean roster upload of the caller's Commission. See `start`. */
+  /**
+   * Starts importing a clean roster upload of the caller's Commission. See `start`. Files are the
+   * reporting officer's: an HR system sends batches only (spec #27 matrix), so its token gets 403.
+   */
   async startFile(
     principal: Principal,
     slug: string,
     body: StartFileImportBody,
   ): Promise<RosterImport> {
     notFoundIfInvisible(slug, () => principal.tenant === slug);
+    if (isHrSystem(principal)) {
+      throw new ProblemException({
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: HttpStatus.FORBIDDEN,
+        detail: 'An HR system imports rows inline (channel `api`), not uploaded files.',
+      });
+    }
     const upload = await this.uploads
       .describe({ tenant: slug, uploadId: body.uploadId })
       .catch((error: unknown) => {

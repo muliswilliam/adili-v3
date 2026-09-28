@@ -330,6 +330,19 @@ describe('S16 tenant, scope and batch shape', () => {
     expectProblem(await api.get(`${ROSTER}/summary`, noScope), 403);
   });
 
+  it('403s an HR system starting a file import, and records nothing', async () => {
+    const response = await api.post(
+      IMPORTS,
+      { channel: 'file', uploadId: randomUUID(), declaredComplete: false },
+      PSC_HR,
+      { idempotencyKey: randomUUID() },
+    );
+
+    expectProblem(response, 403);
+    const history = await api.get(IMPORTS, OFFICER);
+    expect(history.json<RosterImportPage>().items).toEqual([]);
+  });
+
   it('400s 1,001 rows, and no rows', async () => {
     const tooMany = expectProblem(await pushBatch(manyRows(1001)), 400);
     expect(contractErrors(componentSchema('RosterBatchProblem'), tooMany)).toEqual([]);
