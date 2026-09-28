@@ -15,7 +15,13 @@ export type ParsedSectionKey =
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const PERSON_KEY = new RegExp(`^(?:officer|(?:spouse|child):${UUID})$`);
+const ID = new RegExp(`^${UUID}$`);
 const STATEMENT = 'statement:';
+
+/** A lowercase canonical UUID, the form ids take in keys and routes. */
+export function isUuid(value: string): boolean {
+  return ID.test(value);
+}
 
 /** `officer`, `spouse:<uuid>` or `child:<uuid>`; null for anything else. */
 export function parsePersonKey(value: string): PersonKey | null {
