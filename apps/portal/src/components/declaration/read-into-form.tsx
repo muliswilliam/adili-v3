@@ -209,7 +209,7 @@ export function ReadIntoForm({
         if (!next) close();
       }}
     >
-      <DialogContent busy={busy} aria-describedby={undefined}>
+      <DialogContent busy={busy}>
         {step.name === 'review' && reviewing && target ? (
           <Review
             key={reviewing.id}
