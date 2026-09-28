@@ -12,6 +12,7 @@ import {
   rosterImports,
   rosterRecords,
 } from '../schema.js';
+import { adjustRosterSummary, type RosterSummaryDelta } from '../summary.js';
 import { IMPORT_SUBJECT } from './staging.js';
 import type { ChunkCounts, ImportRef } from './workflow-contract.js';
 
@@ -39,7 +40,13 @@ type ExistingRecord = RecordValues & {
 /** What applying one row does to the roster. */
 type Decision =
   | { kind: 'create'; values: RecordValues }
-  | { kind: 'update'; recordId: string; values: RecordValues }
+  /** `reactivates`: the state an exited record goes back to; null for a record not exited. */
+  | {
+      kind: 'update';
+      recordId: string;
+      values: RecordValues;
+      reactivates: 'not_onboarded' | 'onboarded' | null;
+    }
   | { kind: 'unchanged'; recordId: string }
   | { kind: 'locked'; recordId: string; errors: RowError[] };
 
@@ -47,8 +54,8 @@ type Decision =
  * Applies one chunk of an import's accepted rows in one transaction: creates reporting entities
  * named for the first time, creates or updates records by personnel file number (case-insensitive),
  * rejects rows that would change an onboarded record's identity (`identity-locked`), re-activates
- * exited records, marks every record with a row as seen in this import, and marks the rows
- * applied with their outcome.
+ * exited records, marks every record with a row as seen in this import, moves the roster summary
+ * by what changed, and marks the rows applied with their outcome.
  *
  * Idempotent: only rows not yet applied are applied, and the import row is locked first, so a
  * re-run (after a crash, or racing a straggling attempt) applies nothing twice and returns zeros.
@@ -124,6 +131,7 @@ export async function applyChunk(
         decision.kind === 'unchanged' || decision.kind === 'locked' ? [decision.recordId] : [],
       ),
     );
+    await adjustRosterSummary(tx, ref.tenant, summaryDelta(decisions.map((row) => row.decision)));
 
     const counts: ChunkCounts = { ...NOTHING_APPLIED };
     const outcomes = decisions.map(({ rowNumber, decision }) => {
@@ -182,16 +190,35 @@ function decide(values: RecordValues, existing: ExistingRecord | undefined): Dec
     const errors = identityChanges(existing, values);
     if (errors.length > 0) return { kind: 'locked', recordId: existing.id, errors };
   }
-  if (existing.state === 'exited') return { kind: 'update', recordId: existing.id, values };
+  if (existing.state === 'exited') {
+    return { kind: 'update', recordId: existing.id, values, reactivates: activeState(existing) };
+  }
   return sameValues(existing, values)
     ? { kind: 'unchanged', recordId: existing.id }
-    : { kind: 'update', recordId: existing.id, values };
+    : { kind: 'update', recordId: existing.id, values, reactivates: null };
 }
 
 /** The record's state, or for an exited record the state a re-activation gives it back. */
 function activeState(record: ExistingRecord): 'not_onboarded' | 'onboarded' {
   if (record.state === 'exited') return record.stateBeforeExit ?? 'not_onboarded';
   return record.state;
+}
+
+/**
+ * How the chunk moves the roster summary: created records and re-activated ones count as expected
+ * again (and as onboarded when that is the state they get back). Neither is flagged: new records
+ * never were, and an exit cleared the flag.
+ */
+function summaryDelta(decisions: Decision[]): RosterSummaryDelta {
+  const delta: RosterSummaryDelta = { expected: 0, onboarded: 0, flagged: 0 };
+  for (const decision of decisions) {
+    if (decision.kind === 'create') delta.expected += 1;
+    if (decision.kind === 'update' && decision.reactivates !== null) {
+      delta.expected += 1;
+      if (decision.reactivates === 'onboarded') delta.onboarded += 1;
+    }
+  }
+  return delta;
 }
 
 function identityChanges(existing: RecordValues, values: RecordValues): RowError[] {

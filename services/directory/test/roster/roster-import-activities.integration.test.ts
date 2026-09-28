@@ -538,4 +538,92 @@ describe('the roster summary', () => {
 
     expect(await summary()).toMatchObject({ expected: 2 });
   });
+
+  it('applies an exit waiting on a full count to that count', async () => {
+    await givenCompletedImport();
+    const [first] = await records();
+
+    const commit = Promise.withResolvers<undefined>();
+    const counted = Promise.withResolvers<undefined>();
+    // The count holds the summary row until released.
+    const count = withTenant(api.db, { tenant: 'psc', subject: IMPORT_SUBJECT }, async (tx) => {
+      await refreshRosterSummary(tx, 'psc');
+      counted.resolve(undefined);
+      await commit.promise;
+    });
+    await counted.promise;
+    const backend = Promise.withResolvers<number>();
+    const exit = withTenant(api.db, { tenant: 'psc', subject: 'officer-psc' }, async (tx) => {
+      const { rows } = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+      backend.resolve(rows[0]?.pid ?? 0);
+      await confirmExits(tx, events, {
+        tenant: 'psc',
+        exits: [{ recordId: first?.id ?? '', exitDate: '2026-09-01' }],
+        source: 'console',
+        actor: { kind: 'user', id: 'officer-psc', name: null },
+      });
+    });
+    await waitsForALock(backend.promise);
+    commit.resolve(undefined);
+    await Promise.all([count, exit]);
+
+    expect(await summary()).toMatchObject({ expected: 2 });
+    await expectSummaryExact();
+  });
+
+  it('is exact while an import runs: chunks and flags move it, exits meanwhile too', async () => {
+    await givenCompletedImport();
+    const ref = await givenImport(
+      [
+        'personnel_file_number,full_name,national_id',
+        'PSC/1,Achieng Otieno,12345678',
+        'PSC/5,Mary Wambui,45678901',
+      ].join('\n'),
+    );
+    await stageImport(api.db, api.uploads, ref);
+
+    await applyChunk(api.db, ref, 0);
+    expect(await summary()).toMatchObject({ expected: 4, flagged: 0 });
+    await expectSummaryExact();
+
+    // An exit of a record the running import created.
+    const mary = (await records()).find((record) => record.personnelFileNumber === 'PSC/5');
+    await withTenant(api.db, { tenant: 'psc', subject: 'officer-psc' }, (tx) =>
+      confirmExits(tx, events, {
+        tenant: 'psc',
+        exits: [{ recordId: mary?.id ?? '', exitDate: '2026-09-01' }],
+        source: 'console',
+        actor: { kind: 'user', id: 'officer-psc', name: null },
+      }),
+    );
+    expect(await summary()).toMatchObject({ expected: 3, flagged: 0 });
+    await expectSummaryExact();
+
+    // PSC/2 and PSC/3 are not in the file.
+    expect(await flagAbsent(api.db, ref)).toBe(2);
+    expect(await summary()).toMatchObject({ expected: 3, flagged: 2 });
+    await expectSummaryExact();
+  });
+
+  async function givenCompletedImport(): Promise<void> {
+    const ref = await givenImport();
+    await stageImport(api.db, api.uploads, ref);
+    await applyChunk(api.db, ref, 0);
+    await finaliseImport(api.db, events, ref, { state: 'completed' });
+    expect(await summary()).toMatchObject({ expected: 3 });
+  }
+
+  /** The stored counts are what a full count of the records gives. */
+  async function expectSummaryExact(): Promise<void> {
+    const counts = ({
+      expected,
+      onboarded,
+      flagged,
+    }: Partial<typeof rosterSummaries.$inferSelect>) => ({ expected, onboarded, flagged });
+    const stored = counts((await summary()) ?? {});
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      refreshRosterSummary(tx, 'psc'),
+    );
+    expect(stored).toEqual(counts((await summary()) ?? {}));
+  }
 });

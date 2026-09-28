@@ -47,15 +47,16 @@ export interface CompletedImport {
 /**
  * Recomputes the tenant's roster summary from its records and stores it, in the caller's
  * transaction, so the summary changes atomically with the roster (spec #27). A full count of the
- * tenant's records: run once per import, when it ends (the records its chunks changed count from
- * then on); changes to a known set of records adjust the summary instead (`adjustRosterSummary`).
- * `completedImport` also records the import as the latest one (and as the latest complete one
- * when declared complete); its time is the transaction's.
+ * tenant's records, run once per import when it ends; every change to records in between moves
+ * the summary by its exact delta (`adjustRosterSummary`), so the count finds nothing to correct
+ * and the summary is exact at all times. `completedImport` also records the import as the latest
+ * one (and as the latest complete one when declared complete); its time is the transaction's.
  *
  * The summary row is locked before counting, so the count sees every record change whose
- * `adjustRosterSummary` came first and none that adjusts after: a delta is never overwritten by
- * a count taken before it committed. Adjusters lock records then the summary; this locks the
- * summary and counts without locking records, so the two cannot deadlock.
+ * adjustment came first and none that adjusts after: a delta is never overwritten by a count
+ * taken before it committed, nor applied to a count that already includes it. Lock order is the
+ * same everywhere: adjusters lock the records they change, then the summary row; this locks only
+ * the summary row and counts without locking records, so the two cannot deadlock.
  */
 export async function refreshRosterSummary(
   tx: Transaction,
@@ -108,16 +109,17 @@ export interface RosterSummaryDelta {
 
 /**
  * Moves the tenant's roster summary by `delta`, in the caller's transaction, for a change to
- * records the caller has locked and whose before and after it knows (exits, keeps): the cost of
- * the change, not of the roster. Without a summary row yet, counts the records instead. While an
- * import is running, records its chunks changed are counted when it ends, so the counts may be
- * off until then; its full count puts them right.
+ * records whose before and after the caller knows exactly, having locked (or created) them first:
+ * import chunks, flagging, exits and keeps. The cost of the change, not of the roster. Updating
+ * the summary row locks it until the commit, so concurrent adjustments and full counts apply in
+ * turn. Without a summary row yet, counts the records instead (they include this change).
  */
 export async function adjustRosterSummary(
   tx: Transaction,
   tenant: string,
   delta: RosterSummaryDelta,
 ): Promise<void> {
+  if (delta.expected === 0 && delta.onboarded === 0 && delta.flagged === 0) return;
   const adjusted = await tx
     .update(rosterSummaries)
     .set({
