@@ -10,6 +10,7 @@ import {
   byClientIp,
   byClientIpAnd,
   CoreModule,
+  createOpenApiDocument,
   InMemoryRateLimitStore,
   ProblemException,
   Public,
@@ -225,5 +226,15 @@ describe('RateLimit on public routes', () => {
     const reset = await identify('commission-6');
     expect(limitHeaders(reset)).toEqual({ limit: '2', remaining: '1', reset: '30' });
     expect((await identify(undefined)).headers['ratelimit-remaining']).toBe('3');
+  });
+
+  it('documents one 429 for a route with several budgets', () => {
+    const { paths } = createOpenApiDocument(app, { name: 'test', description: 'test' });
+    const tooMany = paths['/v1/onboarding/sessions']?.post?.responses['429'] as {
+      description: string;
+    };
+    expect(tooMany.description).toBe(
+      'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After',
+    );
   });
 });

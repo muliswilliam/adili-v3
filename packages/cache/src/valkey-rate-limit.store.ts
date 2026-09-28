@@ -10,7 +10,7 @@ import type { Redis } from 'iovalkey';
 import { InjectValkey } from './cache.module.js';
 
 /**
- * `takeToken` from `@adili/api-kit` as one atomic script. Time comes from the Valkey server, so
+ * `takeToken` from `@adili/api-kit` as one atomic script (with its `TOKEN_EPSILON`). Time comes from the Valkey server, so
  * replicas with skewed clocks share buckets correctly, unless the caller passes its own (tests,
  * through `RATE_LIMIT_CLOCK`). A bucket expires once it would be full again, which is the same
  * as having no bucket.
@@ -32,8 +32,8 @@ if bucket[1] then
   tokens = math.min(limit, tonumber(bucket[1]) + elapsed * tokens_per_ms)
 end
 local allowed = 0
-if tokens >= cost then
-  tokens = math.min(limit, tokens - cost)
+if tokens + 1e-6 >= cost then
+  tokens = math.max(0, math.min(limit, tokens - cost))
   allowed = 1
 end
 redis.call('HSET', KEYS[1], 'tokens', tostring(tokens), 'updated_at', now)

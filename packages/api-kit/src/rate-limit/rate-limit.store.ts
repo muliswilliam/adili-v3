@@ -25,6 +25,9 @@ export interface TokenBucket {
   updatedAtMs: number;
 }
 
+/** Tolerance of token arithmetic: far below one request, far above rounding error. */
+export const TOKEN_EPSILON = 1e-6;
+
 /**
  * Refills `bucket` for the time elapsed since it was last updated, then takes `cost` tokens if
  * the bucket holds them. A negative cost gives tokens back (up to the limit) and is always
@@ -41,9 +44,11 @@ export function takeToken(
   const tokensPerMs = limit / (policy.windowSeconds * 1000);
   const elapsedMs = bucket ? Math.max(0, nowMs - bucket.updatedAtMs) : 0;
   let tokens = bucket ? Math.min(limit, bucket.tokens + elapsedMs * tokensPerMs) : limit;
-  const allowed = tokens >= cost;
+  // Refills accumulate in floating point (and Valkey stores them as text), so a bucket waited
+  // on for exactly `retryAfterSeconds` may hold 0.9999999 tokens: count that as the token.
+  const allowed = tokens + TOKEN_EPSILON >= cost;
   if (allowed) {
-    tokens = Math.min(limit, tokens - cost);
+    tokens = Math.max(0, Math.min(limit, tokens - cost));
   }
   return {
     bucket: { tokens, updatedAtMs: nowMs },

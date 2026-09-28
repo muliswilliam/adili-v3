@@ -427,7 +427,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Active Responsible Commissions a declarant can choose from */
+        /**
+         * Active Responsible Commissions a declarant can choose from
+         * @description Public, rate-limited per client IP. Ordered by name; may be up to a minute behind (cached).
+         */
         get: operations["listOnboardingCommissions"];
         put?: never;
         post?: never;
@@ -448,9 +451,7 @@ export interface paths {
         put?: never;
         /**
          * Match personnel file number and national ID against a Commission's roster
-         * @description Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
-         *     same `no-match` problem. On success the response carries the session and, once only,
-         *     the session secret the BFF stores in an httpOnly cookie.
+         * @description Public, rate-limited per client IP and per client IP and Commission (a Commission without a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
          */
         post: operations["identifyDeclarant"];
         delete?: never;
@@ -462,16 +463,14 @@ export interface paths {
     "/v1/onboarding/sessions/{sessionId}": {
         parameters: {
             query?: never;
-            header: {
-                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
-        /** Current step, masked contacts and roster details to confirm */
+        /**
+         * Current step, masked contacts and roster details to confirm
+         * @description Public, with the session secret; rate-limited per client IP.
+         */
         get: operations["getOnboardingSession"];
         put?: never;
         post?: never;
@@ -1400,23 +1399,6 @@ export interface components {
              */
             exitDate: string;
         };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            /**
-             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
-             * @enum {string}
-             */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
-            detail?: string;
-            instance?: string;
-            /** @description Field-level errors; `path` is the dotted request field */
-            errors?: {
-                path: string;
-                message: string;
-            }[];
-        };
         /**
          * @description Officer reference (ADR-011), permanent and person-level
          * @example OFR-0482913-L
@@ -1426,12 +1408,18 @@ export interface components {
         OtpChannel: "email" | "phone";
         OnboardingCommission: {
             slug: components["schemas"]["Slug"];
+            /**
+             * @description slug upper-cased
+             * @example TSC
+             */
             issuerCode: string;
             name: string;
+            /** @description Whether the Commission has imported a roster; identify needs one */
             hasRoster: boolean;
         };
         IdentifyDeclarant: {
             commission: components["schemas"]["Slug"];
+            /** @description As on the payslip; compared trimmed and case-insensitively */
             personnelFileNumber: string;
             /** @description Digits after stripping spaces, 5 to 10 */
             nationalId: string;
@@ -1445,6 +1433,8 @@ export interface components {
             source: "roster" | "declarant";
             verified: boolean;
         };
+        /** @enum {string} */
+        OnboardingOutcome: "account-created" | "linked-existing-account" | "identity-mismatch";
         OnboardingSession: {
             /** Format: uuid */
             id: string;
@@ -1464,16 +1454,86 @@ export interface components {
             /** @description Resend availability for the channel currently pending */
             otp: {
                 channel: components["schemas"]["OtpChannel"] | null;
-                /** Format: date-time */
                 resendAvailableAt: string | null;
                 resendsLeft: number;
                 attemptsLeft: number;
             };
-            /** @description Set when state is confirmed */
+            /** @description Set when state is confirmed or identity-mismatch */
             outcome?: components["schemas"]["OnboardingOutcome"] | null;
             ofr?: components["schemas"]["Ofr"] | null;
             /** Format: date-time */
             expiresAt: string;
+        };
+        OnboardingSessionCreated: {
+            /** Format: uuid */
+            id: string;
+            state: components["schemas"]["OnboardingState"];
+            commission: components["schemas"]["OnboardingCommission"];
+            contacts: {
+                email: components["schemas"]["MaskedContact"] | null;
+                phone: components["schemas"]["MaskedContact"] | null;
+            };
+            /** @description Roster details shown at the confirm step; null before phone-verified */
+            details: {
+                fullName: string;
+                personnelFileNumber: string;
+                designation: string | null;
+                reportingEntity: string | null;
+            } | null;
+            /** @description Resend availability for the channel currently pending */
+            otp: {
+                channel: components["schemas"]["OtpChannel"] | null;
+                resendAvailableAt: string | null;
+                resendsLeft: number;
+                attemptsLeft: number;
+            };
+            /** @description Set when state is confirmed or identity-mismatch */
+            outcome?: components["schemas"]["OnboardingOutcome"] | null;
+            ofr?: components["schemas"]["Ofr"] | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
+            secret: string;
+        };
+        OnboardingProblem: {
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limit-exceeded";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
+            attemptsLeft?: number;
+            retryAfterSeconds?: number;
+            /** @description Present for already-onboarded */
+            links?: {
+                /** Format: uri */
+                signIn?: string;
+                /** Format: uri */
+                recoverAccess?: string;
+            };
+        };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "identity-mismatch" | "already-registered";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
         };
         Agency: {
             /**
@@ -1502,28 +1562,9 @@ export interface components {
             /** Format: date-time */
             revokedAt: string | null;
         };
-        OnboardingSessionCreated: components["schemas"]["OnboardingSession"] & {
-            /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
-            secret: string;
-        };
-        /** @enum {string} */
-        OnboardingOutcome: "account-created" | "linked-existing-account" | "identity-mismatch";
         OnboardingConfirmResult: {
             outcome: components["schemas"]["OnboardingOutcome"];
             session: components["schemas"]["OnboardingSession"];
-        };
-        OnboardingProblem: components["schemas"]["ProblemDetails"] & {
-            /** @enum {string} */
-            code: "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "rate-limit-exceeded";
-            attemptsLeft?: number;
-            retryAfterSeconds?: number;
-            /** @description Present for already-onboarded */
-            links?: {
-                /** Format: uri */
-                signIn?: string;
-                /** Format: uri */
-                recoverAccess?: string;
-            };
         };
         DeclarantProfile: {
             /** Format: uuid */
@@ -3245,6 +3286,7 @@ export interface operations {
     listOnboardingCommissions: {
         parameters: {
             query?: {
+                /** @description Part of the name, or the issuer code, case-insensitive; blank means every Commission */
                 search?: string;
             };
             header?: never;
@@ -3256,13 +3298,44 @@ export interface operations {
             /** @description Commissions with roster availability */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingCommission"][];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     identifyDeclarant: {
@@ -3278,16 +3351,30 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Session created; first OTP sent or a contact is required */
+            /** @description Session created: the first code sent to the roster email (`email-pending`), or an email is required (`email-contact-required`) */
             201: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingSessionCreated"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Problem code `no-match` */
             404: {
                 headers: {
@@ -3297,7 +3384,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            /** @description Problem code `already-onboarded` or `no-roster` */
+            /** @description Problem code `already-onboarded` (with `links`) or `no-roster` */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3306,7 +3393,32 @@ export interface operations {
                     "application/problem+json": components["schemas"]["OnboardingProblem"];
                 };
             };
-            429: components["responses"]["RateLimited"];
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The first code could not be sent; no session was created */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getOnboardingSession: {
@@ -3314,10 +3426,10 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-                "X-Onboarding-Secret": components["parameters"]["OnboardingSecret"];
+                "X-Onboarding-Secret": string;
             };
             path: {
-                sessionId: components["parameters"]["SessionId"];
+                sessionId: string;
             };
             cookie?: never;
         };
@@ -3326,14 +3438,53 @@ export interface operations {
             /** @description The session */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingSession"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            410: components["responses"]["SessionEnded"];
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     provideOnboardingContact: {

@@ -17,6 +17,18 @@ import {
   rosterSummarySchema,
 } from './commissions/representation.js';
 import {
+  identifyDeclarantBody,
+  maskedContactSchema,
+  ofrSchema,
+  onboardingCommissionSchema,
+  onboardingOutcomeSchema,
+  onboardingProblemSchema,
+  onboardingSessionCreatedSchema,
+  onboardingSessionSchema,
+  onboardingStateSchema,
+  otpChannelSchema,
+} from './onboarding/representation.js';
+import {
   confirmExitsBody,
   exitsResultSchema,
   keepResultSchema,
@@ -104,4 +116,14 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   KeepRosterRecords: keepRosterRecordsBody,
   KeepResult: keepResultSchema,
   RecordRosterExit: recordRosterExitBody,
+  Ofr: ofrSchema,
+  OtpChannel: otpChannelSchema,
+  OnboardingCommission: onboardingCommissionSchema,
+  IdentifyDeclarant: identifyDeclarantBody,
+  OnboardingState: onboardingStateSchema,
+  MaskedContact: maskedContactSchema,
+  OnboardingOutcome: onboardingOutcomeSchema,
+  OnboardingSession: onboardingSessionSchema,
+  OnboardingSessionCreated: onboardingSessionCreatedSchema,
+  OnboardingProblem: onboardingProblemSchema,
 };

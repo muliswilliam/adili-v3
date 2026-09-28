@@ -1557,17 +1557,32 @@ paths:
       tags:
         - onboarding
       summary: Active Responsible Commissions a declarant can choose from
+      description: Public, rate-limited per client IP. Ordered by name; may be up to a minute behind (cached).
       operationId: listOnboardingCommissions
-      x-draft: true
       parameters:
         - name: search
+          required: false
           in: query
+          description: Part of the name, or the issuer code, case-insensitive; blank means every Commission
           schema:
             type: string
             maxLength: 100
       responses:
         '200':
           description: Commissions with roster availability
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -1575,19 +1590,42 @@ paths:
                 items:
                   $ref: '#/components/schemas/OnboardingCommission'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
       security: []
   /v1/onboarding/sessions:
     post:
       tags:
         - onboarding
       summary: Match personnel file number and national ID against a Commission's roster
-      description: |
-        Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
-        same `no-match` problem. On success the response carries the session and, once only,
-        the session secret the BFF stores in an httpOnly cookie.
+      description: Public, rate-limited per client IP and per client IP and Commission (a Commission without a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
       operationId: identifyDeclarant
-      x-draft: true
       requestBody:
         required: true
         content:
@@ -1596,13 +1634,30 @@ paths:
               $ref: '#/components/schemas/IdentifyDeclarant'
       responses:
         '201':
-          description: Session created; first OTP sent or a contact is required
+          description: 'Session created: the first code sent to the roster email (`email-pending`), or an email is required (`email-contact-required`)'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSessionCreated'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: Body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Problem code `no-match`
           content:
@@ -1610,35 +1665,116 @@ paths:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '409':
-          description: Problem code `already-onboarded` or `no-roster`
+          description: Problem code `already-onboarded` (with `links`) or `no-roster`
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '429':
-          $ref: '#/components/responses/RateLimited'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: The first code could not be sent; no session was created
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
       security: []
   /v1/onboarding/sessions/{sessionId}:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
     get:
       tags:
         - onboarding
       summary: Current step, masked contacts and roster details to confirm
+      description: Public, with the session secret; rate-limited per client IP.
       operationId: getOnboardingSession
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: The session
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSession'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '410':
-          $ref: '#/components/responses/SessionEnded'
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
       security: []
   /v1/onboarding/sessions/{sessionId}/contacts:
     parameters:
@@ -3608,6 +3744,331 @@ components:
           description: Last day of employment; not in the future (Africa/Nairobi)
       required:
         - exitDate
+    Ofr:
+      type: string
+      pattern: ^OFR-[0-9]{7}-[0-9A-Z]$
+      description: Officer reference (ADR-011), permanent and person-level
+      examples:
+        - OFR-0482913-L
+    OtpChannel:
+      type: string
+      enum:
+        - email
+        - phone
+    OnboardingCommission:
+      type: object
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: slug upper-cased
+          examples:
+            - TSC
+        name:
+          type: string
+        hasRoster:
+          type: boolean
+          description: Whether the Commission has imported a roster; identify needs one
+      required:
+        - slug
+        - issuerCode
+        - name
+        - hasRoster
+    IdentifyDeclarant:
+      type: object
+      properties:
+        commission:
+          $ref: '#/components/schemas/Slug'
+        personnelFileNumber:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: As on the payslip; compared trimmed and case-insensitively
+        nationalId:
+          type: string
+          pattern: ^[0-9 ]{5,12}$
+          description: Digits after stripping spaces, 5 to 10
+      required:
+        - commission
+        - personnelFileNumber
+        - nationalId
+    OnboardingState:
+      type: string
+      enum:
+        - identified
+        - email-contact-required
+        - email-pending
+        - email-verified
+        - phone-contact-required
+        - phone-pending
+        - phone-verified
+        - confirmed
+        - identity-mismatch
+        - expired
+    MaskedContact:
+      type: object
+      properties:
+        masked:
+          type: string
+          description: e.g. j***@moe.go.ke or 07** *** 123
+        source:
+          type: string
+          enum:
+            - roster
+            - declarant
+        verified:
+          type: boolean
+      required:
+        - masked
+        - source
+        - verified
+    OnboardingOutcome:
+      type: string
+      enum:
+        - account-created
+        - linked-existing-account
+        - identity-mismatch
+    OnboardingSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/OnboardingState'
+        commission:
+          $ref: '#/components/schemas/OnboardingCommission'
+        contacts:
+          type: object
+          properties:
+            email:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+            phone:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+          required:
+            - email
+            - phone
+        details:
+          anyOf:
+            - type: object
+              properties:
+                fullName:
+                  type: string
+                personnelFileNumber:
+                  type: string
+                designation:
+                  type:
+                    - string
+                    - 'null'
+                reportingEntity:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - fullName
+                - personnelFileNumber
+                - designation
+                - reportingEntity
+            - type: 'null'
+          description: Roster details shown at the confirm step; null before phone-verified
+        otp:
+          type: object
+          properties:
+            channel:
+              anyOf:
+                - $ref: '#/components/schemas/OtpChannel'
+                - type: 'null'
+            resendAvailableAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+          required:
+            - channel
+            - resendAvailableAt
+            - resendsLeft
+            - attemptsLeft
+          description: Resend availability for the channel currently pending
+        outcome:
+          description: Set when state is confirmed or identity-mismatch
+          anyOf:
+            - $ref: '#/components/schemas/OnboardingOutcome'
+            - type: 'null'
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - state
+        - commission
+        - contacts
+        - details
+        - otp
+        - expiresAt
+    OnboardingSessionCreated:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/OnboardingState'
+        commission:
+          $ref: '#/components/schemas/OnboardingCommission'
+        contacts:
+          type: object
+          properties:
+            email:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+            phone:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+          required:
+            - email
+            - phone
+        details:
+          anyOf:
+            - type: object
+              properties:
+                fullName:
+                  type: string
+                personnelFileNumber:
+                  type: string
+                designation:
+                  type:
+                    - string
+                    - 'null'
+                reportingEntity:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - fullName
+                - personnelFileNumber
+                - designation
+                - reportingEntity
+            - type: 'null'
+          description: Roster details shown at the confirm step; null before phone-verified
+        otp:
+          type: object
+          properties:
+            channel:
+              anyOf:
+                - $ref: '#/components/schemas/OtpChannel'
+                - type: 'null'
+            resendAvailableAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+          required:
+            - channel
+            - resendAvailableAt
+            - resendsLeft
+            - attemptsLeft
+          description: Resend availability for the channel currently pending
+        outcome:
+          description: Set when state is confirmed or identity-mismatch
+          anyOf:
+            - $ref: '#/components/schemas/OnboardingOutcome'
+            - type: 'null'
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+        expiresAt:
+          type: string
+          format: date-time
+        secret:
+          type: string
+          description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
+      required:
+        - id
+        - state
+        - commission
+        - contacts
+        - details
+        - otp
+        - expiresAt
+        - secret
+    OnboardingProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+          enum:
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - rate-limit-exceeded
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          description: Field-level errors; `path` is the dotted request field
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+            required:
+              - path
+              - message
+        attemptsLeft:
+          type: integer
+        retryAfterSeconds:
+          type: integer
+        links:
+          description: Present for already-onboarded
+          type: object
+          properties:
+            signIn:
+              type: string
+              format: uri
+            recoverAccess:
+              type: string
+              format: uri
+      required:
+        - type
+        - title
+        - status
+        - code
     ProblemDetails:
       type: object
       properties:
@@ -3654,169 +4115,6 @@ components:
         - type
         - title
         - status
-    Ofr:
-      type: string
-      description: Officer reference (ADR-011), permanent and person-level
-      pattern: ^OFR-[0-9]{7}-[0-9A-Z]$
-      examples:
-        - OFR-0482913-L
-    OtpChannel:
-      type: string
-      enum:
-        - email
-        - phone
-    OnboardingCommission:
-      type: object
-      required:
-        - slug
-        - issuerCode
-        - name
-        - hasRoster
-      properties:
-        slug:
-          $ref: '#/components/schemas/Slug'
-        issuerCode:
-          type: string
-        name:
-          type: string
-        hasRoster:
-          type: boolean
-    IdentifyDeclarant:
-      type: object
-      required:
-        - commission
-        - personnelFileNumber
-        - nationalId
-      properties:
-        commission:
-          $ref: '#/components/schemas/Slug'
-        personnelFileNumber:
-          type: string
-          minLength: 1
-          maxLength: 30
-        nationalId:
-          type: string
-          description: Digits after stripping spaces, 5 to 10
-          pattern: ^[0-9 ]{5,12}$
-    OnboardingState:
-      type: string
-      enum:
-        - identified
-        - email-contact-required
-        - email-pending
-        - email-verified
-        - phone-contact-required
-        - phone-pending
-        - phone-verified
-        - confirmed
-        - identity-mismatch
-        - expired
-    MaskedContact:
-      type: object
-      required:
-        - masked
-        - source
-        - verified
-      properties:
-        masked:
-          type: string
-          description: e.g. j***@moe.go.ke or 07** *** 123
-        source:
-          type: string
-          enum:
-            - roster
-            - declarant
-        verified:
-          type: boolean
-    OnboardingSession:
-      type: object
-      required:
-        - id
-        - state
-        - commission
-        - contacts
-        - details
-        - otp
-        - expiresAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        state:
-          $ref: '#/components/schemas/OnboardingState'
-        commission:
-          $ref: '#/components/schemas/OnboardingCommission'
-        contacts:
-          type: object
-          required:
-            - email
-            - phone
-          properties:
-            email:
-              oneOf:
-                - $ref: '#/components/schemas/MaskedContact'
-                - type: 'null'
-            phone:
-              oneOf:
-                - $ref: '#/components/schemas/MaskedContact'
-                - type: 'null'
-        details:
-          description: Roster details shown at the confirm step; null before phone-verified
-          oneOf:
-            - type: object
-              required:
-                - fullName
-                - personnelFileNumber
-                - designation
-                - reportingEntity
-              properties:
-                fullName:
-                  type: string
-                personnelFileNumber:
-                  type: string
-                designation:
-                  type:
-                    - string
-                    - 'null'
-                reportingEntity:
-                  type:
-                    - string
-                    - 'null'
-            - type: 'null'
-        otp:
-          type: object
-          description: Resend availability for the channel currently pending
-          required:
-            - channel
-            - resendAvailableAt
-            - resendsLeft
-            - attemptsLeft
-          properties:
-            channel:
-              oneOf:
-                - $ref: '#/components/schemas/OtpChannel'
-                - type: 'null'
-            resendAvailableAt:
-              type:
-                - string
-                - 'null'
-              format: date-time
-            resendsLeft:
-              type: integer
-            attemptsLeft:
-              type: integer
-        outcome:
-          description: Set when state is confirmed
-          oneOf:
-            - $ref: '#/components/schemas/OnboardingOutcome'
-            - type: 'null'
-        ofr:
-          oneOf:
-            - $ref: '#/components/schemas/Ofr'
-            - type: 'null'
-        expiresAt:
-          type: string
-          format: date-time
     Agency:
       type: object
       required:
@@ -3876,22 +4174,6 @@ components:
             - string
             - 'null'
           format: date-time
-    OnboardingSessionCreated:
-      allOf:
-        - $ref: '#/components/schemas/OnboardingSession'
-        - type: object
-          required:
-            - secret
-          properties:
-            secret:
-              type: string
-              description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
-    OnboardingOutcome:
-      type: string
-      enum:
-        - account-created
-        - linked-existing-account
-        - identity-mismatch
     OnboardingConfirmResult:
       type: object
       required:
@@ -3902,40 +4184,6 @@ components:
           $ref: '#/components/schemas/OnboardingOutcome'
         session:
           $ref: '#/components/schemas/OnboardingSession'
-    OnboardingProblem:
-      allOf:
-        - $ref: '#/components/schemas/ProblemDetails'
-        - type: object
-          required:
-            - code
-          properties:
-            code:
-              type: string
-              enum:
-                - no-match
-                - already-onboarded
-                - no-roster
-                - otp-invalid
-                - otp-expired
-                - resend-cooldown
-                - session-expired
-                - iprs-unavailable
-                - identity-unavailable
-                - rate-limit-exceeded
-            attemptsLeft:
-              type: integer
-            retryAfterSeconds:
-              type: integer
-            links:
-              type: object
-              description: Present for already-onboarded
-              properties:
-                signIn:
-                  type: string
-                  format: uri
-                recoverAccess:
-                  type: string
-                  format: uri
     DeclarantProfile:
       type: object
       required:

@@ -27,6 +27,7 @@
     "@adili/cache": "workspace:*",
     "@adili/data-access": "workspace:*",
     "@adili/events": "workspace:*",
+    "@adili/numbering": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
     "@nestjs/common": "^12.1.0",

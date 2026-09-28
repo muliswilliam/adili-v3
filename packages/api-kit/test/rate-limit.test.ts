@@ -341,6 +341,19 @@ describe('takeToken', () => {
     expect(takeToken(empty, policy, 60_000).decision).toMatchObject({ remaining: 1 });
   });
 
+  it('allows a request made exactly when a refused one was told to retry, whatever the rounding', () => {
+    const fivePerFifteenMinutes = { limit: 5, windowSeconds: 900 };
+    const refused = takeToken({ tokens: 0, updatedAtMs: 0 }, fivePerFifteenMinutes, 179_000);
+    expect(refused.decision).toMatchObject({ allowed: false, retryAfterSeconds: 1 });
+
+    // Stored as Valkey stores it (Lua `tostring`, 14 significant digits), the 179 s of refill
+    // plus the next second add up to a hair under one token.
+    const stored = { ...refused.bucket, tokens: Number(refused.bucket.tokens.toPrecision(14)) };
+    const retried = takeToken(stored, fivePerFifteenMinutes, 180_000);
+    expect(retried.decision).toMatchObject({ allowed: true, remaining: 0 });
+    expect(retried.bucket.tokens).toBeGreaterThanOrEqual(0);
+  });
+
   it('gives a token back for a negative cost, up to the limit', () => {
     const empty = { tokens: 0, updatedAtMs: 0 };
     const refunded = takeToken(empty, policy, 0, -1);

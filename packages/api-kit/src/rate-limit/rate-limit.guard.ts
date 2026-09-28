@@ -111,20 +111,38 @@ export const RateLimit = (group: string, options: RateLimitOptions = {}) =>
     addRule({ group, ...options }),
     UseGuards(RateLimitGuard),
     ...(options.refundOn?.length ? [UseInterceptors(RateLimitRefundInterceptor)] : []),
-    ApiResponse({
-      status: HttpStatus.TOO_MANY_REQUESTS,
-      description:
-        'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After',
-      content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef('ProblemDetails') } },
-      headers: {
-        ...RATE_LIMIT_HEADERS,
-        'Retry-After': {
-          description: 'Seconds until the next request would be allowed',
-          schema: { type: 'integer' },
+    onFirstRule(
+      ApiResponse({
+        status: HttpStatus.TOO_MANY_REQUESTS,
+        description:
+          'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After',
+        content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef('ProblemDetails') } },
+        headers: {
+          ...RATE_LIMIT_HEADERS,
+          'Retry-After': {
+            description: 'Seconds until the next request would be allowed',
+            schema: { type: 'integer' },
+          },
         },
-      },
-    }),
+      }),
+    ),
   );
+
+/**
+ * Applies `decorator` for the first `@RateLimit` on a target only: several budgets on one route
+ * share one documented 429 (otherwise the contract repeats its description per budget).
+ */
+function onFirstRule(
+  decorator: ClassDecorator & MethodDecorator,
+): ClassDecorator & MethodDecorator {
+  return (target: object, key?: string | symbol, descriptor?: PropertyDescriptor) => {
+    const holder = (descriptor?.value as object | undefined) ?? target;
+    const rules = (Reflect.getOwnMetadata(RATE_LIMIT_RULES, holder) ?? []) as RateLimitRule[];
+    if (rules.length > 1) return;
+    if (descriptor && key !== undefined) decorator(target, key, descriptor);
+    else (decorator as ClassDecorator)(target as never);
+  };
+}
 
 /** Adds `rule` in front of the target's rules: decorators apply bottom-up. */
 function addRule(rule: RateLimitRule): ClassDecorator & MethodDecorator {
