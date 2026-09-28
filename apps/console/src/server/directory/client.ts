@@ -1,5 +1,6 @@
 import createClient, { type Client } from 'openapi-fetch';
 
+import { callService, type ServiceError, type ServiceResult } from '../service-call';
 import type { components, paths } from './api.gen';
 
 /**
@@ -48,16 +49,10 @@ export type ListCommissionsQuery = NonNullable<
   paths['/v1/commissions']['get']['parameters']['query']
 >;
 
-/** Why a directory call gave no data. */
-export type DirectoryError =
-  /** No console session, or the directory refused the token (401): sign in again. */
-  | { kind: 'unauthenticated' }
-  /** Network failure, timeout or 5xx: worth retrying. `problemType` is set for 5xx problems. */
-  | { kind: 'unavailable'; detail: string | null; problemType?: string }
-  /** The directory answered with RFC 9457 problem details (400, 403, 404, 409, 422). */
-  | { kind: 'problem'; problem: ProblemDetails };
+/** Why a directory call gave no data (see `service-call.ts`). */
+export type DirectoryError = ServiceError<ProblemDetails>;
 
-export type DirectoryResult<T> = { ok: true; data: T } | { ok: false; error: DirectoryError };
+export type DirectoryResult<T> = ServiceResult<T, ProblemDetails>;
 
 /**
  * How long the console waits for the directory, by kind of call. Reads and plain writes are
@@ -102,59 +97,14 @@ export function createDirectoryClient(options: {
   });
 }
 
-interface FetchOutcome<T> {
-  data?: T;
-  error?: unknown;
-  response: Response;
-}
-
 /**
- * Runs one client call and folds every outcome into a `DirectoryResult`, so server functions
- * return plain serialisable values and screens switch on `error.kind` / `problem.status`.
+ * Runs one directory call and folds every outcome into a `DirectoryResult`.
  *
  * @example
  * callDirectory(() => client.GET('/v1/commissions/{slug}', { params: { path: { slug } } }))
  */
-export async function callDirectory<T>(
-  request: () => Promise<FetchOutcome<T>>,
+export function callDirectory<T>(
+  request: Parameters<typeof callService<T, ProblemDetails>>[0],
 ): Promise<DirectoryResult<T>> {
-  let outcome: FetchOutcome<T>;
-  try {
-    outcome = await request();
-  } catch {
-    return { ok: false, error: { kind: 'unavailable', detail: null } };
-  }
-  const { data, error, response } = outcome;
-  if (response.ok) {
-    return { ok: true, data: data as T };
-  }
-  if (response.status === 401) {
-    return { ok: false, error: { kind: 'unauthenticated' } };
-  }
-  const problem = toProblem(error, response);
-  if (response.status >= 500) {
-    return {
-      ok: false,
-      error: { kind: 'unavailable', detail: problem.detail ?? null, problemType: problem.type },
-    };
-  }
-  return { ok: false, error: { kind: 'problem', problem } };
-}
-
-function toProblem(body: unknown, response: Response): ProblemDetails {
-  if (isProblem(body)) {
-    return body;
-  }
-  return { type: 'about:blank', title: response.statusText || 'Error', status: response.status };
-}
-
-function isProblem(body: unknown): body is ProblemDetails {
-  return (
-    typeof body === 'object' &&
-    body !== null &&
-    'status' in body &&
-    typeof body.status === 'number' &&
-    'title' in body &&
-    typeof body.title === 'string'
-  );
+  return callService<T, ProblemDetails>(request);
 }

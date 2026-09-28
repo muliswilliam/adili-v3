@@ -42,6 +42,22 @@ describe('reserveAttachmentUpload', () => {
     const down = client(() => Promise.reject(new Error('offline')));
     expect(await reserveAttachmentUpload(down, pdf)).toEqual({ status: 'unavailable' });
   });
+
+  it('reserves a clarification attachment under the same limits', async () => {
+    const result = await reserveAttachmentUpload(client(), pdf, 'clarification-attachment');
+    if (result.status !== 'reserved') throw new Error(result.status);
+    const upload = await client().GET('/v1/uploads/{id}', {
+      params: { path: { id: result.reservation.id } },
+    });
+    expect(upload.data?.purpose).toBe('clarification-attachment');
+    expect(
+      await reserveAttachmentUpload(
+        client(),
+        { ...pdf, size: 21 * 1024 * 1024 },
+        'clarification-attachment',
+      ),
+    ).toEqual({ status: 'rejected', reason: 'size' });
+  });
 });
 
 describe('completeUpload', () => {

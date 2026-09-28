@@ -12,6 +12,7 @@ const base = {
   DIRECTORY_API_URL: 'http://localhost:4001',
   DECLARATIONS_API_URL: 'http://localhost:4002',
   DOCUMENTS_API_URL: 'http://localhost:4006',
+  REVIEW_API_URL: 'http://localhost:4003',
 };
 
 describe('portal env', () => {

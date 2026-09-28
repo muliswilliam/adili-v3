@@ -10,16 +10,18 @@
  *   infected, anything else is clean.
  * - `GET /v1/uploads/{id}` returns the upload.
  *
- * Limits for `declaration-attachment`: PDF, JPEG, PNG or HEIC, up to 20 MB.
+ * Limits for `declaration-attachment` and `clarification-attachment`: PDF, JPEG, PNG or HEIC, up
+ * to 20 MB.
  */
 import { createHash, randomUUID } from 'node:crypto';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { Upload, UploadPurpose } from './types';
+import { ATTACHMENT_PURPOSES } from './uploads.server';
 
 export const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/heic'];
-const PURPOSES: UploadPurpose[] = ['roster-import', 'declaration-attachment'];
+const PURPOSES: UploadPurpose[] = ['roster-import', ...ATTACHMENT_PURPOSES];
 
 const uploads = new Map<string, Upload>();
 
@@ -82,7 +84,8 @@ async function createUpload(request: Request) {
     return problem(400, 'Invalid upload request');
   }
   const purpose = body.purpose as UploadPurpose;
-  if (purpose === 'declaration-attachment') {
+  const attachment = (ATTACHMENT_PURPOSES as readonly UploadPurpose[]).includes(purpose);
+  if (attachment) {
     if (!ATTACHMENT_TYPES.includes(body.contentType)) {
       return problem(400, 'This file type cannot be attached', 'type');
     }
@@ -110,7 +113,7 @@ async function createUpload(request: Request) {
     id,
     uploadUrl: `/api/mock-uploads/${id}`,
     expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(),
-    maxSize: purpose === 'declaration-attachment' ? ATTACHMENT_MAX_BYTES : 50 * 1024 * 1024,
+    maxSize: attachment ? ATTACHMENT_MAX_BYTES : 50 * 1024 * 1024,
   });
 }
 

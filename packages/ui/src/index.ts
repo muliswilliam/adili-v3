@@ -200,6 +200,7 @@ export {
   parseDayMonthYear,
   shapeDateText,
 } from './lib/date-input';
+export { addDays, daysBetween, plural } from './lib/calendar-days';
 export {
   formatCalendarDate,
   formatDate,
