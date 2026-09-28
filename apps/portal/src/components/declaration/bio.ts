@@ -46,7 +46,7 @@ export type BioIssues = Partial<Record<BioField, BioIssue>>;
 
 export const BIO_MESSAGES = {
   birthDate: 'Enter your date of birth.',
-  birthDateFormat: 'Enter a real date as DD/MM/YYYY.',
+  dateFormat: 'Enter a real date as DD/MM/YYYY.',
   birthDateAge: 'Check your date of birth. You must be 18 to 100 years old on the statement date.',
   birthPlace: 'Enter your place of birth.',
   maritalStatus: 'Choose your marital status.',

@@ -7,7 +7,7 @@ import {
   defaultKind,
   DOCUMENT_KIND_LABELS,
   DOCUMENT_KINDS,
-  extractionOff,
+  readingNotEnabledIn,
   FAILURE_REASONS,
   levelOf,
   readingState,
@@ -159,9 +159,9 @@ describe('readingState', () => {
   });
 
   it('knows reading is off from a not-enabled document set only', () => {
-    expect(extractionOff([set({ status: 'not-enabled' })])).toBe(true);
-    expect(extractionOff([set({ source: 'ntsa', status: 'not-enabled' })])).toBe(false);
-    expect(extractionOff([set()])).toBe(false);
+    expect(readingNotEnabledIn([set({ status: 'not-enabled' })])).toBe(true);
+    expect(readingNotEnabledIn([set({ source: 'ntsa', status: 'not-enabled' })])).toBe(false);
+    expect(readingNotEnabledIn([set()])).toBe(false);
   });
 });
 

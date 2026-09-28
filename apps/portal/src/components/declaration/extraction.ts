@@ -196,7 +196,7 @@ export function readingState(set: LoadedSuggestionSet): ReadingState {
 }
 
 /** Some document set says reading is off for this Commission. */
-export function extractionOff(sets: LoadedSuggestionSet[]): boolean {
+export function readingNotEnabledIn(sets: LoadedSuggestionSet[]): boolean {
   return sets.some((set) => set.source === 'document' && set.status === 'not-enabled');
 }
 

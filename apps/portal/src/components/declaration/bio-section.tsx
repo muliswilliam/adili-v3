@@ -102,7 +102,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
 
   const issues = bioIssues(officer, declaration.statementDate);
   if (birthDateText.invalid) {
-    issues.birthDate = { kind: 'invalid', message: BIO_MESSAGES.birthDateFormat };
+    issues.birthDate = { kind: 'invalid', message: BIO_MESSAGES.dateFormat };
   }
 
   function error(field: BioField) {
@@ -301,7 +301,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
         <FormField
           label={optional('Date of appointment')}
           hint={rosterHint('appointmentDate')}
-          error={appointmentInvalid ? BIO_MESSAGES.birthDateFormat : undefined}
+          error={appointmentInvalid ? BIO_MESSAGES.dateFormat : undefined}
           controlId="bio-appointmentDate"
         >
           <DateInput

@@ -73,7 +73,7 @@ import {
   tabState,
 } from './statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
-import { extractionOff } from './extraction';
+import { readingNotEnabledIn } from './extraction';
 import { fullName } from './format';
 import { sourceDetails } from './item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
@@ -269,7 +269,7 @@ export function StatementSection({
   }
 
   // Attachments can be read into the form (#316): the item that adds or fills is merged in.
-  const readingOff = extractionOff(registries?.sets ?? []);
+  const readingOff = readingNotEnabledIn(registries?.sets ?? []);
   const withReading: RenderAttachments | undefined = renderAttachments
     ? (slot) =>
         renderAttachments({

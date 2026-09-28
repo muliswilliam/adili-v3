@@ -85,7 +85,7 @@ describe('BioSection', () => {
     fireEvent.change(textbox('Date of birth'), { target: { value: '31/02/1977' } });
 
     expect(textbox('Date of birth').getAttribute('aria-invalid')).toBe('true');
-    expect(screen.getByText(BIO_MESSAGES.birthDateFormat)).toBeTruthy();
+    expect(screen.getByText(BIO_MESSAGES.dateFormat)).toBeTruthy();
   });
 
   it('shows a missing answer once the field is left', () => {

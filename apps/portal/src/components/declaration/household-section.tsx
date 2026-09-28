@@ -168,7 +168,7 @@ export function HouseholdSection({
 
   function fieldError(id: string, field: PersonField): string | undefined {
     if ((field === 'separationDate' || field === 'dateOfBirth') && badDates.has(`${id}:${field}`)) {
-      return BIO_MESSAGES.birthDateFormat;
+      return BIO_MESSAGES.dateFormat;
     }
     const found = itemIssues(id).find((candidate) => candidate.field === field);
     if (!found) return undefined;
