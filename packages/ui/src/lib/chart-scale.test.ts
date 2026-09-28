@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { chartAxis, labelledIndexes, lineSegments, tidy } from './chart-scale';
+import {
+  chartAxis,
+  isPlotted,
+  labelledIndexes,
+  lineSegments,
+  roundFloatNoise,
+  valueState,
+} from './chart-scale';
 
 describe('chartAxis', () => {
   it.each([
@@ -28,10 +35,25 @@ describe('chartAxis', () => {
   });
 });
 
-describe('tidy', () => {
+describe('roundFloatNoise', () => {
   it('drops float noise', () => {
-    expect(tidy(0.1 + 0.2)).toBe(0.3);
-    expect(tidy((1 - 0.7) * 100)).toBe(30);
+    expect(roundFloatNoise(0.1 + 0.2)).toBe(0.3);
+    expect(roundFloatNoise((1 - 0.7) * 100)).toBe(30);
+  });
+});
+
+describe('valueState', () => {
+  it('tells a value from a suppressed or missing one', () => {
+    expect(valueState(0)).toBe('value');
+    expect(valueState(91.2)).toBe('value');
+    expect(valueState(null)).toBe('suppressed');
+    expect(valueState(undefined)).toBe('missing');
+  });
+});
+
+describe('isPlotted', () => {
+  it('plots numbers only', () => {
+    expect([0, 4, null, undefined].map(isPlotted)).toEqual([true, true, false, false]);
   });
 });
 

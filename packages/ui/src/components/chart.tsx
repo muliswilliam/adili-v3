@@ -1,8 +1,20 @@
 import type { ComponentProps, ReactNode } from 'react';
 
-import { chartAxis, labelledIndexes, lineSegments, tidy } from '../lib/chart-scale';
+import {
+  chartAxis,
+  type ChartValue,
+  isPlotted,
+  labelledIndexes,
+  lineSegments,
+  roundFloatNoise,
+  valueState,
+} from '../lib/chart-scale';
+import { clamp } from '../lib/clamp';
 import { cn } from '../lib/cn';
+import { formatNumber } from '../lib/format-number';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
+
+export type { ChartValue } from '../lib/chart-scale';
 
 export interface ChartSeries {
   key: string;
@@ -49,30 +61,32 @@ const SERIES_COLORS = [
 // Beyond this many categories the line chart labels every nth one, so labels fit on a phone.
 const MAX_X_LABELS = 4;
 
-const numberFormat = new Intl.NumberFormat('en-KE');
-const defaultFormat = (value: number) => numberFormat.format(value);
-
 function colorOf(seriesIndex: number) {
   return SERIES_COLORS[seriesIndex % SERIES_COLORS.length] ?? SERIES_COLORS[0];
 }
 
-/** The value, `null` when suppressed, or `undefined` when missing from the data. */
-function seriesValue(datum: ChartDatum, key: string): number | null | undefined {
+function seriesValue(datum: ChartDatum, key: string): ChartValue {
   return Object.hasOwn(datum.values, key) ? datum.values[key] : undefined;
 }
 
 /** A value as a percentage of the axis, clamped to the plot. */
 function percentOf(value: number, max: number): number {
-  return tidy(Math.min(100, Math.max(0, (value / max) * 100)));
+  return roundFloatNoise(clamp((value / max) * 100, 0, 100));
 }
 
 interface PlotProps {
   series: readonly ChartSeries[];
   data: readonly ChartDatum[];
   max: number;
-  ticks: number[];
+}
+
+interface BarPlotProps extends PlotProps {
   /** Renders a value, or the suppressed or missing label. */
-  display: (value: number | null | undefined) => ReactNode;
+  display: (value: ChartValue) => ReactNode;
+}
+
+interface LinePlotProps extends PlotProps {
+  ticks: number[];
   formatValue: (value: number) => string;
 }
 
@@ -89,7 +103,7 @@ export function Chart({
   series,
   data,
   max,
-  formatValue = defaultFormat,
+  formatValue = formatNumber,
   suppressedLabel = 'Not shown',
   missingLabel = 'No data',
   showTable = false,
@@ -97,10 +111,11 @@ export function Chart({
   ...props
 }: ChartProps) {
   const values = data.flatMap((datum) => series.map((s) => seriesValue(datum, s.key)));
-  const axis = chartAxis(Math.max(0, ...values.map((value) => value ?? 0)), max);
-  const display = (value: number | null | undefined) =>
-    value === null ? suppressedLabel : value === undefined ? missingLabel : formatValue(value);
-  const plot: PlotProps = { series, data, ...axis, display, formatValue };
+  const { max: axisMax, ticks } = chartAxis(Math.max(0, ...values.filter(isPlotted)), max);
+  const gapLabels = { suppressed: suppressedLabel, missing: missingLabel };
+  const display = (value: ChartValue) =>
+    isPlotted(value) ? formatValue(value) : gapLabels[valueState(value)];
+  const plot: PlotProps = { series, data, max: axisMax };
 
   return (
     <figure className={cn('flex flex-col gap-3', className)} {...props}>
@@ -121,7 +136,11 @@ export function Chart({
             ))}
           </ul>
         )}
-        {kind === 'bar' ? <BarPlot {...plot} /> : <LinePlot {...plot} />}
+        {kind === 'bar' ? (
+          <BarPlot {...plot} display={display} />
+        ) : (
+          <LinePlot {...plot} ticks={ticks} formatValue={formatValue} />
+        )}
       </div>
       <div data-chart-table="" className={cn(!showTable && 'sr-only')}>
         <Table caption={title}>
@@ -146,7 +165,7 @@ export function Chart({
                       key={s.key}
                       className={cn(
                         'text-right tabular-nums',
-                        typeof value !== 'number' && 'text-muted-foreground',
+                        valueState(value) !== 'value' && 'text-muted-foreground',
                       )}
                     >
                       {display(value)}
@@ -162,7 +181,7 @@ export function Chart({
   );
 }
 
-function BarPlot({ series, data, max, display }: PlotProps) {
+function BarPlot({ series, data, max, display }: BarPlotProps) {
   return (
     // Subgrids share one value column, so every track ends at the same place whatever the label.
     <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-3">
@@ -178,7 +197,7 @@ function BarPlot({ series, data, max, display }: PlotProps) {
                 className="col-span-2 grid grid-cols-subgrid items-center"
               >
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  {typeof value === 'number' && (
+                  {isPlotted(value) && (
                     <div
                       data-chart-bar=""
                       className={cn('h-full rounded-full', colorOf(seriesIndex).fill)}
@@ -198,10 +217,10 @@ function BarPlot({ series, data, max, display }: PlotProps) {
   );
 }
 
-function LinePlot({ series, data, max, ticks, formatValue }: PlotProps) {
+function LinePlot({ series, data, max, ticks, formatValue }: LinePlotProps) {
   const xOf = (datumIndex: number) =>
-    data.length > 1 ? tidy((datumIndex / (data.length - 1)) * 100) : 50;
-  const yOf = (value: number) => tidy(100 - percentOf(value, max));
+    data.length > 1 ? roundFloatNoise((datumIndex / (data.length - 1)) * 100) : 50;
+  const yOf = (value: number) => roundFloatNoise(100 - percentOf(value, max));
   const lastIndex = data.length - 1;
   const point = ({ index, value }: { index: number; value: number }) =>
     `${xOf(index)},${yOf(value)}`;
@@ -262,7 +281,7 @@ function LinePlot({ series, data, max, ticks, formatValue }: PlotProps) {
             <div key={s.key} data-chart-series={s.key}>
               {data.map((datum, datumIndex) => {
                 const value = seriesValue(datum, s.key);
-                if (typeof value !== 'number') return null;
+                if (!isPlotted(value)) return null;
                 return (
                   <span
                     key={datum.label}

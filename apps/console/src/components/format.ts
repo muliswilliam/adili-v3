@@ -3,6 +3,8 @@
  * locale month names so the server-rendered and hydrated text agree across ICU versions and
  * machine time zones.
  */
+export { formatNumber } from '@adili/ui';
+
 const TIME_ZONE = 'Africa/Nairobi';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -63,13 +65,6 @@ export function formatRelativeDate(iso: string, now: Date = new Date()): string 
   if (months < 12) return months <= 1 ? '1 month ago' : `${months} months ago`;
   const years = Math.round(days / 365.25);
   return years <= 1 ? '1 year ago' : `${years} years ago`;
-}
-
-const numberFormat = new Intl.NumberFormat('en-KE');
-
-/** `48,312` */
-export function formatNumber(value: number): string {
-  return numberFormat.format(value);
 }
 
 /** Midnight of the Kenyan calendar day, as epoch milliseconds. */

@@ -2,14 +2,15 @@
 const NICE_STEPS = [1, 2, 2.5, 5, 10];
 
 /** Drops float noise such as 0.30000000000000004. */
-export function tidy(value: number): number {
+export function roundFloatNoise(value: number): number {
   return Number(value.toPrecision(12));
 }
 
 function niceStep(rough: number): number {
   const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const step = NICE_STEPS.find((candidate) => candidate * magnitude >= tidy(rough)) ?? 10;
-  return tidy(step * magnitude);
+  const step =
+    NICE_STEPS.find((candidate) => candidate * magnitude >= roundFloatNoise(rough)) ?? 10;
+  return roundFloatNoise(step * magnitude);
 }
 
 export interface ChartAxis {
@@ -25,14 +26,14 @@ export interface ChartAxis {
  */
 export function chartAxis(largest: number, max?: number): ChartAxis {
   if (max !== undefined && max > 0) {
-    return { max, ticks: [0, 1, 2, 3, 4].map((step) => tidy((max * step) / 4)) };
+    return { max, ticks: [0, 1, 2, 3, 4].map((step) => roundFloatNoise((max * step) / 4)) };
   }
   const top = Number.isFinite(largest) && largest > 0 ? largest : 1;
   const step = niceStep(top / 4);
-  const count = Math.ceil(tidy(top / step));
+  const count = Math.ceil(roundFloatNoise(top / step));
   return {
-    max: tidy(step * count),
-    ticks: Array.from({ length: count + 1 }, (_, index) => tidy(step * index)),
+    max: roundFloatNoise(step * count),
+    ticks: Array.from({ length: count + 1 }, (_, index) => roundFloatNoise(step * index)),
   };
 }
 
@@ -41,19 +42,36 @@ export interface LinePoint {
   value: number;
 }
 
-/**
- * Splits a series into runs of consecutive values, so a line breaks where a value is null
- * (suppressed) or undefined (missing).
- */
-export function lineSegments(values: readonly (number | null | undefined)[]): LinePoint[][] {
+/** One chart value: a number, `null` when suppressed, or `undefined` when missing from the data. */
+export type ChartValue = number | null | undefined;
+
+export type ChartValueState = 'value' | 'suppressed' | 'missing';
+
+/** Whether a chart value is a number to plot, suppressed, or missing from the data. */
+export function valueState(value: number): 'value';
+export function valueState(value: null | undefined): Exclude<ChartValueState, 'value'>;
+export function valueState(value: ChartValue): ChartValueState;
+export function valueState(value: ChartValue): ChartValueState {
+  if (value === null) return 'suppressed';
+  if (value === undefined) return 'missing';
+  return 'value';
+}
+
+/** A chart value that can be plotted; suppressed and missing values never are. */
+export function isPlotted(value: ChartValue): value is number {
+  return valueState(value) === 'value';
+}
+
+/** Splits a series into runs of consecutive values, so a line breaks where one is not plotted. */
+export function lineSegments(values: readonly ChartValue[]): LinePoint[][] {
   const segments: LinePoint[][] = [];
   let current: LinePoint[] = [];
   values.forEach((value, index) => {
-    if (value === null || value === undefined) {
+    if (isPlotted(value)) {
+      current.push({ index, value });
+    } else {
       if (current.length > 0) segments.push(current);
       current = [];
-    } else {
-      current.push({ index, value });
     }
   });
   if (current.length > 0) segments.push(current);
