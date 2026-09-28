@@ -285,7 +285,7 @@ function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
   const latest = open[0] ?? null;
   const status = open.length > 0 ? 'awaiting-clarification' : 'ready-for-determination';
   if (actor && stored.item.status === 'awaiting-clarification' && status !== stored.item.status) {
-    const at = new Date().toISOString();
+    const changedAt = new Date().toISOString();
     for (const [to, summary] of [
       ['clarified', 'Case clarified: no clarification open'],
       ['ready-for-determination', 'Case ready for determination'],
@@ -294,7 +294,7 @@ function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
         id: randomUUID(),
         kind: 'status-changed',
         actor,
-        at,
+        at: changedAt,
         summary,
         ref: to,
       });
