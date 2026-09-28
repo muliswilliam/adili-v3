@@ -1,4 +1,4 @@
-import { Button, cn, focusRing, Icon, Input, Label } from '@adili/ui';
+import { Button, cn, focusRing, focusRingInset, Icon, Input, Label } from '@adili/ui';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import { useScript } from 'keycloakify/login/pages/Login.useScript';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
@@ -207,9 +207,8 @@ function PasswordInput({ i18n, hasError }: { i18n: I18n; hasError: boolean }) {
       <button
         type="button"
         className={cn(
-          focusRing,
-          // Inset, so the ring stays inside the password field.
-          'absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:-outline-offset-2',
+          focusRingInset,
+          'absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground',
         )}
         aria-label={msgStr(isPasswordRevealed ? 'hidePassword' : 'showPassword')}
         aria-controls="password"

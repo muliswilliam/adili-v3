@@ -156,7 +156,7 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing } from './lib/focus';
+export { focusRing, focusRingInset } from './lib/focus';
 export {
   formatCalendarDate,
   formatDate,
