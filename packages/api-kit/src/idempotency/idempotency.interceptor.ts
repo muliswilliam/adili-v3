@@ -35,6 +35,7 @@ const MAX_KEY_LENGTH = 255;
 /** Pauses between attempts to record an outcome; one attempt more than there are pauses. */
 const RECORD_RETRY_DELAYS_MS = [50, 250];
 const IDEMPOTENCY_OWNER = 'adili:idempotency-owner';
+const IDEMPOTENCY_OPTIONAL = 'adili:idempotency-optional';
 
 export interface RequireIdempotencyKeyOptions {
   /**
@@ -69,17 +70,36 @@ export interface RequireIdempotencyKeyOptions {
  * create(@Body(new ZodValidationPipe(createCommission)) body: CreateCommission) {}
  */
 export const RequireIdempotencyKey = (options: RequireIdempotencyKeyOptions = {}) =>
-  applyDecorators(
+  idempotencyKey(options, { optional: false });
+
+/**
+ * As `RequireIdempotencyKey`, but a request without the header runs the handler unguarded: for
+ * internal command endpoints some of whose callers cannot send one yet (ADR-013 §7.5 asks every
+ * command endpoint to accept a key). A request with the header gets the same storage, replay and
+ * refusals, and a malformed header is still 400.
+ */
+export const AcceptIdempotencyKey = (options: RequireIdempotencyKeyOptions = {}) =>
+  idempotencyKey(options, { optional: true });
+
+function idempotencyKey(
+  options: RequireIdempotencyKeyOptions,
+  { optional }: { optional: boolean },
+): MethodDecorator & ClassDecorator {
+  return applyDecorators(
     SetMetadata(IDEMPOTENCY_OWNER, options.owner),
+    SetMetadata(IDEMPOTENCY_OPTIONAL, optional),
     UseInterceptors(IdempotencyInterceptor),
     ApiHeader({
       name: 'Idempotency-Key',
-      required: true,
-      description: 'Client-generated UUID, unique per logical request; reuse on retry',
+      required: !optional,
+      description: optional
+        ? 'Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice'
+        : 'Client-generated UUID, unique per logical request; reuse on retry',
       schema: { type: 'string', format: 'uuid' },
     }),
     ApiProblemResponse(422, 'Idempotency-Key reused with a different request body'),
   );
+}
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
@@ -94,6 +114,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const http = context.switchToHttp();
     const request = http.getRequest<AuthenticatedRequest>();
     const reply = http.getResponse<FastifyReply>();
+    if (
+      request.headers[IDEMPOTENCY_KEY_HEADER] === undefined &&
+      this.reflector.get<boolean>(IDEMPOTENCY_OPTIONAL, context.getHandler())
+    ) {
+      return next.handle();
+    }
     const owner = this.reflector.get<RequireIdempotencyKeyOptions['owner']>(
       IDEMPOTENCY_OWNER,
       context.getHandler(),

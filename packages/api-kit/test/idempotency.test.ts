@@ -9,6 +9,7 @@ import type { FastifyRequest } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  AcceptIdempotencyKey,
   type BaseEnv,
   CoreModule,
   IdempotencyModule,
@@ -231,6 +232,81 @@ describe('RequireIdempotencyKey on a public route, with an owner', () => {
       url: '/v1/sessions/s3/confirm',
       headers: { 'x-secret': 'secret-3' },
     });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
+  });
+});
+
+describe('AcceptIdempotencyKey: the key is optional', () => {
+  const config: BaseEnv = {
+    NODE_ENV: 'test',
+    HOST: '127.0.0.1',
+    PORT: 0,
+    LOG_LEVEL: 'fatal',
+    OIDC_ISSUER_URL: 'http://keycloak.test/realms/adili',
+    OIDC_AUDIENCE: 'adili-api',
+  };
+  let sends = 0;
+
+  @Public()
+  @Controller('v1/messages')
+  class MessagesController {
+    @Post()
+    @AcceptIdempotencyKey({ owner: () => 'caller-1' })
+    send() {
+      sends++;
+      return { send: sends };
+    }
+  }
+
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        CoreModule.forRoot({ serviceName: 'test', config }),
+        IdempotencyModule.forRoot({ store: new InMemoryIdempotencyStore() }),
+      ],
+      controllers: [MessagesController],
+    }).compile();
+    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.useLogger(false);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const send = (key?: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/v1/messages',
+      headers: key === undefined ? {} : { 'idempotency-key': key },
+    });
+
+  it('runs the handler every time for requests without a key', async () => {
+    const first = await send();
+    const second = await send();
+
+    expect(first.statusCode).toBe(201);
+    expect(second.headers['idempotent-replayed']).toBeUndefined();
+    expect(second.json<{ send: number }>().send).toBe(first.json<{ send: number }>().send + 1);
+  });
+
+  it('replays the stored answer for a retry with the same key', async () => {
+    const key = randomUUID();
+    const first = await send(key);
+    const retry = await send(key);
+
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+  });
+
+  it('still refuses a malformed key', async () => {
+    const response = await send('k'.repeat(256));
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });

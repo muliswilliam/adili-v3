@@ -35,6 +35,7 @@ export { type TcpProbe, TcpReadinessCheck } from './health/tcp-readiness-check.j
 export {
   IDEMPOTENCY_KEY_HEADER,
   IDEMPOTENT_REPLAYED_HEADER,
+  AcceptIdempotencyKey,
   IdempotencyInterceptor,
   RequireIdempotencyKey,
   type RequireIdempotencyKeyOptions,
