@@ -15,6 +15,10 @@ vi.mock('@tanstack/react-router', () => ({
     </a>
   ),
 }));
+// The start and discard buttons call server functions, which do not load in the VM test pool.
+vi.mock('../../server/declarations', async () =>
+  (await import('../declaration/testing-mocks')).serverMock(),
+);
 
 const account: DeclarantAccount = {
   fullName: 'Mwangi Njoroge Kamau',
