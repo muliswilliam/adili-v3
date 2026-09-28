@@ -48,6 +48,7 @@ const FORMATS: Record<string, string> = {
   'date-time': 'z.iso.datetime({ offset: true })',
   // Ajv's uuid format accepts any version, as z.guid() does; z.uuid() would insist on RFC 9562.
   uuid: 'z.guid()',
+  email: 'z.email()',
 };
 
 export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOptions): string {
@@ -66,11 +67,53 @@ export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOpti
     const unknown = Object.keys(node).filter((key) => !KNOWN.has(key));
     if (unknown.length > 0) throw new Error(`${pointer}: unsupported ${unknown.join(', ')}`);
 
-    const base = baseExpression(node, pointer);
+    // `type: [T, "null"]`: the schema for T, also accepting null.
+    if (Array.isArray(node.type)) {
+      const [only, ...more] = node.type.filter((type) => type !== 'null');
+      if (more.length > 0 || only === undefined || node.type.length !== 2) {
+        throw new Error(`${pointer}: only one type, or one type and null, is supported`);
+      }
+      return `${expression({ ...node, type: only }, pointer)}.nullable()`;
+    }
+
+    // An allOf's members other than if/then/else all apply: intersect them with the node's own
+    // schema. Zod rejects an unknown key only when every side of an intersection does, JSON
+    // Schema when any strict member does; so beside a strict member a loose one is made strict,
+    // which is the same only while its properties are ones the strict members allow.
+    const combined = ((node.allOf ?? []) as JsonSchema[])
+      .map((member, index) => [member, `${pointer}/allOf/${String(index)}`] as const)
+      .filter(([member]) => member.if === undefined);
+    const strict = combined.map(([member]) => resolve(member)).filter(isStrictObject);
+    const members = combined.map(([member, at]) => {
+      if (
+        strict.length === 0 ||
+        member.type !== 'object' ||
+        member.additionalProperties !== undefined
+      ) {
+        return expression(member, at);
+      }
+      for (const key of Object.keys((member.properties ?? {}) as JsonSchema)) {
+        if (strict.some((other) => !(key in ((other.properties ?? {}) as JsonSchema)))) {
+          throw new Error(`${at}: ${key} is forbidden by a strict allOf member`);
+        }
+      }
+      return expression({ ...member, additionalProperties: false }, at);
+    });
+    const ownSchema = ['type', '$ref', 'enum', 'const'].some((key) => node[key] !== undefined);
+    const [first, ...rest] = ownSchema ? [baseExpression(node, pointer), ...members] : members;
+    if (first === undefined) throw new Error(`${pointer}: no type, $ref, enum, const or allOf`);
+    const base = rest.reduce((all, member) => `z.intersection(${all}, ${member})`, first);
+
     const checks = conditionals(node, pointer);
     return checks.length === 0
       ? base
       : `${base}.superRefine((value, ctx) => {\n${checks.join('\n')}\n})`;
+  }
+
+  /** A member as written, or the $defs entry it refers to. */
+  function resolve(member: JsonSchema): JsonSchema {
+    const name = typeof member.$ref === 'string' ? member.$ref.replace('#/$defs/', '') : undefined;
+    return (name === undefined ? undefined : defs[name]) ?? member;
   }
 
   function baseExpression(node: JsonSchema, pointer: string): string {
@@ -156,11 +199,15 @@ export function zodModule(schema: JsonSchema, { rootName, names }: ZodModuleOpti
     const branches: [JsonSchema, string][] = [];
     if (node.if !== undefined) branches.push([node, pointer]);
     for (const [index, entry] of ((node.allOf ?? []) as JsonSchema[]).entries()) {
+      // Members without `if` are intersected in expression().
+      if (entry.if === undefined) continue;
       const extra = Object.keys(entry).filter((key) => !['if', 'then', 'else'].includes(key));
-      if (extra.length > 0 || entry.if === undefined) {
-        throw new Error(`${pointer}/allOf/${index}: only if/then/else is supported in allOf`);
+      if (extra.length > 0) {
+        throw new Error(
+          `${pointer}/allOf/${String(index)}: a condition in allOf must be only if/then/else`,
+        );
       }
-      branches.push([entry, `${pointer}/allOf/${index}`]);
+      branches.push([entry, `${pointer}/allOf/${String(index)}`]);
     }
     // A required field is always there by the time a refinement runs.
     const required = new Set((node.required ?? []) as string[]);
@@ -273,4 +320,8 @@ function bounds(node: JsonSchema, min: string, max: string): string {
   if (typeof node[min] === 'number') source += `.min(${node[min]})`;
   if (typeof node[max] === 'number') source += `.max(${node[max]})`;
   return source;
+}
+
+function isStrictObject(node: JsonSchema): boolean {
+  return node.type === 'object' && node.additionalProperties === false;
 }
