@@ -13,6 +13,7 @@ import type { CreateCommissionBody } from './create-commission.js';
 import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
+import { nairobiToday } from './policy-versions.js';
 import { type Commission, type CommissionPage, type OfficerCategory } from './representation.js';
 import {
   commissionCategories,
@@ -112,7 +113,10 @@ export class CommissionsService {
           tenant: body.slug,
           version: 1,
           policy: PLATFORM_DEFAULT_POLICY,
+          // The Commission's creation date: `now()` is the transaction's, as `created_at`'s.
+          obligationsStartDate: nairobiToday,
           createdBy: principal.subject,
+          createdByName: principal.name,
         });
         await this.events.record(
           tx,

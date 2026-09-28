@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../db/schema.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
+import { nairobiToday } from './policy-versions.js';
 import { commissionCategories, commissions, tenantPolicyVersions } from './schema.js';
 
 /** The tenants the demo accounts in the Keycloak realm import belong to. */
@@ -59,6 +60,7 @@ export async function seedDemoCommissions(db: Database<DirectorySchema>): Promis
           tenant: demo.slug,
           version: 1,
           policy: PLATFORM_DEFAULT_POLICY,
+          obligationsStartDate: nairobiToday,
           createdBy: SEEDED_BY,
         })
         .onConflictDoNothing({

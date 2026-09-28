@@ -5,12 +5,13 @@ import { asc, eq } from 'drizzle-orm';
 
 import { PLATFORM_TENANT } from '../commissions/access.js';
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
-import type { DeclarantProfile, PersonSummary } from './representation.js';
+import type { DeclarantProfile, PersonContacts, PersonSummary } from './representation.js';
 
 /**
  * Reading persons (spec 03): a declarant's own profile, found by the subject of their token, and
- * the helpdesk's lookup by officer reference. Persons are platform-level; their roster records
- * are read in the platform context, since both reads span Commissions.
+ * the helpdesk's lookup by officer reference, and a person's verified contacts for notifications.
+ * Persons are platform-level; their roster records are read in the platform context, since the
+ * reads span Commissions.
  */
 @Injectable()
 export class PersonsService {
@@ -84,5 +85,14 @@ export class PersonsService {
         createdAt: found.createdAt.toISOString(),
       };
     });
+  }
+
+  /** The contacts verified at the person's latest onboarding, null where none; 404 if no person. */
+  async contacts(personId: string): Promise<PersonContacts> {
+    const [person] = await this.db
+      .select({ personId: persons.id, email: persons.email, phone: persons.phone })
+      .from(persons)
+      .where(eq(persons.id, personId));
+    return notFoundIfInvisible(person);
   }
 }

@@ -4,6 +4,7 @@ import { type Database, withTenant } from '@adili/data-access';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { PLATFORM_DEFAULT_POLICY } from '../../src/commissions/policy.js';
+import { nairobiToday } from '../../src/commissions/policy-versions.js';
 import {
   commissionCategories,
   commissions,
@@ -53,6 +54,7 @@ export async function givenCommissions(
         tenant: fixture.slug,
         version: 1,
         policy: PLATFORM_DEFAULT_POLICY,
+        obligationsStartDate: nairobiToday,
         createdBy: 'test',
       });
       if (fixture.officer) {

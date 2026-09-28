@@ -42,7 +42,7 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 
 - The directory creates one confidential client per Commission's credential (`roster-<slug>-<hex>`) with only a service account, the default client scopes `basic` and `roster:write`, a hard-coded `tenant` claim and the `adili-api` audience. Rotating regenerates the secret; revoking disables the client. For that the `directory` service account also has realm-management `manage-clients`, `view-clients` and `query-clients`.
 - `roster:write` is a realm client scope, included in the token's `scope` claim and in no client's defaults except those API clients.
-- Listing `clientScopes` in the file replaces Keycloak's built-in scopes, so the file lists them all (as Keycloak 26.7 creates them) plus Adili's own (`roster:write`, `documents:internal`, `messages`, `iprs`), and the realm defaults. `pnpm keycloak:check` fails when a client names a scope the file does not list. Keycloak's own clients (`account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console`) are created before the scopes on import and so get no default scopes; Adili uses none of them (the account console is off, `accountThemeImplementation: 'none'`, and admins use the master realm).
+- Listing `clientScopes` in the file replaces Keycloak's built-in scopes, so the file lists them all (as Keycloak 26.7 creates them) plus Adili's own (`roster:write`, `documents:internal`, `messages`, `iprs`, `directory:internal`), and the realm defaults. `pnpm keycloak:check` fails when a client names a scope the file does not list. Keycloak's own clients (`account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console`) are created before the scopes on import and so get no default scopes; Adili uses none of them (the account console is off, `accountThemeImplementation: 'none'`, and admins use the master realm).
 
 ## Service-to-service calls (spec 27)
 
@@ -59,6 +59,11 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 - A send that fails (notifications down, provider refused) shows the send-failed page with the other channel, or "try again" once both have failed. SMS goes to the `phone` attribute, email to the account email.
 
 `messages` and `iprs` are realm client scopes for service-to-service calls, listed with the others above; each adds the `adili-api` audience. `directory` has both.
+
+## Directory internal API (spec 04)
+
+- `directory:internal` is a realm client scope (in the token's `scope` claim, adds the `adili-api` audience) for the directory's `/internal/v1` routes: roster records by import or exit batch, one record and the current policy (with `X-Acting-Tenant`, as in "Service-to-service calls"), and a person's verified contacts (no acting tenant; persons are global).
+- The confidential clients `declarations` (default scopes `directory:internal` and `messages`) and `notifications` (`directory:internal`) have only a service account and development secrets `declarations-dev-secret` and `notifications-dev-secret`.
 
 After pulling a change to the extension or the theme, rebuild the image (`docker compose -f infra/compose/docker-compose.yml build keycloak`) and recreate the realm.
 

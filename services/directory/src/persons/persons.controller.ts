@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
   ApiQueryParameters,
@@ -7,15 +7,20 @@ import {
   CurrentPrincipal,
   type Principal,
   Roles,
+  Scopes,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 
+import { z } from 'zod';
+
+import { DIRECTORY_INTERNAL_SCOPE } from '../internal-api.js';
 import { PersonsService } from './persons.service.js';
 import {
   type DeclarantProfile,
   type FindPersonQuery,
   findPersonQuery,
+  type PersonContacts,
   type PersonSummary,
 } from './representation.js';
 
@@ -69,5 +74,37 @@ export class DeclarantProfileController {
   @ApiProblemResponse(404, 'The caller is not an onboarded declarant')
   profile(@CurrentPrincipal() principal: Principal): Promise<DeclarantProfile> {
     return this.persons.declarantProfile(principal.subject);
+  }
+}
+
+/**
+ * Internal: not routed by the public entrypoint. Persons are global (ADR-006), so no acting
+ * tenant: services with `directory:internal` only.
+ */
+@ApiTags('internal')
+@Controller('internal/v1/persons')
+@Scopes(DIRECTORY_INTERNAL_SCOPE)
+export class InternalPersonsController {
+  constructor(private readonly persons: PersonsService) {}
+
+  @Get(':personId/contacts')
+  @AuditedRead({ action: 'person.contacts.read', resource: 'person' })
+  @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'internalGetPersonContacts',
+    summary: 'Verified contacts of a person (notifications)',
+    description:
+      'Service tokens with scope directory:internal; audited. The email and phone verified at the latest onboarding, null where none.',
+  })
+  @ApiOkResponse({
+    description: 'Contacts, null where none is verified',
+    schema: schemaRef('PersonContacts'),
+  })
+  @ApiProblemResponse(400, 'personId is not a UUID')
+  @ApiProblemResponse(404, 'No person has this id')
+  contacts(
+    @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+  ): Promise<PersonContacts> {
+    return this.persons.contacts(personId);
   }
 }
