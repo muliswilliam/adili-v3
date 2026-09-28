@@ -183,6 +183,13 @@
       "when": 1790619007000,
       "tag": "0025_roster_exits_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790629547220,
+      "tag": "0026_tenant_policy_versions_rls",
+      "breakpoints": true
     }
   ]
 }

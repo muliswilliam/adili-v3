@@ -1,7 +1,8 @@
-import type { Database } from '@adili/data-access';
+import { type Database, withTenant } from '@adili/data-access';
 import { eq } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../db/schema.js';
+import { PLATFORM_TENANT } from './access.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
 import { nairobiToday } from './policy-versions.js';
 import { commissionCategories, commissions, tenantPolicyVersions } from './schema.js';
@@ -35,7 +36,7 @@ const SEEDED_BY = 'system:demo-seed';
  * they are, so it is safe to run on every `pnpm db:seed`.
  */
 export async function seedDemoCommissions(db: Database<DirectorySchema>): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
     for (const demo of DEMO_COMMISSIONS) {
       await tx
         .insert(commissions)

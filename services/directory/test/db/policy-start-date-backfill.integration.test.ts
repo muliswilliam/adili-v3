@@ -51,7 +51,7 @@ describe(`migration ${MIGRATION}`, () => {
       select slug, 1, '{"initialDueAfterAppointmentDays": 30}'::jsonb, 'test' from commissions
     `);
 
-    await applyMigrations(db, tags.slice(index));
+    await applyMigrations(db, tags.slice(index, index + 1));
 
     const rows = await db.execute<{ tenant: string; start: string }>(sql`
       select tenant, obligations_start_date::text as start

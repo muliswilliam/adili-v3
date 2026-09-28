@@ -9,7 +9,12 @@ import type { DirectorySchema } from '../db/schema.js';
 import { rosterSummaries } from '../roster/schema.js';
 import { rosterSummaryColumns, toRosterSummary } from '../roster/summary.js';
 import { actingTenantContext } from '../internal-api.js';
-import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
+import {
+  canSeeCommission,
+  PLATFORM_TENANT,
+  seesAllCommissions,
+  tenantContextOf,
+} from './access.js';
 import type { CreateCommissionBody } from './create-commission.js';
 import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';
@@ -95,7 +100,9 @@ export class CommissionsService {
    */
   async create(principal: Principal, body: CreateCommissionBody): Promise<Commission> {
     try {
-      return await this.db.transaction(async (tx) => {
+      // Platform work (platform admins only): the policy version is tenant data under RLS.
+      const platform = { tenant: PLATFORM_TENANT, subject: principal.subject };
+      return await withTenant(this.db, platform, async (tx) => {
         await this.refuseTaken(tx, body);
         const [created] = await tx
           .insert(commissions)
