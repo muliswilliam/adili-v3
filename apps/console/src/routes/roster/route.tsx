@@ -98,7 +98,7 @@ function NoWorkspace({ roles }: { roles: readonly string[] }) {
   if (workspaceFor(roles, 'commissions')) {
     return (
       <Card className="flex-row items-start gap-3.5">
-        <CardIcon className="mb-0 size-[38px] shrink-0 rounded-[10px] text-muted-foreground [&_svg]:size-[18px]">
+        <CardIcon className="mb-0 size-[38px] shrink-0 text-muted-foreground [&_svg]:size-[18px]">
           <Icon icon={Building03Icon} />
         </CardIcon>
         <div className="grid justify-items-start gap-1">

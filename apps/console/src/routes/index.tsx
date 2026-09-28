@@ -188,7 +188,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
   if (!workspace.href) {
     return (
       <li className="flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card">
-        <CardIcon className="mb-0 size-[38px] rounded-[10px] text-muted-foreground [&_svg]:size-[19px]">
+        <CardIcon className="mb-0 size-[38px] text-muted-foreground [&_svg]:size-[19px]">
           <Icon icon={icon} />
         </CardIcon>
         <div className="flex flex-wrap items-center gap-2">
@@ -201,7 +201,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
   }
   return (
     <li className="relative flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--input),0_6px_20px_-8px_rgb(0_0_0/0.15)]">
-      <CardIcon className="mb-0 size-[38px] rounded-[10px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">
+      <CardIcon className="mb-0 size-[38px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">
         <Icon icon={icon} />
       </CardIcon>
       <div className="flex flex-wrap items-center gap-2">

@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Card,
+  CardIcon,
   Icon,
   type IconProps,
   Menu,
@@ -440,12 +441,9 @@ const STEP_LINK =
 function StepBody({ step, label }: { step: NextStep; label: string }) {
   return (
     <>
-      <span
-        aria-hidden="true"
-        className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-muted text-secondary-foreground [&_svg]:size-[17px]"
-      >
+      <CardIcon className="mb-0 size-8 shrink-0 [&_svg]:size-[17px]">
         <Icon icon={STEP_ICONS[step.kind]} />
-      </span>
+      </CardIcon>
       <span className="min-w-0 flex-1">{label}</span>
       <Icon icon={ArrowRight01Icon} className="size-[17px] text-muted-foreground" />
     </>
