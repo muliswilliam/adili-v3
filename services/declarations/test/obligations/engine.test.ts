@@ -302,7 +302,7 @@ describe('S4 exit and the biennial', () => {
     ]);
   });
 
-  it('an exit on the statement date keeps the biennial: the officer held office that day', () => {
+  it('an exit on the statement date cancels the biennial: only the final is owed', () => {
     const result = plan({
       record: record({ exitDate: '2027-11-01' }),
       today: '2027-11-03',
@@ -310,7 +310,18 @@ describe('S4 exit and the biennial', () => {
         existing('b-2027', { type: 'biennial', cycleKey: 'biennial:2027', status: 'due' }),
       ],
     });
-    expect(result.operations.map((op) => op.kind)).toEqual(['create']);
+
+    expect(result.operations).toEqual([
+      { kind: 'cancel', obligationId: 'b-2027', reason: 'exited-before-statement-date' },
+      expect.objectContaining({ kind: 'create' }),
+    ]);
+    expect(result.obligations.map((o) => o.cycleKey)).toEqual(['final:2027-11-01']);
+  });
+
+  it('an exit on the statement date creates no biennial for a record ingested later', () => {
+    const result = plan({ record: record({ exitDate: '2027-11-01' }), today: '2027-11-03' });
+
+    expect(result.obligations.map((o) => o.cycleKey)).toEqual(['final:2027-11-01']);
   });
 
   it('a late-confirmed exit cancels a biennial that has already become due', () => {

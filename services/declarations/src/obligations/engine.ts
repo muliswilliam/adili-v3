@@ -5,8 +5,9 @@
  *
  * - **Initial** (Act s.34(1)): statement date = appointment date, due `initialDueAfterAppointmentDays`
  *   later. Due from creation, overdue after the due date; never upcoming.
- * - **Biennial** (Act s.34(2)): one per opened cycle whose statement date the officer held office
- *   on (appointed on or before it, not exited before it). Upcoming before the statement date.
+ * - **Biennial** (Act s.34(2)): one per opened cycle whose statement date is in the declarant's
+ *   term: appointed on or before it and not exited on or before it (the spec's "before any exit
+ *   date": an exit on the statement date owes the final alone). Upcoming before the statement date.
  * - **Final** (Act s.34(3)): statement date = exit date, due `finalDueAfterExitDays` later. Due from
  *   creation, like the initial.
  *
@@ -231,7 +232,7 @@ function owedObligations(input: PlanInput): DesiredObligation[] {
     const statementDate = biennialStatementDate(year, policy);
     const heldOffice =
       (appointmentDate === null || appointmentDate <= statementDate) &&
-      (exitDate === null || exitDate >= statementDate);
+      (exitDate === null || exitDate > statementDate);
     if (!heldOffice) continue;
     owed.push(
       obligation(input, 'biennial', `biennial:${String(year)}`, statementDate, {
@@ -304,8 +305,10 @@ function cancelReason(
   if (old.type === 'final' && record.exitDate === null) return 'exit-reversed';
   if (old.type === 'biennial' && record.exitDate !== null) {
     const year = Number(old.cycleKey.slice('biennial:'.length));
-    if (record.exitDate < biennialStatementDate(year, policy))
+    // On the statement date too: the biennial is owed only for an exit after it.
+    if (record.exitDate <= biennialStatementDate(year, policy)) {
       return 'exited-before-statement-date';
+    }
   }
   // The appointment or exit date moved: an initial or final off its date, or a biennial whose
   // statement date now precedes the appointment.
