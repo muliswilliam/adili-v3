@@ -22,25 +22,21 @@ export const sendMessageSchema = z
   // One pass, so a caller sees every recipient, template and params error in one response.
   .superRefine((body, ctx) => {
     const { channel, recipient, template, params } = body;
-    if (recipient.kind === 'person') {
-      // Needs the directory's contact lookup, which does not exist yet.
-      ctx.addIssue({
-        code: 'custom',
-        path: ['recipient', 'kind'],
-        message: 'person recipients are not supported yet; send an address',
-      });
-    } else if (channel === 'email' && !email.safeParse(recipient.to).success) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['recipient', 'to'],
-        message: 'must be an email address on the email channel',
-      });
-    } else if (channel === 'sms' && !E164.test(recipient.to)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['recipient', 'to'],
-        message: 'must be an E.164 phone number such as +254712345678 on the sms channel',
-      });
+    // A person's contacts come from the directory at send time; only an address is checked here.
+    if (recipient.kind === 'address') {
+      if (channel === 'email' && !email.safeParse(recipient.to).success) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['recipient', 'to'],
+          message: 'must be an email address on the email channel',
+        });
+      } else if (channel === 'sms' && !E164.test(recipient.to)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['recipient', 'to'],
+          message: 'must be an E.164 phone number such as +254712345678 on the sms channel',
+        });
+      }
     }
     if (!isTemplateId(template)) {
       ctx.addIssue({ code: 'custom', path: ['template'], message: 'unknown template' });

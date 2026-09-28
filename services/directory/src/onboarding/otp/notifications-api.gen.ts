@@ -64,7 +64,7 @@ export interface components {
             kind: "person";
             /**
              * Format: uuid
-             * @description Contacts resolved through the directory; failed with error no-contact when none
+             * @description The person's verified contacts are resolved through the directory (cached for 10 minutes) and the one for the channel is used. None for the channel is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).
              */
             personId: string;
         };
@@ -72,7 +72,13 @@ export interface components {
             channel: components["schemas"]["Channel"];
             recipient: components["schemas"]["Recipient"];
             template: components["schemas"]["TemplateId"];
-            /** @description Validated against the template's parameter schema */
+            /**
+             * @description Validated against the template's parameter schema. `obligation-reminder-sms` and
+             *     `obligation-reminder-email` take exactly `type` (initial, biennial, final),
+             *     `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`,
+             *     due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or
+             *     https URL).
+             */
             params: {
                 [key: string]: unknown;
             };
@@ -92,7 +98,7 @@ export interface components {
             channel: components["schemas"]["Channel"];
             template: components["schemas"]["TemplateId"];
             status: components["schemas"]["MessageStatus"];
-            /** @description Reason when failed, e.g. timeout, rejected-recipient, no-contact */
+            /** @description Reason when failed, e.g. timeout, rejected-recipient, provider-error, no-contact, contact-lookup-failed */
             error?: string | null;
             providerMessageId?: string | null;
             /** Format: date-time */

@@ -62,6 +62,78 @@ function otpEmail(
 const forCommission = (params: OtpParams) =>
   params.commissionName ? ` with ${params.commissionName}` : '';
 
+/** Filing obligation types (declarations.yaml `ObligationType`), as written in a sentence. */
+const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
+
+const reminderParams = z
+  .strictObject({
+    type: z.enum(OBLIGATION_TYPES),
+    commissionName: z.string().trim().min(1).max(120),
+    /** Civil dates `YYYY-MM-DD`, as the declarations service stores them. */
+    statementDate: z.iso.date(),
+    dueDate: z.iso.date(),
+    /** Whole days from the send to the due date; the caller computes it in Nairobi time. */
+    daysLeft: z.number().int().min(0).max(366),
+    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+  })
+  .refine((params) => params.dueDate >= params.statementDate, {
+    path: ['dueDate'],
+    message: 'must be on or after the statement date',
+    // Compare only two valid dates, so a malformed date reports one issue, not two.
+    when: (payload) =>
+      payload.issues.every(
+        (issue) => issue.path?.[0] !== 'statementDate' && issue.path?.[0] !== 'dueDate',
+      ),
+  });
+type ReminderParams = z.infer<typeof reminderParams>;
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
+/** `2027-12-31` as `31 December 2027`, without a time zone: the date is already civil. */
+function longDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return `${String(day)} ${MONTHS[(month ?? 1) - 1] ?? ''} ${String(year)}`;
+}
+
+const days = (n: number) => (n === 1 ? '1 day' : `${String(n)} days`);
+
+function reminderEmail(params: ReminderParams): RenderedEmail {
+  const due = longDate(params.dueDate);
+  const when = params.daysLeft === 0 ? 'today' : `in ${days(params.daysLeft)}`;
+  const paragraphs: { text: string; html: string }[] = [
+    `Your ${params.type} declaration for ${params.commissionName} is due on ${due}, ${when}.`,
+    `It declares your income, assets and liabilities as at the statement date, ${longDate(params.statementDate)}.`,
+  ].map((text) => ({ text, html: escapeHtml(text) }));
+  paragraphs.push({
+    text: `Sign in to Adili Online at ${params.portalUrl} to see your declarations and their due dates.`,
+    html: `Sign in to Adili Online at <a href="${escapeHtml(params.portalUrl)}">${escapeHtml(params.portalUrl)}</a> to see your declarations and their due dates.`,
+  });
+  const closing =
+    'If you have already declared by other means, contact your Commission. Adili Online will never ask you for your password or sign-in code.';
+  paragraphs.push({ text: closing, html: escapeHtml(closing) });
+  return {
+    subject:
+      params.daysLeft === 0
+        ? `Reminder: your ${params.type} declaration is due today`
+        : `Reminder: your ${params.type} declaration is due on ${due}`,
+    text: paragraphs.map((p) => p.text).join('\n\n'),
+    html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
+  };
+}
+
 /** Every message the service can send, by template id. Params are validated before rendering. */
 export const templates = {
   'onboarding-otp-email': define({
@@ -103,6 +175,20 @@ export const templates = {
           () => 'Enter it to finish signing in to Adili Online.',
         )(params),
     },
+  }),
+  'obligation-reminder-sms': define({
+    channel: 'sms',
+    params: reminderParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: your ${params.type} declaration for ${params.commissionName} is due on ${longDate(params.dueDate)} (${params.daysLeft === 0 ? 'today' : days(params.daysLeft)}). Sign in at ${params.portalUrl}`,
+      }),
+    },
+  }),
+  'obligation-reminder-email': define({
+    channel: 'email',
+    params: reminderParams,
+    copy: { en: reminderEmail },
   }),
 } as const;
 
