@@ -1,16 +1,24 @@
 import { withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
-import { outbox, rosterImportRows, rosterImports, rosterRecords } from '../../src/db/schema.js';
+import {
+  outbox,
+  rosterImportRows,
+  rosterImports,
+  rosterRecords,
+  rosterSummaries,
+} from '../../src/db/schema.js';
+import { confirmExits } from '../../src/roster/exits/exits.js';
 import { applyChunk } from '../../src/roster/import/apply-chunk.js';
 import { finaliseImport } from '../../src/roster/import/finalise.js';
 import { flagAbsent } from '../../src/roster/import/flag-absent.js';
 import { DocumentsUnavailable } from '../../src/roster/import/roster-uploads.js';
-import { stageImport } from '../../src/roster/import/staging.js';
+import { IMPORT_SUBJECT, stageImport } from '../../src/roster/import/staging.js';
 import type { ImportRef } from '../../src/roster/import/workflow-contract.js';
+import { refreshRosterSummary } from '../../src/roster/summary.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
 
@@ -362,4 +370,61 @@ describe('flagAbsent', () => {
   async function flagged(): Promise<string[]> {
     return (await flaggedBy()).map(([fileNumber]) => fileNumber ?? '');
   }
+});
+
+describe('the roster summary', () => {
+  const summary = async () => {
+    const [row] = await asPlatform((tx) =>
+      tx.select().from(rosterSummaries).where(eq(rosterSummaries.tenant, 'psc')),
+    );
+    return row;
+  };
+
+  /** Resolves once the backend `pid` waits for a lock another one holds. */
+  async function waitsForALock(pid: Promise<number>): Promise<void> {
+    const backend = await pid;
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const { rows } = await api.db.execute<{ blocked: boolean }>(
+        sql`select cardinality(pg_blocking_pids(${backend}::int)) > 0 as blocked`,
+      );
+      if (rows[0]?.blocked === true) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`backend ${backend} never waited for a lock`);
+  }
+
+  it('keeps an exit that commits while a full count is being taken', async () => {
+    const ref = await givenImport();
+    await stageImport(api.db, api.uploads, ref);
+    await applyChunk(api.db, ref, 0);
+    await finaliseImport(api.db, events, ref, { state: 'completed' });
+    expect(await summary()).toMatchObject({ expected: 3 });
+    const [first] = await records();
+
+    const commit = Promise.withResolvers<undefined>();
+    const adjusted = Promise.withResolvers<undefined>();
+    // The exit has moved the summary and holds its row until released.
+    const exit = withTenant(api.db, { tenant: 'psc', subject: 'officer-psc' }, async (tx) => {
+      await confirmExits(tx, events, {
+        tenant: 'psc',
+        exits: [{ recordId: first?.id ?? '', exitDate: '2026-09-01' }],
+        source: 'console',
+        actor: { kind: 'user', id: 'officer-psc', name: null },
+      });
+      adjusted.resolve(undefined);
+      await commit.promise;
+    });
+    await adjusted.promise;
+    const backend = Promise.withResolvers<number>();
+    const count = withTenant(api.db, { tenant: 'psc', subject: IMPORT_SUBJECT }, async (tx) => {
+      const { rows } = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+      backend.resolve(rows[0]?.pid ?? 0);
+      await refreshRosterSummary(tx, 'psc');
+    });
+    await waitsForALock(backend.promise);
+    commit.resolve(undefined);
+    await Promise.all([exit, count]);
+
+    expect(await summary()).toMatchObject({ expected: 2 });
+  });
 });

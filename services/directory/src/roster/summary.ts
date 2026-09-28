@@ -51,6 +51,11 @@ export interface CompletedImport {
  * then on); changes to a known set of records adjust the summary instead (`adjustRosterSummary`).
  * `completedImport` also records the import as the latest one (and as the latest complete one
  * when declared complete); its time is the transaction's.
+ *
+ * The summary row is locked before counting, so the count sees every record change whose
+ * `adjustRosterSummary` came first and none that adjusts after: a delta is never overwritten by
+ * a count taken before it committed. Adjusters lock records then the summary; this locks the
+ * summary and counts without locking records, so the two cannot deadlock.
  */
 export async function refreshRosterSummary(
   tx: Transaction,
@@ -60,6 +65,14 @@ export async function refreshRosterSummary(
   const importId = completedImport?.id ?? null;
   const completeAt = completedImport?.declaredComplete ? sql`now()` : sql`null::timestamptz`;
   const importAt = completedImport ? sql`now()` : sql`null::timestamptz`;
+  // A row to lock even for the tenant's first count (a concurrent first insert is waited for).
+  await tx.execute(sql`
+    insert into roster_summaries (tenant, expected, onboarded, flagged, updated_at)
+    values (${tenant}, 0, 0, 0, now())
+    on conflict (tenant) do nothing
+  `);
+  await tx.execute(sql`select 1 from roster_summaries where tenant = ${tenant} for update`);
+  // A statement of its own after the lock: its snapshot includes whatever the lock waited for.
   await tx.execute(sql`
     insert into roster_summaries
       (tenant, expected, onboarded, flagged, last_import_id, last_import_at, last_complete_import_at, updated_at)
