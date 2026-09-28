@@ -29,9 +29,14 @@ function renderPoll(options: Partial<PollOptions<string>> & Pick<PollOptions<str
     limit: 3,
     ...options,
   };
-  const hook = renderHook((current: PollOptions<string>) => usePoll(current), {
-    initialProps: props,
-  });
+  const hook = renderHook(
+    (current: PollOptions<string>) => {
+      usePoll(current);
+    },
+    {
+      initialProps: props,
+    },
+  );
   return { ...hook, props, onRead: props.onRead, onGiveUp: props.onGiveUp };
 }
 
