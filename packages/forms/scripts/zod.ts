@@ -1,0 +1,263 @@
+// Emits Zod 4 source for a prescribed form's JSON Schema: named constants for its enumerations,
+// one exported schema per $defs entry and one for the root. It covers the subset the forms use
+// and throws on anything else, so a schema change it cannot express fails the generate step
+// instead of producing a validator that is quietly looser than the JSON Schema.
+
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+type Node = Record<string, Json>;
+
+export interface ZodModuleOptions {
+  /** Name of the root schema, e.g. `DeclarationSchema`. */
+  rootName: string;
+  /** Exported constant names for every `enum` (required) and any `const` (optional), by JSON pointer. */
+  names: Record<string, string>;
+}
+
+const KNOWN = new Set([
+  '$schema',
+  '$id',
+  '$defs',
+  '$ref',
+  'title',
+  'description',
+  'type',
+  'properties',
+  'required',
+  'additionalProperties',
+  'items',
+  'minItems',
+  'maxItems',
+  'enum',
+  'const',
+  'format',
+  'pattern',
+  'minLength',
+  'maxLength',
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'if',
+  'then',
+  'else',
+  'allOf',
+]);
+
+const FORMATS: Record<string, string> = {
+  date: 'z.iso.date()',
+  'date-time': 'z.iso.datetime({ offset: true })',
+  // Ajv's uuid format accepts any version, as z.guid() does; z.uuid() would insist on RFC 9562.
+  uuid: 'z.guid()',
+};
+
+export function zodModule(schema: Node, { rootName, names }: ZodModuleOptions): string {
+  const used = new Set<string>();
+  const constants: string[] = [];
+  const defs = (schema.$defs ?? {}) as Record<string, Node>;
+
+  function name(pointer: string, kind: 'enum' | 'const'): string | undefined {
+    const found = names[pointer];
+    if (found) used.add(pointer);
+    else if (kind === 'enum') throw new Error(`${pointer}: name this enum in the generator`);
+    return found;
+  }
+
+  function expression(node: Node, pointer: string): string {
+    const unknown = Object.keys(node).filter((key) => !KNOWN.has(key));
+    if (unknown.length > 0) throw new Error(`${pointer}: unsupported ${unknown.join(', ')}`);
+
+    const base = baseExpression(node, pointer);
+    const checks = conditionals(node, pointer);
+    return checks.length === 0
+      ? base
+      : `${base}.superRefine((value, ctx) => {\n${checks.join('\n')}\n})`;
+  }
+
+  function baseExpression(node: Node, pointer: string): string {
+    if (typeof node.$ref === 'string') {
+      const match = /^#\/\$defs\/(\w+)$/.exec(node.$ref);
+      if (!match?.[1] || !(match[1] in defs)) throw new Error(`${pointer}: unknown ${node.$ref}`);
+      return `${match[1]}Schema`;
+    }
+    if (Array.isArray(node.enum)) {
+      const constName = name(pointer, 'enum');
+      constants.push(`export const ${constName} = ${JSON.stringify(node.enum)} as const;`);
+      return `z.enum(${constName})`;
+    }
+    if (node.const !== undefined) {
+      const constName = name(pointer, 'const');
+      if (!constName) return `z.literal(${JSON.stringify(node.const)})`;
+      constants.push(`export const ${constName} = ${JSON.stringify(node.const)};`);
+      return `z.literal(${constName})`;
+    }
+    switch (node.type) {
+      case 'object':
+        return objectExpression(node, pointer);
+      case 'array': {
+        if (typeof node.items !== 'object' || Array.isArray(node.items) || node.items === null) {
+          throw new Error(`${pointer}: an array needs one items schema`);
+        }
+        return `z.array(${expression(node.items, `${pointer}/items`)})${bounds(node, 'minItems', 'maxItems')}`;
+      }
+      case 'string':
+        return stringExpression(node, pointer);
+      case 'integer':
+      case 'number': {
+        let source = node.type === 'integer' ? 'z.int()' : 'z.number()';
+        if (typeof node.minimum === 'number') source += `.min(${node.minimum})`;
+        if (typeof node.exclusiveMinimum === 'number') source += `.gt(${node.exclusiveMinimum})`;
+        if (typeof node.maximum === 'number') source += `.max(${node.maximum})`;
+        return source;
+      }
+      case 'boolean':
+        return 'z.boolean()';
+      default:
+        throw new Error(`${pointer}: unsupported type ${JSON.stringify(node.type)}`);
+    }
+  }
+
+  function objectExpression(node: Node, pointer: string): string {
+    const properties = (node.properties ?? {}) as Record<string, Node>;
+    const required = new Set((node.required ?? []) as string[]);
+    const fields = Object.entries(properties).map(([key, property]) => {
+      const source = expression(property, `${pointer}/properties/${key}`);
+      return `${JSON.stringify(key)}: ${required.has(key) ? source : `${source}.optional()`},`;
+    });
+    if (node.additionalProperties === false) return `z.strictObject({\n${fields.join('\n')}\n})`;
+    if (node.additionalProperties === undefined) return `z.looseObject({\n${fields.join('\n')}\n})`;
+    throw new Error(`${pointer}: additionalProperties must be false or absent`);
+  }
+
+  function stringExpression(node: Node, pointer: string): string {
+    if (typeof node.format === 'string') {
+      const source = FORMATS[node.format];
+      if (!source) throw new Error(`${pointer}: unsupported format ${node.format}`);
+      if (node.pattern !== undefined || node.minLength !== undefined) {
+        throw new Error(`${pointer}: a format with a pattern or length is not supported`);
+      }
+      return source;
+    }
+    let source = `z.string()${bounds(node, 'minLength', 'maxLength')}`;
+    if (typeof node.pattern === 'string') {
+      source += `.regex(/${node.pattern.replaceAll('/', '\\/')}/)`;
+    }
+    return source;
+  }
+
+  // `if: { properties: { flag: { const } } }` with `then`/`else` of `required` or item counts, as
+  // the forms use them for flagged changes, joint shares and nil categories. As in JSON Schema,
+  // the condition also holds when the flag is absent.
+  function conditionals(node: Node, pointer: string): string[] {
+    const branches: [Node, string][] = [];
+    if (node.if !== undefined) branches.push([node, pointer]);
+    for (const [index, entry] of ((node.allOf ?? []) as Node[]).entries()) {
+      const extra = Object.keys(entry).filter((key) => !['if', 'then', 'else'].includes(key));
+      if (extra.length > 0 || entry.if === undefined) {
+        throw new Error(`${pointer}/allOf/${index}: only if/then/else is supported in allOf`);
+      }
+      branches.push([entry, `${pointer}/allOf/${index}`]);
+    }
+    // A required field is always there by the time a refinement runs.
+    const required = new Set((node.required ?? []) as string[]);
+    return branches.map(([branch, at]) => {
+      const condition = conditionSource(branch.if as Node, required, `${at}/if`);
+      const then = assertions(branch.then as Node | undefined, required, `${at}/then`);
+      const otherwise = assertions(branch.else as Node | undefined, required, `${at}/else`);
+      return otherwise
+        ? `if (${condition}) {\n${then}\n} else {\n${otherwise}\n}`
+        : `if (${condition}) {\n${then}\n}`;
+    });
+  }
+
+  function conditionSource(condition: Node, required: Set<string>, pointer: string): string {
+    const entries = Object.entries((condition.properties ?? {}) as Record<string, Node>);
+    const [only] = entries;
+    if (Object.keys(condition).join() !== 'properties' || entries.length !== 1 || !only) {
+      throw new Error(`${pointer}: only a single { properties: { key: { const } } } is supported`);
+    }
+    const [key, test] = only;
+    if (Object.keys(test).join() !== 'const')
+      throw new Error(`${pointer}: only const is supported`);
+    const equals = `value.${key} === ${JSON.stringify(test.const)}`;
+    return required.has(key) ? equals : `value.${key} === undefined || ${equals}`;
+  }
+
+  function assertions(branch: Node | undefined, required: Set<string>, pointer: string): string {
+    if (branch === undefined) return '';
+    const lines: string[] = [];
+    for (const [key, value] of Object.entries(branch)) {
+      if (key === 'required') {
+        for (const field of (value as string[]).filter((field) => !required.has(field))) {
+          lines.push(
+            `if (value.${field} === undefined) ctx.addIssue({ code: 'custom', path: [${JSON.stringify(field)}], message: 'is required' });`,
+          );
+        }
+      } else if (key === 'properties') {
+        for (const [field, rule] of Object.entries(value as Record<string, Node>)) {
+          lines.push(...countAssertions(field, rule, `${pointer}/properties/${field}`));
+        }
+      } else {
+        throw new Error(`${pointer}: unsupported ${key}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  function countAssertions(field: string, rule: Node, pointer: string): string[] {
+    return Object.entries(rule).map(([key, limit]) => {
+      if (key === 'minItems' && typeof limit === 'number') {
+        return `if (value.${field}.length < ${limit}) ctx.addIssue({ code: 'custom', path: [${JSON.stringify(field)}], message: 'must NOT have fewer than ${limit} items' });`;
+      }
+      if (key === 'maxItems' && typeof limit === 'number') {
+        return `if (value.${field}.length > ${limit}) ctx.addIssue({ code: 'custom', path: [${JSON.stringify(field)}], message: 'must NOT have more than ${limit} items' });`;
+      }
+      throw new Error(`${pointer}: unsupported ${key}`);
+    });
+  }
+
+  // $defs refer to each other, so emit each after the ones it uses.
+  const emitted = new Map<string, string>();
+  const visiting = new Set<string>();
+  function emitDef(defName: string): void {
+    if (emitted.has(defName)) return;
+    if (visiting.has(defName))
+      throw new Error(`#/$defs/${defName}: recursive $defs are not supported`);
+    const def = defs[defName];
+    if (!def) throw new Error(`#/$defs/${defName} does not exist`);
+    visiting.add(defName);
+    for (const dependency of refsIn(def)) emitDef(dependency);
+    emitted.set(
+      defName,
+      `${docComment(def)}export const ${defName}Schema = ${expression(def, `#/$defs/${defName}`)};`,
+    );
+    visiting.delete(defName);
+  }
+  for (const defName of Object.keys(defs)) emitDef(defName);
+
+  const root = { ...schema };
+  delete root.$defs;
+  const rootSource = `${docComment(root)}export const ${rootName} = ${expression(root, '#')};`;
+
+  const unused = Object.keys(names).filter((pointer) => !used.has(pointer));
+  if (unused.length > 0) throw new Error(`no enum or const at ${unused.join(', ')}`);
+
+  return ["import { z } from 'zod';", ...constants, ...emitted.values(), rootSource].join('\n\n');
+}
+
+function refsIn(node: Json): string[] {
+  if (Array.isArray(node)) return node.flatMap(refsIn);
+  if (node === null || typeof node !== 'object') return [];
+  return Object.entries(node).flatMap(([key, value]) =>
+    key === '$ref' && typeof value === 'string' ? [value.replace('#/$defs/', '')] : refsIn(value),
+  );
+}
+
+function docComment(node: Node): string {
+  return typeof node.description === 'string' ? `/** ${node.description} */\n` : '';
+}
+
+function bounds(node: Node, min: string, max: string): string {
+  let source = '';
+  if (typeof node[min] === 'number') source += `.min(${node[min]})`;
+  if (typeof node[max] === 'number') source += `.max(${node[max]})`;
+  return source;
+}
