@@ -8,46 +8,25 @@ import {
   loadClarificationDetail,
   raiseFollowUp,
   resolve,
-  type ServiceResult,
   withdraw,
 } from './clarifications.server';
-import { callDirectory as callService } from './directory/client';
-import { createDocumentsClient } from './documents/client';
-import { env } from './env.server';
-import { type Clarification, createReviewClient, type ReviewClient } from './review/client';
+import { documentsClient } from './documents/client.server';
+import { reviewClient, type ReviewClient } from './review/client.server';
+import type { Clarification } from './review/types';
+import { callService, type ServiceResult } from './service-call';
 
 /**
  * Server functions for a clarification on a review case (spec 07a FE-4, S15), called as the
- * signed-in reviewer or supervisor. Tokens stay on the server; downloads come back as short-lived links.
+ * signed-in reviewer or supervisor. Tokens stay on the server; downloads come back as
+ * short-lived links.
  */
-
-type Send = (request: Request) => Promise<Response>;
-
-/** The in-memory mock when REVIEW_MOCK is on in development, else the network. */
-function mockSend(pick: 'review' | 'documents'): Send | undefined {
-  // `import.meta.env.DEV` is `false` in production builds, so the bundler drops this branch and
-  // the mock's chunk with it; keep the check inline for that to work.
-  if (import.meta.env.DEV && process.env.NODE_ENV !== 'production' && env().REVIEW_MOCK) {
-    return async (request) => {
-      const mock = await import('./review/mock.server');
-      return pick === 'review' ? mock.mockReviewFetch(request) : mock.mockDocumentsFetch(request);
-    };
-  }
-  return undefined;
-}
 
 async function asReviewer<T>(
   work: (client: ReviewClient, subject: string, accessToken: string) => Promise<ServiceResult<T>>,
 ): Promise<ServiceResult<T>> {
   const session = await getBff().getSession(getRequest());
   if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
-  const send = mockSend('review');
-  const client = createReviewClient({
-    baseUrl: env().REVIEW_API_URL,
-    accessToken: session.accessToken,
-    ...(send ? { fetch: send } : {}),
-  });
-  return work(client, session.user.subject, session.accessToken);
+  return work(reviewClient(session.accessToken), session.user.subject, session.accessToken);
 }
 
 const id = z.uuid();
@@ -105,17 +84,11 @@ export const getResponseAttachmentLink = createServerFn({ method: 'GET' })
 export const getLetterLink = createServerFn({ method: 'GET' })
   .validator(z.object({ documentId: id }))
   .handler(({ data }): Promise<ServiceResult<DownloadLink>> =>
-    asReviewer((_client, _subject, accessToken) => {
-      const send = mockSend('documents');
-      const documents = createDocumentsClient({
-        baseUrl: env().DOCUMENTS_API_URL,
-        accessToken,
-        ...(send ? { fetch: send } : {}),
-      });
-      return callService(() =>
-        documents.GET('/v1/documents/{documentId}/download', {
+    asReviewer((_client, _subject, accessToken) =>
+      callService(() =>
+        documentsClient(accessToken).GET('/v1/documents/{documentId}/download', {
           params: { path: { documentId: data.documentId } },
         }),
-      );
-    }),
+      ),
+    ),
   );

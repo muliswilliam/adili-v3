@@ -1,20 +1,13 @@
-import { isOutstanding } from '../components/review/clarification';
-// The directory client's fold works for any of our services: they all answer RFC 9457 problems.
-import { callDirectory as callService, type DirectoryResult } from './directory/client';
-import type {
-  CaseListItem,
-  Clarification,
-  ClarificationStatus,
-  ReviewClient,
-} from './review/client';
+import { isOutstanding } from '../clarification/labels';
+import type { ReviewClient } from './review/client.server';
+import type { CaseListItem, Clarification, ClarificationStatus } from './review/types';
+import { callService, type ServiceResult } from './service-call';
 
 /**
  * The review service's clarification endpoints for the case's reviewer (spec 07a S15), folded
  * into results the clarification detail can switch on. Pure: the caller injects the client (see
  * `clarifications.ts` for the server functions that call these as the signed-in reviewer).
  */
-
-export type ServiceResult<T> = DirectoryResult<T>;
 
 export interface ClarificationRef {
   id: string;

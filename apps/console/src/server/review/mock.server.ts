@@ -11,16 +11,23 @@
  *   (responded), so Raise follow-up is disabled.
  * - Case `peters`, held by Peter Mwangi: `petersOverdue`, read-only for everyone else.
  *
- * Only the case's assignee may resolve (issued, responded or overdue; note 1-2,000 characters),
- * raise a follow-up (responded, resolved or overdue: a draft with the same items and
- * `followUpOf`) or withdraw (issued or overdue; reason 1-1,000 characters; the letter is
- * revoked); anyone else gets 403, a wrong status 409. Resolving the last outstanding
+ * Only the case's assignee may act; anyone else gets 403. As review.yaml has it: resolve an
+ * issued or responded clarification (note 1-2,000 characters; else 409), withdraw an issued one,
+ * overdue included (reason 1-1,000 characters; the letter is revoked; else 409), or raise a
+ * follow-up (a draft with `followUpOf`; the contract defines no 409 for it). The contract
+ * pre-fills a follow-up with the unresolved items; items carry no resolved state, so the mock
+ * copies them all. Resolving the last outstanding
  * clarification makes the case ready for determination. Downloads point at
  * `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
  */
 import { randomUUID } from 'node:crypto';
 
-import type { Assignee, CaseDetail, CaseListItem, Clarification } from './client';
+import createClient from 'openapi-fetch';
+
+import { isOutstanding } from '../../clarification/labels';
+import { isRecord, json, problem, readJson } from '../mock-http';
+import type { paths } from './api.gen';
+import type { Assignee, CaseDetail, CaseListItem, Clarification } from './types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -161,6 +168,15 @@ function response(
   };
 }
 
+/** A review client answered by this mock, calling as `subject` (tests). */
+export function mockReviewClient(subject: string, name: string) {
+  return createClient<paths>({
+    baseUrl: 'http://review.test',
+    headers: { authorization: `Bearer ${mockToken(subject, name)}` },
+    fetch: mockReviewFetch,
+  });
+}
+
 /** Seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(now: number = Date.now()) {
   cases.clear();
@@ -249,10 +265,6 @@ function holderOf(stored: StoredCase, caller: Assignee): Assignee {
   return stored.holder === CALLER ? caller : stored.holder;
 }
 
-function outstanding(status: Clarification['status']) {
-  return status === 'issued' || status === 'responded' || status === 'overdue';
-}
-
 function ofCase(caseId: string): Clarification[] {
   return [...clarifications.values()]
     .filter((each) => each.caseId === caseId)
@@ -261,7 +273,7 @@ function ofCase(caseId: string): Clarification[] {
 
 /** Case counts and status from its clarifications (spec: clarified then ready when none open). */
 function refreshCase(stored: StoredCase) {
-  const open = ofCase(stored.item.id).filter((each) => outstanding(each.status));
+  const open = ofCase(stored.item.id).filter((each) => isOutstanding(each.status));
   const latest = open[0] ?? null;
   stored.item = {
     ...stored.item,
@@ -274,28 +286,9 @@ function refreshCase(stored: StoredCase) {
   };
 }
 
-function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'content-type': status >= 400 ? 'application/problem+json' : 'application/json',
-    },
-  });
-}
-
-function problem(status: number, title: string, code?: string) {
-  return json(status, { type: 'about:blank', title, status, ...(code ? { code } : {}) });
-}
-
 async function textField(request: Request, field: string, max: number): Promise<string | null> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return null;
-  }
-  const value =
-    typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[field] : null;
+  const body = await readJson(request);
+  const value = isRecord(body) ? body[field] : null;
   if (typeof value !== 'string' || !value.trim() || value.length > max) return null;
   return value;
 }
@@ -406,7 +399,9 @@ async function act(
   }
 
   if (action === 'resolve') {
-    if (!outstanding(found.status)) return problem(409, 'Not issued or responded');
+    if (found.status !== 'issued' && found.status !== 'responded') {
+      return problem(409, 'Not issued or responded');
+    }
     const note = await textField(request, 'note', 2000);
     if (note === null) return problem(400, 'A note of 1 to 2,000 characters is required');
     return save(stored, {
@@ -431,9 +426,6 @@ async function act(
   }
 
   // follow-up
-  if (found.status !== 'responded' && found.status !== 'resolved' && found.status !== 'overdue') {
-    return problem(409, 'Nothing to follow up yet');
-  }
   const draft: Clarification = {
     id: randomUUID(),
     caseId: found.caseId,

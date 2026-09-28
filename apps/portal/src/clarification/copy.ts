@@ -1,7 +1,6 @@
-import type { BadgeProps } from '@adili/ui';
+import { type BadgeProps, plural } from '@adili/ui';
 
 import type { ClarificationStatus, Requirement } from '../server/review/types';
-import { plural } from './deadline';
 
 /**
  * Words for the declarant's clarification page (spec 07a FE-5). Requirements and statuses are
@@ -79,7 +78,7 @@ export const COPY = {
   attachmentNotClean:
     'One of your documents did not pass the security check. Remove it and attach a different copy.',
   closedNow: 'This clarification is closed and no longer needs a response.',
-  sent: 'Response sent to your Commission. We have emailed you a copy.',
+  sent: 'Response sent to your Commission.',
 
   confirmTitle: 'Submit your response?',
   confirmBody: 'You can respond once. Make sure every point is answered.',
@@ -96,7 +95,7 @@ export const COPY = {
   reminder: (countdown: string, due: string) => `Reminder: ${countdown.toLowerCase()}. Due ${due}.`,
   submittedTitle: (at: string) => `Response submitted ${at}.`,
   respondedLate: (days: number) => `Responded ${plural(days, 'day')} late.`,
-  willTell: (commission: string) => `We will SMS and email you when ${commission} has reviewed it.`,
+  willReview: (commission: string) => `${commission} will review it.`,
   furtherSent: (commission: string) => `${commission} sent a further clarification.`,
   furtherOwnPeriod: 'It has its own 30 days.',
   openFurther: (reference: string) => `Open ${reference}`,

@@ -143,7 +143,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `SectionNav` | `.dnav` sidebar in the declaration screens | ordered list of sections with 24px status circles (done is a tick on `success-subtle`) and an optional 12px muted detail line; sub-sections hang off a 1.5px rule with 13.5px items. The current one has `aria-current="page"`; completeness is also in text for screen readers. |
 | `SegmentedChoice` | `.seg` in the declaration screens | native radios in a fieldset shown as 40px `shadow-control` buttons, 10px radius (`rounded-lg`), 6px apart; the chosen one is ink. Arrow keys move between options. |
 
-Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
+Shared helpers live next to the components: `formatDate` and `formatDateTime` print dates in Kenyan time the same on server and browser, `daysBetween`, `addDays` and `plural` count calendar days in Kenyan time for deadlines and periods ("Respond within 12 days"), and `useCountdown`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 
 ## Dark theme
 

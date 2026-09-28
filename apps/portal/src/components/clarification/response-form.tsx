@@ -17,6 +17,7 @@ import {
   formatDate,
   Icon,
   Label,
+  daysBetween,
   Spinner,
   Textarea,
 } from '@adili/ui';
@@ -24,7 +25,7 @@ import { Clock01Icon, SentIcon, WifiOff01Icon } from '@hugeicons/core-free-icons
 import { type Dispatch, useReducer, useState } from 'react';
 
 import { COPY } from '../../clarification/copy';
-import { daysBetween, lateDays } from '../../clarification/deadline';
+import { lateDays } from '../../clarification/deadline';
 import {
   answeredCount,
   attachedCount,

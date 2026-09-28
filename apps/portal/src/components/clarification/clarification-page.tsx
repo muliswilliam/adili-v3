@@ -318,7 +318,7 @@ function Banners({
         {COPY.overdueBody}
       </Banner>,
     );
-  } else if (open && issuedAt && dueAt && reminderSent(issuedAt, now)) {
+  } else if (open && issuedAt && dueAt && reminderSent(issuedAt, null, now)) {
     banners.push(
       <Banner
         key="reminder"
@@ -343,7 +343,7 @@ function Banners({
         {clarification.responseLate && dueAt
           ? `${COPY.respondedLate(lateDays(dueAt, respondedAt))} `
           : ''}
-        {COPY.willTell(commission.name)}
+        {COPY.willReview(commission.name)}
       </Banner>,
     );
   }

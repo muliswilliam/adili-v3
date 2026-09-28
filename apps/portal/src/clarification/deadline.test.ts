@@ -1,16 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { countdown, daysBetween, isOpen, lateDays, reminderSent } from './deadline';
-
-describe('daysBetween', () => {
-  it('counts calendar days in Kenyan time, not 24-hour spans', () => {
-    // 23:30 and 00:30 the next day in Nairobi are one day apart though an hour passed.
-    expect(daysBetween('2026-09-27T20:30:00Z', '2026-09-27T21:30:00Z')).toBe(1);
-    expect(daysBetween('2026-09-01T06:00:00Z', '2026-09-01T18:00:00Z')).toBe(0);
-    expect(daysBetween('2026-09-01T06:00:00Z', '2026-10-01T06:00:00Z')).toBe(30);
-    expect(daysBetween('2026-10-01T06:00:00Z', '2026-09-28T06:00:00Z')).toBe(-3);
-  });
-});
+import { countdown, isOpen, lateDays, reminderSent } from './deadline';
 
 describe('countdown', () => {
   const due = '2026-10-10T20:59:00Z';
@@ -52,8 +42,17 @@ describe('lateDays', () => {
 
 describe('reminderSent', () => {
   it('is true from day 20 after issue', () => {
-    expect(reminderSent('2026-09-01T08:00:00Z', '2026-09-20T08:00:00Z')).toBe(false);
-    expect(reminderSent('2026-09-01T08:00:00Z', '2026-09-21T08:00:00Z')).toBe(true);
+    expect(reminderSent('2026-09-01T08:00:00Z', null, '2026-09-20T08:00:00Z')).toBe(false);
+    expect(reminderSent('2026-09-01T08:00:00Z', null, '2026-09-21T08:00:00Z')).toBe(true);
+  });
+
+  it('is not sent when the declarant responded before day 20', () => {
+    expect(
+      reminderSent('2026-09-01T08:00:00Z', '2026-09-05T08:00:00Z', '2026-09-28T08:00:00Z'),
+    ).toBe(false);
+    expect(
+      reminderSent('2026-09-01T08:00:00Z', '2026-09-25T08:00:00Z', '2026-09-28T08:00:00Z'),
+    ).toBe(true);
   });
 });
 

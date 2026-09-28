@@ -13,12 +13,10 @@ import {
   type ClarificationDetail,
   loadClarificationDetail,
 } from '../../server/clarifications.server';
-import { createReviewClient } from '../../server/review/client';
 import {
   MOCK_CASE_IDS as CASES,
   MOCK_CLARIFICATION_IDS as K,
-  mockReviewFetch,
-  mockToken,
+  mockReviewClient,
   resetReviewMock,
 } from '../../server/review/mock.server';
 import { ClarificationDetailView } from './clarification-detail';
@@ -66,11 +64,7 @@ const NOW = new Date(NOW_MS).toISOString();
 const ME = 'a1b2c3d4-0000-4000-8000-000000000001';
 
 async function detailOf(caseId: string, clarificationId: string): Promise<ClarificationDetail> {
-  const client = createReviewClient({
-    baseUrl: 'http://review.test',
-    accessToken: mockToken(ME, 'Grace Wanjiru'),
-    fetch: mockReviewFetch,
-  });
+  const client = mockReviewClient(ME, 'Grace Wanjiru');
   const result = await loadClarificationDetail(client, caseId, clarificationId, ME, NOW);
   if (!result.ok) throw new Error(JSON.stringify(result.error));
   return result.data;
@@ -96,7 +90,7 @@ beforeEach(() => {
 });
 
 describe('ClarificationDetailView: states', () => {
-  it('waits for the declarant on an issued clarification: resolve or withdraw', async () => {
+  it('waits for the declarant on an issued clarification: only withdraw', async () => {
     renderDetail(await detailOf(CASES.mine, K.issued));
     expect(screen.getByRole('heading', { level: 1, name: 'John Kennedy Otieno' })).toBeTruthy();
     // The status badge and the letter's.
@@ -104,7 +98,7 @@ describe('ClarificationDetailView: states', () => {
     expect(screen.getByText('Waiting for the declarant.')).toBeTruthy();
     expect(screen.getByText('Due in 22 days. Reminder goes 10 Oct 2026.')).toBeTruthy();
     expect(screen.getAllByText('No response yet.')).toHaveLength(2);
-    expect(button('Mark resolved')).toBeTruthy();
+    expect(button('Mark resolved')).toBeNull();
     expect(button('Withdraw')).toBeTruthy();
     expect(button('Raise follow-up')).toBeNull();
     expect(
@@ -112,7 +106,7 @@ describe('ClarificationDetailView: states', () => {
     ).toBeTruthy();
   });
 
-  it('shows a late response beside each question with its documents', async () => {
+  it('shows a late response beside each item with its documents', async () => {
     renderDetail(await detailOf(CASES.mine, K.late));
     expect(screen.getByText('Responded 3 days late')).toBeTruthy();
     expect(screen.getByText('Late')).toBeTruthy();
@@ -135,14 +129,16 @@ describe('ClarificationDetailView: states', () => {
     expect(screen.getByText('Responded on time')).toBeTruthy();
   });
 
-  it('points an overdue clarification to Actions for its assignee', async () => {
+  it('says an overdue clarification can still be answered, and offers only withdraw', async () => {
     renderDetail(await detailOf(CASES.mine, K.overdue));
     expect(screen.getByText('Overdue since 26 Sep 2026.')).toBeTruthy();
     expect(
-      screen.getByText('A notice to comply is drafted for approval under Actions.'),
+      screen.getByText(
+        'Not answered by the due date. The declarant can still respond; the response will be marked late.',
+      ),
     ).toBeTruthy();
-    expect(button('Mark resolved')).toBeTruthy();
-    expect(button('Raise follow-up')).toBeTruthy();
+    expect(button('Mark resolved')).toBeNull();
+    expect(button('Raise follow-up')).toBeNull();
     expect(button('Withdraw')).toBeTruthy();
     expect(screen.getByText('Marked overdue')).toBeTruthy();
   });
@@ -160,7 +156,7 @@ describe('ClarificationDetailView: states', () => {
     expect(screen.getByText('Resolved 15 Aug 2026.')).toBeTruthy();
     expect(screen.getByText('Loan statement matches the payslip deduction.')).toBeTruthy();
     expect(button('Mark resolved')).toBeNull();
-    expect(button('Raise follow-up')).toBeTruthy();
+    expect(button('Raise follow-up')).toBeNull();
   });
 
   it('shows a withdrawn clarification with its letter revoked', async () => {

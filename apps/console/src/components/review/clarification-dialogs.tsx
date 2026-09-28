@@ -20,7 +20,7 @@ import {
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
 import { useId, useState } from 'react';
 
-import { resolveNoteError, resolveOutcome, withdrawReasonError } from './clarification';
+import { resolveNoteError, resolveOutcome, withdrawReasonError } from '../../clarification/dialogs';
 
 /**
  * Mark resolved and Withdraw (spec 07a S15), as controlled dialogs. Each checks its text, then

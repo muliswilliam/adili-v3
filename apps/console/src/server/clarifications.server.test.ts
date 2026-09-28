@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { loadClarificationDetail, raiseFollowUp, resolve, withdraw } from './clarifications.server';
-import { createReviewClient } from './review/client';
 import {
   MOCK_CASE_IDS as CASES,
   MOCK_CLARIFICATION_IDS as K,
-  mockReviewFetch,
-  mockToken,
+  mockReviewClient,
   resetReviewMock,
 } from './review/mock.server';
 
@@ -14,12 +12,8 @@ const NOW_MS = Date.parse('2026-09-28T09:00:00Z');
 const NOW = new Date(NOW_MS).toISOString();
 const ME = 'a1b2c3d4-0000-4000-8000-000000000001';
 
-function client(subject = ME, name = 'Grace Wanjiru') {
-  return createReviewClient({
-    baseUrl: 'http://review.test',
-    accessToken: mockToken(subject, name),
-    fetch: mockReviewFetch,
-  });
+function client() {
+  return mockReviewClient(ME, 'Grace Wanjiru');
 }
 
 beforeEach(() => {
@@ -77,7 +71,8 @@ describe('actions (S15)', () => {
       resolutionNote: 'Explained with a loan statement.',
     });
 
-    for (const id of [K.issued, K.onTime, K.overdue]) await resolve(client(), id, 'Done.');
+    for (const id of [K.issued, K.onTime]) await resolve(client(), id, 'Done.');
+    await withdraw(client(), K.overdue, 'Issued in error.');
     const detail = await loadClarificationDetail(client(), CASES.mine, K.late, ME, NOW);
     if (!detail.ok) throw new Error('not ok');
     expect(detail.data.case.status).toBe('ready-for-determination');
@@ -102,12 +97,17 @@ describe('actions (S15)', () => {
     expect(withdrawn.data.letter?.status).toBe('revoked');
   });
 
-  it('refuses anyone but the officer holding the case (403), and a wrong status (409)', async () => {
+  it('refuses anyone but the reviewer holding the case (403), and a wrong status (409)', async () => {
     expect(await resolve(client(), K.petersOverdue, 'Mine now')).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 403 } },
     });
     expect(await withdraw(client(), K.late, 'Too late to withdraw')).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409 } },
+    });
+    // review.yaml: resolve answers 409 unless issued or responded.
+    expect(await resolve(client(), K.overdue, 'Overdue')).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 409 } },
     });

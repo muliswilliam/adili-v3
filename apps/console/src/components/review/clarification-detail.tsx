@@ -2,11 +2,13 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  type AlertProps,
   Badge,
   type BadgeProps,
   Button,
   Card,
   Icon,
+  plural,
   Tooltip,
   useToast,
 } from '@adili/ui';
@@ -34,52 +36,46 @@ import {
   withdrawClarification,
 } from '../../server/clarifications';
 import type { ClarificationDetail } from '../../server/clarifications.server';
-import type { DirectoryError } from '../../server/directory/client';
-import type { Clarification } from '../../server/review/client';
+import type { Clarification } from '../../server/review/types';
+import type { ServiceError } from '../../server/service-call';
+import { clarificationActions } from '../../clarification/actions';
+import { CLARIFICATION_STATUSES, REQUIREMENT_LABELS, type Tone } from '../../clarification/labels';
+import { historyOf, statusLine } from '../../clarification/view';
 import { formatDate } from '../format';
 import { Page, PageHead, SectionCard } from '../page';
-import {
-  CLARIFICATION_STATUSES,
-  clarificationActions,
-  historyOf,
-  plural,
-  REQUIREMENT_LABELS,
-  type StatusLine,
-  statusLine,
-  type StatusTone,
-} from './clarification';
 import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
 
 /**
  * One clarification on a review case (spec 07a FE-4, S15): each item beside the declarant's
  * answer and documents, the letter, where it stands, its history, and for the officer holding
- * the case the three actions: Mark resolved (note), Raise follow-up (a draft pre-filled with the
- * items) and Withdraw (reason; letter revoked). Everyone else reads it.
+ * the case the actions: once the declarant has responded, Mark resolved (note) or Raise
+ * follow-up (a draft with `followUpOf`); before that, Withdraw (reason; letter revoked).
+ * Everyone else reads it.
  */
 
-const BADGE_VARIANT: Record<StatusTone, BadgeProps['variant']> = {
-  neutral: 'default',
-  info: 'info',
-  brand: 'brand',
-  success: 'success',
-  warning: 'warning',
-  destructive: 'destructive',
-};
-
-const LINE_ICON: Record<StatusLine['tone'], Parameters<typeof Icon>[0]['icon']> = {
-  neutral: InformationCircleIcon,
-  info: Clock01Icon,
-  success: CheckmarkCircle02Icon,
-  warning: Clock01Icon,
-  destructive: Alert02Icon,
+/** One tone, two components: the badge variant and the callout variant and icon. */
+const TONES: Record<
+  Tone,
+  {
+    badge: BadgeProps['variant'];
+    alert: AlertProps['variant'];
+    icon: Parameters<typeof Icon>[0]['icon'];
+  }
+> = {
+  neutral: { badge: 'default', alert: 'neutral', icon: InformationCircleIcon },
+  info: { badge: 'info', alert: 'info', icon: Clock01Icon },
+  brand: { badge: 'brand', alert: 'brand', icon: InboxIcon },
+  success: { badge: 'success', alert: 'success', icon: CheckmarkCircle02Icon },
+  warning: { badge: 'warning', alert: 'warning', icon: Clock01Icon },
+  destructive: { badge: 'destructive', alert: 'destructive', icon: Alert02Icon },
 };
 
 export function StatusBadge({ status }: { status: Clarification['status'] }) {
   const { label, tone } = CLARIFICATION_STATUSES[status];
-  return <Badge variant={BADGE_VARIANT[tone]}>{label}</Badge>;
+  return <Badge variant={TONES[tone].badge}>{label}</Badge>;
 }
 
-function failureText(error: DirectoryError): string {
+function failureText(error: ServiceError): string {
   if (error.kind === 'unauthenticated') return 'Your session has ended. Sign in again.';
   if (error.kind === 'problem' && error.problem.status === 403) {
     return 'Only the officer holding the case can do this.';
@@ -91,7 +87,7 @@ function failureText(error: DirectoryError): string {
 }
 
 /** 403 and 409 mean the page is out of date: say so and reload rather than retry. */
-function isStale(error: DirectoryError): boolean {
+function isStale(error: ServiceError): boolean {
   return error.kind === 'problem' && (error.problem.status === 403 || error.problem.status === 409);
 }
 
@@ -252,8 +248,8 @@ export function ClarificationDetailView({
       ) : null}
 
       <div className="grid gap-4">
-        <Alert variant={line.tone === 'neutral' ? 'neutral' : line.tone} role="status">
-          <Icon icon={LINE_ICON[line.tone]} />
+        <Alert variant={TONES[line.tone].alert} role="status">
+          <Icon icon={TONES[line.tone].icon} />
           <AlertTitle>{line.title}</AlertTitle>
           {line.body ? <AlertDescription>{line.body}</AlertDescription> : null}
         </Alert>
@@ -283,7 +279,7 @@ export function ClarificationDetailView({
           </p>
         ))}
 
-        <QuestionsAndAnswers clarification={clarification} caseId={reviewCase.id} />
+        <ItemsAndResponses clarification={clarification} caseId={reviewCase.id} />
         {clarification.letter ? <LetterCard letter={clarification.letter} /> : null}
         <HistoryCard clarification={clarification} now={now} />
         <p className="text-xs text-muted-foreground">
@@ -335,7 +331,7 @@ function useDownload() {
   };
 }
 
-function QuestionsAndAnswers({
+function ItemsAndResponses({
   clarification,
   caseId,
 }: {

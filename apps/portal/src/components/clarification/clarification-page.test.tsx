@@ -171,6 +171,7 @@ describe('ClarificationPage: open', () => {
     expect(screen.getByText('I built a house on the plot.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Submit response' })).toBeNull();
     expect(screen.getByText('Responded on time')).toBeTruthy();
+    expect(screen.getByText('Response sent to your Commission.')).toBeTruthy();
   });
 
   it('uploads a document for a point as a clarification attachment and sends it (S14)', async () => {
@@ -298,6 +299,7 @@ describe('ClarificationPage: after the response', () => {
     expect(screen.getByText('Responded 3 days late.', { exact: false })).toBeTruthy();
     expect(screen.getByText('Responded 3 days late')).toBeTruthy();
     expect(screen.getByText('bill-of-quantities.pdf')).toBeTruthy();
+    expect(screen.getByText(/Teachers Service Commission will review it\./)).toBeTruthy();
     expect(screen.getByText('You responded (3 days late)')).toBeTruthy();
     expect(screen.queryByRole('textbox')).toBeNull();
   });

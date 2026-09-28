@@ -1,17 +1,9 @@
-import { formatDate, formatDateTime } from '@adili/ui';
+import { daysBetween, formatDate, formatDateTime, plural } from '@adili/ui';
 
 import type { ClarificationLink } from '../server/clarifications.server';
 import type { DeclarantClarification } from '../server/review/types';
 import { COPY } from './copy';
-import {
-  countdown,
-  daysBetween,
-  isOpen,
-  lateDays,
-  plural,
-  REMINDER_DAY,
-  reminderAt,
-} from './deadline';
+import { countdown, isOpen, lateDays, reminderAt, reminderSent } from './deadline';
 
 /** What the clarification page derives from the contract's fields and the clock. Pure. */
 
@@ -84,13 +76,13 @@ export function historyOf(
     title: COPY.issuedBy(clarification.commission.name),
     detail: formatDateTime(issuedAt),
   });
-  const reminder = reminderAt(issuedAt);
-  const reminded =
-    status !== 'withdrawn' &&
-    daysBetween(issuedAt, respondedAt ?? now) >= REMINDER_DAY &&
-    (!respondedAt || Date.parse(respondedAt) > Date.parse(reminder));
-  if (reminded)
-    entries.push({ key: 'reminder', title: COPY.reminderSent, detail: formatDate(reminder) });
+  if (status !== 'withdrawn' && reminderSent(issuedAt, respondedAt, now)) {
+    entries.push({
+      key: 'reminder',
+      title: COPY.reminderSent,
+      detail: formatDate(reminderAt(issuedAt)),
+    });
+  }
   if (status === 'overdue' || clarification.responseLate) {
     entries.push({ key: 'due-passed', title: COPY.duePassed, detail: formatDate(dueAt) });
   }

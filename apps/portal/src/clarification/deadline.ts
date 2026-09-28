@@ -1,30 +1,16 @@
+import { addDays, daysBetween, plural } from '@adili/ui';
+
 import type { ClarificationStatus } from '../server/review/types';
 
 /**
  * The 30-day response period of a clarification (Act s.35(3)), counted in calendar days in
- * Kenyan time. Pure: every function takes "now" so the server and the browser agree.
+ * Kenyan time (`daysBetween` from @adili/ui). Pure: every function takes "now" so the server and the browser agree.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** Nairobi is UTC+3 all year. */
-const NAIROBI_OFFSET_MS = 3 * 60 * 60 * 1000;
 /** The ClarificationWorkflow reminds the declarant on day 20 unless they have responded. */
 export const REMINDER_DAY = 20;
 /** From this many days left the countdown turns to a warning. */
 const WARN_FROM_DAYS = 10;
-
-function dayNumber(iso: string): number {
-  return Math.floor((Date.parse(iso) + NAIROBI_OFFSET_MS) / DAY_MS);
-}
-
-/** Calendar days from `from` to `to` in Kenyan time; negative when `to` is earlier. */
-export function daysBetween(from: string, to: string): number {
-  return dayNumber(to) - dayNumber(from);
-}
-
-export function plural(count: number, noun: string): string {
-  return `${String(count)} ${noun}${count === 1 ? '' : 's'}`;
-}
 
 export interface Countdown {
   text: string;
@@ -53,12 +39,13 @@ export function lateDays(dueAt: string, respondedAt: string): number {
 
 /** When the day-20 reminder goes (or went). */
 export function reminderAt(issuedAt: string): string {
-  return new Date(Date.parse(issuedAt) + REMINDER_DAY * DAY_MS).toISOString();
+  return addDays(issuedAt, REMINDER_DAY);
 }
 
-/** Whether the day-20 reminder has gone (the workflow sends it unless already responded). */
-export function reminderSent(issuedAt: string, now: string): boolean {
-  return daysBetween(issuedAt, now) >= REMINDER_DAY;
+/** Whether the reminder went: day 20 reached, and no response before it. */
+export function reminderSent(issuedAt: string, respondedAt: string | null, now: string): boolean {
+  if (respondedAt && Date.parse(respondedAt) <= Date.parse(reminderAt(issuedAt))) return false;
+  return daysBetween(issuedAt, respondedAt ?? now) >= REMINDER_DAY;
 }
 
 /** Open for a response: issued and not yet answered, including after the due date. */
