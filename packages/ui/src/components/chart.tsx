@@ -1,4 +1,4 @@
-import { type ComponentProps, type ReactNode, useId } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 import { chartAxis, labelledIndexes, lineSegments, tidy } from '../lib/chart-scale';
 import { cn } from '../lib/cn';
@@ -20,7 +20,7 @@ export interface ChartDatum {
 
 export type ChartProps = Omit<ComponentProps<'figure'>, 'title' | 'children'> & {
   kind: 'bar' | 'line';
-  /** Shown above the chart and names both the figure and its data table. */
+  /** Shown above the chart. Names the data table, so assistive tech hears it once. */
   title: string;
   /** Header of the table's first column, e.g. "Commission" or "Year". */
   categoryLabel: string;
@@ -78,7 +78,8 @@ interface PlotProps {
 
 /**
  * A simple bar or line chart with an accessible data table. The drawing is hidden from assistive
- * tech, which reads the table instead; suppressed (null) values are left out of the drawing and
+ * tech, which reads the table instead, named by the same title as the visible caption so the title
+ * is announced once; suppressed (null) values are left out of the drawing and
  * shown as `suppressedLabel`. Bars are horizontal so long category names fit on phones.
  */
 export function Chart({
@@ -95,7 +96,6 @@ export function Chart({
   className,
   ...props
 }: ChartProps) {
-  const titleId = useId();
   const values = data.flatMap((datum) => series.map((s) => seriesValue(datum, s.key)));
   const axis = chartAxis(Math.max(0, ...values.map((value) => value ?? 0)), max);
   const display = (value: number | null | undefined) =>
@@ -103,8 +103,8 @@ export function Chart({
   const plot: PlotProps = { series, data, ...axis, display, formatValue };
 
   return (
-    <figure aria-labelledby={titleId} className={cn('flex flex-col gap-3', className)} {...props}>
-      <figcaption id={titleId} className="text-sm font-medium text-foreground">
+    <figure className={cn('flex flex-col gap-3', className)} {...props}>
+      <figcaption aria-hidden="true" className="text-sm font-medium text-foreground">
         {title}
       </figcaption>
       <div data-chart-plot="" aria-hidden="true" className="flex flex-col gap-3">

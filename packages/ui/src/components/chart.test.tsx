@@ -43,11 +43,17 @@ describe('Chart', () => {
     ['bar', byCommission],
     ['line', nationalTrend],
   ] as const)('as a %s chart', (_kind, props) => {
-    it('is a figure named by its visible title', () => {
+    it('shows its title and gives assistive tech that title once, on the data table', () => {
       render(<Chart {...props} />);
 
-      const figure = screen.getByRole('figure', { name: props.title });
+      const figure = screen.getByRole('figure');
       expect(figure.querySelector('figcaption')?.textContent).toBe(props.title);
+      expect(screen.getByRole('table', { name: props.title })).toBeTruthy();
+      expect(screen.queryByRole('figure', { name: props.title })).toBeNull();
+      const announced = screen
+        .getAllByText(props.title)
+        .filter((element) => !element.closest('[aria-hidden="true"]'));
+      expect(announced).toHaveLength(1);
     });
 
     it('hides the drawing from assistive tech and exposes a data table instead', () => {
