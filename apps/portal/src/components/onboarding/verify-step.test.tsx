@@ -161,6 +161,32 @@ describe('VerifyStep', () => {
     expect(verifyMock).toHaveBeenCalledTimes(2);
   });
 
+  it('sends a kept code again from Try again', async () => {
+    verifyMock.mockResolvedValue({ ok: false, code: 'unavailable' });
+    renderStep();
+
+    typeCode('123456');
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+
+    verifyMock.mockResolvedValue({ ok: true, session: { ...session(), state: 'email-verified' } });
+    fireEvent.click(retry);
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith({ to: '/get-started/verify-phone' });
+    });
+    expect(verifyMock).toHaveBeenLastCalledWith({ data: { channel: 'email', code: '123456' } });
+  });
+
+  it('drops Try again once the declarant edits the kept code', async () => {
+    verifyMock.mockResolvedValue({ ok: false, code: 'unavailable' });
+    renderStep();
+
+    typeCode('123456');
+    await screen.findByRole('button', { name: 'Try again' });
+    fireEvent.keyDown(box(6), { key: 'Backspace' });
+
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
   it('starts again with "too many attempts" when the last code was wrong', async () => {
     // A directory that ends the session on the last wrong code answers 410.
     verifyMock.mockResolvedValue({ ok: false, code: 'ended' });

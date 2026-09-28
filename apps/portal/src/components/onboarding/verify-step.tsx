@@ -134,6 +134,8 @@ function CodeForm({
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  // The last code was never checked (network or directory trouble), so it can be sent again.
+  const [canRetry, setCanRetry] = useState(false);
   const attemptsLeft = useRef(session.otp.attemptsLeft);
   // Remounts the boxes after a failed code, which clears them and puts focus back in the first.
   const [round, setRound] = useState(0);
@@ -148,6 +150,7 @@ function CodeForm({
     if (verifying || value.length !== 6) return;
     setVerifying(true);
     setError(null);
+    setCanRetry(false);
     let failure: StepProblem | null;
     try {
       const result = await verifyOnboardingCode({ data: { channel, code: value } });
@@ -168,8 +171,10 @@ function CodeForm({
     } else if (failure.code === 'otp-expired') {
       setError(problemMessage('otp-expired'));
     } else {
-      // The code was never checked, so it stays for a retry: pasting it again resends it.
+      // The code was never checked, so it stays for a retry: Try again, or pasting it again,
+      // sends it again.
       setError(GENERIC_ERROR);
+      setCanRetry(true);
     }
   }
 
@@ -198,11 +203,23 @@ function CodeForm({
           onChange={(value) => {
             setCode(value);
             if (error) setError(null);
+            setCanRetry(false);
           }}
           onComplete={(value) => void verify(value)}
           autoFocus
           disabled={verifying}
         />
+        {canRetry && !verifying ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-fit"
+            onClick={() => void verify(code)}
+          >
+            Try again
+          </Button>
+        ) : null}
         {/* Always mounted, so screen readers announce the busy state when it appears. */}
         <p aria-live="polite" className="text-[13.5px] text-muted-foreground empty:hidden">
           {verifying ? (
