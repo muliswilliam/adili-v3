@@ -34,6 +34,56 @@ describe('zodModule', () => {
     );
   });
 
+  it('makes a type that also allows null nullable', () => {
+    const source = generate({ type: ['string', 'null'], format: 'date' });
+
+    expect(source).toContain('export const FormSchema = z.iso.date().nullable();');
+  });
+
+  it('refuses a union of types other than one type and null', () => {
+    expect(() => generate({ type: ['string', 'integer'] })).toThrow(
+      '#: only one type, or one type and null, is supported',
+    );
+  });
+
+  it('validates email addresses', () => {
+    expect(generate({ type: 'string', format: 'email' })).toContain('z.email()');
+  });
+
+  const base = {
+    type: 'object',
+    additionalProperties: false,
+    properties: { extra: { type: 'boolean' } },
+  };
+
+  it('intersects an allOf, making a loose member strict beside a strict one', () => {
+    // Zod rejects a key only if every side of an intersection does; JSON Schema rejects it if
+    // any strict member lacks it. With the loose member strict too, both agree.
+    const source = generate({
+      $defs: { Base: base },
+      allOf: [
+        { $ref: '#/$defs/Base' },
+        { type: 'object', properties: { extra: { type: 'boolean' } } },
+      ],
+    });
+
+    expect(source.replace(/\s/gu, '')).toContain(
+      'exportconstFormSchema=z.intersection(BaseSchema,z.strictObject({"extra":z.boolean().optional(),}));',
+    );
+  });
+
+  it('refuses a loose allOf member with a property a strict member forbids', () => {
+    expect(() =>
+      generate({
+        $defs: { Base: base },
+        allOf: [
+          { $ref: '#/$defs/Base' },
+          { type: 'object', properties: { other: { type: 'string' } } },
+        ],
+      }),
+    ).toThrow('#/allOf/1: other is forbidden by a strict allOf member');
+  });
+
   it('refuses a count on an optional array, which a refinement cannot read', () => {
     expect(() =>
       generate({
@@ -47,6 +97,18 @@ describe('zodModule', () => {
         then: { properties: { items: { maxItems: 0 } } },
       }),
     ).toThrow('#/then/properties/items: a count needs items to be required');
+  });
+
+  it('refuses a reference to a loose definition beside a strict member, which it cannot tighten', () => {
+    expect(() =>
+      generate({
+        $defs: {
+          Strict: { type: 'object', additionalProperties: false, properties: {} },
+          Loose: { type: 'object', properties: {} },
+        },
+        allOf: [{ $ref: '#/$defs/Strict' }, { $ref: '#/$defs/Loose' }],
+      }),
+    ).toThrow('#/allOf/1: a loose $ref beside a strict allOf member is not supported');
   });
 
   it('refuses an enumeration it has no name for', () => {
@@ -63,7 +125,7 @@ describe('zodModule', () => {
 
   it.each([
     ['a keyword it does not translate', { type: 'string', oneOf: [] }, 'unsupported oneOf'],
-    ['a format it does not translate', { type: 'string', format: 'email' }, 'format email'],
+    ['a format it does not translate', { type: 'string', format: 'hostname' }, 'format hostname'],
     [
       'a condition other than one constant',
       { type: 'object', if: { required: ['x'] }, then: {} },

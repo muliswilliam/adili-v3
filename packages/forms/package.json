@@ -2,7 +2,7 @@
   "name": "@adili/forms",
   "version": "0.0.0",
   "private": true,
-  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (declaration.v1, form-k.v1), with Zod schemas for the capture sections of a declaration, shared by the services and the apps.",
+  "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (declaration.v1, form-k.v1, form-m.v1), with Zod schemas for declaration.v1 and form-m.v1, shared by the services and the apps.",
   "type": "module",
   "files": [
     "dist"

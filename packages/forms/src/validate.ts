@@ -73,6 +73,25 @@ function toFieldProblem(error: ErrorObject): FieldProblem {
   return { segments, code, message: error.message ?? 'is invalid' };
 }
 
+/**
+ * Problems split into those `place` puts on a section of the form and the rest, by dotted path,
+ * for the fields outside any section.
+ */
+export function placeProblems<Issue>(
+  problems: FieldProblem[],
+  place: (problem: FieldProblem) => Issue | undefined,
+): { placed: Issue[]; unplaced: FormValidationError[] } {
+  const placed: Issue[] = [];
+  const unplaced: FormValidationError[] = [];
+  for (const problem of problems) {
+    const issue = place(problem);
+    if (issue === undefined)
+      unplaced.push({ path: problem.segments.join('.'), message: problem.message });
+    else placed.push(issue);
+  }
+  return { placed, unplaced };
+}
+
 /** A JSON pointer (RFC 6901) to the field the segments name; empty for the root. */
 export function jsonPointer(segments: readonly string[]): string {
   return segments
