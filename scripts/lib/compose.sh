@@ -27,3 +27,14 @@ compose() {
   # shellcheck disable=SC2086
   $(compose_bin) -f "$(compose_file)" "$@"
 }
+
+# One-shot jobs that exit once done. `infra-up.sh` runs them after the long-running services,
+# and `infra-health.sh` leaves them out, so add every new init job here.
+INIT_JOBS="temporal-schema temporal-namespace seaweedfs-buckets openbao-keys"
+
+long_running_services() {
+  compose config --services | JOBS="$INIT_JOBS" awk '
+    BEGIN { n = split(ENVIRON["JOBS"], jobs, " "); for (i = 1; i <= n; i++) skip[jobs[i]] = 1 }
+    !($0 in skip)
+  '
+}

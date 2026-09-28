@@ -7,7 +7,7 @@ set -eu
 
 # Expected services come from the compose file, so a service that exited or was never
 # created is reported as missing instead of silently dropping out of `compose ps`.
-expected=$(compose config --services | grep -vxF -e temporal-schema -e temporal-namespace -e seaweedfs-buckets)
+expected=$(long_running_services)
 states=$(compose ps --all --format '{{.Service}} {{.State}} {{.Health}}')
 
 if ! printf '%s\n' "$states" | EXPECTED="$expected" awk '
