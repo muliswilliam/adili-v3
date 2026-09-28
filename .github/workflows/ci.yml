@@ -174,6 +174,9 @@ jobs:
       # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications
       # service, the SMS mock and Mailpit, as a user drives it.
       - uses: astral-sh/setup-uv@v6
+        with:
+          # The default globs walk the whole checkout, node_modules included (minutes here).
+          cache-dependency-glob: mocks/uv.lock
       - name: Start the mocks
         working-directory: mocks
         env:
