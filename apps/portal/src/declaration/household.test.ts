@@ -5,6 +5,7 @@ import {
   childInclusion,
   HOUSEHOLD_MESSAGES,
   householdIssues,
+  householdMember,
   householdPersons,
   includedAtStatementDate,
   isBlankPerson,
@@ -245,5 +246,25 @@ describe('people and statements', () => {
     expect(isBlankPerson({ id: SPOUSE, separated: false })).toBe(true);
     expect(isBlankPerson({ id: CHILD, name: { surname: 'Kamau', firstName: '' } })).toBe(true);
     expect(isBlankPerson({ id: CHILD, name: { surname: 'Kamau', firstName: 'Tom' } })).toBe(false);
+  });
+});
+
+describe('householdMember', () => {
+  const household: Draft<Household> = {
+    spouses: { none: false, items: [{ id: SPOUSE, nationalId: '12345678' }] },
+    children: { none: false, items: [{ id: CHILD }] },
+  };
+
+  it('finds the spouse or child a person key names', () => {
+    expect(householdMember(household, `spouse:${SPOUSE}`)).toEqual({
+      relation: 'spouse',
+      person: { id: SPOUSE, nationalId: '12345678' },
+    });
+    expect(householdMember(household, `child:${CHILD}`)?.relation).toBe('child');
+  });
+
+  it('is null for the officer and for someone not in Household', () => {
+    expect(householdMember(household, 'officer')).toBeNull();
+    expect(householdMember(household, `spouse:${CHILD}`)).toBeNull();
   });
 });

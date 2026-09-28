@@ -47,7 +47,8 @@ import type {
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
 import type { RegistrySystem } from '../../server/declarations/types';
-import type { Draft, Statement } from '../../declaration/contents';
+import type { Draft, PersonKey, Statement } from '../../declaration/contents';
+import { relationOfPerson } from '../../declaration/section-key';
 import type { AnyItem, Item } from '../../declaration/statement';
 import { type AcceptInput, useAcceptSuggestion } from './suggestion-accept';
 import {
@@ -132,7 +133,7 @@ export interface RegistryPerson {
 }
 
 export interface RegistriesPanelProps {
-  personKey: string;
+  personKey: PersonKey;
   person: RegistryPerson;
   /** The person's suggestion sets as the route loaded them. */
   initialSets: LoadedSuggestionSet[];
@@ -186,7 +187,7 @@ export function RegistriesPanel({
   const headingId = useId();
   const noIdTipId = useId();
   const declarationId = declaration.id;
-  const isOfficer = personKey === 'officer';
+  const isOfficer = relationOfPerson(personKey) === 'officer';
 
   const [sets, setSets] = useState(initialSets);
   const [consentOpen, setConsentOpen] = useState(false);

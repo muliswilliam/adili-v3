@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  householdIdOf,
   isSectionKey,
+  OFFICER_KEY,
+  ownerOf,
   parsePersonKey,
   parseSectionKey,
   personKeyOf,
   relationOf,
+  relationOfPerson,
   sectionKind,
   statementSectionKey,
 } from './section-key';
@@ -51,5 +55,15 @@ describe('section keys', () => {
     expect(relationOf(`statement:spouse:${ID}`)).toBe('spouse');
     expect(relationOf(`statement:child:${ID}`)).toBe('child');
     expect(relationOf('household')).toBeNull();
+  });
+
+  it('says who a person key names, their Household id, and whose a section is', () => {
+    expect(relationOfPerson('officer')).toBe('officer');
+    expect(relationOfPerson(`spouse:${ID}`)).toBe('spouse');
+    expect(relationOfPerson(`child:${ID}`)).toBe('child');
+    expect(householdIdOf(`child:${ID}`)).toBe(ID);
+    expect(householdIdOf('officer')).toBeNull();
+    expect(ownerOf(`statement:spouse:${ID}`)).toBe(`spouse:${ID}`);
+    expect(ownerOf('bio')).toBe(OFFICER_KEY);
   });
 });

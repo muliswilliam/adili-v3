@@ -7,7 +7,14 @@ import type {
   LoadedSuggestionSet,
 } from '../server/declarations.server';
 import type { DocumentKind, RegistrySystem } from '../server/declarations/types';
-import { ASSET_TYPES, type Draft, INCOME_TYPES, LIABILITY_TYPES, type Statement } from './contents';
+import {
+  ASSET_TYPES,
+  type Draft,
+  INCOME_TYPES,
+  LIABILITY_TYPES,
+  type PersonKey,
+  type Statement,
+} from './contents';
 import { countyName } from './format';
 import { TYPE_LABELS } from './labels';
 import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
@@ -528,7 +535,7 @@ export function editValue(suggestion: SuggestionLike, key: string): string {
  */
 export function supersededBy(
   sets: LoadedSuggestionSet[],
-  personKey: string,
+  personKey: PersonKey,
   sources: readonly RegistrySystem[],
 ): LoadedSuggestionSet[] {
   return sets.map((set) =>

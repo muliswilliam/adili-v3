@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Draft, Household, ItemSource } from '../../../declaration/contents';
+import type { Draft, Household, ItemSource, PersonKey } from '../../../declaration/contents';
 import { DOCUMENT_KINDS } from '../../../declaration/extraction';
-import { personKeyOf } from '../../../declaration/section-key';
+import { householdMember } from '../../../declaration/household';
+import {
+  ownerOf,
+  parsePersonKey,
+  relationOfPerson,
+  statementSectionKey,
+} from '../../../declaration/section-key';
 import { type Item, NIL_KEY } from '../../../declaration/statement';
 import {
   categoryOf,
@@ -72,7 +78,8 @@ export function applyPatch<T extends object>(target: T, patch: PatchEntry[], ove
   return next as T;
 }
 
-interface StoredSet extends SuggestionSet {
+interface StoredSet extends Omit<SuggestionSet, 'personKey'> {
+  personKey: PersonKey;
   /** When the registry "answers", in ms since the epoch. */
   resolveAt: number;
   /** Earlier sets for the same person and registry: a retry can answer differently. */
@@ -91,7 +98,7 @@ export interface SuggestionState {
   sets: StoredSet[];
   /** Idempotency-Key → the sets that request created. */
   requests: Map<string, string[]>;
-  consents: { personKey: string; at: string; textVersion: string }[];
+  consents: { personKey: PersonKey; at: string; textVersion: string }[];
   reasons: Map<string, string>;
 }
 
@@ -191,12 +198,13 @@ const OFFICER: Record<RegistrySystem, Fixture[]> = {
 
 /** What a registry answers for a person: suggestions, or `unavailable` (S2). */
 export function registryAnswer(
-  personKey: string,
+  personKey: PersonKey,
   source: RegistrySystem,
   attempt: number,
 ): Fixture[] | 'unavailable' {
-  if (personKey === 'officer') return OFFICER[source];
-  if (!personKey.startsWith('spouse:')) return [];
+  const relation = relationOfPerson(personKey);
+  if (relation === 'officer') return OFFICER[source];
+  if (relation !== 'spouse') return [];
   if (source === 'kra') {
     return [
       {
@@ -228,11 +236,8 @@ function household(stored: SuggestionDraft): Draft<Household> {
   return stored.contents.get('household') ?? {};
 }
 
-function person(stored: SuggestionDraft, personKey: string) {
-  const [kind, id] = personKey.split(':');
-  const people =
-    kind === 'spouse' ? household(stored).spouses?.items : household(stored).children?.items;
-  return people?.find((each) => each.id === id);
+function person(stored: SuggestionDraft, personKey: PersonKey) {
+  return householdMember(household(stored), personKey);
 }
 
 function statementItems(stored: SuggestionDraft, sectionKey: string, itemType: string): Item[] {
@@ -242,9 +247,9 @@ function statementItems(stored: SuggestionDraft, sectionKey: string, itemType: s
   return Array.isArray(items) ? (items as Item[]) : [];
 }
 
-function suggestionSection(personKey: string, itemType: string) {
-  if (suggestionKind(itemType).target !== 'tax') return `statement:${personKey}`;
-  return personKey === 'officer' ? 'bio' : 'household';
+function suggestionSection(personKey: PersonKey, itemType: string) {
+  if (suggestionKind(itemType).target !== 'tax') return statementSectionKey(personKey);
+  return relationOfPerson(personKey) === 'officer' ? 'bio' : 'household';
 }
 
 interface ReadField {
@@ -372,10 +377,9 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
   }
 
   const body = await readJson(request);
-  if (!isRecord(body) || typeof body.personKey !== 'string') {
-    return problem(400, 'personKey is required');
-  }
-  const { personKey } = body;
+  const personKey =
+    isRecord(body) && typeof body.personKey === 'string' ? parsePersonKey(body.personKey) : null;
+  if (!isRecord(body) || !personKey) return problem(400, 'personKey is required');
   const consent = body.consent;
   if (!isRecord(consent) || consent.requested !== true || typeof consent.textVersion !== 'string') {
     return problem(400, 'The declarant must request the check', 'consent-required');
@@ -388,11 +392,14 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
   ) {
     return problem(400, 'systems must name at least one registry');
   }
-  const statementKey = `statement:${personKey}`;
+  const statementKey = statementSectionKey(personKey);
   if (!stored.contents.has(statementKey) || stored.archived.has(statementKey)) {
     return problem(404, 'Not found');
   }
-  if (personKey !== 'officer' && !person(stored, personKey)?.nationalId?.trim()) {
+  if (
+    relationOfPerson(personKey) !== 'officer' &&
+    !person(stored, personKey)?.person.nationalId?.trim()
+  ) {
     return problem(400, 'The person has no national ID', 'no-id');
   }
 
@@ -497,9 +504,8 @@ export async function acceptSuggestion(
   let itemId: string;
   const fillsTax = suggestionKind(suggestion.itemType).target === 'tax';
   if (fillsTax) {
-    const spouse = suggestion.personKey.startsWith('spouse:')
-      ? person(stored, suggestion.personKey)
-      : undefined;
+    const member = person(stored, set.personKey);
+    const spouse = member?.relation === 'spouse' ? member.person : undefined;
     if (!spouse?.id) return problem(400, 'There are no tax fields to apply to', 'no-target');
     const contents = household(stored);
     const items = (contents.spouses?.items ?? []).map((each) =>
@@ -606,7 +612,7 @@ export async function requestExtraction(
   const now = Date.now();
   const set: StoredSet = {
     id: randomUUID(),
-    personKey: personKeyOf(attachment.sectionKey) ?? 'officer',
+    personKey: ownerOf(attachment.sectionKey),
     source: 'document',
     status: 'pending',
     requestedAt: new Date(now).toISOString(),

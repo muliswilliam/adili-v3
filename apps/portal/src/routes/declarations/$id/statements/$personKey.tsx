@@ -1,11 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 
-import type { Draft, Household, PersonName } from '../../../../declaration/contents';
+import type { Draft, PersonKey, PersonName } from '../../../../declaration/contents';
 import { fullName } from '../../../../declaration/format';
+import { householdMember } from '../../../../declaration/household';
+import { relationOfPerson } from '../../../../declaration/section-key';
 import type { RegistryPerson } from '../../../../components/declaration/registries-panel';
 import {
   loadSectionFor,
+  requirePersonKey,
   SectionUnavailable,
   statementKey,
 } from '../../../../components/declaration/route-helpers';
@@ -29,44 +32,42 @@ interface HouseholdEntry {
  */
 async function householdEntry(
   declarationId: string,
-  personKey: string,
+  personKey: PersonKey,
 ): Promise<HouseholdEntry | null> {
-  if (personKey === 'officer') return null;
+  if (relationOfPerson(personKey) === 'officer') return null;
   const result = await getDeclarationSection({
     data: { declarationId, sectionKey: 'household' },
   });
   if (result.status !== 'ok') return null;
-  const household = result.section.contents as Draft<Household>;
-  const [kind, id] = personKey.split(':');
-  if (kind === 'spouse') {
-    const spouse = household.spouses?.items?.find((each) => each.id === id);
-    return spouse
-      ? {
-          separated: spouse.separated === true,
-          nationalId: spouse.nationalId,
-          kraPin: spouse.kraPin,
-        }
-      : null;
+  const member = householdMember(result.section.contents, personKey);
+  if (!member) return null;
+  if (member.relation === 'child') {
+    return { separated: false, nationalId: member.person.nationalId };
   }
-  const child = household.children?.items?.find((each) => each.id === id);
-  return child ? { separated: false, nationalId: child.nationalId } : null;
+  const spouse = member.person;
+  return {
+    separated: spouse.separated === true,
+    nationalId: spouse.nationalId,
+    kraPin: spouse.kraPin,
+  };
 }
 
 /** The person's registry suggestion sets; none when they cannot be read. */
 async function suggestionSets(
   declarationId: string,
-  personKey: string,
+  personKey: PersonKey,
 ): Promise<LoadedSuggestionSet[]> {
   const result = await listDeclarationSuggestions({ data: { declarationId, personKey } });
   return result.status === 'ok' ? result.sets : [];
 }
 
 function registryPerson(
-  personKey: string,
+  personKey: PersonKey,
   name: Draft<PersonName> | undefined,
   entry: HouseholdEntry | null,
 ): RegistryPerson {
-  const fallback = personKey.startsWith('spouse:') ? 'your spouse' : 'this child';
+  const relation = relationOfPerson(personKey);
+  const fallback = relation === 'spouse' ? 'your spouse' : 'this child';
   const nationalId = entry?.nationalId?.trim();
   const first = name?.firstName?.trim() ?? '';
   return {
@@ -74,7 +75,7 @@ function registryPerson(
     firstName: first === '' ? fallback : first,
     nationalId: nationalId ?? null,
     // The officer's ID is on record from onboarding, though the portal cannot see it.
-    hasId: personKey === 'officer' || Boolean(nationalId),
+    hasId: relation === 'officer' || Boolean(nationalId),
     kraPin: entry?.kraPin,
   };
 }
@@ -82,21 +83,21 @@ function registryPerson(
 export const Route = createFileRoute('/declarations/$id/statements/$personKey')({
   validateSearch: z.object({ errors: z.boolean().optional() }),
   loader: async ({ params, location }) => {
-    const load = await loadSectionFor(params.id, statementKey(params.personKey), location.href);
-    if (load.status !== 'ok') return { load, entry: null, sets: [] };
+    const personKey = requirePersonKey(params.personKey);
+    const load = await loadSectionFor(params.id, statementKey(personKey), location.href);
+    if (load.status !== 'ok') return { load, personKey, entry: null, sets: [] };
     const [entry, sets] = await Promise.all([
-      householdEntry(params.id, params.personKey),
-      suggestionSets(params.id, params.personKey),
+      householdEntry(params.id, personKey),
+      suggestionSets(params.id, personKey),
     ]);
-    return { load, entry, sets };
+    return { load, personKey, entry, sets };
   },
   head: () => ({ meta: [{ title: 'Financial statement · Adili Online' }] }),
   component: StatementRoute,
 });
 
 function StatementRoute() {
-  const { load, entry, sets } = Route.useLoaderData();
-  const { personKey } = Route.useParams();
+  const { load, personKey, entry, sets } = Route.useLoaderData();
   const { errors } = Route.useSearch();
   if (load.status === 'unavailable') return <SectionUnavailable />;
   const name = load.section.contents.personName as Draft<PersonName> | undefined;
@@ -106,7 +107,7 @@ function StatementRoute() {
       <StatementSection
         section={load.section}
         etag={load.etag}
-        separated={personKey.startsWith('spouse:') && entry?.separated === true}
+        separated={relationOfPerson(personKey) === 'spouse' && entry?.separated === true}
         showErrors={errors === true}
         renderAttachments={renderItemAttachments}
         registries={{ person: registryPerson(personKey, name, entry), sets }}

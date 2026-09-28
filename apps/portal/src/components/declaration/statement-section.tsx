@@ -79,7 +79,7 @@ import { fullName } from '../../declaration/format';
 import { sourceDetails } from '../../declaration/item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
-import { personKeyOf } from '../../declaration/section-key';
+import { ownerOf, personKeyOf } from '../../declaration/section-key';
 import { liveSections, relationship, stepLink } from './steps';
 import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
 import { focusControl, useFocusFirstError, useShownErrors } from './section-errors';
@@ -313,7 +313,7 @@ export function StatementSection({
 
       {registries ? (
         <RegistriesPanel
-          personKey={personKeyOf(key) ?? 'officer'}
+          personKey={ownerOf(key)}
           person={registries.person}
           initialSets={registries.sets}
           pollMs={registries.pollMs}
