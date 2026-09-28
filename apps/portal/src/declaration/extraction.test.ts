@@ -83,10 +83,17 @@ describe('readSuggestion', () => {
     expect(reading.documentKind).toBe('logbook');
     expect(reading.warnings).toEqual(['Page 3 could not be read.']);
     expect(reading.fields).toEqual([
-      { key: 'registration', label: 'Registration', value: 'KCB 782M', confidence: 0.97, page: 1 },
-      { key: 'make', label: 'Make', value: 'Toyota', confidence: 0.7, page: null },
-      { key: 'model', label: 'Model', value: 'Premio', confidence: 0.7, page: null },
-      { key: 'year', label: 'Year', value: '2015', confidence: 0.41, page: 2 },
+      {
+        key: 'registration',
+        label: 'Registration',
+        value: 'KCB 782M',
+        input: 'text',
+        confidence: 0.97,
+        page: 1,
+      },
+      { key: 'make', label: 'Make', value: 'Toyota', input: 'text', confidence: 0.7, page: null },
+      { key: 'model', label: 'Model', value: 'Premio', input: 'text', confidence: 0.7, page: null },
+      { key: 'year', label: 'Year', value: '2015', input: 'text', confidence: 0.41, page: 2 },
     ]);
     expect(reading.fields.map(levelOf)).toEqual(['high', 'medium', 'medium', 'low']);
   });
@@ -100,10 +107,10 @@ describe('readSuggestion', () => {
         confidence: null,
       }),
     );
-    expect(reading.fields.map(({ key, label }) => [key, label])).toEqual([
-      ['parcelNumber', 'Parcel or plot number'],
-      ['county', 'County'],
-      ['description', 'Description'],
+    expect(reading.fields.map(({ key, label, input }) => [key, label, input])).toEqual([
+      ['parcelNumber', 'Parcel or plot number', 'text'],
+      ['county', 'County', 'county'],
+      ['description', 'Description', 'text'],
     ]);
     expect(reading.fields.map(levelOf)).toEqual([null, null, null]);
   });

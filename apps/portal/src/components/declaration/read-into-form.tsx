@@ -450,7 +450,7 @@ function Review({
                   </span>
                 }
               >
-                {field.key === 'county' ? (
+                {field.input === 'county' ? (
                   <CountySelect
                     value={values[field.key] === '' ? null : (values[field.key] ?? null)}
                     disabled={disabled}

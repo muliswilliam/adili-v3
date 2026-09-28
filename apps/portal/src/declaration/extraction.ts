@@ -51,13 +51,19 @@ function score(value: unknown): number | null {
     : null;
 }
 
-/** Labels for fields "Edit and add" does not offer. */
-const EXTRA_LABELS: Record<string, string> = { county: FIELD_LABELS.county };
+/** How the review sheet takes a field's value: typed, or picked from the counties. */
+export type ReadFieldInput = 'text' | 'county';
+
+/** Fields "Edit and add" does not offer: their labels and inputs. */
+const EXTRA_FIELDS: Record<string, { label: string; input: ReadFieldInput }> = {
+  county: { label: FIELD_LABELS.county, input: 'county' },
+};
 
 export interface ReadField {
   /** The suggestion field name, e.g. `registration`. */
   key: string;
   label: string;
+  input: ReadFieldInput;
   value: string;
   /** 0-1, or null when neither the field nor the suggestion has one. */
   confidence: number | null;
@@ -89,7 +95,7 @@ export function readSuggestion(suggestion: LoadedSuggestion): DocumentReading {
   const known = editFields(suggestion.itemType);
   const keys = [
     ...known.map(({ key }) => key).filter((key) => key !== 'description'),
-    ...Object.keys(EXTRA_LABELS),
+    ...Object.keys(EXTRA_FIELDS),
     'description',
   ];
   const fields = keys
@@ -98,7 +104,8 @@ export function readSuggestion(suggestion: LoadedSuggestion): DocumentReading {
       const own = perField.get(key);
       return {
         key,
-        label: known.find((each) => each.key === key)?.label ?? EXTRA_LABELS[key] ?? key,
+        label: known.find((each) => each.key === key)?.label ?? EXTRA_FIELDS[key]?.label ?? key,
+        input: EXTRA_FIELDS[key]?.input ?? 'text',
         value: text(suggestion.fields[key]),
         confidence: own?.confidence ?? score(suggestion.confidence),
         page: own?.page ?? null,
