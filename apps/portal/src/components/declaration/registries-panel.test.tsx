@@ -550,7 +550,7 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
 
     const card = suggestionCard('KDA 123X · Toyota Fielder 2014');
     expect(card.textContent).toContain(
-      'Matches "Our Fielder". Nothing to fill. Applying marks this item as confirmed by NTSA.',
+      `Matches "Our Fielder". Nothing to fill. Applying records NTSA as this item's source.`,
     );
     expect(within(card).getAllByRole('button')[0]?.textContent).toBe('Apply to this item');
     fireEvent.click(

@@ -60,7 +60,7 @@ export interface SuggestionMessages {
   fills: string;
   /**
    * Said of a match whose fields are all filled already. Defaults to "Nothing to fill. Applying
-   * marks this item as confirmed by {source}."
+   * records {source} as this item's source."
    */
   nothingToFill: (source: string) => string;
   added: string;
@@ -81,7 +81,7 @@ export const SUGGESTION_MESSAGES: SuggestionMessages = {
   actionLabel: (action, title) => `${action}: ${title}`,
   matches: (title) => `Matches "${title}".`,
   fills: 'Fills:',
-  nothingToFill: (source) => `Nothing to fill. Applying marks this item as confirmed by ${source}.`,
+  nothingToFill: (source) => `Nothing to fill. Applying records ${source} as this item's source.`,
   added: 'Added',
   applied: 'Applied',
   dismissed: 'Dismissed',

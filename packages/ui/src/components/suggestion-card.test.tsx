@@ -105,7 +105,7 @@ describe('SuggestionCard', () => {
     const { card, element, onApply } = renderCard({ match: { title: 'Toyota Probox', fills: [] } });
 
     expect(card.getByText(/Matches/).textContent).toBe(
-      'Matches "Toyota Probox". Nothing to fill. Applying marks this item as confirmed by NTSA.',
+      `Matches "Toyota Probox". Nothing to fill. Applying records NTSA as this item's source.`,
     );
     expect(buttonNames(element)).toEqual([
       `Apply to this item: ${TITLE}`,
