@@ -152,7 +152,10 @@ describe('ConfirmStep', () => {
     expect(alert.textContent).toContain(
       'The national register is not responding. Wait a few minutes and try again.',
     );
-    expect(document.activeElement).toBe(alert);
+    // Focus moves in an effect after the alert renders.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(alert);
+    });
 
     confirmMock.mockResolvedValue({
       ok: true,
@@ -172,7 +175,10 @@ describe('ConfirmStep', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Your account could not be created. Try again.');
-    expect(document.activeElement).toBe(alert);
+    // Focus moves in an effect after the alert renders.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(alert);
+    });
   });
 
   it('shows the generic error for anything else', async () => {
