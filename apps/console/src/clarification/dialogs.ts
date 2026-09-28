@@ -3,9 +3,9 @@ import { plural } from '@adili/ui';
 /** The checks and outcome text of the Mark resolved and Withdraw dialogs (spec 07a S15). */
 
 /** `resolve` body limit in review.yaml. */
-export const RESOLVE_NOTE_MAX = 2000;
+const RESOLVE_NOTE_MAX = 2000;
 /** `withdraw` body limit in review.yaml. */
-export const WITHDRAW_REASON_MAX = 1000;
+const WITHDRAW_REASON_MAX = 1000;
 
 export function resolveNoteError(note: string): string | null {
   if (!note.trim()) return 'Add a note so colleagues know why it is resolved.';

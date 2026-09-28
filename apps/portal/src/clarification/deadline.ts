@@ -8,7 +8,7 @@ import type { ClarificationStatus } from '../server/review/types';
  */
 
 /** The ClarificationWorkflow reminds the declarant on day 20 unless they have responded. */
-export const REMINDER_DAY = 20;
+const REMINDER_DAY = 20;
 /** From this many days left the countdown turns to a warning. */
 const WARN_FROM_DAYS = 10;
 

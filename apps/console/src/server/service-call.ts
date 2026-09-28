@@ -1,8 +1,9 @@
 /**
  * One call to a platform service, folded into a plain serialisable result: every service answers
  * RFC 9457 problem details, so server functions return `{ ok, data | error }` and screens switch
- * on `error.kind` and `problem.status`. Each service's client narrows `Problem` to its own
- * contract's problem type (see `directory/client.ts`).
+ * on `error.kind` and `problem.status`. `Problem` is the shared fields by default; a caller that
+ * reads more of its contract's problem type narrows it (the directory's field errors, see
+ * `callDirectory` in `directory/client.ts`).
  */
 
 /** The fields every service's problem details carry. */

@@ -229,7 +229,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
     expect(within(dialog).getByText('We could not save this. Try again.')).toBeTruthy();
   });
 
-  it('raises a follow-up and opens the pre-filled draft', async () => {
+  it('raises a further clarification and opens its draft', async () => {
     renderDetail(await detailOf(CASES.mine, K.late));
     const draftId = 'd2af7000-0000-4000-8000-000000000001';
     followUpMock.mockResolvedValue({
@@ -241,6 +241,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
       await Promise.resolve();
     });
     expect(followUpMock).toHaveBeenCalledWith({ data: { clarificationId: K.late } });
+    expect(screen.getByText('Further clarification saved as a draft')).toBeTruthy();
     expect(navigate).toHaveBeenCalledWith({
       to: '/review/cases/$caseId/clarifications/$clarificationId',
       params: { caseId: CASES.mine, clarificationId: draftId },

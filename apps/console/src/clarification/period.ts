@@ -6,11 +6,16 @@ import { addDays, daysBetween } from '@adili/ui';
  * derived from the issue date.
  */
 
-export const REMINDER_DAY = 20;
+const REMINDER_DAY = 20;
 
 /** When the day-20 reminder goes (or went). */
 export function reminderAt(issuedAt: string): string {
   return addDays(issuedAt, REMINDER_DAY);
+}
+
+/** Days a response came after the due date; a late response is at least one day late. */
+export function lateDays(dueAt: string, respondedAt: string): number {
+  return Math.max(1, daysBetween(dueAt, respondedAt));
 }
 
 /** Whether the reminder went: day 20 reached, and no response before it. */

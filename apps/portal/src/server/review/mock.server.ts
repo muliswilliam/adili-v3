@@ -20,11 +20,12 @@
  * Tests can reseed at a given time (`resetReviewMock`) and make the next response fail as if the
  * service were down (`failNextResponse`).
  */
+import { addDays } from '@adili/ui';
+
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { DeclarantClarification } from './types';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const RESPONSE_DAYS = 30;
 
 export const MOCK_CLARIFICATION_IDS = {
@@ -75,7 +76,7 @@ const answered = new Map<string, Response>();
 let failNext = false;
 
 function at(now: number, days: number): string {
-  return new Date(now + days * DAY_MS).toISOString();
+  return addDays(new Date(now).toISOString(), days);
 }
 
 function sequence(n: number): string {

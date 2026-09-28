@@ -22,14 +22,14 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import { addDays } from '@adili/ui';
+
 import createClient from 'openapi-fetch';
 
 import { isOutstanding } from '../../clarification/labels';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
-import type { Assignee, CaseDetail, CaseListItem, Clarification } from './types';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import type { Assignee, CaseDetail, CaseListItem, Clarification, TimelineEntry } from './types';
 
 export const MOCK_CASE_IDS = {
   mine: 'ca5e0000-0000-4000-8000-000000000001',
@@ -75,13 +75,15 @@ interface StoredCase {
   item: CaseListItem;
   /** CALLER, or a fixed officer. */
   holder: Assignee | typeof CALLER;
+  /** Status changes made in this store (the seeded history is not replayed). */
+  timeline: TimelineEntry[];
 }
 
 const cases = new Map<string, StoredCase>();
 const clarifications = new Map<string, Clarification>();
 
 function at(now: number, days: number): string {
-  return new Date(now + days * DAY_MS).toISOString();
+  return addDays(new Date(now).toISOString(), days);
 }
 
 function caseItem(
@@ -186,14 +188,17 @@ export function resetReviewMock(now: number = Date.now()) {
   cases.set(C.mine, {
     item: caseItem(C.mine, 'DCI-TSC-2026-0003418-P', 'John Kennedy Otieno', now, 30),
     holder: CALLER,
+    timeline: [],
   });
   cases.set(C.windowClosed, {
     item: caseItem(C.windowClosed, 'DCB-TSC-2026-0001907-M', 'Grace Atieno', now, -5),
     holder: CALLER,
+    timeline: [],
   });
   cases.set(C.peters, {
     item: caseItem(C.peters, 'DCB-TSC-2026-0002210-X', 'Mary Achieng', now, 40),
     holder: PETER,
+    timeline: [],
   });
 
   const seed = (value: Clarification) => clarifications.set(value.id, value);
@@ -271,13 +276,33 @@ function ofCase(caseId: string): Clarification[] {
     .sort((a, b) => (b.issuedAt ?? '9').localeCompare(a.issuedAt ?? '9'));
 }
 
-/** Case counts and status from its clarifications (spec: clarified then ready when none open). */
-function refreshCase(stored: StoredCase) {
+/**
+ * Case counts and status from its clarifications. When the last outstanding one closes, the case
+ * goes clarified, then ready for determination (spec 07a S15), each a timeline entry by `actor`.
+ */
+function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
   const open = ofCase(stored.item.id).filter((each) => isOutstanding(each.status));
   const latest = open[0] ?? null;
+  const status = open.length > 0 ? 'awaiting-clarification' : 'ready-for-determination';
+  if (actor && stored.item.status === 'awaiting-clarification' && status !== stored.item.status) {
+    const at = new Date().toISOString();
+    for (const [to, summary] of [
+      ['clarified', 'Case clarified: no clarification open'],
+      ['ready-for-determination', 'Case ready for determination'],
+    ] as const) {
+      stored.timeline.push({
+        id: randomUUID(),
+        kind: 'status-changed',
+        actor,
+        at,
+        summary,
+        ref: to,
+      });
+    }
+  }
   stored.item = {
     ...stored.item,
-    status: open.length > 0 ? 'awaiting-clarification' : 'ready-for-determination',
+    status,
     clarification: {
       open: open.length,
       status: latest?.status ?? null,
@@ -378,7 +403,7 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
     flags: [],
     clarifications: ofCase(stored.item.id),
     notes: [],
-    timeline: [],
+    timeline: stored.timeline,
     document: null,
     versions: [{ version: 1, submittedAt: stored.item.receivedAt, late: false }],
     reviewerHistory: [holder],
@@ -404,12 +429,11 @@ async function act(
     }
     const note = await textField(request, 'note', 2000);
     if (note === null) return problem(400, 'A note of 1 to 2,000 characters is required');
-    return save(stored, {
-      ...found,
-      status: 'resolved',
-      resolvedAt: new Date().toISOString(),
-      resolutionNote: note,
-    });
+    return save(
+      stored,
+      { ...found, status: 'resolved', resolvedAt: new Date().toISOString(), resolutionNote: note },
+      caller,
+    );
   }
 
   if (action === 'withdraw') {
@@ -418,11 +442,15 @@ async function act(
     }
     const reason = await textField(request, 'reason', 1000);
     if (reason === null) return problem(400, 'A reason of 1 to 1,000 characters is required');
-    return save(stored, {
-      ...found,
-      status: 'withdrawn',
-      letter: found.letter ? { ...found.letter, status: 'revoked' } : null,
-    });
+    return save(
+      stored,
+      {
+        ...found,
+        status: 'withdrawn',
+        letter: found.letter ? { ...found.letter, status: 'revoked' } : null,
+      },
+      caller,
+    );
   }
 
   // follow-up
@@ -446,8 +474,8 @@ async function act(
   return json(201, draft);
 }
 
-function save(stored: StoredCase, updated: Clarification): Response {
+function save(stored: StoredCase, updated: Clarification, actor: Assignee): Response {
   clarifications.set(updated.id, updated);
-  refreshCase(stored);
+  refreshCase(stored, actor);
   return json(200, updated);
 }

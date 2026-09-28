@@ -3,7 +3,7 @@ import { addDays, daysBetween, plural } from '@adili/ui';
 import { formatDate, formatDateTime } from '../components/format';
 import type { Clarification } from '../server/review/types';
 import type { Tone } from './labels';
-import { reminderAt, reminderSent } from './period';
+import { lateDays, reminderAt, reminderSent } from './period';
 
 /**
  * Where a clarification stands and what happened to it, from the contract's fields and the
@@ -49,7 +49,7 @@ export function statusLine(clarification: StatusFields, now: string): StatusLine
     case 'responded': {
       const on = respondedAt ? `On ${formatDateTime(respondedAt)}.` : '';
       if (clarification.responseLate && dueAt && respondedAt) {
-        const days = Math.max(1, daysBetween(dueAt, respondedAt));
+        const days = lateDays(dueAt, respondedAt);
         return { tone: 'warning', title: `Responded ${plural(days, 'day')} late`, body: on };
       }
       return { tone: 'success', title: 'Responded on time', body: on };

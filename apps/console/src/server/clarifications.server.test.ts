@@ -76,6 +76,13 @@ describe('actions (S15)', () => {
     const detail = await loadClarificationDetail(client(), CASES.mine, K.late, ME, NOW);
     if (!detail.ok) throw new Error('not ok');
     expect(detail.data.case.status).toBe('ready-for-determination');
+    const steps = await mockReviewClient(ME, 'Grace Wanjiru').GET('/v1/review/cases/{caseId}', {
+      params: { path: { caseId: CASES.mine } },
+    });
+    expect(steps.data?.timeline.map((entry) => entry.ref)).toEqual([
+      'clarified',
+      'ready-for-determination',
+    ]);
     expect(detail.data.othersOpen).toBe(0);
   });
 

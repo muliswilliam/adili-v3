@@ -139,7 +139,7 @@ export function ClarificationDetailView({
       toast({ title: failureText(result.error), urgency: 'assertive' });
       return;
     }
-    toast({ title: 'Follow-up draft saved' });
+    toast({ title: 'Further clarification saved as a draft' });
     await navigate({
       to: '/review/cases/$caseId/clarifications/$clarificationId',
       params: { caseId: reviewCase.id, clarificationId: result.data.id },
@@ -256,7 +256,7 @@ export function ClarificationDetailView({
 
         {original ? (
           <p className="text-sm">
-            Follow-up of{' '}
+            Further clarification on{' '}
             <Link
               to="/review/cases/$caseId/clarifications/$clarificationId"
               params={{ caseId: reviewCase.id, clarificationId: original.id }}
@@ -268,7 +268,9 @@ export function ClarificationDetailView({
         ) : null}
         {followUps.map((each) => (
           <p key={each.id} className="text-sm">
-            {each.status === 'draft' ? 'Follow-up draft saved: ' : 'Follow-up issued: '}
+            {each.status === 'draft'
+              ? 'Further clarification drafted: '
+              : 'Further clarification issued: '}
             <Link
               to="/review/cases/$caseId/clarifications/$clarificationId"
               params={{ caseId: reviewCase.id, clarificationId: each.id }}

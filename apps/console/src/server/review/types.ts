@@ -8,3 +8,4 @@ export type CaseListItem = Schemas['CaseListItem'];
 export type Clarification = Schemas['Clarification'];
 export type ClarificationStatus = Schemas['ClarificationStatus'];
 export type Requirement = Schemas['Requirement'];
+export type TimelineEntry = Schemas['TimelineEntry'];
