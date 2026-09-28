@@ -13,8 +13,8 @@ describe('workspacesFor', () => {
     expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals', 'obligations']);
   });
 
-  it('gives EACC analysts Commissions and compliance reports but not the review queue', () => {
-    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'compliance']);
+  it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
+    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'national-obligations', 'compliance']);
   });
 
   it('gives declarants nothing in the console', () => {
@@ -117,6 +117,25 @@ describe('Obligations workspace', () => {
     'stays closed for %s, who reach counts through the Commission',
     (role) => {
       expect(workspaceFor([role], 'obligations')).toBeUndefined();
+    },
+  );
+});
+
+describe('S16 National obligations workspace', () => {
+  it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
+    expect(workspaceFor([role], 'national-obligations')).toEqual({
+      id: 'national-obligations',
+      title: 'National obligations',
+      description: 'Due and overdue counts per Commission.',
+      href: '/obligations/national',
+      readOnly: false,
+    });
+  });
+
+  it.each(['reporting-officer', 'reviewer', 'supervisor', 'commission-admin', 'declarant'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'national-obligations')).toBeUndefined();
     },
   );
 });

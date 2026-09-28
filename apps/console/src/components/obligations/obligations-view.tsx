@@ -45,6 +45,8 @@ export interface ObligationsViewProps {
   forbiddenAction?: ReactNode;
   /** Where to go from a Commission that is not found. */
   notFoundAction?: ReactNode;
+  /** At the right of the page head, e.g. the way to the Commission's policy. */
+  actions?: ReactNode;
 }
 
 const problemStatus = (result: DeclarationsResult<unknown> | null) =>
@@ -86,7 +88,7 @@ export function ObligationsView(props: ObligationsViewProps) {
   const counts = summary?.ok ? summary.data : null;
   return (
     <Page>
-      <PageHead title={m.title}>
+      <PageHead title={m.title} actions={props.actions}>
         <CycleLine summary={summary} />
       </PageHead>
       <div className="flex flex-col gap-4">

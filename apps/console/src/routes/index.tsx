@@ -17,6 +17,7 @@ import {
   ArrowRight02Icon,
   Building03Icon,
   Calendar03Icon,
+  ChartColumnIcon,
   CheckmarkBadge01Icon,
   ClipboardCheckIcon,
   CustomerSupportIcon,
@@ -172,6 +173,7 @@ function Dashboard({ viewer }: { viewer: DashboardViewer }) {
 
 const WORKSPACE_ICONS: Record<string, IconProps['icon']> = {
   commissions: Building03Icon,
+  'national-obligations': ChartColumnIcon,
   review: TaskDone01Icon,
   approvals: CheckmarkBadge01Icon,
   access: FileLockedIcon,

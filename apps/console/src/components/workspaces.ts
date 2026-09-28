@@ -9,7 +9,7 @@ export interface Workspace {
 }
 
 /** Routes of workspaces that exist so far. */
-export type WorkspaceHref = '/commissions' | '/roster' | '/obligations';
+export type WorkspaceHref = '/commissions' | '/roster' | '/obligations' | '/obligations/national';
 
 interface WorkspaceDefinition {
   id: string;
@@ -38,6 +38,13 @@ export const OBLIGATIONS_ROLES = [
   'commission-admin',
 ] as const;
 
+/** National roles, who see obligation counts per Commission but no officer (spec 04). */
+export const NATIONAL_OBLIGATIONS_ROLES = [
+  'platform-admin',
+  'eacc-analyst',
+  'eacc-supervisor',
+] as const;
+
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
   {
@@ -48,6 +55,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     href: '/commissions',
     roles: ['platform-admin', 'eacc-analyst', 'eacc-supervisor'],
     writeRoles: COMMISSION_WRITE_ROLES,
+  },
+  {
+    id: 'national-obligations',
+    title: 'National obligations',
+    description: 'Due and overdue counts per Commission.',
+    href: '/obligations/national',
+    roles: NATIONAL_OBLIGATIONS_ROLES,
   },
   {
     id: 'review',

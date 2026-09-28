@@ -20,6 +20,8 @@ export type ObligationListItem = Schemas['ObligationListItem'];
 export type ObligationDetail = Schemas['ObligationDetail'];
 export type CommissionObligationsSummary = Schemas['CommissionSummary'];
 export type StatusCounts = Schemas['StatusCounts'];
+export type NationalObligationsSummary = Schemas['NationalSummary'];
+export type NationalCommissionRow = NationalObligationsSummary['commissions'][number];
 export type ObligationPage =
   paths['/v1/commissions/{slug}/obligations']['get']['responses'][200]['content']['application/json'];
 export type ListObligationsQuery = NonNullable<
