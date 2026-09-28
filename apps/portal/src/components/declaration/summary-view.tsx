@@ -649,9 +649,6 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
         <blockquote className="border-l-2 border-border pl-4 text-[15px]">
           "{summary.attestationText}"
         </blockquote>
-        <p className="text-sm text-muted-foreground">
-          You affirm this when you submit. No signature or witness needed.
-        </p>
       </section>
 
       <Card className="flex flex-wrap items-center gap-4 p-5">
