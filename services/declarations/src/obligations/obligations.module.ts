@@ -12,6 +12,11 @@ import { ObligationsService } from './obligations.service.js';
 import { RosterEventsConsumer } from './roster-events.consumer.js';
 import { RosterIngest } from './roster-ingest.js';
 import { ObligationActivities } from './workflow/activities.js';
+import { CycleOpeningActivities } from './workflow/cycle-opening-activities.js';
+import {
+  CycleOpeningSchedules,
+  TemporalCycleOpeningSchedules,
+} from './workflow/cycle-opening-schedules.js';
 import { ObligationWorkflowsModule } from './workflow/obligation-workflows.module.js';
 import { SweepSchedule } from './workflow/sweep.js';
 
@@ -29,7 +34,8 @@ const workflowsPath = fileURLToPath(
 /**
  * Filing obligations (spec 04): derived from roster events by the obligation engine, read by
  * declarants and staff, and driven through their dates and reminders by one
- * `FilingObligationWorkflow` each on the declarations worker.
+ * `FilingObligationWorkflow` each on the declarations worker. Each biennial cycle is opened per
+ * Commission by `CycleOpeningWorkflow`, fired by the Commission's schedule.
  */
 @Module({
   imports: [
@@ -41,11 +47,17 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [ObligationActivities],
+      activities: [ObligationActivities, CycleOpeningActivities],
       imports: [ObligationWorkflowsModule],
     }),
   ],
   controllers: [ObligationsController, RosterEventsConsumer],
-  providers: [ObligationsService, CommissionObligationsService, RosterIngest, SweepSchedule],
+  providers: [
+    ObligationsService,
+    CommissionObligationsService,
+    RosterIngest,
+    SweepSchedule,
+    { provide: CycleOpeningSchedules, useClass: TemporalCycleOpeningSchedules },
+  ],
 })
 export class ObligationsModule {}

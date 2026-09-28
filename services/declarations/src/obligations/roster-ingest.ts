@@ -16,6 +16,7 @@ import { applyRosterPage, type PageContext, type Transaction } from './apply-pag
 import { nairobiDate } from './dates.js';
 import type { CycleCalendar, ObligationPolicy } from './engine.js';
 import { commissionRefs, cycleCalendar, tenantPolicyCache } from './schema.js';
+import { CycleOpeningSchedules } from './workflow/cycle-opening-schedules.js';
 import { hasChanges, type ObligationChanges, ObligationWorkflows } from './workflows.js';
 
 /** `app.subject` of the service's own transactions (consumers, schedules). */
@@ -40,7 +41,8 @@ export interface IngestedEvent {
  * (1,000 each), and applies each page in its own transaction (`applyRosterPage`). The consumer's
  * inbox entry is written with the last page, so the event counts as handled only once every page
  * is in; a failed pull (directory down) throws and leaves it for the retry, which re-applies the
- * pages already in as no-ops. Workflows are told after each page commits.
+ * pages already in as no-ops. Workflows are told after each page commits, and the Commission's
+ * cycle-opening schedule is ensured once the last one is in.
  */
 @Injectable()
 export class RosterIngest {
@@ -52,6 +54,7 @@ export class RosterIngest {
     private readonly directory: DirectoryClient,
     private readonly workflows: ObligationWorkflows,
     private readonly clock: Clock,
+    private readonly schedules: CycleOpeningSchedules,
   ) {}
 
   /** Returns false when the consumer had already handled the event. */
@@ -87,7 +90,10 @@ export class RosterIngest {
         return applied;
       });
       await this.tellWorkflows(tenant, changes);
-      if (last) return true;
+      if (last) {
+        await this.ensureCycleOpening(tenant);
+        return true;
+      }
       cursor = page.nextCursor;
       first = false;
     }
@@ -131,6 +137,18 @@ export class RosterIngest {
       await this.workflows.apply(tenant, changes);
     } catch (error) {
       this.logger.warn({ err: error, tenant }, 'Obligation workflows not started or signalled');
+    }
+  }
+
+  /**
+   * Makes sure the Commission's cycle-opening schedule exists once it has a roster. A failure is
+   * logged: the next ingest, or the service's next start, tries again.
+   */
+  private async ensureCycleOpening(tenant: string): Promise<void> {
+    try {
+      await this.schedules.ensure(tenant);
+    } catch (error) {
+      this.logger.warn({ err: error, tenant }, 'Cycle-opening schedule not ensured');
     }
   }
 }

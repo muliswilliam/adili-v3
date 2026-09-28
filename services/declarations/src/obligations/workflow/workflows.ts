@@ -2,12 +2,23 @@
  * Workflows hosted by the declarations worker (ADR-003). This module is bundled into Temporal's
  * deterministic sandbox: import only `@temporalio/workflow`, types and pure modules.
  */
-import { ActivityFailure, condition, log, proxyActivities, setHandler } from '@temporalio/workflow';
+import {
+  ActivityFailure,
+  condition,
+  continueAsNew,
+  log,
+  proxyActivities,
+  setHandler,
+} from '@temporalio/workflow';
 
 import type { ObligationStatus } from '../engine.js';
 import type { ObligationActivities } from './activities.js';
+import type { CycleOpeningActivities } from './cycle-opening-activities.js';
 import {
   cancelSignal,
+  CYCLE_OPENING_PAGES_PER_RUN,
+  type CycleOpened,
+  type CycleOpeningInput,
   datesChangedSignal,
   type FilingObligationEnd,
   type FilingObligationInput,
@@ -42,6 +53,15 @@ const { sweepObligations } = proxyActivities<ObligationActivities>({
   startToCloseTimeout: '30 minutes',
   heartbeatTimeout: '2 minutes',
   retry: { maximumAttempts: 3 },
+});
+
+// A page is one transaction of up to 1,000 creates plus their workflow starts; retried until done
+// (a later firing of the schedule would resume it anyway, from the first page, creating nothing
+// twice).
+const { cyclesToOpen, openCyclePage, recordCycleOpened } = proxyActivities<CycleOpeningActivities>({
+  startToCloseTimeout: '10 minutes',
+  heartbeatTimeout: '2 minutes',
+  retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
 });
 
 /**
@@ -181,6 +201,43 @@ export async function filingObligation({
  */
 export async function obligationsSweep(): Promise<number> {
   return sweepObligations();
+}
+
+/**
+ * `CycleOpeningWorkflow` (spec 04), started by the Commission's cycle-opening schedule
+ * (`cycleOpeningScheduleId`): opens every cycle the calendar has opened by today that was not
+ * opened for the Commission yet, creating its biennial obligations for the active officers page by
+ * page, then records it opened (`obligations.cycle-opened.v1`). Continues as new every 100 pages
+ * to keep histories short. Returns the cycles this run finished opening; a firing with nothing to
+ * open returns none.
+ */
+export async function cycleOpening({ tenant, resume }: CycleOpeningInput): Promise<CycleOpened[]> {
+  const cycleYears = resume?.cycleYears ?? (await cyclesToOpen(tenant));
+  let cursor = resume?.cursor ?? null;
+  let created = resume?.created ?? 0;
+  let pages = 0;
+  const opened: CycleOpened[] = [];
+  for (const [index, cycleYear] of cycleYears.entries()) {
+    for (;;) {
+      if (pages === CYCLE_OPENING_PAGES_PER_RUN) {
+        return continueAsNew<typeof cycleOpening>({
+          tenant,
+          resume: { cycleYears: cycleYears.slice(index), cursor, created },
+        });
+      }
+      const page = await openCyclePage({ tenant, cycleYear, cursor });
+      pages += 1;
+      created += page.created;
+      cursor = page.nextCursor;
+      if (cursor === null) break;
+    }
+    const cycle = { cycleYear, count: created };
+    await recordCycleOpened(tenant, cycle);
+    opened.push(cycle);
+    cursor = null;
+    created = 0;
+  }
+  return opened;
 }
 
 function replanRequested(signals: { replan: boolean }): boolean {
