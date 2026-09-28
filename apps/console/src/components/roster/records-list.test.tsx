@@ -192,22 +192,6 @@ describe('RecordsList', () => {
     expect(onSearchChange).toHaveBeenCalledWith({ flagged: true });
   });
 
-  it('turns "Identity check failed" on and off', () => {
-    const { onSearchChange } = renderList({ search: { flagged: true } });
-    const chip = screen.getByRole('button', { name: /Identity check failed/ });
-    expect(chip.getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(chip);
-    expect(onSearchChange).toHaveBeenCalledWith({ flagged: true, identityMismatch: true });
-  });
-
-  it('shows the identity-mismatch filter as on', () => {
-    const { onSearchChange } = renderList({ search: { identityMismatch: true } });
-    const chip = screen.getByRole('button', { name: /Identity check failed/ });
-    expect(chip.getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(chip);
-    expect(onSearchChange).toHaveBeenCalledWith({});
-  });
-
   it('marks records whose identity check failed', () => {
     renderList({
       result: page([

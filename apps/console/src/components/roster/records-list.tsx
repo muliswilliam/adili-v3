@@ -26,7 +26,7 @@ import type {
 import { LoadError, NoAccess } from '../load-error';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
-import { IdentityMismatchBadge, IdentityMismatchFilterChip } from './identity-mismatch';
+import { IdentityMismatchBadge } from './identity-mismatch';
 import { messages as m } from './messages';
 import { isFlagged } from './record-imports';
 import { hasIdentityMismatch } from './record-onboarding';
@@ -38,7 +38,6 @@ import {
   RECORD_STATES,
   type RecordsSearch,
   toggleFlagged,
-  toggleIdentityMismatch,
 } from './records-query';
 import { MaskedNationalId, NotInLatestImportBadge, RecordStateBadge } from './roster-badges';
 
@@ -69,9 +68,10 @@ export interface RecordsListProps {
 }
 
 /**
- * The roster records card (spec 02 FE-6): search, state filter, "Flagged only" and "Identity
- * check failed" (spec 03 S25) on top, then the records ordered by name with masked national IDs,
- * and "Load more" for the next page.
+ * The roster records card (spec 02 FE-6): search, state filter and "Flagged only" on top, then
+ * the records ordered by name with masked national IDs, and "Load more" for the next page.
+ * The "Identity check failed" chip (spec 03 S25) joins "Flagged only" once the directory filters
+ * on `identityMismatch` (#76); until then it would look on and filter nothing.
  */
 export function RecordsList(props: RecordsListProps) {
   const { result, search } = props;
@@ -153,13 +153,6 @@ function Toolbar({ search, onSearchChange, flaggedCount, result }: RecordsListPr
       >
         {m.flaggedOnly}
       </FilterChip>
-      <IdentityMismatchFilterChip
-        pressed={search.identityMismatch === true}
-        disabled={disabled}
-        onPressedChange={() => {
-          onSearchChange(toggleIdentityMismatch(search));
-        }}
-      />
       {hasRecordFilters(search) ? (
         <Button
           type="button"
