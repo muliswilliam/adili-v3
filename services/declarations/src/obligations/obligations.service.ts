@@ -10,7 +10,7 @@ import type {
   MyObligations,
   Obligation,
   ObligationDetail,
-  OfficerRef,
+  DeclarantRef,
 } from './representation.js';
 import {
   commissionRefs,
@@ -100,8 +100,8 @@ export class ObligationsService {
   }
 
   /**
-   * One obligation with its reminder history: the declarant's own (without the officer), or for
-   * staff of its Commission and platform admins (with the officer). 404 for anyone else.
+   * One obligation with its reminder history: the declarant's own (without `declarant`), or for
+   * staff of its Commission and platform admins (with `declarant`, whom it is for). 404 for anyone else.
    */
   async one(principal: Principal, id: string): Promise<ObligationDetail> {
     if (!UUID.test(id)) notFoundIfInvisible(null);
@@ -109,7 +109,7 @@ export class ObligationsService {
       const detail = await withPerson(
         this.db,
         { personId: principal.personId, subject: principal.subject },
-        (tx) => readDetail(tx, id, { officer: false }),
+        (tx) => readDetail(tx, id, { declarant: false }),
       );
       if (detail) return detail;
     }
@@ -118,7 +118,7 @@ export class ObligationsService {
       tenant === null
         ? null
         : await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
-            readDetail(tx, id, { officer: true }),
+            readDetail(tx, id, { declarant: true }),
           );
     return notFoundIfInvisible(detail);
   }
@@ -138,7 +138,7 @@ function staffTenantOf(principal: Principal): string | null {
 async function readDetail(
   tx: Transaction,
   id: string,
-  { officer }: { officer: boolean },
+  { declarant }: { declarant: boolean },
 ): Promise<ObligationDetail | null> {
   const [row] = await selectObligations(tx).where(eq(filingObligations.id, id)).limit(1);
   if (!row) return null;
@@ -160,11 +160,14 @@ async function readDetail(
       scheduledAt: reminder.scheduledAt.toISOString(),
       sentAt: reminder.sentAt?.toISOString() ?? null,
     })),
-    officer: officer ? await readOfficer(tx, row.rosterRecordId) : null,
+    declarant: declarant ? await readDeclarant(tx, row.rosterRecordId) : null,
   };
 }
 
-async function readOfficer(tx: Transaction, rosterRecordId: string): Promise<OfficerRef | null> {
+async function readDeclarant(
+  tx: Transaction,
+  rosterRecordId: string,
+): Promise<DeclarantRef | null> {
   const [snapshot] = await tx
     .select({
       rosterRecordId: rosterSnapshots.rosterRecordId,
@@ -177,8 +180,8 @@ async function readOfficer(tx: Transaction, rosterRecordId: string): Promise<Off
     .where(eq(rosterSnapshots.rosterRecordId, rosterRecordId))
     .limit(1);
   if (!snapshot) return null;
-  const { personId, ...officer } = snapshot;
-  return { ...officer, onboarded: personId !== null };
+  const { personId, ...declarant } = snapshot;
+  return { ...declarant, onboarded: personId !== null };
 }
 
 export function toObligation(row: ObligationRow): Obligation {

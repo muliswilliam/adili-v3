@@ -72,7 +72,7 @@ export interface ObligationsListProps {
 }
 
 /**
- * The Commission's officers and their obligations (spec 04 FE-3): search, type, status,
+ * The Commission's declarants and their obligations (spec 04 FE-3): search, type, status,
  * onboarded and cycle on top, then the obligations overdue first and by due date, and "Load
  * more" for the next page. A row opens the obligation's drawer.
  */
@@ -378,7 +378,7 @@ function Header() {
   return (
     <TableHeader>
       <TableRow>
-        <TableHead>{m.columnOfficer}</TableHead>
+        <TableHead>{m.columnDeclarant}</TableHead>
         <TableHead>{m.columnType}</TableHead>
         <TableHead>{m.columnStatementDate}</TableHead>
         <TableHead>{m.columnDueDate}</TableHead>
@@ -398,7 +398,7 @@ function FileNumber({ value }: { value: string }) {
   );
 }
 
-/** The officer's name as the row's one control: it opens the obligation's drawer. */
+/** The declarant's name as the row's one control: it opens the obligation's drawer. */
 function OpenButton({
   obligation,
   onOpen,
@@ -416,7 +416,7 @@ function OpenButton({
           onOpen(obligation);
         }}
       >
-        {obligation.officer.fullName}
+        {obligation.declarant.fullName}
       </button>
     </TableRowLink>
   );
@@ -444,7 +444,7 @@ function DueDate({ obligation }: { obligation: ObligationListItem }) {
  */
 function remindersTip(obligation: ObligationListItem): ReactNode {
   const { lastReminder } = obligation;
-  if (!obligation.officer.onboarded) return m.remindersNoneNotOnboarded;
+  if (!obligation.declarant.onboarded) return m.remindersNoneNotOnboarded;
   return (
     <>
       <span className="block">{remindersSentLabel(obligation.remindersSent)}</span>
@@ -492,7 +492,7 @@ function ObligationsTable({
           <TableRow key={obligation.id}>
             <TableHead scope="row" className="min-w-[190px] font-normal">
               <OpenButton obligation={obligation} onOpen={onOpen} />
-              <FileNumber value={obligation.officer.personnelFileNumber} />
+              <FileNumber value={obligation.declarant.personnelFileNumber} />
             </TableHead>
             <TableCell className="whitespace-nowrap">
               {obligationTypeShortLabel(obligation.type, obligation.statementDate)}
@@ -507,7 +507,7 @@ function ObligationsTable({
               <ObligationStatusBadge status={obligation.status} />
             </TableCell>
             <TableCell>
-              <OnboardedBadge onboarded={obligation.officer.onboarded} />
+              <OnboardedBadge onboarded={obligation.declarant.onboarded} />
             </TableCell>
             <TableCell>
               <Reminders obligation={obligation} />
@@ -540,7 +540,7 @@ function ObligationsCards({
           <div className="flex items-start justify-between gap-2.5">
             <div className="min-w-0 leading-snug">
               <OpenButton obligation={obligation} onOpen={onOpen} />
-              <FileNumber value={obligation.officer.personnelFileNumber} />
+              <FileNumber value={obligation.declarant.personnelFileNumber} />
             </div>
             <ObligationStatusBadge status={obligation.status} />
           </div>
@@ -556,7 +556,7 @@ function ObligationsCards({
             )}
           </p>
           <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
-            <span>{obligation.officer.onboarded ? m.onboardedShort : m.notOnboardedShort}</span>
+            <span>{obligation.declarant.onboarded ? m.onboardedShort : m.notOnboardedShort}</span>
             <span aria-hidden="true">·</span>
             <span>{remindersSentLabel(obligation.remindersSent)}</span>
           </p>

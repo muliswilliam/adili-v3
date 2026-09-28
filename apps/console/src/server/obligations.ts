@@ -18,7 +18,7 @@ import {
 } from './declarations/client';
 
 /**
- * `GET /v1/commissions/{slug}/obligations/summary`: counts by type and status, and officers due
+ * `GET /v1/commissions/{slug}/obligations/summary`: counts by type and status, and declarants due
  * or overdue who have not onboarded. Staff of the Commission, platform admins and EACC staff;
  * 404 for another Commission.
  */

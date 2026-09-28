@@ -56,7 +56,7 @@ import {
   tenantPolicyCache,
 } from './schema.js';
 
-/** EACC's roles: counts of any Commission, never officers. */
+/** EACC's roles: counts of any Commission, never declarants. */
 export const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'] as const;
 
 /** A policy's biennial statement and due dates, as month-days. */
@@ -123,8 +123,8 @@ const overdueRank = sql<number>`(case when ${filingObligations.status} = 'overdu
 
 /**
  * A Commission's obligations as its staff and EACC see them (spec 04): counts per cycle, and the
- * officers and their obligations. Commission staff read their own Commission (another is 404),
- * platform admins any; EACC reads any Commission's counts but no officer (the controller's roles
+ * declarants and their obligations. Commission staff read their own Commission (another is 404),
+ * platform admins any; EACC reads any Commission's counts but no declarant (the controller's roles
  * answer 403).
  */
 @Injectable()
@@ -135,7 +135,7 @@ export class CommissionObligationsService {
   ) {}
 
   /**
-   * Counts by type and status for a cycle (the current one by default) and the officers due or
+   * Counts by type and status for a cycle (the current one by default) and the declarants due or
    * overdue who have not onboarded, in one aggregate query. A Commission the service has no
    * obligations for yet gets zeros.
    */
@@ -185,7 +185,7 @@ export class CommissionObligationsService {
           from scoped
           where person_id is null and status in ('due', 'overdue')
           group by roster_record_id
-        ) as officers
+        ) as declarants
         group by worst`);
 
       const byType = {
@@ -216,7 +216,7 @@ export class CommissionObligationsService {
   }
 
   /**
-   * One page of the Commission's obligations with their officers, overdue first then by due
+   * One page of the Commission's obligations with their declarants, overdue first then by due
    * date, filtered and searched, in one query. Cancelled obligations only when asked for by
    * status.
    */
@@ -270,7 +270,7 @@ export class CommissionObligationsService {
       return {
         items: page.map((row) => ({
           ...toObligation(row),
-          officer: {
+          declarant: {
             rosterRecordId: row.rosterRecordId,
             personnelFileNumber: row.personnelFileNumber,
             fullName: row.fullName,
@@ -293,9 +293,9 @@ export class CommissionObligationsService {
 
   /**
    * Every Commission's counts for a cycle (the current one by default, under the statutory
-   * biennial dates), the officers due or overdue who have not onboarded and the Commission's
+   * biennial dates), the declarants due or overdue who have not onboarded and the Commission's
    * last roster import, with totals, in one aggregate query. For EACC and platform admins (the
-   * controller's roles); no officer data.
+   * controller's roles); no declarant data.
    */
   async national(principal: Principal, query: SummaryQuery): Promise<NationalSummary> {
     return withTenant(

@@ -29,7 +29,7 @@ function Header() {
         <TableHead>{m.columnCommission}</TableHead>
         <TableHead>{m.columnType}</TableHead>
         <TableHead>{m.columnCategories}</TableHead>
-        <TableHead>{m.columnOfficer}</TableHead>
+        <TableHead>{m.columnDeclarant}</TableHead>
         <TableHead>{m.columnRoster}</TableHead>
         <TableHead>{m.columnCreated}</TableHead>
       </TableRow>

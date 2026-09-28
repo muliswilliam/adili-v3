@@ -23,7 +23,7 @@ export const en = {
   notOnboardedBreakdown: 'Not onboarded by status',
   // Callout
   notOnboardedCallout: (count: number) =>
-    `${formatNumber(count)} ${count === 1 ? 'officer' : 'officers'} with a declaration due ${count === 1 ? 'has' : 'have'} not onboarded. They receive no reminders from Adili. Chase them through your own channels.`,
+    `${formatNumber(count)} ${count === 1 ? 'declarant' : 'declarants'} with a declaration due ${count === 1 ? 'has' : 'have'} not onboarded. They receive no reminders from Adili. Chase them through your own channels.`,
   viewRoster: 'View roster',
   showInList: 'Show in list',
   // Toolbar
@@ -42,9 +42,9 @@ export const en = {
   cycleNotOpenOption: (cycle: string) => `${cycle} (not open yet)`,
   clear: 'Clear',
   // Table
-  caption: 'Officers and their obligations, overdue first',
+  caption: 'Declarants and their obligations, overdue first',
   loadingCaption: 'Obligations (loading)',
-  columnOfficer: 'Officer',
+  columnDeclarant: 'Declarant',
   columnType: 'Type',
   columnStatementDate: 'Statement date',
   columnDueDate: 'Due date',
@@ -57,7 +57,7 @@ export const en = {
   notOnboardedShort: 'Not onboarded',
   remindersLast: (offset: string, outcome: string) => `Last (${offset}): ${outcome}`,
   remindersNoneNotOnboarded: 'None sent: not yet onboarded. Chase through your own channels.',
-  remindersSeeHistory: 'Open the officer for the reminder history.',
+  remindersSeeHistory: 'Open the declarant for the reminder history.',
   shown: (count: number) =>
     `Showing ${formatNumber(count)} ${count === 1 ? 'obligation' : 'obligations'}`,
   allShown: (count: number) =>
@@ -75,10 +75,10 @@ export const en = {
   errorTitle: 'Obligations could not be loaded',
   errorDetail: 'The declarations service did not respond. Try again in a moment.',
   tryAgain: 'Try again',
-  forbidden: 'You can see counts on the Commission page, not the officer list.',
+  forbidden: 'You can see counts on the Commission page, not the declarant list.',
   openCommissions: 'Open Commissions',
   backToCommission: 'Back to the Commission',
-  pickCommission: "Open a Commission to see its officers' obligations.",
+  pickCommission: "Open a Commission to see its declarants' obligations.",
   noAccess: 'You do not have access to Commission obligations.',
   backToOverview: 'Back to overview',
   notFoundTitle: 'Commission not found',

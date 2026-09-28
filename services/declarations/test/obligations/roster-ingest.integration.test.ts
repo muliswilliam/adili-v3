@@ -317,7 +317,7 @@ describe('S9 declarant.onboarded.v1', () => {
 
     const first = obligations[0]?.id ?? '';
     const staffView = await api.get(`/v1/obligations/${first}`, PSC_STAFF);
-    expect(staffView.json<ObligationDetail>().officer).toMatchObject({
+    expect(staffView.json<ObligationDetail>().declarant).toMatchObject({
       rosterRecordId: record.id,
       onboarded: true,
       ofr: 'OFR-0482913-L',

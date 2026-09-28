@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Per-Commission counts for EACC and platform administrators
-         * @description Every Commission's counts for a cycle (the current one by default), with not-onboarded officers due or overdue, the last roster import, and totals. No officer data.
+         * @description Every Commission's counts for a cycle (the current one by default), with not-onboarded declarants due or overdue, the last roster import, and totals. No declarant data.
          */
         get: operations["getNationalObligationsSummary"];
         put?: never;
@@ -53,7 +53,7 @@ export interface paths {
         };
         /**
          * One obligation with its reminder history
-         * @description The declarant's own (officer null); staff of the obligation's Commission and platform admins (with the officer). Anyone else gets 404.
+         * @description The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404.
          */
         get: operations["getObligation"];
         put?: never;
@@ -92,7 +92,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Officers and their obligations for a Commission
+         * Declarants and their obligations for a Commission
          * @description Staff of the tenant and platform-admin. EACC roles get 403 (summaries only); staff of another Commission 404.
          */
         get: operations["listCommissionObligations"];
@@ -798,7 +798,7 @@ export interface components {
             commission: components["schemas"]["CommissionRef"];
             type: components["schemas"]["ObligationType"];
             /**
-             * @description Unique per officer among live obligations
+             * @description Unique per declarant among live obligations
              * @example biennial:2027
              * @example initial:2027-03-10
              * @example final:2027-09-15
@@ -832,7 +832,7 @@ export interface components {
             channels: components["schemas"]["ReminderChannel"][];
             outcome: components["schemas"]["ReminderOutcome"];
         };
-        OfficerRef: {
+        DeclarantRef: {
             /** Format: uuid */
             rosterRecordId: string;
             personnelFileNumber: string;
@@ -846,7 +846,7 @@ export interface components {
             commission: components["schemas"]["CommissionRef"];
             type: components["schemas"]["ObligationType"];
             /**
-             * @description Unique per officer among live obligations
+             * @description Unique per declarant among live obligations
              * @example biennial:2027
              * @example initial:2027-03-10
              * @example final:2027-09-15
@@ -871,7 +871,7 @@ export interface components {
             /** @description Reminder history, by scheduled time */
             reminders: components["schemas"]["Reminder"][];
             /** @description Present for staff callers; null for the declarant's own view */
-            officer: components["schemas"]["OfficerRef"] | null;
+            declarant: components["schemas"]["DeclarantRef"] | null;
         };
         MyObligations: {
             /** @description One group per Commission, by name */
@@ -887,7 +887,7 @@ export interface components {
             commission: components["schemas"]["CommissionRef"];
             type: components["schemas"]["ObligationType"];
             /**
-             * @description Unique per officer among live obligations
+             * @description Unique per declarant among live obligations
              * @example biennial:2027
              * @example initial:2027-03-10
              * @example final:2027-09-15
@@ -909,7 +909,7 @@ export interface components {
             policyVersion: number;
             /** Format: date-time */
             createdAt: string;
-            officer: components["schemas"]["OfficerRef"];
+            declarant: components["schemas"]["DeclarantRef"];
             /** @description The obligation's latest reminder (by scheduled time); null before any */
             lastReminder: components["schemas"]["Reminder"] | null;
         };
@@ -951,7 +951,7 @@ export interface components {
                 biennial: components["schemas"]["StatusCounts"];
                 final: components["schemas"]["StatusCounts"];
             };
-            /** @description Officers with a due or overdue obligation who have not onboarded, each counted once under their worst status */
+            /** @description Declarants with a due or overdue obligation who have not onboarded, each counted once under their worst status */
             notOnboarded: {
                 due: number;
                 overdue: number;
@@ -964,7 +964,7 @@ export interface components {
             commissions: {
                 commission: components["schemas"]["CommissionRef"];
                 total: components["schemas"]["StatusCounts"];
-                /** @description Officers with a due or overdue obligation who have not onboarded */
+                /** @description Declarants with a due or overdue obligation who have not onboarded */
                 notOnboarded: number;
                 /** @description When the Commission's latest roster import completed; null before any */
                 lastRosterImportAt: string | null;
@@ -1569,7 +1569,7 @@ export interface operations {
                 type?: "initial" | "biennial" | "final";
                 /** @description Only obligations with this status; cancelled ones only when asked for */
                 status?: "upcoming" | "due" | "overdue" | "filed" | "cancelled";
-                /** @description Only officers who have onboarded, or only those who have not */
+                /** @description Only declarants who have onboarded, or only those who have not */
                 onboarded?: "true" | "false";
                 /** @description Only obligations with this cycle key */
                 cycle?: string;

@@ -65,7 +65,7 @@ export class ObligationsController {
     operationId: 'getNationalObligationsSummary',
     summary: 'Per-Commission counts for EACC and platform administrators',
     description:
-      "Every Commission's counts for a cycle (the current one by default), with not-onboarded officers due or overdue, the last roster import, and totals. No officer data.",
+      "Every Commission's counts for a cycle (the current one by default), with not-onboarded declarants due or overdue, the last roster import, and totals. No declarant data.",
   })
   @ApiQueryParameters(summaryQuery)
   @ApiOkResponse({
@@ -87,7 +87,7 @@ export class ObligationsController {
     operationId: 'getObligation',
     summary: 'One obligation with its reminder history',
     description:
-      "The declarant's own (officer null); staff of the obligation's Commission and platform admins (with the officer). Anyone else gets 404.",
+      "The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404.",
   })
   @ApiOkResponse({ description: 'The obligation', schema: schemaRef('ObligationDetail') })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -125,7 +125,7 @@ export class ObligationsController {
   @Roles(...COMMISSION_STAFF_ROLES, PLATFORM_ADMIN)
   @ApiOperation({
     operationId: 'listCommissionObligations',
-    summary: 'Officers and their obligations for a Commission',
+    summary: 'Declarants and their obligations for a Commission',
     description:
       'Staff of the tenant and platform-admin. EACC roles get 403 (summaries only); staff of another Commission 404.',
   })

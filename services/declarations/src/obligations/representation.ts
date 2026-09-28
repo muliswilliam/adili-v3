@@ -35,7 +35,7 @@ export const obligationSchema = z.object({
   commission: commissionRefSchema,
   type: obligationTypeSchema,
   cycleKey: z.string().meta({
-    description: 'Unique per officer among live obligations',
+    description: 'Unique per declarant among live obligations',
     examples: ['biennial:2027', 'initial:2027-03-10', 'final:2027-09-15'],
   }),
   statementDate: z.iso.date().meta({ description: 'The date the declaration is made as at' }),
@@ -59,18 +59,18 @@ export const reminderSchema = z.object({
 });
 export type Reminder = z.infer<typeof reminderSchema>;
 
-export const officerRefSchema = z.object({
+export const declarantRefSchema = z.object({
   rosterRecordId: z.uuid(),
   personnelFileNumber: z.string(),
   fullName: z.string(),
   onboarded: z.boolean(),
   ofr: z.string().nullable(),
 });
-export type OfficerRef = z.infer<typeof officerRefSchema>;
+export type DeclarantRef = z.infer<typeof declarantRefSchema>;
 
 export const obligationDetailSchema = obligationSchema.extend({
   reminders: z.array(reminderSchema).meta({ description: 'Reminder history, by scheduled time' }),
-  officer: officerRefSchema
+  declarant: declarantRefSchema
     .nullable()
     .meta({ description: "Present for staff callers; null for the declarant's own view" }),
 });
@@ -91,7 +91,7 @@ export const myObligationsSchema = z.object({
 export type MyObligations = z.infer<typeof myObligationsSchema>;
 
 export const obligationListItemSchema = obligationSchema.extend({
-  officer: officerRefSchema,
+  declarant: declarantRefSchema,
   lastReminder: reminderSchema.nullable().meta({
     description: "The obligation's latest reminder (by scheduled time); null before any",
   }),
@@ -149,7 +149,7 @@ export const commissionSummarySchema = z.object({
   }),
   notOnboarded: z.object({ due: z.int(), overdue: z.int() }).meta({
     description:
-      'Officers with a due or overdue obligation who have not onboarded, each counted once under their worst status',
+      'Declarants with a due or overdue obligation who have not onboarded, each counted once under their worst status',
   }),
 });
 export type CommissionSummary = z.infer<typeof commissionSummarySchema>;
@@ -165,7 +165,7 @@ export const nationalSummarySchema = z.object({
         commission: commissionRefSchema,
         total: statusCountsSchema,
         notOnboarded: z.int().meta({
-          description: 'Officers with a due or overdue obligation who have not onboarded',
+          description: 'Declarants with a due or overdue obligation who have not onboarded',
         }),
         lastRosterImportAt: z.iso.datetime().nullable().meta({
           description: "When the Commission's latest roster import completed; null before any",

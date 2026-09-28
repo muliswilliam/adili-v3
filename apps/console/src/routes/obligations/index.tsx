@@ -118,11 +118,11 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
                   </Link>
                 </Button>
               ),
-              recordLink: (officer) => (
+              recordLink: (declarant) => (
                 <Button asChild variant="secondary">
                   <Link
                     to="/roster/records/$recordId"
-                    params={{ recordId: officer.rosterRecordId }}
+                    params={{ recordId: declarant.rosterRecordId }}
                   >
                     <Icon icon={UserGroupIcon} />
                     {m.rosterRecord}

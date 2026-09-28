@@ -63,7 +63,7 @@ function obligation(overrides: Partial<ObligationListItem> = {}): ObligationList
     policyVersion: 1,
     createdAt: '2026-08-21T06:00:00Z',
     lastReminder: null,
-    officer: {
+    declarant: {
       rosterRecordId: '0199a0b4-0000-7000-8000-0000000000a1',
       personnelFileNumber: 'PSC/2009/0412',
       fullName: 'Achieng Otieno',
@@ -82,7 +82,7 @@ const notOnboarded = obligation({
   dueDate: '2027-12-31',
   status: 'upcoming',
   remindersSent: 0,
-  officer: {
+  declarant: {
     rosterRecordId: '0199a0b4-0000-7000-8000-0000000000a2',
     personnelFileNumber: 'PSC/2014/0088',
     fullName: 'Juma Mwangi',
@@ -149,8 +149,8 @@ function renderView(overrides: Partial<ObligationsViewProps> = {}) {
     ),
     roster: {
       notOnboardedLink: <a href="/roster/records?state=not_onboarded">View roster</a>,
-      recordLink: (officer) => (
-        <a href={`/roster/records/${officer.rosterRecordId}`}>Roster record</a>
+      recordLink: (declarant) => (
+        <a href={`/roster/records/${declarant.rosterRecordId}`}>Roster record</a>
       ),
     },
     ...overrides,
@@ -161,7 +161,7 @@ function renderView(overrides: Partial<ObligationsViewProps> = {}) {
 
 const tiles = () => screen.getByRole('group', { name: 'Summary' });
 const table = () =>
-  screen.getByRole('table', { name: 'Officers and their obligations, overdue first' });
+  screen.getByRole('table', { name: 'Declarants and their obligations, overdue first' });
 
 describe('S23 summary tiles', () => {
   it('shows the counts by status with their split by type, and the not-onboarded tile', () => {
@@ -229,18 +229,18 @@ describe('S23 summary tiles', () => {
 });
 
 describe('S23 not-onboarded callout', () => {
-  it('tells the Commission to chase officers who get no reminders, linking to the roster', () => {
+  it('tells the Commission to chase declarants who get no reminders, linking to the roster', () => {
     renderView();
     const callout = screen.getByRole('status');
     expect(callout.textContent).toContain(
-      '13 officers with a declaration due have not onboarded. They receive no reminders from Adili. Chase them through your own channels.',
+      '13 declarants with a declaration due have not onboarded. They receive no reminders from Adili. Chase them through your own channels.',
     );
     expect(within(callout).getByRole('link', { name: 'View roster' }).getAttribute('href')).toBe(
       '/roster/records?state=not_onboarded',
     );
   });
 
-  it('filters the list to officers not onboarded from "Show in list"', () => {
+  it('filters the list to declarants not onboarded from "Show in list"', () => {
     const { onSearchChange } = renderView({ search: { status: 'due', search: 'PSC' } });
     fireEvent.click(
       within(screen.getByRole('status')).getByRole('button', { name: 'Show in list' }),
@@ -253,21 +253,21 @@ describe('S23 not-onboarded callout', () => {
     expect(within(screen.getByRole('status')).queryByRole('link')).toBeNull();
   });
 
-  it('is hidden when every officer with a declaration due has onboarded', () => {
+  it('is hidden when every declarant with a declaration due has onboarded', () => {
     renderView({ summary: summary({ notOnboarded: { due: 0, overdue: 0 } }) });
     expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('counts one officer in the singular', () => {
+  it('counts one declarant in the singular', () => {
     renderView({ summary: summary({ notOnboarded: { due: 0, overdue: 1 } }) });
     expect(screen.getByRole('status').textContent).toContain(
-      '1 officer with a declaration due has not onboarded.',
+      '1 declarant with a declaration due has not onboarded.',
     );
   });
 });
 
 describe('S23 obligations list', () => {
-  it('lists officers with type, dates, status, onboarded and reminders', () => {
+  it('lists declarants with type, dates, status, onboarded and reminders', () => {
     renderView();
     const [header, firstRow, secondRow, ...rest] = within(table()).getAllByRole('row');
     expect(header).toBeTruthy();
@@ -307,7 +307,7 @@ describe('S23 obligations list', () => {
     fireEvent.focus(within(table()).getByLabelText('1 reminder sent'));
     const tip = await screen.findByRole('tooltip');
     expect(tip.textContent).toBe(
-      '1 reminder sentLast (7 days before): Skipped: no contact detailsOpen the officer for the reminder history.',
+      '1 reminder sentLast (7 days before): Skipped: no contact detailsOpen the declarant for the reminder history.',
     );
   });
 
@@ -351,7 +351,7 @@ describe('S23 obligations list', () => {
   it('points EACC staff, refused the list, to the counts on the Commission page', () => {
     renderView({ list: problem(403), forbiddenAction: <a href="/commissions/psc">Back</a> });
     expect(
-      screen.getByText('You can see counts on the Commission page, not the officer list.'),
+      screen.getByText('You can see counts on the Commission page, not the declarant list.'),
     ).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Summary' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Back' })).toBeTruthy();
@@ -380,7 +380,7 @@ describe('S23 obligations list', () => {
   it('appends the next page from "Load more"', async () => {
     const later = obligation({
       id: '0199a0b4-0000-7000-8000-000000000003',
-      officer: { ...obligation().officer, fullName: 'Wanjiru Kamau' },
+      declarant: { ...obligation().declarant, fullName: 'Wanjiru Kamau' },
     });
     const loadPage = vi.fn(() => Promise.resolve(page([later])));
     renderView({ list: page([obligation()], 'c2'), loadPage });
@@ -414,11 +414,11 @@ describe('obligation drawer', () => {
       '30 days before20 Aug 2026--Skipped: the date had passed when this obligation was created',
     ]);
     expect(within(drawer).getByRole('link', { name: 'Roster record' }).getAttribute('href')).toBe(
-      `/roster/records/${obligation().officer.rosterRecordId}`,
+      `/roster/records/${obligation().declarant.rosterRecordId}`,
     );
   });
 
-  it('notes that no reminders go out until the officer onboards', async () => {
+  it('notes that no reminders go out until the declarant onboards', async () => {
     renderView();
     fireEvent.click(within(table()).getByRole('button', { name: 'Juma Mwangi' }));
     const drawer = await screen.findByRole('dialog', { name: 'Juma Mwangi' });

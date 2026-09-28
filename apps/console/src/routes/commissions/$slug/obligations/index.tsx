@@ -99,11 +99,11 @@ function CommissionObligationsPage({ list }: { list: DeclarationsResult<Obligati
             </Link>
           </Button>
         ),
-        recordLink: (officer) => (
+        recordLink: (declarant) => (
           <Button asChild variant="secondary">
             <Link
               to="/commissions/$slug/records/$recordId"
-              params={{ slug, recordId: officer.rosterRecordId }}
+              params={{ slug, recordId: declarant.rosterRecordId }}
             >
               <Icon icon={UserGroupIcon} />
               {m.rosterRecord}

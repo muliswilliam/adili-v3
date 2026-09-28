@@ -30,7 +30,7 @@ export const listCommissionObligationsQuery = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((value) => (value === undefined ? undefined : value === 'true'))
-    .meta({ description: 'Only officers who have onboarded, or only those who have not' }),
+    .meta({ description: 'Only declarants who have onboarded, or only those who have not' }),
   cycle: z
     .string()
     .trim()

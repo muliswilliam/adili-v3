@@ -86,7 +86,7 @@ function detail(fixture: Fixture): ObligationDetail {
     policyVersion: 1,
     createdAt: at(day(-2), '06:15'),
     reminders,
-    officer: null,
+    declarant: null,
   };
 }
 

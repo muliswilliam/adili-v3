@@ -8,7 +8,7 @@ import type {
   ObligationDetail,
   ObligationListItem,
   ObligationPage,
-  OfficerRef,
+  DeclarantRef,
 } from '../../server/declarations/client';
 import { formatDate } from '../format';
 import { LoadError, NoAccess } from '../load-error';
@@ -34,14 +34,14 @@ export interface ObligationsViewProps {
   onSearchChange: (next: ObligationsSearch, options?: { replace?: boolean }) => void;
   loadPage: (cursor: string) => Promise<DeclarationsResult<ObligationPage>>;
   loadObligation: (id: string) => Promise<DeclarationsResult<ObligationDetail>>;
-  /** The roster, for those who may open it: records not onboarded, and one officer's record. */
+  /** The roster, for those who may open it: records not onboarded, and one declarant's record. */
   roster?: {
     notOnboardedLink: ReactNode;
-    recordLink: (officer: OfficerRef) => ReactNode;
+    recordLink: (declarant: DeclarantRef) => ReactNode;
   };
   /** Offered when the Commission has no obligations at all, e.g. "Import roster". */
   emptyAction?: ReactNode;
-  /** Where to go when the officer list is not the viewer's to see (EACC staff). */
+  /** Where to go when the declarant list is not the viewer's to see (EACC staff). */
   forbiddenAction?: ReactNode;
   /** Where to go from a Commission that is not found. */
   notFoundAction?: ReactNode;

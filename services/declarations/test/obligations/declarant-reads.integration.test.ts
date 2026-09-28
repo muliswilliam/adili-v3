@@ -43,7 +43,7 @@ afterAll(async () => {
  * Wanjiru moved from TSC to PSC: at PSC she was appointed 2027-06-20 (an initial due 2027-07-20
  * and the 2027 biennial), at TSC she was appointed 2027-05-01 and is still on its roster (an
  * overdue initial and the biennial). Otieno is at PSC, long-serving (the biennial only). A PSC
- * officer has not onboarded.
+ * declarant has not onboarded.
  */
 beforeEach(async () => {
   await api.reset();
@@ -186,7 +186,7 @@ describe('S14 GET /v1/me/obligations', () => {
 });
 
 describe('S17 GET /v1/obligations/{id}', () => {
-  it('shows the owning person the obligation with its reminder history, without the officer', async () => {
+  it('shows the owning person the obligation with its reminder history, without the declarant', async () => {
     const id = await obligationIdOf('tsc', WANJIRU, 'initial');
 
     const response = await api.get(`/v1/obligations/${id}`, declarant(WANJIRU));
@@ -199,7 +199,7 @@ describe('S17 GET /v1/obligations/{id}', () => {
       commission: { slug: 'tsc', name: 'Teachers Service Commission' },
       type: 'initial',
       status: 'overdue',
-      officer: null,
+      declarant: null,
     });
     // Due 2027-05-31 and created 2027-07-10: every reminder was already past.
     expect(body.reminders).toEqual(
@@ -225,7 +225,7 @@ describe('S17 GET /v1/obligations/{id}', () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it("shows the Commission's staff and platform admins the officer; others get 404", async () => {
+  it("shows the Commission's staff and platform admins the declarant; others get 404", async () => {
     const id = await obligationIdOf('psc', WANJIRU, 'initial');
 
     const reviewer = await api.get(`/v1/obligations/${id}`, { tenant: 'psc', roles: ['reviewer'] });
@@ -243,7 +243,7 @@ describe('S17 GET /v1/obligations/{id}', () => {
     });
 
     expect(reviewer.statusCode, reviewer.body).toBe(200);
-    expect(reviewer.json<ObligationDetail>().officer).toMatchObject({
+    expect(reviewer.json<ObligationDetail>().declarant).toMatchObject({
       personnelFileNumber: expect.stringMatching(/^PSC\//) as string,
       fullName: 'Achieng Otieno',
       onboarded: true,

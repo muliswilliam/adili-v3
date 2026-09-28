@@ -32,7 +32,7 @@ import type {
   DeclarationsResult,
   ObligationDetail,
   ObligationListItem,
-  OfficerRef,
+  DeclarantRef,
   Reminder,
 } from '../../server/declarations/client';
 import { formatDate, formatDateTime } from '../format';
@@ -49,13 +49,13 @@ export interface ObligationDrawerProps {
   /** Reads the obligation with its reminder history; a server function in the app. */
   load: (id: string) => Promise<DeclarationsResult<ObligationDetail>>;
   onUnauthenticated: () => void;
-  /** The officer's roster record, for those who may open it. */
-  recordLink?: (officer: OfficerRef) => ReactNode;
+  /** The declarant's roster record, for those who may open it. */
+  recordLink?: (declarant: DeclarantRef) => ReactNode;
 }
 
 /**
  * One obligation in full (spec 04 FE-3): the row's fields at once, then the reminder history
- * once read, and the way to the officer's roster record.
+ * once read, and the way to the declarant's roster record.
  */
 export function ObligationDrawer({
   obligation,
@@ -75,7 +75,7 @@ export function ObligationDrawer({
       {obligation ? (
         <DrawerContent size="wide">
           <DrawerHeader>
-            <DrawerTitle>{obligation.officer.fullName}</DrawerTitle>
+            <DrawerTitle>{obligation.declarant.fullName}</DrawerTitle>
             <DrawerDescription>
               {obligationTypeLabel(obligation.type, obligation.statementDate)}
             </DrawerDescription>
@@ -85,7 +85,7 @@ export function ObligationDrawer({
             <Reminders obligation={obligation} detail={detail} />
           </DrawerBody>
           <DrawerFooter>
-            {recordLink ? recordLink(obligation.officer) : null}
+            {recordLink ? recordLink(obligation.declarant) : null}
             <DrawerClose asChild>
               <Button variant="ghost">{m.close}</Button>
             </DrawerClose>
@@ -131,7 +131,7 @@ function useObligationDetail(
 }
 
 function Fields({ obligation }: { obligation: ObligationListItem }) {
-  const { officer, commission } = obligation;
+  const { declarant, commission } = obligation;
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -144,13 +144,13 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
       </div>
       <DetailList className="px-0 py-0">
         <DetailItem term={m.fileNumber}>
-          <span className="font-mono text-[13.5px]">{officer.personnelFileNumber}</span>
+          <span className="font-mono text-[13.5px]">{declarant.personnelFileNumber}</span>
         </DetailItem>
         <DetailItem term={m.columnOnboarded}>
           <span className="flex flex-wrap items-center gap-2">
-            <OnboardedBadge onboarded={officer.onboarded} />
-            {officer.ofr ? (
-              <span className="font-mono text-[13px] text-muted-foreground">{officer.ofr}</span>
+            <OnboardedBadge onboarded={declarant.onboarded} />
+            {declarant.ofr ? (
+              <span className="font-mono text-[13px] text-muted-foreground">{declarant.ofr}</span>
             ) : null}
           </span>
         </DetailItem>
@@ -195,7 +195,7 @@ function Reminders({
 }) {
   const schedule = [
     m.reminderSchedule(obligation.commission.name, obligation.policyVersion),
-    obligation.officer.onboarded ? null : m.reminderScheduleNotOnboarded,
+    obligation.declarant.onboarded ? null : m.reminderScheduleNotOnboarded,
   ]
     .filter(Boolean)
     .join(' · ');

@@ -58,7 +58,7 @@ const overdueFinal = obligation({
 });
 
 function detailOf(entry: Obligation, reminders: ObligationDetail['reminders'] = []) {
-  return { ...entry, reminders, officer: null } satisfies ObligationDetail;
+  return { ...entry, reminders, declarant: null } satisfies ObligationDetail;
 }
 
 function renderView(

@@ -39,7 +39,7 @@ export const ROSTER_RECORD_STATES = ['not_onboarded', 'onboarded', 'exited'] as 
 
 /**
  * The declarations service's snapshot of a directory roster record, as last pulled: what the
- * obligation engine reads, and the officer names and file numbers the Commission's obligations
+ * obligation engine reads, and the declarant names and file numbers the Commission's obligations
  * list shows. Confidential (names); tenant-scoped.
  */
 export const rosterSnapshots = pgTable(
@@ -227,7 +227,7 @@ export const cycleCalendar = pgTable('cycle_calendar', {
 
 /**
  * The cycles opened for each Commission: written when its `CycleOpeningWorkflow` has created the
- * cycle's biennial obligations for every active officer, with how many it created. A cycle recorded
+ * cycle's biennial obligations for every active declarant, with how many it created. A cycle recorded
  * here is not opened again (a second firing of the schedule creates nothing). Platform-level.
  */
 export const cycleOpenings = pgTable(
@@ -235,7 +235,7 @@ export const cycleOpenings = pgTable(
   {
     tenant: text().notNull(),
     cycleYear: integer().notNull(),
-    /** Biennial obligations the opening created (officers ingested earlier had theirs already). */
+    /** Biennial obligations the opening created (declarants ingested earlier had theirs already). */
     obligationsCreated: integer().notNull(),
     openedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

@@ -35,7 +35,7 @@ paths:
       tags:
         - obligations
       summary: Per-Commission counts for EACC and platform administrators
-      description: Every Commission's counts for a cycle (the current one by default), with not-onboarded officers due or overdue, the last roster import, and totals. No officer data.
+      description: Every Commission's counts for a cycle (the current one by default), with not-onboarded declarants due or overdue, the last roster import, and totals. No declarant data.
       operationId: getNationalObligationsSummary
       parameters:
         - name: cycle
@@ -74,7 +74,7 @@ paths:
       tags:
         - obligations
       summary: One obligation with its reminder history
-      description: The declarant's own (officer null); staff of the obligation's Commission and platform admins (with the officer). Anyone else gets 404.
+      description: The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404.
       operationId: getObligation
       parameters:
         - name: id
@@ -151,7 +151,7 @@ paths:
     get:
       tags:
         - obligations
-      summary: Officers and their obligations for a Commission
+      summary: Declarants and their obligations for a Commission
       description: Staff of the tenant and platform-admin. EACC roles get 403 (summaries only); staff of another Commission 404.
       operationId: listCommissionObligations
       parameters:
@@ -185,7 +185,7 @@ paths:
         - name: onboarded
           required: false
           in: query
-          description: Only officers who have onboarded, or only those who have not
+          description: Only declarants who have onboarded, or only those who have not
           schema:
             type: string
             enum:
@@ -1593,7 +1593,7 @@ components:
           $ref: '#/components/schemas/ObligationType'
         cycleKey:
           type: string
-          description: Unique per officer among live obligations
+          description: Unique per declarant among live obligations
           examples:
             - biennial:2027
             - initial:2027-03-10
@@ -1661,7 +1661,7 @@ components:
         - sentAt
         - channels
         - outcome
-    OfficerRef:
+    DeclarantRef:
       type: object
       properties:
         rosterRecordId:
@@ -1695,7 +1695,7 @@ components:
           $ref: '#/components/schemas/ObligationType'
         cycleKey:
           type: string
-          description: Unique per officer among live obligations
+          description: Unique per declarant among live obligations
           examples:
             - biennial:2027
             - initial:2027-03-10
@@ -1728,9 +1728,9 @@ components:
           items:
             $ref: '#/components/schemas/Reminder'
           description: Reminder history, by scheduled time
-        officer:
+        declarant:
           anyOf:
-            - $ref: '#/components/schemas/OfficerRef'
+            - $ref: '#/components/schemas/DeclarantRef'
             - type: 'null'
           description: Present for staff callers; null for the declarant's own view
       required:
@@ -1746,7 +1746,7 @@ components:
         - policyVersion
         - createdAt
         - reminders
-        - officer
+        - declarant
     MyObligations:
       type: object
       properties:
@@ -1780,7 +1780,7 @@ components:
           $ref: '#/components/schemas/ObligationType'
         cycleKey:
           type: string
-          description: Unique per officer among live obligations
+          description: Unique per declarant among live obligations
           examples:
             - biennial:2027
             - initial:2027-03-10
@@ -1808,8 +1808,8 @@ components:
         createdAt:
           type: string
           format: date-time
-        officer:
-          $ref: '#/components/schemas/OfficerRef'
+        declarant:
+          $ref: '#/components/schemas/DeclarantRef'
         lastReminder:
           anyOf:
             - $ref: '#/components/schemas/Reminder'
@@ -1827,7 +1827,7 @@ components:
         - remindersSent
         - policyVersion
         - createdAt
-        - officer
+        - declarant
         - lastReminder
     ObligationPage:
       type: object
@@ -1924,7 +1924,7 @@ components:
           required:
             - due
             - overdue
-          description: Officers with a due or overdue obligation who have not onboarded, each counted once under their worst status
+          description: Declarants with a due or overdue obligation who have not onboarded, each counted once under their worst status
       required:
         - commission
         - cycle
@@ -1949,7 +1949,7 @@ components:
                 $ref: '#/components/schemas/StatusCounts'
               notOnboarded:
                 type: integer
-                description: Officers with a due or overdue obligation who have not onboarded
+                description: Declarants with a due or overdue obligation who have not onboarded
               lastRosterImportAt:
                 anyOf:
                   - type: string

@@ -6,7 +6,7 @@ import { getCommissionObligationsSummary } from '../../../../server/obligations'
 
 /**
  * A Commission's obligations for platform admins, reached from its page. EACC staff see its
- * counts on that page; the declarations service refuses them the officer list, and the page
+ * counts on that page; the declarations service refuses them the declarant list, and the page
  * says so.
  */
 export const Route = createFileRoute('/commissions/$slug/obligations')({

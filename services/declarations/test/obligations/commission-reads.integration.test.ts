@@ -28,7 +28,7 @@ import { rosterRecord } from '../support/fake-directory.js';
 
 /**
  * Spec 04 S15 and S16 over HTTP: a Commission's obligations summary (counts by type and status,
- * and officers due or overdue who have not onboarded) and its officer list (filters, search,
+ * and declarants due or overdue who have not onboarded) and its declarant list (filters, search,
  * cursor pages), with the authorisation matrix. Obligations come from roster imports through the
  * inbox, as in production.
  *
@@ -62,7 +62,7 @@ afterAll(async () => {
  *   biennial: she left before its statement date).
  * - Faith Achieng, appointed 2027-03-01, onboarded: initial overdue (2027-03-31), biennial.
  *
- * TSC has one long-serving officer (a biennial), who must never show at PSC.
+ * TSC has one long-serving declarant (a biennial), who must never show at PSC.
  */
 beforeEach(async () => {
   await api.reset();
@@ -70,19 +70,22 @@ beforeEach(async () => {
   api.directory.givenCommission('psc', 'Public Service Commission');
   api.directory.givenCommission('tsc', 'Teachers Service Commission');
   await importRoster('psc', [
-    officer('PSC/1001', 'Akinyi Wambui', { appointmentDate: '2027-10-01', onboarded: true }),
-    officer('PSC/1002', 'Baraka Mwangi', { appointmentDate: '2027-08-01' }),
-    officer('PSC/2001', 'Chebet Kiprono', { appointmentDate: '2010-02-01' }),
-    officer('PSC/2002', 'Daudi Ochieng', { appointmentDate: '2011-05-01', onboarded: true }),
-    officer('PSC/2003', 'Esther Njeri', { appointmentDate: '2012-01-09', exitDate: '2027-10-01' }),
-    officer('PSC/1003', 'Faith Achieng', { appointmentDate: '2027-03-01', onboarded: true }),
+    declarant('PSC/1001', 'Akinyi Wambui', { appointmentDate: '2027-10-01', onboarded: true }),
+    declarant('PSC/1002', 'Baraka Mwangi', { appointmentDate: '2027-08-01' }),
+    declarant('PSC/2001', 'Chebet Kiprono', { appointmentDate: '2010-02-01' }),
+    declarant('PSC/2002', 'Daudi Ochieng', { appointmentDate: '2011-05-01', onboarded: true }),
+    declarant('PSC/2003', 'Esther Njeri', {
+      appointmentDate: '2012-01-09',
+      exitDate: '2027-10-01',
+    }),
+    declarant('PSC/1003', 'Faith Achieng', { appointmentDate: '2027-03-01', onboarded: true }),
   ]);
   await importRoster('tsc', [
     rosterRecord('tsc', { personnelFileNumber: 'PSC/9999', fullName: 'Akinyi Tsc' }),
   ]);
 });
 
-function officer(
+function declarant(
   personnelFileNumber: string,
   fullName: string,
   options: { appointmentDate: string; exitDate?: string; onboarded?: boolean },
@@ -125,7 +128,7 @@ async function page(caller: Caller, query = '', slug = 'psc'): Promise<Obligatio
 }
 
 const rows = (items: ObligationListItem[]) =>
-  items.map((item) => `${item.officer.fullName} ${item.type} ${item.status} ${item.dueDate}`);
+  items.map((item) => `${item.declarant.fullName} ${item.type} ${item.status} ${item.dueDate}`);
 
 /** Updates PSC obligations behind the API, e.g. to file or cancel one. */
 async function updateObligation(
@@ -163,7 +166,7 @@ const cycle = (year: number, opened: boolean) => ({
   opened,
 });
 
-/** Obligation id of a PSC officer's obligation of `type`. */
+/** Obligation id of a PSC declarant's obligation of `type`. */
 async function obligationIdOf(fullName: string, type: 'initial' | 'biennial' | 'final') {
   return withTenant(api.db, { tenant: 'psc', subject: 'test' }, async (tx) => {
     const [row] = await tx
@@ -180,7 +183,7 @@ async function obligationIdOf(fullName: string, type: 'initial' | 'biennial' | '
 }
 
 describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
-  it('counts the current cycle by type and status, and not-onboarded officers due or overdue', async () => {
+  it('counts the current cycle by type and status, and not-onboarded declarants due or overdue', async () => {
     expect(await summary(PSC_OFFICER)).toEqual({
       commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
       cycle: cycle(2027, true),
@@ -196,7 +199,7 @@ describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
     });
   });
 
-  it('counts an officer once, under overdue, when they have both a due and an overdue obligation', async () => {
+  it('counts an declarant once, under overdue, when they have both a due and an overdue obligation', async () => {
     api.clock.setToday('2027-11-05');
     await updateObligation('Baraka Mwangi', 'biennial', { status: 'due' });
 
@@ -284,7 +287,7 @@ describe('S15 GET /v1/commissions/{slug}/obligations/summary', () => {
 });
 
 describe('S15 GET /v1/commissions/{slug}/obligations', () => {
-  it('lists the Commission’s obligations overdue first, then by due date, with the officer', async () => {
+  it('lists the Commission’s obligations overdue first, then by due date, with the declarant', async () => {
     const body = await page(PSC_OFFICER);
 
     expect(rows(body.items).slice(0, 4)).toEqual([
@@ -314,7 +317,7 @@ describe('S15 GET /v1/commissions/{slug}/obligations', () => {
         channels: [],
         outcome: 'skipped-past-due-at-creation',
       },
-      officer: {
+      declarant: {
         personnelFileNumber: 'PSC/1003',
         fullName: 'Faith Achieng',
         onboarded: true,
@@ -369,12 +372,12 @@ describe('S15 GET /v1/commissions/{slug}/obligations', () => {
     const cycle = await page(PSC_OFFICER, 'cycle=biennial:2027');
     const otherCycle = await page(PSC_OFFICER, 'cycle=biennial:2029');
 
-    expect(initial.items.map((item) => item.officer.fullName)).toEqual([
+    expect(initial.items.map((item) => item.declarant.fullName)).toEqual([
       'Faith Achieng',
       'Baraka Mwangi',
       'Akinyi Wambui',
     ]);
-    expect(overdue.items.map((item) => item.officer.fullName)).toEqual([
+    expect(overdue.items.map((item) => item.declarant.fullName)).toEqual([
       'Faith Achieng',
       'Baraka Mwangi',
     ]);
@@ -384,7 +387,7 @@ describe('S15 GET /v1/commissions/{slug}/obligations', () => {
       'Chebet Kiprono biennial upcoming 2027-12-31',
       'Esther Njeri final due 2027-10-31',
     ]);
-    expect(notOnboarded.items.every((item) => !item.officer.onboarded)).toBe(true);
+    expect(notOnboarded.items.every((item) => !item.declarant.onboarded)).toBe(true);
     expect(rows(onboardedDue.items)).toEqual(['Akinyi Wambui initial due 2027-10-31']);
     expect(cycle.items).toHaveLength(5);
     expect(cycle.items.every((item) => item.cycleKey === 'biennial:2027')).toBe(true);
@@ -410,7 +413,7 @@ describe('S15 GET /v1/commissions/{slug}/obligations', () => {
     const notAPrefix = await page(PSC_OFFICER, 'search=1001');
     const wildcard = await page(PSC_OFFICER, 'search=%25');
 
-    expect(new Set(prefix.items.map((item) => item.officer.fullName))).toEqual(
+    expect(new Set(prefix.items.map((item) => item.declarant.fullName))).toEqual(
       new Set(['Akinyi Wambui', 'Baraka Mwangi', 'Faith Achieng']),
     );
     expect(rows(fragment.items)).toEqual([
