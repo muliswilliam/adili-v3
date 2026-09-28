@@ -453,10 +453,17 @@ export type DismissOutcome =
   | NotFound
   | Unavailable;
 
+export interface DismissSuggestionInput {
+  declarationId: string;
+  suggestionId: string;
+  /** Why the declarant set it aside, if they said. */
+  reason?: string;
+}
+
 /** `POST .../suggestions/{id}/dismiss`: sets the suggestion aside, with an optional reason. */
 export function dismissSuggestion(
   client: DeclarationsClient,
-  input: { declarationId: string; suggestionId: string; reason?: string },
+  input: DismissSuggestionInput,
 ): Promise<DismissOutcome> {
   return attempt(async () => {
     const { data, response } = await client.POST(
