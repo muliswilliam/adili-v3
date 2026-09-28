@@ -367,17 +367,22 @@ export function RegistriesPanel({
           fields={fields}
           match={match}
           messages={{ add: REGISTRY_COPY.apply }}
-          onAdd={() => {
-            void run(
-              each,
-              { fields: suggestion.fields, applyToItemId: null },
-              {
-                done: REGISTRY_COPY.applied,
-                refreshed: REGISTRY_COPY.refreshedApplied,
-                applied: true,
-              },
-            );
-          }}
+          // The spouse's KRA PIN is already there: applying would change nothing.
+          onAdd={
+            match
+              ? undefined
+              : () => {
+                  void run(
+                    each,
+                    { fields: suggestion.fields, applyToItemId: null },
+                    {
+                      done: REGISTRY_COPY.applied,
+                      refreshed: REGISTRY_COPY.refreshedApplied,
+                      applied: true,
+                    },
+                  );
+                }
+          }
         />
       );
     }
@@ -386,6 +391,20 @@ export function RegistriesPanel({
       return <SuggestionCard key={suggestion.id} {...common} fields={fields} />;
     }
 
+    // Add and Edit and add are offered on every item card: the main actions when nothing
+    // matches, secondary ones beside "Apply to this item" when something does (#312).
+    const addActions = {
+      onAdd: () => {
+        void run(
+          each,
+          { fields: suggestion.fields, applyToItemId: null },
+          { done: REGISTRY_COPY.added, refreshed: REGISTRY_COPY.refreshedAdded, applied: false },
+        );
+      },
+      onEditAndAdd: () => {
+        setEditing(each);
+      },
+    };
     const matchId = suggestion.matchItemId ?? findMatch(suggestion, items);
     const matched = matchId ? items.find((item) => item.id === matchId) : undefined;
     const acceptedAs =
@@ -406,6 +425,7 @@ export function RegistriesPanel({
           {...common}
           acceptedAs={acceptedAs}
           match={{ title: itemName(matched, suggestion.itemType), fills }}
+          {...addActions}
           onApply={() => {
             void run(
               each,
@@ -428,16 +448,7 @@ export function RegistriesPanel({
         acceptedAs={acceptedAs}
         description={REGISTRY_COPY.addValue(typeWord(suggestion.itemType))}
         fields={fields}
-        onAdd={() => {
-          void run(
-            each,
-            { fields: suggestion.fields, applyToItemId: null },
-            { done: REGISTRY_COPY.added, refreshed: REGISTRY_COPY.refreshedAdded, applied: false },
-          );
-        }}
-        onEditAndAdd={() => {
-          setEditing(each);
-        }}
+        {...addActions}
       />
     );
   }

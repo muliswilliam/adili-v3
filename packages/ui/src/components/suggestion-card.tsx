@@ -98,7 +98,8 @@ export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | '
   fields?: SuggestionField[];
   /**
    * The existing item it matches. The main action becomes "Apply to this item", listing the
-   * empty fields it fills; with nothing to fill only Dismiss is offered.
+   * empty fields it fills (not offered when there is nothing to fill); Add and Edit and add
+   * stay as secondary actions, for when it is a different item after all.
    */
   match?: SuggestionMatch;
   status?: SuggestionStatus;
@@ -109,11 +110,11 @@ export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | '
    * after the section changed underneath (409 or 412) and the accept is being retried.
    */
   busy?: 'saving' | 'refreshing';
-  /** Adds the item as found. Offered when there is no match. */
+  /** Adds the item as found: the main action, or a secondary one when it matches an item. */
   onAdd?: () => void;
-  /** Opens the fields for changes before adding. Offered when there is no match. */
+  /** Opens the fields for changes before adding. */
   onEditAndAdd?: () => void;
-  /** Fills the matched item's empty fields. */
+  /** Fills the matched item's empty fields. Offered only with a `match`. */
   onApply?: () => void;
   onDismiss?: () => void;
   /** Goes to the added or updated item. Offered once accepted. */
@@ -128,8 +129,8 @@ export type SuggestionCardProps = Omit<ComponentProps<'article'>, 'children' | '
 /**
  * One thing a registry or document suggests adding to the declaration: its title, where and when
  * it came from, a preview of its fields and what the user can do with it. New suggestions offer
- * Add, Edit and add, and Dismiss; one matching an existing item offers "Apply to this item" with
- * the empty fields it fills. Accepted cards collapse to "Added" (or "Applied") with a View
+ * Add, Edit and add, and Dismiss; one matching an existing item leads with "Apply to this item"
+ * (listing the empty fields it fills), then Add, Edit and add, and Dismiss. Accepted cards collapse to "Added" (or "Applied") with a View
  * action; dismissed ones to "Dismissed". Every action's accessible name includes the title, and
  * each state is in text, never colour alone.
  */
@@ -234,6 +235,8 @@ export function SuggestionCard({
   const actions = match ? (
     <>
       {match.fills.length > 0 ? action(messages.apply, onApply, 'default') : null}
+      {action(messages.add, onAdd, 'secondary')}
+      {action(messages.editAndAdd, onEditAndAdd, 'secondary')}
       {action(messages.dismiss, onDismiss, 'ghost')}
     </>
   ) : (

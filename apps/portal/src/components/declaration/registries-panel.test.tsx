@@ -452,7 +452,12 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
     expect(card.textContent).toContain(
       'Matches "Our Fielder". Fills: Make and model Toyota Fielder, 2014',
     );
-    expect(within(card).queryByRole('button', { name: /^Add:/ })).toBeNull();
+    // Adding it as a separate item stays possible, after the main action.
+    expect(
+      within(card)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Apply to this item', 'Add', 'Edit and add', 'Dismiss']);
     fireEvent.click(
       within(card).getByRole('button', {
         name: 'Apply to this item: KDA 123X · Toyota Fielder 2014',

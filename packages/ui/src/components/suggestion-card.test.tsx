@@ -79,7 +79,7 @@ describe('SuggestionCard', () => {
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it('offers to apply a match, listing the empty fields it fills', () => {
+  it('leads with applying to a match, listing the empty fields it fills', () => {
     const { card, element, onApply } = renderCard({
       fields: FIELDS,
       match: { title: 'Toyota Probox', fills: [REGISTRATION] },
@@ -88,7 +88,12 @@ describe('SuggestionCard', () => {
     expect(card.getByText(/Matches/).textContent).toBe(
       'Matches "Toyota Probox". Fills: Registration KCA 123A',
     );
-    expect(buttonNames(element)).toEqual([`Apply to this item: ${TITLE}`, `Dismiss: ${TITLE}`]);
+    expect(buttonNames(element)).toEqual([
+      `Apply to this item: ${TITLE}`,
+      `Add: ${TITLE}`,
+      `Edit and add: ${TITLE}`,
+      `Dismiss: ${TITLE}`,
+    ]);
     // The preview is replaced by the fields it fills.
     expect(card.queryByText('Make and model')).toBeNull();
 
@@ -96,11 +101,15 @@ describe('SuggestionCard', () => {
     expect(onApply).toHaveBeenCalledOnce();
   });
 
-  it('offers only Dismiss when a match has nothing to fill', () => {
+  it('leaves out Apply when a match has nothing to fill', () => {
     const { card, element } = renderCard({ match: { title: 'Toyota Probox', fills: [] } });
 
     expect(card.getByText(/Matches/).textContent).toBe('Matches "Toyota Probox". Nothing to fill.');
-    expect(buttonNames(element)).toEqual([`Dismiss: ${TITLE}`]);
+    expect(buttonNames(element)).toEqual([
+      `Add: ${TITLE}`,
+      `Edit and add: ${TITLE}`,
+      `Dismiss: ${TITLE}`,
+    ]);
   });
 
   it('collapses to "Added" with a link to the item once accepted', () => {
