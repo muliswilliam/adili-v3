@@ -1,4 +1,4 @@
-import { addDays, daysBetween, plural } from '@adili/ui';
+import { daysBetween, plural } from '@adili/ui';
 
 import { formatDate, formatDateTime } from '../components/format';
 import type { Clarification } from '../server/review/types';
@@ -43,7 +43,7 @@ export function statusLine(clarification: StatusFields, now: string): StatusLine
     case 'overdue':
       return {
         tone: 'destructive',
-        title: dueAt ? `Overdue since ${formatDate(addDays(dueAt, 1))}.` : 'Overdue.',
+        title: dueAt ? `Overdue since ${formatDate(dueAt)}.` : 'Overdue.',
         body: 'Not answered by the due date. The declarant can still respond; the response will be marked late.',
       };
     case 'responded': {
@@ -101,7 +101,7 @@ export function historyOf(
     });
   }
   if (status === 'overdue') {
-    entries.push({ key: 'overdue', title: 'Marked overdue', at: formatDate(addDays(dueAt, 1)) });
+    entries.push({ key: 'overdue', title: 'Marked overdue', at: formatDate(dueAt) });
   }
   if (respondedAt) {
     entries.push({

@@ -53,7 +53,7 @@ describe('statusLine', () => {
   it('says an overdue clarification can still be answered, late', () => {
     expect(statusLine({ ...base, status: 'overdue', dueAt: '2026-09-19T09:00:00Z' }, NOW)).toEqual({
       tone: 'destructive',
-      title: 'Overdue since 20 Sep 2026.',
+      title: 'Overdue since 19 Sep 2026.',
       body: 'Not answered by the due date. The declarant can still respond; the response will be marked late.',
     });
   });

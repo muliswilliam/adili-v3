@@ -131,7 +131,7 @@ describe('ClarificationDetailView: states', () => {
 
   it('says an overdue clarification can still be answered, and offers only withdraw', async () => {
     renderDetail(await detailOf(CASES.mine, K.overdue));
-    expect(screen.getByText('Overdue since 26 Sep 2026.')).toBeTruthy();
+    expect(screen.getByText('Overdue since 25 Sep 2026.')).toBeTruthy();
     expect(
       screen.getByText(
         'Not answered by the due date. The declarant can still respond; the response will be marked late.',
