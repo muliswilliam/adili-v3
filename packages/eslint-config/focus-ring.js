@@ -4,6 +4,11 @@
  * variable, so a class string that hides the outline and sets an outline width on focus draws no
  * ring unless it also sets `outline-solid` under the same variants. Hand-written rings should
  * compose `focusRing` from `@adili/ui` with `cn`, and never use `outline-none`.
+ *
+ * Limits: each string literal is checked on its own, so a ring split across `cn()` arguments
+ * (`cn('outline-none', 'focus-visible:outline-2')`) is not caught, and every string is checked,
+ * not only class names. Only an unprefixed `outline-none` or `outline-hidden` counts as hiding
+ * the outline, so rings on a child selector such as `[&_a]:` are not checked either.
  */
 
 /** A variant-prefixed outline or ring width, e.g. `focus-visible:after:outline-2`. */

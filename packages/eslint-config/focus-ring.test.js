@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 import { RuleTester } from 'eslint';
 
 import { focusRingPlugin, focusRingProblems } from './focus-ring.js';
 
+// A copy of `focusRing` in packages/ui/src/lib/focus.ts, which this package cannot import; the
+// first test fails if the two drift apart.
 const focusRing =
   'outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
+
+it('uses the same focusRing as @adili/ui', () => {
+  const source = readFileSync(new URL('../ui/src/lib/focus.ts', import.meta.url), 'utf8');
+  assert.ok(source.includes(`'${focusRing}'`), 'update focusRing here to match focus.ts');
+});
 
 describe('focusRingProblems', () => {
   it('flags hand-written rings that use outline-none', () => {
