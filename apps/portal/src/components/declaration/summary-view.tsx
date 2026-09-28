@@ -31,6 +31,7 @@ import type { DeclarationSection } from '../../server/declarations/types';
 import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
+import { HR_LABELS, SUMMARY_COPY } from '../../declaration/copy';
 import { DiscardDraftButton } from './discard-dialog';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
 import { sourceDetails } from '../../declaration/item-source';
@@ -268,12 +269,12 @@ function BioCards({ summary, document }: { summary: LoadedSummary; document: Sum
         ],
         ...(
           [
-            ['Job group', employment.jobGroup?.trim()],
+            [HR_LABELS.jobGroup, employment.jobGroup?.trim()],
             [
-              'Date of appointment',
+              HR_LABELS.appointmentDate,
               employment.appointmentDate ? formatDate(employment.appointmentDate) : undefined,
             ],
-            ['Work station', employment.workStation?.trim()],
+            [HR_LABELS.workStation, employment.workStation?.trim()],
           ] as const
         ).flatMap(([term, value]): [string, ReactNode][] => (value ? [[term, value]] : [])),
         ['Nature of employment', nature],
@@ -492,7 +493,7 @@ function SourcedItems({
   return (
     <details className="group rounded-xl bg-muted">
       <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
-        {rows.length === 1 ? '1 item' : `${String(rows.length)} items`} from registries or documents
+        {SUMMARY_COPY.sourcedItems(rows.length)}
       </summary>
       <ul className="grid gap-2 px-4 pb-3">
         {rows.map((row) => (

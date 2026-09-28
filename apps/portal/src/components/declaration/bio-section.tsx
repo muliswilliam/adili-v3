@@ -21,7 +21,7 @@ import {
   MARITAL_STATUS_LABELS,
   optionsOf,
 } from '../../declaration/labels';
-import { ROSTER_HINT } from '../../declaration/copy';
+import { HR_LABELS, ROSTER_HINT } from '../../declaration/copy';
 import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
 import { useFocusFirstError, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
@@ -278,7 +278,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           Employment
         </h2>
         <FormField
-          label={optional('Job group')}
+          label={optional(HR_LABELS.jobGroup)}
           hint={rosterHint('jobGroup')}
           controlId="bio-jobGroup"
         >
@@ -292,7 +292,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
-          label={optional('Date of appointment')}
+          label={optional(HR_LABELS.appointmentDate)}
           hint={rosterHint('appointmentDate')}
           error={appointmentInvalid ? BIO_MESSAGES.dateFormat : undefined}
           controlId="bio-appointmentDate"
@@ -307,7 +307,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
-          label={optional('Work station')}
+          label={optional(HR_LABELS.workStation)}
           hint={rosterHint('workStation')}
           controlId="bio-workStation"
         >

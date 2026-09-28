@@ -4,7 +4,8 @@ import { en, english } from './translatable';
 
 /**
  * The one table of copy for spec 05b in the portal: Check registries, Read into the form, the
- * fields a suggestion fills, the KRA line and the roster pre-fill. It sits beside the
+ * fields a suggestion fills, the KRA line, the roster pre-fill, the HR fields and the summary's
+ * fold of sourced items. It sits beside the
  * declaration labels (`labels.ts`) and gets the same treatment: every entry has English and a
  * Swahili slot, empty until the Swahili copy is done (out of scope for spec 05b); screens read
  * English. Copy with values is a function in both languages. The rules modules
@@ -137,6 +138,19 @@ export const PREFILL_COPY = {
   roster: {
     hint: en("From your Commission's roster"),
   },
+  /** The HR fields of Your details (#319), there and in the summary. */
+  hr: {
+    jobGroup: en('Job group'),
+    appointmentDate: en('Date of appointment'),
+    workStation: en('Work station'),
+  },
+  /** The summary's fold of the items that came from a registry or a document (spec 05b S11). */
+  summary: {
+    sourcedItems: en(
+      (count: number) =>
+        `${count === 1 ? '1 item' : `${String(count)} items`} from registries or documents`,
+    ),
+  },
 };
 
 export const REGISTRY_COPY = english(PREFILL_COPY.registry);
@@ -147,3 +161,5 @@ export const SUGGESTION_COPY = english(PREFILL_COPY.suggestion);
 export const KRA_COPY = english(PREFILL_COPY.kra);
 export const COMPLIANCE_WORDS: Record<string, string> = english(PREFILL_COPY.complianceStatus);
 export const ROSTER_HINT = PREFILL_COPY.roster.hint.en;
+export const HR_LABELS = english(PREFILL_COPY.hr);
+export const SUMMARY_COPY = english(PREFILL_COPY.summary);
