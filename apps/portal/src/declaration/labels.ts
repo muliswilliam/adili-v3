@@ -1,3 +1,4 @@
+import type { Completeness } from '../server/declarations/types';
 import type {
   AssetType,
   ChangeKind,
@@ -12,101 +13,126 @@ import type {
 import type { Category } from './statement';
 
 /**
- * The one table of English labels for declaration capture: the declaration.v1 enumerations in
- * schema order, the statement categories, and the change kinds each category offers (the spec's
- * i18n table; Swahili is out of scope for spec 05). `labels.test.ts` checks every enum value has
- * one. Completeness messages are the service's, so they are not here.
+ * The one table of labels for declaration capture (the spec's i18n table): the declaration.v1
+ * enumerations in schema order, the statement categories, and the change kinds each category
+ * offers. Completeness messages are the service's, so they are not here.
+ *
+ * Each enumeration is keyed by the type generated from the schema (`form.gen.ts`, or the
+ * declarations contract for obligation types and completeness), so a value the schema adds is a
+ * type error here until it has a label; `labels.test.ts` checks the order. The words themselves
+ * are copy and are written, not generated. Every value has an English label and a Swahili slot,
+ * empty until the Swahili copy is done (out of scope for spec 05); screens read English.
  */
 
-export const OBLIGATION_TYPE_LABELS: Record<ObligationType, string> = {
-  initial: 'Initial',
-  biennial: 'Biennial',
-  final: 'Final',
+export interface Label {
+  en: string;
+  /** Empty until translated. */
+  sw: string;
+}
+
+type Labels<T extends string> = Record<T, Label>;
+
+function english<T extends string>(labels: Labels<T>): Record<T, string> {
+  return Object.fromEntries(
+    (Object.entries(labels) as [T, Label][]).map(([value, label]) => [value, label.en]),
+  ) as Record<T, string>;
+}
+
+const en = (text: string): Label => ({ en: text, sw: '' });
+
+export const LABELS = {
+  obligationType: {
+    initial: en('Initial'),
+    biennial: en('Biennial'),
+    final: en('Final'),
+  } satisfies Labels<ObligationType>,
+  maritalStatus: {
+    single: en('Single'),
+    married: en('Married'),
+    separated: en('Separated'),
+    divorced: en('Divorced'),
+    widowed: en('Widowed'),
+  } satisfies Labels<MaritalStatus>,
+  employmentNature: {
+    permanent: en('Permanent'),
+    temporary: en('Temporary'),
+    contract: en('Contract'),
+    other: en('Other'),
+  } satisfies Labels<EmploymentNature>,
+  occupationSector: {
+    public: en('Public'),
+    private: en('Private'),
+    'not-employed': en('Not employed'),
+    unknown: en('Unknown'),
+  } satisfies Labels<OccupationSector>,
+  incomeType: {
+    'salary-emoluments': en('Salary and emoluments'),
+    allowances: en('Allowances'),
+    business: en('Business'),
+    rent: en('Rent'),
+    'dividends-interest': en('Dividends and interest'),
+    pension: en('Pension'),
+    farming: en('Farming'),
+    consultancy: en('Consultancy'),
+    other: en('Other'),
+  } satisfies Labels<IncomeType>,
+  assetType: {
+    land: en('Land'),
+    building: en('Building'),
+    vehicle: en('Vehicle'),
+    securities: en('Securities'),
+    shareholding: en('Shareholding'),
+    'bank-account': en('Bank account'),
+    cash: en('Cash'),
+    receivable: en('Money owed to me'),
+    other: en('Other'),
+  } satisfies Labels<AssetType>,
+  liabilityType: {
+    mortgage: en('Mortgage'),
+    loan: en('Loan'),
+    guarantee: en('Guarantee'),
+    other: en('Other'),
+  } satisfies Labels<LiabilityType>,
+  /**
+   * Change kinds in a sentence where the category is not known, e.g. a material change in
+   * paragraph 9: "value changed".
+   */
+  changeKind: {
+    'value-change': en('value changed'),
+    acquisition: en('acquired'),
+    disposal: en('disposed'),
+    'new-source': en('new source'),
+    'source-ended': en('source ended'),
+    settled: en('settled'),
+  } satisfies Labels<ChangeKind>,
+  membershipKind: {
+    company: en('Company'),
+    partnership: en('Partnership'),
+    society: en('Society'),
+    club: en('Club'),
+    foundation: en('Foundation'),
+    trust: en('Trust'),
+    other: en('Other'),
+  } satisfies Labels<MembershipKind>,
+  /** Completeness in words, as the section list and navigation show it. */
+  completeness: {
+    'not-started': en('Not started'),
+    incomplete: en('Incomplete'),
+    complete: en('Complete'),
+    archived: en('Archived'),
+  } satisfies Labels<Completeness>,
 };
 
-export const MARITAL_STATUS_LABELS: Record<MaritalStatus, string> = {
-  single: 'Single',
-  married: 'Married',
-  separated: 'Separated',
-  divorced: 'Divorced',
-  widowed: 'Widowed',
-};
-
-export const EMPLOYMENT_NATURE_LABELS: Record<EmploymentNature, string> = {
-  permanent: 'Permanent',
-  temporary: 'Temporary',
-  contract: 'Contract',
-  other: 'Other',
-};
-
-export const OCCUPATION_SECTOR_LABELS: Record<OccupationSector, string> = {
-  public: 'Public',
-  private: 'Private',
-  'not-employed': 'Not employed',
-  unknown: 'Unknown',
-};
-
-export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
-  'salary-emoluments': 'Salary and emoluments',
-  allowances: 'Allowances',
-  business: 'Business',
-  rent: 'Rent',
-  'dividends-interest': 'Dividends and interest',
-  pension: 'Pension',
-  farming: 'Farming',
-  consultancy: 'Consultancy',
-  other: 'Other',
-};
-
-export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
-  land: 'Land',
-  building: 'Building',
-  vehicle: 'Vehicle',
-  securities: 'Securities',
-  shareholding: 'Shareholding',
-  'bank-account': 'Bank account',
-  cash: 'Cash',
-  receivable: 'Money owed to me',
-  other: 'Other',
-};
-
-export const LIABILITY_TYPE_LABELS: Record<LiabilityType, string> = {
-  mortgage: 'Mortgage',
-  loan: 'Loan',
-  guarantee: 'Guarantee',
-  other: 'Other',
-};
-
-/**
- * Change kinds in a sentence where the category is not known, e.g. a material change in
- * paragraph 9: "value changed".
- */
-export const CHANGE_KIND_WORDS: Record<ChangeKind, string> = {
-  'value-change': 'value changed',
-  acquisition: 'acquired',
-  disposal: 'disposed',
-  'new-source': 'new source',
-  'source-ended': 'source ended',
-  settled: 'settled',
-};
-
-export const MEMBERSHIP_KIND_LABELS: Record<MembershipKind, string> = {
-  company: 'Company',
-  partnership: 'Partnership',
-  society: 'Society',
-  club: 'Club',
-  foundation: 'Foundation',
-  trust: 'Trust',
-  other: 'Other',
-};
-
-/** Completeness in words, as the section list and navigation show it. */
-export const COMPLETENESS_LABELS = {
-  'not-started': 'Not started',
-  incomplete: 'Incomplete',
-  complete: 'Complete',
-  archived: 'Archived',
-} as const;
+export const OBLIGATION_TYPE_LABELS = english(LABELS.obligationType);
+export const MARITAL_STATUS_LABELS = english(LABELS.maritalStatus);
+export const EMPLOYMENT_NATURE_LABELS = english(LABELS.employmentNature);
+export const OCCUPATION_SECTOR_LABELS = english(LABELS.occupationSector);
+export const INCOME_TYPE_LABELS = english(LABELS.incomeType);
+export const ASSET_TYPE_LABELS = english(LABELS.assetType);
+export const LIABILITY_TYPE_LABELS = english(LABELS.liabilityType);
+export const CHANGE_KIND_WORDS = english(LABELS.changeKind);
+export const MEMBERSHIP_KIND_LABELS = english(LABELS.membershipKind);
+export const COMPLETENESS_LABELS = english(LABELS.completeness);
 
 export const CATEGORY_WORDS = {
   income: { tab: 'Income', lower: 'income', one: 'income item', add: 'Add income' },

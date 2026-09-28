@@ -17,6 +17,7 @@ import {
   COMPLETENESS_LABELS,
   EMPLOYMENT_NATURE_LABELS,
   INCOME_TYPE_LABELS,
+  LABELS,
   LIABILITY_TYPE_LABELS,
   MARITAL_STATUS_LABELS,
   MEMBERSHIP_KIND_LABELS,
@@ -49,6 +50,15 @@ describe('enum labels', () => {
     expect(Object.keys(COMPLETENESS_LABELS).sort()).toEqual(
       contractEnum('Completeness', 'declarations.yaml').sort(),
     );
+  });
+
+  it('keeps a Swahili slot beside every English label', () => {
+    for (const table of Object.values(LABELS)) {
+      for (const label of Object.values(table)) {
+        expect(label.en).not.toBe('');
+        expect(label).toHaveProperty('sw');
+      }
+    }
   });
 
   it('builds options in order', () => {
