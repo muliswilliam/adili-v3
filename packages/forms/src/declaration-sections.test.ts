@@ -6,6 +6,7 @@ import {
   CHANGE_KINDS,
   COUNTIES,
   DeclarationSchema,
+  type DeclarationV1,
   DECLARATION_TYPES,
   declarationIssues,
   EMPLOYMENT_NATURES,
@@ -145,7 +146,7 @@ describe('Zod schemas', () => {
 });
 
 describe('item source (spec 05b)', () => {
-  const sourced = fixtures<DeclarationV1>('valid').find(
+  const sourced = validDeclarations().find(
     ([name]) => name === 'biennial-registry-sources.json',
   )?.[1];
   if (!sourced) throw new Error('the registry-sources fixture is missing');
@@ -191,10 +192,10 @@ describe('item source (spec 05b)', () => {
 
     const result = sectionSchema('statement:officer').safeParse(statement);
 
-    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual([
-      'assets.0.source.kind',
-      'assets.0.source.suggestionId',
-      'assets.0.source.at',
+    expect(result.error?.issues.map((issue) => pointer(issue.path))).toEqual([
+      '/assets/0/source/kind',
+      '/assets/0/source/suggestionId',
+      '/assets/0/source/at',
     ]);
   });
 });
