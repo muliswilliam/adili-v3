@@ -81,7 +81,7 @@ export function TableRowLink({ asChild = false, className, ...props }: TableRowL
     <Component
       data-row-link=""
       className={cn(
-        'font-medium text-foreground underline-offset-4 outline-none after:absolute after:inset-0 hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset',
+        'font-medium text-foreground underline-offset-4 outline-hidden after:absolute after:inset-0 hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset',
         className,
       )}
       {...props}

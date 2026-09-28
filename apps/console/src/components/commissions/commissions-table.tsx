@@ -1,5 +1,7 @@
 import {
   Badge,
+  cn,
+  focusRing,
   Skeleton,
   Table,
   TableBody,
@@ -18,8 +20,7 @@ import { CommissionTypeBadge, IssuerCode, OfficerStateBadge } from './badges';
 import { messages as m } from './messages';
 
 /** Focus ring for the cells' own focusable bits, which sit above the row link. */
-const FOCUSABLE =
-  'relative z-10 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
+const FOCUSABLE = cn(focusRing, 'relative z-10 rounded-sm');
 
 function Header() {
   return (
