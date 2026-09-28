@@ -9,13 +9,13 @@ import {
   TooltipProvider,
 } from '@adili/ui';
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
-import { createFileRoute, notFound, Outlet, useLocation } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import {
   DeclarationNotFound,
   requireDeclarationId,
-  signInRedirect,
+  settleLoad,
 } from '../../../components/declaration/route-helpers';
 import { stepFromPath } from '../../../components/declaration/steps';
 import { useWorkspace, WorkspaceProvider } from '../../../components/declaration/workspace';
@@ -28,14 +28,11 @@ import { getDeclaration } from '../../../server/declarations';
  * autosave queue, and renders the section navigation around each section route.
  */
 export const Route = createFileRoute('/declarations/$id')({
-  loader: async ({ params, location }) => {
-    const result = await getDeclaration({
-      data: { declarationId: requireDeclarationId(params.id) },
-    });
-    if (result.status === 'unauthenticated') throw signInRedirect(location.href);
-    if (result.status === 'not-found') throw notFound();
-    return result;
-  },
+  loader: async ({ params, location }) =>
+    settleLoad(
+      await getDeclaration({ data: { declarationId: requireDeclarationId(params.id) } }),
+      location.href,
+    ),
   head: () => ({ meta: [{ title: 'Your declaration · Adili Online' }] }),
   component: WorkspaceRoute,
   notFoundComponent: () => (

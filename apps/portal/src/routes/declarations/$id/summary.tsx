@@ -1,22 +1,19 @@
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 
 import {
   requireDeclarationId,
   SectionUnavailable,
-  signInRedirect,
+  settleLoad,
 } from '../../../components/declaration/route-helpers';
 import { SummaryView } from '../../../components/declaration/summary-view';
 import { getDeclarationSummary } from '../../../server/declarations';
 
 export const Route = createFileRoute('/declarations/$id/summary')({
-  loader: async ({ params, location }) => {
-    const result = await getDeclarationSummary({
-      data: { declarationId: requireDeclarationId(params.id) },
-    });
-    if (result.status === 'unauthenticated') throw signInRedirect(location.href);
-    if (result.status === 'not-found') throw notFound();
-    return result;
-  },
+  loader: async ({ params, location }) =>
+    settleLoad(
+      await getDeclarationSummary({ data: { declarationId: requireDeclarationId(params.id) } }),
+      location.href,
+    ),
   head: () => ({ meta: [{ title: 'Summary · Adili Online' }] }),
   component: SummaryRoute,
 });

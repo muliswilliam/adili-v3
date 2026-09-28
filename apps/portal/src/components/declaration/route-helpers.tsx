@@ -36,6 +36,19 @@ export function signInRedirect(returnTo: string) {
   return redirect({ href: loginHref(returnTo), reloadDocument: true });
 }
 
+type Settled<T> = Exclude<T, { status: 'unauthenticated' | 'not-found' }>;
+
+/**
+ * What a workspace loader does with a server function's result: signs the declarant in when
+ * the session has ended (then back to `returnTo`), 404s for what the service does not have,
+ * and returns anything else.
+ */
+export function settleLoad<T extends { status: string }>(result: T, returnTo: string): Settled<T> {
+  if (result.status === 'unauthenticated') throw signInRedirect(returnTo);
+  if (result.status === 'not-found') throw notFound();
+  return result as Settled<T>;
+}
+
 export type SectionLoad = Extract<SectionResult, { status: 'ok' | 'unavailable' }>;
 
 /**
@@ -51,9 +64,7 @@ export async function loadSectionFor(
   const result = await getDeclarationSection({
     data: { declarationId: requireDeclarationId(declarationId), sectionKey },
   });
-  if (result.status === 'unauthenticated') throw signInRedirect(returnTo);
-  if (result.status === 'not-found') throw notFound();
-  return result;
+  return settleLoad(result, returnTo);
 }
 
 /** A section could not be loaded because the service is down. */
