@@ -28,7 +28,7 @@ import {
   InformationCircleIcon,
   SparklesIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import {
   extractDeclarationAttachment,
@@ -50,6 +50,7 @@ import {
 } from '../../declaration/extraction';
 import { ownerOf } from '../../declaration/section-key';
 import { useAcceptSuggestion } from './suggestion-accept';
+import { usePoll } from './use-poll';
 import { useWorkspace } from './workspace';
 
 /**
@@ -165,41 +166,24 @@ export function ReadIntoForm({
     }
   }
 
-  const setId = step.name === 'reading' ? step.setId : null;
-  const polls = useRef(0);
-  useEffect(() => {
-    if (!setId) return;
-    polls.current = 0;
-    const mine = run.current;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = () => {
-      timer = setTimeout(() => {
-        void (async () => {
-          polls.current += 1;
-          const listed = await listDeclarationSuggestions({
-            data: { declarationId, personKey, sectionKey },
-          }).catch(() => null);
-          if (mine !== run.current) return;
-          const set =
-            listed?.status === 'ok' ? listed.sets.find((each) => each.id === setId) : null;
-          const state = set ? readingState(set) : null;
-          if (state && state.status !== 'reading') {
-            settle(state);
-          } else if (polls.current >= pollLimit) {
-            setStep({ name: 'failed', reason: FAILURE_REASONS.timeout });
-          } else {
-            poll();
-          }
-        })();
-      }, pollMs);
-    };
-    poll();
-    return () => {
-      clearTimeout(timer);
-    };
-    // settle only reads the draft id, which is stable for the sheet.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setId, declarationId, personKey, sectionKey, pollMs, pollLimit]);
+  // Reading is polled through the suggestions list, as the contract has no per-set read.
+  usePoll({
+    pollKey: step.name === 'reading' ? step.setId : null,
+    read: () => listDeclarationSuggestions({ data: { declarationId, personKey, sectionKey } }),
+    onRead: (listed) => {
+      const setId = step.name === 'reading' ? step.setId : null;
+      const set = listed?.status === 'ok' ? listed.sets.find((each) => each.id === setId) : null;
+      const state = set ? readingState(set) : null;
+      if (!state || state.status === 'reading') return false;
+      settle(state);
+      return true;
+    },
+    onGiveUp: () => {
+      setStep({ name: 'failed', reason: FAILURE_REASONS.timeout });
+    },
+    intervalMs: pollMs,
+    limit: pollLimit,
+  });
 
   const reviewing = step.name === 'review' ? step.suggestion : null;
   const [busy, setBusy] = useState(false);

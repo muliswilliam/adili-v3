@@ -52,6 +52,7 @@ import type { Draft, PersonKey, Statement } from '../../declaration/contents';
 import { relationOfPerson } from '../../declaration/section-key';
 import type { AnyItem, Item } from '../../declaration/statement';
 import { type AcceptInput, useAcceptSuggestion } from './suggestion-accept';
+import { usePoll } from './use-poll';
 import {
   categoryOf,
   editFields,
@@ -181,33 +182,22 @@ export function RegistriesPanel({
 
   // While a registry has not answered, read the person's sets again. After about a minute, stop
   // waiting: the registries still pending show as not available now, with Retry.
-  const polls = useRef(0);
   const stopped = useRef(false);
-  useEffect(() => {
-    if (!checking) {
-      polls.current = 0;
-      return;
-    }
-    const timer = setTimeout(() => {
-      if (polls.current >= pollLimit) {
-        stopped.current = true;
-        setSets(stopWaiting);
-        return;
-      }
-      polls.current += 1;
-      // Always a new array, so the next read is scheduled even when nothing changed.
-      void listDeclarationSuggestions({ data: { declarationId, personKey } })
-        .then((result) => {
-          setSets((current) => [...(result.status === 'ok' ? result.sets : current)]);
-        })
-        .catch(() => {
-          setSets((current) => [...current]);
-        });
-    }, pollMs);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [checking, sets, declarationId, personKey, pollMs, pollLimit]);
+  usePoll({
+    pollKey: checking ? 'checking' : null,
+    read: () => listDeclarationSuggestions({ data: { declarationId, personKey } }),
+    onRead: (result) => {
+      if (result?.status !== 'ok') return false;
+      setSets(result.sets);
+      return !isChecking(result.sets);
+    },
+    onGiveUp: () => {
+      stopped.current = true;
+      setSets(stopWaiting);
+    },
+    intervalMs: pollMs,
+    limit: pollLimit,
+  });
 
   // Say when the last registry has answered, or when the panel stopped waiting for them.
   const wasChecking = useRef(checking);
