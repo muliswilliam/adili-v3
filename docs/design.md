@@ -117,6 +117,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
 | `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
 | `Select` | `.select`, `.menu` | trigger styled like `Input`; the list is a 12px-radius `shadow-pop` menu with 36px items. The trigger takes the id and aria attributes from `FormField`. |
+| `Menu` | `.menu` | a button's dropdown of actions: 12px-radius `shadow-pop` panel, 200px minimum, 6px padding; `MenuItem` rows are 36px, 14px text with a 16px muted icon, `rounded-md`, `muted` when highlighted; disabled items are 50% opacity. `MenuTrigger` wraps the button; `MenuContent` aligns to its end by default. |
 | `DataTable` | `.table` with `.cbx` | `Table` with a 36px checkbox column; selected rows tint `brand-faint`; select all covers the current page |
 | `FileDropZone` | `.drop` | 1.5px dashed `input` border, 16px radius, 44px icon tile, 15px semibold label and 13.5px hint inside the zone. Hover and drag-over turn the border ink on `brand-faint`; an error softens it red and shows `FieldError` below; disabled is 55% opacity. |
 | `ProgressBar` | `.pbar`, `.prog-meta` | 10px bar (`sm`: 6px) on `muted` with a hairline; fill `primary`, or `success` / `destructive` via `tone`. Status text and the percentage sit under the bar. `indeterminate` sweeps while the total is unknown. The label names the bar for screen readers only. |
