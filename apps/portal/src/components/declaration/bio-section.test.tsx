@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveDeclarationSection } from '../../server/declarations';
 import { BIO_MESSAGES } from './bio';
 import { BioSection, ROSTER_NOTE } from './bio-section';
-import { ROSTER_HINT, type RosterStore, type RosterValues } from './roster-prefill';
+import { ROSTER_HINT } from './roster-prefill';
 import { DECLARATION_ID, renderWorkspace, sampleBio } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
@@ -33,25 +33,10 @@ const HR = {
   },
 };
 
-function memoryStore(): RosterStore {
-  const saved = new Map<string, RosterValues>();
-  return {
-    get: (id) => saved.get(id),
-    set: (id, values) => {
-      saved.set(id, values);
-    },
-  };
-}
-
-function renderHr(
-  contents: Record<string, unknown>,
-  { store = memoryStore(), saved = false } = {},
-) {
+function renderHr(contents: Record<string, unknown>, { saved = false } = {}) {
   const section = sampleBio(contents);
   if (saved) section.completeness = 'incomplete';
-  return renderWorkspace(<BioSection section={section} etag={'"1"'} rosterStore={store} />, {
-    step: 'bio',
-  });
+  return renderWorkspace(<BioSection section={section} etag={'"1"'} />, { step: 'bio' });
 }
 
 function hinted(name: RegExp) {
@@ -234,22 +219,6 @@ describe('BioSection', () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it('S8: keeps the note on the next visit while the value is unchanged', () => {
-    const store = memoryStore();
-    const { unmount } = renderHr(HR, { store });
-    unmount();
-
-    renderHr(
-      { ...HR, employment: { ...HR.employment, jobGroup: 'D4 (T-Scale 14)' } },
-      { store, saved: true },
-    );
-
-    expect(
-      screen.getByRole('textbox', { name: /^Job group/ }).getAttribute('aria-describedby'),
-    ).toBeNull();
-    expect(hinted(/^Work station/).value).toBe('Eldoret, Uasin Gishu');
   });
 
   it('S8: leaves the HR fields empty and editable when the roster has none', () => {

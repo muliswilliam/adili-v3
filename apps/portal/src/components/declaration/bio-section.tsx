@@ -11,21 +11,13 @@ import {
   Textarea,
 } from '@adili/ui';
 import { Building03Icon, LockIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
 import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from './bio';
 import type { Draft, EmploymentNature, MaritalStatus, Officer } from './contents';
 import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, optionsOf } from './labels';
-import {
-  browserRosterStore,
-  isFromRoster,
-  ROSTER_HINT,
-  type RosterField,
-  NO_ROSTER_VALUES,
-  type RosterStore,
-  rosterPrefill,
-} from './roster-prefill';
+import { isFromRoster, ROSTER_HINT, type RosterField, rosterPrefill } from './roster-prefill';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const ROSTER_NOTE =
@@ -69,8 +61,6 @@ function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commiss
   );
 }
 
-const noSubscription = () => () => undefined;
-
 function RosterHint() {
   return (
     <span className="inline-flex items-center gap-1">
@@ -93,8 +83,6 @@ export interface BioSectionProps {
   etag: string;
   /** Show every missing answer at once, e.g. when arriving from the summary's list. */
   showErrors?: boolean;
-  /** Where the roster's pre-filled values are remembered (tests pass their own). */
-  rosterStore?: RosterStore;
 }
 
 /**
@@ -102,12 +90,7 @@ export interface BioSectionProps {
  * in. Autosaves the whole `officer` object. Missing answers show once a field has been left
  * (or all at once with `showErrors`); a date that is not real shows while typing.
  */
-export function BioSection({
-  section,
-  etag,
-  showErrors = false,
-  rosterStore = browserRosterStore,
-}: BioSectionProps) {
+export function BioSection({ section, etag, showErrors = false }: BioSectionProps) {
   const { declaration } = useWorkspace();
   const { value: officer, update } = useSectionAutosave<Draft<Officer>>(section, etag);
   const [appointmentInvalid, setAppointmentInvalid] = useState(false);
@@ -140,17 +123,9 @@ export function BioSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showErrors]);
 
-  // Read from browser storage, so the server render shows no roster hints (S8).
-  const roster = useSyncExternalStore(
-    noSubscription,
-    () =>
-      rosterPrefill(
-        rosterStore,
-        declaration.id,
-        section.contents,
-        section.completeness === 'not-started',
-      ),
-    () => NO_ROSTER_VALUES,
+  // The roster's values as this page load read them; kept while the declarant edits (S8).
+  const [roster] = useState(() =>
+    rosterPrefill(section.contents, section.completeness === 'not-started'),
   );
 
   const rosterHint = (field: RosterField) =>
