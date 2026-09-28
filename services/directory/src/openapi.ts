@@ -21,12 +21,15 @@ import {
   maskedContactSchema,
   ofrSchema,
   onboardingCommissionSchema,
+  onboardingConfirmResultSchema,
   onboardingOutcomeSchema,
   onboardingProblemSchema,
   onboardingSessionCreatedSchema,
   onboardingSessionSchema,
   onboardingStateSchema,
   otpChannelSchema,
+  provideOnboardingContactBody,
+  verifyOnboardingOtpBody,
 } from './onboarding/representation.js';
 import { declarantProfileSchema, personSummarySchema } from './persons/representation.js';
 import {
@@ -126,7 +129,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   OnboardingOutcome: onboardingOutcomeSchema,
   OnboardingSession: onboardingSessionSchema,
   OnboardingSessionCreated: onboardingSessionCreatedSchema,
+  OnboardingConfirmResult: onboardingConfirmResultSchema,
   OnboardingProblem: onboardingProblemSchema,
   DeclarantProfile: declarantProfileSchema,
   PersonSummary: personSummarySchema,
+  VerifyOnboardingOtp: verifyOnboardingOtpBody,
+  ProvideOnboardingContact: provideOnboardingContactBody,
 };

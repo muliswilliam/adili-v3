@@ -200,11 +200,13 @@ export type StepProblem =
   | { code: 'iprs-unavailable' }
   /** The account could not be created; nothing changed and the session can retry. */
   | { code: 'identity-unavailable' }
+  /** The verified email belongs to another account; nothing changed, retrying will not help. */
+  | { code: 'email-in-use' }
   | { code: 'invalid' }
   | { code: 'ended' }
   | { code: 'too-many' }
   | { code: 'moved' }
-  /** The directory could not send a code (502, which the contract gives no problem code). */
+  /** The directory could not send a code (502 `otp-send-failed`); nothing changed. */
   | { code: 'send-failed' }
   | { code: 'unavailable' };
 
@@ -213,9 +215,10 @@ export type StepResult = { ok: true; session: OnboardingSession } | ({ ok: false
 
 function stepProblem(response: Response, error: unknown): StepProblem {
   if (response.status === 404 || response.status === 410) return { code: 'ended' };
-  if (response.status === 409) return { code: 'moved' };
   const problem = problemSchema.safeParse(error);
   const code = problem.success ? problem.data.code : undefined;
+  if (response.status === 409 && code === 'email-in-use') return { code };
+  if (response.status === 409) return { code: 'moved' };
   if (response.status === 400 && code === 'otp-invalid') {
     // The last wrong code ends the session.
     if (problem.data?.attemptsLeft === 0) return { code: 'too-many' };

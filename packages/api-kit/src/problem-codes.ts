@@ -23,6 +23,13 @@ export const PROBLEM_CODES = {
   'otp-expired': { status: HttpStatus.BAD_REQUEST, title: 'Code expired' },
   /** A new code or email was asked for too soon; `retryAfterSeconds` says when it may be. */
   'resend-cooldown': { status: HttpStatus.TOO_MANY_REQUESTS, title: 'Resend cooldown' },
+  /** Onboarding: the one-time code could not be sent; nothing changed, try again. */
+  'otp-send-failed': { status: HttpStatus.BAD_GATEWAY, title: 'Code not sent' },
+  /**
+   * Onboarding: the session is not at the step asked for (another tab moved it on, or the step
+   * is done); the client re-reads the session.
+   */
+  'wrong-step': { status: HttpStatus.CONFLICT, title: 'Session is not at this step' },
   /** Onboarding: the session ended (expired, too many attempts); start again. */
   'session-expired': { status: HttpStatus.GONE, title: 'Session expired' },
   /** Onboarding: the IPRS check could not run; nothing changed, try again later. */
@@ -32,6 +39,11 @@ export const PROBLEM_CODES = {
     status: HttpStatus.BAD_GATEWAY,
     title: 'Identity provider unavailable',
   },
+  /**
+   * Onboarding: the verified email already belongs to another account (e.g. a staff account), so
+   * no declarant account can be created with it; nothing changed.
+   */
+  'email-in-use': { status: HttpStatus.CONFLICT, title: 'Email belongs to another account' },
   /** Applicant onboarding: the names given do not match IPRS for the identity document. */
   'identity-mismatch': { status: HttpStatus.CONFLICT, title: 'Identity mismatch' },
   /** Applicant onboarding: the identity document belongs to an existing account. */

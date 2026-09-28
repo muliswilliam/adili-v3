@@ -18,10 +18,14 @@ identityProvisioningContract('InMemoryIdentityProvisioning', () => ({
       throw new Error(`No user ${userId}`);
     }
     return Promise.resolve({
-      username: user.email,
+      username: user.username,
       email: user.email,
+      emailVerified: user.emailVerified,
       name: user.name ?? '',
       tenant: user.tenant,
+      tenants: user.tenants,
+      ofr: user.ofr,
+      personId: user.personId,
       phone: user.phone,
       realmRoles: user.roles,
       requiredActions: user.requiredActions,
@@ -33,6 +37,14 @@ identityProvisioningContract('InMemoryIdentityProvisioning', () => ({
   expectActivationDelivered: (_email, userId, options = ACTIVATION) => {
     expect(fake.calls('sendActivationEmail')).toContainEqual({
       operation: 'sendActivationEmail',
+      userId,
+      options,
+    });
+    return Promise.resolve();
+  },
+  expectExecuteActionsDelivered: (_email, userId, options) => {
+    expect(fake.calls('sendExecuteActionsEmail')).toContainEqual({
+      operation: 'sendExecuteActionsEmail',
       userId,
       options,
     });

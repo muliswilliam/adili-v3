@@ -38,6 +38,7 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     const user = await admin<{
       username: string;
       email: string;
+      emailVerified: boolean;
       firstName?: string;
       lastName?: string;
       enabled: boolean;
@@ -48,8 +49,12 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     return {
       username: user.username,
       email: user.email,
+      emailVerified: user.emailVerified,
       name: [user.firstName, user.lastName].filter(Boolean).join(' '),
       tenant: user.attributes?.tenant?.[0] ?? null,
+      tenants: user.attributes?.tenants ?? [],
+      ofr: user.attributes?.ofr?.[0] ?? null,
+      personId: user.attributes?.person_id?.[0] ?? null,
       phone: user.attributes?.phone?.[0] ?? null,
       commissionName: user.attributes?.commissionName?.[0] ?? null,
       invitedRole: user.attributes?.invitedRole?.[0] ?? null,
@@ -70,6 +75,21 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
       expect(body).toContain('ask EACC to send you a new invitation');
     }
     // The link carries Keycloak's action token; its claims hold the lifespan and redirect.
+    const claims = actionTokenClaims(message.text);
+    expect(claims.exp - claims.iat).toBe(options.lifespanSeconds);
+    expect(claims.reduri).toBe(options.redirectUri);
+    expect(claims.azp).toBe(options.clientId);
+    expect(claims.rqac).toEqual([...options.actions]);
+    await deleteMessages([message.id]);
+  },
+  expectExecuteActionsDelivered: async (email, _userId, options) => {
+    const message = await activationMessage(email);
+    expect(message.subject).toBe('Activate your Adili Online account');
+    // Without invitation attributes the theme renders its generic account-setup email.
+    for (const body of [message.text, message.html.replace(/<[^>]+>/g, '')]) {
+      expect(body).not.toContain('reporting officer');
+      expect(body).toContain('This link expires in 24 hours.');
+    }
     const claims = actionTokenClaims(message.text);
     expect(claims.exp - claims.iat).toBe(options.lifespanSeconds);
     expect(claims.reduri).toBe(options.redirectUri);

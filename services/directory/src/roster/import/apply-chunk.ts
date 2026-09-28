@@ -35,6 +35,8 @@ type ExistingRecord = RecordValues & {
   id: string;
   state: typeof rosterRecords.$inferSelect.state;
   stateBeforeExit: typeof rosterRecords.$inferSelect.stateBeforeExit;
+  emailSource: typeof rosterRecords.$inferSelect.emailSource;
+  phoneSource: typeof rosterRecords.$inferSelect.phoneSource;
 };
 
 /** What applying one row does to the roster. */
@@ -107,10 +109,11 @@ export async function applyChunk(
         row.normalised,
         entity ? requireId(entityIds, entityKey(entity)) : null,
       );
+      const record = existing.get(fileNumberKey(values.personnelFileNumber));
       return {
         rowNumber: row.rowNumber,
         nationalId: values.nationalId,
-        decision: decide(values, existing.get(fileNumberKey(values.personnelFileNumber))),
+        decision: decide(keepDeclarantContacts(values, record), record),
       };
     });
 
@@ -213,6 +216,23 @@ function decide(values: RecordValues, existing: ExistingRecord | undefined): Dec
   return sameValues(existing, values)
     ? { kind: 'unchanged', recordId: existing.id }
     : { kind: 'update', recordId: existing.id, values, reactivates: null };
+}
+
+/**
+ * The row's values with the record's declarant-sourced contacts in place of the row's. A contact
+ * the declarant supplied and verified at onboarding (the roster had none) is theirs: an import
+ * does not overwrite or clear it, whatever the row says. Roster-sourced contacts follow the rows.
+ */
+function keepDeclarantContacts(
+  values: RecordValues,
+  existing: ExistingRecord | undefined,
+): RecordValues {
+  if (!existing) return values;
+  return {
+    ...values,
+    email: existing.emailSource === 'declarant' ? existing.email : values.email,
+    phone: existing.phoneSource === 'declarant' ? existing.phone : values.phone,
+  };
 }
 
 /** The record's state, or for an exited record the state a re-activation gives it back. */
@@ -385,6 +405,8 @@ async function recordsByFileNumber(
       appointmentDate: rosterRecords.appointmentDate,
       email: rosterRecords.email,
       phone: rosterRecords.phone,
+      emailSource: rosterRecords.emailSource,
+      phoneSource: rosterRecords.phoneSource,
     })
     .from(rosterRecords)
     .where(

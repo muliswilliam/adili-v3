@@ -469,6 +469,27 @@ describe('confirm and the set-password email', () => {
     });
   });
 
+  it('reports an email that belongs to another account, not as a session that has moved', async () => {
+    const session = await atConfirm({
+      commission: 'psc',
+      personnelFileNumber: 'PSC/500600',
+      nationalId: '56789012',
+    });
+    const refusing = client(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ type: 'email-in-use', title: 'x', status: 409, code: 'email-in-use' }),
+          {
+            status: 409,
+            headers: { 'content-type': 'application/problem+json' },
+          },
+        ),
+      ),
+    );
+
+    expect(await confirm(refusing, session)).toEqual({ ok: false, code: 'email-in-use' });
+  });
+
   it('reports a confirm from another step as a session that has moved', async () => {
     const { created } = await identify(client(), teacher);
     if (!created) throw new Error('no session');

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { slugSchema } from '../commissions/create-commission.js';
 import { CONTACT_SOURCES } from '../roster/schema.js';
+import { normaliseEmail, normalisePhone } from './contact.js';
 import { ONBOARDING_OUTCOMES, ONBOARDING_STATES, OTP_CHANNELS } from './session-state.js';
 
 /** Representations of the public onboarding API (contract components of the same names). */
@@ -95,7 +96,10 @@ export const onboardingSessionSchema = z.object({
       resendsLeft: z.number().int(),
       attemptsLeft: z.number().int(),
     })
-    .meta({ description: 'Resend availability for the channel currently pending' }),
+    .meta({
+      description:
+        'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)',
+    }),
   outcome: onboardingOutcomeSchema
     .nullable()
     .optional()
@@ -106,6 +110,14 @@ export const onboardingSessionSchema = z.object({
 
 export type OnboardingSession = z.infer<typeof onboardingSessionSchema>;
 
+/** Response of `POST /v1/onboarding/sessions/{sessionId}/confirm`. */
+export const onboardingConfirmResultSchema = z.object({
+  outcome: onboardingOutcomeSchema,
+  session: onboardingSessionSchema,
+});
+
+export type OnboardingConfirmResult = z.infer<typeof onboardingConfirmResultSchema>;
+
 export const onboardingSessionCreatedSchema = onboardingSessionSchema.extend({
   secret: z.string().meta({
     description:
@@ -115,6 +127,47 @@ export const onboardingSessionCreatedSchema = onboardingSessionSchema.extend({
 
 export type OnboardingSessionCreated = z.infer<typeof onboardingSessionCreatedSchema>;
 
+/** Body of `POST .../otp/{channel}/verify` (`VerifyOnboardingOtp`). */
+export const verifyOnboardingOtpBody = z.object({
+  code: z
+    .string()
+    .regex(/^[0-9]{6}$/)
+    .meta({ description: 'The 6-digit code sent to the channel' }),
+});
+
+export type VerifyOnboardingOtpBody = z.infer<typeof verifyOnboardingOtpBody>;
+
+/**
+ * Body of `POST .../contacts` (`ProvideOnboardingContact`): the value normalised for its channel
+ * (email trimmed and lower-cased, phone to E.164 with Kenya as the default country), or 400.
+ */
+export const provideOnboardingContactBody = z
+  .object({
+    channel: otpChannelSchema,
+    value: z.string().max(254).meta({
+      description:
+        'An email address, or a phone number (E.164, or a Kenyan number such as 0712345678)',
+    }),
+  })
+  .transform((body, context) => {
+    const value =
+      body.channel === 'email' ? normaliseEmail(body.value) : normalisePhone(body.value);
+    if (value === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['value'],
+        message:
+          body.channel === 'email'
+            ? 'Enter a valid email address'
+            : 'Enter a valid phone number, e.g. 0712345678 or +254712345678',
+      });
+      return z.NEVER;
+    }
+    return { channel: body.channel, value };
+  });
+
+export type ProvideOnboardingContactBody = z.output<typeof provideOnboardingContactBody>;
+
 /** The problem codes onboarding routes send. */
 export const ONBOARDING_PROBLEM_CODES = [
   'no-match',
@@ -122,11 +175,14 @@ export const ONBOARDING_PROBLEM_CODES = [
   'no-roster',
   'otp-invalid',
   'otp-expired',
+  'otp-send-failed',
   'resend-cooldown',
   'session-expired',
   'iprs-unavailable',
   'identity-unavailable',
+  'email-in-use',
   'rate-limit-exceeded',
+  'wrong-step',
 ] as const;
 
 export const onboardingProblemSchema = problemDetailsSchema.extend({

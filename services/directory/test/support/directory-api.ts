@@ -27,6 +27,8 @@ import {
 import { type DirectorySchema, schema } from '../../src/db/schema.js';
 import { IdentityProvisioning } from '../../src/identity/identity-provisioning.js';
 import { InMemoryIdentityProvisioning } from '../../src/identity/in-memory-identity-provisioning.js';
+import { InMemoryIprsLookup } from '../../src/onboarding/iprs/in-memory-iprs-lookup.js';
+import { IprsLookup } from '../../src/onboarding/iprs/iprs-lookup.js';
 import { InMemoryOtpDelivery } from '../../src/onboarding/otp/in-memory-otp-delivery.js';
 import { OtpDelivery } from '../../src/onboarding/otp/otp-delivery.js';
 import { InMemoryRosterUploads } from '../../src/roster/import/in-memory-roster-uploads.js';
@@ -87,6 +89,8 @@ export interface DirectoryApi {
   clock: TestClock;
   /** Onboarding one-time codes sent, with their codes (standing in for notifications). */
   otpDelivery: InMemoryOtpDelivery;
+  /** IPRS as the confirm step sees it (standing in for the integration-gateway). */
+  iprs: InMemoryIprsLookup;
   /** A request without a bearer token, as the portal BFF calls the public onboarding routes. */
   anonymous(request: AnonymousRequest): ReturnType<NestFastifyApplication['inject']>;
   /** `GET` as the given caller; returns Fastify's injected response. */
@@ -120,7 +124,7 @@ export interface DirectoryApi {
  * task queue of the suite's own (test/support/temporal-task-queue.ts).
  *
  * Time is `api.clock` (the service's `Clock` and the rate limiter's), real until a test sets it.
- * Onboarding codes go to `api.otpDelivery`; the public onboarding routes are called with
+ * Onboarding codes go to `api.otpDelivery`, IPRS lookups to `api.iprs`; the public onboarding routes are called with
  * `api.anonymous` (see test/support/onboarding.ts for arranging rosters and sessions).
  */
 export async function startDirectoryApi(options: DirectoryApiOptions = {}): Promise<DirectoryApi> {
@@ -141,6 +145,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
   const uploads = new InMemoryRosterUploads();
   const clock = new TestClock();
   const otpDelivery = new InMemoryOtpDelivery();
+  const iprs = new InMemoryIprsLookup();
   // The suite's own key prefix, so rate limit budgets and throttles start fresh and never meet
   // another suite's (or an earlier run's) on the shared Valkey.
   const valkey = createValkey({
@@ -166,6 +171,8 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     .useValue(() => clock.now().getTime())
     .overrideProvider(OtpDelivery)
     .useValue(otpDelivery)
+    .overrideProvider(IprsLookup)
+    .useValue(iprs)
     .overrideProvider(RATE_LIMIT_POLICIES)
     .useValue({ ...config.RATE_LIMITS, ...options.rateLimits })
     .compile();
@@ -206,6 +213,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     activationLookups,
     clock,
     otpDelivery,
+    iprs,
     anonymous({ method = 'GET', url: path, body, headers = {}, ip = '203.0.113.10' }) {
       return app.inject({
         method,
@@ -243,6 +251,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
       );
       identity.reset();
       otpDelivery.reset();
+      iprs.reset();
       clock.reset();
       uploads.reset();
       activationLookups.expireAll();

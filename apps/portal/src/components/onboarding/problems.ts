@@ -30,6 +30,7 @@ export const PROBLEM_COPY: Record<OnboardingProblemCode, (context: ProblemContex
       ? 'That code is not right. Check it and try again.'
       : `That code is not right. ${plural(attemptsLeft, 'attempt', 'attempts')} left.`,
   'otp-expired': () => 'That code has expired. Resend to get a new one.',
+  'otp-send-failed': () => 'We could not send the code. Try again in a minute.',
   // Not shown as a message: the resend link counts down instead.
   'resend-cooldown': ({ retryAfterSeconds }) =>
     retryAfterSeconds === undefined
@@ -39,8 +40,12 @@ export const PROBLEM_COPY: Record<OnboardingProblemCode, (context: ProblemContex
   'iprs-unavailable': () =>
     'The national register is not responding. Wait a few minutes and try again.',
   'identity-unavailable': () => 'Your account could not be created. Try again.',
+  'email-in-use': () =>
+    'This email address already belongs to another Adili account, so your account could not be created. Contact the EACC helpdesk.',
   'rate-limit-exceeded': ({ retryAfterSeconds }) =>
     `Too many attempts. Try again in ${plural(minutesFrom(retryAfterSeconds ?? 60), 'minute', 'minutes')}.`,
+  // Not shown as a message: the portal re-reads the session and moves to its step.
+  'wrong-step': () => 'This step is already done. Continue from where your session is.',
 };
 
 export const GENERIC_ERROR = 'Something went wrong. Try again.';
@@ -57,8 +62,8 @@ export const START_AGAIN_NOTICES = {
 
 export type StartAgainNotice = keyof typeof START_AGAIN_NOTICES;
 
-/** A code could not be sent (the directory's 502, which has no problem code in the contract). */
-export const SEND_FAILED = 'We could not send the code. Try again in a minute.';
+/** A code could not be sent (the directory's 502 `otp-send-failed`). */
+export const SEND_FAILED = PROBLEM_COPY['otp-send-failed']({});
 
 export function problemMessage(code: OnboardingProblemCode, context: ProblemContext = {}): string {
   return PROBLEM_COPY[code](context);

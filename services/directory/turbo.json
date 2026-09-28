@@ -6,10 +6,20 @@
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/mocks/demo/rosters/*.csv"]
     },
     "build": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/internal/documents.yaml"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/notifications.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/integration-gateway.yaml"
+      ]
     },
     "typecheck": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/schemas/internal/documents.yaml"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/notifications.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/integration-gateway.yaml"
+      ]
     }
   }
 }
