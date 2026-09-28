@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   companyNameMatchKey,
-  companyNumberMatchKey,
   findMatchingItem,
   kraPinMatchKey,
+  matchKeysFor,
   matchKeysOfItem,
-  matchKeysOfSpouse,
   parcelMatchKey,
+  presentKeys,
   registrationMatchKey,
 } from '../../src/suggestions/match-keys.js';
 import { mapRegistryResult } from '../../src/suggestions/registry-mapping.js';
@@ -25,6 +25,10 @@ function asset(id: string, type: AssetItem['type'], details: AssetItem['details'
     joint: { isJoint: false },
     change: { changed: false },
   };
+}
+
+function suggest(...args: Parameters<typeof mapRegistryResult>) {
+  return mapRegistryResult(...args).suggestions;
 }
 
 const salary: IncomeItem = {
@@ -49,8 +53,7 @@ describe('match keys', () => {
     expect(parcelMatchKey('')).toBeNull();
   });
 
-  it('normalise company numbers, names and PINs', () => {
-    expect(companyNumberMatchKey('PVT-AB12CD3E')).toBe('company-number:PVTAB12CD3E');
+  it('normalise company names and PINs', () => {
     expect(companyNameMatchKey('Rift Valley Agrovet Limited')).toBe(
       companyNameMatchKey('RIFT VALLEY AGROVET LTD.'),
     );
@@ -70,10 +73,20 @@ describe('match keys', () => {
     expect(matchKeysOfItem(asset('d', 'vehicle', {}))).toEqual([]);
     expect(matchKeysOfItem(asset('e', 'cash', { institution: 'KCB' }))).toEqual([]);
     expect(matchKeysOfItem(salary)).toEqual([]);
-    expect(matchKeysOfSpouse({ kraPin: 'A006612874M' })).toEqual(
-      mapRegistryResult(kra.partial, 'spouse:x')[0]?.matchKeys,
+  });
+
+  it('key an identifier the way an item of that type holds it', () => {
+    expect(matchKeysFor('vehicle', 'KCA 123A')).toEqual(
+      matchKeysOfItem(asset('a', 'vehicle', { registration: 'kca-123a' })),
     );
-    expect(matchKeysOfSpouse({})).toEqual([]);
+    expect(matchKeysFor('shareholding', 'Safaricom PLC')).toEqual(['company-name:SAFARICOMPLC']);
+    expect(matchKeysFor('land', '')).toEqual([]);
+  });
+
+  it('drop identifiers that normalised to nothing', () => {
+    expect(presentKeys(kraPinMatchKey('a005231876k'), kraPinMatchKey(' - '), undefined)).toEqual([
+      'kra-pin:A005231876K',
+    ]);
   });
 });
 
@@ -90,26 +103,24 @@ describe('findMatchingItem', () => {
   ];
 
   it('matches a registry suggestion to the item with the same identifier', () => {
-    const [fielder, dmax] = mapRegistryResult(ntsa.found, 'officer');
-    const [kimumu, nairobi] = mapRegistryResult(ardhisasa.found, 'officer');
-    const [agrovet, transporters] = mapRegistryResult(brs.found, 'officer');
+    const [fielder, dmax] = suggest(ntsa.found, 'officer');
+    const [kimumu, nairobi] = suggest(ardhisasa.found, 'officer');
+    const [agrovet, , millers] = suggest(brs.found, 'officer');
 
     expect(fielder && findMatchingItem(fielder, items)).toBe(items[1]?.id);
     expect(dmax && findMatchingItem(dmax, items)).toBeNull();
     expect(kimumu && findMatchingItem(kimumu, items)).toBe(items[2]?.id);
     expect(nairobi && findMatchingItem(nairobi, items)).toBeNull();
     expect(agrovet && findMatchingItem(agrovet, items)).toBe(items[3]?.id);
-    expect(transporters && findMatchingItem(transporters, items)).toBeNull();
+    expect(millers && findMatchingItem(millers, items)).toBeNull();
   });
 
   it('never matches a suggestion without keys, or across identifier kinds', () => {
-    const hint = mapRegistryResult(kra.found, 'officer').find(
-      (each) => each.itemType === 'income-hint',
-    );
+    const hint = suggest(kra.found, 'officer').find((each) => each.itemType === 'income-hint');
     expect(hint && findMatchingItem(hint, items)).toBeNull();
 
     const sameDigits = [asset('x', 'land', { parcelNumber: 'KCA123A' })];
-    const [fielder] = mapRegistryResult(ntsa.found, 'officer');
+    const [fielder] = suggest(ntsa.found, 'officer');
     expect(fielder && findMatchingItem(fielder, sameDigits)).toBeNull();
   });
 });

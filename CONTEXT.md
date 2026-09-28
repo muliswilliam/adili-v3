@@ -74,7 +74,7 @@ A proposed item or field, read from a registry or a document, that the declarant
 _Avoid_: pre-fill, auto-fill, recommendation
 
 **Match key**:
-A normalised identifier (registration, parcel, company number or name, KRA PIN) that says a suggestion and an existing item describe the same thing.
+A normalised identifier (registration, parcel, company name, KRA PIN) that says a suggestion and an existing item describe the same thing.
 _Avoid_: dedupe key, fingerprint
 
 **Item source**:

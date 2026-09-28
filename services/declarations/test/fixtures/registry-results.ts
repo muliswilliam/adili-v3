@@ -57,7 +57,15 @@ export const ntsa = {
         yearOfManufacture: 0,
         registeredOn: '',
       },
-      // No identifier and nothing descriptive: not suggested.
+      // Make and model but no registration: no identifier, so not suggested.
+      {
+        registrationNumber: ' ',
+        make: 'Nissan',
+        model: 'Note',
+        yearOfManufacture: 2014,
+        registeredOn: '2018-05-02',
+      },
+      // Nothing at all: not suggested.
       { registrationNumber: '', make: '', model: '', yearOfManufacture: 2010, registeredOn: '' },
     ],
   },
@@ -152,6 +160,14 @@ export const brs = {
         shares: null,
         appointedOn: '2021-09-01',
       },
+      {
+        companyRegistrationNumber: 'PVT-LM45NP6R',
+        companyName: 'Eldoret Grain Millers Ltd',
+        companyStatus: 'registered',
+        role: 'Managing Director',
+        shares: 2000,
+        appointedOn: '2014-02-17',
+      },
     ],
   },
   empty: { ...envelope('brs', '8b3f4c0a-2d3e-4e77-9e3a-4b2c5d6e7f02'), directorships: [] },
@@ -164,8 +180,17 @@ export const brs = {
         companyName: '',
         companyStatus: '',
         role: '',
-        shares: 0,
+        shares: 150,
         appointedOn: '',
+      },
+      // A secretary with no shares: neither a holding nor a directorship.
+      {
+        companyRegistrationNumber: 'PVT-QR12ST3U',
+        companyName: 'Kitengela Hardware Ltd',
+        companyStatus: 'registered',
+        role: 'Secretary',
+        shares: 0,
+        appointedOn: '2019-06-01',
       },
       // Neither name nor number: not suggested.
       {

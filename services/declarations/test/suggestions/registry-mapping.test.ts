@@ -1,3 +1,4 @@
+import type { PersonKey } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,10 +6,16 @@ import {
   type MappedSuggestion,
   mapRegistryResult,
 } from '../../src/suggestions/registry-mapping.js';
+import type { RegistryResult } from '../../src/suggestions/registry-results.js';
 import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
 
 const SPOUSE = 'spouse:3f0c1b2a-4d5e-4f60-8a7b-9c0d1e2f3a4b' as const;
 const CHILD = 'child:5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d' as const;
+
+/** The suggestions a result yields for a person (the set around them is asserted once). */
+function suggest(result: RegistryResult, personKey: PersonKey) {
+  return mapRegistryResult(result, personKey).suggestions;
+}
 
 /** No suggestion ever carries a value: valuing is the declarant's (S3). */
 function expectNoValues(suggestions: MappedSuggestion[]) {
@@ -21,7 +28,7 @@ function expectNoValues(suggestions: MappedSuggestion[]) {
 
 describe('NTSA → vehicle', () => {
   it('maps each vehicle to a vehicle asset in the person’s statement', () => {
-    const suggestions = mapRegistryResult(ntsa.found, 'officer');
+    const suggestions = suggest(ntsa.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -55,11 +62,11 @@ describe('NTSA → vehicle', () => {
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapRegistryResult(ntsa.empty, 'officer')).toEqual([]);
+    expect(suggest(ntsa.empty, 'officer')).toEqual([]);
   });
 
-  it('leaves blank fields out of a partial record and skips one with nothing to show', () => {
-    expect(mapRegistryResult(ntsa.partial, SPOUSE)).toEqual([
+  it('leaves blank fields out of a partial record and skips any without a registration', () => {
+    expect(suggest(ntsa.partial, SPOUSE)).toEqual([
       {
         sectionKey: `statement:${SPOUSE}`,
         itemType: 'vehicle',
@@ -73,7 +80,7 @@ describe('NTSA → vehicle', () => {
 
 describe('ArdhiSasa → land', () => {
   it('maps each parcel to a land asset with size in hectares and a county code', () => {
-    const suggestions = mapRegistryResult(ardhisasa.found, 'officer');
+    const suggestions = suggest(ardhisasa.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -113,11 +120,11 @@ describe('ArdhiSasa → land', () => {
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapRegistryResult(ardhisasa.empty, 'officer')).toEqual([]);
+    expect(suggest(ardhisasa.empty, 'officer')).toEqual([]);
   });
 
   it('handles partial parcels: county codes, unknown counties, missing size or number', () => {
-    expect(mapRegistryResult(ardhisasa.partial, CHILD)).toEqual([
+    expect(suggest(ardhisasa.partial, CHILD)).toEqual([
       {
         sectionKey: `statement:${CHILD}`,
         itemType: 'land',
@@ -149,9 +156,25 @@ describe('ArdhiSasa → land', () => {
   });
 });
 
-describe('BRS → shareholding', () => {
-  it('maps each directorship or shareholding to a shareholding asset', () => {
-    const suggestions = mapRegistryResult(brs.found, 'officer');
+describe('BRS → shareholding and directorship', () => {
+  const agrovet = {
+    registrationNumber: 'PVT-AB12CD3E',
+    companyStatus: 'registered',
+    appointedOn: '2017-04-10',
+  };
+  const transporters = {
+    registrationNumber: 'PVT-XY98ZW7Q',
+    companyStatus: 'registered',
+    appointedOn: '2021-09-01',
+  };
+  const millers = {
+    registrationNumber: 'PVT-LM45NP6R',
+    companyStatus: 'registered',
+    appointedOn: '2014-02-17',
+  };
+
+  it('maps shares held to shareholdings and the officer’s directorships to paragraph 9', () => {
+    const suggestions = suggest(brs.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -164,49 +187,65 @@ describe('BRS → shareholding', () => {
           role: 'Shareholder',
           shares: 500,
         },
-        sourceRef: {
-          registrationNumber: 'PVT-AB12CD3E',
-          companyStatus: 'registered',
-          appointedOn: '2017-04-10',
-        },
-        matchKeys: ['company-number:PVTAB12CD3E', 'company-name:RIFTVALLEYAGROVETLTD'],
+        sourceRef: agrovet,
+        matchKeys: ['company-name:RIFTVALLEYAGROVETLTD'],
       },
+      // A director without shares is not a shareholding.
+      {
+        sectionKey: 'other',
+        itemType: 'directorship',
+        fields: { companyName: 'Kimumu Transporters Limited', role: 'Director' },
+        sourceRef: transporters,
+        matchKeys: ['company-name:KIMUMUTRANSPORTERSLTD'],
+      },
+      // A director holding shares is both.
       {
         sectionKey: 'statement:officer',
         itemType: 'shareholding',
         fields: {
-          description: 'Shares in Kimumu Transporters Limited',
-          companyName: 'Kimumu Transporters Limited',
-          registrationNumber: 'PVT-XY98ZW7Q',
-          role: 'Director',
+          description: 'Shares in Eldoret Grain Millers Ltd',
+          companyName: 'Eldoret Grain Millers Ltd',
+          registrationNumber: 'PVT-LM45NP6R',
+          role: 'Managing Director',
+          shares: 2000,
         },
-        sourceRef: {
-          registrationNumber: 'PVT-XY98ZW7Q',
-          companyStatus: 'registered',
-          appointedOn: '2021-09-01',
-        },
-        matchKeys: ['company-number:PVTXY98ZW7Q', 'company-name:KIMUMUTRANSPORTERSLTD'],
+        sourceRef: millers,
+        matchKeys: ['company-name:ELDORETGRAINMILLERSLTD'],
+      },
+      {
+        sectionKey: 'other',
+        itemType: 'directorship',
+        fields: { companyName: 'Eldoret Grain Millers Ltd', role: 'Managing Director' },
+        sourceRef: millers,
+        matchKeys: ['company-name:ELDORETGRAINMILLERSLTD'],
       },
     ]);
     expectNoValues(suggestions);
   });
 
-  it('suggests nothing for an empty result', () => {
-    expect(mapRegistryResult(brs.empty, 'officer')).toEqual([]);
+  it('suggests only shareholdings for a spouse, whose directorships declaration.v1 does not hold', () => {
+    expect(suggest(brs.found, SPOUSE).map((each) => [each.sectionKey, each.itemType])).toEqual([
+      [`statement:${SPOUSE}`, 'shareholding'],
+      [`statement:${SPOUSE}`, 'shareholding'],
+    ]);
   });
 
-  it('describes a nameless company by its number and skips one with neither', () => {
-    expect(mapRegistryResult(brs.partial, SPOUSE)).toEqual([
+  it('suggests nothing for an empty result', () => {
+    expect(suggest(brs.empty, 'officer')).toEqual([]);
+  });
+
+  it('describes a nameless company by its number and skips records with nothing to declare', () => {
+    expect(suggest(brs.partial, 'officer')).toEqual([
       {
-        sectionKey: `statement:${SPOUSE}`,
+        sectionKey: 'statement:officer',
         itemType: 'shareholding',
         fields: {
           description: 'Shares in CPR/2009/12345',
           registrationNumber: 'CPR/2009/12345',
-          shares: 0,
+          shares: 150,
         },
         sourceRef: { registrationNumber: 'CPR/2009/12345' },
-        matchKeys: ['company-number:CPR200912345'],
+        matchKeys: [],
       },
     ]);
   });
@@ -214,7 +253,7 @@ describe('BRS → shareholding', () => {
 
 describe('KRA → bio tax fields and income hint', () => {
   it('maps the officer’s PIN and compliance to the bio, and declared income to a hint', () => {
-    const suggestions = mapRegistryResult(kra.found, 'officer');
+    const suggestions = suggest(kra.found, 'officer');
 
     expect(suggestions).toEqual([
       {
@@ -241,7 +280,7 @@ describe('KRA → bio tax fields and income hint', () => {
   });
 
   it('puts a spouse’s PIN in the household and gives no hint without income data', () => {
-    expect(mapRegistryResult(kra.partial, SPOUSE)).toEqual([
+    expect(suggest(kra.partial, SPOUSE)).toEqual([
       {
         sectionKey: 'household',
         itemType: 'bio-tax',
@@ -253,25 +292,40 @@ describe('KRA → bio tax fields and income hint', () => {
   });
 
   it('suggests no PIN for a child, whose record has no PIN field, but keeps the hint', () => {
-    expect(
-      mapRegistryResult(kra.found, CHILD).map((each) => [each.sectionKey, each.itemType]),
-    ).toEqual([[`statement:${CHILD}`, 'income-hint']]);
+    expect(suggest(kra.found, CHILD).map((each) => [each.sectionKey, each.itemType])).toEqual([
+      [`statement:${CHILD}`, 'income-hint'],
+    ]);
   });
 
   it('suggests nothing for an empty result', () => {
-    expect(mapRegistryResult(kra.empty, 'officer')).toEqual([]);
+    expect(suggest(kra.empty, 'officer')).toEqual([]);
   });
 });
 
 describe('mapRegistryResult', () => {
+  it('keeps the verification result the suggestions came from', () => {
+    const set = mapRegistryResult(kra.found, 'officer');
+
+    expect(set).toMatchObject({
+      source: 'kra',
+      verificationResultId: '9c4a5d1b-3e4f-4f88-8f4b-5c3d6e7f8a01',
+      checkedAt: '2026-09-20T08:30:00.000Z',
+    });
+    expect(set.suggestions).toHaveLength(2);
+    expect(mapRegistryResult(ntsa.unavailable, 'officer')).toEqual({
+      source: 'ntsa',
+      verificationResultId: ntsa.unavailable.resultId,
+      checkedAt: ntsa.unavailable.checkedAt,
+      suggestions: [],
+    });
+  });
+
   it('suggests nothing for not-found and unavailable outcomes', () => {
     for (const result of [ntsa.notFound, ntsa.unavailable, brs.notFound, ardhisasa.unavailable]) {
-      expect(mapRegistryResult(result, 'officer')).toEqual([]);
+      expect(suggest(result, 'officer')).toEqual([]);
     }
     // Even if an unavailable answer somehow carries records, they are not trusted.
-    expect(
-      mapRegistryResult({ ...kra.unavailable, taxpayers: kra.found.taxpayers }, 'officer'),
-    ).toEqual([]);
+    expect(suggest({ ...kra.unavailable, taxpayers: kra.found.taxpayers }, 'officer')).toEqual([]);
   });
 });
 
@@ -281,6 +335,7 @@ describe('field vocabulary', () => {
     vehicle: ['description', 'registration', 'make', 'model', 'year'],
     land: ['description', 'parcelNumber', 'size', 'location', 'county'],
     shareholding: ['description', 'companyName', 'registrationNumber', 'role', 'shares'],
+    directorship: ['companyName', 'role'],
     'bio-tax': ['kraPin', 'complianceStatus'],
     'income-hint': ['incomeType'],
   };
@@ -293,7 +348,7 @@ describe('field vocabulary', () => {
     ]);
     for (const result of results) {
       for (const personKey of ['officer', SPOUSE] as const) {
-        for (const { itemType, fields } of mapRegistryResult(result, personKey)) {
+        for (const { itemType, fields } of suggest(result, personKey)) {
           const keys = seen.get(itemType) ?? new Set<string>();
           for (const key of Object.keys(fields)) keys.add(key);
           seen.set(itemType, keys);
