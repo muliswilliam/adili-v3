@@ -1,4 +1,4 @@
-import { formatDate, Icon, Tooltip } from '@adili/ui';
+import { cn, focusRing, formatDate, Icon, Tooltip } from '@adili/ui';
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
 
 import type { Declaration } from '../../server/declarations/types';
@@ -25,7 +25,10 @@ function Term({ label, explanation }: { label: string; explanation: string }) {
         <button
           type="button"
           aria-label={`What is ${label.toLowerCase()}?`}
-          className="inline-grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+          className={cn(
+            focusRing,
+            'inline-grid size-5 place-items-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-offset-0',
+          )}
         >
           <Icon icon={InformationCircleIcon} className="size-4" />
         </button>
