@@ -55,7 +55,7 @@ export const en = {
   no: 'No',
   onboardedShort: 'Onboarded',
   notOnboardedShort: 'Not onboarded',
-  remindersLast: (offset: string, outcome: string) => `Last, ${offset}: ${outcome}`,
+  remindersLast: (offset: string, outcome: string) => `Last (${offset}): ${outcome}`,
   remindersNoneNotOnboarded: 'None sent: not yet onboarded. Chase through your own channels.',
   remindersSeeHistory: 'Open the officer for the reminder history.',
   shown: (count: number) =>

@@ -307,7 +307,7 @@ describe('S23 obligations list', () => {
     fireEvent.focus(within(table()).getByLabelText('1 reminder sent'));
     const tip = await screen.findByRole('tooltip');
     expect(tip.textContent).toBe(
-      '1 reminder sentLast, 7 days before: Skipped: no contact detailsOpen the officer for the reminder history.',
+      '1 reminder sentLast (7 days before): Skipped: no contact detailsOpen the officer for the reminder history.',
     );
   });
 
