@@ -1,4 +1,4 @@
-import { Button, Icon, Input, Label } from '@adili/ui';
+import { Button, cn, focusRing, Icon, Input, Label } from '@adili/ui';
 import { AlertCircleIcon, ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 import { kcSanitize } from 'keycloakify/lib/kcSanitize';
 import type { PageProps } from 'keycloakify/login/pages/PageProps';
@@ -76,7 +76,10 @@ export default function ResetPassword({
       </form>
       <a
         href={url.loginUrl}
-        className="inline-flex items-center gap-1.5 justify-self-start rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          focusRing,
+          'inline-flex items-center gap-1.5 justify-self-start rounded-sm text-sm font-medium text-primary hover:underline',
+        )}
       >
         <Icon icon={ArrowLeft01Icon} className="size-4" />
         {msg('adiliBackToSignIn')}

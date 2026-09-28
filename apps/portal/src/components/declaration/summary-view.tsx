@@ -46,6 +46,7 @@ import {
   pendingCaseLine,
 } from '../../declaration/other';
 import {
+  nameFor,
   OFFICER_LABEL,
   relationship,
   STATEMENTS_TITLE,
@@ -259,7 +260,7 @@ function BioCards({ summary, document }: { summary: LoadedSummary; document: Sum
       'Employment',
       [
         [
-          'Employer and designation',
+          'Reporting entity and designation',
           `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
         ],
         ['Nature of employment', nature],
@@ -467,7 +468,7 @@ function StatementsCard({
     return {
       key,
       statement,
-      name: you ? OFFICER_LABEL : name || 'Unnamed person',
+      name: nameFor(key, name),
       short: you
         ? OFFICER_LABEL
         : (statement.personName?.firstName?.trim() ?? name) || 'Unnamed person',
@@ -553,9 +554,8 @@ function OtherCard({ summary, document }: { summary: LoadedSummary; document: Su
   const other = document.otherInformation ?? {};
   const interests = other.registrableInterests ?? {};
   const names = (personKey: string) => {
-    if (personKey === 'officer') return OFFICER_LABEL;
     const statement = document.statements?.find((entry) => entry.personKey === personKey);
-    return fullName(statement?.personName) || 'Unnamed person';
+    return nameFor(`statement:${personKey}`, fullName(statement?.personName));
   };
   const lines = (values: string[], empty: string): ReactNode =>
     values.length === 0 ? (

@@ -8,6 +8,7 @@ import {
   parseDayMonthYear,
   shapeDateText,
 } from '../lib/date-input';
+import { focusRing } from '../lib/focus';
 import { Button } from './button';
 import { Icon } from './icon';
 import { Input } from './input';
@@ -300,7 +301,10 @@ export function DateInput({
                   onClick={() => {
                     pick(day);
                   }}
-                  className="h-9 rounded-md text-sm tabular-nums outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-[current=date]:font-semibold aria-[current=date]:underline"
+                  className={cn(
+                    focusRing,
+                    'h-9 rounded-md text-sm tabular-nums hover:bg-muted focus-visible:outline-offset-0 aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-[current=date]:font-semibold aria-[current=date]:underline',
+                  )}
                 >
                   {day}
                 </button>

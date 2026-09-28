@@ -1,4 +1,4 @@
-import { Icon } from '@adili/ui';
+import { cn, focusRing, Icon } from '@adili/ui';
 import { ViewIcon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
@@ -19,7 +19,10 @@ export function AuditBanner({ slug }: { slug: string }) {
       <Link
         to="/commissions/$slug"
         params={{ slug }}
-        className="rounded-sm font-medium underline decoration-current/40 underline-offset-[3px] outline-none hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(
+          focusRing,
+          'rounded-sm font-medium underline decoration-current/40 underline-offset-[3px] hover:decoration-current',
+        )}
       >
         {m.backToCommission}
       </Link>

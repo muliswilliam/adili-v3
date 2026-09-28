@@ -2,6 +2,7 @@ import { Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 
 export type SectionStatus = 'complete' | 'incomplete' | 'not-started';
@@ -76,7 +77,8 @@ export function SectionNav({
                   onSelect(section.id);
                 }}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm font-medium text-secondary-foreground outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring',
+                  focusRing,
+                  'flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm font-medium text-secondary-foreground hover:bg-muted focus-visible:outline-offset-0',
                   holdsCurrent && 'bg-card text-foreground shadow-card hover:bg-card',
                 )}
               >
@@ -127,7 +129,8 @@ export function SectionNav({
                             onSelect(sub.id);
                           }}
                           className={cn(
-                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13.5px] text-secondary-foreground outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring',
+                            focusRing,
+                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13.5px] text-secondary-foreground hover:bg-muted focus-visible:outline-offset-0',
                             subCurrent &&
                               'bg-card font-medium text-foreground shadow-card hover:bg-card',
                           )}

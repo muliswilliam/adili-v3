@@ -1,4 +1,4 @@
-import { Button, Card, Icon, ProgressBar } from '@adili/ui';
+import { Button, Card, cn, focusRingInset, Icon, ProgressBar } from '@adili/ui';
 import {
   Archive02Icon,
   ArrowRight01Icon,
@@ -71,7 +71,10 @@ function Row({
       {link ? (
         <Link
           {...link}
-          className="flex min-h-14 items-center gap-3 px-4 py-2.5 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          className={cn(
+            focusRingInset,
+            'flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-muted',
+          )}
         >
           {body}
         </Link>

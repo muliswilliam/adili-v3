@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon, type IconProps } from './icon';
 
 export type FilterChipProps = Omit<ComponentProps<'button'>, 'onClick' | 'type'> & {
@@ -35,7 +36,8 @@ export function FilterChip({
         onPressedChange(!pressed);
       }}
       className={cn(
-        'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13.5px] font-medium whitespace-nowrap outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5',
+        focusRing,
+        'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13.5px] font-medium whitespace-nowrap [&_svg]:size-3.5',
         pressed
           ? 'bg-foreground text-background'
           : 'bg-card text-secondary-foreground shadow-control hover:text-foreground',

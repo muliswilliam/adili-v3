@@ -1,4 +1,4 @@
-import { Badge, Button, cn, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
+import { Badge, Button, cn, focusRing, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 import { Link, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
@@ -75,7 +75,7 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
           <Link
             to="/"
             aria-label="Dials console home"
-            className="shrink-0 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
+            className={cn(focusRing, 'shrink-0 rounded-sm lg:hidden')}
           >
             <LogoWordmark className="h-5" />
           </Link>
@@ -111,7 +111,7 @@ function Sidebar({
       <Link
         to="/"
         aria-label="Dials console home"
-        className="mb-2 flex w-fit items-center gap-2 rounded-sm px-2 pt-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(focusRing, 'mb-2 flex w-fit items-center gap-2 rounded-sm px-2 pt-1')}
       >
         <LogoWordmark className="h-[22px]" />
         <Badge className="h-5 px-2 text-[11px]">Console</Badge>
@@ -134,7 +134,8 @@ function Sidebar({
                     activeOptions={{ exact: true }}
                     aria-current={item.to === active ? 'page' : undefined}
                     className={cn(
-                      'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      focusRing,
+                      'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground hover:bg-muted hover:text-foreground',
                       'aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-card',
                     )}
                   >

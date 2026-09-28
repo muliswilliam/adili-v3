@@ -7,6 +7,7 @@ import {
   isIdentityLocked,
   LockedChip,
   OnboardingStatusItems,
+  recordOnboarding,
   type RosterRecordOnboarding,
 } from './record-onboarding';
 
@@ -112,5 +113,22 @@ describe('locked identity', () => {
 
     const chip = screen.getByTitle('Locked because the declarant has onboarded');
     expect(chip.textContent).toBe('Locked because the declarant has onboarded');
+  });
+});
+
+describe('recordOnboarding', () => {
+  it('reads the spec 03 fields off a roster record', () => {
+    expect(
+      recordOnboarding({
+        state: 'onboarded',
+        ofr: 'OFR-0482913-H',
+        onboardedAt: '2026-09-26T07:42:00Z',
+        identityMismatchAt: null,
+      }),
+    ).toEqual(onboarded);
+  });
+
+  it('treats fields the directory does not send yet as not set', () => {
+    expect(recordOnboarding({ state: 'not_onboarded' })).toEqual(notOnboarded);
   });
 });
