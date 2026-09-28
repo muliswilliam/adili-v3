@@ -130,7 +130,7 @@ describe('RecordDetail', () => {
   it('explains a failed identity check and marks it in the heading and status', () => {
     render(
       <RecordDetail
-        record={{ ...record(), identityMismatchAt: '2026-09-24T11:20:00Z' } as RosterRecord}
+        record={{ ...record(), identityMismatchAt: '2026-09-24T11:20:00Z' }}
         readOnly={false}
       />,
     );
@@ -150,13 +150,11 @@ describe('RecordDetail', () => {
     render(
       <ToastProvider>
         <RecordDetail
-          record={
-            {
-              ...record({ state: 'onboarded' }),
-              ofr: 'OFR-0482913-H',
-              onboardedAt: '2026-09-26T07:42:00Z',
-            } as RosterRecord
-          }
+          record={{
+            ...record({ state: 'onboarded' }),
+            ofr: 'OFR-0482913-H',
+            onboardedAt: '2026-09-26T07:42:00Z',
+          }}
           readOnly={false}
         />
       </ToastProvider>,
@@ -178,7 +176,7 @@ describe('RecordDetail', () => {
     render(
       <ToastProvider>
         <RecordDetail
-          record={{ ...record({ state: 'onboarded' }), ofr: 'OFR-0482913-H' } as RosterRecord}
+          record={{ ...record({ state: 'onboarded' }), ofr: 'OFR-0482913-H' }}
           readOnly={false}
         />
       </ToastProvider>,
