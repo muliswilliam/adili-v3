@@ -721,6 +721,9 @@
           top: 92px;
           align-self: start;
         }
+        .nobar .snav {
+          top: 32px;
+        }
       }
       .snav ol {
         list-style: none;
@@ -911,6 +914,9 @@
         align-items: center;
         gap: 10px;
         font-size: 13.5px;
+      }
+      .nobar .mbar {
+        top: 0;
       }
       @container app (min-width: 960px) {
         .mbar {
@@ -2600,6 +2606,12 @@
           animation: none;
         }
       }
+      /* the declaration flow has no top bar, so the panel starts at the top */
+      @container app (min-width: 700px) {
+        .nobar .ask-panel {
+          top: 0;
+        }
+      }
       /* keep the prototype bar off the docked panel's composer */
       body:not(.mobile):has(.ask-panel) .proto {
         right: auto;
@@ -3555,6 +3567,9 @@
         initials: 'JK',
         fileNo: '2012445581',
         nid: '26543219',
+        // From the national register at onboarding; they never change, so the declaration does not ask.
+        dob: '12/12/1977',
+        placeOfBirth: 'Kapsabet, Nandi',
         ofr: 'OFR-0012345-B',
         designation: 'Deputy Principal',
         entity: 'Moi Girls High School, Eldoret',
@@ -3667,8 +3682,8 @@
 
       /* ---------- declarations (spec 05/06) ---------- */
       const emptyBio = () => ({
-        dob: '',
-        place: '',
+        dob: ME.dob,
+        place: ME.placeOfBirth,
         marital: '',
         postal: '',
         physical: '',
@@ -3813,8 +3828,6 @@
         D.bio = {
           ...emptyBio(),
           ...D.hr,
-          dob: '12/12/1977',
-          place: 'Kapsabet, Nandi',
           marital: 'married',
           postal: 'P.O. Box 3100-30100, Eldoret',
           physical: 'House 14, Elgon View Estate, Eldoret',
@@ -4289,19 +4302,13 @@
       /* =====================================================================
        * ONBOARDING (spec 03): landing, Get started steps
        * ===================================================================== */
-      function authArt(variant = 'onboard') {
-        const items =
-          variant === 'landing'
-            ? [
-                ['shield', 'Goes only to your Responsible Commission'],
-                ['cloud', 'Saves as you type, on any device'],
-                ['file', 'Signed slip anyone can check'],
-              ]
-            : [
-                ['building', 'For officers on a Commission roster'],
-                ['lock', 'Codes go to your contacts on file'],
-                ['clock', 'Takes about 5 minutes'],
-              ];
+      /* The landing page's art panel. The Get started steps show the form alone. */
+      function authArt() {
+        const items = [
+          ['shield', 'Goes only to your Responsible Commission'],
+          ['cloud', 'Saves as you type, on any device'],
+          ['file', 'Signed slip anyone can check'],
+        ];
         return `<aside class="auth-art" aria-hidden="true">
     <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
       <defs>
@@ -4319,7 +4326,7 @@
       <g fill="#4a1f0f"><path d="M640 735c-30-5-52 3-60 8 14 2 27-1 42 0-5 3-9 8-9 20h3c2-11 6-15 12-18 8 1 18 4 26 3-5-6-9-11-14-13Z"/><rect x="637" y="738" width="3" height="30"/></g>
     </svg>
     <div class="halftone"></div>
-    <div class="art-copy"><h2>${variant === 'landing' ? 'Declare your income, assets and liabilities, simply and securely.' : 'Set up your Adili account in a few minutes.'}</h2></div>
+    <div class="art-copy"><h2>Declare your income, assets and liabilities, simply and securely.</h2></div>
     <div class="art-list">${items.map(([ic, t]) => `<div class="art-item"><span class="ico">${icon(ic, 17)}</span>${t}</div>`).join('')}</div>
   </aside>`;
       }
@@ -4331,7 +4338,7 @@
         'Confirm your details',
         'Set your password',
       ];
-      function gsLayout(body, { step = null, back = null, art = 'onboard', help = true } = {}) {
+      function gsLayout(body, { step = null, back = null, art = null, help = true } = {}) {
         const c = comm(S.gs.commission);
         const stepper = step
           ? `<div class="stepper-wrap"><div class="stepper" aria-hidden="true">${[1, 2, 3, 4, 5, 6].map((i) => `<span class="s ${i < step ? 'done' : i === step ? 'cur' : ''}"></span>`).join('')}</div><div class="lbl" aria-live="polite">Step ${step} of 6<span class="sr-only">: ${STEP_NAMES[step - 1]}</span></div></div>`
@@ -4342,11 +4349,11 @@
         const helpLine = help
           ? `<div class="gs-foot-help">${icon('help', 16)}<span>Need help? Ask your reporting officer.</span></div>`
           : '';
-        return `<div class="auth"><main class="auth-main">
+        return `<div class="auth ${art ? '' : 'solo'}"><main class="auth-main">
     <div class="auth-top">${Kit.logo(24, 'goLanding')}<div class="row" style="gap:4px"><div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili will follow. English only for now.">${icon('globe', 16)} English</button></div><a class="btn btn-ghost btn-sm" href="${KC}">Sign in</a></div></div>
     <div class="auth-body">${backBtn}${stepper}${body}${helpLine}</div>
     <div class="auth-foot"><a class="link" style="font-weight:400" data-act="toast" data-arg="Privacy notice would open here">Privacy</a> · <a class="link" style="font-weight:400" data-act="toast" data-arg="Help centre would open here">Help</a></div>
-  </main>${authArt(art)}</div>`;
+  </main>${art ? authArt(art) : ''}</div>`;
       }
 
       const screens = {};
@@ -4632,10 +4639,12 @@
         return gsLayout(
           `
     <h1 class="gs-h1">Confirm your details</h1>
-    <p class="gs-sub">From your Commission's roster. You cannot change them here.</p>
+    <p class="gs-sub">From your Commission's roster and the national register. You cannot change them here.</p>
     <div class="card" style="margin-top:18px">
       <dl class="dl" style="padding:4px 18px">
         <div><dt>Full name</dt><dd>${ME.full}</dd></div>
+        <div><dt>Date of birth</dt><dd>${ME.dob}</dd></div>
+        <div><dt>Place of birth</dt><dd>${ME.placeOfBirth}</dd></div>
         <div><dt>Personnel file number</dt><dd class="mono">${ME.fileNo}</dd></div>
         <div><dt>Designation</dt><dd>${ME.designation}</dd></div>
         <div><dt>Reporting entity</dt><dd>${ME.entity}</dd></div>
@@ -4704,13 +4713,12 @@
           `
     <div class="success-mark" style="background:var(--brand-soft);color:var(--brand-ink)">${icon('mail', 30, 2)}</div>
     <h1 class="gs-h1">Check your email</h1>
-    <p class="gs-sub">Your account is ready. Set your password with the link sent to ${masked(g.email.masked)}. It expires in 24 hours.</p>
+    <p class="gs-sub">Your account is ready. Set your password with the link sent to ${masked(g.email.masked)}. You are signed in as soon as it is saved. The link expires in 24 hours.</p>
     <div class="ofr-card" style="margin-top:22px"><div style="flex:1;min-width:0"><div class="small muted" style="font-weight:500">Officer reference</div><div class="v">${ME.ofr}</div></div>${copyBtn(ME.ofr, 'Officer reference', 'btn-sm')}</div>
     <p class="small muted" style="margin-top:8px">Quote it when you contact the helpdesk.</p>
     <div class="stack" style="margin-top:22px;gap:10px">
       <button class="btn btn-secondary btn-block" data-act="resendPw" ${cool ? 'disabled' : ''}>${cool ? `<span>Resend email in ${cd(g.pwResendAt, 's')}</span>` : `${icon('send', 16)} Resend email`}</button>
       ${cool ? `<span class="sr-only" aria-live="polite" data-cd-sr="${g.pwResendAt}"></span>` : ''}
-      <a class="btn btn-ghost btn-block" href="${KC}">Sign in</a>
     </div>
     <div class="proto-note" style="margin-top:16px"><b>Prototype.</b> <a href="${KC}#update-password">Open the set-password link from the email</a> (Keycloak page, other prototype). After saving a password you land on the <a data-act="go" data-arg="home">dashboard</a>.</div>`,
           { step: 6 },
@@ -4985,8 +4993,8 @@
     <h1 class="page-title">${title}</h1>
     <div class="home-grid">
       <div class="stack-lg">${S.home.st === 'notdecl' ? accountCard() : obligationsSection()}${S.home.st === 'ok' && S.home.access ? accessHomeCard() : ''}${S.home.st === 'ok' || S.home.st === 'notdecl' ? commissionCards() : ''}</div>
-      <div class="stack-lg">${S.home.st === 'notdecl' ? '' : accountCard()}
-        <div class="card card-pad"><div class="section-title">Need help?</div><p class="small muted" style="margin-top:4px">Quote your officer reference. Never share your ID number or codes.</p><div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn btn-secondary btn-sm" data-act="askOpen">${icon('sparkles', 15)} Ask Adili</button><button class="btn btn-ghost btn-sm" data-act="go" data-arg="help">${icon('help', 15)} Help articles</button></div></div>
+      <div class="stack-lg">
+        <div class="card card-pad"><div class="section-title">Need help?</div><p class="small muted" style="margin-top:4px">Quote your officer reference. Never share your ID number or codes.</p>${S.home.st === 'notdecl' ? '' : `<div class="row" style="gap:4px;margin-top:10px"><span class="mono" style="font-weight:600">${ME.ofr}</span>${copyBtn(ME.ofr, 'Officer reference')}</div>`}<div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn btn-secondary btn-sm" data-act="askOpen">${icon('sparkles', 15)} Ask Adili</button><button class="btn btn-ghost btn-sm" data-act="go" data-arg="help">${icon('help', 15)} Help articles</button></div></div>
       </div>
     </div>
   </div>${S.home.st === 'notdecl' ? '' : askUi()}`,
@@ -5108,16 +5116,6 @@
         const b = D.bio;
         const out = [];
         const add = (field, text) => out.push({ key: 'bio', field, text, go: ['decl-bio'] });
-        const dob = parseDMY(b.dob);
-        const age = dob ? ageOn(b.dob, D.statementDate) : null;
-        if (!dob)
-          add('dob', b.dob ? 'Enter a real date as DD/MM/YYYY.' : 'Enter your date of birth.');
-        else if (age < 18 || age > 100)
-          add(
-            'dob',
-            'Check your date of birth. You must be 18 to 100 years old on the statement date.',
-          );
-        if (b.place.trim().length < 2) add('place', 'Enter your place of birth.');
         if (!b.marital) add('marital', 'Choose your marital status.');
         if (b.postal.trim().length < 3) add('postal', 'Enter your postal address.');
         if (b.physical.trim().length < 3) add('physical', 'Enter your physical address.');
@@ -5621,7 +5619,7 @@
     <fieldset class="plain" ${S.save === 'conflict' ? 'disabled' : ''}>${content}</fieldset>
     ${foot}
   </section></div>${askUi()}`,
-          { active: 'Declarations', tabbar: false },
+          { active: 'Declarations', tabbar: false, topbar: false },
         );
       }
       actions.reloadConflict = () => {
@@ -5701,21 +5699,19 @@
         return ws(
           `<div class="stack-lg">
     <div class="lock-block">
-      <div class="row" style="gap:10px;margin-bottom:12px"><span style="display:flex;color:var(--muted)">${icon('lock', 16)}</span><h2 style="font-size:15px;font-weight:600">From your Commission's roster</h2>${Kit.tip("Wrong? Ask your Commission's reporting officer to correct the roster. Your name cannot be changed here.", { label: 'Wrong details' })}</div>
+      <div class="row" style="gap:10px;margin-bottom:12px"><span style="display:flex;color:var(--muted)">${icon('lock', 16)}</span><h2 style="font-size:15px;font-weight:600">From your records</h2>${Kit.tip("From your Commission's roster and the national register. Wrong? Ask your Commission's reporting officer to correct them. They cannot be changed here.", { label: 'Wrong details' })}</div>
       <div class="kv k3">
         <div><div class="k">Surname</div><div class="v">${ME.surname}</div></div>
         <div><div class="k">First name</div><div class="v">${ME.first}</div></div>
         <div><div class="k">Other names</div><div class="v">${ME.other}</div></div>
+        <div><div class="k">Date of birth</div><div class="v">${b.dob}</div></div>
+        <div><div class="k">Place of birth</div><div class="v">${esc(b.place)}</div></div>
         <div><div class="k">Employer</div><div class="v">${roster(D).entity}</div></div>
         <div><div class="k">Designation</div><div class="v">${roster(D).designation}</div></div>
         <div><div class="k">Responsible Commission</div><div class="v">${esc(c.name)}</div></div>
       </div>
     </div>
     <div class="card card-pad stack-lg">
-      <div class="grid-2">
-        ${field('Date of birth', dateInput(P('bio.dob'), { err: E('dob') }), { id: fid(P('bio.dob')), error: E('dob') })}
-        ${field('Place of birth', input(P('bio.place'), { ph: 'Town and county, e.g. Kapsabet, Nandi', cls: E('place') ? 'is-invalid' : '', extra: 'maxlength="100"' }), { id: fid(P('bio.place')), error: E('place') })}
-      </div>
       <div class="field"><span class="label" id="ms-l">Marital status</span>${segc(P('bio.marital'), MARITAL, { err: !!E('marital'), label: 'Marital status' })}${errText(E('marital')) || rosterNote(D, 'marital')}</div>
       <div class="grid-2">
         ${field('Postal address', textarea(P('bio.postal'), { rows: 3, ph: 'P.O. Box 3100-30100, Eldoret', cls: E('postal') ? 'is-invalid' : '', extra: 'maxlength="200" style="min-height:84px"' }), { id: fid(P('bio.postal')), error: E('postal') })}
@@ -8852,6 +8848,13 @@
       /* canned grounded answers (the fake gateway); anything else declines */
       const ANSWERS = [
         {
+          // Small talk gets a reply, not the "could not find this in the Act" refusal.
+          re: /^\s*(hi|hello|hey|good (morning|afternoon|evening)|habari( yako| za \w+)?|hujambo|jambo|mambo|sasa|salamu)\s*[!.?]*\s*$/i,
+          cites: [],
+          en: 'Hello. I can answer questions about your declaration, for example what counts as an asset or which dates your income covers. What would you like to know?',
+          sw: 'Habari. Ninaweza kujibu maswali kuhusu tamko lako, kwa mfano ni nini kinachohesabiwa kama mali au mapato yako yanahusu tarehe zipi. Ungependa kujua nini?',
+        },
+        {
           re: /matatu|co-?own|jointly|pamoja/i,
           cites: ['fs-8', 'help-joint'],
           en: 'Yes. A vehicle you own with someone else is an asset. Declare it under Assets as a vehicle, at its whole value. Then switch on "Jointly held" and enter your share, for example 50%.',
@@ -9294,8 +9297,6 @@
           return (
             {
               physical: 'Give the house, estate or road and the town where you live now.',
-              dob: 'Use the date on your national ID.',
-              place: 'The town and county where you were born is enough.',
               postal: 'Use the P.O. Box where letters reach you.',
               nature: 'Pick the terms of your appointment, for example permanent.',
             }[i.field] || null
@@ -9817,7 +9818,6 @@
         J('decl-bio', '#116 Bio: pre-filled roster block', () => setupDraft('fresh')),
         J('j-bio-errors', '#116 Bio: field errors', () => {
           const D = setupDraft('fresh', { ui: { showErrors: true } });
-          D.bio.dob = '31/02/1977';
           D.touched.bio = 1;
           to('decl-bio');
         }),

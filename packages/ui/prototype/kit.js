@@ -646,7 +646,8 @@
     ['Notices', 'bell', 'declarant-after-submission.prototype.html#notices'],
   ];
   // Options: nav (array like PORTAL_NAV, e.g. an applicant nav), avatar ({ initials, href } or null to hide),
-  // lang (false hides the language button). Defaults are the declarant portal.
+  // lang (false hides the language button), topbar (false drops the header, for focused flows
+  // such as filling in a declaration). Defaults are the declarant portal.
   function portalShell(
     body,
     {
@@ -656,6 +657,7 @@
       nav = null,
       avatar = undefined,
       lang = true,
+      topbar = true,
     } = {},
   ) {
     const NAV = nav || PORTAL_NAV;
@@ -664,6 +666,11 @@
       const [f, h] = href.split('#');
       return `<a class="${active === l ? 'on' : ''} ${cls || ''}" href="${f === file ? '#' + h : href}" ${f === file ? `data-act="go" data-arg="${h}"` : ''}>${icon(ic, cls ? 21 : 17)}${cls ? `<span>${l}</span>` : ` ${l}`}${counts[l] ? `<span class="count">${counts[l]}</span>` : ''}</a>`;
     };
+    const tabs =
+      tabbar && NAV.length
+        ? `<nav class="tabbar" style="grid-template-columns:repeat(${NAV.length},1fr)">${NAV.map((n) => link(n, 'tab')).join('')}</nav>`
+        : '';
+    if (!topbar) return `<div class="pshell nobar"><div class="pbody">${body}</div>${tabs}</div>`;
     return `<div class="pshell"><header class="topbar">${logo(22, '')}<nav class="nav">${NAV.map((n) => link(n)).join('')}</nav><div class="spacer"></div>${lang ? `<div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili would switch the whole portal">${icon('globe', 16)} English</button></div>` : ''}${(() => {
       // Declarant portal: Help opens the help pages in the journey file. Custom portals (applicant, public) keep a toast.
       if (nav)
@@ -681,7 +688,7 @@
               const here = location.pathname.split('/').pop() === f;
               return `<a class="avatar" style="margin-left:4px;text-decoration:none" href="${here ? '#profile' : f + '#profile'}" ${here ? 'data-act="go" data-arg="profile"' : ''} aria-label="Your profile" title="Your profile">JK</a>`;
             })()
-    }</header><div class="pbody">${body}</div>${tabbar && NAV.length ? `<nav class="tabbar" style="grid-template-columns:repeat(${NAV.length},1fr)">${NAV.map((n) => link(n, 'tab')).join('')}</nav>` : ''}</div>`;
+    }</header><div class="pbody">${body}</div>${tabs}</div>`;
   }
 
   /* ---------- mount / render ---------- */

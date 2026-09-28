@@ -548,6 +548,10 @@ body.mobile #view::-webkit-scrollbar {
   .auth {
     grid-template-columns: minmax(460px, 1fr) minmax(0, 1.15fr);
   }
+  /* Get started steps: the form alone, no art panel. */
+  .auth.solo {
+    grid-template-columns: 1fr;
+  }
 }
 .auth-main {
   display: flex;

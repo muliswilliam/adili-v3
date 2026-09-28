@@ -1,18 +1,24 @@
-import { Button, Icon, LogoWordmark, ToastProvider, useToast } from '@adili/ui';
+import { Button, cn, Icon, LogoWordmark, ToastProvider, useToast } from '@adili/ui';
 import { Globe02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
-import { AuthArt, type AuthArtVariant } from './auth-art';
+import { AuthArt } from './auth-art';
 
 /**
  * Page chrome for the signed-out pages (landing and Get started): the form column with the logo
- * and sign-in link, and the photo panel beside it from 1000px. Follows the prototype's `.auth`.
+ * and sign-in link, and on the landing page the photo panel beside it from 1000px. Follows the
+ * prototype's `.auth`.
  */
-export function AuthShell({ art, children }: { art: AuthArtVariant; children: ReactNode }) {
+export function AuthShell({ art = false, children }: { art?: boolean; children: ReactNode }) {
   return (
     // Above the pages, so a toast such as "Email verified" survives the move to the next step.
     <ToastProvider>
-      <div className="grid min-h-dvh grid-cols-1 min-[1000px]:grid-cols-[minmax(460px,1fr)_minmax(0,1.15fr)]">
+      <div
+        className={cn(
+          'grid min-h-dvh grid-cols-1',
+          art && 'min-[1000px]:grid-cols-[minmax(460px,1fr)_minmax(0,1.15fr)]',
+        )}
+      >
         <div className="flex min-h-dvh flex-col p-5 min-[700px]:px-10 min-[700px]:py-7">
           <header className="flex min-h-9 items-center justify-between gap-4">
             <a
@@ -32,7 +38,7 @@ export function AuthShell({ art, children }: { art: AuthArtVariant; children: Re
             {children}
           </main>
         </div>
-        <AuthArt variant={art} />
+        {art ? <AuthArt /> : null}
       </div>
     </ToastProvider>
   );

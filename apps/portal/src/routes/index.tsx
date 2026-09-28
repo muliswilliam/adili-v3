@@ -31,7 +31,7 @@ function Home() {
 
 function Landing({ error }: { error: string | null }) {
   return (
-    <AuthShell art="landing">
+    <AuthShell art>
       {error ? (
         <Alert variant="destructive" className="mb-6">
           <Icon icon={AlertCircleIcon} />

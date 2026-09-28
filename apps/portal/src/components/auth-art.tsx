@@ -1,45 +1,24 @@
 import { Icon } from '@adili/ui';
-import {
-  Building03Icon,
-  Clock01Icon,
-  CloudIcon,
-  File02Icon,
-  SecurityCheckIcon,
-  SquareLock02Icon,
-} from '@hugeicons/core-free-icons';
+import { CloudIcon, File02Icon, SecurityCheckIcon } from '@hugeicons/core-free-icons';
 
-export type AuthArtVariant = 'landing' | 'onboarding';
-
-const ART = {
-  landing: {
-    title: 'Declare your income, assets and liabilities, simply and securely.',
-    items: [
-      [SecurityCheckIcon, 'Goes only to your Responsible Commission'],
-      [CloudIcon, 'Saves as you type, on any device'],
-      [File02Icon, 'Signed slip anyone can check'],
-    ],
-  },
-  onboarding: {
-    title: 'Set up your Adili account in a few minutes.',
-    items: [
-      [Building03Icon, 'For officers on a Commission roster'],
-      [SquareLock02Icon, 'Codes go to your contacts on file'],
-      [Clock01Icon, 'Takes about 5 minutes'],
-    ],
-  },
-} as const;
+const TITLE = 'Declare your income, assets and liabilities, simply and securely.';
+const ITEMS = [
+  [SecurityCheckIcon, 'Goes only to your Responsible Commission'],
+  [CloudIcon, 'Saves as you type, on any device'],
+  [File02Icon, 'Signed slip anyone can check'],
+] as const;
 
 /** A 1×1 transparent GIF: phones, where the panel is hidden, pick it instead of the photo. */
 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
- * The photo panel beside the signed-out pages, from 1000px wide. Decorative: it repeats what the
+ * The photo panel beside the landing page, from 1000px wide. The Get started steps show the form
+ * alone, so nothing competes with the step. Decorative: it repeats what the
  * pages say, so it is hidden from assistive technology. It stays in view while a long step
  * scrolls. The colours are fixed rather than tokens because they sit on the photo, which does not
  * change with the theme.
  */
-export function AuthArt({ variant }: { variant: AuthArtVariant }) {
-  const { title, items } = ART[variant];
+export function AuthArt() {
   return (
     <aside
       aria-hidden="true"
@@ -65,11 +44,11 @@ export function AuthArt({ variant }: { variant: AuthArtVariant }) {
       <div className="absolute inset-0 bg-[radial-gradient(rgb(255_255_255/0.22)_1px,transparent_1.4px)] bg-size-[5px_5px] mix-blend-soft-light" />
       <div className="absolute inset-x-11 top-12 text-[#1a1a1a]">
         <h2 className="max-w-[460px] text-[34px] leading-[1.12] font-semibold tracking-[-0.025em] text-balance">
-          {title}
+          {TITLE}
         </h2>
       </div>
       <ul className="absolute inset-x-11 bottom-10 grid gap-2.5">
-        {items.map(([icon, text]) => (
+        {ITEMS.map(([icon, text]) => (
           <li
             key={text}
             className="flex max-w-[400px] items-center gap-3 rounded-[14px] bg-white/72 px-3.5 py-3 text-sm font-medium text-[#1a1a1a] shadow-[0_1px_2px_rgb(0_0_0/0.06)] backdrop-blur-[10px]"
