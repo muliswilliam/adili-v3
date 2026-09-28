@@ -144,6 +144,61 @@ describe('Zod schemas', () => {
   });
 });
 
+describe('item source (spec 05b)', () => {
+  const sourced = fixtures<DeclarationV1>('valid').find(
+    ([name]) => name === 'biennial-registry-sources.json',
+  )?.[1];
+  if (!sourced) throw new Error('the registry-sources fixture is missing');
+
+  const sources = (document: DeclarationV1) =>
+    document.statements.flatMap((statement) =>
+      [...statement.income, ...statement.assets, ...statement.liabilities].flatMap((item) =>
+        item.source ? [[statement.personKey, item.id, item.source.kind] as const] : [],
+      ),
+    );
+
+  it('keeps each item’s source through a section save', () => {
+    const saved = sectionContents(sourced).map(
+      ([key, contents]) => [key, sectionSchema(key).parse(contents)] as const,
+    );
+
+    expect(saved).toEqual(sectionContents(sourced));
+    expect(sources(sourced)).toEqual([
+      ['officer', '0192f1a0-5a11-7000-8000-000000001001', 'document'],
+      ['officer', '0192f1a0-5a11-7000-8000-000000002001', 'ardhisasa'],
+      ['officer', '0192f1a0-5a11-7000-8000-000000002003', 'ntsa'],
+      [
+        'spouse:0192f1a0-5a11-7000-8000-000000000101',
+        '0192f1a0-5a11-7000-8000-000000003101',
+        'document',
+      ],
+    ]);
+  });
+
+  it('adds no source to a manually entered item', () => {
+    const { statement } = officerStatement();
+
+    const saved = sectionSchema('statement:officer').parse(statement) as typeof statement;
+
+    expect(saved).toEqual(statement);
+    expect(saved.income.some((item) => 'source' in item)).toBe(false);
+    expect(saved.assets.some((item) => 'source' in item)).toBe(false);
+  });
+
+  it('require the kind, suggestion and time of a source', () => {
+    const { statement, land } = officerStatement();
+    land.source = { verificationResultId: '0192f1a0-5a11-7000-8000-000000009101' } as never;
+
+    const result = sectionSchema('statement:officer').safeParse(statement);
+
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual([
+      'assets.0.source.kind',
+      'assets.0.source.suggestionId',
+      'assets.0.source.at',
+    ]);
+  });
+});
+
 describe('sectionContents', () => {
   it('splits a declaration into its capture sections, one statement per person', () => {
     const household = biennialHousehold();
