@@ -19,7 +19,7 @@ import {
   obligationTypeLabel,
   reminderChannelsLabel,
   reminderOffsetLabel,
-  reminderOutcomeLabel,
+  ReminderOutcomeText,
   Skeleton,
   Table,
   TableBody,
@@ -27,14 +27,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useObligationDetail,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  MinusSignIcon,
-  RefreshIcon,
-  Tick02Icon,
-} from '@hugeicons/core-free-icons';
-import { type ReactNode, useEffect, useState } from 'react';
+import { AlertCircleIcon, RefreshIcon } from '@hugeicons/core-free-icons';
+import type { ReactNode } from 'react';
 
 import type { Obligation, Reminder } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
@@ -42,34 +38,12 @@ import { messages as m } from './obligation-messages';
 import {
   type LoadObligationDetail,
   ObligationStatus,
+  SessionEnded,
   StartDeclarationButton,
   StatementDateTerm,
 } from './obligation-parts';
 
-type Detail = { status: 'loading' } | ObligationDetailResult;
-
-/** The obligation's detail, loaded for `id` and asked again each time `attempt` goes up. */
-function useObligationDetail(id: string, attempt: number, loadDetail: LoadObligationDetail) {
-  const key = `${id}:${String(attempt)}`;
-  const [loaded, setLoaded] = useState<{ key: string; result: ObligationDetailResult } | null>(
-    null,
-  );
-
-  useEffect(() => {
-    let current = true;
-    const settle = (result: ObligationDetailResult) => {
-      if (current) setLoaded({ key, result });
-    };
-    loadDetail(id).then(settle, () => {
-      settle({ status: 'unavailable' });
-    });
-    return () => {
-      current = false;
-    };
-  }, [id, key, loadDetail]);
-
-  return loaded?.key === key ? loaded.result : ({ status: 'loading' } satisfies Detail);
-}
+const unavailable: ObligationDetailResult = { status: 'unavailable' };
 
 /**
  * An obligation's detail: every field of the card, the Commission and its issuer code, the
@@ -89,9 +63,8 @@ export function ObligationDrawer({
   loadDetail: LoadObligationDetail;
   now?: number;
 }) {
-  const [attempt, setAttempt] = useState(0);
   const { id } = obligation;
-  const detail: Detail = useObligationDetail(id, attempt, loadDetail);
+  const { detail, retry } = useObligationDetail(id, loadDetail, unavailable);
 
   const { commission } = obligation;
   const title = obligationTypeLabel(obligation.type, obligation.statementDate);
@@ -131,19 +104,14 @@ export function ObligationDrawer({
           </dl>
           <section aria-labelledby={`${id}-reminders`} className="grid gap-1.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <h3 id={`${id}-reminders`} className="text-[14.5px] font-semibold">
+              <h3 id={`${id}-reminders`} className="text-sm font-semibold">
                 {m.reminders}
               </h3>
               <p className="text-[13px] text-muted-foreground">
                 {m.reminderSchedule(commission.name)}
               </p>
             </div>
-            <ReminderHistory
-              detail={detail}
-              onRetry={() => {
-                setAttempt((count) => count + 1);
-              }}
-            />
+            <ReminderHistory detail={detail} onRetry={retry} />
           </section>
         </DrawerBody>
         <DrawerFooter className="flex-wrap items-center">
@@ -171,8 +139,15 @@ function Fact({ term, children }: { term: ReactNode; children: ReactNode }) {
   );
 }
 
-function ReminderHistory({ detail, onRetry }: { detail: Detail; onRetry: () => void }) {
-  if (detail.status === 'loading') {
+function ReminderHistory({
+  detail,
+  onRetry,
+}: {
+  /** Null while loading. */
+  detail: ObligationDetailResult | null;
+  onRetry: () => void;
+}) {
+  if (detail === null) {
     return (
       <div aria-busy="true" aria-label={m.reminderHistory} className="grid gap-3 py-2">
         <Skeleton className="w-full" />
@@ -181,6 +156,7 @@ function ReminderHistory({ detail, onRetry }: { detail: Detail; onRetry: () => v
       </div>
     );
   }
+  if (detail.status === 'unauthenticated') return <SessionEnded />;
   if (detail.status === 'unavailable') {
     return (
       <Alert variant="destructive">
@@ -255,26 +231,11 @@ function ReminderTable({ reminders }: { reminders: Reminder[] }) {
               {reminderChannelsLabel(reminder.channels)}
             </TableCell>
             <TableCell className="py-2.5 pr-0 align-top last:pr-0 max-sm:mt-1 max-sm:p-0">
-              <Outcome reminder={reminder} />
+              <ReminderOutcomeText outcome={reminder.outcome} channels={reminder.channels} />
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
-  );
-}
-
-function Outcome({ reminder }: { reminder: Reminder }) {
-  const icon =
-    reminder.outcome === 'sent'
-      ? { icon: Tick02Icon, className: 'text-success' }
-      : reminder.outcome === 'failed'
-        ? { icon: AlertCircleIcon, className: 'text-destructive' }
-        : { icon: MinusSignIcon, className: 'text-muted-foreground' };
-  return (
-    <span className="inline-flex items-start gap-1.5">
-      <Icon icon={icon.icon} className={cn('mt-0.5 size-3.5 shrink-0', icon.className)} />
-      {reminderOutcomeLabel(reminder.outcome, reminder.channels)}
-    </span>
   );
 }

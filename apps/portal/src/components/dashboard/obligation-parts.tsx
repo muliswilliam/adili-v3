@@ -1,9 +1,21 @@
-import { Button, cn, DateText, Icon, obligationStatusMeta, StatusBadge, Tooltip } from '@adili/ui';
-import { AlertCircleIcon, InformationCircleIcon } from '@hugeicons/core-free-icons';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  cn,
+  DateText,
+  Icon,
+  ObligationStatusBadge,
+  Tooltip,
+} from '@adili/ui';
+import { AlertCircleIcon, InformationCircleIcon, Login03Icon } from '@hugeicons/core-free-icons';
 import { useId } from 'react';
 
 import type { Obligation } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
+import { SIGN_IN } from '../onboarding/links';
 import { messages as m } from './obligation-messages';
 
 export type LoadObligationDetail = (id: string) => Promise<ObligationDetailResult>;
@@ -21,19 +33,16 @@ export function ObligationStatus({
 }) {
   const { status } = obligation;
   if (status === 'cancelled') return null;
-  const meta = obligationStatusMeta[status];
+  // On a tinted card the pill is near-white with a hairline, so it reads on the tint.
+  const onTint = onCard && status !== 'upcoming';
   return (
     <>
-      <StatusBadge variant={meta.variant}>{meta.label}</StatusBadge>
+      <ObligationStatusBadge status={status} />
       {status === 'filed' ? null : (
-        <span
+        <Badge
           className={cn(
-            'inline-flex h-6 items-center rounded-full px-[9px] text-[12.5px] font-medium whitespace-nowrap',
-            status === 'upcoming' || !onCard
-              ? 'bg-muted text-secondary-foreground'
-              : 'bg-card/80 ring-1',
-            onCard && status === 'due' && 'text-brand-subtle-foreground ring-brand/20',
-            onCard && status === 'overdue' && 'ring-warning/25',
+            onTint && 'bg-card/80 shadow-card',
+            onTint && status === 'due' && 'text-brand-subtle-foreground',
           )}
         >
           {status === 'upcoming' ? (
@@ -41,9 +50,28 @@ export function ObligationStatus({
           ) : (
             <DateText date={obligation.dueDate} now={now} />
           )}
-        </span>
+        </Badge>
       )}
     </>
+  );
+}
+
+/** The session ended while the dashboard was open: the way back is to sign in again. */
+export function SessionEnded() {
+  return (
+    <Alert variant="warning">
+      <Icon icon={AlertCircleIcon} />
+      <AlertTitle>{m.sessionEndedTitle}</AlertTitle>
+      <AlertDescription className="grid justify-items-start gap-2.5">
+        <p>{m.sessionEndedText}</p>
+        <Button asChild variant="secondary" size="sm">
+          <a href={SIGN_IN}>
+            <Icon icon={Login03Icon} />
+            {m.signInAgain}
+          </a>
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { getBff } from './bff.server';
 import { declarationsClient } from './declarations/client.server';
 import {
+  asDeclarant,
   loadMyObligations,
   loadObligation,
   type MyObligationsResult,
@@ -15,8 +16,7 @@ import {
 export const getMyObligations = createServerFn({ method: 'GET' }).handler(
   async (): Promise<MyObligationsResult> => {
     const session = await getBff().getSession(getRequest());
-    if (!session) return { status: 'not-declarant' };
-    return loadMyObligations(declarationsClient(session.accessToken));
+    return asDeclarant(session, declarationsClient, loadMyObligations);
   },
 );
 
@@ -25,6 +25,5 @@ export const getObligationDetail = createServerFn({ method: 'GET' })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }): Promise<ObligationDetailResult> => {
     const session = await getBff().getSession(getRequest());
-    if (!session) return { status: 'not-found' };
-    return loadObligation(declarationsClient(session.accessToken), data.id);
+    return asDeclarant(session, declarationsClient, (client) => loadObligation(client, data.id));
   });

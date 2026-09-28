@@ -1,16 +1,36 @@
 import type { DeclarationsClient } from './declarations/client.server';
 import type { ObligationDetail, ObligationGroup } from './declarations/types';
 
+/** There is no session (it ended or was never there): the declarant has to sign in again. */
+export interface Unauthenticated {
+  status: 'unauthenticated';
+}
+
 export type MyObligationsResult =
   | { status: 'ok'; groups: ObligationGroup[] }
   /** `GET /v1/me/obligations` answered 404: the caller has no person, so is not a declarant. */
   | { status: 'not-declarant' }
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  | Unauthenticated;
 
 export type ObligationDetailResult =
   | { status: 'ok'; obligation: ObligationDetail }
   | { status: 'not-found' }
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  | Unauthenticated;
+
+/**
+ * Runs `work` with a declarations client acting as the session's user, or answers
+ * `unauthenticated` without calling the service when there is no session.
+ */
+export async function asDeclarant<T>(
+  session: { accessToken: string } | null,
+  client: (accessToken: string) => DeclarationsClient,
+  work: (client: DeclarationsClient) => Promise<T>,
+): Promise<T | Unauthenticated> {
+  if (!session) return { status: 'unauthenticated' };
+  return work(client(session.accessToken));
+}
 
 /** `GET /v1/me/obligations`: the declarant's obligations, grouped by Commission. */
 export async function loadMyObligations(client: DeclarationsClient): Promise<MyObligationsResult> {

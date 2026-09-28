@@ -224,6 +224,16 @@ describe('ObligationsView', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it('asks to sign in again when the session has ended', () => {
+    renderView({ status: 'unauthenticated' });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Your session has ended');
+    expect(within(alert).getByRole('link', { name: 'Sign in again' }).getAttribute('href')).toBe(
+      '/auth/login',
+    );
+  });
+
   it('renders nothing for someone who is not a declarant', () => {
     renderView({ status: 'not-declarant' });
 
@@ -404,6 +414,25 @@ describe('Obligation drawer', () => {
     expect(drawer.textContent).toContain('Biennial 2027');
     expect(drawer.textContent).toContain('Opens 1 November 2027');
     expect(drawer.textContent).toContain('No reminders sent yet.');
+  });
+
+  it('asks to sign in again when the session ended before the history loaded', async () => {
+    const loadDetail = () => Promise.resolve<ObligationDetailResult>({ status: 'unauthenticated' });
+    renderView(
+      { status: 'ok', groups: [{ commission: TSC, obligations: [obligation()] }] },
+      { loadDetail },
+    );
+
+    await act(async () => {
+      fireEvent.click(within(card('Initial declaration')).getByRole('button', { name: /Details/ }));
+      await Promise.resolve();
+    });
+
+    const alert = within(screen.getByRole('dialog')).getByRole('alert');
+    expect(alert.textContent).toContain('Your session has ended');
+    expect(within(alert).getByRole('link', { name: 'Sign in again' }).getAttribute('href')).toBe(
+      '/auth/login',
+    );
   });
 
   it('offers a retry when the reminder history cannot be loaded', async () => {
