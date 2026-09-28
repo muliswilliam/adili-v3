@@ -253,7 +253,7 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
         declarationId: DECLARATION_ID,
         personKey: `spouse:${SPOUSE_ID}`,
         systems: ['kra', 'ntsa', 'brs', 'ardhisasa'],
-        textVersion: 'registry-consent.v1',
+        textVersion: 'registry-consent.v1:kra+ntsa+brs+ardhisasa',
         idempotencyKey: expect.any(String) as string,
       },
     });
@@ -352,7 +352,11 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
       expect(lookupsMock).toHaveBeenCalledTimes(1);
     });
     expect(lookupsMock.mock.calls[0]?.[0].data.systems).toEqual(['ardhisasa']);
-    expect(lookupsMock.mock.calls[0]?.[0].data.textVersion).toBe('registry-consent.v1');
+    // The text named only ArdhiSasa, so its version differs from the full check's.
+    expect(lookupsMock.mock.calls[0]?.[0].data.textVersion).toBe('registry-consent.v1:ardhisasa');
+    expect(lookupsMock.mock.calls[0]?.[0].data.textVersion).not.toBe(
+      'registry-consent.v1:kra+ntsa+brs+ardhisasa',
+    );
   });
 
   it('disables the check when the service says the person has no national ID', async () => {

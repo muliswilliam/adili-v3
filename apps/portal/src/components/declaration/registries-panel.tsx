@@ -4,6 +4,7 @@ import {
   Card,
   CardIcon,
   ConsentDialog,
+  consentTextVersion,
   Dialog,
   DialogBody,
   DialogContent,
@@ -53,7 +54,6 @@ import type { AnyItem, Item } from '../../declaration/statement';
 import { type AcceptInput, useAcceptSuggestion } from './suggestion-accept';
 import {
   categoryOf,
-  CONSENT_TEXT_VERSION,
   editFields,
   editValue,
   isChecking,
@@ -231,7 +231,8 @@ export function RegistriesPanel({
           declarationId,
           personKey,
           systems: [...systems],
-          textVersion: CONSENT_TEXT_VERSION,
+          // Names the exact text the declarant agreed to: the same registries the dialog named.
+          textVersion: consentTextVersion(systems),
           idempotencyKey: crypto.randomUUID(),
         },
       });
@@ -470,6 +471,9 @@ export function RegistriesPanel({
     </Button>
   );
 
+  // What the consent dialog names is exactly what is asked (and what its text version says).
+  const asked = consentFor ?? REGISTRIES;
+
   const sub = checking
     ? REGISTRY_COPY.checking
     : checkedAt
@@ -569,12 +573,11 @@ export function RegistriesPanel({
           }}
           name={person.name}
           maskedId={person.nationalId ? maskNationalId(person.nationalId) : undefined}
-          registries={(consentFor ?? REGISTRIES).map((source) => SOURCE_NAMES[source])}
+          registries={asked}
           busy={starting}
           onContinue={() => {
-            const systems = consentFor ?? REGISTRIES;
             setConsentFor(null);
-            void start(systems);
+            void start(asked);
           }}
         />
         <EditAndAddDialog

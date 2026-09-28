@@ -90,7 +90,7 @@ function lookup(declarationId: string, overrides: Partial<RegistryLookupsInput> 
     declarationId,
     personKey: 'officer',
     systems: [...ALL],
-    textVersion: 'registry-consent.v1',
+    textVersion: 'registry-consent.v1:kra+ntsa+brs+ardhisasa',
     idempotencyKey: crypto.randomUUID(),
     ...overrides,
   });

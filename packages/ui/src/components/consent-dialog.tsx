@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from './dialog';
 import { Icon } from './icon';
-import { SOURCE_KINDS, SOURCE_NAMES } from './source-badge';
+import { SOURCE_KINDS, SOURCE_NAMES, type SourceKind } from './source-badge';
 
 /** A national ID with all but its last three digits hidden: "12345678" → "•••••678". */
 export function maskNationalId(id: string): string {
@@ -23,10 +23,31 @@ export function maskNationalId(id: string): string {
   return '•'.repeat(Math.max(0, trimmed.length - 3)) + trimmed.slice(-3);
 }
 
-/** Every registry a check can ask, by name: every source but a document. */
-const EVERY_REGISTRY = SOURCE_KINDS.filter((kind) => kind !== 'document').map(
-  (kind) => SOURCE_NAMES[kind],
+/** A registry a check can ask: any source but a document. */
+export type RegistryKind = Exclude<SourceKind, 'document'>;
+
+/** Every registry a check can ask, in the order the consent text names them. */
+export const REGISTRY_KINDS: readonly RegistryKind[] = SOURCE_KINDS.filter(
+  (kind): kind is RegistryKind => kind !== 'document',
 );
+
+/** The version of the default consent text (`ConsentMessages.body`): bump it on any change. */
+const CONSENT_TEMPLATE_VERSION = 'registry-consent.v1';
+
+/** The registries asked, once each, in the fixed order of `REGISTRY_KINDS`. */
+function inOrder(registries: readonly RegistryKind[]): RegistryKind[] {
+  return REGISTRY_KINDS.filter((kind) => registries.includes(kind));
+}
+
+/**
+ * Identifies the exact consent text shown for a check of `registries`: the template version and
+ * the registries the text names, in the fixed order, e.g.
+ * `registry-consent.v1:kra+ntsa+brs+ardhisasa`. Build it from the same list passed to
+ * `ConsentDialog` and send it with the lookup.
+ */
+export function consentTextVersion(registries: readonly RegistryKind[]): string {
+  return `${CONSENT_TEMPLATE_VERSION}:${inOrder(registries).join('+')}`;
+}
 
 export interface ConsentMessages {
   title: string;
@@ -59,10 +80,11 @@ export interface ConsentDialogProps {
   /** Their national ID, already masked (see `maskNationalId`). Left out of the text when absent. */
   maskedId?: string;
   /**
-   * The registries this check asks, by name, e.g. `['ArdhiSasa']` to retry one. Defaults to
-   * every registry.
+   * The registries this check asks, e.g. `['ardhisasa']` to retry one; the text names them in
+   * the fixed order. Defaults to every registry. Send `consentTextVersion` of the same list with
+   * the lookup.
    */
-  registries?: readonly string[];
+  registries?: readonly RegistryKind[];
   /**
    * Called when the declarant has ticked the request and pressed Continue. Close the dialog here.
    */
@@ -84,7 +106,7 @@ export function ConsentDialog({
   onOpenChange,
   name,
   maskedId,
-  registries = EVERY_REGISTRY,
+  registries = REGISTRY_KINDS,
   onContinue,
   busy = false,
   messages: overrides,
@@ -119,7 +141,11 @@ export function ConsentDialog({
         </DialogHeader>
         {/* Mounted only while open, so the tick starts cleared each time. */}
         <ConsentForm
-          body={messages.body(name, maskedId, listNames(registries))}
+          body={messages.body(
+            name,
+            maskedId,
+            listNames(inOrder(registries).map((kind) => SOURCE_NAMES[kind])),
+          )}
           messages={messages}
           busy={busy}
           onContinue={onContinue}

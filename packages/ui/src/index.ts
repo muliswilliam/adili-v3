@@ -38,7 +38,10 @@ export {
   ConsentDialog,
   type ConsentDialogProps,
   type ConsentMessages,
+  consentTextVersion,
   maskNationalId,
+  REGISTRY_KINDS,
+  type RegistryKind,
 } from './components/consent-dialog';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
 export { CountrySelect, type CountrySelectProps } from './components/country-select';

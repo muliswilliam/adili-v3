@@ -39,9 +39,6 @@ import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
 
 export const REGISTRIES: readonly RegistrySystem[] = ['kra', 'ntsa', 'brs', 'ardhisasa'];
 
-/** The version of the consent text the declarant ticks, sent with every lookup. */
-export const CONSENT_TEXT_VERSION = 'registry-consent.v1';
-
 /** A suggestion as the rules need it; the mock passes its stored ones. */
 export interface SuggestionLike {
   itemType: string;

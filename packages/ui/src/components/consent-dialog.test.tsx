@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ConsentDialog,
   type ConsentDialogProps,
+  consentTextVersion,
   maskNationalId,
 } from './consent-dialog';
 
@@ -52,6 +53,15 @@ describe('maskNationalId', () => {
   });
 });
 
+describe('consentTextVersion', () => {
+  it('names the template and the registries asked, in the fixed order', () => {
+    expect(consentTextVersion(['ardhisasa', 'kra', 'brs', 'ntsa'])).toBe(
+      'registry-consent.v1:kra+ntsa+brs+ardhisasa',
+    );
+    expect(consentTextVersion(['ardhisasa'])).toBe('registry-consent.v1:ardhisasa');
+  });
+});
+
 describe('ConsentDialog', () => {
   it('is a modal naming the person and their masked ID', () => {
     render(<Harness />);
@@ -66,8 +76,17 @@ describe('ConsentDialog', () => {
     );
   });
 
+  it('names the registries in the fixed order, whatever order they are passed in', () => {
+    render(<Harness registries={['ardhisasa', 'kra']} />);
+    openDialog();
+
+    expect(screen.getByText(/what they hold about/).textContent).toMatch(
+      /^Adili will ask KRA and ArdhiSasa what/,
+    );
+  });
+
   it('names only the registries asked, e.g. to retry one', () => {
-    render(<Harness registries={['ArdhiSasa']} />);
+    render(<Harness registries={['ardhisasa']} />);
     openDialog();
 
     expect(screen.getByText(/what they hold about/).textContent).toBe(
