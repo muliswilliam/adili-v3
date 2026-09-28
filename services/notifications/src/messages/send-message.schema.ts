@@ -1,24 +1,63 @@
 import { z } from 'zod';
 
-import { CHANNELS, isTemplateId, LOCALES, templateChannel, templateParams } from './templates.js';
+import {
+  CHANNELS,
+  isTemplateId,
+  LOCALES,
+  TEMPLATE_IDS,
+  templateChannel,
+  templateParams,
+} from './templates.js';
 
 // ITU-T E.164: a plus, a country code that never starts with 0, at most 15 digits.
 const E164 = /^\+[1-9]\d{7,14}$/;
 const email = z.email();
 
-/** Body of `POST /internal/v1/messages` (notifications.yaml `SendMessage`). */
-export const sendMessageSchema = z
-  .object({
-    channel: z.enum(CHANNELS),
-    recipient: z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('address'), to: z.string().trim().min(1).max(254) }),
-      z.object({ kind: z.literal('person'), personId: z.uuid() }),
-    ]),
-    template: z.string().min(1),
-    params: z.record(z.string(), z.unknown()),
-    locale: z.enum(LOCALES).default('en'),
-    tenant: z.string().min(1).max(64).optional(),
-  })
+export const channelSchema = z.enum(CHANNELS);
+
+export const templateIdSchema = z
+  .enum(TEMPLATE_IDS)
+  .meta({ description: 'Registered templates; each declares its params' });
+
+export const recipientSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('address'),
+    to: z
+      .string()
+      .trim()
+      .min(1)
+      .max(254)
+      .meta({ description: 'Email address or E.164 phone number, matching the channel' }),
+  }),
+  z.object({
+    kind: z.literal('person'),
+    personId: z.uuid().meta({
+      description:
+        'Contacts resolved through the directory. Not supported yet: rejected with 400 until the directory serves contacts',
+    }),
+  }),
+]);
+
+/** `SendMessage`: body of `POST /internal/v1/messages` as the contract states it. */
+export const sendMessageBody = z.object({
+  channel: channelSchema,
+  recipient: recipientSchema,
+  template: templateIdSchema,
+  params: z
+    .record(z.string(), z.unknown())
+    .meta({ description: "Validated against the template's parameter schema" }),
+  locale: z.enum(LOCALES).default('en'),
+  tenant: z.string().min(1).max(64).optional().meta({
+    description: 'Tenant key for audit and per-tenant branding; optional for platform messages',
+  }),
+});
+
+/**
+ * Validates `POST /internal/v1/messages`. The template is first taken as any string so that an
+ * unknown one is reported together with the recipient and params errors.
+ */
+export const sendMessageSchema = sendMessageBody
+  .extend({ template: z.string().min(1) })
   // One pass, so a caller sees every recipient, template and params error in one response.
   .superRefine((body, ctx) => {
     const { channel, recipient, template, params } = body;

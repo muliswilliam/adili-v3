@@ -108,6 +108,9 @@ export const templates = {
 
 export type TemplateId = keyof typeof templates;
 
+/** Every template id, in registration order (the contract's `TemplateId` enum). */
+export const TEMPLATE_IDS = Object.keys(templates) as TemplateId[];
+
 export function isTemplateId(id: string): id is TemplateId {
   return Object.hasOwn(templates, id);
 }

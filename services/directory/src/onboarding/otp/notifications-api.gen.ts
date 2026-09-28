@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Render a template and send it by email or SMS
-         * @description Synchronous with a 5-second budget. Callers use service tokens.
+         * @description Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.
          */
         post: operations["sendMessage"];
         delete?: never;
@@ -28,12 +28,13 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Delivery status of a message */
+        /**
+         * Delivery status of a message
+         * @description Only the service that sent the message sees it.
+         */
         get: operations["getMessage"];
         put?: never;
         post?: never;
@@ -53,7 +54,7 @@ export interface components {
          * @description Registered templates; each declares its params
          * @enum {string}
          */
-        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email" | "acknowledgement-email" | "acknowledgement-sms" | "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms" | "decision-email" | "decision-sms" | "notice-email" | "notice-sms" | "salary-stopped-email" | "salary-stopped-sms" | "salary-reinstated-email" | "salary-reinstated-sms" | "form-m-draft-ready-email" | "form-m-reminder-email" | "form-m-chase-email" | "form-m-receipt-email" | "access-request-acknowledged-email" | "access-request-notified-email" | "access-request-notified-sms" | "access-decision-applicant-email" | "access-decision-declarant-email" | "access-package-ready-email" | "access-officer-reminder-email" | "lea-grant-notice-email" | "lea-decision-email" | "certified-copy-ready-email";
+        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email";
         Recipient: {
             /** @constant */
             kind: "address";
@@ -64,7 +65,7 @@ export interface components {
             kind: "person";
             /**
              * Format: uuid
-             * @description Contacts resolved through the directory; failed with error no-contact when none
+             * @description Contacts resolved through the directory. Not supported yet: rejected with 400 until the directory serves contacts
              */
             personId: string;
         };
@@ -92,9 +93,9 @@ export interface components {
             channel: components["schemas"]["Channel"];
             template: components["schemas"]["TemplateId"];
             status: components["schemas"]["MessageStatus"];
-            /** @description Reason when failed, e.g. timeout, rejected-recipient, no-contact */
-            error?: string | null;
-            providerMessageId?: string | null;
+            /** @description Reason when failed: timeout, rejected-recipient or provider-error */
+            error: string | null;
+            providerMessageId: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -102,13 +103,24 @@ export interface components {
             type: string;
             title: string;
             status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
             errors?: {
                 path: string;
                 message: string;
             }[];
         };
+        /**
+         * @description Templates later specs register. Not accepted yet; each moves into `TemplateId` when implemented.
+         * @enum {string}
+         */
+        PlannedTemplateId: "obligation-reminder-sms" | "obligation-reminder-email" | "acknowledgement-email" | "acknowledgement-sms" | "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms" | "decision-email" | "decision-sms" | "notice-email" | "notice-sms" | "salary-stopped-email" | "salary-stopped-sms" | "salary-reinstated-email" | "salary-reinstated-sms" | "form-m-draft-ready-email" | "form-m-reminder-email" | "form-m-chase-email" | "form-m-receipt-email" | "access-request-acknowledged-email" | "access-request-notified-email" | "access-request-notified-sms" | "access-decision-applicant-email" | "access-decision-declarant-email" | "access-package-ready-email" | "access-officer-reminder-email" | "lea-grant-notice-email" | "lea-decision-email" | "certified-copy-ready-email";
     };
     responses: never;
     parameters: never;
@@ -140,7 +152,7 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description Unknown template, invalid recipient or params */
+            /** @description Unknown template, or a recipient or params the template rejects */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -149,7 +161,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Caller lacks the messages scope */
+            /** @description Requires one of the scopes: messages */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -180,7 +192,25 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description Not found */
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the scopes: messages */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No message with this id, or another caller sent it */
             404: {
                 headers: {
                     [name: string]: unknown;
