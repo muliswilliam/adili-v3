@@ -7,6 +7,7 @@ import type {
   DeclarationSummary,
   DocumentKind,
   MyObligations,
+  RegistrySystem,
   SectionEnvelope,
   SectionKey,
   SectionSaveResult,
@@ -276,9 +277,6 @@ export type LoadedSuggestionSet = Omit<SuggestionSet, 'suggestions'> & {
   suggestions: LoadedSuggestion[];
 };
 
-/** The registries a lookup can ask (every `SuggestionSource` but `document`). */
-export type RegistrySystem = Exclude<SuggestionSet['source'], 'document'>;
-
 function loadedSuggestion(suggestion: Suggestion): LoadedSuggestion {
   return {
     ...suggestion,
@@ -480,8 +478,6 @@ export function dismissSuggestion(
     return response.status === 404 ? notFound : unavailable;
   });
 }
-
-export type { DocumentKind };
 
 export interface ExtractAttachmentInput {
   declarationId: string;

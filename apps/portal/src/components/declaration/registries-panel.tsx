@@ -45,8 +45,8 @@ import type {
   LoadedSection,
   LoadedSuggestion,
   LoadedSuggestionSet,
-  RegistrySystem,
 } from '../../server/declarations.server';
+import type { RegistrySystem } from '../../server/declarations/types';
 import type { Draft, Statement } from '../../declaration/contents';
 import type { AnyItem, Item } from '../../declaration/statement';
 import { type AcceptInput, useAcceptSuggestion } from './suggestion-accept';

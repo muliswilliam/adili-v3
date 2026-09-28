@@ -2,12 +2,11 @@ import type { RegistryStatus, RegistryStatusEntry } from '@adili/ui';
 import { SOURCE_NAMES } from '@adili/ui';
 
 import type {
-  DocumentKind,
   JsonObject,
   LoadedSuggestion,
   LoadedSuggestionSet,
-  RegistrySystem,
 } from '../server/declarations.server';
+import type { DocumentKind, RegistrySystem } from '../server/declarations/types';
 import { ASSET_TYPES, type Draft, INCOME_TYPES, LIABILITY_TYPES, type Statement } from './contents';
 import { countyName } from './format';
 import { TYPE_LABELS } from './labels';

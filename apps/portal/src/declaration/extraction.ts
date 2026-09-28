@@ -1,11 +1,11 @@
 import { confidenceLevel, type ConfidenceLevel } from '@adili/ui';
 
 import type {
-  DocumentKind,
   JsonObject,
   LoadedSuggestion,
   LoadedSuggestionSet,
 } from '../server/declarations.server';
+import type { DocumentKind } from '../server/declarations/types';
 import {
   editFields,
   fieldText as text,

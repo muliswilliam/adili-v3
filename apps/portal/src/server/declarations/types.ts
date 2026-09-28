@@ -22,6 +22,9 @@ export type Suggestion = Schemas['Suggestion'];
 export type SuggestionSet = Schemas['SuggestionSet'];
 export type SuggestionSource = Schemas['SuggestionSource'];
 
+/** The registries a lookup can ask (every `SuggestionSource` but `document`). */
+export type RegistrySystem = Exclude<SuggestionSource, 'document'>;
+
 /** What the declarant says a document is, as `extractAttachment` takes it (an inline enum). */
 export type DocumentKind =
   operations['extractAttachment']['requestBody']['content']['application/json']['documentKindHint'];

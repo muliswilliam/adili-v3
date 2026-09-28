@@ -34,7 +34,8 @@ import {
   extractDeclarationAttachment,
   listDeclarationSuggestions,
 } from '../../server/declarations';
-import type { DocumentKind, JsonObject, LoadedSuggestion } from '../../server/declarations.server';
+import type { JsonObject, LoadedSuggestion } from '../../server/declarations.server';
+import type { DocumentKind } from '../../server/declarations/types';
 import { markExtractionOff } from './extraction-availability';
 import { DOCUMENT_KIND_LABELS } from '../../declaration/labels';
 import {
