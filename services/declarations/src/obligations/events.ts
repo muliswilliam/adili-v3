@@ -1,5 +1,6 @@
 import type { NewEvent } from '@adili/events';
 
+import { biennialCycleKey } from './cycle-key.js';
 import type { CancelReason, ObligationStatus, ObligationType } from './engine.js';
 import type { ReminderChannel, ReminderOutcome } from './schema.js';
 
@@ -73,7 +74,7 @@ export interface CycleOpenedData extends Record<string, unknown> {
 
 /** Subject: the cycle key (`biennial:<year>`); tenant: the Commission. */
 export function cycleOpened(tenant: string, data: CycleOpenedData): NewEvent<CycleOpenedData> {
-  return { type: CYCLE_OPENED, subject: `biennial:${String(data.cycleYear)}`, tenant, data };
+  return { type: CYCLE_OPENED, subject: biennialCycleKey(data.cycleYear), tenant, data };
 }
 
 /** The directory events the declarations service consumes, and their data (ids only). */

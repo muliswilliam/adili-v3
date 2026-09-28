@@ -13,6 +13,7 @@ import {
   NotificationsUnavailable,
   type ReminderChannel,
 } from '../../notifications/notifications-client.js';
+import { fallbackIssuerCode } from '../access.js';
 import type { Transaction } from '../apply-page.js';
 import { type CivilDate, nairobiDate } from '../dates.js';
 import type { ObligationStatus } from '../engine.js';
@@ -316,7 +317,7 @@ export class ObligationSteps {
         .leftJoin(commissionRefs, eq(commissionRefs.slug, filingObligations.tenant))
         .where(eq(filingObligations.id, obligationId)),
     );
-    return row && { ...row, commissionName: row.commissionName ?? row.tenant.toUpperCase() };
+    return row && { ...row, commissionName: row.commissionName ?? fallbackIssuerCode(row.tenant) };
   }
 
   /** Writes the reminder row and its event once; a row already there wins. */

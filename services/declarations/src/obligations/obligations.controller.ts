@@ -10,18 +10,15 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { CommissionObligationsService, EACC_ROLES } from './commission-obligations.service.js';
+import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN, TENANT_SLUG } from './access.js';
+import { CommissionObligationsService } from './commission-obligations.service.js';
 import {
   type ListCommissionObligationsQuery,
   listCommissionObligationsQuery,
   type SummaryQuery,
   summaryQuery,
 } from './commission-query.js';
-import {
-  COMMISSION_STAFF_ROLES,
-  ObligationsService,
-  PLATFORM_ADMIN,
-} from './obligations.service.js';
+import { ObligationsService } from './obligations.service.js';
 import type {
   CommissionSummary,
   MyObligations,
@@ -34,7 +31,7 @@ const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 /** The `slug` path parameter, as the contract's `Slug`. */
 const ApiSlugParam = () =>
-  ApiParam({ name: 'slug', schema: { type: 'string', pattern: '^[a-z][a-z0-9]{1,19}$' } });
+  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } });
 
 @ApiTags('obligations')
 @Controller('v1')

@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
+import { BIENNIAL_CYCLE_KEY } from './cycle-key.js';
 import { OBLIGATION_STATUS_VALUES, OBLIGATION_TYPE_VALUES } from './schema.js';
-
-/** A biennial cycle key, `biennial:<year>`. */
-export const BIENNIAL_CYCLE_KEY = /^biennial:(\d{4})$/;
 
 const cycleParameter = z
   .string()

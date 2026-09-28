@@ -3,6 +3,7 @@ import { Payload } from '@nestjs/microservices';
 import { type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
+import { TENANT_SLUG } from './access.js';
 import {
   DECLARANT_ONBOARDED,
   POLICY_CHANGED,
@@ -11,7 +12,7 @@ import {
 } from './events.js';
 import { type IngestedEvent, RosterIngest } from './roster-ingest.js';
 
-const tenantSchema = z.string().regex(/^[a-z][a-z0-9]{1,19}$/);
+const tenantSchema = z.string().regex(TENANT_SLUG);
 
 const importCompletedData = z.object({ importId: z.uuid() });
 const exitsConfirmedData = z.object({ batchId: z.uuid() });

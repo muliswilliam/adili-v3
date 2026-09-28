@@ -18,18 +18,7 @@ import {
   obligationReminders,
   rosterSnapshots,
 } from './schema.js';
-
-/** Roles of a Commission's staff, who see their own Commission's obligations. */
-export const COMMISSION_STAFF_ROLES = [
-  'reporting-officer',
-  'reviewer',
-  'supervisor',
-  'commission-admin',
-] as const;
-
-export const PLATFORM_ADMIN = 'platform-admin';
-/** `app.tenant` of reads across every Commission. */
-export const PLATFORM_TENANT = 'platform';
+import { fallbackIssuerCode, staffTenant } from './access.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -113,7 +102,7 @@ export class ObligationsService {
       );
       if (detail) return detail;
     }
-    const tenant = staffTenantOf(principal);
+    const tenant = staffTenant(principal);
     const detail =
       tenant === null
         ? null
@@ -122,17 +111,6 @@ export class ObligationsService {
           );
     return notFoundIfInvisible(detail);
   }
-}
-
-/** The tenant whose obligations a staff caller sees: `platform` (all) for platform admins. */
-function staffTenantOf(principal: Principal): string | null {
-  if (principal.roles.includes(PLATFORM_ADMIN)) return PLATFORM_TENANT;
-  const staff = principal.roles.some((role) =>
-    (COMMISSION_STAFF_ROLES as readonly string[]).includes(role),
-  );
-  return staff && principal.tenant !== null && principal.tenant !== PLATFORM_TENANT
-    ? principal.tenant
-    : null;
 }
 
 async function readDetail(
@@ -202,6 +180,6 @@ export function toObligation(row: ObligationRow): Obligation {
 
 /** The Commission as last pulled; its issuer code alone until a pull has named it. */
 function commissionOf(row: ObligationRow): CommissionRef {
-  const issuerCode = row.issuerCode ?? row.tenant.toUpperCase();
+  const issuerCode = row.issuerCode ?? fallbackIssuerCode(row.tenant);
   return { slug: row.tenant, issuerCode, name: row.commissionName ?? issuerCode };
 }

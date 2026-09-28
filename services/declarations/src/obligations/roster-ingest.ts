@@ -18,7 +18,7 @@ import type { CycleCalendar, ObligationPolicy } from './engine.js';
 import { commissionRefs, cycleCalendar, tenantPolicyCache } from './schema.js';
 import { systemContext } from './system-context.js';
 import { CycleOpeningSchedules } from './workflow/cycle-opening-schedules.js';
-import { hasChanges, type ObligationChanges, ObligationWorkflows } from './workflows.js';
+import { ObligationWorkflows, tellWorkflows } from './workflows.js';
 
 /** The records a roster event refers to: those of an import or exit batch, or one record. */
 export type RosterSource =
@@ -87,7 +87,7 @@ export class RosterIngest {
         }
         return applied;
       });
-      await this.tellWorkflows(tenant, changes);
+      await tellWorkflows(this.workflows, this.logger, tenant, changes);
       if (last) {
         await this.ensureCycleOpening(tenant);
         return true;
@@ -138,19 +138,6 @@ export class RosterIngest {
       this.logger.warn({ tenant, rosterRecordId: source.recordId }, 'Roster record not found');
     }
     return { items: record === null ? [] : [record], nextCursor: null };
-  }
-
-  /**
-   * Starts and signals workflows for a committed page. A failure is logged, not rethrown: the
-   * page is in, and the reconciliation sweep heals workflows that did not start.
-   */
-  private async tellWorkflows(tenant: string, changes: ObligationChanges): Promise<void> {
-    if (!hasChanges(changes)) return;
-    try {
-      await this.workflows.apply(tenant, changes);
-    } catch (error) {
-      this.logger.warn({ err: error, tenant }, 'Obligation workflows not started or signalled');
-    }
   }
 
   /**

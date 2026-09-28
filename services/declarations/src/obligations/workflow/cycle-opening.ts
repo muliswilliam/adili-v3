@@ -7,13 +7,14 @@ import { Clock } from '../../clock.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { DirectoryClient } from '../../directory/directory-client.js';
 import { reconcileSnapshots, storedReconcileContext, type Transaction } from '../apply-page.js';
+import { biennialCycleKey } from '../cycle-key.js';
 import { nairobiDate } from '../dates.js';
 import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engine.js';
 import { cycleOpened } from '../events.js';
 import { cachePolicy } from '../roster-ingest.js';
 import { systemContext } from '../system-context.js';
 import { cycleCalendar, cycleOpenings, rosterSnapshots, tenantPolicyCache } from '../schema.js';
-import { hasChanges, noChanges, ObligationWorkflows } from '../workflows.js';
+import { noChanges, ObligationWorkflows, tellWorkflows } from '../workflows.js';
 import type { CycleOpened, CycleOpeningPage, CycleOpeningPageRequest } from './contract.js';
 
 /** Roster snapshots per page, as the directory pulls. */
@@ -75,7 +76,7 @@ export class CycleOpening {
     { tenant, cycleYear, cursor }: CycleOpeningPageRequest,
     progress: () => void = () => undefined,
   ): Promise<CycleOpeningPage> {
-    const cycleKey = `biennial:${String(cycleYear)}`;
+    const cycleKey = biennialCycleKey(cycleYear);
     const today = nairobiDate(this.clock.now());
 
     const { ids, changes } = await withTenant(this.db, systemContext(tenant), async (tx) => {
@@ -92,13 +93,7 @@ export class CycleOpening {
       return { ids: page, changes: applied };
     });
     progress();
-    if (hasChanges(changes)) {
-      try {
-        await this.workflows.apply(tenant, changes);
-      } catch (error) {
-        this.logger.warn({ err: error, tenant, cycleYear }, 'Obligation workflows not started');
-      }
-    }
+    await tellWorkflows(this.workflows, this.logger, tenant, changes);
     return {
       created: changes.created.length,
       nextCursor: ids.length === PAGE_SIZE ? (ids.at(-1) ?? null) : null,

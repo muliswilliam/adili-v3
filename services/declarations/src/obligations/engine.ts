@@ -21,6 +21,13 @@
  * discharges that duty for the record: no replacement is created. `cancelled` rows are history
  * and play no part; a recreated obligation is a new row with the same cycle key.
  */
+import {
+  biennialCycleKey,
+  biennialYear,
+  type CycleKey,
+  finalCycleKey,
+  initialCycleKey,
+} from './cycle-key.js';
 import { addDays, atMonthDay, type CivilDate } from './dates.js';
 
 export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
@@ -95,8 +102,7 @@ export interface PlannedReminder {
 /** An obligation the record owes, with its status and reminders as of today. */
 export interface DesiredObligation {
   type: ObligationType;
-  /** `initial:<appointment date>`, `biennial:<year>` or `final:<exit date>`. */
-  cycleKey: string;
+  cycleKey: CycleKey;
   statementDate: CivilDate;
   dueDate: CivilDate;
   status: OpenStatus;
@@ -169,7 +175,7 @@ export function planObligations(input: PlanInput): ObligationPlan {
       (o.statementDate >= input.policy.obligationsStartDate &&
         (o.type === 'biennial' || !filedTypes.has(o.type))),
   );
-  const owedKeys = new Set(obligations.map((o) => o.cycleKey));
+  const owedKeys = new Set<string>(obligations.map((o) => o.cycleKey));
 
   const cancels: PlanOperation[] = [];
   const supersedes: PlanOperation[] = [];
@@ -222,7 +228,7 @@ function owedObligations(input: PlanInput): DesiredObligation[] {
 
   if (appointmentDate !== null) {
     owed.push(
-      obligation(input, 'initial', `initial:${appointmentDate}`, appointmentDate, {
+      obligation(input, 'initial', initialCycleKey(appointmentDate), appointmentDate, {
         dueAfterDays: policy.initialDueAfterAppointmentDays,
       }),
     );
@@ -235,7 +241,7 @@ function owedObligations(input: PlanInput): DesiredObligation[] {
       (exitDate === null || exitDate > statementDate);
     if (!heldOffice) continue;
     owed.push(
-      obligation(input, 'biennial', `biennial:${String(year)}`, statementDate, {
+      obligation(input, 'biennial', biennialCycleKey(year), statementDate, {
         dueDate: atMonthDay(year, policy.biennial.dueDate),
       }),
     );
@@ -243,7 +249,7 @@ function owedObligations(input: PlanInput): DesiredObligation[] {
 
   if (exitDate !== null) {
     owed.push(
-      obligation(input, 'final', `final:${exitDate}`, exitDate, {
+      obligation(input, 'final', finalCycleKey(exitDate), exitDate, {
         dueAfterDays: policy.finalDueAfterExitDays,
       }),
     );
@@ -255,7 +261,7 @@ function owedObligations(input: PlanInput): DesiredObligation[] {
 function obligation(
   { record, policy, today }: Pick<PlanInput, 'record' | 'policy' | 'today'>,
   type: ObligationType,
-  cycleKey: string,
+  cycleKey: CycleKey,
   statementDate: CivilDate,
   due: { dueAfterDays: number } | { dueDate: CivilDate },
 ): DesiredObligation {
@@ -304,9 +310,9 @@ function cancelReason(
 ): CancelReason {
   if (old.type === 'final' && record.exitDate === null) return 'exit-reversed';
   if (old.type === 'biennial' && record.exitDate !== null) {
-    const year = Number(old.cycleKey.slice('biennial:'.length));
+    const year = biennialYear(old.cycleKey);
     // On the statement date too: the biennial is owed only for an exit after it.
-    if (record.exitDate <= biennialStatementDate(year, policy)) {
+    if (year !== null && record.exitDate <= biennialStatementDate(year, policy)) {
       return 'exited-before-statement-date';
     }
   }

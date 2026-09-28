@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import {
   and,
@@ -20,8 +20,8 @@ import {
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from './apply-page.js';
+import { commissionReadTenant, fallbackIssuerCode, PLATFORM_TENANT } from './access.js';
 import {
-  BIENNIAL_CYCLE_KEY,
   decodeListCursor,
   encodeListCursor,
   type ListCommissionObligationsQuery,
@@ -29,13 +29,8 @@ import {
 } from './commission-query.js';
 import { addDays, atMonthDay, nairobiDate } from './dates.js';
 import type { ObligationStatus, ObligationType } from './engine.js';
-import {
-  COMMISSION_STAFF_ROLES,
-  obligationColumns,
-  PLATFORM_ADMIN,
-  PLATFORM_TENANT,
-  toObligation,
-} from './obligations.service.js';
+import { biennialCycleKey, biennialYear } from './cycle-key.js';
+import { obligationColumns, toObligation } from './obligations.service.js';
 import type {
   CommissionSummary,
   NationalSummary,
@@ -56,9 +51,6 @@ import {
   tenantPolicyCache,
 } from './schema.js';
 
-/** EACC's roles: counts of any Commission, never declarants. */
-export const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'] as const;
-
 /** A policy's biennial statement and due dates, as month-days. */
 interface MonthDays {
   statementDate: string;
@@ -73,8 +65,6 @@ const STATUTORY_BIENNIAL: MonthDays = { statementDate: '11-01', dueDate: '12-31'
  * never opens by date: the engine creates obligations only for calendar cycles.
  */
 const UNLISTED_OPENING_LEAD_DAYS = 120;
-
-const SLUG = /^[a-z][a-z0-9]{1,19}$/;
 
 const OPEN_STATUSES = ['upcoming', 'due', 'overdue'] as const;
 
@@ -144,7 +134,7 @@ export class CommissionObligationsService {
     slug: string,
     query: SummaryQuery,
   ): Promise<CommissionSummary> {
-    const tenant = readTenant(principal, slug, { counts: true });
+    const tenant = commissionReadTenant(principal, slug, { counts: true });
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const [reference] = await tx
         .select({ issuerCode: commissionRefs.issuerCode, name: commissionRefs.name })
@@ -203,7 +193,7 @@ export class CommissionObligationsService {
           total[row.status] += row.n;
         }
       }
-      const issuerCode = reference?.issuerCode ?? slug.toUpperCase();
+      const issuerCode = reference?.issuerCode ?? fallbackIssuerCode(slug);
       return {
         commission: { slug, issuerCode, name: reference?.name ?? issuerCode },
         cycle: counted,
@@ -225,7 +215,7 @@ export class CommissionObligationsService {
     slug: string,
     query: ListCommissionObligationsQuery,
   ): Promise<ObligationPage> {
-    const tenant = readTenant(principal, slug, { counts: false });
+    const tenant = commissionReadTenant(principal, slug);
     const after = query.cursor === undefined ? undefined : decodeListCursor(query.cursor);
     if (after === null) {
       throw new ProblemException({
@@ -404,12 +394,12 @@ export class CommissionObligationsService {
     };
     const cycles = calendar.map((entry) => cycleIn(entry.cycleYear, entry.openingLeadDays));
 
-    const askedYear = asked === undefined ? undefined : BIENNIAL_CYCLE_KEY.exec(asked)?.[1];
-    if (askedYear !== undefined) {
-      const key = `biennial:${askedYear}`;
+    const askedYear = asked === undefined ? null : biennialYear(asked);
+    if (askedYear !== null) {
+      const key = biennialCycleKey(askedYear);
       const counted =
         cycles.find((entry) => entry.key === key) ??
-        cycleIn(Number(askedYear), UNLISTED_OPENING_LEAD_DAYS, false);
+        cycleIn(askedYear, UNLISTED_OPENING_LEAD_DAYS, false);
       return { counted, cycles };
     }
     const counted =
@@ -421,21 +411,6 @@ export class CommissionObligationsService {
 }
 
 /**
- * The `app.tenant` a caller reads Commission `slug`'s obligations under: the platform for
- * platform admins (and EACC, for counts), the Commission itself for its own staff. 404 for
- * anyone else, so another Commission's obligations cannot be probed.
- */
-function readTenant(principal: Principal, slug: string, { counts }: { counts: boolean }): string {
-  if (!SLUG.test(slug)) notFoundIfInvisible(null);
-  const holds = (roles: readonly string[]) => principal.roles.some((role) => roles.includes(role));
-  if (holds([PLATFORM_ADMIN])) return PLATFORM_TENANT;
-  if (counts && holds(EACC_ROLES)) return PLATFORM_TENANT;
-  return notFoundIfInvisible(
-    holds(COMMISSION_STAFF_ROLES) && principal.tenant === slug ? slug : null,
-  );
-}
-
-/**
  * The obligations a cycle's counts cover: its biennials, and every open initial and final
  * obligation, plus those filed that fell due in the cycle's two years (so filed ones do not pile
  * up in every later cycle). Cancelled ones never count.
@@ -444,7 +419,7 @@ export function inCycle(year: number): SQL {
   const { type, status, cycleKey, dueDate } = filingObligations;
   const cycleYears = sql`${dueDate} between ${`${String(year - 1)}-01-01`}::date and ${`${String(year)}-12-31`}::date`;
   return sql`${inArray(status, [...COUNTED_STATUSES])} and (
-    (${eq(type, 'biennial')} and ${eq(cycleKey, `biennial:${String(year)}`)})
+    (${eq(type, 'biennial')} and ${eq(cycleKey, biennialCycleKey(year))})
     or (${ne(type, 'biennial')} and (${inArray(status, [...OPEN_STATUSES])} or ${cycleYears}))
   )`;
 }
@@ -480,7 +455,7 @@ export function cycleOf(
   biennial: MonthDays,
 ): Pick<SummaryCycle, 'key' | 'statementDate' | 'dueDate'> {
   return {
-    key: `biennial:${String(year)}`,
+    key: biennialCycleKey(year),
     statementDate: atMonthDay(year, biennial.statementDate),
     dueDate: atMonthDay(year, biennial.dueDate),
   };

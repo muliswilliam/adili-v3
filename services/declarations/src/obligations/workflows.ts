@@ -1,3 +1,5 @@
+import type { Logger } from '@nestjs/common';
+
 import type { CancelReason } from './engine.js';
 
 /**
@@ -30,4 +32,22 @@ export function hasChanges(changes: ObligationChanges): boolean {
  */
 export abstract class ObligationWorkflows {
   abstract apply(tenant: string, changes: ObligationChanges): Promise<void>;
+}
+
+/**
+ * Tells the workflows what a committed transaction changed. A failure is logged, not thrown: the
+ * changes are in, and the reconciliation sweep starts the workflows that did not start.
+ */
+export async function tellWorkflows(
+  workflows: ObligationWorkflows,
+  logger: Pick<Logger, 'warn'>,
+  tenant: string,
+  changes: ObligationChanges,
+): Promise<void> {
+  if (!hasChanges(changes)) return;
+  try {
+    await workflows.apply(tenant, changes);
+  } catch (error) {
+    logger.warn({ err: error, tenant }, 'Obligation workflows not started or signalled');
+  }
 }
