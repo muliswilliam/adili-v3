@@ -1920,13 +1920,16 @@ components:
           $ref: '#/components/schemas/SectionKey'
         itemType:
           type: string
-          description: Second Schedule item type from declaration.v1, or `bio-tax` for KRA PIN and compliance
+          description: >-
+            Second Schedule item type from declaration.v1; `directorship` for a paragraph 9 registrable interest (the officer's, from BRS);
+            `bio-tax` for KRA PIN and compliance; or `income-hint` for KRA's declared income, a hint to check the salary item.
         fields:
           type: object
           description: >-
             Proposed values in the portal's field vocabulary, not declaration.v1 `details`; the portal translates them into the item on accept.
             Keys per item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code);
-            `shareholding` companyName, registrationNumber, role, shares; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType.
+            `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus;
+            `income-hint` incomeType.
             Every statement item may also carry `description`. Value fields (`value`, `amount`) are never proposed, and a partial record omits blank keys.
           additionalProperties: true
         sourceRef:

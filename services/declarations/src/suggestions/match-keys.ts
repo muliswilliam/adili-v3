@@ -1,14 +1,18 @@
-import type { AssetItem, IncomeItem, LiabilityItem, Spouse } from '@adili/forms';
+import type { AssetItem, IncomeItem, LiabilityItem } from '@adili/forms';
 
 /**
  * Match keys (spec 05b, S4): normalised identifiers that say a suggestion and an item already in
- * the person's statement describe the same thing, so the declarant is offered "Apply to this
- * item" instead of a duplicate. A key is `<kind>:<normalised identifier>`, so a registration can
- * never match a parcel number; a suggestion matches an item when any of their keys coincide.
+ * the declaration describe the same thing, so the declarant is offered "Apply to this item"
+ * instead of a duplicate. A key is `<kind>:<normalised identifier>`, so a registration can never
+ * match a parcel number; a suggestion matches an item when any of their keys coincide.
  */
 
+export type MatchKeyKind = 'registration' | 'parcel' | 'company-name' | 'kra-pin';
+
+export type MatchKey = `${MatchKeyKind}:${string}`;
+
 /** "kca 123a", "KCA-123A" → `registration:KCA123A`. */
-export function registrationMatchKey(registration: string): string | null {
+export function registrationMatchKey(registration: string): MatchKey | null {
   return alnumKey('registration', registration);
 }
 
@@ -16,7 +20,7 @@ export function registrationMatchKey(registration: string): string | null {
  * "Uasin Gishu / Kimumu / 2231" → `parcel:UASIN GISHU/KIMUMU/2231`. Separators stay, so
  * "Block 7/1234" and "Block 71/234" remain different parcels.
  */
-export function parcelMatchKey(parcelNumber: string): string | null {
+export function parcelMatchKey(parcelNumber: string): MatchKey | null {
   const normal = parcelNumber
     .toUpperCase()
     .replace(/\s*([/.-])\s*/g, '$1')
@@ -25,70 +29,70 @@ export function parcelMatchKey(parcelNumber: string): string | null {
   return normal ? `parcel:${normal}` : null;
 }
 
-/** "PVT-AB12CD3E" → `company-number:PVTAB12CD3E`. */
-export function companyNumberMatchKey(registrationNumber: string): string | null {
-  return alnumKey('company-number', registrationNumber);
-}
-
 /**
  * "Rift Valley Agrovet Limited", "RIFT VALLEY AGROVET LTD." → `company-name:RIFTVALLEYAGROVETLTD`.
- * Items hold only the company's name (`details.issuer`), so a BRS suggestion matches an item by
- * name as well as by number.
+ * Items and directorships hold only the company's name (`details.issuer`, `company`), so
+ * companies match by name; BRS's company number stays in the suggestion's `sourceRef`.
  */
-export function companyNameMatchKey(companyName: string): string | null {
-  const normal = companyName
-    .toUpperCase()
-    .replace(/\bLIMITED\b/g, 'LTD')
-    .replace(/[^A-Z0-9]/g, '');
-  return normal ? `company-name:${normal}` : null;
+export function companyNameMatchKey(companyName: string): MatchKey | null {
+  return alnumKey('company-name', companyName.toUpperCase().replace(/\bLIMITED\b/g, 'LTD'));
 }
 
 /** "a005231876k" → `kra-pin:A005231876K`. */
-export function kraPinMatchKey(pin: string): string | null {
+export function kraPinMatchKey(pin: string): MatchKey | null {
   return alnumKey('kra-pin', pin);
+}
+
+/** The keys that are present, dropping identifiers that normalised to nothing. */
+export function presentKeys(...candidates: (MatchKey | null | undefined)[]): MatchKey[] {
+  return candidates.filter((each): each is MatchKey => typeof each === 'string');
 }
 
 export type StatementItem = AssetItem | IncomeItem | LiabilityItem;
 
-/** The match keys of an item already in a financial statement; none for untyped identifiers. */
-export function matchKeysOfItem(item: StatementItem): string[] {
-  if (!('details' in item) || !item.details) return [];
-  const { details } = item;
-  switch (item.type) {
-    case 'vehicle':
-      return present(details.registration && registrationMatchKey(details.registration));
-    case 'land':
-    case 'building':
-      return present(details.parcelNumber && parcelMatchKey(details.parcelNumber));
-    case 'shareholding':
-    case 'securities':
-      return present(details.issuer && companyNameMatchKey(details.issuer));
-    default:
-      return [];
-  }
+type Details = NonNullable<AssetItem['details']>;
+
+/**
+ * For each statement item type that carries an identifier, the `details` field holding it and
+ * how it becomes a key. The registry mapping keys its suggestions through the same table, so a
+ * new identified item type is added here once.
+ */
+const ITEM_IDENTIFIERS = {
+  vehicle: { detail: 'registration', key: registrationMatchKey },
+  land: { detail: 'parcelNumber', key: parcelMatchKey },
+  building: { detail: 'parcelNumber', key: parcelMatchKey },
+  shareholding: { detail: 'issuer', key: companyNameMatchKey },
+  securities: { detail: 'issuer', key: companyNameMatchKey },
+} as const satisfies Partial<
+  Record<AssetItem['type'], { detail: keyof Details; key: (raw: string) => MatchKey | null }>
+>;
+
+export type IdentifiedItemType = keyof typeof ITEM_IDENTIFIERS;
+
+/** The match keys of an identifier as an item of `itemType` holds it; none when it is blank. */
+export function matchKeysFor(itemType: IdentifiedItemType, identifier: string): MatchKey[] {
+  return presentKeys(identifier ? ITEM_IDENTIFIERS[itemType].key(identifier) : null);
 }
 
-/** The match keys of a spouse already in the household (their KRA PIN). */
-export function matchKeysOfSpouse(spouse: Pick<Spouse, 'kraPin'>): string[] {
-  return present(spouse.kraPin && kraPinMatchKey(spouse.kraPin));
+/** The match keys of an item already in a financial statement; none for untyped identifiers. */
+export function matchKeysOfItem(item: StatementItem): MatchKey[] {
+  if (!('details' in item) || !item.details || !(item.type in ITEM_IDENTIFIERS)) return [];
+  const { detail } = ITEM_IDENTIFIERS[item.type as IdentifiedItemType];
+  return matchKeysFor(item.type as IdentifiedItemType, item.details[detail] ?? '');
 }
 
 /** The first item whose keys coincide with the suggestion's, for the suggestion's `matchItemId`. */
 export function findMatchingItem(
-  suggestion: { matchKeys: readonly string[] },
+  suggestion: { matchKeys: readonly MatchKey[] },
   items: readonly StatementItem[],
 ): string | null {
   if (suggestion.matchKeys.length === 0) return null;
-  const wanted = new Set(suggestion.matchKeys);
+  const wanted = new Set<string>(suggestion.matchKeys);
   return items.find((item) => matchKeysOfItem(item).some((key) => wanted.has(key)))?.id ?? null;
 }
 
-/** `<prefix>:<raw upper-cased, letters and digits only>`, or null when nothing is left. */
-function alnumKey(prefix: string, raw: string): string | null {
+/** `<kind>:<raw upper-cased, letters and digits only>`, or null when nothing is left. */
+function alnumKey(kind: MatchKeyKind, raw: string): MatchKey | null {
   const normal = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return normal ? `${prefix}:${normal}` : null;
-}
-
-function present(key: string | null | undefined): string[] {
-  return key ? [key] : [];
+  return normal ? `${kind}:${normal}` : null;
 }

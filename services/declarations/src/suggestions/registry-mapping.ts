@@ -2,10 +2,10 @@ import { COUNTIES, type DeclarationSectionKey, type PersonKey } from '@adili/for
 
 import {
   companyNameMatchKey,
-  companyNumberMatchKey,
   kraPinMatchKey,
-  parcelMatchKey,
-  registrationMatchKey,
+  type MatchKey,
+  matchKeysFor,
+  presentKeys,
 } from './match-keys.js';
 import type {
   ArdhisasaParcel,
@@ -13,6 +13,7 @@ import type {
   KraTaxpayer,
   NtsaVehicle,
   RegistryResult,
+  RegistrySystem,
 } from './registry-results.js';
 
 /**
@@ -20,19 +21,21 @@ import type {
  * registry holds about one person becomes the item fields the declarant can add with one tap.
  *
  * Field names per item type are the portal's vocabulary, not declaration.v1 `details`: the
- * portal's accept mapping (on the FE branch) translates them into the item on Accept. The
- * `Suggestion.fields` description in `declarations.yaml` lists the same keys:
+ * portal's accept mapping (`apps/portal/src/declaration/suggestions.ts`) translates them into the
+ * item on Accept. The `Suggestion.fields` description in `declarations.yaml` lists the same keys:
  * - `vehicle` (NTSA): registration, make, model, year
  * - `land` (ArdhiSasa): parcelNumber, size, location, county (a declaration.v1 county code)
- * - `shareholding` (BRS; the spec's `investment`, which declaration.v1 does not have):
- *   companyName, registrationNumber, role, shares
+ * - `shareholding` (BRS, a holding of shares; the spec's `investment`, which declaration.v1 does
+ *   not have): companyName, registrationNumber, role, shares
+ * - `directorship` (BRS, the officer's directorship; a paragraph 9 registrable interest):
+ *   companyName, role. Whether it is remunerated stays the declarant's to say.
  * - `bio-tax` (KRA): kraPin, complianceStatus
  * - `income-hint` (KRA): incomeType only; the declared income travels in `sourceRef` as a hint
  * Every statement item also carries a `description` the declarant can edit before adding.
  *
  * Value fields (`value`, `amount`) are never set: valuing an asset is the declarant's call.
- * A registry record with a blank field simply omits it (partial records); a result that is not
- * `found` maps to no suggestions.
+ * A registry record with a blank field simply omits it (partial records); a record without its
+ * identifier, and a result that is not `found`, map to no suggestions.
  */
 
 export interface VehicleFields {
@@ -60,6 +63,11 @@ export interface ShareholdingFields {
   shares?: number;
 }
 
+export interface DirectorshipFields {
+  companyName: string;
+  role: string;
+}
+
 export interface BioTaxFields {
   kraPin: string;
   complianceStatus: KraTaxpayer['compliance']['status'];
@@ -70,22 +78,36 @@ export interface IncomeHintFields {
 }
 
 interface Proposed<TType extends string, TFields> {
-  /** Where the suggestion lands: a person's financial statement, the bio, or the household. */
+  /** Where the suggestion lands: a person's financial statement, the bio, household or other. */
   sectionKey: DeclarationSectionKey;
   itemType: TType;
   fields: TFields;
   /** The registry's identifier for the record plus facts that do not become item fields. */
   sourceRef: Record<string, string | number>;
   /** Normalised identifiers to compare with existing items (see `match-keys.ts`). */
-  matchKeys: string[];
+  matchKeys: MatchKey[];
 }
 
 export type MappedSuggestion =
   | Proposed<'vehicle', VehicleFields>
   | Proposed<'land', LandFields>
   | Proposed<'shareholding', ShareholdingFields>
+  | Proposed<'directorship', DirectorshipFields>
   | Proposed<'bio-tax', BioTaxFields>
   | Proposed<'income-hint', IncomeHintFields>;
+
+/**
+ * The suggestions one registry result yields for one person, with the result they came from: the
+ * declarations service keeps these on the suggestion set (`SuggestionSet.source`,
+ * `verificationResultId`), and an accepted item's `source` (declaration.v1 `ItemSource`) records
+ * them. `checkedAt` is when the registry answered, for "from KRA, checked on …".
+ */
+export interface MappedSuggestionSet {
+  source: RegistrySystem;
+  verificationResultId: string;
+  checkedAt: string;
+  suggestions: MappedSuggestion[];
+}
 
 /**
  * The suggestions a registry result yields for the person it was looked up for. A result that is
@@ -94,111 +116,130 @@ export type MappedSuggestion =
 export function mapRegistryResult(
   result: RegistryResult,
   personKey: PersonKey,
-): MappedSuggestion[] {
-  if (result.outcome !== 'found') return [];
+): MappedSuggestionSet {
+  return {
+    source: result.system,
+    verificationResultId: result.resultId,
+    checkedAt: result.checkedAt,
+    suggestions: result.outcome === 'found' ? suggestionsOf(result, personKey) : [],
+  };
+}
+
+function suggestionsOf(result: RegistryResult, personKey: PersonKey): MappedSuggestion[] {
   switch (result.system) {
     case 'kra':
-      return eachRecord(result.taxpayers, mapTaxpayer, personKey);
+      return result.taxpayers.flatMap((taxpayer) => mapTaxpayer(taxpayer, personKey));
     case 'ntsa':
-      return eachRecord(result.vehicles, mapVehicle, personKey);
+      return result.vehicles.flatMap((vehicle) => mapVehicle(vehicle, personKey));
     case 'brs':
-      return eachRecord(result.directorships, mapDirectorship, personKey);
+      return result.directorships.flatMap((record) => mapDirectorship(record, personKey));
     case 'ardhisasa':
-      return eachRecord(result.parcels, mapParcel, personKey);
+      return result.parcels.flatMap((parcel) => mapParcel(parcel, personKey));
   }
 }
 
-/** Maps each record of a found result; a record with nothing to suggest maps to none. */
-function eachRecord<TRecord>(
-  records: readonly TRecord[],
-  map: (record: TRecord, personKey: PersonKey) => MappedSuggestion | MappedSuggestion[] | null,
-  personKey: PersonKey,
-): MappedSuggestion[] {
-  return records.flatMap((record) => map(record, personKey) ?? []);
-}
-
 /** NTSA: each vehicle registered to the person → a `vehicle` asset. */
-function mapVehicle(vehicle: NtsaVehicle, personKey: PersonKey): MappedSuggestion | null {
+function mapVehicle(vehicle: NtsaVehicle, personKey: PersonKey): MappedSuggestion[] {
   const registration = text(vehicle.registrationNumber);
+  if (!registration) return [];
   const make = text(vehicle.make);
   const model = text(vehicle.model);
-  const year = numberAbove0(vehicle.yearOfManufacture, { integer: true });
-  if (!registration && !make && !model) return null;
-  const makeModel = joined([make, model], ' ');
-  return {
-    sectionKey: statementSection(personKey),
-    itemType: 'vehicle',
-    fields: compact({
-      description: makeModel || (registration ? `Vehicle ${registration}` : 'Vehicle'),
-      registration,
-      make,
-      model,
-      year,
-    }),
-    sourceRef: compact({ registration, registeredOn: text(vehicle.registeredOn) }),
-    matchKeys: keys(registration && registrationMatchKey(registration)),
-  };
+  const makeModel = [make, model].filter(Boolean).join(' ');
+  return [
+    {
+      sectionKey: statementSection(personKey),
+      itemType: 'vehicle',
+      fields: compact({
+        description: makeModel || `Vehicle ${registration}`,
+        registration,
+        make,
+        model,
+        year: positive(wholeNumber(vehicle.yearOfManufacture)),
+      }),
+      sourceRef: compact({ registration, registeredOn: text(vehicle.registeredOn) }),
+      matchKeys: matchKeysFor('vehicle', registration),
+    },
+  ];
 }
 
 /** ArdhiSasa: each parcel registered to the person → a `land` asset. */
-function mapParcel(parcel: ArdhisasaParcel, personKey: PersonKey): MappedSuggestion | null {
+function mapParcel(parcel: ArdhisasaParcel, personKey: PersonKey): MappedSuggestion[] {
   const parcelNumber = text(parcel.parcelNumber);
-  if (!parcelNumber) return null;
+  if (!parcelNumber) return [];
   const countyText = text(parcel.county);
   const county = countyCode(countyText);
   const countyName = county ? COUNTIES.find((each) => each.code === county)?.name : undefined;
-  const hectares = numberAbove0(parcel.areaHectares);
-  return {
-    sectionKey: statementSection(personKey),
-    itemType: 'land',
-    fields: compact({
-      description: countyName ? `Land in ${countyName}` : `Land parcel ${parcelNumber}`,
-      parcelNumber,
-      size: hectares === undefined ? undefined : `${formatHectares(hectares)} ha`,
-      location: county ? undefined : countyText,
-      county,
-    }),
-    sourceRef: compact({
-      parcelNumber,
-      tenure: text(parcel.tenure),
-      registeredOn: text(parcel.registeredOn),
-    }),
-    matchKeys: keys(parcelMatchKey(parcelNumber)),
-  };
+  const hectares = positive(parcel.areaHectares);
+  return [
+    {
+      sectionKey: statementSection(personKey),
+      itemType: 'land',
+      fields: compact({
+        description: countyName ? `Land in ${countyName}` : `Land parcel ${parcelNumber}`,
+        parcelNumber,
+        size: hectares === undefined ? undefined : `${formatHectares(hectares)} ha`,
+        location: county ? undefined : countyText,
+        county,
+      }),
+      sourceRef: compact({
+        parcelNumber,
+        tenure: text(parcel.tenure),
+        registeredOn: text(parcel.registeredOn),
+      }),
+      matchKeys: matchKeysFor('land', parcelNumber),
+    },
+  ];
 }
 
 /**
- * BRS: each company the person directs or holds shares in → a `shareholding` asset (role and
- * shares as BRS records them; shares omitted when BRS holds none). Registrable-interest
- * directorships in paragraph 9 stay the declarant's to enter.
+ * BRS: a record of the person in a company. Shares held → a `shareholding` asset in the person's
+ * statement. A director's role → for the officer, a `directorship` registrable interest
+ * (paragraph 9); declaration.v1 records no directorships for a spouse or child. A record can
+ * yield both; one with neither shares nor a director's role (or no company) yields none.
  */
-function mapDirectorship(
-  directorship: BrsDirectorship,
-  personKey: PersonKey,
-): MappedSuggestion | null {
-  const companyName = text(directorship.companyName);
-  const registrationNumber = text(directorship.companyRegistrationNumber);
-  if (!companyName && !registrationNumber) return null;
-  return {
-    sectionKey: statementSection(personKey),
-    itemType: 'shareholding',
-    fields: compact({
-      description: `Shares in ${companyName || registrationNumber}`,
-      companyName,
-      registrationNumber,
-      role: text(directorship.role),
-      shares: numberAbove0(directorship.shares, { orZero: true }),
-    }),
-    sourceRef: compact({
-      registrationNumber,
-      companyStatus: text(directorship.companyStatus),
-      appointedOn: text(directorship.appointedOn),
-    }),
-    matchKeys: keys(
-      registrationNumber && companyNumberMatchKey(registrationNumber),
-      companyName && companyNameMatchKey(companyName),
-    ),
-  };
+function mapDirectorship(record: BrsDirectorship, personKey: PersonKey): MappedSuggestion[] {
+  const companyName = text(record.companyName);
+  const registrationNumber = text(record.companyRegistrationNumber);
+  if (!companyName && !registrationNumber) return [];
+  const role = text(record.role);
+  const shares = positive(record.shares);
+  const sourceRef = compact({
+    registrationNumber,
+    companyStatus: text(record.companyStatus),
+    appointedOn: text(record.appointedOn),
+  });
+  const suggestions: MappedSuggestion[] = [];
+  if (shares !== undefined) {
+    suggestions.push({
+      sectionKey: statementSection(personKey),
+      itemType: 'shareholding',
+      fields: compact({
+        description: `Shares in ${companyName || registrationNumber}`,
+        companyName,
+        registrationNumber,
+        role,
+        shares,
+      }),
+      sourceRef,
+      matchKeys: matchKeysFor('shareholding', companyName),
+    });
+  }
+  // The registrable interest names the company, so a nameless record cannot become one.
+  if (personKey === 'officer' && companyName && isDirectorRole(role)) {
+    suggestions.push({
+      sectionKey: 'other',
+      itemType: 'directorship',
+      fields: { companyName, role },
+      sourceRef,
+      matchKeys: presentKeys(companyNameMatchKey(companyName)),
+    });
+  }
+  return suggestions;
+}
+
+/** "Director", "Managing Director", "Alternate director"; not "Shareholder" or "Secretary". */
+function isDirectorRole(role: string) {
+  return /\bdirector\b/i.test(role);
 }
 
 /**
@@ -224,13 +265,10 @@ function mapTaxpayer(taxpayer: KraTaxpayer, personKey: PersonKey): MappedSuggest
         certificateNumber: text(compliance.certificateNumber),
         validUntil: text(compliance.validUntil),
       }),
-      matchKeys: keys(kraPinMatchKey(kraPin)),
+      matchKeys: presentKeys(kraPinMatchKey(kraPin)),
     });
   }
-  const declaredIncome = numberAbove0(compliance.annualIncomeDeclaredCents, {
-    integer: true,
-    orZero: true,
-  });
+  const declaredIncome = wholeNumber(compliance.annualIncomeDeclaredCents);
   if (declaredIncome !== undefined) {
     suggestions.push({
       sectionKey: statementSection(personKey),
@@ -282,22 +320,14 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function joined(parts: string[], separator: string) {
-  return parts.filter((part) => part !== '').join(separator);
+/** A finite number above zero, else undefined. */
+function positive(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
-/** A finite number above zero (or zero, with `orZero`; an integer, with `integer`), else undefined. */
-function numberAbove0(
-  value: unknown,
-  { integer = false, orZero = false }: { integer?: boolean; orZero?: boolean } = {},
-): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  if (integer && !Number.isInteger(value)) return undefined;
-  return value > 0 || (orZero && value === 0) ? value : undefined;
-}
-
-function keys(...candidates: (string | null | undefined)[]): string[] {
-  return candidates.filter((each): each is string => typeof each === 'string' && each !== '');
+/** A whole number of zero or more, else undefined. */
+function wholeNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
 
 /** Drops empty strings and undefined so a partial record leaves its fields out. */
