@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { outbox } from '@adili/events';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { jobs } from '../../src/db/schema.js';
+import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
 import { contractErrors } from '../support/contract.js';
 import { summarizeInput, summarizeOutput, taskRequest, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
@@ -72,5 +74,41 @@ describe('classification gate', () => {
     const response = await runTask(taskRequest(summarizeInput, { waitSeconds: 10 }));
 
     expect(response.json<Job>()).toMatchObject({ status: 'succeeded' });
+  });
+
+  it('blocks a queued job at execution when the provider it would reach is external', async () => {
+    const before = external.requests.length;
+    // Queued under a self-hosted route; this process now reaches an external provider.
+    const id = randomUUID();
+    await t.db.insert(jobs).values({
+      id,
+      tenant: 'demo',
+      task: 'summarize-declaration',
+      promptVersion: 1,
+      dataClass: 'restricted',
+      subjectRef: `review-case:${randomUUID()}`,
+      caller: 'review',
+      idempotencyKey: randomUUID(),
+      requestHash: 'queued',
+      inputHash: 'queued',
+      input: summarizeInput,
+      status: 'queued',
+      provider: 'replay',
+      model: 'claude-opus-5-5',
+      createdAt: new Date(Date.now() - 5 * 60_000),
+    });
+
+    await t.app.get(JobsJanitor).sweep();
+
+    const deadline = Date.now() + 20_000;
+    let job: Job;
+    do {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      job = (
+        await t.app.inject({ method: 'GET', url: `/internal/v1/jobs/${id}`, headers: auth })
+      ).json<Job>();
+    } while (['queued', 'running'].includes(job.status) && Date.now() < deadline);
+    expect(job).toMatchObject({ status: 'blocked', reason: 'policy' });
+    expect(external.requests.length).toBe(before);
   });
 });

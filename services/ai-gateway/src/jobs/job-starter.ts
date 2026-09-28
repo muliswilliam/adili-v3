@@ -1,5 +1,3 @@
-import { setTimeout as sleep } from 'node:timers/promises';
-
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectTemporalClient } from '@adili/temporal';
 import {
@@ -59,15 +57,11 @@ export class JobStarter {
    * only after the job's final state is committed. Never throws: the caller reads the job.
    */
   async waitForEnd(jobId: string, ms: number): Promise<void> {
-    const timer = new AbortController();
-    await Promise.race([
-      this.client.workflow
-        .getHandle(workflowId(jobId))
-        .result()
-        .catch(() => undefined),
-      sleep(ms, undefined, { signal: timer.signal }).catch(() => undefined),
-    ]);
-    timer.abort();
+    const handle = this.client.workflow.getHandle(workflowId(jobId));
+    // The abort also ends result()'s long poll, which would otherwise outlive the wait.
+    await this.client
+      .withAbortSignal(AbortSignal.timeout(ms), () => handle.result())
+      .catch(() => undefined);
   }
 }
 

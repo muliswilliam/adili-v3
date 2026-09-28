@@ -1,5 +1,5 @@
 {
-  "id": "1963da4d-d635-4194-b61d-850a9b1f7c7d",
+  "id": "8d62f750-f9b9-48aa-ad24-bda57049b9ee",
   "prevId": "1f852b43-0075-42e1-9ffc-b8d3b3d183fd",
   "version": "7",
   "dialect": "postgresql",
@@ -253,12 +253,6 @@
         "jobs_live_idx": {
           "name": "jobs_live_idx",
           "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "id",
               "isExpression": false,

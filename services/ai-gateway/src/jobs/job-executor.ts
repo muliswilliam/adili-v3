@@ -11,12 +11,13 @@ import { inputLanguage } from '../tasks/common.js';
 import { buildProviderRequest } from '../tasks/provider-request.js';
 import { findTask } from '../tasks/registry.js';
 import { aiLabel, type TaskDefinition } from '../tasks/task.js';
+import { gateAdmits } from './classification-gate.js';
 import { jobFinished } from './events.js';
 import { type JobReason, LIVE_STATUSES } from './job-states.js';
 
 type Outcome =
   | { status: 'succeeded'; output: Record<string, unknown> }
-  | { status: 'failed'; reason: JobReason };
+  | { status: 'failed' | 'blocked'; reason: JobReason };
 
 /** What one provider call cost; absent when the job ends without a call. */
 interface AttemptMetrics {
@@ -46,6 +47,15 @@ export class JobExecutor {
     if (!task || job.input === null) {
       // Unreachable: jobs are created for registered tasks and keep their input until they end.
       throw new Error(`Job ${jobId} cannot run: unknown task or missing input`);
+    }
+    // Checked again here, against the provider this process will actually contact.
+    if (!gateAdmits(job.dataClass, this.provider.providerClass)) {
+      await this.finish(
+        job,
+        { status: 'blocked', reason: 'policy' },
+        { usage: null, latencyMs: 0 },
+      );
+      return;
     }
     const request = buildProviderRequest(task, job.promptVersion, job.input, job.model);
     const startedAt = performance.now();
@@ -109,7 +119,7 @@ export class JobExecutor {
         .update(jobs)
         .set({
           status: outcome.status,
-          reason: outcome.status === 'failed' ? outcome.reason : null,
+          reason: outcome.status === 'succeeded' ? null : outcome.reason,
           output,
           outputHash: output && hashJson(output),
           input: null,

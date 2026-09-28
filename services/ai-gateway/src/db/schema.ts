@@ -97,7 +97,7 @@ export const jobs = pgTable(
       ),
     // The janitor's scans: live jobs past the grace period, and outputs past retention.
     index('jobs_live_idx')
-      .on(table.createdAt, table.id)
+      .on(table.id)
       .where(
         sql`${table.status} in (${sql.raw(LIVE_STATUSES.map((status) => `'${status}'`).join(', '))})`,
       ),
