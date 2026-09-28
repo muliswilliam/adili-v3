@@ -1,27 +1,89 @@
 /**
- * Section body types for the declaration workspace.
- *
- * HAND-WRITTEN from `packages/schemas/forms/declaration.v1.json` (the First Schedule). The
- * declarations contract types section contents as an open object (`SectionContents`), and no
- * JSON Schema to TypeScript generator runs in this repo yet, so keep these in step with the
- * schema by hand; `contents.test.ts` fails when the schema's enums change.
+ * Section body types for the declaration workspace, from the First Schedule's JSON Schema
+ * (`packages/schemas/forms/declaration.v1.json`). `form.gen.ts` is generated from it by
+ * `pnpm generate` (ADR-0009); this module names the parts each section holds. The declarations
+ * contract types section contents as an open object (`SectionContents`), so these are what the
+ * workspace reads them as.
  *
  * The complete shapes below are what a submitted declaration holds. A draft section can be
  * missing anything, so the autosaved contents use `Draft<T>`.
  */
+import type * as Form from './form.gen';
 
-export type ObligationType = 'initial' | 'biennial' | 'final';
+type DeclarationDocument =
+  Form.DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfInterestAct2025;
 
-export const MARITAL_STATUSES = ['single', 'married', 'separated', 'divorced', 'widowed'] as const;
-export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
+/**
+ * Every value of a schema enumeration, in the order the form lists them. It fails to compile
+ * when a value is missing or unknown, so the lists move with the generated types.
+ */
+function allOf<T extends string>() {
+  return <const A extends readonly T[]>(
+    values: A & ([T] extends [A[number]] ? unknown : { missing: Exclude<T, A[number]> }),
+  ): A => values;
+}
 
-export const EMPLOYMENT_NATURES = ['permanent', 'temporary', 'contract', 'other'] as const;
-export type EmploymentNature = (typeof EMPLOYMENT_NATURES)[number];
+export type ObligationType = DeclarationDocument['type'];
 
-export const OCCUPATION_SECTORS = ['public', 'private', 'not-employed', 'unknown'] as const;
-export type OccupationSector = (typeof OCCUPATION_SECTORS)[number];
+export type PersonName = Form.PersonName;
+export type Money = Form.Money;
+export type Location = Form.Location;
+export type ChangeFlag = Form.ChangeFlag;
+export type MaritalStatusChange = Form.MaritalStatusChange;
+export type Attachment = Form.Attachment;
+export type ItemSource = Form.ItemSource;
+export type Spouse = Form.Spouse;
+export type Child = Form.Child;
+export type IncomeItem = Form.IncomeItem;
+export type AssetItem = Form.AssetItem;
+export type LiabilityItem = Form.LiabilityItem;
 
-export const INCOME_TYPES = [
+/** `officer`, `spouse:<uuid>` or `child:<uuid>`; the schema's pattern, as a type. */
+export type PersonKey = 'officer' | `spouse:${string}` | `child:${string}`;
+
+/** Paragraphs 1-5; the `bio` section. `name`, designation, employer and Commission are locked. */
+export type Officer = DeclarationDocument['officer'];
+
+/** Paragraphs 6-7; the `household` section. */
+export type Household = Pick<DeclarationDocument, 'spouses' | 'children'>;
+
+/** Paragraph 8 for one person; the `statement:<personKey>` sections. */
+export type Statement = Form.Statement & { personKey: PersonKey };
+
+export type MaterialChangeEntry = Form.MaterialChangeEntry & { personKey?: PersonKey };
+
+/** Paragraph 9; the `other` section. `materialChanges` is composed by the service. */
+export type OtherInformation = Omit<DeclarationDocument['otherInformation'], 'materialChanges'> & {
+  materialChanges: MaterialChangeEntry[];
+};
+
+export type MaritalStatus = Officer['maritalStatus'];
+export const MARITAL_STATUSES = allOf<MaritalStatus>()([
+  'single',
+  'married',
+  'separated',
+  'divorced',
+  'widowed',
+]);
+
+export type EmploymentNature = Officer['employment']['nature'];
+export const EMPLOYMENT_NATURES = allOf<EmploymentNature>()([
+  'permanent',
+  'temporary',
+  'contract',
+  'other',
+]);
+
+export type OccupationSector = NonNullable<Spouse['occupationSector']>;
+export const OCCUPATION_SECTORS = allOf<OccupationSector>()([
+  'public',
+  'private',
+  'not-employed',
+  'unknown',
+]);
+
+export type IncomeType = IncomeItem['type'];
+export const INCOME_TYPES = allOf<IncomeType>()([
   'salary-emoluments',
   'allowances',
   'business',
@@ -31,10 +93,10 @@ export const INCOME_TYPES = [
   'farming',
   'consultancy',
   'other',
-] as const;
-export type IncomeType = (typeof INCOME_TYPES)[number];
+]);
 
-export const ASSET_TYPES = [
+export type AssetType = AssetItem['type'];
+export const ASSET_TYPES = allOf<AssetType>()([
   'land',
   'building',
   'vehicle',
@@ -44,23 +106,23 @@ export const ASSET_TYPES = [
   'cash',
   'receivable',
   'other',
-] as const;
-export type AssetType = (typeof ASSET_TYPES)[number];
+]);
 
-export const LIABILITY_TYPES = ['mortgage', 'loan', 'guarantee', 'other'] as const;
-export type LiabilityType = (typeof LIABILITY_TYPES)[number];
+export type LiabilityType = LiabilityItem['type'];
+export const LIABILITY_TYPES = allOf<LiabilityType>()(['mortgage', 'loan', 'guarantee', 'other']);
 
-export const CHANGE_KINDS = [
+export type ChangeKind = NonNullable<ChangeFlag['kind']>;
+export const CHANGE_KINDS = allOf<ChangeKind>()([
   'value-change',
   'acquisition',
   'disposal',
   'new-source',
   'source-ended',
   'settled',
-] as const;
-export type ChangeKind = (typeof CHANGE_KINDS)[number];
+]);
 
-export const MEMBERSHIP_KINDS = [
+export type MembershipKind = Form.RegistrableInterests['memberships'][number]['kind'];
+export const MEMBERSHIP_KINDS = allOf<MembershipKind>()([
   'company',
   'partnership',
   'society',
@@ -68,166 +130,7 @@ export const MEMBERSHIP_KINDS = [
   'foundation',
   'trust',
   'other',
-] as const;
-export type MembershipKind = (typeof MEMBERSHIP_KINDS)[number];
-
-export interface PersonName {
-  surname: string;
-  firstName: string;
-  otherNames?: string;
-}
-
-/** `officer`, `spouse:<uuid>` or `child:<uuid>`. */
-export type PersonKey = 'officer' | `spouse:${string}` | `child:${string}`;
-
-/** Amounts are integer cents; `original` is the foreign amount in the currency's minor units. */
-export interface Money {
-  kesCents: number;
-  original?: { currency: string; minorUnits: number };
-}
-
-export interface Location {
-  inKenya: boolean;
-  /** `001`-`047`. */
-  county?: string;
-  /** ISO 3166-1 alpha-2. */
-  country?: string;
-  detail?: string;
-}
-
-export interface ChangeFlag {
-  changed: boolean;
-  kind?: ChangeKind;
-  explanation?: string;
-}
-
-export interface MaritalStatusChange {
-  changed: boolean;
-  explanation?: string;
-}
-
-export interface Attachment {
-  /** The link's id; `DELETE .../attachments/{attachmentId}` unlinks it. */
-  attachmentId: string;
-  uploadId: string;
-  fileName: string;
-  sha256: string;
-}
-
-/** Paragraphs 1-5; the `bio` section. `name`, designation, employer and Commission are locked. */
-export interface Officer {
-  name: PersonName;
-  birth: { date: string; place: string };
-  maritalStatus: MaritalStatus;
-  maritalStatusChange?: MaritalStatusChange;
-  address: { postal: string; physical: string };
-  employment: {
-    designation: string;
-    employer: string;
-    nature: EmploymentNature;
-    natureOther?: string;
-    /** The Commission's slug; its name comes from `Declaration.commission`. */
-    responsibleCommission: string;
-    personnelFileNumber?: string;
-  };
-}
-
-export interface Spouse {
-  id: string;
-  name: PersonName;
-  nationalId?: string;
-  kraPin?: string;
-  occupationSector?: OccupationSector;
-  separated: boolean;
-  separationDate?: string;
-}
-
-export interface Child {
-  id: string;
-  name: PersonName;
-  dateOfBirth: string;
-  nationalId?: string;
-  /** Derived by the service: under 18 on the statement date. */
-  includedAtStatementDate: boolean;
-}
-
-/** Paragraphs 6-7; the `household` section. */
-export interface Household {
-  spouses: { none: boolean; items: Spouse[] };
-  children: { none: boolean; items: Child[] };
-}
-
-interface ItemBase {
-  id: string;
-  description: string;
-  location: Location;
-  change: ChangeFlag;
-  attachments?: Attachment[];
-}
-
-export interface IncomeItem extends ItemBase {
-  type: IncomeType;
-  amount: Money;
-}
-
-export interface AssetItem extends ItemBase {
-  type: AssetType;
-  details?: {
-    parcelNumber?: string;
-    size?: string;
-    registration?: string;
-    makeModel?: string;
-    issuer?: string;
-    quantityOrPercent?: string;
-    institution?: string;
-    accountType?: string;
-    debtor?: string;
-  };
-  value: Money;
-  joint: { isJoint: boolean; sharePercent?: number; coOwner?: string };
-}
-
-export interface LiabilityItem extends ItemBase {
-  type: LiabilityType;
-  creditor: string;
-  outstanding: Money;
-}
-
-/** Paragraph 8 for one person; the `statement:<personKey>` sections. */
-export interface Statement {
-  personKey: PersonKey;
-  personName: PersonName;
-  statementDate: string;
-  incomePeriod: { from: string; to: string };
-  incomeNil: boolean;
-  income: IncomeItem[];
-  assetsNil: boolean;
-  assets: AssetItem[];
-  liabilitiesNil: boolean;
-  liabilities: LiabilityItem[];
-  /** A separated spouse's statement: the extent of the officer's knowledge. */
-  knowledgeLimitation?: string;
-}
-
-export interface MaterialChangeEntry {
-  personKey?: PersonKey;
-  itemId?: string;
-  itemDescription?: string;
-  kind: ChangeKind | 'marital-status' | 'directorship' | 'membership';
-  explanation: string;
-}
-
-/** Paragraph 9; the `other` section. `materialChanges` is composed by the service. */
-export interface OtherInformation {
-  materialChanges: MaterialChangeEntry[];
-  registrableInterests: {
-    directorships: { company: string; role: string; remunerated: boolean; change?: ChangeFlag }[];
-    memberships: { entity: string; kind: MembershipKind; change?: ChangeFlag }[];
-    dualCitizenship: { holds: boolean; country?: string; pendingApplication: boolean };
-    pendingCases: { forum: string; reference: string; nature: string }[];
-  };
-  freeText: string;
-}
+]);
 
 /** Anything in a draft may be missing. Arrays keep their element type partial too. */
 export type Draft<T> = T extends (infer E)[]
@@ -244,5 +147,5 @@ export interface SectionContentsByKind {
   other: Draft<OtherInformation>;
 }
 
-export const ATTESTATION_TEXT =
+export const ATTESTATION_TEXT: DeclarationDocument['attestation']['text'] =
   'I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.';
