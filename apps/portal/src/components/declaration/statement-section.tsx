@@ -40,10 +40,15 @@ import {
   Tick02Icon,
   UserMultipleIcon,
 } from '@hugeicons/core-free-icons';
+import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import { getDeclarationSection } from '../../server/declarations';
-import type { LoadedSection } from '../../server/declarations.server';
+import type {
+  LoadedSection,
+  LoadedSuggestion,
+  LoadedSuggestionSet,
+} from '../../server/declarations.server';
 import type { AssetItem, Draft, Statement } from './contents';
 import {
   AMOUNT_KEY,
@@ -68,8 +73,10 @@ import {
 } from './statement';
 import { CATEGORY_WORDS, changeWord, TYPE_LABELS } from './labels';
 import { fullName } from './format';
+import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
-import { liveSections, personKeyOf, relationship } from './steps';
+import { liveSections, personKeyOf, relationship, stepLink } from './steps';
+import { categoryOfItem, withAcceptedItem } from './suggestions';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';
@@ -120,6 +127,11 @@ export interface StatementSectionProps {
    * Nothing is rendered when omitted.
    */
   renderAttachments?: RenderAttachments;
+  /**
+   * Check registries for this person (#312): who they are and their suggestion sets as loaded.
+   * No panel is shown when omitted.
+   */
+  registries?: { person: RegistryPerson; sets: LoadedSuggestionSet[]; pollMs?: number };
 }
 
 interface Removing {
@@ -139,8 +151,10 @@ export function StatementSection({
   showErrors = false,
   separated = false,
   renderAttachments,
+  registries,
 }: StatementSectionProps) {
   const { declaration } = useWorkspace();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const {
     value: statement,
@@ -229,6 +243,28 @@ export function StatementSection({
     setEditing(item.id ?? null);
   }
 
+  /** Opens the item an accepted suggestion added, or Household for a spouse's KRA PIN. */
+  function viewSuggestion(suggestion: LoadedSuggestion) {
+    const itemId = suggestion.acceptedItemId;
+    const category = itemId ? categoryOfItem(statement, itemId) : null;
+    if (!itemId || !category) {
+      if (suggestion.sectionKey === 'household' || suggestion.sectionKey === 'bio') {
+        void navigate(stepLink(declaration.id, suggestion.sectionKey));
+      }
+      return;
+    }
+    if (editing !== null && editing !== itemId) mark(editing);
+    setTab(category);
+    setEditing(itemId);
+    const item = itemsOf(category).find((each) => each.id === itemId);
+    const issues = item ? itemIssues(category, item) : {};
+    const field = ITEM_FIELD_ORDER[category].find((each) => issues[each]) ?? 'description';
+    // Once the editor has opened.
+    setTimeout(() => {
+      focusField(itemId, field);
+    }, 0);
+  }
+
   function confirmRemove() {
     if (!removing) return;
     const id = removing.item.id ?? '';
@@ -253,6 +289,22 @@ export function StatementSection({
           <Icon icon={InformationCircleIcon} />
           <AlertDescription>{SEPARATED_COPY}</AlertDescription>
         </Alert>
+      ) : null}
+
+      {registries ? (
+        <RegistriesPanel
+          personKey={key.slice('statement:'.length)}
+          person={registries.person}
+          initialSets={registries.sets}
+          pollMs={registries.pollMs}
+          statement={statement}
+          disabled={disabled}
+          onAccepted={({ itemId, section: fresh }) => {
+            if (fresh?.key !== key) return;
+            update((current) => withAcceptedItem(current, fresh.contents, itemId));
+          }}
+          onView={viewSuggestion}
+        />
       ) : null}
 
       <Tabs
