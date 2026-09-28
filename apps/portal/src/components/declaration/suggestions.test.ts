@@ -23,6 +23,7 @@ import {
   shownSuggestions,
   suggestionPatch,
   suggestionTitle,
+  supersededBy,
   valuesAt,
   withAcceptedItem,
   withSuggestion,
@@ -287,6 +288,20 @@ describe('a person’s registry check', () => {
       ['p1', 'ardhisasa'],
     ]);
     expect(shownSuggestions(sets)[1]?.at).toBe('2026-09-26T10:32:00Z');
+  });
+
+  it('supersedes new suggestions of the registries asked again', () => {
+    const sets = [
+      set({ suggestions: [suggestion(), suggestion({ id: 's2', status: 'accepted' })] }),
+      set({ id: 'kra-1', source: 'kra', suggestions: [suggestion({ id: 'k1', setId: 'kra-1' })] }),
+    ];
+    const next = supersededBy(sets, 'officer', ['ntsa']);
+    expect(next.flatMap((each) => each.suggestions.map((one) => one.status))).toEqual([
+      'superseded',
+      'accepted',
+      'new',
+    ]);
+    expect(supersededBy(sets, 'spouse:x', ['ntsa'])[0]?.suggestions[0]?.status).toBe('new');
   });
 
   it('puts an accepted or dismissed suggestion back into its set', () => {

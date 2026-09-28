@@ -430,3 +430,24 @@ export function editValue(suggestion: SuggestionLike, key: string): string {
   }
   return text(suggestion.fields[key]);
 }
+
+/**
+ * The sets as a re-run leaves them before the service answers: the person's `new` suggestions
+ * from the registries asked again are superseded, accepted and dismissed ones kept (S5).
+ */
+export function supersededBy(
+  sets: LoadedSuggestionSet[],
+  personKey: string,
+  sources: readonly RegistrySystem[],
+): LoadedSuggestionSet[] {
+  return sets.map((set) =>
+    set.personKey === personKey && set.source !== 'document' && sources.includes(set.source)
+      ? {
+          ...set,
+          suggestions: set.suggestions.map((each) =>
+            each.status === 'new' ? { ...each, status: 'superseded' as const } : each,
+          ),
+        }
+      : set,
+  );
+}
