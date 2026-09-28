@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Render a template and send it by email or SMS
-         * @description Synchronous with a 5-second budget. Callers use service tokens.
+         * @description Synchronous with a 5-second budget. A provider failure is status failed.
          */
         post: operations["sendMessage"];
         delete?: never;
@@ -28,9 +28,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         /** Delivery status of a message */
@@ -50,10 +48,10 @@ export interface components {
         /** @enum {string} */
         Channel: "email" | "sms";
         /**
-         * @description Registered templates; each declares its params
+         * @description Registered templates; each declares its channel and params
          * @enum {string}
          */
-        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email" | "acknowledgement-email" | "acknowledgement-sms" | "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms" | "decision-email" | "decision-sms" | "notice-email" | "notice-sms" | "salary-stopped-email" | "salary-stopped-sms" | "salary-reinstated-email" | "salary-reinstated-sms" | "form-m-draft-ready-email" | "form-m-reminder-email" | "form-m-chase-email" | "form-m-receipt-email" | "access-request-acknowledged-email" | "access-request-notified-email" | "access-request-notified-sms" | "access-decision-applicant-email" | "access-decision-declarant-email" | "access-package-ready-email" | "access-officer-reminder-email" | "lea-grant-notice-email" | "lea-decision-email" | "certified-copy-ready-email";
+        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email";
         Recipient: {
             /** @constant */
             kind: "address";
@@ -72,13 +70,7 @@ export interface components {
             channel: components["schemas"]["Channel"];
             recipient: components["schemas"]["Recipient"];
             template: components["schemas"]["TemplateId"];
-            /**
-             * @description Validated against the template's parameter schema. `obligation-reminder-sms` and
-             *     `obligation-reminder-email` take exactly `type` (initial, biennial, final),
-             *     `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`,
-             *     due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or
-             *     https URL).
-             */
+            /** @description Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL). */
             params: {
                 [key: string]: unknown;
             };
@@ -96,11 +88,12 @@ export interface components {
             /** Format: uuid */
             id: string;
             channel: components["schemas"]["Channel"];
-            template: components["schemas"]["TemplateId"];
+            /** @description The `TemplateId` it was rendered from, as recorded when sent */
+            template: string;
             status: components["schemas"]["MessageStatus"];
-            /** @description Reason when failed, e.g. timeout, rejected-recipient, provider-error, no-contact, contact-lookup-failed */
-            error?: string | null;
-            providerMessageId?: string | null;
+            /** @description Reason when failed: timeout, rejected-recipient, provider-error, no-contact or contact-lookup-failed */
+            error: string | null;
+            providerMessageId: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -108,8 +101,14 @@ export interface components {
             type: string;
             title: string;
             status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "already-registered";
             detail?: string;
             instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
             errors?: {
                 path: string;
                 message: string;
@@ -186,7 +185,16 @@ export interface operations {
                     "application/json": components["schemas"]["Message"];
                 };
             };
-            /** @description Not found */
+            /** @description Caller lacks the messages scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or sent by another caller */
             404: {
                 headers: {
                     [name: string]: unknown;

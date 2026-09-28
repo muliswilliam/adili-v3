@@ -1,23 +1,55 @@
 import { z } from 'zod';
 
-import { CHANNELS, isTemplateId, LOCALES, templateChannel, templateParams } from './templates.js';
+import { CHANNELS, LOCALES, TEMPLATE_IDS, templateChannel, templateParams } from './templates.js';
+
+/**
+ * Request and response bodies of the messages API. They are the contract: the OpenAPI document,
+ * packages/schemas/internal/notifications.yaml, is generated from them (`pnpm contracts`).
+ */
 
 // ITU-T E.164: a plus, a country code that never starts with 0, at most 15 digits.
 const E164 = /^\+[1-9]\d{7,14}$/;
 const email = z.email();
 
-/** Body of `POST /internal/v1/messages` (notifications.yaml `SendMessage`). */
+export const channelSchema = z.enum(CHANNELS);
+
+export const templateIdSchema = z
+  .enum(TEMPLATE_IDS)
+  .meta({ description: 'Registered templates; each declares its channel and params' });
+
+export const recipientSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('address'),
+    to: z
+      .string()
+      .trim()
+      .min(1)
+      .max(254)
+      .meta({ description: 'Email address or E.164 phone number, matching the channel' }),
+  }),
+  z.object({
+    kind: z.literal('person'),
+    personId: z.uuid().meta({
+      description:
+        "The person's verified contacts are resolved through the directory (cached for 10 minutes) and the one for the channel is used. None for the channel is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).",
+    }),
+  }),
+]);
+
+/** Body of `POST /internal/v1/messages` (`SendMessage`). */
 export const sendMessageSchema = z
   .object({
-    channel: z.enum(CHANNELS),
-    recipient: z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('address'), to: z.string().trim().min(1).max(254) }),
-      z.object({ kind: z.literal('person'), personId: z.uuid() }),
-    ]),
-    template: z.string().min(1),
-    params: z.record(z.string(), z.unknown()),
+    channel: channelSchema,
+    recipient: recipientSchema,
+    template: templateIdSchema,
+    params: z.record(z.string(), z.unknown()).meta({
+      description:
+        "Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL).",
+    }),
     locale: z.enum(LOCALES).default('en'),
-    tenant: z.string().min(1).max(64).optional(),
+    tenant: z.string().min(1).max(64).optional().meta({
+      description: 'Tenant key for audit and per-tenant branding; optional for platform messages',
+    }),
   })
   // One pass, so a caller sees every recipient, template and params error in one response.
   .superRefine((body, ctx) => {
@@ -38,28 +70,36 @@ export const sendMessageSchema = z
         });
       }
     }
-    if (!isTemplateId(template)) {
-      ctx.addIssue({ code: 'custom', path: ['template'], message: 'unknown template' });
-    } else {
-      if (templateChannel(template) !== channel) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['template'],
-          message: `is a ${templateChannel(template)} template, not ${channel}`,
-        });
-      }
-      for (const issue of templateParams(template).safeParse(params).error?.issues ?? []) {
-        ctx.addIssue({ ...issue, path: ['params', ...issue.path] });
-      }
+    if (templateChannel(template) !== channel) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['template'],
+        message: `is a ${templateChannel(template)} template, not ${channel}`,
+      });
     }
-  })
-  .transform(({ template, ...body }, ctx) => {
-    // Narrows the type; the refinement above has already rejected unknown templates.
-    if (!isTemplateId(template)) {
-      ctx.addIssue({ code: 'custom', path: ['template'], message: 'unknown template' });
-      return z.NEVER;
+    for (const issue of templateParams(template).safeParse(params).error?.issues ?? []) {
+      ctx.addIssue({ ...issue, path: ['params', ...issue.path] });
     }
-    return { ...body, template };
   });
 
 export type SendMessage = z.infer<typeof sendMessageSchema>;
+
+export const messageStatusSchema = z.enum(['sent', 'failed']);
+
+/** A message as `POST` and `GET /internal/v1/messages` return it (`Message`). */
+export const messageSchema = z.object({
+  id: z.uuid(),
+  channel: channelSchema,
+  template: z
+    .string()
+    .meta({ description: 'The `TemplateId` it was rendered from, as recorded when sent' }),
+  status: messageStatusSchema,
+  error: z.string().nullable().meta({
+    description:
+      'Reason when failed: timeout, rejected-recipient, provider-error, no-contact or contact-lookup-failed',
+  }),
+  providerMessageId: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+});
+
+export type MessageView = z.infer<typeof messageSchema>;
