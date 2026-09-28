@@ -19,6 +19,11 @@ export const en = {
   templateXlsx: 'Excel template (.xlsx)',
   templateError: 'The template could not be downloaded. Try again.',
   importRoster: 'Import roster',
+  runningBanner: (processed: number, total: number) =>
+    `An import is running: ${formatNumber(processed)} of ${formatNumber(total)} rows`,
+  runningBannerReading: 'An import is running: reading the file',
+  viewRunningImport: 'View import',
+  waitForImport: 'Wait for the current import to finish',
   summaryCards: 'Roster summary',
   expectedDeclarants: 'Expected declarants',
   onboarded: 'Onboarded',
