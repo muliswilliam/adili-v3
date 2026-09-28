@@ -75,6 +75,11 @@ export class FakeDirectory extends DirectoryClient {
     );
   }
 
+  /** Records `records` (replacing earlier versions) as exited by confirmation `batchId`. */
+  givenExitBatch(batchId: string, records: readonly PulledRosterRecord[]): void {
+    this.givenImport(batchId, records);
+  }
+
   /** Stores or replaces records without an import, e.g. a record changed by onboarding. */
   givenRecords(records: readonly PulledRosterRecord[]): void {
     for (const record of records) this.records.set(record.id, record);

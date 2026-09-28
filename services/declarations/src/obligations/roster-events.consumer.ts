@@ -3,12 +3,13 @@ import { Payload } from '@nestjs/microservices';
 import { type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
-import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from './events.js';
+import { DECLARANT_ONBOARDED, ROSTER_EXITS_CONFIRMED, ROSTER_IMPORT_COMPLETED } from './events.js';
 import { type IngestedEvent, RosterIngest } from './roster-ingest.js';
 
 const tenantSchema = z.string().regex(/^[a-z][a-z0-9]{1,19}$/);
 
 const importCompletedData = z.object({ importId: z.uuid() });
+const exitsConfirmedData = z.object({ batchId: z.uuid() });
 const declarantOnboardedData = z.object({ rosterRecordId: z.uuid() });
 
 /**
@@ -27,6 +28,19 @@ export class RosterEventsConsumer {
     await this.ingest.ingest('obligations.roster-import-completed', ingested(event), {
       kind: 'records',
       selector: { importId },
+    });
+  }
+
+  /**
+   * The records the confirmation exited: each gets its final obligation, and loses the biennials
+   * whose statement date is after its exit date.
+   */
+  @OnEvent(ROSTER_EXITS_CONFIRMED)
+  async exitsConfirmed(@Payload() event: EventEnvelope): Promise<void> {
+    const { batchId } = exitsConfirmedData.parse(event.data);
+    await this.ingest.ingest('obligations.roster-exits-confirmed', ingested(event), {
+      kind: 'records',
+      selector: { exitBatchId: batchId },
     });
   }
 

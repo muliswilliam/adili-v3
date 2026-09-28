@@ -63,6 +63,10 @@ export class RecordingWorkflows extends ObligationWorkflows {
     return this.calls.flatMap((call) => call.changes.created);
   }
 
+  cancelled(): ObligationChanges['cancelled'] {
+    return this.calls.flatMap((call) => call.changes.cancelled);
+  }
+
   personLinked(): string[] {
     return this.calls.flatMap((call) => call.changes.personLinked);
   }
