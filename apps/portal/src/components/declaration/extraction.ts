@@ -28,15 +28,6 @@ import {
  * left out rather than refused.
  */
 
-export const DOCUMENT_KINDS: readonly DocumentKind[] = [
-  'title-deed',
-  'logbook',
-  'payslip',
-  'bank-letter',
-  'share-certificate',
-  'other',
-];
-
 export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
   'title-deed': 'Title deed',
   logbook: 'Logbook',
@@ -45,6 +36,9 @@ export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
   'share-certificate': 'Share certificate',
   other: 'Other',
 };
+
+/** Every kind the contract has, in the order the sheet offers them. */
+export const DOCUMENT_KINDS = Object.keys(DOCUMENT_KIND_LABELS) as readonly DocumentKind[];
 
 export const EXTRACTION_COPY = {
   menu: 'Read into the form',

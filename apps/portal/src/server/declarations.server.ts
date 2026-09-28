@@ -5,6 +5,7 @@ import type {
   DeclarationAttachment,
   DeclarationListItem,
   DeclarationSummary,
+  DocumentKind,
   MyObligations,
   SectionEnvelope,
   SectionKey,
@@ -473,9 +474,7 @@ export function dismissSuggestion(
   });
 }
 
-/** What the declarant says a document is, as `extractAttachment` takes it. */
-export type DocumentKind =
-  'title-deed' | 'logbook' | 'payslip' | 'bank-letter' | 'share-certificate' | 'other';
+export type { DocumentKind };
 
 export interface ExtractAttachmentInput {
   declarationId: string;

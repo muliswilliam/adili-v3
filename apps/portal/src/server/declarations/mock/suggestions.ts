@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Draft, Household, ItemSource } from '../../../components/declaration/contents';
+import { DOCUMENT_KINDS } from '../../../components/declaration/extraction';
 import { type Item, NIL_KEY } from '../../../components/declaration/statement';
 import {
   applyPatch,
@@ -11,7 +12,13 @@ import {
   suggestionPatch,
   suggestionTitle,
 } from '../../../components/declaration/suggestions';
-import type { DeclarationAttachment, Suggestion, SuggestionSet, SuggestionSource } from '../types';
+import type {
+  DeclarationAttachment,
+  DocumentKind,
+  Suggestion,
+  SuggestionSet,
+  SuggestionSource,
+} from '../types';
 import { isRecord, json, problem, readJson } from './http';
 
 /**
@@ -53,18 +60,6 @@ interface Extraction {
   documentKind: DocumentKind;
   targetItemType: string;
 }
-
-type DocumentKind =
-  'title-deed' | 'logbook' | 'payslip' | 'bank-letter' | 'share-certificate' | 'other';
-
-const DOCUMENT_KINDS = new Set<string>([
-  'title-deed',
-  'logbook',
-  'payslip',
-  'bank-letter',
-  'share-certificate',
-  'other',
-]);
 
 export interface SuggestionState {
   sets: StoredSet[];
@@ -573,7 +568,7 @@ export async function requestExtraction(
   if (
     !isRecord(body) ||
     typeof body.documentKindHint !== 'string' ||
-    !DOCUMENT_KINDS.has(body.documentKindHint) ||
+    !(DOCUMENT_KINDS as readonly string[]).includes(body.documentKindHint) ||
     typeof body.targetItemType !== 'string' ||
     body.targetItemType === ''
   ) {
