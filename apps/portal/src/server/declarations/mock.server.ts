@@ -12,6 +12,10 @@
  *
  * Starting a declaration creates the bio (pre-filled from the Commission's roster), household,
  * the officer's statement and other information; a second start returns the same draft (200).
+ * The TSC roster has HR values (marital status, job group, date of appointment, work station)
+ * that pre-fill the bio; the PSC roster has none, so those stay empty (spec 05b S8). The PSC
+ * draft's officer statement starts with two assets accepted from registries (NTSA, ArdhiSasa),
+ * so source badges show (S11).
  * Every save needs `If-Match` with the current draft version (412 when stale, 428 when missing)
  * and bumps the version; the roster fields answer 400 `identity-locked-field` and a nil flag
  * with items answers 400 `nil-conflicts-with-items` (S4, S8). Household saves create, archive
@@ -23,8 +27,10 @@
 import { randomUUID } from 'node:crypto';
 
 import type {
+  AssetItem,
   Draft,
   Household,
+  MaritalStatus,
   Officer,
   PersonName,
   Statement,
@@ -61,16 +67,30 @@ const COMMISSIONS = {
   parlsc: { slug: 'parlsc', issuerCode: 'PSCK', name: 'Parliamentary Service Commission' },
 } satisfies Record<string, CommissionRef>;
 
+/** HR values a roster may hold; each pre-fills the bio and stays editable (spec 05b S8). */
+interface RosterHr {
+  maritalStatus?: MaritalStatus;
+  jobGroup?: string;
+  appointmentDate?: string;
+  workStation?: string;
+}
+
 /** What each Commission's roster says about the demo declarant. */
 const ROSTER: Record<
   string,
-  { name: PersonName; designation: string; employer: string; file: string }
+  { name: PersonName; designation: string; employer: string; file: string; hr?: RosterHr }
 > = {
   tsc: {
     name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
     designation: 'Deputy Principal',
     employer: 'Nyeri High School',
     file: 'TSC/999999',
+    hr: {
+      maritalStatus: 'married',
+      jobGroup: 'D3 (T-Scale 13)',
+      appointmentDate: '2026-09-02',
+      workStation: 'Eldoret, Uasin Gishu',
+    },
   },
   psc: {
     name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
@@ -364,6 +384,41 @@ function emptyStatement(
   };
 }
 
+/**
+ * Assets as if accepted from registry suggestions, so the portal shows source badges. The
+ * suggestion ids stand in for suggestions this mock never created.
+ */
+function sourcedAssets(at: string): Draft<AssetItem>[] {
+  return [
+    {
+      id: randomUUID(),
+      type: 'vehicle',
+      description: 'Toyota Probox, 2016',
+      details: { registration: 'KCA 123A', makeModel: 'Toyota Probox, 2016' },
+      value: { kesCents: 85_000_000 },
+      location: { inKenya: true, county: '047' },
+      joint: { isJoint: false },
+      change: { changed: false },
+      source: { kind: 'ntsa', suggestionId: randomUUID(), verificationResultId: randomUUID(), at },
+    },
+    {
+      id: randomUUID(),
+      type: 'land',
+      description: 'Residential plot, Kitengela',
+      details: { parcelNumber: 'Kajiado/Kitengela/12345', size: '0.125 acres' },
+      location: { inKenya: true, county: '034' },
+      joint: { isJoint: false },
+      change: { changed: false },
+      source: {
+        kind: 'ardhisasa',
+        suggestionId: randomUUID(),
+        verificationResultId: randomUUID(),
+        at,
+      },
+    },
+  ];
+}
+
 function startDeclaration(obligationId: string) {
   const obligation = OBLIGATIONS.find((candidate) => candidate.id === obligationId);
   if (!obligation) return problem(404, 'Not found');
@@ -395,15 +450,21 @@ function startDeclaration(obligationId: string) {
     amendingFromVersion: null,
     createdAt: now,
   };
+  const { maritalStatus, ...hr } = roster?.hr ?? {};
   const officer: Draft<Officer> = {
     name: roster?.name,
+    ...(maritalStatus ? { maritalStatus } : {}),
     employment: {
       designation: roster?.designation,
       employer: roster?.employer,
       responsibleCommission: obligation.commission.slug,
       personnelFileNumber: roster?.file,
+      ...hr,
     },
   };
+  const officerStatement = emptyStatement('officer', roster?.name, header);
+  const sourced = obligation.commission.slug === 'psc';
+  if (sourced) officerStatement.assets = sourcedAssets(now);
   const stored: Stored = {
     header,
     status: 'draft',
@@ -413,10 +474,10 @@ function startDeclaration(obligationId: string) {
     contents: new Map([
       ['bio', officer],
       ['household', {}],
-      ['statement:officer', emptyStatement('officer', roster?.name, header)],
+      ['statement:officer', officerStatement],
       ['other', {}],
     ]),
-    savedAt: new Map(),
+    savedAt: new Map(sourced ? [['statement:officer', now]] : []),
     persons: [],
     archived: new Set(),
     attachments: new Map(),

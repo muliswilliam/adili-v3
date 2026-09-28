@@ -97,6 +97,43 @@ describe('starting a declaration (S1, S3)', () => {
     });
   });
 
+  it('S8: pre-fills the HR fields a roster has, and leaves them out when it has none', async () => {
+    const tsc = await start(MOCK_OBLIGATIONS.biennial);
+    expect(await loadSection(client(), tsc.declaration.id, 'bio')).toMatchObject({
+      section: {
+        contents: {
+          maritalStatus: 'married',
+          employment: {
+            jobGroup: 'D3 (T-Scale 13)',
+            appointmentDate: '2026-09-02',
+            workStation: 'Eldoret, Uasin Gishu',
+          },
+        },
+      },
+    });
+
+    const psc = await start(MOCK_OBLIGATIONS.initial);
+    const bio = await loadSection(client(), psc.declaration.id, 'bio');
+    if (bio.status !== 'ok') throw new Error('no bio');
+    expect(bio.section.contents).not.toHaveProperty('maritalStatus');
+    expect(bio.section.contents.employment).not.toHaveProperty('jobGroup');
+  });
+
+  it('S11: starts the PSC statement with assets from registries', async () => {
+    const { declaration } = await start(MOCK_OBLIGATIONS.initial);
+    const statement = await loadSection(client(), declaration.id, 'statement:officer');
+    expect(statement).toMatchObject({
+      section: {
+        contents: {
+          assets: [
+            { type: 'vehicle', details: { registration: 'KCA 123A' }, source: { kind: 'ntsa' } },
+            { type: 'land', source: { kind: 'ardhisasa' } },
+          ],
+        },
+      },
+    });
+  });
+
   it('refuses filed and cancelled obligations', async () => {
     expect(await startDeclaration(client(), MOCK_OBLIGATIONS.filed)).toEqual({
       status: 'not-open',
