@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { AssetItem, Draft, IncomeItem, LiabilityItem, Statement } from './contents';
 import {
   addJointCopy,
-  CHANGE_KIND_OPTIONS,
   centsToMinorUnits,
   firstItemIssue,
   isBlankItem,
@@ -18,6 +17,7 @@ import {
   tabState,
   withCurrency,
 } from './statement';
+import { CHANGE_KIND_OPTIONS } from './labels';
 
 const land: Draft<AssetItem> = {
   id: 'a1',

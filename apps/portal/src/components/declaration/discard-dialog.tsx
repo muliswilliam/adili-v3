@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { discardDeclarationFn } from '../../server/declarations';
 
 export const DISCARD_TITLE = 'Discard this draft?';
-export const DISCARD_BODY = 'Everything you entered will be deleted. Your obligation stays open.';
+export const DISCARD_BODY = 'Everything you entered will be deleted.';
 export const DISCARDED_TOAST = 'Draft discarded';
 
 const FAILED = {

@@ -16,11 +16,12 @@ import type {
   MaritalStatus,
   Officer,
   OtherInformation,
-  PersonName,
   Spouse,
   Statement,
 } from './contents';
-import { CHANGE_KIND_WORDS, OCCUPATION_SECTOR_LABELS } from './labels';
+import { ageOn, UNANSWERED } from './format';
+import { changeWord, OCCUPATION_SECTOR_LABELS } from './labels';
+import type { Category } from './statement';
 import { liveSections, sectionKind, stepTitle } from './steps';
 
 /**
@@ -121,19 +122,6 @@ export function readSummaryDocument(document: JsonObject): SummaryDocument {
   return document;
 }
 
-export function fullName(name: Draft<PersonName> | undefined): string {
-  return [name?.firstName, name?.otherNames, name?.surname]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(' ');
-}
-
-/** Whole years from a date of birth to a date. */
-export function ageOn(dateOfBirth: string, on: string): number {
-  const years = Number(on.slice(0, 4)) - Number(dateOfBirth.slice(0, 4));
-  return on.slice(5) < dateOfBirth.slice(5) ? years - 1 : years;
-}
-
 /** "ID {nid} · KRA PIN {pin} · {Sector} sector · Separated since {date}". */
 export function spouseDetails(spouse: Draft<Spouse>): string {
   const parts = [spouse.nationalId?.trim() ? `ID ${spouse.nationalId.trim()}` : 'ID not given'];
@@ -208,7 +196,7 @@ function amountOf(item: AnyItem) {
 }
 
 /** "Joint, share {n}%", "Original {CUR} {amount}", "Changed: {kind}". */
-export function itemFlags(item: AnyItem): string[] {
+export function itemFlags(category: Category, item: AnyItem): string[] {
   const flags: string[] = [];
   if ('joint' in item && item.joint?.isJoint) {
     flags.push(
@@ -222,13 +210,13 @@ export function itemFlags(item: AnyItem): string[] {
     flags.push(`Original ${original.currency} ${formatMoney(original.minorUnits)}`);
   }
   if (item.change?.changed) {
-    flags.push(item.change.kind ? `Changed: ${CHANGE_KIND_WORDS[item.change.kind]}` : 'Changed');
+    flags.push(item.change.kind ? `Changed: ${changeWord(category, item.change.kind)}` : 'Changed');
   }
   return flags;
 }
 
-/** An item's amount without the currency, or "-". */
+/** An item's amount without the currency, or "Not answered". */
 export function itemAmount(item: AnyItem): string {
   const cents = amountOf(item)?.kesCents;
-  return cents === undefined ? '-' : formatMoney(cents);
+  return cents === undefined ? UNANSWERED : formatMoney(cents);
 }

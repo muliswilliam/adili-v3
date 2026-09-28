@@ -1,9 +1,9 @@
-import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
+import { createFileRoute, notFound } from '@tanstack/react-router';
 
 import {
-  loginHref,
   requireDeclarationId,
   SectionUnavailable,
+  signInRedirect,
 } from '../../../components/declaration/route-helpers';
 import { SummaryView } from '../../../components/declaration/summary-view';
 import { getDeclarationSummary } from '../../../server/declarations';
@@ -13,7 +13,7 @@ export const Route = createFileRoute('/declarations/$id/summary')({
     const result = await getDeclarationSummary({
       data: { declarationId: requireDeclarationId(params.id) },
     });
-    if (result.status === 'unauthenticated') throw redirect({ href: loginHref(location.href) });
+    if (result.status === 'unauthenticated') throw signInRedirect(location.href);
     if (result.status === 'not-found') throw notFound();
     return result;
   },

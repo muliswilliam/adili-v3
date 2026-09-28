@@ -25,6 +25,8 @@ import {
   type HeldResult,
   type HeldWrite,
 } from './autosave';
+import type { Draft, Household } from './contents';
+import { renamesPerson } from './household';
 
 /**
  * The declaration workspace's shared state: the draft's header and section completeness, the
@@ -135,12 +137,19 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
   }, [declarationId, queue]);
 
   useEffect(() => {
-    queue.setOnSaved((key, result) => {
+    queue.setOnSaved((key, result, contents) => {
       setDeclaration((current) => withSaveResult(current, result));
       setIssueMap((current) => ({ ...current, [key]: result.issues }));
-      if (result.sectionsChanged.length > 0) void refresh();
+      const renamed =
+        key === 'household' &&
+        renamesPerson(
+          declaration.sections,
+          contents as Draft<Household>,
+          declaration.statementDate,
+        );
+      if (result.sectionsChanged.length > 0 || renamed) void refresh();
     });
-  }, [queue, refresh]);
+  }, [queue, refresh, declaration]);
 
   useEffect(() => {
     queue.adoptEtag(etag, loaded.draftVersion);
@@ -154,19 +163,19 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
   );
 
   const autosave = useSyncExternalStore(queue.subscribe, queue.getState, queue.getState);
-  const busy = hasUnsavedWork(autosave);
 
-  // Warn before the tab closes only while a save is in flight or waiting to go.
+  // Before the tab closes, send waiting edits at once, then ask to confirm only if a save is
+  // still in flight or waiting (or was refused). Never while the page shows Saved.
   useEffect(() => {
-    if (!busy) return;
     function warn(event: BeforeUnloadEvent) {
-      event.preventDefault();
+      queue.flush();
+      if (hasUnsavedWork(queue.getState())) event.preventDefault();
     }
     window.addEventListener('beforeunload', warn);
     return () => {
       window.removeEventListener('beforeunload', warn);
     };
-  }, [busy]);
+  }, [queue]);
 
   const reload = useCallback(async () => {
     const result = await getDeclaration({ data: { declarationId } });

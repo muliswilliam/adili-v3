@@ -1,6 +1,5 @@
-import { Badge, Button, Card, Icon, ProgressBar } from '@adili/ui';
+import { Button, Card, Icon, ProgressBar } from '@adili/ui';
 import {
-  AlertCircleIcon,
   Archive02Icon,
   ArrowRight01Icon,
   CheckListIcon,
@@ -11,43 +10,23 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import type { DeclarationSection } from '../../server/declarations/types';
-import { COMPLETENESS_LABELS } from './labels';
+import { CompletenessBadge } from './completeness-badge';
 import {
   continueLabel,
   continueTarget,
   progress,
   relationship,
   sectionKind,
+  STEP_TITLES,
   stepLink,
 } from './steps';
 import { useWorkspace } from './workspace';
 
-function CompletenessBadge({ completeness }: { completeness: DeclarationSection['completeness'] }) {
-  const label = COMPLETENESS_LABELS[completeness];
-  if (completeness === 'complete') {
-    return (
-      <Badge variant="success">
-        <Icon icon={Tick02Icon} />
-        {label}
-      </Badge>
-    );
-  }
-  if (completeness === 'incomplete') {
-    return (
-      <Badge variant="warning">
-        <Icon icon={AlertCircleIcon} />
-        {label}
-      </Badge>
-    );
-  }
-  return <Badge>{label}</Badge>;
-}
-
 function sectionRow(section: DeclarationSection) {
   const kind = sectionKind(section.key);
-  if (kind === 'bio') return { number: '1', label: 'Your details', sub: null };
-  if (kind === 'household') return { number: '2', label: 'Spouses and children', sub: null };
-  if (kind === 'other') return { number: '4', label: 'Other information', sub: null };
+  if (kind === 'bio') return { number: '1', label: STEP_TITLES.bio, sub: null };
+  if (kind === 'household') return { number: '2', label: STEP_TITLES.household, sub: null };
+  if (kind === 'other') return { number: '4', label: STEP_TITLES.other, sub: null };
   const you = section.key === 'statement:officer';
   return {
     number: '3',

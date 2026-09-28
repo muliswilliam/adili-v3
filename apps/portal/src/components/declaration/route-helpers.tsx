@@ -28,6 +28,14 @@ export function loginHref(returnTo: string) {
   return `/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
+/**
+ * The redirect to sign in, then back to `returnTo`. `/auth/login` is a server route, so it
+ * must be a full page load: on in-app navigation the browser router would render Not Found.
+ */
+export function signInRedirect(returnTo: string) {
+  return redirect({ href: loginHref(returnTo), reloadDocument: true });
+}
+
 export type SectionLoad = Extract<SectionResult, { status: 'ok' | 'unavailable' }>;
 
 /**
@@ -43,7 +51,7 @@ export async function loadSectionFor(
   const result = await getDeclarationSection({
     data: { declarationId: requireDeclarationId(declarationId), sectionKey },
   });
-  if (result.status === 'unauthenticated') throw redirect({ href: loginHref(returnTo) });
+  if (result.status === 'unauthenticated') throw signInRedirect(returnTo);
   if (result.status === 'not-found') throw notFound();
   return result;
 }

@@ -7,7 +7,14 @@ import type { CompletenessIssue } from '../../server/declarations/types';
 import { saveDeclarationSection } from '../../server/declarations';
 import { NO_MATERIAL_CHANGES } from './other';
 import { OtherSection } from './other-section';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  cardOf,
+  DECLARATION_ID,
+  region,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+} from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -78,10 +85,6 @@ const COMPLETE = {
   freeText: 'The Kapsabet farm is being transferred to me.',
 };
 
-function region(name: string) {
-  return screen.getByRole('region', { name });
-}
-
 beforeEach(() => {
   saveMock.mockReset();
   saveMock.mockReturnValue(new Promise(() => undefined));
@@ -120,16 +123,18 @@ describe('OtherSection', () => {
   it('shows a complete section with every interest filled in', () => {
     renderOther(otherSection(COMPLETE, []));
 
-    const directorship = screen.getByRole('heading', { name: 'Directorship 1' }).closest('li');
-    if (!directorship) throw new Error('no directorship card');
+    // Cards are named after the item and closed until edited.
+    const directorship = cardOf('Kapsoya Water Project Ltd');
+    expect(within(directorship).getByText('Director · unpaid')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
     expect(
       within(directorship).getByRole<HTMLInputElement>('textbox', { name: 'Company' }).value,
     ).toBe('Kapsoya Water Project Ltd');
     expect(within(directorship).getByRole<HTMLInputElement>('radio', { name: 'No' }).checked).toBe(
       true,
     );
-    expect(screen.getByRole('heading', { name: 'Membership 1' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Pending case 1' })).toBeTruthy();
+    expect(within(cardOf('Kapsoya Parents Welfare Group')).getByText('Society')).toBeTruthy();
+    expect(within(cardOf('ELC 45 of 2025')).getByText('Eldoret Chief Magistrate')).toBeTruthy();
     expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Country' }).value).toBe(
       'Uganda',
     );
@@ -138,17 +143,28 @@ describe('OtherSection', () => {
     expect(document.querySelectorAll('[aria-invalid="true"]')).toHaveLength(0);
   });
 
-  it('adds and removes interest cards named after their number', () => {
+  it('adds, edits, duplicates and removes interest cards named after the item', () => {
     renderOther();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add a directorship' }));
-    expect(screen.getByRole('heading', { name: 'Directorship 1' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Add a directorship' }));
-    expect(screen.getByRole('heading', { name: 'Directorship 2' })).toBeTruthy();
+    const editor = screen.getByRole('group', { name: 'Directorship 1' });
+    expect(document.activeElement).toBe(within(editor).getByRole('textbox', { name: 'Company' }));
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'Company' }), {
+      target: { value: 'Kapsoya Water Ltd' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByRole('heading', { name: 'Kapsoya Water Ltd' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove directorship 2' }));
-    expect(screen.queryByRole('heading', { name: 'Directorship 2' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Directorship 1' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Kapsoya Water Ltd' }));
+    expect(screen.getAllByRole('heading', { name: 'Kapsoya Water Ltd' })).toHaveLength(2);
+    expect(screen.getByRole('group', { name: 'Kapsoya Water Ltd' })).toBeTruthy();
+
+    const [, removeCopy] = screen.getAllByRole('button', { name: 'Remove Kapsoya Water Ltd' });
+    if (!removeCopy) throw new Error('no copy to remove');
+    fireEvent.click(removeCopy);
+    expect(screen.getAllByRole('heading', { name: 'Kapsoya Water Ltd' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Ltd' }));
+    expect(screen.getByRole('group', { name: 'Kapsoya Water Ltd' })).toBeTruthy();
   });
 
   it('asks for the country only when another citizenship is held', () => {
@@ -201,8 +217,14 @@ describe('OtherSection', () => {
     );
 
     expect(screen.queryByText('Membership 1: enter the name and the kind of body.')).toBeNull();
-    fireEvent.blur(screen.getByRole('textbox', { name: 'Entity' }));
-    expect(screen.getByText('Membership 1: enter the name and the kind of body.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Membership 1' }));
+    expect(screen.queryByText('Membership 1: enter the name and the kind of body.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(
+      within(cardOf('Membership 1')).getByText(
+        'Membership 1: enter the name and the kind of body.',
+      ),
+    ).toBeTruthy();
   });
 
   it('autosaves the section without the composed material changes', async () => {

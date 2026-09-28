@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FormField } from './form-field';
-import { MoneyInput } from './money-input';
+import { MoneyInput, type MoneyInputProps } from './money-input';
 
 function AmountField({
   initial = null,
@@ -11,7 +11,7 @@ function AmountField({
   error,
 }: {
   initial?: number | null;
-  onValueChange?: (cents: number | null, details: { text: string; invalid: boolean }) => void;
+  onValueChange?: MoneyInputProps['onValueChange'];
   error?: string;
 }) {
   const [value, setValue] = useState<number | null>(initial);
@@ -65,14 +65,18 @@ describe('MoneyInput', () => {
     });
   });
 
-  it('S19: drops a minus sign, so a negative cannot be entered', () => {
+  it('S19: rejects a negative, keeping the minus sign so the field can say why', () => {
     const onValueChange = vi.fn();
     render(<AmountField onValueChange={onValueChange} />);
 
     fireEvent.change(input(), { target: { value: '-3000' } });
 
-    expect(input().value).toBe('3,000');
-    expect(onValueChange).toHaveBeenLastCalledWith(300000, { text: '3,000', invalid: false });
+    expect(input().value).toBe('-3,000');
+    expect(onValueChange).toHaveBeenLastCalledWith(null, {
+      text: '-3,000',
+      invalid: true,
+      reason: 'negative',
+    });
   });
 
   it('reports an empty field as null, not zero', () => {
@@ -94,6 +98,7 @@ describe('MoneyInput', () => {
     expect(onValueChange).toHaveBeenLastCalledWith(null, {
       text: '999,999,999,999,999,999',
       invalid: true,
+      reason: 'too-large',
     });
   });
 

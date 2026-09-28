@@ -6,10 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discardDeclarationFn } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import { DISCARD_BODY, DISCARD_TITLE } from './discard-dialog';
 import { SUBMIT_NEXT_RELEASE } from './summary';
 import { SummaryView } from './summary-view';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  DECLARATION_ID,
+  region as card,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+} from './testing';
 import { navigate } from './testing-mocks';
 
 vi.mock('@tanstack/react-router', async () => {
@@ -173,10 +178,6 @@ function renderSummary(summary = summaryOf(), today = '2026-09-27') {
   });
 }
 
-function card(title: string) {
-  return screen.getByRole('region', { name: title });
-}
-
 function valueOf(scope: HTMLElement, term: string) {
   const dt = within(scope).getByText(term, { selector: 'dt' });
   return dt.nextElementSibling?.textContent;
@@ -191,8 +192,7 @@ beforeEach(() => {
   navigate.mockReset();
 });
 
-// The summary is a large tree; role queries over it are slow in jsdom.
-describe('SummaryView', { timeout: 20_000 }, () => {
+describe('SummaryView', () => {
   it('renders a complete draft by paragraph, ready to check', () => {
     renderSummary();
 
@@ -363,14 +363,13 @@ describe('SummaryView', { timeout: 20_000 }, () => {
       ),
     );
 
-    expect(valueOf(card('Your details'), 'Postal address')).toBe('-');
+    expect(valueOf(card('Your details'), 'Postal address')).toBe('Not answered');
     expect(within(card('Spouses')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Dependent children')).getByText('Not answered yet.')).toBeTruthy();
     expect(within(card('Financial statements')).getAllByText('Not answered yet.')).toHaveLength(3);
     expect(valueOf(card('Other information'), 'Material changes')).toBe('None flagged.');
-    expect(valueOf(card('Other information'), 'Dual citizenship')).toBe(
-      '- · pending application: -',
-    );
+    expect(valueOf(card('Other information'), 'Dual citizenship')).toBe('Not answered');
+    expect(within(card('Your details')).queryByText('-')).toBeNull();
   });
 
   it('shows a child not included at the statement date', () => {
@@ -432,8 +431,9 @@ describe('Discard from the summary', () => {
     renderSummary();
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard draft' }));
-    const dialog = screen.getByRole('dialog', { name: DISCARD_TITLE });
-    expect(within(dialog).getByText(DISCARD_BODY)).toBeTruthy();
+    // The spec's copy, exactly: "Discard this draft? Everything you entered will be deleted."
+    const dialog = screen.getByRole('dialog', { name: 'Discard this draft?' });
+    expect(within(dialog).getByText('Everything you entered will be deleted.')).toBeTruthy();
     await act(async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Discard draft' }));
       await Promise.resolve();

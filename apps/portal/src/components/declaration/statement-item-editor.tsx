@@ -6,6 +6,7 @@ import {
   Icon,
   Input,
   MoneyInput,
+  type MoneyInvalidReason,
   SegmentedChoice,
   Select,
   SelectItem,
@@ -19,17 +20,15 @@ import {
   AMOUNT_KEY,
   type AnyItem,
   type Category,
-  CATEGORY_WORDS,
-  CHANGE_KIND_OPTIONS,
   centsToMinorUnits,
   CURRENCIES,
   currencyLabel,
   type Item,
   type ItemField,
   originalCents,
-  TYPE_LABELS,
   withCurrency,
 } from './statement';
+import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from './labels';
 
 /**
  * Where #125 mounts the AttachmentList for an item. Called for assets and liabilities (the
@@ -170,7 +169,8 @@ export interface ItemEditorProps {
   errorFor: (field: ItemField) => string | undefined;
   onTouch: (field: ItemField) => void;
   /** Reports text in a money field that is not an amount, so the screen can say so. */
-  onMoneyText: (field: 'amount' | 'originalAmount', invalid: boolean) => void;
+  /** A money field's text is not an amount (null when it is), and why. */
+  onMoneyText: (field: 'amount' | 'originalAmount', problem: MoneyInvalidReason | null) => void;
   /** "My share", or "Mary's share" on someone else's statement. */
   shareLabel: string;
   disabled: boolean;
@@ -378,8 +378,8 @@ export function ItemEditor({
           onBlur={() => {
             onTouch('amount');
           }}
-          onValueChange={(cents, { invalid }) => {
-            onMoneyText('amount', invalid);
+          onValueChange={(cents, { reason }) => {
+            onMoneyText('amount', reason ?? null);
             setMoney((current) => ({ ...current, kesCents: cents ?? undefined }));
           }}
         />
@@ -458,8 +458,8 @@ export function ItemEditor({
                 onBlur={() => {
                   onTouch('originalAmount');
                 }}
-                onValueChange={(cents, { invalid }) => {
-                  onMoneyText('originalAmount', invalid);
+                onValueChange={(cents, { reason }) => {
+                  onMoneyText('originalAmount', reason ?? null);
                   setMoney((current) => {
                     const currency = current.original?.currency;
                     const original = { ...current.original };

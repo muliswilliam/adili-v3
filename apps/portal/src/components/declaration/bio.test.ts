@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ageOn, BIO_MESSAGES, bioIssues } from './bio';
+import { BIO_MESSAGES, bioIssues } from './bio';
 
 const complete = {
   birth: { date: '1980-04-02', place: 'Nyeri' },
@@ -30,8 +30,6 @@ describe('bio rules', () => {
   });
 
   it('needs an age of 18 to 100 on the statement date', () => {
-    expect(ageOn('2009-11-01', '2027-11-01')).toBe(18);
-    expect(ageOn('2009-11-02', '2027-11-01')).toBe(17);
     expect(
       bioIssues({ ...complete, birth: { ...complete.birth, date: '2009-11-02' } }, '2027-11-01')
         .birthDate,

@@ -1,18 +1,15 @@
-import { COUNTIES, COUNTRIES } from '@adili/ui';
-
 import type {
   AssetItem,
   AssetType,
   IncomeType,
   LiabilityType,
-  ChangeKind,
   Draft,
   IncomeItem,
   LiabilityItem,
   Money,
   Statement,
 } from './contents';
-import { ASSET_TYPE_LABELS, INCOME_TYPE_LABELS, LIABILITY_TYPE_LABELS } from './labels';
+import { blank, countryName, countyName } from './format';
 
 /**
  * Pure rules for a financial statement (paragraph 8): the three categories, what an item needs
@@ -43,52 +40,6 @@ export const AMOUNT_KEY = {
   assets: 'value',
   liabilities: 'outstanding',
 } as const;
-
-export const CATEGORY_WORDS = {
-  income: { tab: 'Income', lower: 'income', one: 'income item', add: 'Add income' },
-  assets: { tab: 'Assets', lower: 'assets', one: 'asset', add: 'Add an asset' },
-  liabilities: {
-    tab: 'Liabilities',
-    lower: 'liabilities',
-    one: 'liability',
-    add: 'Add a liability',
-  },
-} as const satisfies Record<Category, { tab: string; lower: string; one: string; add: string }>;
-
-export const TYPE_LABELS: Record<Category, Record<string, string>> = {
-  income: INCOME_TYPE_LABELS,
-  assets: ASSET_TYPE_LABELS,
-  liabilities: LIABILITY_TYPE_LABELS,
-};
-
-/** Change kinds offered per category, in the spec's words. */
-export const CHANGE_KIND_OPTIONS: Record<Category, { value: ChangeKind; label: string }[]> = {
-  income: [
-    { value: 'value-change', label: 'Value changed by 25% or more' },
-    { value: 'new-source', label: 'New source' },
-    { value: 'source-ended', label: 'Source ended' },
-  ],
-  assets: [
-    { value: 'value-change', label: 'Value changed by 25% or more' },
-    { value: 'acquisition', label: 'Acquired' },
-    { value: 'disposal', label: 'Disposed' },
-  ],
-  liabilities: [
-    { value: 'value-change', label: 'Value changed' },
-    // The spec's liability kind "New" has no value of its own in declaration.v1's ChangeFlag
-    // enum. A liability taken on since the last declaration is recorded as `acquisition` (the
-    // debt was acquired); `new-source` is income's word for a new source of income.
-    { value: 'acquisition', label: 'New' },
-    { value: 'settled', label: 'Settled' },
-  ],
-};
-
-/** A change kind in a sentence, e.g. "Changed: new" for a liability. */
-export function changeWord(category: Category, kind: ChangeKind): string {
-  const label = CHANGE_KIND_OPTIONS[category].find((option) => option.value === kind)?.label;
-  if (kind === 'value-change') return 'value changed';
-  return (label ?? kind).toLowerCase();
-}
 
 export type ItemField =
   | 'type'
@@ -171,6 +122,7 @@ export const ITEM_MESSAGES = {
     liabilities: 'Enter the amount outstanding.',
   },
   amountFormat: 'Enter an amount in shillings, e.g. 1,250,000 or 1,250,000.50. No minus signs.',
+  negative: 'Enter the amount without a minus sign. Amounts cannot be negative.',
   originalCurrency: 'Choose the original currency.',
   originalAmount: 'Enter the original amount as a number.',
   share: 'Enter your share as a percentage from 1 to 100.',
@@ -179,10 +131,6 @@ export const ITEM_MESSAGES = {
 } as const;
 
 export type ItemIssues = Partial<Record<ItemField, string>>;
-
-function blank(value: string | undefined) {
-  return value === undefined || value.trim() === '';
-}
 
 function moneyOf(category: Category, item: Item): Draft<Money> | undefined {
   return (item as AnyItem)[AMOUNT_KEY[category]];
@@ -324,14 +272,6 @@ export function originalCents(money: Draft<Money> | undefined): number | null {
   const original = money?.original;
   if (original?.minorUnits === undefined) return null;
   return minorUnitsToCents(original.minorUnits, original.currency ?? 'USD');
-}
-
-export function countyName(code: string | undefined): string | undefined {
-  return COUNTIES.find((county) => county.code === code)?.name;
-}
-
-export function countryName(code: string | undefined): string | undefined {
-  return COUNTRIES.find((country) => country.code === code)?.name;
 }
 
 /** The line under an item's heading: its description, details and where it is. */

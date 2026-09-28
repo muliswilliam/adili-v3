@@ -13,7 +13,7 @@ import {
   StatementSection,
   type StatementSectionProps,
 } from './statement-section';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import { cardOf, DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -123,10 +123,7 @@ function panel() {
 }
 
 function card(title: string) {
-  const heading = within(panel()).getByRole('heading', { name: title });
-  const item = heading.closest('li');
-  if (!item) throw new Error(`no card for ${title}`);
-  return item;
+  return cardOf(title, { scope: panel() });
 }
 
 function precedes(a: Element, b: Element) {
@@ -352,6 +349,21 @@ describe('StatementSection: item editors', () => {
     expect(screen.getByRole('combobox', { name: 'Country' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /Original amount/ })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Approximate amount for the period' })).toBeTruthy();
+  });
+
+  it('S19: refuses a negative amount with a field error instead of changing it', () => {
+    renderStatement();
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add income' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Consultancy' }));
+    const amount = screen.getByRole<HTMLInputElement>('textbox', {
+      name: 'Approximate amount for the period',
+    });
+
+    fireEvent.change(amount, { target: { value: '-3000' } });
+
+    expect(amount.value).toBe('-3,000');
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText(ITEM_MESSAGES.negative)).toBeTruthy();
   });
 
   it('shows a liability with its change flag and the liability kinds', () => {

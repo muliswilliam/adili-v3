@@ -9,13 +9,13 @@ import {
   TooltipProvider,
 } from '@adili/ui';
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
-import { createFileRoute, notFound, Outlet, redirect, useLocation } from '@tanstack/react-router';
+import { createFileRoute, notFound, Outlet, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import {
   DeclarationNotFound,
-  loginHref,
   requireDeclarationId,
+  signInRedirect,
 } from '../../../components/declaration/route-helpers';
 import { stepFromPath } from '../../../components/declaration/steps';
 import { useWorkspace, WorkspaceProvider } from '../../../components/declaration/workspace';
@@ -32,7 +32,7 @@ export const Route = createFileRoute('/declarations/$id')({
     const result = await getDeclaration({
       data: { declarationId: requireDeclarationId(params.id) },
     });
-    if (result.status === 'unauthenticated') throw redirect({ href: loginHref(location.href) });
+    if (result.status === 'unauthenticated') throw signInRedirect(location.href);
     if (result.status === 'not-found') throw notFound();
     return result;
   },

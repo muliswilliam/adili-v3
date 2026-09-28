@@ -1,5 +1,5 @@
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { render } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
@@ -90,4 +90,26 @@ export function renderWorkspace(
       </TooltipProvider>
     </ToastProvider>,
   );
+}
+
+/** A named region, e.g. a section of a screen or a summary card. */
+export function region(name: string): HTMLElement {
+  return screen.getByRole('region', { name });
+}
+
+/** The list item a heading names, e.g. a repeater card; `scope` narrows the search. */
+export function cardOf(
+  name: string,
+  { scope = document.body, level }: { scope?: HTMLElement; level?: number } = {},
+): HTMLElement {
+  const item = within(scope).getByRole('heading', { name, level }).closest('li');
+  if (!item) throw new Error(`No card for ${name}`);
+  return item;
+}
+
+/** Queries within the list item that shows some text, e.g. an attachment row. */
+export function rowOf(text: string) {
+  const item = screen.getByText(text).closest('li');
+  if (!item) throw new Error(`No row for ${text}`);
+  return within(item);
 }

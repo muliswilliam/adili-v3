@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { CompletenessIssue } from '../../server/declarations/types';
 import {
-  ageOn,
   blockingGroups,
   blockingTitle,
   childDetails,
@@ -125,8 +124,6 @@ describe('household lines', () => {
     expect(
       childDetails({ dateOfBirth: '2008-01-10', includedAtStatementDate: false }, '2027-11-01'),
     ).toBe('Born 10 Jan 2008 · Not included: 19 on the statement date');
-    expect(ageOn('2009-11-02', '2027-11-01')).toBe(17);
-    expect(ageOn('2009-11-01', '2027-11-01')).toBe(18);
   });
 
   it('says why there is no spouse or child listed', () => {
@@ -153,12 +150,21 @@ describe('statement lines', () => {
 
   it('flags joint shares, foreign amounts and changes', () => {
     expect(
-      itemFlags({
+      itemFlags('assets', {
         joint: { isJoint: true, sharePercent: 50 },
         value: { kesCents: 100, original: { currency: 'USD', minorUnits: 125000 } },
         change: { changed: true, kind: 'acquisition' },
       }),
     ).toEqual(['Joint, share 50%', 'Original USD 1,250', 'Changed: acquired']);
-    expect(itemFlags({})).toEqual([]);
+    expect(itemFlags('assets', {})).toEqual([]);
+  });
+
+  it('names a change the way the editor offered it for the category', () => {
+    const acquired = { change: { changed: true, kind: 'acquisition' as const } };
+    expect(itemFlags('assets', acquired)).toEqual(['Changed: acquired']);
+    expect(itemFlags('liabilities', acquired)).toEqual(['Changed: new']);
+    expect(itemFlags('income', { change: { changed: true, kind: 'value-change' } })).toEqual([
+      'Changed: value changed',
+    ]);
   });
 });

@@ -1,7 +1,6 @@
 import {
   Alert,
   AlertDescription,
-  Badge,
   Button,
   Card,
   formatDate,
@@ -16,7 +15,6 @@ import {
   TableRow,
 } from '@adili/ui';
 import {
-  AlertCircleIcon,
   Alert02Icon,
   CloudSavingDone01Icon,
   PencilEdit02Icon,
@@ -29,17 +27,12 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { getDeclarationSummary } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
-import { hasUnsavedWork } from './autosave';
+import { isSaving } from './autosave';
+import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from './contents';
 import { DiscardDraftButton } from './discard-dialog';
-import {
-  ASSET_TYPE_LABELS,
-  COMPLETENESS_LABELS,
-  EMPLOYMENT_NATURE_LABELS,
-  INCOME_TYPE_LABELS,
-  LIABILITY_TYPE_LABELS,
-  MARITAL_STATUS_LABELS,
-} from './labels';
+import { fullName, orUnanswered, UNANSWERED } from './format';
+import { EMPLOYMENT_NATURE_LABELS, MARITAL_STATUS_LABELS, TYPE_LABELS } from './labels';
 import {
   directorshipLine,
   dualCitizenshipLine,
@@ -47,14 +40,20 @@ import {
   membershipLine,
   pendingCaseLine,
 } from './other';
-import { relationship, stepLink, type Step } from './steps';
+import {
+  relationship,
+  STATEMENTS_TITLE,
+  STEP_TITLES,
+  statementTitle,
+  stepLink,
+  type Step,
+} from './steps';
 import {
   type AnyItem,
   blockingGroups,
   blockingTitle,
   childDetails,
   childrenEmptyText,
-  fullName,
   itemAmount,
   itemFlags,
   NOT_ANSWERED,
@@ -71,27 +70,6 @@ import {
 import { useWorkspace } from './workspace';
 
 type Sections = DeclarationSection[];
-
-function CompletenessBadge({ completeness }: { completeness: ParagraphCompleteness }) {
-  const label = COMPLETENESS_LABELS[completeness];
-  if (completeness === 'complete') {
-    return (
-      <Badge variant="success">
-        <Icon icon={Tick02Icon} />
-        {label}
-      </Badge>
-    );
-  }
-  if (completeness === 'incomplete') {
-    return (
-      <Badge variant="warning">
-        <Icon icon={AlertCircleIcon} />
-        {label}
-      </Badge>
-    );
-  }
-  return <Badge>{label}</Badge>;
-}
 
 function EditLink({
   declarationId,
@@ -219,8 +197,6 @@ function Rows({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-const orDash = (value: string | undefined) => (value?.trim() ? value.trim() : '-');
-
 function Muted({ children, warning = false }: { children: ReactNode; warning?: boolean }) {
   return (
     <p className={warning ? 'text-sm font-medium text-warning' : 'text-sm text-muted-foreground'}>
@@ -240,36 +216,36 @@ function BioCard({ summary, document }: { summary: LoadedSummary; document: Summ
   const employment = officer.employment ?? {};
   const nature = employment.nature
     ? employment.nature === 'other'
-      ? `Other: ${orDash(employment.natureOther)}`
+      ? `Other: ${orUnanswered(employment.natureOther)}`
       : EMPLOYMENT_NATURE_LABELS[employment.nature]
-    : '-';
+    : UNANSWERED;
   return (
     <ParagraphCard
       paragraphs="Paragraphs 1-5"
-      title="Your details"
+      title={STEP_TITLES.bio}
       completeness={paragraphCompleteness(declaration.sections, 'bio')}
-      edit={<EditLink declarationId={declaration.id} step="bio" name="Your details" />}
+      edit={<EditLink declarationId={declaration.id} step="bio" name={STEP_TITLES.bio} />}
     >
       <Rows
         rows={[
-          ['Name', orDash(fullName(officer.name))],
-          ['Date and place of birth', birth.length > 0 ? birth.join(', ') : '-'],
+          ['Name', orUnanswered(fullName(officer.name))],
+          ['Date and place of birth', birth.length > 0 ? birth.join(', ') : UNANSWERED],
           [
             'Marital status',
             <>
-              {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : '-'}
+              {officer.maritalStatus ? MARITAL_STATUS_LABELS[officer.maritalStatus] : UNANSWERED}
               {change?.changed ? (
                 <span className="block text-[13px] font-normal text-muted-foreground">
-                  Changed since last declaration: {orDash(change.explanation)}
+                  Changed since last declaration: {orUnanswered(change.explanation)}
                 </span>
               ) : null}
             </>,
           ],
-          ['Postal address', orDash(officer.address?.postal)],
-          ['Physical address', orDash(officer.address?.physical)],
+          ['Postal address', orUnanswered(officer.address?.postal)],
+          ['Physical address', orUnanswered(officer.address?.physical)],
           [
             'Employer and designation',
-            `${orDash(employment.employer)} · ${orDash(employment.designation)}`,
+            `${orUnanswered(employment.employer)} · ${orUnanswered(employment.designation)}`,
           ],
           ['Nature of employment', nature],
           [
@@ -310,9 +286,7 @@ function SpousesCard({ summary, document }: { summary: LoadedSummary; document: 
       ) : (
         <Rows
           rows={spouses.map((spouse, index) => [
-            orDash(fullName(spouse.name)) === '-'
-              ? `Spouse ${String(index + 1)}`
-              : fullName(spouse.name),
+            fullName(spouse.name) || `Spouse ${String(index + 1)}`,
             spouseDetails(spouse),
           ])}
         />
@@ -360,10 +334,8 @@ const CATEGORIES = [
 ] as const;
 
 function typeLabel(category: (typeof CATEGORIES)[number]['key'], type: string | undefined) {
-  if (!type) return '-';
-  if (category === 'income') return INCOME_TYPE_LABELS[type as keyof typeof INCOME_TYPE_LABELS];
-  if (category === 'assets') return ASSET_TYPE_LABELS[type as keyof typeof ASSET_TYPE_LABELS];
-  return LIABILITY_TYPE_LABELS[type as keyof typeof LIABILITY_TYPE_LABELS];
+  if (!type) return UNANSWERED;
+  return TYPE_LABELS[category][type] ?? type;
 }
 
 function categoryHeading(
@@ -413,7 +385,7 @@ function StatementItems({
                 </TableHeader>
                 <TableBody>
                   {items.map((item, index) => {
-                    const flags = itemFlags(item);
+                    const flags = itemFlags(category.key, item);
                     const documents = (item.attachments ?? [])
                       .map((attachment) => attachment.fileName)
                       .filter(Boolean);
@@ -421,7 +393,7 @@ function StatementItems({
                       <TableRow key={item.id ?? index}>
                         <TableCell>{typeLabel(category.key, item.type)}</TableCell>
                         <TableCell>
-                          <span className="block">{orDash(item.description)}</span>
+                          <span className="block">{orUnanswered(item.description)}</span>
                           {flags.length > 0 ? (
                             <span className="block text-[13px] text-muted-foreground">
                               {flags.join(' · ')}
@@ -481,7 +453,7 @@ function StatementsCard({
   return (
     <ParagraphCard
       paragraphs="Paragraph 8"
-      title="Financial statements"
+      title={STATEMENTS_TITLE}
       completeness={paragraphCompleteness(declaration.sections, 'statements')}
     >
       <div className="grid gap-1.5">
@@ -517,10 +489,7 @@ function StatementsCard({
       </div>
       <div className="grid gap-3">
         {persons.map((person, index) => {
-          const title =
-            person.key === 'statement:officer'
-              ? 'Your financial statement'
-              : `${person.name}'s financial statement`;
+          const title = statementTitle(person.key, person.name);
           return (
             <details
               key={person.key}
@@ -578,9 +547,9 @@ function OtherCard({ summary, document }: { summary: LoadedSummary; document: Su
   return (
     <ParagraphCard
       paragraphs="Paragraph 9"
-      title="Other information"
+      title={STEP_TITLES.other}
       completeness={paragraphCompleteness(declaration.sections, 'other')}
-      edit={<EditLink declarationId={declaration.id} step="other" name="Other information" />}
+      edit={<EditLink declarationId={declaration.id} step="other" name={STEP_TITLES.other} />}
     >
       <Rows
         rows={[
@@ -618,7 +587,7 @@ function useFreshSummary(loaded: LoadedSummary): LoadedSummary {
     setSeen(loaded);
     setSummary(loaded);
   }
-  const busy = hasUnsavedWork(autosave);
+  const busy = isSaving(autosave);
   const waited = useRef(busy);
   useEffect(() => {
     if (busy) {

@@ -63,7 +63,7 @@ export function SegmentedChoice({
           <label
             key={option.value}
             data-invalid={error ? true : undefined}
-            className="relative inline-flex h-10 cursor-pointer items-center rounded-[10px] bg-control px-3.5 text-sm font-medium shadow-control select-none hover:shadow-control-hover has-checked:bg-primary has-checked:text-primary-foreground has-checked:shadow-none has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring has-disabled:cursor-not-allowed has-disabled:opacity-50 data-invalid:shadow-control-error"
+            className="relative inline-flex h-10 cursor-pointer items-center rounded-lg bg-control px-3.5 text-sm font-medium shadow-control select-none hover:shadow-control-hover has-checked:bg-primary has-checked:text-primary-foreground has-checked:shadow-none has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring has-disabled:cursor-not-allowed has-disabled:opacity-50 data-invalid:shadow-control-error"
           >
             <input
               type="radio"

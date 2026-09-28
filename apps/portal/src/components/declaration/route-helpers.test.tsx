@@ -2,8 +2,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { getDeclarationSection } from '../../server/declarations';
 import {
   DeclarationNotFound,
+  loadSectionFor,
   loginHref,
   requireDeclarationId,
   SectionUnavailable,
@@ -34,6 +36,18 @@ describe('workspace route helpers', () => {
     expect(loginHref('/declarations/d-1/bio')).toBe(
       '/auth/login?returnTo=%2Fdeclarations%2Fd-1%2Fbio',
     );
+  });
+
+  it('signs a signed-out declarant in with a full page load, even on in-app navigation', async () => {
+    // /auth/login is a server route: rendering it in the browser router shows Not Found.
+    vi.mocked(getDeclarationSection).mockResolvedValue({ status: 'unauthenticated' });
+
+    await expect(
+      loadSectionFor('9d3c2b1a-0f4e-4d5c-8b7a-6f5e4d3c2b1a', 'bio', '/declarations/d-1/bio'),
+    ).rejects.toEqual({
+      href: '/auth/login?returnTo=%2Fdeclarations%2Fd-1%2Fbio',
+      reloadDocument: true,
+    });
   });
 
   it('renders the unavailable and not-found states', () => {

@@ -8,7 +8,14 @@ import type { DeclarationSection } from '../../server/declarations/types';
 import type { MaritalStatus } from './contents';
 import { HOUSEHOLD_MESSAGES } from './household';
 import { HOUSEHOLD_COPY, HouseholdSection } from './household-section';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  cardOf,
+  DECLARATION_ID,
+  region,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+} from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -75,18 +82,11 @@ function renderHousehold(
   );
 }
 
-function region(name: string) {
-  return screen.getByRole('region', { name });
-}
-
 function card(name: string) {
-  const heading = screen.getByRole('heading', { name, level: 3 });
-  const item = heading.closest('li');
-  if (!item) throw new Error(`No card for ${name}`);
-  return item;
+  return cardOf(name, { level: 3 });
 }
 
-function statement(key: string, personName: string, completeness = 'not-started') {
+function statement(key: string, personName: string | null, completeness = 'not-started') {
   return {
     key,
     completeness,
@@ -102,8 +102,7 @@ beforeEach(() => {
 });
 
 describe('HouseholdSection', () => {
-  // Many role queries over a large tree: slow on a loaded machine.
-  it('lists spouses and children with who needs a statement (S5)', { timeout: 20_000 }, () => {
+  it('lists spouses and children with who needs a statement (S5)', () => {
     renderHousehold({
       spouses: { none: false, items: [mary, grace] },
       children: { none: false, items: [tom, lucy, ann] },
@@ -416,5 +415,59 @@ describe('HouseholdSection', () => {
     expect(
       within(region(HOUSEHOLD_COPY.removedHeading)).getByText(HOUSEHOLD_COPY.archived('Tom Kamau')),
     ).toBeTruthy();
+  });
+
+  it('refreshes the section navigation when a save renames a person', async () => {
+    const maryKey = `statement:spouse:${MARY}`;
+    const before = sampleDeclaration({ sections: sections({}, [statement(maryKey, null)]) });
+    getMock.mockResolvedValue({
+      status: 'ok',
+      declaration: sampleDeclaration({
+        draftVersion: 2,
+        sections: sections({}, [statement(maryKey, 'Mary Kennedy')]),
+      }),
+      etag: '"2"',
+    });
+    saveMock.mockResolvedValue({
+      status: 'saved',
+      etag: '"2"',
+      result: {
+        key: 'household',
+        completeness: 'incomplete',
+        draftVersion: 2,
+        issues: [],
+        sectionsChanged: [],
+      },
+    });
+    renderWorkspace(
+      <HouseholdSection
+        section={household({
+          spouses: { none: false, items: [{ id: MARY, name: {} }] },
+          children: { none: true, items: [] },
+        })}
+        etag={'"1"'}
+        maritalStatus="married"
+      />,
+      { step: 'household', declaration: before },
+    );
+    const nav = screen.getByRole('navigation', { name: 'Declaration sections' });
+    expect(within(nav).getByText('Unnamed person')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Spouse 1' }));
+    const editor = screen.getByRole('group', { name: 'Spouse 1' });
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'First name' }), {
+      target: { value: 'Mary' },
+    });
+    fireEvent.change(within(editor).getByRole('textbox', { name: 'Surname' }), {
+      target: { value: 'Kennedy' },
+    });
+
+    await waitFor(
+      () => {
+        expect(within(nav).getByText('Mary Kennedy')).toBeTruthy();
+      },
+      { timeout: 5_000 },
+    );
+    expect(getMock).toHaveBeenCalledWith({ data: { declarationId: DECLARATION_ID } });
   });
 });

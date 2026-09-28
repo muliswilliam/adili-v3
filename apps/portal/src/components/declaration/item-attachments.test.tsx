@@ -17,7 +17,7 @@ import type { UploadCheck } from '../../server/documents/uploads.server';
 import { putToPresignedUrl } from './attachment-upload';
 import type { Attachment } from './contents';
 import { AttachmentUploadsProvider, ItemAttachments } from './item-attachments';
-import { DECLARATION_ID, renderWorkspace } from './testing';
+import { DECLARATION_ID, renderWorkspace, rowOf as row } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -88,12 +88,6 @@ function pdf(name = 'deed.pdf', size = 8 * 1024) {
   const file = new File(['%PDF'], name, { type: 'application/pdf' });
   Object.defineProperty(file, 'size', { value: size });
   return file;
-}
-
-function row(name: string) {
-  const item = screen.getByText(name).closest('li');
-  if (!item) throw new Error(`No row for ${name}`);
-  return within(item);
 }
 
 function never<T>() {

@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { Draft, Household } from './contents';
 import {
   childInclusion,
-  fullName,
   HOUSEHOLD_MESSAGES,
   householdIssues,
   householdPersons,
   includedAtStatementDate,
   isBlankPerson,
+  renamesPerson,
   spouseState,
   statementsNeeded,
 } from './household';
@@ -211,12 +211,20 @@ describe('child inclusion (S5, S18)', () => {
 });
 
 describe('people and statements', () => {
-  it('names a person first, other, surname', () => {
-    expect(fullName({ surname: 'Kennedy', firstName: 'Mary', otherNames: 'Wanjiru' })).toBe(
-      'Mary Wanjiru Kennedy',
+  it('spots a person whose name no longer matches their statement', () => {
+    const key = `statement:spouse:${SPOUSE}`;
+    const household: Draft<Household> = {
+      spouses: {
+        none: false,
+        items: [{ id: SPOUSE, name: { firstName: 'Mary', surname: 'Kennedy' } }],
+      },
+    };
+    expect(renamesPerson([{ key, personName: null }], household, STATEMENT_DATE)).toBe(true);
+    expect(renamesPerson([{ key, personName: 'Mary Kennedy' }], household, STATEMENT_DATE)).toBe(
+      false,
     );
-    expect(fullName({ surname: ' ', firstName: 'Mary' })).toBe('Mary');
-    expect(fullName(undefined)).toBe('');
+    // A statement not created yet is reported by sectionsChanged instead.
+    expect(renamesPerson([], household, STATEMENT_DATE)).toBe(false);
   });
 
   it('lists the statements the household needs, excluding adult children (S5)', () => {

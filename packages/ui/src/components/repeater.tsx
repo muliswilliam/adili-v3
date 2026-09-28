@@ -152,7 +152,7 @@ export function Repeater<T>({
               >
                 <div className="flex items-center gap-3 px-4 py-3.5">
                   {icon ? (
-                    <span className="grid size-[38px] shrink-0 place-items-center rounded-[10px] bg-muted text-secondary-foreground max-sm:self-start">
+                    <span className="grid size-[38px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground max-sm:self-start">
                       <Icon icon={icon} className="size-[17px]" />
                     </span>
                   ) : null}

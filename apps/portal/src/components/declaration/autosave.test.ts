@@ -30,6 +30,10 @@ function savedOutcome(etag: string, key = 'bio'): SaveOutcome {
   };
 }
 
+function saved2(): AutosaveEvent {
+  return { type: 'saved', etag: '"2"', version: 2 };
+}
+
 describe('autosave reducer (S19)', () => {
   const start = initialAutosave('"1"', 1);
 
@@ -119,14 +123,20 @@ describe('autosave reducer (S19)', () => {
       { type: 'send' },
       { type: 'rejected', code: 'identity-locked-field' },
     );
+    // The refused contents are kept, and still count as unsaved work.
     expect(rejected).toMatchObject({
       status: 'rejected',
-      rejection: { key: 'bio', code: 'identity-locked-field' },
+      rejection: { key: 'bio', code: 'identity-locked-field', contents: 1 },
     });
-    expect(run(rejected, { type: 'edit', key: 'bio', contents: 2 })).toMatchObject({
-      status: 'saving',
-      rejection: null,
-    });
+    expect(hasUnsavedWork(rejected)).toBe(true);
+    // Flushing does not send them again: the service would refuse them again.
+    expect(run(rejected, { type: 'ready', key: 'bio' }, { type: 'send' }).inFlight).toBeNull();
+
+    const edited = run(rejected, { type: 'edit', key: 'bio', contents: 2 });
+    expect(edited).toMatchObject({ status: 'saving', rejection: null });
+    expect(
+      hasUnsavedWork(run(edited, { type: 'ready', key: 'bio' }, { type: 'send' }, saved2())),
+    ).toBe(false);
   });
 
   it('adopts a fresh ETag only when it is newer and nothing is waiting', () => {
@@ -180,7 +190,9 @@ describe('AutosaveQueue', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(save).toHaveBeenCalledExactlyOnceWith('bio', { place: 'Nyeri' }, '"1"');
     expect(queue.getState()).toMatchObject({ status: 'saved', etag: '"2"' });
-    expect(onSaved).toHaveBeenCalledWith('bio', expect.objectContaining({ key: 'bio' }));
+    expect(onSaved).toHaveBeenCalledWith('bio', expect.objectContaining({ key: 'bio' }), {
+      place: 'Nyeri',
+    });
   });
 
   it('serialises saves and chains the ETag from one to the next', async () => {

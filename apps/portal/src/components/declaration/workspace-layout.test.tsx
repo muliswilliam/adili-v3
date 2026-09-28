@@ -16,20 +16,35 @@ vi.mock('../../server/declarations', async () => (await import('./testing-mocks'
 const saveMock = vi.mocked(saveDeclarationSection);
 const getMock = vi.mocked(getDeclaration);
 
-/** Stands in for a section screen: one button that edits the bio and saves at once. */
+/** Stands in for a section screen: Edit saves at once; Type waits for the typing pause. */
 function Editor() {
   const { edit, flush } = useWorkspace();
   return (
-    <button
-      type="button"
-      onClick={() => {
-        edit('bio', { birth: { place: 'Nyeri' } });
-        flush('bio');
-      }}
-    >
-      Edit
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          edit('bio', { birth: { place: 'Nyeri' } });
+          flush('bio');
+        }}
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          edit('bio', { birth: { place: 'Nyer' } });
+        }}
+      >
+        Type
+      </button>
+    </>
   );
+}
+
+/** Fires the browser's beforeunload; true when the page asked to confirm leaving. */
+function leavePrompted() {
+  return !window.dispatchEvent(new Event('beforeunload', { cancelable: true }));
 }
 
 function saved(completeness: 'complete' | 'incomplete' = 'complete'): SaveOutcome {
@@ -165,6 +180,47 @@ describe('WorkspaceLayout', () => {
     await waitFor(() => {
       expect(saveStatus()[0]?.textContent).toBe('Could not save');
     });
+    expect(saveStatus()[0]?.closest('[data-status]')?.getAttribute('data-status')).toBe('rejected');
+    // The refused edit is not saved, so leaving still asks first.
+    expect(leavePrompted()).toBe(true);
+  });
+
+  it('does not ask before leaving once the page shows Saved', async () => {
+    saveMock.mockResolvedValue(saved());
+    renderWorkspace(<Editor />, { step: 'bio' });
+
+    await edit();
+    await waitFor(() => {
+      expect(saveStatus()[0]?.textContent).toBe('Saved');
+    });
+
+    expect(leavePrompted()).toBe(false);
+  });
+
+  it('sends waiting edits before leaving and asks only while they are in flight', async () => {
+    let finish: (outcome: SaveOutcome) => void = () => undefined;
+    saveMock.mockReturnValue(
+      new Promise<SaveOutcome>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderWorkspace(<Editor />, { step: 'bio' });
+    expect(leavePrompted()).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Type' }));
+    expect(saveMock).not.toHaveBeenCalled();
+
+    expect(leavePrompted()).toBe(true);
+    expect(saveMock).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      finish(saved());
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(saveStatus()[0]?.textContent).toBe('Saved');
+    });
+    expect(leavePrompted()).toBe(false);
   });
 
   it('stops editing on 412 and reloads the latest saved version', async () => {
