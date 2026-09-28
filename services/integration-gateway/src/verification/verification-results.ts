@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Principal } from '@adili/api-kit';
+import { callerOf, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -30,8 +30,7 @@ export class VerificationResults {
       id: uuidv7(),
       ...result,
       latencyMs: Math.round(result.latencyMs),
-      // Services are identified by OAuth client; tokens without one fall back to the subject.
-      caller: caller.clientId ?? caller.subject,
+      caller: callerOf(caller),
     });
   }
 }

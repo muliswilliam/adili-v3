@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { errorType, type Principal } from '@adili/api-kit';
+import { callerOf, errorType, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
@@ -128,11 +128,6 @@ async function withBudget<T>(ms: number, work: (signal: AbortSignal) => Promise<
   } finally {
     clearTimeout(timer);
   }
-}
-
-/** Services are identified by OAuth client; tokens without one fall back to the subject. */
-function callerOf(principal: Principal): string {
-  return principal.clientId ?? principal.subject;
 }
 
 function toView(row: typeof messages.$inferSelect): MessageView {
