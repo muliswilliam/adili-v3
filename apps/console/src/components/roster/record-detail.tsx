@@ -1,10 +1,12 @@
 import {
   Alert,
-  AlertTitle,
   AlertDescription,
+  AlertTitle,
   Card,
   DescriptionItem,
   DescriptionList,
+  formatDate,
+  formatDateTime,
   Icon,
   Skeleton,
 } from '@adili/ui';
@@ -19,7 +21,6 @@ import type { ReactNode } from 'react';
 
 import type { RosterRecord } from '../../server/directory/client';
 import { formatPhone } from '../commissions/phone';
-import { formatDate, formatDateTime } from '../format';
 import { Page, PageHead, SectionCard } from '../page';
 import { IdentityMismatchBadge, IdentityMismatchCallout } from './identity-mismatch';
 import { messages as m } from './messages';

@@ -1,5 +1,6 @@
 import {
   Badge,
+  formatDateTime,
   Skeleton,
   Table,
   TableBody,
@@ -13,7 +14,7 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import type { Commission } from '../../server/directory/client';
-import { formatDateTime, formatRelativeDate, formatRelativeTime } from '../format';
+import { formatRelativeDate, formatRelativeTime } from '../format';
 import { rosterCoverage } from '../roster/coverage';
 import { CommissionTypeBadge, IssuerCode, OfficerStateBadge } from './badges';
 import { messages as m } from './messages';
