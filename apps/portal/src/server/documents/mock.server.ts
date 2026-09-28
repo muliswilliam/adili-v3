@@ -19,13 +19,7 @@ import type { Upload, UploadPurpose } from './types';
 
 export const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/heic'];
-const PURPOSES: UploadPurpose[] = [
-  'roster-import',
-  'declaration-attachment',
-  'clarification-attachment',
-  'action-response',
-  'access-representation',
-];
+const PURPOSES: UploadPurpose[] = ['roster-import', 'declaration-attachment'];
 
 const uploads = new Map<string, Upload>();
 

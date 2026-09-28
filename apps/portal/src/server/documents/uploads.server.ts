@@ -1,5 +1,5 @@
 import type { DocumentsClient } from './client.server';
-import type { Upload, UploadReservation } from './types';
+import type { CreateUpload, Upload, UploadRejection, UploadReservation } from './types';
 
 /**
  * The documents service's upload flow for declaration attachments (documents.yaml), reduced to
@@ -48,13 +48,16 @@ export function reserveAttachmentUpload(
   file: AttachmentFile,
 ): Promise<ReserveResult> {
   return attempt(async () => {
+    const body: CreateUpload = {
+      purpose: 'declaration-attachment',
+      contentType: file.contentType,
+      declaredSize: file.size,
+      fileName: file.fileName.slice(0, 255),
+    };
     const { data, error, response } = await client.POST('/v1/uploads', {
-      body: {
-        purpose: 'declaration-attachment',
-        contentType: file.contentType,
-        declaredSize: file.size,
-        fileName: file.fileName.slice(0, 255),
-      },
+      params: { header: { 'Idempotency-Key': crypto.randomUUID() } },
+      // The contract gains `declaration-attachment` with #113; see `UploadPurpose`.
+      body: body as never,
     });
     if (data) return { status: 'reserved', reservation: data };
     if (response.status === 400) {
@@ -75,6 +78,11 @@ export type UploadCheck =
   | NotFound
   | Unavailable;
 
+/** `encoding` is about CSV text, so for an attachment it reads as the wrong type. */
+function rejectionOf(rejection: UploadRejection | null): 'type' | 'size' | 'missing' | 'timeout' {
+  return rejection === null || rejection === 'encoding' ? 'type' : rejection;
+}
+
 function checkOf(upload: Upload): UploadCheck {
   switch (upload.state) {
     case 'clean':
@@ -84,7 +92,7 @@ function checkOf(upload: Upload): UploadCheck {
     case 'infected':
       return { status: 'infected' };
     case 'rejected':
-      return { status: 'rejected', reason: upload.rejection ?? 'type' };
+      return { status: 'rejected', reason: rejectionOf(upload.rejection) };
     case 'expired':
       return { status: 'expired' };
     case 'awaiting-upload':
@@ -110,7 +118,7 @@ export function checkUpload(client: DocumentsClient, id: string): Promise<Upload
 export function completeUpload(client: DocumentsClient, id: string): Promise<UploadCheck> {
   return attempt(async () => {
     const { data, response } = await client.POST('/v1/uploads/{id}/complete', {
-      params: { path: { id } },
+      params: { path: { id }, header: { 'Idempotency-Key': crypto.randomUUID() } },
     });
     if (data) return checkOf(data);
     if (response.status === 409) return checkUpload(client, id);
