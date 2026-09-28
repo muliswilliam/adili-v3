@@ -9,7 +9,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
 import { CommissionObligationsService } from './commission-obligations.service.js';
 import { ObligationsController } from './obligations.controller.js';
 import { ObligationsService } from './obligations.service.js';
-import { RosterEventsConsumer } from './roster-events.consumer.js';
+import { DirectoryEventsConsumer } from './directory-events.consumer.js';
 import { RosterIngest } from './roster-ingest.js';
 import { ObligationActivities } from './workflow/activities.js';
 import { CycleOpeningActivities } from './workflow/cycle-opening-activities.js';
@@ -51,7 +51,7 @@ const workflowsPath = fileURLToPath(
       imports: [ObligationWorkflowsModule],
     }),
   ],
-  controllers: [ObligationsController, RosterEventsConsumer],
+  controllers: [ObligationsController, DirectoryEventsConsumer],
   providers: [
     ObligationsService,
     CommissionObligationsService,

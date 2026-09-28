@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, ne } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
@@ -10,7 +10,7 @@ import { reconcileSnapshots, storedReconcileContext, type Transaction } from '..
 import { nairobiDate } from '../dates.js';
 import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engine.js';
 import { cycleOpened } from '../events.js';
-import { obligationPolicyOf } from '../roster-ingest.js';
+import { cachePolicy } from '../roster-ingest.js';
 import { systemContext } from '../system-context.js';
 import { cycleCalendar, cycleOpenings, rosterSnapshots, tenantPolicyCache } from '../schema.js';
 import { hasChanges, noChanges, ObligationWorkflows } from '../workflows.js';
@@ -144,27 +144,7 @@ export class CycleOpening {
       this.logger.warn({ err: error, tenant }, 'Policy not pulled; opening with the cached one');
       return null;
     }
-    const rules = obligationPolicyOf(pulled);
-    const cached = {
-      policyVersionId: pulled.id,
-      version: pulled.version,
-      policy: rules,
-      fetchedAt: new Date(),
-    };
-    const [kept] = await withTenant(this.db, systemContext(tenant), (tx) =>
-      tx
-        .update(tenantPolicyCache)
-        .set(cached)
-        // A pull that raced a newer one never puts an older version back.
-        .where(
-          and(
-            eq(tenantPolicyCache.tenant, tenant),
-            sql`${tenantPolicyCache.version} <= ${pulled.version}`,
-          ),
-        )
-        .returning({ policy: tenantPolicyCache.policy }),
-    );
-    return kept?.policy ?? null;
+    return withTenant(this.db, systemContext(tenant), (tx) => cachePolicy(tx, tenant, pulled));
   }
 
   private async calendar(): Promise<CycleCalendar> {

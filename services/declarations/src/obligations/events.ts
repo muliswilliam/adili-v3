@@ -80,3 +80,4 @@ export function cycleOpened(tenant: string, data: CycleOpenedData): NewEvent<Cyc
 export const ROSTER_IMPORT_COMPLETED = 'roster.import.completed.v1';
 export const ROSTER_EXITS_CONFIRMED = 'roster.exits.confirmed.v1';
 export const DECLARANT_ONBOARDED = 'declarant.onboarded.v1';
+export const POLICY_CHANGED = 'directory.policy.changed.v1';

@@ -78,7 +78,7 @@ export class RosterIngest {
       const page = await this.pull(tenant, source, cursor);
       const last = page.nextCursor === null;
       const changes = await withTenant(this.db, systemContext(tenant), async (tx) => {
-        if (first) await refreshReferenceData(tx, commission, policy, context.policy.rules);
+        if (first) await refreshReferenceData(tx, commission, policy);
         const applied = await applyRosterPage(tx, this.events, context, page.items);
         if (last) {
           if (source.kind === 'records' && 'importId' in source.selector)
@@ -95,6 +95,21 @@ export class RosterIngest {
       cursor = page.nextCursor;
       first = false;
     }
+  }
+
+  /**
+   * Pulls the Commission's policy in force into the cache after `directory.policy.changed.v1`,
+   * with the consumer's inbox entry in the same transaction. Returns false when the consumer had
+   * already handled the event; a failed pull throws and leaves the event for the retry.
+   */
+  async refreshPolicy(consumer: string, event: IngestedEvent): Promise<boolean> {
+    if (await this.handled(consumer, event.id)) return false;
+    const policy = await this.directory.getPolicy(event.tenant);
+    await withTenant(this.db, systemContext(event.tenant), async (tx) => {
+      await cachePolicy(tx, event.tenant, policy);
+      await tx.insert(inbox).values({ consumer, eventId: event.id }).onConflictDoNothing();
+    });
+    return true;
   }
 
   private async handled(consumer: string, eventId: string): Promise<boolean> {
@@ -171,7 +186,6 @@ async function refreshReferenceData(
   tx: Transaction,
   commission: PulledCommission,
   policy: PulledPolicy,
-  rules: ObligationPolicy,
 ): Promise<void> {
   const fetchedAt = new Date();
   await tx
@@ -181,16 +195,35 @@ async function refreshReferenceData(
       target: commissionRefs.slug,
       set: { issuerCode: commission.issuerCode, name: commission.name, fetchedAt },
     });
-  const cached = { policyVersionId: policy.id, version: policy.version, policy: rules, fetchedAt };
-  await tx
+  await cachePolicy(tx, commission.slug, policy);
+}
+
+/**
+ * Caches the tenant's policy in force as pulled. A pull that raced a policy change never puts an
+ * older version back.
+ */
+export async function cachePolicy(
+  tx: Transaction,
+  tenant: string,
+  policy: PulledPolicy,
+): Promise<ObligationPolicy | null> {
+  const rules = obligationPolicyOf(policy);
+  const cached = {
+    policyVersionId: policy.id,
+    version: policy.version,
+    policy: rules,
+    fetchedAt: new Date(),
+  };
+  const [kept] = await tx
     .insert(tenantPolicyCache)
-    .values({ tenant: commission.slug, ...cached })
+    .values({ tenant, ...cached })
     .onConflictDoUpdate({
       target: tenantPolicyCache.tenant,
       set: cached,
-      // A pull that raced a policy change never puts an older version back.
       setWhere: sql`${tenantPolicyCache.version} <= excluded.version`,
-    });
+    })
+    .returning({ policy: tenantPolicyCache.policy });
+  return kept?.policy ?? null;
 }
 
 /** Keeps when the Commission's latest roster import completed; an older one handled late is ignored. */

@@ -3,7 +3,12 @@ import { Payload } from '@nestjs/microservices';
 import { type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
-import { DECLARANT_ONBOARDED, ROSTER_EXITS_CONFIRMED, ROSTER_IMPORT_COMPLETED } from './events.js';
+import {
+  DECLARANT_ONBOARDED,
+  POLICY_CHANGED,
+  ROSTER_EXITS_CONFIRMED,
+  ROSTER_IMPORT_COMPLETED,
+} from './events.js';
 import { type IngestedEvent, RosterIngest } from './roster-ingest.js';
 
 const tenantSchema = z.string().regex(/^[a-z][a-z0-9]{1,19}$/);
@@ -11,14 +16,16 @@ const tenantSchema = z.string().regex(/^[a-z][a-z0-9]{1,19}$/);
 const importCompletedData = z.object({ importId: z.uuid() });
 const exitsConfirmedData = z.object({ batchId: z.uuid() });
 const declarantOnboardedData = z.object({ rosterRecordId: z.uuid() });
+const policyChangedData = z.object({ policyVersionId: z.uuid(), version: z.int().positive() });
 
 /**
- * The directory's roster events that change who owes what (spec 04). Events carry ids only; the
- * records are pulled (`RosterIngest`). Each consumer handles an event once (inbox); a handler that
- * throws is retried once, then dead-lettered.
+ * The directory's events the obligations follow (spec 04): the roster events that change who owes
+ * what, and policy changes. Events carry ids only; records and policies are pulled
+ * (`RosterIngest`). Each consumer handles an event once (inbox); a handler that throws is retried
+ * once, then dead-lettered.
  */
 @Controller()
-export class RosterEventsConsumer {
+export class DirectoryEventsConsumer {
   constructor(private readonly ingest: RosterIngest) {}
 
   /** The records the import had rows for: new officers, changed dates, reversed exits. */
@@ -52,6 +59,13 @@ export class RosterEventsConsumer {
       kind: 'record',
       recordId: rosterRecordId,
     });
+  }
+
+  /** A new policy version is in force: the cached policy is pulled again (ADR-013 §2). */
+  @OnEvent(POLICY_CHANGED)
+  async policyChanged(@Payload() event: EventEnvelope): Promise<void> {
+    policyChangedData.parse(event.data);
+    await this.ingest.refreshPolicy('obligations.policy-changed', ingested(event));
   }
 }
 

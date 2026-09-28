@@ -20,7 +20,7 @@ import type { Transaction } from '../../src/obligations/apply-page.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
-import { RosterEventsConsumer } from '../../src/obligations/roster-events.consumer.js';
+import { DirectoryEventsConsumer } from '../../src/obligations/directory-events.consumer.js';
 import {
   cycleOpeningScheduleId,
   CycleOpeningSchedules,
@@ -133,7 +133,7 @@ export interface DeclarationsApi {
   cycleSchedules: RecordingCycleOpeningSchedules;
   clock: TestClock;
   /** The directory event consumers, called as the RabbitMQ transport would. */
-  consumers: RosterEventsConsumer;
+  consumers: DirectoryEventsConsumer;
   /** `GET` as the given caller; returns Fastify's injected response. */
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /** `GET` without a bearer token. */
@@ -216,7 +216,7 @@ export async function startDeclarationsApi({
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
     clock,
-    consumers: app.get(RosterEventsConsumer),
+    consumers: app.get(DirectoryEventsConsumer),
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
