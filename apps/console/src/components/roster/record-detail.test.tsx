@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@adili/ui';
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { RosterRecord } from '../../server/directory/client';
 import { RecordDetail } from './record-detail';
@@ -162,6 +162,27 @@ describe('RecordDetail', () => {
     expect(within(status).getByText('OFR-0482913-H')).toBeTruthy();
     expect(within(status).getByRole('button', { name: 'Copy officer reference' })).toBeTruthy();
     expect(within(status).getByText('26 Sep 2026, 10:42')).toBeTruthy();
+  });
+
+  it('copies the officer reference and announces it', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(
+      <ToastProvider>
+        <RecordDetail
+          record={{ ...record({ state: 'onboarded' }), ofr: 'OFR-0482913-H' } as RosterRecord}
+          readOnly={false}
+        />
+      </ToastProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy officer reference' }));
+      await Promise.resolve();
+    });
+
+    expect(writeText).toHaveBeenCalledWith('OFR-0482913-H');
+    expect(screen.getByText('Officer reference copied').closest('[role="status"]')).toBeTruthy();
   });
 
   it('says nothing about identity checks while none has failed', () => {
