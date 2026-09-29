@@ -2,11 +2,12 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
+import type { Transaction } from '../db/transaction.js';
 import {
   type CleanUpload,
   DECLARATION_ATTACHMENT_PURPOSE,
@@ -15,24 +16,28 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../documents/documents-client.js';
-import type { Transaction } from '../db/transaction.js';
+import { UUID } from '../guards.js';
+import { personOf } from './access.js';
 import { attachmentFileName, hasItem, withAttachment, withoutAttachment } from './attachments.js';
+import { declarationAttachmentLinked, declarationAttachmentUnlinked } from './events.js';
 import {
-  personOf,
-  sectionIs,
+  declarationNotDraft,
+  sectionArchived,
   validationProblem,
   violatedUniqueConstraint,
-} from './drafts.service.js';
-import { declarationAttachmentLinked, declarationAttachmentUnlinked } from './events.js';
+} from './problems.js';
+import {
+  type DeclarationRow,
+  liveDeclaration,
+  sectionIs,
+  type SectionRow,
+  storeSection,
+} from './repository.js';
 import { attachmentLinkSchema, type DeclarationAttachment } from './representation.js';
-import { declarationAttachments, declarationSections, declarations } from './schema.js';
+import { declarationAttachments, declarationSections } from './schema.js';
 import { SectionCipher } from './section-cipher.js';
-import type { SectionContents } from './sections.js';
+import { isStatementKey, type SectionContents, type StatementKey } from './sections.js';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-type DeclarationRow = typeof declarations.$inferSelect;
-type SectionRow = typeof declarationSections.$inferSelect;
 type AttachmentRow = typeof declarationAttachments.$inferSelect;
 
 /**
@@ -74,7 +79,11 @@ export class AttachmentsService {
         })),
       );
     }
-    const { sectionKey, itemId, uploadId } = parsed.data;
+    const { itemId, uploadId } = parsed.data;
+    // Only a statement's items take attachments.
+    const sectionKey = isStatementKey(parsed.data.sectionKey)
+      ? parsed.data.sectionKey
+      : notFoundIfInvisible<StatementKey>(null);
 
     // Check the item before asking documents, so a wrong item costs no call.
     const current = notFoundIfInvisible(
@@ -200,14 +209,7 @@ export class AttachmentsService {
    */
   private async takeBack(person: PersonContext, attachment: AttachmentRow): Promise<void> {
     const removed = await withPerson(this.db, person, async (tx) => {
-      const [declaration] = await tx
-        .select()
-        .from(declarations)
-        .where(
-          and(eq(declarations.id, attachment.declarationId), ne(declarations.status, 'discarded')),
-        )
-        .limit(1)
-        .for('update');
+      const declaration = await liveDeclaration(tx, attachment.declarationId, { lock: true });
       if (!declaration) return null;
       const [stored] = await tx
         .select()
@@ -227,7 +229,7 @@ export class AttachmentsService {
     tx: Transaction,
     declaration: DeclarationRow,
     attachment: AttachmentRow,
-  ): Promise<{ draftVersion: number; sectionKey: string; contents?: SectionContents }> {
+  ): Promise<Removed> {
     const [section] = await tx
       .select()
       .from(declarationSections)
@@ -253,10 +255,7 @@ export class AttachmentsService {
     return { draftVersion, sectionKey: attachment.sectionKey, contents };
   }
 
-  private async cacheRemoved(
-    declarationId: string,
-    removed: { draftVersion: number; sectionKey: string; contents?: SectionContents },
-  ): Promise<void> {
+  private async cacheRemoved(declarationId: string, removed: Removed): Promise<void> {
     if (!removed.contents) return;
     await this.sections.cache(
       { declarationId, sectionKey: removed.sectionKey, savedVersion: removed.draftVersion },
@@ -268,31 +267,14 @@ export class AttachmentsService {
   private async store(
     tx: Transaction,
     declaration: DeclarationRow,
-    sectionKey: string,
+    sectionKey: StatementKey,
     contents: SectionContents,
   ): Promise<number> {
-    const sealed = await this.sections.seal(
-      declaration.tenant,
-      declaration.id,
-      sectionKey,
-      contents,
+    return notFoundIfInvisible(
+      await storeSection(tx, this.sections, declaration, sectionKey, contents, {
+        now: this.clock.now(),
+      }),
     );
-    const [bumped] = await tx
-      .update(declarations)
-      .set({ draftVersion: sql`${declarations.draftVersion} + 1` })
-      .where(eq(declarations.id, declaration.id))
-      .returning({ draftVersion: declarations.draftVersion });
-    const draftVersion = notFoundIfInvisible(bumped).draftVersion;
-    await tx
-      .update(declarationSections)
-      .set({
-        ciphertext: sealed.ciphertext,
-        envelope: sealed.envelope,
-        savedVersion: draftVersion,
-        updatedAt: this.clock.now(),
-      })
-      .where(sectionIs(declaration.id, sectionKey));
-    return draftVersion;
   }
 
   /** The Commission's clean upload, if it was uploaded as a declaration attachment. */
@@ -355,37 +337,22 @@ async function draftOf(
   declarationId: string,
   { lock = true }: { lock?: boolean } = {},
 ): Promise<DeclarationRow | null> {
-  if (!UUID.test(declarationId)) return null;
-  const query = tx
-    .select()
-    .from(declarations)
-    .where(and(eq(declarations.id, declarationId), ne(declarations.status, 'discarded')))
-    .limit(1);
-  const [declaration] = lock ? await query.for('update') : await query;
+  const declaration = await liveDeclaration(tx, declarationId, { lock });
   if (!declaration) return null;
-  if (declaration.status !== 'draft') {
-    throw new ProblemException({
-      type: 'declaration-not-draft',
-      title: 'Not a draft',
-      status: HttpStatus.CONFLICT,
-      detail: 'Only a draft declaration can be edited.',
-    });
-  }
+  if (declaration.status !== 'draft') throw declarationNotDraft('edited');
   return declaration;
 }
 
 /**
  * A statement section of the caller's draft that items can be attached in: null when either is
- * not visible (or the key is not a statement's), 409 when the draft is not editable or the
- * statement is archived.
+ * not visible, 409 when the draft is not editable or the statement is archived.
  */
 async function editableSection(
   tx: Transaction,
   declarationId: string,
-  sectionKey: string,
+  sectionKey: StatementKey,
   { lock }: { lock: boolean },
 ): Promise<{ declaration: DeclarationRow; section: SectionRow } | null> {
-  if (!sectionKey.startsWith('statement:')) return null;
   const declaration = await draftOf(tx, declarationId, { lock });
   if (!declaration) return null;
   const [section] = await tx
@@ -394,13 +361,13 @@ async function editableSection(
     .where(sectionIs(declarationId, sectionKey))
     .limit(1);
   if (!section) return null;
-  if (section.metadata.archived === true) {
-    throw new ProblemException({
-      type: 'section-archived',
-      title: 'Section archived',
-      status: HttpStatus.CONFLICT,
-      detail: 'This person was removed from the household; add them back to edit it.',
-    });
-  }
+  if (section.metadata.archived === true) throw sectionArchived();
   return { declaration, section };
+}
+
+/** What removing an attachment changed: the version, and the section re-sealed unless it was gone. */
+interface Removed {
+  draftVersion: number;
+  sectionKey: StatementKey;
+  contents?: SectionContents;
 }

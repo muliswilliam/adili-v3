@@ -26,7 +26,7 @@ import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { loadCalendar } from './apply-page.js';
-import { commissionReadTenant, fallbackIssuerCode } from './access.js';
+import { commissionReadTenant, commissionRef } from './access.js';
 import {
   decodeListCursor,
   encodeListCursor,
@@ -201,9 +201,8 @@ export class CommissionObligationsService {
           total[row.status] += row.n;
         }
       }
-      const issuerCode = reference?.issuerCode ?? fallbackIssuerCode(slug);
       return {
-        commission: { slug, issuerCode, name: reference?.name ?? issuerCode },
+        commission: commissionRef(slug, reference),
         cycle: counted,
         cycles,
         total,

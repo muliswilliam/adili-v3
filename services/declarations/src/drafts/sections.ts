@@ -20,17 +20,43 @@ export function isSectionKey(value: string): value is DeclarationSectionKey {
   return SECTION_KEY.test(value);
 }
 
-export function statementPersonKey(key: DeclarationSectionKey): PersonKey | null {
-  return key.startsWith('statement:') ? (key.slice('statement:'.length) as PersonKey) : null;
+const STATEMENT_PREFIX = 'statement:';
+
+/** The key of a person's financial statement section. */
+export type StatementKey = `statement:${PersonKey}`;
+
+/** A `like` pattern matching every statement section key. */
+export const STATEMENT_KEY_PATTERN = `${STATEMENT_PREFIX}%`;
+
+export function statementKey(personKey: PersonKey): StatementKey {
+  return `${STATEMENT_PREFIX}${personKey}`;
+}
+
+/** Whether the key is a statement's; not a check that it is a well-formed section key. */
+export function isStatementKey(key: string): key is StatementKey {
+  return key.startsWith(STATEMENT_PREFIX);
+}
+
+/** Whose statement the section is, or null for a section that is not a statement. */
+export function statementPersonKey(key: string): PersonKey | null {
+  return isStatementKey(key) ? (key.slice(STATEMENT_PREFIX.length) as PersonKey) : null;
+}
+
+/** Bio and household are assessed together (marital status against spouses): each the other's. */
+export function siblingSection(key: DeclarationSectionKey): 'bio' | 'household' | null {
+  if (key === 'bio') return 'household';
+  if (key === 'household') return 'bio';
+  return null;
 }
 
 /** First Schedule order: bio, household, the statements (officer, spouses, children), other. */
 export function sectionRank(key: string): number {
   if (key === 'bio') return 0;
   if (key === 'household') return 1;
-  if (key === 'statement:officer') return 2;
-  if (key.startsWith('statement:spouse:')) return 3;
-  if (key.startsWith('statement:child:')) return 4;
+  const personKey = statementPersonKey(key);
+  if (personKey === 'officer') return 2;
+  if (personKey?.startsWith('spouse:')) return 3;
+  if (personKey?.startsWith('child:')) return 4;
   return 5;
 }
 

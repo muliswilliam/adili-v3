@@ -5,6 +5,8 @@ import {
   sectionIssues,
 } from '@adili/forms';
 
+import { statementKey } from './sections.js';
+
 /**
  * Pure completeness of a draft's capture sections (spec 05, BE-3): the `declaration.v1` schema's
  * issues plus the rules it cannot state (a nil flag against items, marital status against
@@ -63,7 +65,7 @@ export function assessSections(
     ],
   ];
   for (const [personKey, contents] of draft.statements ?? []) {
-    const key = `statement:${personKey}` as const;
+    const key = statementKey(personKey);
     sections.push([key, contents, statementRules(key, contents)]);
   }
   if (draft.other !== undefined) sections.push(['other', draft.other, []]);

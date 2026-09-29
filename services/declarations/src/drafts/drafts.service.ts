@@ -8,18 +8,19 @@ import {
   declarationIssues,
   type PersonKey,
 } from '@adili/forms';
-import { isDeepStrictEqual } from 'node:util';
 
-import { and, count, desc, eq, inArray, like, max, ne, notInArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, max, ne, notInArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
-import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import type { Transaction } from '../db/transaction.js';
-import { fallbackIssuerCode } from '../obligations/access.js';
+import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
+import { isRecord, isUuid, UUID } from '../guards.js';
+import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
+import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
 import { deriveHeader } from './derive.js';
@@ -28,14 +29,27 @@ import {
   declarationDraftDiscarded,
   declarationDraftStarted,
 } from './events.js';
-import {
-  duplicatePeople,
-  householdPeople,
-  type NotIncluded,
-  planStatements,
-  type StatementPerson,
-} from './household.js';
+import { duplicatePeople, householdPeople, type NotIncluded } from './household.js';
 import { composeMaterialChanges } from './material-changes.js';
+import {
+  declarationNotDraft,
+  sectionArchived,
+  validationProblem,
+  versionMismatch,
+  violatedUniqueConstraint,
+} from './problems.js';
+import {
+  type DeclarationRow,
+  incomePeriodOf,
+  inScheduleOrder,
+  liveDeclaration,
+  liveDeclarationOf,
+  liveSections,
+  readSection,
+  sectionIs,
+  statementSections,
+  storeSection,
+} from './repository.js';
 import type {
   Declaration,
   DeclarationListItem,
@@ -43,23 +57,25 @@ import type {
   SectionEnvelope,
   SectionSaveResult,
 } from './representation.js';
-import { type SealedSection, SectionCipher, type StoredSection } from './section-cipher.js';
+import { SectionCipher, type StoredSection } from './section-cipher.js';
 import {
   applyLockedFields,
-  displayName,
   emptyHousehold,
   emptyOther,
   emptyStatement,
   isSectionKey,
+  isStatementKey,
   nilConflicts,
   prefillBio,
   type SectionContents,
   sectionMetadata,
-  sectionRank,
   shapeErrors,
-  type StatementFrame,
+  siblingSection,
+  type StatementKey,
+  statementKey,
   statementPersonKey,
 } from './sections.js';
+import { personNames, statementChanges, writeStatementChanges } from './statements.js';
 import {
   assembleDocument,
   blockingIssues,
@@ -70,21 +86,11 @@ import {
   declarationAttachments,
   declarationSections,
   declarations,
-  type SectionCompleteness,
   type SectionMetadata,
-  type StoredEnvelope,
 } from './schema.js';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Obligations a declaration can no longer be started for. */
 const CLOSED_OBLIGATION_STATUSES = new Set(['filed', 'cancelled']);
-
-type DeclarationRow = typeof declarations.$inferSelect;
-type SectionRow = typeof declarationSections.$inferSelect;
-
-/** Sections of a draft without their contents, as the header lists them. */
-type SectionSummaryRow = Omit<SectionRow, 'ciphertext' | 'envelope'>;
 
 /**
  * Declaration drafts (spec 05): start from an obligation, read the draft, read and save its
@@ -175,7 +181,7 @@ export class DraftsService {
       ['bio', bio.contents, { lockedFields: bio.lockedFields }],
       ['household', emptyHousehold(), {}],
       [
-        'statement:officer',
+        statementKey('officer'),
         emptyStatement({
           personKey: 'officer',
           personName: bio.contents.name as Record<string, unknown>,
@@ -263,8 +269,8 @@ export class DraftsService {
     const { declaration, sections } = notFoundIfInvisible(found);
     const live = await Promise.all(
       sections.map(async (section) => ({
-        key: section.sectionKey as DeclarationSectionKey,
-        contents: await this.open(declaration, section),
+        key: section.sectionKey,
+        contents: await this.sections.open(declaration.tenant, section),
       })),
     );
     const document = assembleDocument(
@@ -272,8 +278,7 @@ export class DraftsService {
         type: declaration.type,
         statementDate: declaration.statementDate,
         incomePeriod: {
-          from: declaration.incomePeriodFrom,
-          to: declaration.incomePeriodTo,
+          ...incomePeriodOf(declaration),
           fromSource: declaration.previousStatementDateSource,
         },
       },
@@ -297,10 +302,7 @@ export class DraftsService {
     const validated = declarationIssues(document);
     // A section never saved blocks, and the document is not valid, until the declarant saves it.
     const notStarted = notStartedIssues(
-      sections.map((section) => ({
-        key: section.sectionKey as DeclarationSectionKey,
-        completeness: section.completeness,
-      })),
+      sections.map((section) => ({ key: section.sectionKey, completeness: section.completeness })),
     );
 
     return {
@@ -332,43 +334,34 @@ export class DraftsService {
    */
   async discard(principal: Principal, declarationId: string): Promise<void> {
     const person = personOf(principal);
-    if (!UUID.test(declarationId)) notFoundIfInvisible(null);
     await withPerson(this.db, person, async (tx) => {
-      const [found] = await tx
-        .select()
-        .from(declarations)
-        .where(and(eq(declarations.id, declarationId), ne(declarations.status, 'discarded')))
-        .limit(1)
-        .for('update');
-      const declaration = notFoundIfInvisible(found);
-      if (declaration.status !== 'draft') {
-        throw new ProblemException({
-          type: 'declaration-not-draft',
-          title: 'Not a draft',
-          status: HttpStatus.CONFLICT,
-          detail: 'Only a draft declaration can be discarded.',
-        });
-      }
+      const declaration = notFoundIfInvisible(
+        await liveDeclaration(tx, declarationId, { lock: true }),
+      );
+      if (declaration.status !== 'draft') throw declarationNotDraft('discarded');
       const unlinked = await tx
         .delete(declarationAttachments)
-        .where(eq(declarationAttachments.declarationId, declarationId))
+        .where(eq(declarationAttachments.declarationId, declaration.id))
         .returning({ uploadId: declarationAttachments.uploadId });
       await tx
         .delete(declarationSections)
-        .where(eq(declarationSections.declarationId, declarationId));
+        .where(eq(declarationSections.declarationId, declaration.id));
       await tx
         .update(declarations)
         .set({ status: 'discarded' })
-        .where(eq(declarations.id, declarationId));
+        .where(eq(declarations.id, declaration.id));
       for (const { uploadId } of unlinked) {
         await this.events.record(
           tx,
-          declarationAttachmentUnlinked(declaration.tenant, { declarationId, uploadId }),
+          declarationAttachmentUnlinked(declaration.tenant, {
+            declarationId: declaration.id,
+            uploadId,
+          }),
         );
       }
       await this.events.record(
         tx,
-        declarationDraftDiscarded(declaration.tenant, { declarationId }),
+        declarationDraftDiscarded(declaration.tenant, { declarationId: declaration.id }),
       );
     });
   }
@@ -427,12 +420,10 @@ export class DraftsService {
       const complete = counted
         .filter((group) => group.completeness === 'complete')
         .reduce((sum, group) => sum + group.sections, 0);
-      const commission = bySlug.get(row.tenant);
-      const issuerCode = commission?.issuerCode ?? fallbackIssuerCode(row.tenant);
       return {
         id: row.id,
         obligationId: row.obligationId,
-        commission: { slug: row.tenant, issuerCode, name: commission?.name ?? issuerCode },
+        commission: commissionRef(row.tenant, bySlug.get(row.tenant)),
         type: row.type,
         statementDate: row.statementDate,
         status: row.status,
@@ -453,7 +444,7 @@ export class DraftsService {
     const state = notFoundIfInvisible(
       await withPerson(this.db, person, (tx) => readSection(tx, declarationId, key)),
     );
-    const opened = await this.open(state.declaration, state.section);
+    const opened = await this.sections.open(state.declaration.tenant, state.section);
     // Paragraph 9's material changes follow the items as they are now, not as `other` was saved.
     const contents =
       key === 'other'
@@ -494,27 +485,13 @@ export class DraftsService {
       await withPerson(this.db, person, (tx) => readSection(tx, declarationId, key)),
     );
     const { declaration, section } = state;
-    if (declaration.status !== 'draft') {
-      throw new ProblemException({
-        type: 'declaration-not-draft',
-        title: 'Not a draft',
-        status: HttpStatus.CONFLICT,
-        detail: 'Only a draft declaration can be edited.',
-      });
-    }
+    if (declaration.status !== 'draft') throw declarationNotDraft('edited');
     if (declaration.draftVersion !== expected) throw versionMismatch();
-    if (section.metadata.archived === true) {
-      throw new ProblemException({
-        type: 'section-archived',
-        title: 'Section archived',
-        status: HttpStatus.CONFLICT,
-        detail: 'This person was removed from the household; add them back to edit it.',
-      });
-    }
+    if (section.metadata.archived === true) throw sectionArchived();
     if (!isRecord(body)) throw validationProblem([{ path: '', message: 'Expected an object' }]);
     const errors = shapeErrors(key, body);
     if (errors.length > 0) throw validationProblem(errors);
-    if (statementPersonKey(key)) {
+    if (isStatementKey(key)) {
       const conflicts = nilConflicts(body);
       if (conflicts.length > 0) {
         throw new ProblemException({
@@ -527,7 +504,7 @@ export class DraftsService {
       }
     }
 
-    const stored = await this.open(declaration, section);
+    const stored = await this.sections.open(declaration.tenant, section);
     const prepared = await this.prepare(person, declaration, key, body, stored, section.metadata);
     const household =
       key === 'household' ? householdPeople(prepared, declaration.statementDate) : null;
@@ -542,38 +519,28 @@ export class DraftsService {
       ...sectionMetadata(key, contents),
       ...(household && { notIncluded: household.notIncluded }),
     };
-    const sealed = await this.sections.seal(declaration.tenant, declaration.id, key, contents);
     // Saved at the version the conditional bump below produces, or not at all.
     const savedVersion = expected + 1;
     const statements = household
-      ? await this.statementChanges(person, declaration, household.statements, savedVersion)
+      ? await statementChanges(
+          this.sections,
+          declaration,
+          await withPerson(this.db, person, (tx) => statementSections(tx, declaration.id)),
+          household.statements,
+          savedVersion,
+        )
       : [];
 
+    const now = this.clock.now();
     const draftVersion = await withPerson(this.db, person, async (tx) => {
-      const [bumped] = await tx
-        .update(declarations)
-        .set({ draftVersion: sql`${declarations.draftVersion} + 1`, lastSection: key })
-        .where(
-          and(
-            eq(declarations.id, declaration.id),
-            eq(declarations.draftVersion, expected),
-            eq(declarations.status, 'draft'),
-          ),
-        )
-        .returning({ draftVersion: declarations.draftVersion });
-      if (!bumped) throw versionMismatch();
-      const now = this.clock.now();
-      await tx
-        .update(declarationSections)
-        .set({
-          ciphertext: sealed.ciphertext,
-          envelope: sealed.envelope,
-          completeness: assessment.section.completeness,
-          metadata,
-          savedVersion: bumped.draftVersion,
-          updatedAt: now,
-        })
-        .where(sectionIs(declaration.id, key));
+      const bumped = await storeSection(tx, this.sections, declaration, key, contents, {
+        now,
+        ifVersion: expected,
+        lastSection: true,
+        completeness: assessment.section.completeness,
+        metadata,
+      });
+      if (bumped === null) throw versionMismatch();
       // Bio and household are assessed together (marital status against spouses): a save of
       // one can change the other's completeness, once the other has been saved.
       const sibling = state.sibling;
@@ -584,8 +551,8 @@ export class DraftsService {
           .where(sectionIs(declaration.id, sibling.sectionKey));
       }
       await writeStatementChanges(tx, declaration.id, statements, now);
-      if (statementPersonKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
-      return bumped.draftVersion;
+      if (isStatementKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
+      return bumped;
     });
     await this.sections.cache(
       { declarationId: declaration.id, sectionKey: key, savedVersion: draftVersion },
@@ -613,103 +580,6 @@ export class DraftsService {
         change.action ? [{ key: change.key, action: change.action }] : [],
       ),
     };
-  }
-
-  /**
-   * What a household save does to the financial statements (S5): an empty statement for each
-   * person new to it, the statement of each person back in it restored, the statement of each
-   * person gone from it (or a child no longer under eighteen) archived, and the name on each live
-   * statement kept in step with the household. Nothing is deleted before discard. Sealed ahead
-   * of the save's transaction, at the version it will write.
-   */
-  private async statementChanges(
-    person: PersonContext,
-    declaration: DeclarationRow,
-    wanted: StatementPerson[],
-    savedVersion: number,
-  ): Promise<StatementChange[]> {
-    const rows = await withPerson(this.db, person, (tx) =>
-      tx
-        .select()
-        .from(declarationSections)
-        .where(
-          and(
-            eq(declarationSections.declarationId, declaration.id),
-            like(declarationSections.sectionKey, 'statement:%'),
-          ),
-        ),
-    );
-    const byKey = new Map(rows.map((row) => [row.sectionKey, row]));
-    const plan = planStatements(
-      wanted,
-      rows.map((row) => ({
-        personKey: statementPersonKey(row.sectionKey as DeclarationSectionKey) ?? 'officer',
-        archived: row.metadata.archived === true,
-      })),
-    );
-    const frame = (who: StatementPerson) => ({
-      personKey: who.personKey,
-      personName: who.personName,
-      statementDate: declaration.statementDate,
-      incomePeriod: { from: declaration.incomePeriodFrom, to: declaration.incomePeriodTo },
-    });
-    const seal = async (
-      key: DeclarationSectionKey,
-      contents: SectionContents,
-    ): Promise<SealedSection & { contents: SectionContents }> => ({
-      contents,
-      ...(await this.sections.seal(declaration.tenant, declaration.id, key, contents)),
-    });
-
-    const created = plan.create.map(async (who): Promise<StatementChange> => {
-      const key = `statement:${who.personKey}` as const;
-      const contents = emptyStatement(frame(who) as StatementFrame);
-      return {
-        key,
-        action: 'created',
-        insert: true,
-        completeness: 'not-started',
-        metadata: sectionMetadata(key, contents),
-        savedVersion,
-        ...(await seal(key, contents)),
-      };
-    });
-    const renamed = [...plan.restore, ...plan.keep].map(
-      async (who): Promise<StatementChange | null> => {
-        const key = `statement:${who.personKey}` as const;
-        const row = byKey.get(key);
-        if (!row) return null;
-        const restoring = row.metadata.archived === true;
-        const stored = await this.open(declaration, row);
-        const sameName = isDeepStrictEqual(stored.personName, who.personName);
-        if (!restoring && sameName) return null;
-        const contents = sameName ? stored : { ...stored, ...frame(who) };
-        const metadata = { ...row.metadata };
-        delete metadata.archived;
-        return {
-          key,
-          ...(restoring && { action: 'restored' as const }),
-          insert: false,
-          // A statement never saved stays not started; one saved is assessed again.
-          completeness:
-            row.updatedAt === null ? 'not-started' : statementCompleteness(who.personKey, contents),
-          metadata,
-          ...(sameName ? {} : { savedVersion, ...(await seal(key, contents)) }),
-        };
-      },
-    );
-    const archived = plan.archive.map((personKey): StatementChange => {
-      const key = `statement:${personKey}` as const;
-      return {
-        key,
-        action: 'archived',
-        insert: false,
-        completeness: 'archived',
-        metadata: { ...byKey.get(key)?.metadata, archived: true },
-      };
-    });
-    const changes = await Promise.all([...created, ...renamed]);
-    return [...changes.filter((change) => change !== null), ...archived];
   }
 
   /**
@@ -753,7 +623,7 @@ export class DraftsService {
         personKey,
         personName: stored.personName,
         statementDate: declaration.statementDate,
-        incomePeriod: { from: declaration.incomePeriodFrom, to: declaration.incomePeriodTo },
+        incomePeriod: incomePeriodOf(declaration),
       };
     }
     return body;
@@ -766,10 +636,10 @@ export class DraftsService {
   private async unlinkRemovedItems(
     tx: Transaction,
     declaration: DeclarationRow,
-    key: DeclarationSectionKey,
+    key: StatementKey,
     contents: SectionContents,
   ): Promise<void> {
-    const kept = itemIds(contents).filter((id) => UUID.test(id));
+    const kept = itemIds(contents).filter(isUuid);
     const unlinked = await tx
       .delete(declarationAttachments)
       .where(
@@ -801,7 +671,7 @@ export class DraftsService {
     const personKey = statementPersonKey(key);
     let draft: DraftSections;
     if (key === 'bio' || key === 'household') {
-      const other = sibling ? await this.open(declaration, sibling) : undefined;
+      const other = sibling ? await this.sections.open(declaration.tenant, sibling) : undefined;
       draft =
         key === 'bio' ? { bio: contents, household: other } : { bio: other, household: contents };
     } else if (personKey) {
@@ -815,7 +685,7 @@ export class DraftsService {
     }
     const assessed = assessSections(draft);
     const section = assessed.get(key) ?? { completeness: 'incomplete', issues: [] };
-    const siblingKey = key === 'bio' ? 'household' : key === 'household' ? 'bio' : undefined;
+    const siblingKey = siblingSection(key);
     return siblingKey ? { section, sibling: assessed.get(siblingKey) } : { section };
   }
 
@@ -828,23 +698,13 @@ export class DraftsService {
     let bio: SectionContents | undefined;
     const statements: [PersonKey, SectionContents][] = [];
     for (const row of rows) {
-      const personKey = statementPersonKey(row.sectionKey as DeclarationSectionKey);
+      const personKey = statementPersonKey(row.sectionKey);
       if (!personKey && row.sectionKey !== 'bio') continue;
-      const contents = await this.open(declaration, row);
+      const contents = await this.sections.open(declaration.tenant, row);
       if (personKey) statements.push([personKey, contents]);
       else bio = contents;
     }
     return composeMaterialChanges({ bio, statements });
-  }
-
-  private open(
-    declaration: DeclarationRow,
-    section: Pick<
-      SectionRow,
-      'declarationId' | 'sectionKey' | 'savedVersion' | 'ciphertext' | 'envelope'
-    >,
-  ): Promise<SectionContents> {
-    return this.sections.open(declaration.tenant, section);
   }
 
   private async read(person: PersonContext, declarationId: string): Promise<Declaration> {
@@ -882,24 +742,22 @@ export class DraftsService {
       return { declaration, commission, sections, named };
     });
     const { declaration, commission, sections, named } = notFoundIfInvisible(found);
-    const names = await this.personNames(declaration, named);
-    const issuerCode = commission?.issuerCode ?? fallbackIssuerCode(declaration.tenant);
+    const names = await personNames(this.sections, declaration, named);
     return {
       id: declaration.id,
       obligationId: declaration.obligationId,
-      commission: { slug: declaration.tenant, issuerCode, name: commission?.name ?? issuerCode },
+      commission: commissionRef(declaration.tenant, commission),
       type: declaration.type,
       statementDate: declaration.statementDate,
       incomePeriod: {
-        from: declaration.incomePeriodFrom,
-        to: declaration.incomePeriodTo,
+        ...incomePeriodOf(declaration),
         fromSource: declaration.previousStatementDateSource,
       },
       status: declaration.status,
       schemaVersion: 'declaration.v1',
       draftVersion: declaration.draftVersion,
       sections: inScheduleOrder(sections).map((section) => {
-        const personKey = statementPersonKey(section.sectionKey as DeclarationSectionKey);
+        const personKey = statementPersonKey(section.sectionKey);
         return {
           key: section.sectionKey,
           completeness: section.completeness,
@@ -912,48 +770,6 @@ export class DraftsService {
       createdAt: declaration.createdAt.toISOString(),
       updatedAt: declaration.updatedAt.toISOString(),
     };
-  }
-
-  /**
-   * Display names by person key: the officer from bio, spouses and children from household, and
-   * people removed from the household from their archived statements.
-   */
-  private async personNames(
-    declaration: DeclarationRow,
-    named: SectionRow[],
-  ): Promise<Map<string, string>> {
-    const names = new Map<string, string>();
-    const archived: SectionRow[] = [];
-    for (const section of named) {
-      if (section.completeness === 'archived') {
-        archived.push(section);
-        continue;
-      }
-      const contents = await this.open(declaration, section);
-      if (section.sectionKey === 'bio') {
-        const name = displayName(contents.name);
-        if (name) names.set('officer', name);
-        continue;
-      }
-      for (const [kind, list] of [
-        ['spouse', contents.spouses],
-        ['child', contents.children],
-      ] as const) {
-        const items = isRecord(list) && Array.isArray(list.items) ? list.items : [];
-        for (const item of items) {
-          if (!isRecord(item) || typeof item.id !== 'string') continue;
-          const name = displayName(item.name);
-          if (name) names.set(`${kind}:${item.id}`, name);
-        }
-      }
-    }
-    for (const section of archived) {
-      const personKey = statementPersonKey(section.sectionKey as DeclarationSectionKey);
-      if (!personKey || names.has(personKey)) continue;
-      const name = displayName((await this.open(declaration, section)).personName);
-      if (name) names.set(personKey, name);
-    }
-    return names;
   }
 
   private async rosterRecord(tenant: string, rosterRecordId: string) {
@@ -971,13 +787,6 @@ export class DraftsService {
       });
     }
   }
-}
-
-export function personOf(principal: Principal): PersonContext {
-  return {
-    personId: notFoundIfInvisible(principal.personId),
-    subject: principal.subject,
-  };
 }
 
 function sectionKeyOf(value: string): DeclarationSectionKey {
@@ -999,194 +808,7 @@ function expectedVersion(ifMatch: string | undefined): number {
   return Number(match[1]);
 }
 
-function versionMismatch(): ProblemException {
-  return new ProblemException({
-    type: 'draft-version-mismatch',
-    title: 'Draft changed elsewhere',
-    status: HttpStatus.PRECONDITION_FAILED,
-    detail: 'The draft was saved from somewhere else since you read it. Reload to continue.',
-  });
-}
-
-export function validationProblem(errors: { path: string; message: string }[]): ProblemException {
-  return new ProblemException({
-    type: 'about:blank',
-    title: 'Validation failed',
-    status: HttpStatus.BAD_REQUEST,
-    errors,
-  });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 /** The household's children who get no statement, as stored in its clear metadata. */
 function notIncludedOf(metadata: SectionMetadata): NotIncluded[] {
   return (metadata.notIncluded ?? []) as NotIncluded[];
-}
-
-/** A statement section a household save creates, restores, renames or archives. */
-interface StatementChange {
-  key: DeclarationSectionKey;
-  /** As reported in `sectionsChanged`; none for a rename only. */
-  action?: 'created' | 'restored' | 'archived';
-  insert: boolean;
-  completeness: SectionCompleteness;
-  metadata: SectionMetadata;
-  /** New contents, when they change: sealed, and to cache at `savedVersion`. */
-  contents?: SectionContents;
-  ciphertext?: Buffer;
-  envelope?: StoredEnvelope;
-  savedVersion?: number;
-}
-
-async function writeStatementChanges(
-  tx: Transaction,
-  declarationId: string,
-  changes: readonly StatementChange[],
-  now: Date,
-): Promise<void> {
-  // Statements are listed by creation within a kind: a millisecond apart, they keep the order the
-  // household lists the people in.
-  const createdAt = now.getTime();
-  let created = 0;
-  for (const change of changes) {
-    const { ciphertext, envelope, savedVersion } = change;
-    const sealed =
-      ciphertext && envelope && savedVersion !== undefined
-        ? { ciphertext, envelope, savedVersion }
-        : undefined;
-    if (change.insert) {
-      if (!sealed) throw new Error('A new statement must be sealed');
-      await tx.insert(declarationSections).values({
-        declarationId,
-        sectionKey: change.key,
-        completeness: change.completeness,
-        metadata: change.metadata,
-        createdAt: new Date(createdAt + created++),
-        ...sealed,
-      });
-      continue;
-    }
-    await tx
-      .update(declarationSections)
-      .set({ completeness: change.completeness, metadata: change.metadata, ...sealed })
-      .where(sectionIs(declarationId, change.key));
-  }
-}
-
-/** A statement's completeness on its own (statements are assessed one by one). */
-function statementCompleteness(
-  personKey: PersonKey,
-  contents: SectionContents,
-): 'complete' | 'incomplete' {
-  const assessed = assessSections({
-    bio: undefined,
-    household: undefined,
-    statements: new Map([[personKey, contents]]),
-  });
-  return assessed.get(`statement:${personKey}`)?.completeness ?? 'incomplete';
-}
-
-/**
- * The draft's live sections: every section but the statements archived by household edits. The
- * one place archived statements are left out, for completeness and the summary; they stay stored
- * (and listed on the draft as `archived`) until the draft is discarded.
- */
-export async function liveSections(tx: Transaction, declarationId: string): Promise<SectionRow[]> {
-  const rows = await tx
-    .select()
-    .from(declarationSections)
-    .where(
-      and(
-        eq(declarationSections.declarationId, declarationId),
-        ne(declarationSections.completeness, 'archived'),
-      ),
-    );
-  return inScheduleOrder(rows);
-}
-
-export function sectionIs(declarationId: string, sectionKey: string) {
-  return and(
-    eq(declarationSections.declarationId, declarationId),
-    eq(declarationSections.sectionKey, sectionKey),
-  );
-}
-
-async function liveDeclaration(
-  tx: Transaction,
-  declarationId: string,
-): Promise<DeclarationRow | null> {
-  if (!UUID.test(declarationId)) return null;
-  const [row] = await tx
-    .select()
-    .from(declarations)
-    .where(and(eq(declarations.id, declarationId), ne(declarations.status, 'discarded')))
-    .limit(1);
-  return row ?? null;
-}
-
-async function liveDeclarationOf(
-  tx: Transaction,
-  obligationId: string,
-): Promise<DeclarationRow | null> {
-  const [row] = await tx
-    .select()
-    .from(declarations)
-    .where(and(eq(declarations.obligationId, obligationId), ne(declarations.status, 'discarded')))
-    .limit(1);
-  return row ?? null;
-}
-
-/**
- * A live declaration's section with its contents, and for bio and household the other of the
- * two (they are assessed together). Null when the caller cannot see it or it does not exist.
- */
-async function readSection(
-  tx: Transaction,
-  declarationId: string,
-  key: DeclarationSectionKey,
-): Promise<{
-  declaration: DeclarationRow;
-  section: SectionRow;
-  sibling: SectionRow | null;
-} | null> {
-  const declaration = await liveDeclaration(tx, declarationId);
-  if (!declaration) return null;
-  const siblingKey = key === 'bio' ? 'household' : key === 'household' ? 'bio' : null;
-  const rows = await tx
-    .select()
-    .from(declarationSections)
-    .where(
-      and(
-        eq(declarationSections.declarationId, declarationId),
-        sql`${declarationSections.sectionKey} in (${key}, ${siblingKey ?? key})`,
-      ),
-    );
-  const section = rows.find((row) => row.sectionKey === key);
-  if (!section) return null;
-  const sibling = siblingKey ? (rows.find((row) => row.sectionKey === siblingKey) ?? null) : null;
-  return { declaration, section, sibling };
-}
-
-function inScheduleOrder<T extends Pick<SectionSummaryRow, 'sectionKey' | 'createdAt'>>(
-  sections: T[],
-): T[] {
-  return [...sections].sort(
-    (a, b) =>
-      sectionRank(a.sectionKey) - sectionRank(b.sectionKey) ||
-      a.createdAt.getTime() - b.createdAt.getTime() ||
-      a.sectionKey.localeCompare(b.sectionKey),
-  );
-}
-
-/** The unique constraint a failed query violated, looking through Drizzle's error wrapper. */
-export function violatedUniqueConstraint(error: unknown): string | undefined {
-  for (let cause = error; cause instanceof Error; cause = cause.cause) {
-    if ('code' in cause && cause.code === '23505' && 'constraint' in cause) {
-      return typeof cause.constraint === 'string' ? cause.constraint : undefined;
-    }
-  }
-  return undefined;
 }

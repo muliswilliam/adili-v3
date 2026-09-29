@@ -1,5 +1,6 @@
 import type { PersonKey } from '@adili/forms';
 
+import { isRecord, isUuid } from '../guards.js';
 import { type ChildExclusion, childInclusion, type IsoDate } from './derive.js';
 import type { SectionContents } from './sections.js';
 
@@ -9,8 +10,6 @@ import type { SectionContents } from './sections.js';
  * change when the household is saved. Nothing is deleted before discard: a person taken out of
  * the household has their statement archived, and it is restored if they come back.
  */
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** A person of the household who needs a financial statement, with the name to put on it. */
 export interface StatementPerson {
@@ -136,14 +135,13 @@ export function planStatements(
   return plan;
 }
 
+/** A person's id, lower case as their statement's section key must be. */
 function isId(value: unknown): value is string {
-  return typeof value === 'string' && UUID.test(value);
+  return isUuid(value) && value === value.toLowerCase();
 }
 
 function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  return isRecord(value) ? value : {};
 }
 
 function listOf(value: unknown): unknown[] {

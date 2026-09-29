@@ -7,6 +7,18 @@ export function fallbackIssuerCode(slug: string): string {
 }
 
 /**
+ * The Commission as last pulled from the directory; its issuer code alone (for code and name)
+ * until a pull has named it.
+ */
+export function commissionRef(
+  slug: string,
+  known: { issuerCode: string | null; name: string | null } | undefined,
+): { slug: string; issuerCode: string; name: string } {
+  const issuerCode = known?.issuerCode ?? fallbackIssuerCode(slug);
+  return { slug, issuerCode, name: known?.name ?? issuerCode };
+}
+
+/**
  * The tenant whose obligations a staff caller reads: `platform` (every Commission) for platform
  * admins, and for EACC when only `counts` are read; the caller's own Commission for its staff;
  * null for anyone else.

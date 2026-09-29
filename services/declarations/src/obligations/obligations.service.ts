@@ -5,8 +5,8 @@ import { and, asc, desc, eq, ne, sql } from 'drizzle-orm';
 
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
+import { UUID } from '../guards.js';
 import type {
-  CommissionRef,
   MyObligations,
   Obligation,
   ObligationDetail,
@@ -18,9 +18,7 @@ import {
   obligationReminders,
   rosterSnapshots,
 } from './schema.js';
-import { fallbackIssuerCode, staffTenant } from './access.js';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { commissionRef, staffTenant } from './access.js';
 
 /** The columns `toObligation` reads; select them from obligations left-joined to `commission_refs`. */
 export const obligationColumns = {
@@ -187,7 +185,10 @@ async function readDeclarant(
 export function toObligation(row: ObligationRow): Obligation {
   return {
     id: row.id,
-    commission: commissionOf(row),
+    commission: commissionRef(row.tenant, {
+      issuerCode: row.issuerCode,
+      name: row.commissionName,
+    }),
     type: row.type,
     cycleKey: row.cycleKey,
     statementDate: row.statementDate,
@@ -198,10 +199,4 @@ export function toObligation(row: ObligationRow): Obligation {
     policyVersion: row.policyVersion,
     createdAt: row.createdAt.toISOString(),
   };
-}
-
-/** The Commission as last pulled; its issuer code alone until a pull has named it. */
-function commissionOf(row: ObligationRow): CommissionRef {
-  const issuerCode = row.issuerCode ?? fallbackIssuerCode(row.tenant);
-  return { slug: row.tenant, issuerCode, name: row.commissionName ?? issuerCode };
 }

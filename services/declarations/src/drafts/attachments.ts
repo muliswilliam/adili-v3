@@ -1,3 +1,4 @@
+import { isRecord } from '../guards.js';
 import type { SectionContents } from './sections.js';
 
 /**
@@ -82,10 +83,6 @@ export function keepAttachments(body: SectionContents, stored: SectionContents):
 }
 
 type Item = Record<string, unknown>;
-
-function isRecord(value: unknown): value is Item {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function itemsOf(contents: SectionContents, list: (typeof ITEM_LISTS)[number]): Item[] {
   const items = contents[list];

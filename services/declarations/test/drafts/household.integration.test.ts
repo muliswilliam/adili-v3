@@ -8,7 +8,7 @@ import {
   filingObligations,
   rosterSnapshots,
 } from '../../src/db/schema.js';
-import { liveSections } from '../../src/drafts/drafts.service.js';
+import { liveSections } from '../../src/drafts/repository.js';
 import type {
   Declaration,
   SectionEnvelope,

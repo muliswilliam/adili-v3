@@ -1,3 +1,4 @@
+import type { DeclarationSectionKey } from '@adili/forms';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -17,6 +18,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { OBLIGATION_TYPES } from '../obligations/engine.js';
+import type { StatementKey } from './sections.js';
 
 /**
  * Declaration drafts (spec 05). Drafts live in Postgres; Valkey only caches decrypted sections
@@ -129,7 +131,7 @@ export const declarationSections = pgTable(
     declarationId: uuid()
       .notNull()
       .references(() => declarations.id, { onDelete: 'cascade' }),
-    sectionKey: text().notNull(),
+    sectionKey: text().$type<DeclarationSectionKey>().notNull(),
     ciphertext: bytea().notNull(),
     envelope: jsonb().$type<StoredEnvelope>().notNull(),
     completeness: text({ enum: SECTION_COMPLETENESS_VALUES }).notNull().default('not-started'),
@@ -162,7 +164,8 @@ export const declarationAttachments = pgTable(
     declarationId: uuid()
       .notNull()
       .references(() => declarations.id, { onDelete: 'cascade' }),
-    sectionKey: text().notNull(),
+    /** Always a statement's: only statement items take attachments. */
+    sectionKey: text().$type<StatementKey>().notNull(),
     itemId: uuid().notNull(),
     uploadId: uuid().notNull(),
     sha256: text().notNull(),
