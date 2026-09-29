@@ -1,15 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { type DeclarationV1, validateDeclaration } from '@adili/forms';
 import { ApplicationFailure } from '@temporalio/common';
+import { eq } from 'drizzle-orm';
 
-import { createCase } from '../cases/case-creation.js';
+import { upsertCase } from '../cases/case-creation.js';
+import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsClient, type PulledVersion } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { type Flag, runRules } from '../rules/index.js';
-import { SYSTEM_SUBJECT } from '../system-context.js';
+import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {
   type PreviousVersion,
   type ProcessingInput,
@@ -91,23 +93,24 @@ export class ProcessingActivities {
         )
       : undefined;
     const checked = validateDeclaration(current.document);
+    const filing = await filingOf(this.db, input, facts);
     return runRules({
       current: current.document as unknown as DeclarationV1,
       previous: before?.document as unknown as DeclarationV1 | undefined,
-      late: facts.late
-        ? { dueDate: facts.dueDate, submittedOn: nairobiDate(facts.submittedAt) }
+      late: filing.late
+        ? { dueDate: facts.dueDate, submittedOn: nairobiDate(filing.submittedAt) }
         : undefined,
       schemaIssues: checked.ok ? 0 : checked.errors.length,
     });
   }
 
   /**
-   * Creates the case of the version, idempotently by version, with the clarification window of
-   * the Commission's policy.
+   * Creates the case of the version with the clarification window of the Commission's policy, or
+   * updates the case with a later version (the amendment path); idempotent by version.
    */
   async upsertCase(request: UpsertCaseRequest): Promise<UpsertCaseOutcome> {
     const policy = await this.directory.getClarificationPolicy(request.input.tenant);
-    return createCase(this.db, this.events, request, policy.issueWindowMonths);
+    return upsertCase(this.db, this.events, request, policy.issueWindowMonths);
   }
 }
 
@@ -129,6 +132,27 @@ async function pullDocument(
     );
   }
   return pulled;
+}
+
+/**
+ * When and whether the declaration was filed late: the case's receipt and lateness when it has a
+ * case (an amendment neither resets receipt nor makes a filing late, Act s.35(2)); the version's
+ * own for a first.
+ */
+async function filingOf(
+  db: Database<ReviewSchema>,
+  input: ProcessingInput,
+  facts: VersionFacts,
+): Promise<{ late: boolean; submittedAt: string }> {
+  const [existing] = await withTenant(db, systemContext(input.tenant), (tx) =>
+    tx
+      .select({ late: reviewCases.late, receivedAt: reviewCases.receivedAt })
+      .from(reviewCases)
+      .where(eq(reviewCases.declarationId, input.declarationId)),
+  );
+  return existing
+    ? { late: existing.late, submittedAt: existing.receivedAt.toISOString() }
+    : { late: facts.late, submittedAt: facts.submittedAt };
 }
 
 /** The calendar date in Nairobi of an instant, `YYYY-MM-DD`. */

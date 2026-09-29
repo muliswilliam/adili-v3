@@ -29,9 +29,9 @@ const { pullVersion, pullPreviousVersion, runRules, upsertCase } =
  * `DeclarationProcessingWorkflow` (spec 07a), started by the `declaration.submitted.v1` consumer
  * with the version as workflow id: pull the version's metadata, look up the person's previous
  * submitted version at the Commission, run the deterministic rules, then create the review case
- * (or, for a later version of a case, hand it to the amendment path). The case, its flags, the
- * timeline entry and the event are written in one transaction, so a retried or repeated run
- * creates nothing twice.
+ * (or, for a later version, update the case: flags recomputed against the previous version,
+ * reviewed flags kept and marked, assignee kept). The case, its flags, the timeline entry and the
+ * event are written in one transaction, so a retried or repeated run changes nothing twice.
  *
  * 07b and 07c add registry and AI activities after the rules; no AI runs here.
  */

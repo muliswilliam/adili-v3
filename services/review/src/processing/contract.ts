@@ -58,14 +58,14 @@ export interface UpsertCaseRequest {
 }
 
 /**
- * What `upsertCase` did: `created` a case for the declaration, found it `unchanged` (this version,
- * or a later one, was already processed: a redelivery), or found an open case for an earlier
- * version, whose `amendment` the amendment path updates.
+ * What `upsertCase` did: `created` a case for the declaration, `updated` its case from an earlier
+ * version to this one (the amendment path), or found it `unchanged` (this version, or a later one,
+ * was already processed: a redelivery or an out-of-order run).
  */
 export type UpsertCaseOutcome =
   | { outcome: 'created'; caseId: string }
   | { outcome: 'unchanged'; caseId: string }
-  | { outcome: 'amendment'; caseId: string };
+  | { outcome: 'updated'; caseId: string };
 
 /** How a run ended; `missing` when declarations has no such version for the Commission. */
 export type ProcessingResult = UpsertCaseOutcome | { outcome: 'missing' };

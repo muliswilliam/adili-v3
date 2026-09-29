@@ -188,14 +188,14 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     expect(flagRows).toHaveLength(flags.length);
     expect(await api.db.select().from(outbox)).toHaveLength(1);
 
-    // A later version of the case is left to the amendment path.
+    // A later version of the case takes the amendment path (S6, amendment.integration.test.ts).
     const amended = await api.activities.upsertCase({
       input: { ...input, versionId: crypto.randomUUID(), version: 2 },
       facts,
       flags,
     });
-    expect(amended).toEqual({ outcome: 'amendment', caseId: first.caseId });
-    expect(await api.db.select().from(outbox)).toHaveLength(1);
+    expect(amended).toEqual({ outcome: 'updated', caseId: first.caseId });
+    expect(await api.db.select().from(outbox)).toHaveLength(2);
   });
 
   it('retries pulls while declarations is unavailable, then creates the case', async () => {
