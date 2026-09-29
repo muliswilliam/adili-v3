@@ -8,6 +8,20 @@
       "when": 1790325260783,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790690876323,
+      "tag": "0001_reporting_facts_and_compliance_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790690893733,
+      "tag": "0002_reporting_rls",
+      "breakpoints": true
     }
   ]
 }

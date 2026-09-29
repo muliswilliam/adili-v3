@@ -54,6 +54,12 @@ paths:
                 $ref: '#/components/schemas/ComplianceReport'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: 'Problem type `directory-unavailable`: the Commission could not be named; try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/compliance-reports/{fy}/compile:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -70,7 +76,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Report already submitted, or preview not yet available
+          description: Problem code `report-submitted`, or `preview-not-available` before 1 April after the year
           content:
             application/problem+json:
               schema:

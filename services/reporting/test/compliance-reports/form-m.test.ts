@@ -1,0 +1,157 @@
+import { validateFormM } from '@adili/forms';
+import { describe, expect, it } from 'vitest';
+
+import {
+  type ActionFactRow,
+  aggregateFacts,
+  assemble,
+  type AssembleInput,
+  NO_MANUAL_ENTRIES,
+  type ObligationFactRow,
+} from '../../src/compliance-reports/form-m.js';
+import {
+  dueDateOf,
+  financialYearAt,
+  financialYearOf,
+  previewFromOf,
+} from '../../src/financial-year.js';
+
+const id = (n: number) => `0199b000-0000-7000-8000-${String(n).padStart(12, '0')}`;
+
+const fact = (n: number, overrides: Partial<ObligationFactRow> = {}): ObligationFactRow => ({
+  obligationId: id(n),
+  type: 'initial',
+  statementDate: '2027-09-01',
+  status: 'due',
+  filedAt: null,
+  late: null,
+  ...overrides,
+});
+
+describe('financial years', () => {
+  it('runs from 1 July to 30 June, keyed by the start year, in Nairobi time', () => {
+    expect(financialYearOf('2027-06-30')).toBe(2026);
+    expect(financialYearOf('2027-07-01')).toBe(2027);
+    expect(financialYearAt(new Date('2027-06-30T20:59:59.000Z'))).toBe(2026);
+    expect(financialYearAt(new Date('2027-06-30T21:00:00.000Z'))).toBe(2027);
+    expect(dueDateOf(2027)).toBe('2028-07-31');
+    expect(previewFromOf(2027)).toBe('2028-04-01');
+  });
+});
+
+describe('aggregateFacts', () => {
+  it('counts declared as filed on time, lists everyone else, and leaves cancelled obligations out', () => {
+    const aggregate = aggregateFacts(
+      [
+        fact(1, { status: 'filed', filedAt: new Date('2027-09-10'), late: false }),
+        fact(2, { status: 'filed', filedAt: new Date('2027-11-10'), late: true }),
+        fact(3, { status: 'overdue' }),
+        fact(4, { status: 'cancelled' }),
+        fact(5, { type: 'final', statementDate: '2028-01-01', status: 'filed', late: null }),
+        fact(6, { type: null }),
+      ],
+      [],
+    );
+
+    expect(aggregate.counts.initial).toEqual({ expected: 3, declared: 1, notDeclared: 2 });
+    expect(aggregate.nonFilers.initial).toEqual([id(2), id(3)]);
+    expect(aggregate.counts.final).toEqual({ expected: 1, declared: 1, notDeclared: 0 });
+  });
+
+  it('S4: a year with no biennial obligation has no cycle in the period', () => {
+    expect(aggregateFacts([fact(1)], []).counts.biennial).toEqual({
+      expected: 0,
+      declared: 0,
+      notDeclared: 0,
+      noCycleInPeriod: true,
+    });
+    expect(
+      aggregateFacts([fact(1, { type: 'biennial' })], []).counts.biennial.noCycleInPeriod,
+    ).toBe(false);
+  });
+
+  it('orders clarifications by the time they were issued', () => {
+    const aggregate = aggregateFacts(
+      [],
+      [
+        { clarificationId: id(2), issuedAt: new Date('2027-12-02') },
+        { clarificationId: id(1), issuedAt: new Date('2027-12-01') },
+      ],
+    );
+
+    expect(aggregate.clarificationIds).toEqual([id(1), id(2)]);
+    expect(aggregate.counts.clarifications).toBe(2);
+  });
+});
+
+describe('assemble', () => {
+  const input = (
+    actions: ActionFactRow[],
+    obligation = fact(1, { status: 'overdue' }),
+  ): AssembleInput => {
+    const aggregate = aggregateFacts([obligation], []);
+    return {
+      fy: 2027,
+      commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
+      aggregate,
+      obligations: new Map([[obligation.obligationId, obligation]]),
+      actions,
+      officers: [],
+      clarificationStatuses: new Map(),
+      clarifications: [],
+      remarks: new Map(),
+      manual: {
+        ...NO_MANUAL_ENTRIES,
+        emailAddress: 'info@publicservice.go.ke',
+      },
+      compiledAt: new Date('2028-07-01T06:00:00.000Z'),
+    };
+  };
+  const rowOf = (actions: ActionFactRow[], obligation?: ObligationFactRow) =>
+    assemble(input(actions, obligation)).partII.initial.nonFilers[0];
+
+  it('takes the furthest step that reached the officer; proposed, approved and declined steps are no action', () => {
+    expect(
+      rowOf([
+        { subjectId: id(1), step: 'notice-to-comply', status: 'responded' },
+        { subjectId: id(1), step: 'warning', status: 'issued' },
+        { subjectId: id(1), step: 'salary-stoppage', status: 'proposed' },
+        { subjectId: id(2), step: 'disciplinary-referral', status: 'issued' },
+      ]),
+    ).toMatchObject({ actionTaken: 'warning', complied: 'pending', remarks: 'Warning issued' });
+    expect(
+      rowOf([
+        { subjectId: id(1), step: 'notice-to-comply', status: 'approved' },
+        { subjectId: id(1), step: 'warning', status: 'declined' },
+      ]),
+    ).toMatchObject({ actionTaken: 'none', complied: 'no' });
+  });
+
+  it('marks a late filer complied, with or without an action', () => {
+    const late = fact(1, { status: 'filed', filedAt: new Date('2027-12-01'), late: true });
+
+    expect(rowOf([], late)).toMatchObject({ actionTaken: 'none', complied: 'yes' });
+    expect(
+      rowOf([{ subjectId: id(1), step: 'salary-stoppage', status: 'reinstated' }], late),
+    ).toMatchObject({ actionTaken: 'salary-stoppage', complied: 'yes', remarks: 'Salary stopped' });
+  });
+
+  it('keeps a row whose officer declarations no longer knows, dated by its statement date', () => {
+    expect(rowOf([])).toEqual({
+      name: '',
+      designation: '',
+      identifier: '',
+      date: '2027-09-01',
+      actionTaken: 'none',
+      complied: 'no',
+      remarks: 'No administrative action taken',
+      obligationId: id(1),
+    });
+  });
+
+  it('produces a document valid against form-m.v1 once Part I has its email', () => {
+    const document = assemble(input([]));
+
+    expect(validateFormM(document)).toEqual({ ok: true, value: document });
+  });
+});
