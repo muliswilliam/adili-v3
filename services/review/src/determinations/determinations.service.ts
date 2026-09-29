@@ -162,35 +162,11 @@ export class DeterminationsService {
       );
       requireProposed('determination', determination.status);
       const commission = await withUpstream(() => this.directory.getCommission(tenant));
-      const reference = await allocateReference(tx, CMP, {
+      const approved = await approveDetermination(tx, this.events, {
+        determination,
+        caseStatus: reviewCase.status,
+        approver: principal,
         issuer: commission.issuerCode,
-        period: nairobiYear(now),
-      });
-      const [updated] = await tx
-        .update(determinations)
-        .set({
-          status: 'approved',
-          approver: principal.subject,
-          approverName: principal.name,
-          approvedAt: now,
-          reference,
-        })
-        .where(eq(determinations.id, determination.id))
-        .returning();
-      const approved = notFoundIfInvisible(updated);
-      await recordDetermination(tx, this.events, approved, {
-        kind: 'determination-approved',
-        type: DETERMINATION_APPROVED,
-        actor: principal.subject,
-        summary: `Determination ${reference} approved: ${OUTCOME_LABELS[approved.outcome]}`,
-        at: now,
-      });
-      await changeCaseStatus(tx, this.events, {
-        tenant,
-        caseId: reviewCase.id,
-        from: reviewCase.status,
-        to: caseStatusAfter(approved.outcome),
-        actor: principal.subject,
         at: now,
       });
       // Last, inside the transaction: if Temporal cannot be reached nothing is approved. The
@@ -290,6 +266,64 @@ export class DeterminationsService {
       }),
     );
   }
+}
+
+/** An approval of a proposed determination, by one supervisor or in a bulk approval. */
+export interface DeterminationApproval {
+  /** The proposal, locked by the caller, with its case's status. */
+  determination: DeterminationRow;
+  caseStatus: CaseStatus;
+  approver: Principal;
+  /** The Commission's issuer code, for the `CMP` reference. */
+  issuer: string;
+  at: Date;
+  /** The bulk approval that approves it, if one does. */
+  bulkApprovalId?: string;
+}
+
+/**
+ * The approval of a proposal, in the caller's transaction: the next `CMP` reference of the
+ * Commission and the year of approval, the approved fields, the timeline entry and
+ * `determination.approved.v1`, and the case moved to `determined` (or `further-action`) through
+ * the status transitions. The caller has applied the rules (separation of duties, status) and
+ * starts whatever follows.
+ */
+export async function approveDetermination(
+  tx: ReviewTransaction,
+  events: EventPublisher,
+  { determination, caseStatus, approver, issuer, at, bulkApprovalId }: DeterminationApproval,
+): Promise<DeterminationRow> {
+  const reference = await allocateReference(tx, CMP, { issuer, period: nairobiYear(at) });
+  const [updated] = await tx
+    .update(determinations)
+    .set({
+      status: 'approved',
+      approver: approver.subject,
+      approverName: approver.name,
+      approvedAt: at,
+      reference,
+      ...(bulkApprovalId === undefined ? {} : { bulkApprovalId }),
+    })
+    .where(eq(determinations.id, determination.id))
+    .returning();
+  if (!updated) throw new Error(`Determination ${determination.id} vanished under its lock`);
+  const how = bulkApprovalId === undefined ? 'approved' : 'approved in bulk';
+  await recordDetermination(tx, events, updated, {
+    kind: 'determination-approved',
+    type: DETERMINATION_APPROVED,
+    actor: approver.subject,
+    summary: `Determination ${reference} ${how}: ${OUTCOME_LABELS[updated.outcome]}`,
+    at,
+  });
+  await changeCaseStatus(tx, events, {
+    tenant: updated.tenant,
+    caseId: updated.caseId,
+    from: caseStatus,
+    to: caseStatusAfter(updated.outcome),
+    actor: approver.subject,
+    at,
+  });
+  return updated;
 }
 
 /** A change of a determination, as its timeline entry and event record it. */

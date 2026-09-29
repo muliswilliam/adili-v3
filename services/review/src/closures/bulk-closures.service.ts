@@ -2,22 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { allocateReference, CMP } from '@adili/numbering';
 import { and, asc, count, desc, eq, isNotNull, max, not, type SQL, sql } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 import { z } from 'zod';
 
 import { queueTenant, requireSupervisor } from '../cases/access.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
-import { changeCaseStatus } from '../cases/case-status.js';
 import { DECLARATION_TYPES, reviewAssignments, reviewCases } from '../cases/schema.js';
-import { Clock, nairobiYear } from '../clock.js';
+import { Clock } from '../clock.js';
 import { config } from '../config.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { recordDetermination } from '../determinations/determinations.service.js';
-import { DETERMINATION_APPROVED } from '../determinations/events.js';
-import { OUTCOME_LABELS } from '../determinations/representation.js';
+import { approveDetermination } from '../determinations/determinations.service.js';
 import { determinations } from '../determinations/schema.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { ClosureWorkflows } from './closure-workflows.js';
@@ -202,34 +198,13 @@ export class BulkClosuresService {
         .for('update', { of: [determinations, reviewCases], skipLocked: true });
       if (chunk.length === 0) return false;
       for (const { determination, caseStatus } of chunk) {
-        const reference = await allocateReference(tx, CMP, { issuer, period: nairobiYear(now) });
-        const [approved] = await tx
-          .update(determinations)
-          .set({
-            status: 'approved',
-            approver: principal.subject,
-            approverName: principal.name,
-            approvedAt: now,
-            reference,
-            bulkApprovalId,
-          })
-          .where(eq(determinations.id, determination.id))
-          .returning();
-        if (!approved) throw new Error(`Determination ${determination.id} vanished under its lock`);
-        await recordDetermination(tx, this.events, approved, {
-          kind: 'determination-approved',
-          type: DETERMINATION_APPROVED,
-          actor: principal.subject,
-          summary: `Determination ${reference} approved in bulk: ${OUTCOME_LABELS[approved.outcome]}`,
+        await approveDetermination(tx, this.events, {
+          determination,
+          caseStatus,
+          approver: principal,
+          issuer,
           at: now,
-        });
-        await changeCaseStatus(tx, this.events, {
-          tenant,
-          caseId: approved.caseId,
-          from: caseStatus,
-          to: 'determined',
-          actor: principal.subject,
-          at: now,
+          bulkApprovalId,
         });
       }
       await tx
