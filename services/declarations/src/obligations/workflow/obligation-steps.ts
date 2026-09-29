@@ -17,7 +17,7 @@ import { fallbackIssuerCode } from '../access.js';
 import type { Transaction } from '../apply-page.js';
 import { type CivilDate, daysBetween, nairobiDate } from '../dates.js';
 import type { ObligationStatus } from '../engine.js';
-import { obligationReminderSent, obligationStatusChanged } from '../events.js';
+import { obligationReminderRecorded, obligationStatusChanged } from '../events.js';
 import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
 import {
   commissionRefs,
@@ -183,7 +183,12 @@ export class ObligationSteps {
       await this.events.recordAll(
         tx,
         recorded.map(({ offsetDays, outcome }) =>
-          obligationReminderSent(row.tenant, { obligationId, offsetDays, channels: [], outcome }),
+          obligationReminderRecorded(row.tenant, {
+            obligationId,
+            offsetDays,
+            channels: [],
+            outcome,
+          }),
         ),
       );
     });
@@ -191,7 +196,7 @@ export class ObligationSteps {
 
   /**
    * Sends one reminder of an obligation (SMS and email, recipient the linked person) and records
-   * its outcome with an `obligation.reminder-sent.v1` event:
+   * its outcome with an `obligation.reminder-recorded.v1` event:
    *
    * - no person linked (not onboarded): `skipped-not-onboarded`, nothing sent;
    * - notifications has no contact for either channel: `skipped-no-contact`;
@@ -357,7 +362,7 @@ export class ObligationSteps {
       }
       await this.events.record(
         tx,
-        obligationReminderSent(tenant, { obligationId, offsetDays, channels, outcome }),
+        obligationReminderRecorded(tenant, { obligationId, offsetDays, channels, outcome }),
       );
       return outcome;
     });

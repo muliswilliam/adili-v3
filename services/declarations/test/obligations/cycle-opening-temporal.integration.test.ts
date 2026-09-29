@@ -116,7 +116,7 @@ describe('S13 cycle opening on Temporal', () => {
     const events = await api.db
       .select({ id: outbox.id })
       .from(outbox)
-      .where(eq(outbox.eventType, 'obligations.cycle-opened.v1'));
+      .where(eq(outbox.eventType, 'obligation.cycle-opened.v1'));
     expect(events).toHaveLength(1);
   }, 60_000);
 });

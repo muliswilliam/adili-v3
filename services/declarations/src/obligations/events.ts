@@ -45,10 +45,10 @@ export function obligationStatusChanged(
   return { type: OBLIGATION_STATUS_CHANGED, subject: data.obligationId, tenant, data };
 }
 
-export const OBLIGATION_REMINDER_SENT = 'obligation.reminder-sent.v1';
+export const OBLIGATION_REMINDER_RECORDED = 'obligation.reminder-recorded.v1';
 
 /** A reminder's outcome, whether sent or skipped (and why) or failed. */
-export interface ObligationReminderSentData extends Record<string, unknown> {
+export interface ObligationReminderRecordedData extends Record<string, unknown> {
   obligationId: string;
   offsetDays: number;
   /** The channels it went out on; empty unless sent. */
@@ -56,16 +56,16 @@ export interface ObligationReminderSentData extends Record<string, unknown> {
   outcome: ReminderOutcome;
 }
 
-export function obligationReminderSent(
+export function obligationReminderRecorded(
   tenant: string,
-  data: ObligationReminderSentData,
-): NewEvent<ObligationReminderSentData> {
-  return { type: OBLIGATION_REMINDER_SENT, subject: data.obligationId, tenant, data };
+  data: ObligationReminderRecordedData,
+): NewEvent<ObligationReminderRecordedData> {
+  return { type: OBLIGATION_REMINDER_RECORDED, subject: data.obligationId, tenant, data };
 }
 
-export const CYCLE_OPENED = 'obligations.cycle-opened.v1';
+export const CYCLE_OPENED = 'obligation.cycle-opened.v1';
 
-/** A Commission's biennial cycle opened: its active officers' obligations for it exist. */
+/** A Commission's biennial cycle opened: the obligations of the declarants on its roster exist. */
 export interface CycleOpenedData extends Record<string, unknown> {
   cycleYear: number;
   /** Biennial obligations the opening created. */

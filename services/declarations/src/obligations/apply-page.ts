@@ -15,7 +15,11 @@ import {
   type PlanOperation,
   planObligations,
 } from './engine.js';
-import { obligationCreated, obligationReminderSent, obligationStatusChanged } from './events.js';
+import {
+  obligationCreated,
+  obligationReminderRecorded,
+  obligationStatusChanged,
+} from './events.js';
 import {
   cycleCalendar,
   filingObligations,
@@ -305,7 +309,7 @@ async function applyPlan(
   }
   for (const reminder of skipped) {
     newEvents.push(
-      obligationReminderSent(context.tenant, {
+      obligationReminderRecorded(context.tenant, {
         obligationId: reminder.obligationId,
         offsetDays: reminder.offsetDays,
         channels: [],

@@ -110,9 +110,9 @@ async function events(type: string) {
   return rows.map((row) => row.envelope);
 }
 
-/** `obligation.reminder-sent.v1` events but those of reminders past at creation. */
+/** `obligation.reminder-recorded.v1` events but those of reminders past at creation. */
 async function sentByWorkflow() {
-  return (await events('obligation.reminder-sent.v1')).filter(
+  return (await events('obligation.reminder-recorded.v1')).filter(
     (e) => e.data.outcome !== 'skipped-past-due-at-creation',
   );
 }
@@ -392,7 +392,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     );
     expect(rows).toEqual([{ outcome: 'skipped-past-due-at-creation' }]);
     expect(
-      (await events('obligation.reminder-sent.v1'))
+      (await events('obligation.reminder-recorded.v1'))
         .map((e) => e.data)
         .filter((data) => data.obligationId === biennial),
     ).toEqual([
@@ -409,7 +409,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     const { initial } = await officer();
 
     expect(
-      (await events('obligation.reminder-sent.v1'))
+      (await events('obligation.reminder-recorded.v1'))
         .map((e) => e.data)
         .filter((data) => data.obligationId === initial),
     ).toEqual([
