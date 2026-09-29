@@ -37,6 +37,11 @@ export const envSchema = baseEnvSchema.extend({
    * keeps; `off` keeps no schedule (tests, local runs that start sweeps by hand).
    */
   CLOSURE_SWEEP_CRON: z.string().min(1).default('0 2 * * *'),
+  /**
+   * When the daily referral sweep runs (cron, Nairobi time) on the Temporal schedule the service
+   * keeps; `off` keeps none.
+   */
+  REFERRAL_SWEEP_CRON: z.string().min(1).default('30 2 * * *'),
 });
 
 export type Env = z.infer<typeof envSchema>;

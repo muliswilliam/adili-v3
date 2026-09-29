@@ -49,6 +49,34 @@ describe('HttpDocumentsClient', () => {
     });
   });
 
+  it("reads an issued document's type and SHA-256 acting for the Commission; 404 is none", async () => {
+    const issued = {
+      id: UPLOAD,
+      type: 'notice-to-comply',
+      templateVersion: 1,
+      disclosureLevel: 'restricted',
+      issuerTenant: 'psc',
+      subjectRef: 'action:x',
+      verificationId: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+      sha256: 'c'.repeat(64),
+      status: 'valid',
+      supersededBy: null,
+      issuedAt: '2027-12-10T09:00:00.000Z',
+      downloadExpiresAt: null,
+    };
+    const { documents, fetch } = client(json(issued), new Response(null, { status: 404 }));
+
+    expect(await documents.getIssuedDocument(UPLOAD, 'psc')).toEqual({
+      id: UPLOAD,
+      type: 'notice-to-comply',
+      sha256: 'c'.repeat(64),
+    });
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect((url as URL).href).toBe(`http://documents.test/internal/v1/documents/${UPLOAD}`);
+    expect(init?.headers).toMatchObject({ 'x-acting-tenant': 'psc' });
+    expect(await documents.getIssuedDocument(UPLOAD, 'psc')).toBeNull();
+  });
+
   it('is refused (409) for an upload that is not clean', async () => {
     const { documents } = client(json({ type: 'upload-not-clean' }, 409));
     await expect(documents.getUploadDownload(UPLOAD, 'psc')).rejects.toThrow(InternalApiRejected);

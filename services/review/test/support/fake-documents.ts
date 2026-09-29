@@ -1,20 +1,23 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
+  type IssuedDocumentFacts,
   type IssueDocumentRequest,
-  type ReviewLetter,
   type RevocationReason,
   type UploadDownload,
 } from '../../src/documents/documents-client.js';
 import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
 
-/** How the fake documents service pulls a letter's fields, as the real one would over HTTP. */
+/**
+ * How the fake documents service pulls a document's fields (a letter's, a referral package's), as
+ * the real one would over HTTP.
+ */
 export type PayloadSource = (
   tenant: string,
-  letter: ReviewLetter,
+  document: IssueDocumentRequest,
 ) => Promise<{ status: number; body: unknown }>;
 
 export interface IssuedLetter {
@@ -22,6 +25,8 @@ export interface IssuedLetter {
   /** What the pull of the letter payload answered when the letter was rendered. */
   pulled: { status: number; body: unknown };
   document: IssuedDocument;
+  /** SHA-256 of the "signed PDF": derived from the document id, stable for assertions. */
+  sha256: string;
 }
 
 /** An upload as the fake documents service holds it. */
@@ -44,6 +49,8 @@ export class FakeDocuments extends DocumentsClient {
   readonly issued: IssuedLetter[] = [];
   readonly revoked: { documentId: string; tenant: string; reason: RevocationReason }[] = [];
   payloadSource: PayloadSource | undefined;
+  /** Every document the Commission issued, through `issue` or given, by id. */
+  private readonly known = new Map<string, { tenant: string; type: string; sha256: string }>();
   private readonly uploads = new Map<string, FakeUpload>();
   private failures = 0;
 
@@ -63,6 +70,20 @@ export class FakeDocuments extends DocumentsClient {
     });
   }
 
+  /**
+   * A document the Commission issued before the test (a letter arranged directly in the review
+   * database); `getIssuedDocument` then knows it. Returns its SHA-256.
+   */
+  givenIssuedDocument(
+    tenant: string,
+    documentId: string,
+    type: IssueDocumentRequest['type'],
+  ): string {
+    const sha256 = fakeDocumentSha256(documentId);
+    this.known.set(documentId, { tenant, type, sha256 });
+    return sha256;
+  }
+
   /** The next `count` calls fail, as a documents outage would. */
   failCalls(count: number): void {
     this.failures = count;
@@ -71,6 +92,7 @@ export class FakeDocuments extends DocumentsClient {
   reset(): void {
     this.downloads.length = 0;
     this.issued.length = 0;
+    this.known.clear();
     this.revoked.length = 0;
     this.uploads.clear();
     this.failures = 0;
@@ -121,7 +143,24 @@ export class FakeDocuments extends DocumentsClient {
       id: randomUUID(),
       verificationId: `ADL-${randomUUID().slice(0, 4).toUpperCase()}-TEST`,
     };
-    this.issued.push({ request: structuredClone(request), pulled, document });
+    const sha256 = fakeDocumentSha256(document.id);
+    this.issued.push({ request: structuredClone(request), pulled, document, sha256 });
+    this.known.set(document.id, { tenant: request.issuerTenant, type: request.type, sha256 });
     return document;
   }
+
+  getIssuedDocument(documentId: string, tenant: string): Promise<IssuedDocumentFacts | null> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    const found = this.known.get(documentId);
+    if (found?.tenant !== tenant) return Promise.resolve(null);
+    return Promise.resolve({ id: documentId, type: found.type, sha256: found.sha256 });
+  }
+}
+
+/** The SHA-256 the fake gives an issued document. */
+export function fakeDocumentSha256(documentId: string): string {
+  return createHash('sha256').update(`document:${documentId}`).digest('hex');
 }

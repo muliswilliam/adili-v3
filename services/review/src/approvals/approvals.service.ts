@@ -14,6 +14,7 @@ import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeterminationApprovals } from '../determinations/determination-approvals.js';
 import { ActionApprovals } from '../enforcement/action-approvals.js';
+import { ReferralApprovals } from '../referrals/referral-approvals.js';
 import type { ApprovalPosition, ApprovalSource, PendingApproval } from './approval-source.js';
 import { APPROVAL_REASSIGNED, type ApprovalReassignedData } from './events.js';
 import {
@@ -88,9 +89,9 @@ export class ApprovalsService {
     private readonly clock: Clock,
     determinations: DeterminationApprovals,
     actions: ActionApprovals,
+    referralApprovals: ReferralApprovals,
   ) {
-    // Referrals add their source here.
-    this.sources = [determinations, actions];
+    this.sources = [determinations, actions, referralApprovals];
   }
 
   async list(principal: Principal, slug: string, query: ApprovalsQuery): Promise<ApprovalPage> {

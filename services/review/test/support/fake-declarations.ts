@@ -6,6 +6,7 @@ import {
   DeclarationsClient,
   DeclarationsUnavailable,
   type ObligationFacts,
+  type PersonObligation,
   type PreviousVersionRef,
   type PulledVersion,
   type ReadContext,
@@ -66,6 +67,26 @@ export function overdueObligation(
 }
 
 /**
+ * One cycle of a person's obligation history: a biennial obligation of `year` due on 31 December,
+ * overdue and unfiled unless said otherwise.
+ */
+export function biennialObligation(
+  year: number,
+  fixture: Partial<PersonObligation> = {},
+): PersonObligation {
+  return {
+    obligationId: randomUUID(),
+    type: 'biennial',
+    cycleKey: `biennial:${String(year)}`,
+    status: 'overdue',
+    dueDate: `${String(year)}-12-31`,
+    filedAt: null,
+    late: false,
+    ...fixture,
+  };
+}
+
+/**
  * The declarations internal API for tests: submitted versions per Commission, the previous-version
  * lookup, and a record of every document read (who read it, for which case). `failReads` makes
  * the next reads fail, as a declarations outage would.
@@ -80,6 +101,10 @@ export class FakeDeclarations extends DeclarationsClient {
   }[] = [];
   private readonly versions: StoredVersion[] = [];
   private readonly obligations = new Map<string, StoredObligation>();
+  /** Person obligation histories by `<tenant>:<personId>`. */
+  private readonly histories = new Map<string, PersonObligation[]>();
+  /** Every person obligation history read: whose, at which Commission. */
+  readonly historyReads: { personId: string; tenant: string }[] = [];
   private failures = 0;
 
   given(...versions: StoredVersion[]): void {
@@ -90,6 +115,11 @@ export class FakeDeclarations extends DeclarationsClient {
     for (const obligation of obligations) {
       this.obligations.set(obligation.obligationId, structuredClone(obligation));
     }
+  }
+
+  /** A person's obligation history at a Commission (spec 08 BE-4), replacing any given before. */
+  givenPersonObligations(tenant: string, personId: string, ...history: PersonObligation[]): void {
+    this.histories.set(`${tenant}:${personId}`, structuredClone(history));
   }
 
   /** The obligation moves on (filed, cancelled), as spec 04's engine would move it. */
@@ -108,6 +138,8 @@ export class FakeDeclarations extends DeclarationsClient {
     this.reads.length = 0;
     this.versions.length = 0;
     this.obligations.clear();
+    this.histories.clear();
+    this.historyReads.length = 0;
     this.failures = 0;
   }
 
@@ -172,6 +204,14 @@ export class FakeDeclarations extends DeclarationsClient {
     const pulled: Partial<StoredObligation> = structuredClone(found);
     delete pulled.tenant;
     return Promise.resolve(pulled as ObligationFacts);
+  }
+
+  listPersonObligations(personId: string, tenant: string): Promise<PersonObligation[]> {
+    if (this.failing()) {
+      return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
+    }
+    this.historyReads.push({ personId, tenant });
+    return Promise.resolve(structuredClone(this.histories.get(`${tenant}:${personId}`) ?? []));
   }
 
   private failing(): boolean {

@@ -33,7 +33,7 @@ export type ActionLetterType =
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
  * ADR-010): a Restricted letter of the review service.
  */
-export type IssueDocumentRequest = ReviewLetter & {
+export type IssueLetterRequest = ReviewLetter & {
   templateVersion: number;
   disclosureLevel: 'restricted';
   issuerTenant: string;
@@ -52,6 +52,35 @@ export type IssueDocumentRequest = ReviewLetter & {
     issuedAt: string;
   };
 };
+
+/**
+ * A referral's Confidential evidence package (`referral-package`, ADR-010): the documents service
+ * pulls its fields from `internalGetReferralPackagePayload`. Nobody owns it as a person (the
+ * declarant is never told of a referral, spec 08), and its verify page shows validity only, so no
+ * public fields are sent.
+ */
+export interface IssuePackageRequest {
+  type: 'referral-package';
+  payload: { referralId: string };
+  templateVersion: number;
+  disclosureLevel: 'confidential';
+  issuerTenant: string;
+  /** `referral:<uuid>`. */
+  subjectRef: string;
+  subjectPersonId: null;
+  publicPayload: Record<string, never>;
+}
+
+/** A document the review service asks documents to issue. */
+export type IssueDocumentRequest = IssueLetterRequest | IssuePackageRequest;
+
+/** An issued document as documents describes it to its issuer (`internalGetDocument`). */
+export interface IssuedDocumentFacts {
+  id: string;
+  type: string;
+  /** SHA-256 of the signed PDF, lowercase hex. */
+  sha256: string;
+}
 
 /** What the review service keeps of an issued document (documents.yaml `IssuedDocument`). */
 export interface IssuedDocument {
@@ -84,6 +113,15 @@ export abstract class DocumentsClient {
    * `InternalApiRejected` when documents refuses the request.
    */
   abstract issue(request: IssueDocumentRequest): Promise<IssuedDocument>;
+
+  /**
+   * What documents holds of a document the Commission issued (`internalGetDocument`): its type and
+   * SHA-256; null when the Commission issued no such document.
+   */
+  abstract getIssuedDocument(
+    documentId: string,
+    tenant: string,
+  ): Promise<IssuedDocumentFacts | null>;
 
   /**
    * Revokes an issued document of the Commission (`revokeDocument`): its verify page then shows it

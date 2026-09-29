@@ -17,6 +17,7 @@ import { schema } from './db/schema.js';
 import { DeterminationsModule } from './determinations/determinations.module.js';
 import { EnforcementModule } from './enforcement/enforcement.module.js';
 import { ProcessingModule } from './processing/processing.module.js';
+import { ReferralsModule } from './referrals/referrals.module.js';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ProcessingModule } from './processing/processing.module.js';
     ApprovalsModule,
     ClosuresModule,
     EnforcementModule,
+    ReferralsModule,
     ProcessingModule,
   ],
 })

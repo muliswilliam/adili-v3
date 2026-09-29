@@ -60,6 +60,24 @@ export interface ObligationFacts {
 }
 
 /**
+ * One filing obligation of a person's history at a Commission, as the declarations service's
+ * internal person obligation endpoint gives it (declarations.yaml `internalListPersonObligations`,
+ * spec 08 BE-4): per cycle, its status and when it was filed. Facts only, no names.
+ */
+export interface PersonObligation {
+  obligationId: string;
+  type: 'initial' | 'biennial' | 'final';
+  /** `initial:<appointment date>`, `biennial:<year>` or `final:<exit date>`. */
+  cycleKey: string;
+  status: 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
+  /** ISO 8601; null while unfiled. */
+  filedAt: string | null;
+  late: boolean;
+}
+
+/**
  * On whose behalf content is read. The declarations service records every read as an audited
  * read naming the acting subject and, when there is one, the review case (ADR-008).
  */
@@ -107,4 +125,10 @@ export abstract class DeclarationsClient {
 
   /** A filing obligation of the Commission (spec 04); null when it has no such obligation. */
   abstract getObligation(obligationId: string, tenant: string): Promise<ObligationFacts | null>;
+
+  /**
+   * The person's filing obligations at the Commission across cycles (spec 08 BE-4, the referral
+   * sweep); empty when the Commission has none of theirs.
+   */
+  abstract listPersonObligations(personId: string, tenant: string): Promise<PersonObligation[]>;
 }

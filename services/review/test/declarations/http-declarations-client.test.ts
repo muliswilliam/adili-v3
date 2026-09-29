@@ -107,6 +107,49 @@ describe('HttpDeclarationsClient', () => {
     expect(await declarations.getObligation(VERSION, 'psc')).toBeNull();
   });
 
+  it("S16: reads a person's obligation history at the Commission; 404 is none", async () => {
+    const history = [
+      {
+        obligationId: VERSION,
+        type: 'biennial',
+        cycleKey: 'biennial:2025',
+        status: 'overdue',
+        dueDate: '2025-12-31',
+        filedAt: null,
+        late: false,
+      },
+      {
+        obligationId: CASE,
+        type: 'biennial',
+        cycleKey: 'biennial:2027',
+        status: 'filed',
+        dueDate: '2027-12-31',
+        filedAt: '2027-12-20T09:00:00.000Z',
+        late: false,
+      },
+    ];
+    const { declarations, fetch } = client(json(history), new Response(null, { status: 404 }));
+
+    expect(await declarations.listPersonObligations(PERSON, 'psc')).toEqual(history);
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect((url as URL).href).toBe(
+      `http://declarations.test/internal/v1/persons/${PERSON}/obligations?tenant=psc`,
+    );
+    expect(init?.headers).toMatchObject({
+      authorization: 'Bearer service-token',
+      'x-acting-tenant': 'psc',
+    });
+    expect(await declarations.listPersonObligations(PERSON, 'psc')).toEqual([]);
+  });
+
+  it('a person obligation history outside the contract is unavailable', async () => {
+    const { declarations } = client(json([{ obligationId: VERSION, status: 'late' }]));
+
+    await expect(declarations.listPersonObligations(PERSON, 'psc')).rejects.toThrow(
+      DeclarationsUnavailable,
+    );
+  });
+
   it('retries once with a fresh token after a 401', async () => {
     const { declarations, tokens, fetch } = client(json({}, 401), json(document));
 

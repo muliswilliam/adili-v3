@@ -64,6 +64,13 @@
       "when": 1790692471188,
       "tag": "0008_salary_stoppage_payroll",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790695921561,
+      "tag": "0009_referrals",
+      "breakpoints": true
     }
   ]
 }

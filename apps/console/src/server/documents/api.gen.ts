@@ -105,6 +105,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/documents/{documentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Metadata of an issued document of the acting tenant (services)
+         * @description Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing
+         *     tenant; a document another tenant issued is 404. The review service reads the SHA-256 of
+         *     the letters it lists in a referral package's manifest (spec 08). Metadata only, no content
+         *     or download link.
+         */
+        get: operations["internalGetDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/documents/{documentId}/supersede": {
         parameters: {
             query?: never;
@@ -614,6 +639,29 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+        };
+    };
+    internalGetDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     supersedeDocument: {

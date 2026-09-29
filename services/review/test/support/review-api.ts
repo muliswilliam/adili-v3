@@ -18,7 +18,10 @@ import { Clock } from '../../src/clock.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
-import { DocumentsClient, type ReviewLetter } from '../../src/documents/documents-client.js';
+import {
+  DocumentsClient,
+  type IssueDocumentRequest,
+} from '../../src/documents/documents-client.js';
 import { EnforcementConsumer } from '../../src/enforcement/enforcement.consumer.js';
 import { IntegrationGatewayClient } from '../../src/integration-gateway/integration-gateway-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
@@ -140,7 +143,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
-  // The documents service pulls a letter's fields with its own service token (review:internal).
+  // The documents service pulls a document's fields with its own service token (review:internal).
   documents.payloadSource = async (tenant, letter) => {
     const token = await signer({ sub: 'service-account-documents', scopes: ['review:internal'] });
     const response = await app.inject({
@@ -183,7 +186,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate ladder_history, administrative_actions, enforcement_ladders, closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
+        sql`truncate referrals, ladder_history, administrative_actions, enforcement_ladders, closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
       );
       declarations.reset();
       directory.reset();
@@ -200,9 +203,11 @@ export async function startReviewApi(): Promise<ReviewApi> {
   };
 }
 
-/** Where the documents service pulls a letter's fields from. */
-function letterPayloadPath(letter: ReviewLetter): string {
+/** Where the documents service pulls a document's fields from. */
+function letterPayloadPath(letter: IssueDocumentRequest): string {
   switch (letter.type) {
+    case 'referral-package':
+      return `/internal/v1/review/referrals/${letter.payload.referralId}/package-payload`;
     case 'clarification-letter':
       return `/internal/v1/review/clarifications/${letter.payload.clarificationId}/letter-payload`;
     case 'decision-letter':

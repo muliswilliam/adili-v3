@@ -426,6 +426,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/referrals/{referralId}/package-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Cover sheet, manifest and evidence the referral package template needs (documents service)
+         * @description Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. An approved or sent referral whose manifest is built. The evidence is pulled from declarations again (versions are immutable, so their hashes match the manifest); letters are named by document id for documents to append.
+         */
+        get: operations["internalGetReferralPackagePayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -749,7 +771,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Propose a referral to EACC from a case (assignee) */
+        /**
+         * Propose a referral to EACC from a case (assignee)
+         * @description The case's assignee (reviewer or supervisor), on grounds of undeclared or unexplained assets (Regs r.20(1)(c)), selecting at least one registry or comparison flag of the case and any issued clarifications of it. The issued steps of the clarifications' ladders are added to the sources. The declarant is not told.
+         */
         post: operations["proposeReferral"];
         delete?: never;
         options?: never;
@@ -785,7 +810,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** One referral with its package manifest */
+        /**
+         * One referral with its package manifest
+         * @description The Commission's reviewers and supervisors. Carries `evidence`, what the package includes by reference, so a supervisor previews it before approving; `package.manifest`, with the SHA-256 of every item, once the package is assembled.
+         */
         get: operations["getReferral"];
         put?: never;
         post?: never;
@@ -806,7 +834,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve (supervisor, separation rule); allocates RFL, assembles the package, sends to EACC */
+        /**
+         * Approve (supervisor, separation rule); allocates RFL, assembles the package, sends to EACC
+         * @description A supervisor who neither proposed it nor held any of its cases. Allocates `RFL-<ISSUER>-<YEAR>-<seq>-<check>` (year of approval) and answers `approved`; the evidence is then pulled, the manifest stored, the Confidential `referral-package` issued and the referral `sent` (`referral.sent.v1`) in the background. The declarant is not notified.
+         */
         post: operations["approveReferral"];
         delete?: never;
         options?: never;
@@ -1550,6 +1581,13 @@ export interface components {
         Referral: {
             /** Format: uuid */
             id: string;
+            /**
+             * Format: uuid
+             * @description The case it was proposed from (or whose clarification went unanswered)
+             */
+            caseId: string | null;
+            /** @description The cycle it is about (the case's, or the later missed biennial cycle's) */
+            cycleYear: number;
             grounds: components["schemas"]["ReferralGrounds"];
             proposerKind: components["schemas"]["ProposerKind"];
             proposer: components["schemas"]["Assignee"] | null;
@@ -1557,6 +1595,12 @@ export interface components {
             proposedAt: string;
             status: components["schemas"]["ReferralStatus"];
             approver: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            approvedAt: string | null;
+            declinedBy: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            declinedAt: string | null;
+            declineNote: string | null;
             /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
             reference: string | null;
             sources: {
@@ -1571,16 +1615,86 @@ export interface components {
                 /** Format: uuid */
                 documentId: string;
                 verificationId: string;
-                manifest: {
-                    kind: string;
-                    reference: string;
-                    sha256: string;
-                }[];
+                manifest: components["schemas"]["ReferralManifestItem"][];
             } | null;
             /** Format: date-time */
             sentAt: string | null;
             declarantName: string;
             personnelFileNumber: string;
+            /** @description `getReferral` only: what the package includes, by reference (attachments are listed in the manifest once it is assembled) */
+            evidence?: {
+                kind: components["schemas"]["ReferralManifestKind"];
+                reference: string;
+            }[];
+        };
+        /** @enum {string} */
+        ReferralManifestKind: "declaration-version" | "declaration-attachment" | "flag" | "clarification" | "clarification-attachment" | "obligation" | "letter";
+        ReferralManifestItem: {
+            kind: components["schemas"]["ReferralManifestKind"];
+            reference: string;
+            /** @description SHA-256 of the item as the package includes it: canonical JSON (sorted keys) for versions' documents, flags, clarifications and obligations; the file's own hash for uploads and letters */
+            sha256: string;
+            /**
+             * Format: uuid
+             * @description The upload (attachments) or issued document (letters); null for records
+             */
+            documentId: string | null;
+        };
+        ReferralPackagePayload: {
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            cycleYear: number;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                personnelFileNumber: string;
+            };
+            narrative: string;
+            proposedBy: string;
+            /** Format: date-time */
+            proposedAt: string;
+            approvedBy: string;
+            /** Format: date-time */
+            approvedAt: string;
+            manifest: components["schemas"]["ReferralManifestItem"][];
+            versions: {
+                reference: string;
+                version: number;
+                type: components["schemas"]["DeclarationType"];
+                /** Format: date */
+                statementDate: string;
+                /** Format: date-time */
+                submittedAt: string;
+                late: boolean;
+                /** @description The declaration.v1 document as submitted */
+                document: {
+                    [key: string]: unknown;
+                };
+            }[];
+            flags: {
+                [key: string]: unknown;
+            }[];
+            clarifications: {
+                [key: string]: unknown;
+            }[];
+            obligations: {
+                cycleKey: string;
+                type: string;
+                status: string;
+                /** Format: date */
+                dueDate: string;
+                /** Format: date-time */
+                filedAt: string | null;
+            }[];
+            letters: {
+                reference: string;
+                /** Format: uuid */
+                documentId: string;
+            }[];
         };
         ApprovalReassignment: {
             kind: components["schemas"]["ApprovalKind"];
@@ -2484,6 +2598,39 @@ export interface operations {
             503: components["responses"]["DirectoryUnavailable"];
         };
     };
+    internalGetReferralPackagePayload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralPackagePayload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The evidence could not be read from declarations or documents */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
     getCaseRegistryChecks: {
         parameters: {
             query?: never;
@@ -3148,8 +3295,34 @@ export interface operations {
                     "application/json": components["schemas"]["Referral"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Body failed validation, or a flag is not a registry or comparison flag of the case, or a clarification is not an issued one of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-the-assignee` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Problem code `referral-open`: a referral from this case waits for approval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listReferrals: {
@@ -3179,6 +3352,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -3218,7 +3392,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Sent */
+            /** @description Approved; the package is assembled and the referral sent in the background */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3227,8 +3401,26 @@ export interface operations {
                     "application/json": components["schemas"]["Referral"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Not proposed: problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     declineReferral: {
@@ -3255,8 +3447,26 @@ export interface operations {
                     "application/json": components["schemas"]["Referral"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            400: components["responses"]["ValidationProblem"];
+            /** @description Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Not proposed: problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getMyDecisions: {

@@ -221,6 +221,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags:
+        - internal
+      summary: Metadata of an issued document of the acting tenant (services)
+      description: |
+        Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing
+        tenant; a document another tenant issued is 404. The review service reads the SHA-256 of
+        the letters it lists in a referral package's manifest (spec 08). Metadata only, no content
+        or download link.
+      operationId: internalGetDocument
+      x-draft: true
+      responses:
+        '200':
+          description: Metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /internal/v1/documents/{documentId}/supersede:
     parameters:
       - $ref: '#/components/parameters/DocumentId'

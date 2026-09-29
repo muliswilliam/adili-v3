@@ -6,6 +6,7 @@ import {
   DeclarationsClient,
   DeclarationsUnavailable,
   type ObligationFacts,
+  type PersonObligation,
   type PreviousVersionRef,
   type PulledVersion,
   type ReadContext,
@@ -78,6 +79,18 @@ const obligationSchema = z.object({
   personnelFileNumber: z.string(),
 }) satisfies z.ZodType<ObligationFacts>;
 
+const personObligationsSchema = z.array(
+  z.object({
+    obligationId: z.uuid(),
+    type: z.enum(['initial', 'biennial', 'final']),
+    cycleKey: z.string().min(1),
+    status: z.enum(['upcoming', 'due', 'overdue', 'filed', 'cancelled']),
+    dueDate: civilDate,
+    filedAt: instant.nullable(),
+    late: z.boolean(),
+  }),
+) satisfies z.ZodType<PersonObligation[]>;
+
 /**
  * The declarations service's internal API with the review service's own token
  * (`declarations:internal`) and the Commission in `X-Acting-Tenant`. Every document read names
@@ -133,5 +146,15 @@ export class HttpDeclarationsClient extends DeclarationsClient {
       tenant,
       schema: obligationSchema,
     });
+  }
+
+  async listPersonObligations(personId: string, tenant: string): Promise<PersonObligation[]> {
+    const found = await this.api.get({
+      path: `internal/v1/persons/${encodeURIComponent(personId)}/obligations`,
+      query: { tenant },
+      tenant,
+      schema: personObligationsSchema,
+    });
+    return found ?? [];
   }
 }

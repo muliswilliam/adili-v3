@@ -675,6 +675,35 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/referrals/{referralId}/package-payload:
+    parameters:
+      - $ref: '#/components/parameters/ReferralId'
+    get:
+      tags: [internal]
+      operationId: internalGetReferralPackagePayload
+      summary: Cover sheet, manifest and evidence the referral package template needs (documents service)
+      description: >-
+        Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. An approved or
+        sent referral whose manifest is built. The evidence is pulled from declarations again
+        (versions are immutable, so their hashes match the manifest); letters are named by document
+        id for documents to append.
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralPackagePayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: The evidence could not be read from declarations or documents
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -1233,6 +1262,11 @@ paths:
       tags: [referrals]
       operationId: proposeReferral
       summary: Propose a referral to EACC from a case (assignee)
+      description: >-
+        The case's assignee (reviewer or supervisor), on grounds of undeclared or unexplained assets
+        (Regs r.20(1)(c)), selecting at least one registry or comparison flag of the case and any
+        issued clarifications of it. The issued steps of the clarifications' ladders are added to
+        the sources. The declarant is not told.
       requestBody:
         required: true
         content:
@@ -1246,10 +1280,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Referral'
+        '400':
+          description: >-
+            Body failed validation, or a flag is not a registry or comparison flag of the case, or a
+            clarification is not an issued one of the case
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Problem code `not-the-assignee`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `referral-open`: a referral from this case waits for approval'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/referrals:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -1288,6 +1340,8 @@ paths:
                       $ref: '#/components/schemas/Referral'
                   nextCursor:
                     type: [string, 'null']
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/review/referrals/{referralId}:
@@ -1297,6 +1351,10 @@ paths:
       tags: [referrals]
       operationId: getReferral
       summary: One referral with its package manifest
+      description: >-
+        The Commission's reviewers and supervisors. Carries `evidence`, what the package includes
+        by reference, so a supervisor previews it before approving; `package.manifest`, with the
+        SHA-256 of every item, once the package is assembled.
       responses:
         '200':
           description: Referral
@@ -1313,19 +1371,36 @@ paths:
       tags: [referrals]
       operationId: approveReferral
       summary: Approve (supervisor, separation rule); allocates RFL, assembles the package, sends to EACC
+      description: >-
+        A supervisor who neither proposed it nor held any of its cases. Allocates
+        `RFL-<ISSUER>-<YEAR>-<seq>-<check>` (year of approval) and answers `approved`; the evidence
+        is then pulled, the manifest stored, the Confidential `referral-package` issued and the
+        referral `sent` (`referral.sent.v1`) in the background. The declarant is not notified.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
-          description: Sent
+          description: Approved; the package is assembled and the referral sent in the background
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Referral'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Not proposed: problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/referrals/{referralId}/decline:
     parameters:
       - $ref: '#/components/parameters/ReferralId'
@@ -1346,10 +1421,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Referral'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Not proposed: problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/decisions:
     get:
       tags: [declarant]
@@ -2897,12 +2984,18 @@ components:
       required:
         [
           id,
+          caseId,
+          cycleYear,
           grounds,
           proposerKind,
           proposer,
           proposedAt,
           status,
           approver,
+          approvedAt,
+          declinedBy,
+          declinedAt,
+          declineNote,
           reference,
           sources,
           narrative,
@@ -2915,6 +3008,13 @@ components:
         id:
           type: string
           format: uuid
+        caseId:
+          type: [string, 'null']
+          format: uuid
+          description: The case it was proposed from (or whose clarification went unanswered)
+        cycleYear:
+          type: integer
+          description: The cycle it is about (the case's, or the later missed biennial cycle's)
         grounds:
           $ref: '#/components/schemas/ReferralGrounds'
         proposerKind:
@@ -2932,6 +3032,18 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Assignee'
             - type: 'null'
+        approvedAt:
+          type: [string, 'null']
+          format: date-time
+        declinedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        declinedAt:
+          type: [string, 'null']
+          format: date-time
+        declineNote:
+          type: [string, 'null']
         reference:
           type: [string, 'null']
           description: 'RFL-<ISSUER>-<YEAR>-<seq>-<check>'
@@ -2979,15 +3091,7 @@ components:
                 manifest:
                   type: array
                   items:
-                    type: object
-                    required: [kind, reference, sha256]
-                    properties:
-                      kind:
-                        type: string
-                      reference:
-                        type: string
-                      sha256:
-                        type: string
+                    $ref: '#/components/schemas/ReferralManifestItem'
             - type: 'null'
         sentAt:
           type: [string, 'null']
@@ -2996,6 +3100,176 @@ components:
           type: string
         personnelFileNumber:
           type: string
+        evidence:
+          type: array
+          description: >-
+            `getReferral` only: what the package includes, by reference (attachments are listed in
+            the manifest once it is assembled)
+          items:
+            type: object
+            required: [kind, reference]
+            properties:
+              kind:
+                $ref: '#/components/schemas/ReferralManifestKind'
+              reference:
+                type: string
+    ReferralManifestKind:
+      type: string
+      enum:
+        [
+          declaration-version,
+          declaration-attachment,
+          flag,
+          clarification,
+          clarification-attachment,
+          obligation,
+          letter,
+        ]
+    ReferralManifestItem:
+      type: object
+      required: [kind, reference, sha256, documentId]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ReferralManifestKind'
+        reference:
+          type: string
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: >-
+            SHA-256 of the item as the package includes it: canonical JSON (sorted keys) for
+            versions' documents, flags, clarifications and obligations; the file's own hash for
+            uploads and letters
+        documentId:
+          type: [string, 'null']
+          format: uuid
+          description: The upload (attachments) or issued document (letters); null for records
+    ReferralPackagePayload:
+      type: object
+      required:
+        [
+          reference,
+          grounds,
+          groundsLabel,
+          cycleYear,
+          commission,
+          declarant,
+          narrative,
+          proposedBy,
+          proposedAt,
+          approvedBy,
+          approvedAt,
+          manifest,
+          versions,
+          flags,
+          clarifications,
+          obligations,
+          letters,
+        ]
+      properties:
+        reference:
+          type: string
+        grounds:
+          $ref: '#/components/schemas/ReferralGrounds'
+        groundsLabel:
+          type: string
+        cycleYear:
+          type: integer
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarant:
+          type: object
+          required: [name, personnelFileNumber]
+          properties:
+            name:
+              type: string
+            personnelFileNumber:
+              type: string
+        narrative:
+          type: string
+        proposedBy:
+          type: string
+        proposedAt:
+          type: string
+          format: date-time
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+        manifest:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferralManifestItem'
+        versions:
+          type: array
+          items:
+            type: object
+            required: [reference, version, type, statementDate, submittedAt, late, document]
+            properties:
+              reference:
+                type: string
+              version:
+                type: integer
+              type:
+                $ref: '#/components/schemas/DeclarationType'
+              statementDate:
+                type: string
+                format: date
+              submittedAt:
+                type: string
+                format: date-time
+              late:
+                type: boolean
+              document:
+                type: object
+                description: The declaration.v1 document as submitted
+                additionalProperties: true
+        flags:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        clarifications:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        obligations:
+          type: array
+          items:
+            type: object
+            required: [cycleKey, type, status, dueDate, filedAt]
+            properties:
+              cycleKey:
+                type: string
+              type:
+                type: string
+              status:
+                type: string
+              dueDate:
+                type: string
+                format: date
+              filedAt:
+                type: [string, 'null']
+                format: date-time
+        letters:
+          type: array
+          items:
+            type: object
+            required: [reference, documentId]
+            properties:
+              reference:
+                type: string
+              documentId:
+                type: string
+                format: uuid
     ApprovalReassignment:
       type: object
       required: [kind, subjectId, reassignedTo]

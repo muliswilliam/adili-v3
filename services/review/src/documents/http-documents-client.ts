@@ -6,6 +6,7 @@ import {
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
+  type IssuedDocumentFacts,
   type IssueDocumentRequest,
   type RevocationReason,
   type UploadDownload,
@@ -31,6 +32,12 @@ const downloadSchema = z.object({
 }) satisfies z.ZodType<UploadDownload>;
 
 const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
+
+const documentFactsSchema = z.object({
+  id: z.uuid(),
+  type: z.string().min(1),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+});
 
 const CONFLICT = 409;
 
@@ -85,6 +92,16 @@ export class HttpDocumentsClient extends DocumentsClient {
     });
     if (!issued) throw new DocumentsUnavailable('The documents service answered 404');
     return { id: issued.id, verificationId: issued.verificationId };
+  }
+
+  async getIssuedDocument(documentId: string, tenant: string): Promise<IssuedDocumentFacts | null> {
+    const found = await this.api.get({
+      path: `internal/v1/documents/${encodeURIComponent(documentId)}`,
+      tenant,
+      schema: documentFactsSchema,
+    });
+    if (found === null) return null;
+    return { id: found.id, type: found.type, sha256: found.sha256 };
   }
 
   async revoke(documentId: string, tenant: string, reason: RevocationReason): Promise<void> {
