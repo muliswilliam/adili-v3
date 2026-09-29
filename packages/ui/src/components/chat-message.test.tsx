@@ -96,8 +96,15 @@ describe('AssistantMessage', () => {
     const { container } = render(<AssistantMessage status="streaming" text="Yes. A vehicle" />);
 
     expect(container.querySelector('[aria-live]')).toBeNull();
-    expect(container.firstElementChild?.getAttribute('aria-busy')).toBe('true');
     expect(container.querySelector('.animate-caret')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('marks only the bubble busy, so the live region is not held back', () => {
+    const { container } = render(<AssistantMessage status="streaming" text="Yes. A vehicle" />);
+
+    const busy = container.querySelector('[aria-busy="true"]');
+    expect(busy?.textContent).toBe('Adili: Yes. A vehicle');
+    expect(busy?.contains(screen.getByRole('status'))).toBe(false);
   });
 
   it('says nothing for an answer loaded from history', () => {

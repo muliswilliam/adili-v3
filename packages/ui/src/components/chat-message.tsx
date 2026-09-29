@@ -2,6 +2,7 @@ import { Alert02Icon, Clock01Icon, HelpCircleIcon } from '@hugeicons/core-free-i
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Button } from './button';
 import { type Citation, CitationList, type CitationMessages } from './citation-chip';
 import { Icon } from './icon';
@@ -135,6 +136,7 @@ export function AssistantMessage({
   const [announcement, setAnnouncement] = useState('');
   const announced = useRef<number | null>(null);
   const previousStatus = useRef<AssistantMessageStatus | null>(null);
+  const officerName = officer?.name;
 
   useEffect(() => {
     const first = previousStatus.current === null;
@@ -153,19 +155,18 @@ export function AssistantMessage({
     } else if (changed) {
       next = {
         thinking: copy.answering,
-        declined: officer ? `${copy.declined} ${officer.name}` : copy.declined,
+        declined: officerName ? `${copy.declined} ${officerName}` : copy.declined,
         error: copy.stopped,
         'rate-limited': copy.rateLimited,
       }[status];
     }
     // A live region only speaks when its text changes, so a repeat gets a no-break space.
     if (next) setAnnouncement((previous) => (previous === next ? `${next}\u00a0` : next));
-  }, [status, text, officer, copy.answering, copy.declined, copy.stopped, copy.rateLimited]);
+  }, [status, text, officerName, copy.answering, copy.declined, copy.stopped, copy.rateLimited]);
 
   return (
     <div
       data-status={status}
-      aria-busy={status === 'thinking' || status === 'streaming' || undefined}
       className={cn('flex max-w-[92%] flex-col items-start gap-2 self-start', className)}
       {...props}
     >
@@ -191,6 +192,13 @@ const noticeClassName = cn(
   'flex items-start gap-2.5 rounded-bl-[5px] [&>svg]:mt-[3px] [&>svg]:size-[15px] [&>svg]:shrink-0',
 );
 
+const warningClassName = cn(noticeClassName, 'bg-warning-subtle text-warning-subtle-foreground');
+
+const contactLinkClassName = cn(
+  focusRing,
+  'rounded-sm text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground',
+);
+
 function AssistantBody({
   status,
   text,
@@ -209,7 +217,10 @@ function AssistantBody({
   switch (status) {
     case 'thinking':
       return (
-        <p className={cn(assistantBubbleClassName, 'inline-flex gap-1 px-3.5 py-[13px]')}>
+        <p
+          aria-busy="true"
+          className={cn(assistantBubbleClassName, 'inline-flex gap-1 px-3.5 py-[13px]')}
+        >
           <span className="sr-only">{copy.answering}</span>
           {[0, 150, 300].map((delay) => (
             <span
@@ -224,7 +235,7 @@ function AssistantBody({
     case 'streaming':
     case 'answered':
       return (
-        <p className={assistantBubbleClassName}>
+        <p className={assistantBubbleClassName} aria-busy={status === 'streaming' || undefined}>
           {speaker}
           {text}
           {status === 'streaming' ? (
@@ -248,17 +259,14 @@ function AssistantBody({
               <p className="mt-1.5 grid gap-px text-[13.5px]">
                 <b className="font-semibold text-foreground">{officer.name}</b>
                 {officer.email ? (
-                  <a
-                    href={`mailto:${officer.email}`}
-                    className="text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground"
-                  >
+                  <a href={`mailto:${officer.email}`} className={contactLinkClassName}>
                     {officer.email}
                   </a>
                 ) : null}
                 {officer.phone ? (
                   <a
                     href={`tel:${officer.phone.replace(/\s/g, '')}`}
-                    className="text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground"
+                    className={contactLinkClassName}
                   >
                     {officer.phone}
                   </a>
@@ -277,7 +285,7 @@ function AssistantBody({
               {text}…
             </p>
           ) : null}
-          <div className={cn(noticeClassName, 'bg-warning-subtle text-warning-subtle-foreground')}>
+          <div className={warningClassName}>
             <Icon icon={Alert02Icon} />
             <p>
               {copy.stopped}{' '}
@@ -296,7 +304,7 @@ function AssistantBody({
       );
     case 'rate-limited':
       return (
-        <div className={cn(noticeClassName, 'bg-warning-subtle text-warning-subtle-foreground')}>
+        <div className={warningClassName}>
           <Icon icon={Clock01Icon} />
           <p>{copy.rateLimited}</p>
         </div>

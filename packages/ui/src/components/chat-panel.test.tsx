@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ChatComposer } from './chat-composer';
 import { ChatLog, ChatPanel } from './chat-panel';
+import { SuggestedQuestions } from './suggested-questions';
 
 describe('ChatPanel', () => {
   it('is a complementary landmark named by its heading', () => {
@@ -14,6 +16,23 @@ describe('ChatPanel', () => {
     const panel = screen.getByRole('complementary', { name: 'Ask Adili' });
     expect(screen.getByRole('heading', { level: 2, name: 'Ask Adili' })).toBeDefined();
     expect(panel.contains(screen.getByRole('log', { name: 'Conversation' }))).toBe(true);
+  });
+
+  it('asks a suggested question from the idle panel', () => {
+    const onAsk = vi.fn();
+    render(
+      <ChatPanel title="Ask Adili" footer={<ChatComposer onSend={onAsk} />}>
+        <ChatLog>
+          <p>Ask in your own words, in English or Kiswahili.</p>
+          <SuggestedQuestions questions={['How do I value my land?']} onAsk={onAsk} />
+        </ChatLog>
+      </ChatPanel>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'How do I value my land?' }));
+
+    expect(onAsk).toHaveBeenCalledWith('How do I value my land?');
+    expect(screen.getByRole('textbox', { name: 'Ask about this section…' })).toBeDefined();
   });
 
   it('closes with its close button', () => {

@@ -9,6 +9,8 @@ export type SuggestedQuestionsProps = Omit<ComponentProps<'div'>, 'children'> & 
   onAsk: (question: string) => void;
   /** The heading over the chips, which also names the list. Defaults to "Suggested questions". */
   label?: string;
+  /** Keeps the heading for screen readers only, e.g. for follow-ups under an answer. */
+  labelHidden?: boolean;
   /** Turns the chips off, e.g. while an answer is on its way. */
   disabled?: boolean;
 };
@@ -16,12 +18,13 @@ export type SuggestedQuestionsProps = Omit<ComponentProps<'div'>, 'children'> & 
 /**
  * Questions to ask in one press: the ones for the section when the panel opens, or follow-ups
  * under an answer. Each is a violet-edged chip on its own line, left-aligned, under a small
- * uppercase heading that names the list.
+ * uppercase heading that names the list (`labelHidden` keeps it for screen readers only).
  */
 export function SuggestedQuestions({
   questions,
   onAsk,
   label = 'Suggested questions',
+  labelHidden = false,
   disabled = false,
   className,
   ...props
@@ -33,7 +36,10 @@ export function SuggestedQuestions({
     <div className={cn('grid gap-2', className)} {...props}>
       <p
         id={headingId}
-        className="text-xs font-semibold tracking-[0.05em] text-muted-foreground uppercase"
+        className={cn(
+          'text-xs font-semibold tracking-[0.05em] text-muted-foreground uppercase',
+          labelHidden && 'sr-only',
+        )}
       >
         {label}
       </p>

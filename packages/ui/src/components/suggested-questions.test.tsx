@@ -42,6 +42,15 @@ describe('SuggestedQuestions', () => {
     expect(screen.getByRole('list', { name: 'Maswali yanayopendekezwa' })).toBeDefined();
   });
 
+  it('can keep the heading for screen readers only, for follow-ups', () => {
+    render(
+      <SuggestedQuestions questions={QUESTIONS} onAsk={vi.fn()} label="Follow-ups" labelHidden />,
+    );
+
+    expect(screen.getByText('Follow-ups').className).toContain('sr-only');
+    expect(screen.getByRole('list', { name: 'Follow-ups' })).toBeDefined();
+  });
+
   it('renders nothing without questions', () => {
     const { container } = render(<SuggestedQuestions questions={[]} onAsk={vi.fn()} />);
 

@@ -10,6 +10,8 @@ export interface ChatPanelMessages {
   close: string;
 }
 
+const DEFAULT_MESSAGES: ChatPanelMessages = { close: 'Close' };
+
 export type ChatPanelProps = Omit<ComponentProps<'aside'>, 'title'> & {
   /** The panel's heading, which names the landmark: "Ask Adili". */
   title: string;
@@ -43,7 +45,7 @@ export function ChatPanel({
   children,
   ...props
 }: ChatPanelProps) {
-  const copy = { close: 'Close', ...messages };
+  const copy = { ...DEFAULT_MESSAGES, ...messages };
   const titleId = useId();
 
   return (

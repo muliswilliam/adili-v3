@@ -18,6 +18,8 @@ export interface Citation {
   title: string;
   /** The passage text shown when the chip is expanded. */
   snippet: string;
+  /** The passage's language, set on it so screen readers read it in the right voice. */
+  language?: 'en' | 'sw';
 }
 
 export interface CitationMessages {
@@ -117,6 +119,7 @@ export function CitationList({
       {open ? (
         <div
           id={passageId}
+          lang={open.language}
           className="grid justify-items-start gap-1.5 rounded-r-lg border-l-3 border-input bg-background px-3 py-2.5 text-[13px] text-secondary-foreground"
         >
           <p>

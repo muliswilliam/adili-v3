@@ -55,6 +55,28 @@ describe('CitationList', () => {
     expect(screen.queryByText('Joint assets')).toBeNull();
   });
 
+  it("sets the passage's language for screen readers", () => {
+    render(
+      <CitationList
+        citations={[
+          {
+            id: 'help-joint',
+            source: 'help',
+            citation: 'Msaada: Mali ya pamoja',
+            title: 'Mali ya pamoja',
+            snippet: 'Ukimiliki mali pamoja na mtu mwingine, itangaze mara moja.',
+            language: 'sw',
+          },
+        ]}
+      />,
+    );
+    const chip = screen.getByRole('button', { name: 'Msaada: Mali ya pamoja' });
+
+    fireEvent.click(chip);
+
+    expect(document.getElementById(chip.getAttribute('aria-controls') ?? '')?.lang).toBe('sw');
+  });
+
   it('links an open passage to its help page', () => {
     const onReadPassage = vi.fn();
     render(<CitationList citations={CITATIONS} onReadPassage={onReadPassage} />);
