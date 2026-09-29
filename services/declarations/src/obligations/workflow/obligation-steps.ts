@@ -15,7 +15,7 @@ import {
 } from '../../notifications/notifications-client.js';
 import { fallbackIssuerCode } from '../access.js';
 import type { Transaction } from '../apply-page.js';
-import { type CivilDate, nairobiDate } from '../dates.js';
+import { type CivilDate, daysBetween, nairobiDate } from '../dates.js';
 import type { ObligationStatus } from '../engine.js';
 import { obligationReminderSent, obligationStatusChanged } from '../events.js';
 import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
@@ -34,7 +34,6 @@ import type {
 
 const CHANNELS: readonly ReminderChannel[] = ['sms', 'email'];
 const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
 /** The template limits (notifications contract). */
 const COMMISSION_NAME_MAX = 120;
 const DAYS_LEFT_MAX = 366;
@@ -378,6 +377,5 @@ export function reminderMessageKey(request: ReminderRequest, channel: ReminderCh
 
 /** Whole days from `today` to the due date, within the template's 0 to 366. */
 function daysLeft(today: CivilDate, dueDate: CivilDate): number {
-  const days = Math.round((Date.parse(dueDate) - Date.parse(today)) / DAY_MS);
-  return Math.min(DAYS_LEFT_MAX, Math.max(0, days));
+  return Math.min(DAYS_LEFT_MAX, Math.max(0, daysBetween(today, dueDate)));
 }

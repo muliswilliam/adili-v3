@@ -42,6 +42,11 @@ export function addDays(date: CivilDate, days: number): CivilDate {
   return fromUtc(toUtc(date) + days * DAY_MS);
 }
 
+/** Calendar days from `from` to `to`: negative when `to` is earlier. */
+export function daysBetween(from: CivilDate, to: CivilDate): number {
+  return Math.round((toUtc(to) - toUtc(from)) / DAY_MS);
+}
+
 /** A policy month-day (`11-01`) in a given year. */
 export function atMonthDay(year: number, monthDay: string): CivilDate {
   const match = MONTH_DAY.exec(monthDay);

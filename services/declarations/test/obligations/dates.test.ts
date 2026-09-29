@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, atMonthDay, nairobiDate, parseCivilDate } from '../../src/obligations/dates.js';
+import {
+  addDays,
+  atMonthDay,
+  daysBetween,
+  nairobiDate,
+  parseCivilDate,
+} from '../../src/obligations/dates.js';
 
 describe('civil dates', () => {
   it.each([
@@ -16,6 +22,7 @@ describe('civil dates', () => {
     ['2027-11-01', -120, '2027-07-04'],
   ])('%s + %i days is %s', (from, days, expected) => {
     expect(addDays(from, days)).toBe(expected);
+    expect(daysBetween(from, expected)).toBe(days);
   });
 
   it('places a month-day in a year', () => {

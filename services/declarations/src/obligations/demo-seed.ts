@@ -2,7 +2,7 @@ import type { Database } from '@adili/data-access';
 import { and, eq, lt } from 'drizzle-orm';
 
 import type { DeclarationsSchema } from '../db/schema.js';
-import { nairobiDate } from './dates.js';
+import { daysBetween, nairobiDate } from './dates.js';
 import { cycleCalendar } from './schema.js';
 
 /** The cycle the demo shows: its statement date is 1 November 2027. */
@@ -24,8 +24,4 @@ export async function openDemoCycle(db: Database<DeclarationsSchema>, now: Date)
         lt(cycleCalendar.openingLeadDays, days),
       ),
     );
-}
-
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
