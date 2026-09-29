@@ -2262,6 +2262,7 @@ components:
         - declarationId
         - versionId
         - version
+        - personId
         - reference
         - type
         - statementDate
@@ -2281,6 +2282,10 @@ components:
           format: uuid
         version:
           type: integer
+        personId:
+          type: string
+          format: uuid
+          description: The declarant; the review service looks up their previous version with it
         reference:
           $ref: '#/components/schemas/DeclarationReference'
         type:

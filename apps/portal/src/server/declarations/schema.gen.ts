@@ -1229,6 +1229,11 @@ export interface components {
             /** Format: uuid */
             versionId: string;
             version: number;
+            /**
+             * Format: uuid
+             * @description The declarant; the review service looks up their previous version with it
+             */
+            personId: string;
             reference: components["schemas"]["DeclarationReference"];
             type: components["schemas"]["ObligationType"];
             /** Format: date */
