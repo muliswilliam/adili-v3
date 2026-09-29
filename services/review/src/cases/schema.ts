@@ -95,6 +95,7 @@ export type TimelineKind =
   | 'clarification-responded'
   | 'clarification-resolved'
   | 'clarification-withdrawn'
+  | 'clarification-follow-up'
   | 'clarification-overdue'
   | 'clarification-reminder-sent'
   | 'status-changed';

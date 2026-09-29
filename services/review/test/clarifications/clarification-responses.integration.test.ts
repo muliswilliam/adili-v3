@@ -608,6 +608,15 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
         followUpOf: clarification.id,
         items: twoItems.items,
       });
+      // In the same transaction as the draft: the timeline says who raised it, of which.
+      expect((await timeline(caseId)).at(-1)).toEqual([
+        'clarification-follow-up',
+        `Follow-up of clarification ${String(clarification.reference)} drafted`,
+      ]);
+      const [entry] = await api.asPlatform((tx) =>
+        tx.select().from(reviewTimeline).where(eq(reviewTimeline.kind, 'clarification-follow-up')),
+      );
+      expect(entry).toMatchObject({ caseId, ref: followUp.id, actor: 'reviewer-a' });
 
       // The reviewer resolves the first, then issues the follow-up.
       expect((await resolve(clarification.id)).statusCode).toBe(200);

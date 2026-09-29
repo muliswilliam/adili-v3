@@ -248,8 +248,8 @@ export class ClarificationsService {
 
   /**
    * The assignee raises a follow-up: a new draft of the same case with the items of the
-   * clarification it follows and `followUpOf` naming it. Once issued it has its own `CLR`
-   * reference, letter and clock.
+   * clarification it follows and `followUpOf` naming it, with a timeline entry in the same
+   * transaction. Once issued it has its own `CLR` reference, letter and clock.
    */
   async followUp(principal: Principal, clarificationId: string): Promise<ClarificationView> {
     const tenant = staffTenant(principal);
@@ -280,7 +280,17 @@ export class ClarificationsService {
           createdBy: principal.subject,
         })
         .returning();
-      return clarificationView(notFoundIfInvisible(created));
+      const draft = notFoundIfInvisible(created);
+      await tx.insert(reviewTimeline).values({
+        id: uuidv7(),
+        tenant,
+        caseId: kase.id,
+        kind: 'clarification-follow-up',
+        ref: draft.id,
+        actor: principal.subject,
+        summary: `Follow-up of clarification ${clarification.reference ?? clarificationId} drafted`,
+      });
+      return clarificationView(draft);
     });
   }
 
