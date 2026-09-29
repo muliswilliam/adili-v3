@@ -5,6 +5,7 @@ import { and, eq, sql } from 'drizzle-orm';
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
+import type { Transaction } from '../db/transaction.js';
 import {
   DirectoryClient,
   type PulledCommission,
@@ -20,7 +21,6 @@ import {
   SNAPSHOT_PAGE_SIZE,
   snapshotPage,
   storedReconcileContext,
-  type Transaction,
 } from './apply-page.js';
 import { upsertCommissionRef } from './commission-refs.js';
 import { nairobiDate } from './dates.js';

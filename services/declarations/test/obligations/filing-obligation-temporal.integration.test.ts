@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { filingObligations } from '../../src/db/schema.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { addDays, nairobiDate } from '../../src/obligations/dates.js';
 import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import { cancelSignal, stateQuery } from '../../src/obligations/workflow/contract.js';

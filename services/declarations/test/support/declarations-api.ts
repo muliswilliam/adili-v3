@@ -34,7 +34,7 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';

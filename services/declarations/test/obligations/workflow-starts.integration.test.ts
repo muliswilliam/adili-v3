@@ -5,7 +5,7 @@ import { eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { filingObligations, rosterSnapshots } from '../../src/db/schema.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
   type DeclarationsApi,

@@ -16,7 +16,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { OBLIGATION_TYPE_VALUES } from '../obligations/schema.js';
+import { OBLIGATION_TYPES } from '../obligations/engine.js';
 
 /**
  * Declaration drafts (spec 05). Drafts live in Postgres; Valkey only caches decrypted sections
@@ -55,7 +55,7 @@ export const declarations = pgTable(
     personId: uuid().notNull(),
     obligationId: uuid().notNull(),
     rosterRecordId: uuid().notNull(),
-    type: text({ enum: OBLIGATION_TYPE_VALUES }).notNull(),
+    type: text({ enum: OBLIGATION_TYPES }).notNull(),
     statementDate: date({ mode: 'string' }).notNull(),
     /** Exclusive: the income period is (from, to]. */
     incomePeriodFrom: date({ mode: 'string' }).notNull(),

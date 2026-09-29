@@ -16,7 +16,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
-import type { Transaction } from '../obligations/apply-page.js';
+import type { Transaction } from '../db/transaction.js';
 import { fallbackIssuerCode } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';

@@ -15,7 +15,7 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../documents/documents-client.js';
-import type { Transaction } from '../obligations/apply-page.js';
+import type { Transaction } from '../db/transaction.js';
 import { attachmentFileName, hasItem, withAttachment, withoutAttachment } from './attachments.js';
 import {
   personOf,

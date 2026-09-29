@@ -4,7 +4,7 @@ import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/da
 import { and, asc, desc, eq, ne, sql } from 'drizzle-orm';
 
 import type { DeclarationsSchema } from '../db/schema.js';
-import type { Transaction } from './apply-page.js';
+import type { Transaction } from '../db/transaction.js';
 import type {
   CommissionRef,
   MyObligations,

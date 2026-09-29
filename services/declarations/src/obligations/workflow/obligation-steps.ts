@@ -7,6 +7,7 @@ import { v5 as uuidv5 } from 'uuid';
 import { Clock } from '../../clock.js';
 import { config, REMINDER_JITTER_WINDOW_MS } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
+import type { Transaction } from '../../db/transaction.js';
 import {
   NotificationsClient,
   NotificationsKeyReused,
@@ -16,7 +17,6 @@ import {
   type ReminderParams,
 } from '../../notifications/notifications-client.js';
 import { fallbackIssuerCode } from '../access.js';
-import type { Transaction } from '../apply-page.js';
 import { addDays, type CivilDate, daysBetween, nairobiDate } from '../dates.js';
 import { movesForward, type ObligationStatus, type OpenStatus } from '../engine.js';
 import { obligationReminderRecorded, obligationStatusChanged } from '../events.js';

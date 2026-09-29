@@ -10,7 +10,7 @@ import {
   obligationReminders,
   outbox,
 } from '../../src/db/schema.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
   type ChannelProgress,

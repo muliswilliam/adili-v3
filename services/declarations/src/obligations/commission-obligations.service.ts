@@ -24,7 +24,8 @@ import {
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
-import { loadCalendar, type Transaction } from './apply-page.js';
+import type { Transaction } from '../db/transaction.js';
+import { loadCalendar } from './apply-page.js';
 import { commissionReadTenant, fallbackIssuerCode } from './access.js';
 import {
   decodeListCursor,
