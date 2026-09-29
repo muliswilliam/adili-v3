@@ -4,10 +4,10 @@ info:
   version: '1'
   description: |
     Draft contract for specs 07a (queue, cases, clarifications), 07b (registry cross-checks) and 08
-    (determinations, approvals, enforcement ladder, referrals). Review cases are created by the processing workflow from
-    submitted declarations; the service stores flags and case data only and reads declaration
-    content from the declarations service on demand. The review service's Swagger document
-    becomes the source of truth once implemented.
+    (determinations, approvals, the administrative action ladder, referrals). Review cases are
+    created by the processing workflow from submitted declarations; the service stores flags and
+    case data only and reads declaration content from the declarations service on demand. The
+    review service's Swagger document becomes the source of truth once implemented.
 servers:
   - url: http://localhost:4003
 security:
@@ -1111,7 +1111,9 @@ paths:
     get:
       tags: [actions]
       operationId: listEnforcementLadders
-      summary: Ladders (per overdue obligation or clarification) with current step and status
+      summary: >-
+        Administrative action ladders (per overdue obligation or clarification) with current step
+        and status
       parameters:
         - name: status
           in: query

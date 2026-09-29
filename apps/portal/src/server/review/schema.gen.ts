@@ -674,7 +674,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Ladders (per overdue obligation or clarification) with current step and status */
+        /** Administrative action ladders (per overdue obligation or clarification) with current step and status */
         get: operations["listEnforcementLadders"];
         put?: never;
         post?: never;

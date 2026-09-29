@@ -31,7 +31,7 @@ const ApiUuidParam = (name: string) =>
   ApiParam({ name, schema: { type: 'string', format: 'uuid' } });
 
 /**
- * The enforcement ladder for the Commission's reviewers and supervisors (spec 08): ladders and
+ * The administrative action ladder for the Commission's reviewers and supervisors (spec 08): ladders and
  * their steps, approving or declining a drafted step, restarting a declined ladder. Anyone outside
  * the Commission's review staff gets 404.
  */
@@ -44,7 +44,8 @@ export class EnforcementController {
   @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } })
   @ApiOperation({
     operationId: 'listEnforcementLadders',
-    summary: 'Ladders (per overdue obligation or clarification) with current step and status',
+    summary:
+      'Administrative action ladders (per overdue obligation or clarification) with current step and status',
   })
   @ApiQueryParameters(laddersQuery)
   @ApiOkResponse({
