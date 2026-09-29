@@ -46,3 +46,17 @@ export interface ComplianceReportReminderSentData extends Record<string, unknown
   daysBefore: number;
   recipients: number;
 }
+
+export const COMPLIANCE_REPORT_CHASED = 'compliance-report.chased.v1';
+
+/**
+ * `compliance-report.chased.v1`: EACC chased a Commission that has not submitted its report for
+ * the year (the weekly `round` from 1 August). `reportId` is the Commission's draft, or null when
+ * it has none.
+ */
+export interface ComplianceReportChasedData extends Record<string, unknown> {
+  reportId: string | null;
+  fy: number;
+  round: number;
+  recipients: number;
+}

@@ -368,8 +368,9 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
         createHash('sha256').update(canonicalJson(document)).digest('hex'),
       );
       const receipts = await api.asPlatform((tx) => tx.select().from(reportReceipts));
+      // The PDF and receipt ids follow from the workflow.
       expect(receipts).toEqual([
-        {
+        expect.objectContaining({
           reportId: report.id,
           tenant: 'psc',
           fy: 2027,
@@ -378,7 +379,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
           submittedAt: new Date(CONFIRMED_AT),
           late: false,
           counts: report.counts,
-        },
+        }),
       ]);
       expect(await events()).toContainEqual(
         expect.objectContaining({

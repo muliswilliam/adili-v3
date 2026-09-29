@@ -109,3 +109,73 @@ export interface AnnualCompilePlan {
   fy: number;
   tenants: string[];
 }
+
+/**
+ * `NationalConsolidationWorkflow(fy)` (spec 09): EACC's weekly chase of the Commissions that have
+ * not submitted the year's report, from 1 August. What passes through it: the year, the weekly
+ * round, Commission slugs and counts. Never a name or an email address.
+ */
+export const NATIONAL_CONSOLIDATION_WORKFLOW = 'nationalConsolidation';
+
+/** One chase per financial year. */
+export function nationalConsolidationWorkflowId(fy: number): string {
+  return `national-consolidation:${String(fy)}`;
+}
+
+/** The national consolidated report was approved: the chase ends (BE-10 signals it). */
+export const NCR_APPROVED_SIGNAL = 'ncr-approved';
+
+/** A week, the interval between chases. */
+export const CHASE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** The first chase of the year's non-reporting Commissions: 1 August, 09:00 in Nairobi. */
+export function firstChaseAt(fy: number): number {
+  return Date.UTC(fy + 1, 7, 1, 6);
+}
+
+/** The weekly round a chase at `at` belongs to: 1 in the week from 1 August, then 2, 3... */
+export function chaseRoundAt(fy: number, at: number): number {
+  return Math.max(0, Math.floor((at - firstChaseAt(fy)) / CHASE_INTERVAL_MS)) + 1;
+}
+
+export interface ChaseWorkflowInput {
+  /** Financial year start year. */
+  fy: number;
+  /** Carried over when the chase continues in a fresh history: rounds and chases so far. */
+  rounds?: number;
+  chases?: number;
+  /** When the next round is due (epoch ms); the first chase when absent. */
+  nextAt?: number;
+}
+
+/** The Commissions (slugs) without a submitted report for the year. */
+export interface ChaseTargets {
+  tenants: string[];
+}
+
+export interface ChaseRequest {
+  fy: number;
+  tenant: string;
+  round: number;
+}
+
+/**
+ * What `chaseCommission` did: emailed the Commission's reporting officers and commission-admins
+ * (`recipients`; none again for a round chased already), or found the report submitted meanwhile.
+ */
+export type ChaseOutcome = { outcome: 'chased'; recipients: number } | { outcome: 'submitted' };
+
+/** How the chase ended: every Commission reported, or the NCR was approved. */
+export interface ChaseWorkflowResult {
+  rounds: number;
+  chases: number;
+  ended: 'all-reported' | 'ncr-approved';
+}
+
+/** Workflow type name of the yearly start of the chase, which the service's schedule runs. */
+export const NATIONAL_CHASE_START_WORKFLOW = 'nationalChaseStart';
+
+/** The schedule of the yearly start of the chase, one per task queue. */
+export function nationalChaseScheduleId(taskQueue: string): string {
+  return `national-consolidation-chase:${taskQueue}`;
+}

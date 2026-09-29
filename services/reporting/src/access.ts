@@ -97,3 +97,54 @@ export function federatedTenant(principal: Principal): string {
     detail: 'The token is not issued for a Commission.',
   });
 }
+
+/** The tenant of EACC's accounts, and the RLS context its intake reads every Commission's in. */
+export const EACC_TENANT = 'eacc';
+
+export const EACC_ANALYST = 'eacc-analyst';
+export const EACC_SUPERVISOR = 'eacc-supervisor';
+
+/** EACC's roles (spec 09 authorisation): the intake, chase status, and every submitted report. */
+export const EACC_ROLES = [EACC_ANALYST, EACC_SUPERVISOR] as const;
+
+/** An EACC account: an EACC role, acting for EACC. */
+export function isEacc(principal: Principal): boolean {
+  return (
+    principal.tenant === EACC_TENANT &&
+    principal.roles.some((role) => (EACC_ROLES as readonly string[]).includes(role))
+  );
+}
+
+/**
+ * EACC's intake and chase status are for EACC's analysts and supervisors only; anyone else,
+ * Commission staff included, gets 403.
+ */
+export function requireEacc(principal: Principal): void {
+  if (isEacc(principal)) return;
+  throw new ProblemException({
+    type: 'about:blank',
+    title: 'Forbidden',
+    status: HttpStatus.FORBIDDEN,
+    detail: 'Only EACC analysts and supervisors see the compliance report intake.',
+  });
+}
+
+/**
+ * Who may read a submitted report and in which RLS tenant (spec 09 authorisation, "read submitted
+ * report and receipt"): EACC's analysts and supervisors read every Commission's, in EACC's
+ * tenant; a Commission's supervisor, commission-admin and reporting officer, and its own federated
+ * system (`federatedScope`), read their own Commission's only. Anyone else gets 404.
+ */
+export function submittedReportReader(
+  principal: Principal,
+  federatedScope: string,
+): { tenant: string; everyCommission: boolean } {
+  if (isEacc(principal)) return { tenant: EACC_TENANT, everyCommission: true };
+  const own = principal.tenant;
+  const commission =
+    own !== null &&
+    TENANT_SLUG.test(own) &&
+    (principal.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role)) ||
+      principal.scopes.includes(federatedScope));
+  return { tenant: notFoundIfInvisible(commission ? own : null), everyCommission: false };
+}

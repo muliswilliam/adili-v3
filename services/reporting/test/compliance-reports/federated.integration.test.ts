@@ -132,8 +132,9 @@ describe('Federated Form M submission (S8)', () => {
     expect(row?.canonicalSha256).toBe(
       createHash('sha256').update(canonicalJson(stored)).digest('hex'),
     );
+    // The PDF and receipt ids follow from the workflow.
     expect(await api.asPlatform((tx) => tx.select().from(reportReceipts))).toEqual([
-      {
+      expect.objectContaining({
         reportId: body.id,
         tenant: 'tsc',
         fy: 2027,
@@ -142,7 +143,7 @@ describe('Federated Form M submission (S8)', () => {
         submittedAt: new Date(SUBMITTED_AT),
         late: false,
         counts: body.counts,
-      },
+      }),
     ]);
     expect(await events()).toContainEqual(
       expect.objectContaining({

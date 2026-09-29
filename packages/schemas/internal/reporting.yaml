@@ -372,12 +372,26 @@ paths:
       tags: [eacc]
       operationId: getEaccIntake
       summary: Per-Commission report status, rates and outliers for a financial year (EACC roles)
+      description: |
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Every active
+        Commission the directory lists (and any other that filed), by name: `not-reported`, or
+        submitted on time or late (after 31 July) from EACC's receipt, with the report's
+        reference, the ids of its Form M PDF and receipt once issued, declared / expected per
+        section from the report's counts, outliers, and how often and when it was last chased.
+        Outliers: `low-<section>-rate` when officers were expected and the declared rate is below
+        the section's configured threshold (`INTAKE_MIN_<SECTION>_RATE`, 0.8 by default);
+        `zero-expected-with-declared` when a section declares officers where none were expected;
+        `section-missing` when a section's counts are absent, or no officer in service is
+        expected in a year with a biennial cycle. The totals cover the year whatever the filters;
+        `nationalDeclaredRate` is declared over expected across the submitted reports' sections.
       parameters:
         - name: fy
           in: query
           required: true
+          description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
           schema:
             type: integer
+            minimum: 2025
         - name: status
           in: query
           schema:
@@ -393,8 +407,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Intake'
+        '400':
+          description: Query failed validation (a year reports do not exist for, an unknown status)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '503':
+          description: The Commission directory could not be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/compliance-reports/{reportId}:
     parameters:
       - name: reportId
@@ -406,7 +432,18 @@ paths:
     get:
       tags: [eacc]
       operationId: getSubmittedReport
-      summary: A submitted report as filed, with PDF and receipt links (EACC roles)
+      summary: A submitted report as filed, with its PDF and receipt ids (report viewer)
+      description: |
+        eacc-analyst and eacc-supervisor (tenant `eacc`) read every Commission's submitted
+        report; a Commission's supervisor, commission-admin and reporting officer, and its own
+        system (`reports:submit`), read their own. Anyone else, another Commission's report, a
+        report not submitted and an unknown id are 404. The document is the frozen `form-m.v1`
+        as filed; the PDF and receipt download through documents by `formMDocumentId` and
+        `receiptDocumentId` (null until issued). Each read is audited (`audit.read.v1`, action
+        `compliance-report.viewed`).
+      x-audited-read:
+        action: compliance-report.viewed
+        resource: compliance-report
       responses:
         '200':
           description: Report
@@ -414,10 +451,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+        '400':
+          description: reportId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: The Commission directory could not be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/national-reports/{fy}:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
@@ -1090,7 +1137,18 @@ components:
           items:
             type: object
             required:
-              [commission, status, reportId, reference, submittedAt, rates, outliers, chases]
+              [
+                commission,
+                status,
+                reportId,
+                reference,
+                submittedAt,
+                rates,
+                outliers,
+                chases,
+                formMDocumentId,
+                receiptDocumentId,
+              ]
             properties:
               commission:
                 type: object
@@ -1112,7 +1170,7 @@ components:
                 format: date-time
               rates:
                 type: object
-                description: Per section expected, declared and rate
+                description: Per section (`initial`, `biennial`, `final`) expected, declared and rate (declared / expected to four decimals, null when none expected); empty when not reported
                 additionalProperties:
                   type: object
                   required: [expected, declared, rate]
@@ -1137,6 +1195,7 @@ components:
                     ]
               chases:
                 type: object
+                description: EACC's weekly chases from 1 August while not reported
                 required: [count, lastAt]
                 properties:
                   count:
@@ -1144,6 +1203,14 @@ components:
                   lastAt:
                     type: [string, 'null']
                     format: date-time
+              formMDocumentId:
+                type: [string, 'null']
+                format: uuid
+                description: The Restricted Form M PDF as filed, once issued
+              receiptDocumentId:
+                type: [string, 'null']
+                format: uuid
+                description: The signed acknowledgement receipt, once issued
     Narrative:
       type: object
       required: [overview, findings, recommendations]

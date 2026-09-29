@@ -102,12 +102,22 @@ export class FakeReview extends ReviewClient {
 const NAMES: Record<string, string> = {
   psc: 'Public Service Commission',
   tsc: 'Teachers Service Commission',
+  jsc: 'Judicial Service Commission',
 };
+
+function commissionFacts(slug: string): CommissionFacts {
+  return {
+    slug,
+    issuerCode: slug.toUpperCase(),
+    name: NAMES[slug] ?? `${slug.toUpperCase()} Commission`,
+  };
+}
 
 /** The directory: Commissions and their staff by role. */
 export class FakeDirectory extends DirectoryClient {
   private readonly commissions = new Set<string>();
   private readonly staff: (StaffMember & { slug: string; role: string })[] = [];
+  private failures = 0;
 
   givenCommission(slug: string): void {
     this.commissions.add(slug);
@@ -120,16 +130,30 @@ export class FakeDirectory extends DirectoryClient {
   reset(): void {
     this.commissions.clear();
     this.staff.length = 0;
+    this.failures = 0;
+  }
+
+  /** The next `count` calls fail, as a directory outage would. */
+  failCalls(count: number): void {
+    this.failures = count;
   }
 
   getCommission(slug: string): Promise<CommissionFacts> {
+    if (this.failed()) return Promise.reject(new DirectoryUnavailable('Unreachable'));
     return this.commissions.has(slug)
-      ? Promise.resolve({
-          slug,
-          issuerCode: slug.toUpperCase(),
-          name: NAMES[slug] ?? `${slug.toUpperCase()} Commission`,
-        })
+      ? Promise.resolve(commissionFacts(slug))
       : Promise.reject(new DirectoryUnavailable(`No Commission ${slug}`));
+  }
+
+  listCommissions(): Promise<CommissionFacts[]> {
+    if (this.failed()) return Promise.reject(new DirectoryUnavailable('Unreachable'));
+    return Promise.resolve([...this.commissions].sort().map(commissionFacts));
+  }
+
+  private failed(): boolean {
+    if (this.failures === 0) return false;
+    this.failures -= 1;
+    return true;
   }
 
   staffWithRole(slug: string, role: string): Promise<StaffMember[]> {

@@ -30,4 +30,10 @@ export abstract class DirectoryClient {
 
   /** The Commission's staff accounts holding `role`, with the email they sign in with. */
   abstract staffWithRole(slug: string, role: string): Promise<StaffMember[]>;
+
+  /**
+   * Every active Responsible Commission, as EACC's intake lists them and its chase goes through
+   * them.
+   */
+  abstract listCommissions(): Promise<CommissionFacts[]>;
 }

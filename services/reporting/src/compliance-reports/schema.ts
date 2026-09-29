@@ -143,8 +143,33 @@ export const reportReceipts = pgTable(
     submittedAt: timestamp({ withTimezone: true }).notNull(),
     late: boolean().notNull(),
     counts: jsonb().$type<ReportCounts>().notNull(),
+    /** The Restricted Form M PDF as filed, once the workflow issued it; the intake links it. */
+    formMDocumentId: uuid(),
+    /** The signed acknowledgement receipt, once the workflow issued it. */
+    receiptDocumentId: uuid(),
   },
   (table) => [uniqueIndex('report_receipts_tenant_fy_key').on(table.tenant, table.fy)],
+);
+
+/**
+ * EACC's chases of a Commission that has not submitted its report for the year
+ * (`NationalConsolidationWorkflow`, from 1 August, weekly): one row per Commission, year and
+ * weekly round, so a retried chase records and announces nothing twice. Identifiers, counts and
+ * dates only. Row-level security: the Commission's own, and EACC and platform read every
+ * Commission's.
+ */
+export const reportChases = pgTable(
+  'report_chases',
+  {
+    tenant: text().notNull(),
+    fy: integer().notNull(),
+    /** The week of the chase: 1 from 1 August, 2 a week later, and so on. */
+    round: integer().notNull(),
+    /** How many officers were emailed. */
+    recipients: integer().notNull(),
+    sentAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.tenant, table.fy, table.round] })],
 );
 
 export const complianceReportsSchema = {
@@ -152,4 +177,5 @@ export const complianceReportsSchema = {
   reportRemarks,
   reportReminders,
   reportReceipts,
+  reportChases,
 };

@@ -31,13 +31,19 @@ const commissionSchema = z.object({
   name: z.string().min(1),
 });
 
+const commissionListSchema = z.object({ items: z.array(commissionSchema) });
+
+/** Whose behalf a call about every Commission acts on (`X-Acting-Tenant`). */
+const PLATFORM_TENANT = 'platform';
+
 const staffSchema = z.object({
   items: z.array(z.object({ subject: z.string().min(1), email: z.email() })),
 });
 
 /**
  * The directory's `internalGetCommission` (cached per Commission for a few minutes: a name
- * changes rarely) and its staff by role, with the reporting service's own token.
+ * changes rarely), its staff by role and the list of active Commissions, with the reporting
+ * service's own token.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly api: InternalApi;
@@ -82,5 +88,15 @@ export class HttpDirectoryClient extends DirectoryClient {
     });
     if (!found) throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
     return found.items;
+  }
+
+  async listCommissions(): Promise<CommissionFacts[]> {
+    const found = await this.api.get({
+      path: 'internal/v1/commissions',
+      tenant: PLATFORM_TENANT,
+      schema: commissionListSchema,
+    });
+    if (!found) throw new DirectoryUnavailable('The directory lists no Commissions');
+    return found.items.map(({ slug, issuerCode, name }) => ({ slug, issuerCode, name }));
   }
 }

@@ -2,11 +2,24 @@
  * Workflows hosted by the reporting worker (ADR-003). This module is bundled into Temporal's
  * deterministic sandbox: import only `@temporalio/workflow` and types.
  */
-import { condition, defineSignal, proxyActivities, setHandler } from '@temporalio/workflow';
+import {
+  condition,
+  continueAsNew,
+  defineSignal,
+  proxyActivities,
+  setHandler,
+  workflowInfo,
+} from '@temporalio/workflow';
 
 import type { AnnualCompileActivities } from './annual-compile-activities.js';
 import type { ComplianceReportActivities } from './activities.js';
 import {
+  CHASE_INTERVAL_MS,
+  chaseRoundAt,
+  type ChaseWorkflowInput,
+  type ChaseWorkflowResult,
+  firstChaseAt,
+  NCR_APPROVED_SIGNAL,
   RECOMPILE_SIGNAL,
   REMINDER_DAYS,
   reminderAt,
@@ -14,6 +27,7 @@ import {
   type ReportWorkflowResult,
   SUBMITTED_SIGNAL,
 } from './contract.js';
+import type { NationalChaseActivities } from './national-chase-activities.js';
 
 /**
  * Reads of the projections and pulls from declarations, review, the directory, documents and
@@ -37,6 +51,12 @@ const { annualCompileTargets, startCompile } = proxyActivities<AnnualCompileActi
   startToCloseTimeout: '1 minute',
   retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
 });
+
+const { chaseTargets, chaseCommission, startNationalChase } =
+  proxyActivities<NationalChaseActivities>({
+    startToCloseTimeout: '1 minute',
+    retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
+  });
 
 export const recompile = defineSignal(RECOMPILE_SIGNAL);
 export const submitted = defineSignal(SUBMITTED_SIGNAL);
@@ -113,4 +133,60 @@ export async function annualCompile(): Promise<{ fy: number; started: number }> 
     if (await startCompile({ tenant, fy: plan.fy })) started += 1;
   }
   return { fy: plan.fy, started };
+}
+
+export const ncrApproved = defineSignal(NCR_APPROVED_SIGNAL);
+
+/**
+ * `NationalConsolidationWorkflow(fy)` (spec 09): from 1 August, EACC chases every Commission that
+ * has not submitted the year's report, weekly: its reporting officers and commission-admins are
+ * emailed and `compliance-report.chased.v1` recorded. A Commission that submits drops out of the
+ * next round. The chase ends once every Commission has reported, or when the national
+ * consolidated report is approved (`ncr-approved`). Started late, it chases at once and weekly
+ * from then. History holds the year, rounds, Commission slugs and counts only.
+ */
+export async function nationalConsolidation(
+  input: ChaseWorkflowInput,
+): Promise<ChaseWorkflowResult> {
+  let approved = false;
+  setHandler(ncrApproved, () => {
+    approved = true;
+  });
+  // Read through a function: the handler changes it while the workflow awaits.
+  const ended = () => approved;
+  let rounds = input.rounds ?? 0;
+  let chases = input.chases ?? 0;
+  let at = input.nextAt ?? firstChaseAt(input.fy);
+  for (;;) {
+    if (at > Date.now()) await condition(ended, at - Date.now());
+    if (ended()) return { rounds, chases, ended: 'ncr-approved' };
+    const now = Date.now();
+    const round = chaseRoundAt(input.fy, now);
+    const { tenants } = await chaseTargets({ fy: input.fy });
+    if (tenants.length === 0) return { rounds, chases, ended: 'all-reported' };
+    for (const tenant of tenants) {
+      const chased = await chaseCommission({ fy: input.fy, tenant, round });
+      if (chased.outcome === 'chased') chases += 1;
+    }
+    rounds += 1;
+    at = Math.max(at, now) + CHASE_INTERVAL_MS;
+    // A long chase of many Commissions: carry on in a fresh history.
+    if (workflowInfo().continueAsNewSuggested) {
+      await continueAsNew<typeof nationalConsolidation>({
+        fy: input.fy,
+        rounds,
+        chases,
+        nextAt: at,
+      });
+    }
+  }
+}
+
+/**
+ * The yearly start of the chase, run by the service's Temporal schedule on 1 August: starts
+ * `NationalConsolidationWorkflow` for the financial year whose reports were due on 31 July, unless
+ * it runs already.
+ */
+export async function nationalChaseStart(): Promise<{ fy: number; started: boolean }> {
+  return startNationalChase();
 }

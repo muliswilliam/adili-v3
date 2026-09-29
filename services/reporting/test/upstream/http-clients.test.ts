@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DeclarationsUnavailable } from '../../src/declarations/declarations-client.js';
 import { HttpDeclarationsClient } from '../../src/declarations/http-declarations-client.js';
+import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
 import { HttpDirectoryClient } from '../../src/directory/http-directory-client.js';
 import { HttpDocumentsClient } from '../../src/documents/http-documents-client.js';
 import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
@@ -147,6 +148,43 @@ describe('HttpDirectoryClient', () => {
     now = 1_001;
     await client.getCommission('psc');
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('lists every active Commission on behalf of the platform', async () => {
+    const fetch = vi.fn<Fetch>(() =>
+      Promise.resolve(
+        Response.json({
+          items: [
+            { slug: 'jsc', issuerCode: 'JSC', name: 'Judicial Service Commission', type: 'hosted' },
+            { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission', type: 'hosted' },
+          ],
+        }),
+      ),
+    );
+    const client = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens,
+      fetch,
+    });
+
+    expect(await client.listCommissions()).toEqual([
+      { slug: 'jsc', issuerCode: 'JSC', name: 'Judicial Service Commission' },
+      { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+    ]);
+    const sent = request(fetch);
+    expect(sent.url).toBe('http://directory.test/internal/v1/commissions');
+    expect(sent.headers['x-acting-tenant']).toBe('platform');
+  });
+
+  it('is unavailable when the Commission list is outside its contract', async () => {
+    const fetch = vi.fn<Fetch>(() => Promise.resolve(Response.json({ items: [{ slug: 'psc' }] })));
+    const client = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens,
+      fetch,
+    });
+
+    await expect(client.listCommissions()).rejects.toBeInstanceOf(DirectoryUnavailable);
   });
 });
 

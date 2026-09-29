@@ -34,7 +34,7 @@ import {
 } from './events.js';
 import { aggregateFacts, assemble, carriedContacts, manualEntriesOf } from './form-m.js';
 import { ensureReport, findReport, type ReportRow } from './reports.js';
-import { complianceReports, reportReminders, reportRemarks } from './schema.js';
+import { complianceReports, reportReceipts, reportReminders, reportRemarks } from './schema.js';
 import { openSnapshot, sealSnapshot } from './snapshot.js';
 
 /**
@@ -426,16 +426,17 @@ async function reportOfficers(
   return staff;
 }
 
-/** Keeps the id of a document issued for the report. */
+/** Keeps the id of a document issued for the report, on the report and EACC's receipt of it. */
 async function keepDocument(
   db: Database<ReportingSchema>,
   tenant: string,
   reportId: string,
   ids: { formMDocumentId: string } | { receiptDocumentId: string },
 ): Promise<void> {
-  await withTenant(db, systemContext(tenant), (tx) =>
-    tx.update(complianceReports).set(ids).where(eq(complianceReports.id, reportId)),
-  );
+  await withTenant(db, systemContext(tenant), async (tx) => {
+    await tx.update(complianceReports).set(ids).where(eq(complianceReports.id, reportId));
+    await tx.update(reportReceipts).set(ids).where(eq(reportReceipts.reportId, reportId));
+  });
 }
 
 /** What a submitted report always has. */

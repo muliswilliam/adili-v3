@@ -1,6 +1,9 @@
 /** The notifications templates the reporting service sends (notifications.yaml `TemplateId`). */
 export type ReportingTemplate =
-  'form-m-draft-ready-email' | 'form-m-reminder-email' | 'form-m-receipt-email';
+  | 'form-m-draft-ready-email'
+  | 'form-m-reminder-email'
+  | 'form-m-receipt-email'
+  | 'form-m-chase-email';
 
 /**
  * A templated email to a staff member's sign-in address (notifications.yaml `SendMessage` with

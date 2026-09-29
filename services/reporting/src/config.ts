@@ -27,6 +27,19 @@ export const envSchema = baseEnvSchema.extend({
    * year that just ended, on 1 July. `off` keeps no schedule (tests).
    */
   ANNUAL_COMPILE_CRON: z.string().min(1).default('0 6 1 7 *'),
+  /**
+   * When EACC's chase of Commissions that have not reported starts (cron, Nairobi time): the
+   * `NationalConsolidationWorkflow` of the financial year whose reports were due on 31 July, on
+   * 1 August; it chases weekly from then. `off` keeps no schedule (tests).
+   */
+  NATIONAL_CHASE_CRON: z.string().min(1).default('0 6 1 8 *'),
+  /**
+   * EACC intake outliers: a Commission whose declared rate (declared / expected) in a section is
+   * below its threshold is flagged `low-<section>-rate`. Fractions from 0 to 1.
+   */
+  INTAKE_MIN_INITIAL_RATE: z.coerce.number().min(0).max(1).default(0.8),
+  INTAKE_MIN_BIENNIAL_RATE: z.coerce.number().min(0).max(1).default(0.8),
+  INTAKE_MIN_FINAL_RATE: z.coerce.number().min(0).max(1).default(0.8),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('reporting'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
