@@ -1,18 +1,9 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-  type OnApplicationShutdown,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectTemporalClient } from '@adili/temporal';
-import {
-  type Client,
-  ScheduleAlreadyRunning,
-  ScheduleOverlapPolicy,
-  WorkflowExecutionAlreadyStartedError,
-} from '@temporalio/client';
+import { type Client, WorkflowExecutionAlreadyStartedError } from '@temporalio/client';
 
 import { config } from '../config.js';
+import { SweepScheduling } from '../sweep-schedule.js';
 import {
   REFERRAL_SENDING_WORKFLOW,
   REFERRAL_SWEEPS_WORKFLOW,
@@ -20,10 +11,7 @@ import {
   referralSendingWorkflowId,
   referralSweepScheduleId,
 } from './contract.js';
-import type { referralSending, referralSweeps } from './workflows.js';
-
-/** How long the service waits before trying again to keep the schedule when Temporal is down. */
-const SCHEDULE_RETRY_MS = 60_000;
+import type { referralSending } from './workflows.js';
 
 /**
  * Starts the referral workflows on Temporal (ADR-003): the sending of each approved referral, and
@@ -32,20 +20,14 @@ const SCHEDULE_RETRY_MS = 60_000;
  * worker bundles the code.
  */
 @Injectable()
-export class ReferralWorkflows implements OnApplicationBootstrap, OnApplicationShutdown {
-  private readonly logger = new Logger(ReferralWorkflows.name);
-  private retry: NodeJS.Timeout | undefined;
-
-  constructor(@InjectTemporalClient() private readonly temporal: Client) {}
-
-  onApplicationBootstrap(): void {
-    if (config.REFERRAL_SWEEP_CRON === 'off') return;
-    // Not awaited: the service starts even if Temporal is down, and tries again until it answers.
-    this.keepSchedule();
-  }
-
-  onApplicationShutdown(): void {
-    clearTimeout(this.retry);
+export class ReferralWorkflows extends SweepScheduling {
+  constructor(@InjectTemporalClient() temporal: Client) {
+    super(temporal, {
+      name: 'referral',
+      workflowType: REFERRAL_SWEEPS_WORKFLOW,
+      scheduleId: referralSweepScheduleId(config.TEMPORAL_TASK_QUEUE),
+      cron: config.REFERRAL_SWEEP_CRON,
+    });
   }
 
   /**
@@ -65,43 +47,5 @@ export class ReferralWorkflows implements OnApplicationBootstrap, OnApplicationS
     } catch (error) {
       if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
     }
-  }
-
-  /**
-   * Creates the daily referral sweep schedule of this task queue, or brings an existing one to the
-   * configured time. Overlapping runs are skipped.
-   */
-  async ensureSchedule(cron = config.REFERRAL_SWEEP_CRON): Promise<string> {
-    const scheduleId = referralSweepScheduleId(config.TEMPORAL_TASK_QUEUE);
-    const spec = { cronExpressions: [cron], timezone: 'Africa/Nairobi' };
-    try {
-      await this.temporal.schedule.create<typeof referralSweeps>({
-        scheduleId,
-        spec,
-        action: {
-          type: 'startWorkflow',
-          workflowType: REFERRAL_SWEEPS_WORKFLOW,
-          taskQueue: config.TEMPORAL_TASK_QUEUE,
-          args: [],
-        },
-        policies: { overlap: ScheduleOverlapPolicy.SKIP },
-      });
-    } catch (error) {
-      if (!(error instanceof ScheduleAlreadyRunning)) throw error;
-      await this.temporal.schedule
-        .getHandle(scheduleId)
-        .update((previous) => ({ ...previous, spec }));
-    }
-    return scheduleId;
-  }
-
-  private keepSchedule(): void {
-    this.ensureSchedule().catch((error: unknown) => {
-      this.logger.warn({ err: error }, 'Could not keep the referral sweep schedule; trying again');
-      this.retry = setTimeout(() => {
-        this.keepSchedule();
-      }, SCHEDULE_RETRY_MS);
-      this.retry.unref();
-    });
   }
 }
