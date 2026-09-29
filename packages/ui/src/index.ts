@@ -224,13 +224,11 @@ export {
 } from './components/source-badge';
 export {
   type SourceRef,
-  sourceRefFromSearch,
-  type SourceRefKind,
-  sourceRefKind,
   SourceRefLink,
   type SourceRefLinkMessages,
   type SourceRefLinkProps,
-  sourceRefToSearch,
+  type SourceRefTarget,
+  sourceRefTarget,
 } from './components/source-ref-link';
 export { Spinner } from './components/spinner';
 export {

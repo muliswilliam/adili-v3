@@ -1,13 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  type SourceRef,
-  SourceRefLink,
-  sourceRefFromSearch,
-  sourceRefKind,
-  sourceRefToSearch,
-} from './source-ref-link';
+import { type SourceRef, SourceRefLink, sourceRefTarget } from './source-ref-link';
 
 const NONE: SourceRef = { sectionKey: null, personKey: null, itemId: null, fieldPath: null };
 const HOUSE: SourceRef = {
@@ -20,36 +14,15 @@ const SPOUSE: SourceRef = { ...NONE, sectionKey: 'statement', personKey: 'spouse
 const DESIGNATION: SourceRef = { ...NONE, sectionKey: 'bio', fieldPath: '/personal/designation' };
 const BIO: SourceRef = { ...NONE, sectionKey: 'bio' };
 
-describe('sourceRefKind', () => {
+describe('sourceRefTarget', () => {
   it('points at the most specific part the ref names', () => {
-    expect(sourceRefKind(HOUSE)).toBe('item');
-    expect(sourceRefKind({ ...HOUSE, fieldPath: '/assets/items/0/value' })).toBe('item');
-    expect(sourceRefKind(SPOUSE)).toBe('person');
-    expect(sourceRefKind(DESIGNATION)).toBe('field');
-    expect(sourceRefKind(BIO)).toBe('section');
-    expect(sourceRefKind(NONE)).toBeNull();
-  });
-});
-
-describe('sourceRefToSearch and sourceRefFromSearch', () => {
-  it('write only the parts that are set, in a fixed order', () => {
-    expect(sourceRefToSearch(HOUSE)).toBe(
-      'section=assets&person=declarant&item=7d3f2a10-4b8e-4c51-9a37-0e6f1c2b9d44',
-    );
-    expect(sourceRefToSearch(DESIGNATION)).toBe('section=bio&field=%2Fpersonal%2Fdesignation');
-    expect(sourceRefToSearch(NONE)).toBe('');
-  });
-
-  it('read back what they wrote', () => {
-    for (const ref of [HOUSE, SPOUSE, DESIGNATION, BIO, NONE]) {
-      expect(sourceRefFromSearch(sourceRefToSearch(ref))).toEqual(ref);
-    }
-    expect(sourceRefFromSearch('?section=bio&tab=summary')).toEqual(BIO);
-    expect(sourceRefFromSearch('section=bio&person=')).toEqual(BIO);
-    expect(sourceRefFromSearch(new URLSearchParams('person=spouse-1'))).toEqual({
-      ...NONE,
-      personKey: 'spouse-1',
-    });
+    expect(sourceRefTarget(HOUSE)).toBe('item');
+    expect(sourceRefTarget({ ...HOUSE, fieldPath: '/assets/items/0/value' })).toBe('item');
+    expect(sourceRefTarget(SPOUSE)).toBe('person');
+    expect(sourceRefTarget(DESIGNATION)).toBe('field');
+    expect(sourceRefTarget({ ...SPOUSE, fieldPath: '/persons/spouse-1/income' })).toBe('field');
+    expect(sourceRefTarget(BIO)).toBe('section');
+    expect(sourceRefTarget(NONE)).toBeNull();
   });
 });
 
@@ -104,10 +77,20 @@ describe('SourceRefLink', () => {
 
   it('is plain text when the ref points at nothing', () => {
     const onOpen = vi.fn();
-    render(<SourceRefLink sourceRef={NONE} label="Unknown source" onOpen={onOpen} />);
+    render(
+      <SourceRefLink
+        sourceRef={NONE}
+        label="Unknown source"
+        onOpen={onOpen}
+        id="ref-1"
+        data-testid="ref"
+      />,
+    );
 
     expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.getByText('Unknown source')).toBeDefined();
+    const text = screen.getByTestId('ref');
+    expect(text.textContent).toBe('Unknown source');
+    expect(text.id).toBe('ref-1');
   });
 
   it('takes other copy', () => {

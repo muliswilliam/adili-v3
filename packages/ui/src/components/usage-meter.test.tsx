@@ -8,6 +8,8 @@ describe('formatTokenCount', () => {
     expect(formatTokenCount(0)).toBe('0');
     expect(formatTokenCount(950)).toBe('950');
     expect(formatTokenCount(412_800)).toBe('413k');
+    expect(formatTokenCount(999_400)).toBe('999k');
+    expect(formatTokenCount(999_600)).toBe('1M');
     expect(formatTokenCount(1_000_000)).toBe('1M');
     expect(formatTokenCount(1_500_000)).toBe('1.5M');
     expect(formatTokenCount(1_926_400)).toBe('1.93M');
@@ -17,18 +19,18 @@ describe('formatTokenCount', () => {
 describe('usagePercent and usageLevel', () => {
   it('is normal below 80%, high from 80% and used up at the budget', () => {
     expect(usagePercent(1_926_400, 3_000_000)).toBeCloseTo(64.21, 2);
-    expect(usageLevel(1_926_400, 3_000_000)).toBe('normal');
-    expect(usageLevel(800_000, 1_000_000)).toBe('high');
-    expect(usageLevel(1_500_000, 1_500_000)).toBe('used-up');
-    expect(usageLevel(1_600_000, 1_500_000)).toBe('used-up');
-    expect(usageLevel(0, 1_000_000)).toBe('normal');
+    expect(usageLevel(usagePercent(1_926_400, 3_000_000))).toBe('normal');
+    expect(usageLevel(usagePercent(800_000, 1_000_000))).toBe('high');
+    expect(usageLevel(usagePercent(1_500_000, 1_500_000))).toBe('used-up');
+    expect(usageLevel(usagePercent(1_600_000, 1_500_000))).toBe('used-up');
+    expect(usageLevel(usagePercent(0, 1_000_000))).toBe('normal');
   });
 
   it('treats any use of a zero budget as used up', () => {
     expect(usagePercent(0, 0)).toBe(0);
-    expect(usageLevel(0, 0)).toBe('normal');
+    expect(usageLevel(usagePercent(0, 0))).toBe('normal');
     expect(usagePercent(10, 0)).toBe(100);
-    expect(usageLevel(10, 0)).toBe('used-up');
+    expect(usageLevel(usagePercent(10, 0))).toBe('used-up');
   });
 });
 

@@ -1,9 +1,4 @@
-import {
-  File01Icon,
-  LeftToRightListBulletIcon,
-  PencilEdit02Icon,
-  UserIcon,
-} from '@hugeicons/core-free-icons';
+import { File01Icon, LeftToRightListBulletIcon, UserIcon } from '@hugeicons/core-free-icons';
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
@@ -22,59 +17,29 @@ export interface SourceRef {
 }
 
 /** What a ref opens: an item, a person's financial statement, a single field, or a whole section. */
-export type SourceRefKind = 'item' | 'person' | 'field' | 'section';
+export type SourceRefTarget = 'item' | 'person' | 'field' | 'section';
 
-/** The most specific part a ref names, or null when it names nothing. */
-export function sourceRefKind({
+/**
+ * The most specific part a ref names, or null when it names nothing. A field path is more specific
+ * than the person or section it sits in, so it wins over both.
+ */
+export function sourceRefTarget({
   sectionKey,
   personKey,
   itemId,
   fieldPath,
-}: SourceRef): SourceRefKind | null {
+}: SourceRef): SourceRefTarget | null {
   if (itemId) return 'item';
-  if (personKey) return 'person';
   if (fieldPath) return 'field';
+  if (personKey) return 'person';
   if (sectionKey) return 'section';
   return null;
 }
 
-// Query parameter per part, in the order they are written.
-const PARAMS = [
-  ['section', 'sectionKey'],
-  ['person', 'personKey'],
-  ['item', 'itemId'],
-  ['field', 'fieldPath'],
-] as const;
-
-/**
- * A ref as query parameters, for a link that opens it: `section=assets&person=declarant&item=…`.
- * Parts that are null are left out; nothing set gives an empty string.
- */
-export function sourceRefToSearch(ref: SourceRef): string {
-  const search = new URLSearchParams();
-  for (const [param, part] of PARAMS) {
-    const value = ref[part];
-    if (value) search.set(param, value);
-  }
-  return search.toString();
-}
-
-/** Reads a ref back from query parameters written by `sourceRefToSearch`, ignoring the rest. */
-export function sourceRefFromSearch(search: string | URLSearchParams): SourceRef {
-  const params = typeof search === 'string' ? new URLSearchParams(search) : search;
-  const ref: SourceRef = { sectionKey: null, personKey: null, itemId: null, fieldPath: null };
-  for (const [param, part] of PARAMS) {
-    // An empty parameter counts as absent, as `sourceRefToSearch` never writes one.
-    const value = params.get(param);
-    ref[part] = value === '' ? null : value;
-  }
-  return ref;
-}
-
-const KIND_ICONS: Record<SourceRefKind, IconProps['icon']> = {
+const KIND_ICONS: Record<SourceRefTarget, IconProps['icon']> = {
   item: File01Icon,
   person: UserIcon,
-  field: PencilEdit02Icon,
+  field: LeftToRightListBulletIcon,
   section: LeftToRightListBulletIcon,
 };
 
@@ -87,7 +52,7 @@ const DEFAULT_MESSAGES: SourceRefLinkMessages = { openPrefix: 'Open in the decla
 
 const linkClassName = cn(
   focusRing,
-  'inline-flex min-h-6 max-w-full cursor-pointer items-center gap-[5px] rounded-[7px] bg-muted py-0.5 pr-2 pl-1.5 text-left text-[12.5px] leading-[1.3] font-medium text-foreground hover:bg-border [&_svg]:size-[13px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+  'inline-flex min-h-6 max-w-full cursor-pointer items-center gap-[5px] rounded-[7px] bg-muted py-0.5 pr-2 pl-1.5 text-left text-[12.5px] leading-[1.3] font-medium text-foreground hover:bg-input [&_svg]:size-[13px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
 );
 
 export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'children' | 'onClick'> {
@@ -102,8 +67,8 @@ export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'chil
   /** Replaces the icon chosen by the ref's kind (an item's type icon, for instance). */
   icon?: IconProps['icon'];
   /**
-   * Opens the target: in the console, the declaration pane scrolled to it and highlighted; on a
-   * route, a navigation with `sourceRefToSearch`.
+   * Opens the target: in the console, the declaration pane scrolled to it and highlighted; in the
+   * portal, the field focused.
    */
   onOpen: (ref: SourceRef) => void;
   messages?: Partial<SourceRefLinkMessages>;
@@ -125,25 +90,38 @@ export function SourceRefLink({
   className,
   ...props
 }: SourceRefLinkProps) {
-  const kind = sourceRefKind(sourceRef);
+  const target = sourceRefTarget(sourceRef);
   const copy = { ...DEFAULT_MESSAGES, ...messages };
 
-  if (!kind) {
-    return <span className={cn('text-[12.5px] text-muted-foreground', className)}>{label}</span>;
+  if (!target) {
+    const { id, title, ...rest } = props;
+    const spanProps = Object.fromEntries(
+      Object.entries(rest).filter(([key]) => key.startsWith('data-') || key.startsWith('aria-')),
+    );
+    return (
+      <span
+        id={id}
+        title={title}
+        {...spanProps}
+        className={cn('text-[12.5px] text-muted-foreground', className)}
+      >
+        {label}
+      </span>
+    );
   }
 
   return (
     <button
       type="button"
-      {...props}
       aria-label={`${copy.openPrefix}: ${targetLabel ?? label}`}
-      data-kind={kind}
+      data-kind={target}
+      {...props}
       className={cn(linkClassName, className)}
       onClick={() => {
         onOpen(sourceRef);
       }}
     >
-      <Icon icon={icon ?? KIND_ICONS[kind]} />
+      <Icon icon={icon ?? KIND_ICONS[target]} />
       <span className="truncate">{label}</span>
     </button>
   );

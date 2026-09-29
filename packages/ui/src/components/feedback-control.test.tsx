@@ -225,12 +225,15 @@ describe('FeedbackControl', () => {
 
     fireEvent.click(notHelpful());
     pickReason('Unclear');
-    await press(screen.getByRole('button', { name: 'Send rating' }));
+    const sendButton = screen.getByRole('button', { name: 'Send rating' });
+    sendButton.focus();
+    await press(sendButton);
 
     expect(screen.getByRole('form')).toBeDefined();
-    // Inside a disabled fieldset: disabled, though the button's own property stays false.
-    expect(screen.getByRole('button', { name: 'Send rating' }).matches(':disabled')).toBe(true);
-    expect((helpful() as HTMLButtonElement).disabled).toBe(true);
+    // Marked busy but still focusable, so focus stays on Send rather than falling to the page.
+    expect(sendButton.getAttribute('aria-disabled')).toBe('true');
+    expect(helpful().getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement).toBe(sendButton);
     expect(screen.getByRole('status').textContent).toBe('');
 
     await act(async () => {
@@ -256,7 +259,27 @@ describe('FeedbackControl', () => {
     expect(screen.getByRole('form')).toBeDefined();
     expect(screen.getByDisplayValue('Wrong year.')).toBeDefined();
     expect(notHelpful().getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Send rating' }).matches(':disabled')).toBe(false);
+    const sendButton = screen.getByRole('button', { name: 'Send rating' });
+    expect(sendButton.hasAttribute('aria-disabled')).toBe(false);
+    expect(sendButton.matches(':disabled')).toBe(false);
+  });
+
+  it('ignores presses while a rating is saving', async () => {
+    const { promise: saved, resolve: finish } = Promise.withResolvers<undefined>();
+    const onRate = vi.fn(() => saved);
+    render(<Rated onRate={onRate} />);
+
+    await press(helpful());
+    await press(helpful());
+    fireEvent.click(notHelpful());
+
+    expect(onRate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('form')).toBeNull();
+
+    await act(async () => {
+      finish(undefined);
+      await saved;
+    });
   });
 
   it('changes the announcement so a second rating is read out again', async () => {

@@ -60,7 +60,11 @@ export interface FeedbackMessages {
   /** Announced when saving fails; the form stays open with what was entered. */
   failed: string;
   /** The read-only line: "Faith Achieng: not helpful, too long", or "Rated helpful". */
-  readOnly: (feedback: Feedback, ratedBy: string | undefined, reasonName: string | null) => string;
+  readOnlyLine: (
+    feedback: Feedback,
+    ratedBy: string | undefined,
+    reasonName: string | null,
+  ) => string;
 }
 
 const REASON_NAMES: Record<FeedbackReason, string> = {
@@ -87,7 +91,7 @@ const DEFAULT_MESSAGES: FeedbackMessages = {
   send: 'Send rating',
   sent: 'Rating sent. Thank you.',
   failed: 'Rating not sent. Try again.',
-  readOnly: ({ rating }, ratedBy, reasonName) => {
+  readOnlyLine: ({ rating }, ratedBy, reasonName) => {
     const text = `${rating === 'helpful' ? 'helpful' : 'not helpful'}${reasonName ? `, ${reasonName.toLowerCase()}` : ''}`;
     return ratedBy ? `${ratedBy}: ${text}` : `Rated ${text}`;
   },
@@ -139,6 +143,8 @@ export function FeedbackControl({
   const [missingReason, setMissingReason] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [saving, setSaving] = useState(false);
+  // While saving, the controls stay focusable (aria-disabled, presses ignored) so focus is not lost
+  // to the page; `disabled` turns them off outright.
   const busy = disabled || saving;
   const reasonRef = useRef<HTMLButtonElement>(null);
   const notHelpfulRef = useRef<HTMLButtonElement>(null);
@@ -166,7 +172,7 @@ export function FeedbackControl({
         {...props}
       >
         <Icon icon={value.rating === 'helpful' ? ThumbsUpIcon : ThumbsDownIcon} />
-        <span>{copy.readOnly(value, ratedBy, reasonName)}</span>
+        <span>{copy.readOnlyLine(value, ratedBy, reasonName)}</span>
       </div>
     );
   }
@@ -206,6 +212,7 @@ export function FeedbackControl({
 
   async function send(event: SyntheticEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!reason) {
       setMissingReason(true);
       reasonRef.current?.focus();
@@ -223,8 +230,10 @@ export function FeedbackControl({
             size="icon"
             className={rateButtonClassName}
             aria-pressed={!open && value?.rating === 'helpful'}
-            disabled={busy}
+            disabled={disabled}
+            aria-disabled={saving || undefined}
             onClick={() => {
+              if (busy) return;
               setOpen(false);
               if (value?.rating !== 'helpful')
                 void rate({ rating: 'helpful', reason: null, note: null });
@@ -243,8 +252,10 @@ export function FeedbackControl({
             aria-pressed={open || value?.rating === 'not-helpful'}
             aria-expanded={open}
             aria-controls={open ? formId : undefined}
-            disabled={busy}
+            disabled={disabled}
+            aria-disabled={saving || undefined}
             onClick={() => {
+              if (busy) return;
               if (open) setOpen(false);
               else openForm();
             }}
@@ -264,7 +275,11 @@ export function FeedbackControl({
           }}
           className="self-stretch rounded-lg bg-muted p-3"
         >
-          <fieldset disabled={busy} className="grid min-w-0 gap-2.5">
+          <fieldset
+            disabled={disabled}
+            aria-busy={saving || undefined}
+            className="grid min-w-0 gap-2.5"
+          >
             <FormField
               label={copy.reasonLabel}
               error={missingReason ? copy.reasonRequired : undefined}
@@ -277,6 +292,7 @@ export function FeedbackControl({
                   setMissingReason(false);
                 }}
                 placeholder={copy.reasonPlaceholder}
+                disabled={saving}
                 className="bg-card"
               >
                 {FEEDBACK_REASONS.map((key) => (
@@ -290,6 +306,7 @@ export function FeedbackControl({
               <Textarea
                 rows={2}
                 maxLength={FEEDBACK_NOTE_MAX_LENGTH}
+                readOnly={saving}
                 value={note}
                 onChange={(event) => {
                   setNote(event.target.value);
@@ -299,10 +316,18 @@ export function FeedbackControl({
               />
             </FormField>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={closeForm}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-disabled={saving || undefined}
+                onClick={() => {
+                  if (!saving) closeForm();
+                }}
+              >
                 {copy.cancel}
               </Button>
-              <Button type="submit" size="sm">
+              <Button type="submit" size="sm" aria-disabled={saving || undefined}>
                 {copy.send}
               </Button>
             </div>

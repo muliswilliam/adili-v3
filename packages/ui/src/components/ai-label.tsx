@@ -35,11 +35,15 @@ export interface AiLabelDetails {
   promptVersion: number;
   /** When the output was generated, as an ISO timestamp. */
   generatedAt: string;
+  /** The contract's fixed caveat ("indicators, not findings; a named officer decides"), shown last. */
+  disclaimer?: string;
 }
 
 export interface AiLabelMessages {
   /** What each task's output is called; a task missing here is printed as given. */
   taskNames: Record<string, string>;
+  /** Display names of providers; a provider missing here is printed as given. */
+  providerNames: Record<string, string>;
   /** `3` → "prompt v3". */
   promptVersion: (version: number) => string;
   /** The formatted time → "generated 2 Sep 2026, 14:33". */
@@ -48,27 +52,29 @@ export interface AiLabelMessages {
 
 const DEFAULT_MESSAGES: AiLabelMessages = {
   taskNames: AI_TASK_NAMES,
+  providerNames: AI_PROVIDER_NAMES,
   promptVersion: (version) => `prompt v${String(version)}`,
   generatedAt: (time) => `generated ${time}`,
 };
 
 /**
  * The sentence an AiLabel shows in its tooltip: "Summary · Anthropic claude-opus-5 · prompt v3 ·
- * generated 2 Sep 2026, 14:33", in Kenyan time.
+ * generated 2 Sep 2026, 14:33", in Kenyan time, followed by the disclaimer when the label has one.
  */
 export function describeAiOutput(
-  { task, provider, model, promptVersion, generatedAt }: AiLabelDetails,
+  { task, provider, model, promptVersion, generatedAt, disclaimer }: AiLabelDetails,
   messages?: Partial<AiLabelMessages>,
 ): string {
   const copy = { ...DEFAULT_MESSAGES, ...messages };
   const taskName = copy.taskNames[task] ?? task;
-  const providerName = AI_PROVIDER_NAMES[provider] ?? provider;
-  return [
+  const providerName = copy.providerNames[provider] ?? provider;
+  const sentence = [
     taskName,
     `${providerName} ${model}`,
     copy.promptVersion(promptVersion),
     copy.generatedAt(formatDateTime(generatedAt)),
   ].join(' · ');
+  return disclaimer ? `${sentence}. ${disclaimer}` : sentence;
 }
 
 export type AiLabelProps = Omit<ComponentProps<'span'>, 'children'> & {
@@ -119,7 +125,7 @@ export function AiLabel({
         className={cn(
           focusRing,
           'max-w-full font-semibold',
-          size === 'sm' && 'h-5 gap-1 px-[7px] text-[11.5px] [&_svg]:size-[11px]',
+          size === 'sm' && 'h-5 gap-1 pr-[7px] pl-[5px] text-[11.5px] [&_svg]:size-[11px]',
           className,
         )}
         {...props}

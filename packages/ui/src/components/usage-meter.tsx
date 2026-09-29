@@ -17,17 +17,18 @@ export function usagePercent(tokensUsed: number, monthlyTokens: number): number 
   return tokensUsed > 0 ? 100 : 0;
 }
 
-export function usageLevel(tokensUsed: number, monthlyTokens: number): UsageLevel {
-  const percent = usagePercent(tokensUsed, monthlyTokens);
+/** The level for a share of the budget, as `usagePercent` gives it. */
+export function usageLevel(percent: number): UsageLevel {
   if (percent >= 100) return 'used-up';
   if (percent >= USAGE_HIGH_PERCENT) return 'high';
   return 'normal';
 }
 
-/** `412800` → `413k`, `1926400` → `1.93M`, `1500000` → `1.5M`. */
+/** `412800` → `413k`, `999600` → `1M`, `1926400` → `1.93M`, `1500000` → `1.5M`. */
 export function formatTokenCount(tokens: number): string {
-  if (tokens >= 1_000_000) return `${String(Number((tokens / 1_000_000).toFixed(2)))}M`;
-  if (tokens >= 1_000) return `${String(Math.round(tokens / 1_000))}k`;
+  const thousands = Math.round(tokens / 1_000);
+  if (thousands >= 1_000) return `${String(Number((tokens / 1_000_000).toFixed(2)))}M`;
+  if (tokens >= 1_000) return `${String(thousands)}k`;
   return String(tokens);
 }
 
@@ -51,14 +52,28 @@ const DEFAULT_MESSAGES: UsageMeterMessages = {
   usedUpNote: 'Budget used up',
 };
 
-// Colours and the note added to the meter's name, per level.
-const LOOK: Record<
-  UsageLevel,
-  { text: string; bar: string; note: 'highNote' | 'usedUpNote' | null; alert: boolean }
-> = {
-  normal: { text: 'text-muted-foreground', bar: 'bg-primary', note: null, alert: false },
-  high: { text: 'text-warning', bar: 'bg-warning', note: 'highNote', alert: true },
-  'used-up': { text: 'text-destructive', bar: 'bg-destructive', note: 'usedUpNote', alert: true },
+interface Look {
+  text: string;
+  bar: string;
+  /** The note added to the meter's name; a level with a note also shows the alert icon. */
+  note: 'highNote' | 'usedUpNote' | null;
+  /** What the meter reads beside the tokens. */
+  status: (copy: UsageMeterMessages, percent: number) => string;
+}
+
+const percentStatus = (_copy: UsageMeterMessages, percent: number) =>
+  `${String(Math.floor(percent))}%`;
+
+// Colours, name note and status text, per level.
+const LOOK: Record<UsageLevel, Look> = {
+  normal: { text: 'text-muted-foreground', bar: 'bg-primary', note: null, status: percentStatus },
+  high: { text: 'text-warning', bar: 'bg-warning', note: 'highNote', status: percentStatus },
+  'used-up': {
+    text: 'text-destructive',
+    bar: 'bg-destructive',
+    note: 'usedUpNote',
+    status: (copy) => copy.usedUp,
+  },
 };
 
 export type UsageMeterProps = Omit<ComponentProps<'div'>, 'children'> & {
@@ -84,9 +99,9 @@ export function UsageMeter({
 }: UsageMeterProps) {
   const copy = { ...DEFAULT_MESSAGES, ...messages };
   const percent = usagePercent(tokensUsed, monthlyTokens);
-  const level = usageLevel(tokensUsed, monthlyTokens);
+  const level = usageLevel(percent);
   const look = LOOK[level];
-  const status = level === 'used-up' ? copy.usedUp : `${String(Math.floor(percent))}%`;
+  const status = look.status(copy, percent);
   const note = look.note ? `. ${copy[look.note]}` : '';
 
   return (
@@ -119,7 +134,7 @@ export function UsageMeter({
             look.text,
           )}
         >
-          {look.alert ? <Icon icon={Alert02Icon} strokeWidth={2.2} /> : null}
+          {look.note ? <Icon icon={Alert02Icon} strokeWidth={2.2} /> : null}
           {status}
         </span>
       </div>

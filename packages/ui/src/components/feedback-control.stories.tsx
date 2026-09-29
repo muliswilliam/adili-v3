@@ -46,8 +46,8 @@ export const ReasonMissing: Story = {
   },
 };
 
-/** Both buttons and the form are off, as while a rating is being saved. */
-export const WhileSaving: Story = { args: { disabled: true } };
+/** Both buttons and the form are off. */
+export const Disabled: Story = { args: { disabled: true } };
 
 /** A supervisor sees the reviewer's rating as text. */
 export const ReadOnly: Story = {

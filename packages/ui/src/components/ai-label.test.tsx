@@ -23,6 +23,20 @@ describe('describeAiOutput', () => {
       'rank-cases · self-hosted claude-opus-5 · prompt v3 · generated 2 Sep 2026, 14:33',
     );
   });
+
+  it('ends with the disclaimer when the label has one', () => {
+    expect(
+      describeAiOutput({ ...SUMMARY, disclaimer: 'Indicators, not findings; an officer decides.' }),
+    ).toBe(
+      'Summary · Anthropic claude-opus-5 · prompt v3 · generated 2 Sep 2026, 14:33. Indicators, not findings; an officer decides.',
+    );
+  });
+
+  it('takes other provider names', () => {
+    expect(describeAiOutput(SUMMARY, { providerNames: { anthropic: 'Anthropic PBC' } })).toBe(
+      'Summary · Anthropic PBC claude-opus-5 · prompt v3 · generated 2 Sep 2026, 14:33',
+    );
+  });
 });
 
 describe('AiLabel', () => {
