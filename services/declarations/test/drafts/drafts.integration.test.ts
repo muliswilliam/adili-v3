@@ -358,6 +358,25 @@ describe('who can start and read a draft (S3)', () => {
     expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(declarations))).toEqual([]);
   });
 
+  it.each(['filed', 'cancelled'] as const)(
+    'refuses a %s obligation with 409 even when a draft of it is still live',
+    async (status) => {
+      const { obligationId } = await givenObligation();
+      expect((await start(obligationId)).statusCode).toBe(201);
+      await api.asPlatform((tx) =>
+        tx
+          .update(filingObligations)
+          .set({ status, cancelReason: status === 'cancelled' ? 'superseded' : null })
+          .where(eq(filingObligations.id, obligationId)),
+      );
+
+      const response = await start(obligationId);
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ type: 'obligation-closed', status: 409 });
+    },
+  );
+
   it.each(['upcoming', 'overdue'] as const)('starts from an %s obligation', async (status) => {
     const { obligationId } = await givenObligation({ status });
 

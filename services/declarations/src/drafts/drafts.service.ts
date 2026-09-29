@@ -102,7 +102,7 @@ export class DraftsService {
   /**
    * The declarant's draft for the obligation: the existing live one (`created: false`), or a new
    * one derived from the obligation with bio pre-filled from the roster record. 409 when the
-   * obligation is filed or cancelled.
+   * obligation is filed or cancelled, even while a draft of it is live.
    */
   async start(
     principal: Principal,
@@ -139,7 +139,7 @@ export class DraftsService {
       return { obligation, existing, previousStatementDate: previous?.statementDate ?? null };
     });
     const { obligation, existing, previousStatementDate } = notFoundIfInvisible(found);
-    if (existing) return { created: false, declaration: await this.read(person, existing.id) };
+    // A filed or cancelled obligation is closed, whatever draft of it is still live.
     if (CLOSED_OBLIGATION_STATUSES.has(obligation.status)) {
       throw new ProblemException({
         type: 'obligation-closed',
@@ -148,6 +148,7 @@ export class DraftsService {
         detail: `No declaration can be started for a ${obligation.status} obligation.`,
       });
     }
+    if (existing) return { created: false, declaration: await this.read(person, existing.id) };
 
     const record = await this.rosterRecord(obligation.tenant, obligation.rosterRecordId);
     const header = deriveHeader(
