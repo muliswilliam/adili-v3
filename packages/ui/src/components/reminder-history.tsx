@@ -124,7 +124,7 @@ export function ReminderHistory({
             >
               {reminderChannelsLabel(reminder.channels)}
             </TableCell>
-            <TableCell className="py-2.5 pr-0 align-top last:pr-0 max-sm:mt-1 max-sm:p-0">
+            <TableCell className="min-w-44 py-2.5 pr-0 align-top last:pr-0 max-sm:mt-1 max-sm:min-w-0 max-sm:p-0">
               <ReminderOutcomeText outcome={reminder.outcome} channels={reminder.channels} />
             </TableCell>
           </TableRow>

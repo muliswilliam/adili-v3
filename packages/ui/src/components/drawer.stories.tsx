@@ -34,7 +34,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function ObligationDetail() {
+/** An obligation; `history` adds its reminder history, a table that needs the wide drawer. */
+function ObligationDetail({ history = false }: { history?: boolean }) {
   return (
     <>
       <DrawerHeader>
@@ -56,24 +57,26 @@ function ObligationDetail() {
           <DescriptionItem term="Statement date">1 Nov 2027</DescriptionItem>
           <DescriptionItem term="Due date">31 Dec 2027</DescriptionItem>
         </DescriptionList>
-        <ReminderHistory
-          reminders={[
-            {
-              offsetDays: 30,
-              scheduledAt: '2027-12-01T09:14:00.000Z',
-              sentAt: '2027-12-01T09:14:06.000Z',
-              channels: ['sms', 'email'],
-              outcome: 'sent',
-            },
-            {
-              offsetDays: 14,
-              scheduledAt: '2027-12-17T09:14:00.000Z',
-              sentAt: '2027-12-17T09:14:04.000Z',
-              channels: ['sms', 'email'],
-              outcome: 'sent',
-            },
-          ]}
-        />
+        {history ? (
+          <ReminderHistory
+            reminders={[
+              {
+                offsetDays: 30,
+                scheduledAt: '2027-12-01T09:14:00.000Z',
+                sentAt: '2027-12-01T09:14:06.000Z',
+                channels: ['sms', 'email'],
+                outcome: 'sent',
+              },
+              {
+                offsetDays: 14,
+                scheduledAt: '2027-12-17T09:14:00.000Z',
+                sentAt: '2027-12-17T09:14:04.000Z',
+                channels: ['sms', 'email'],
+                outcome: 'sent',
+              },
+            ]}
+          />
+        ) : null}
       </DrawerBody>
       <DrawerFooter>
         <Button variant="secondary">Roster record</Button>
@@ -118,7 +121,7 @@ export const Wide: Story = {
         <Button variant="secondary">Open an obligation</Button>
       </DrawerTrigger>
       <DrawerContent size="wide">
-        <ObligationDetail />
+        <ObligationDetail history />
       </DrawerContent>
     </Drawer>
   ),
