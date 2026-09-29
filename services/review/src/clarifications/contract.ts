@@ -22,17 +22,18 @@ export interface ClarificationWorkflowInput {
 
 /**
  * What `requestLetter` did: asked documents for the letter, found it `already-requested` (a
- * retried or repeated run), or found the clarification `not-issued` yet: the workflow is started
- * inside the issue transaction, so its first attempt can run before that transaction commits.
+ * retried or repeated run), found the clarification `not-issued` yet (the workflow is started
+ * inside the issue transaction, so its first attempt can run before that transaction commits), or
+ * found it `withdrawn` before any letter was asked for.
  */
-export type LetterOutcome = 'requested' | 'already-requested' | 'not-issued';
+export type LetterOutcome = 'requested' | 'already-requested' | 'not-issued' | 'withdrawn';
 
 /** notifications.yaml `Channel`, in the order the declarant is told. */
 export const NOTICE_CHANNELS = ['email', 'sms'] as const;
 export type NoticeChannel = (typeof NOTICE_CHANNELS)[number];
 
-/** The messages the declarant gets about a clarification; #174 adds the day-20 reminder. */
-export type Notice = 'issued';
+/** The messages the declarant gets about a clarification: the notice of issue and the reminder. */
+export type Notice = 'issued' | 'reminder';
 
 export interface NotifyRequest extends ClarificationWorkflowInput {
   notice: Notice;
@@ -41,12 +42,53 @@ export interface NotifyRequest extends ClarificationWorkflowInput {
 
 /**
  * What became of one message: handed to the provider, `failed` there (e.g. no verified contact
- * on the channel), or `rejected` by notifications (the request itself was refused).
+ * on the channel), `rejected` by notifications (the request itself was refused), or `skipped`: a
+ * reminder for a clarification no longer awaiting the declarant is not sent.
  */
-export type NotifyOutcome = 'sent' | 'failed' | 'rejected';
+export type NotifyOutcome = 'sent' | 'failed' | 'rejected' | 'skipped';
 
-/** How a run ended: the declarant was told, or the clarification never got issued. */
-export type ClarificationResult = { outcome: 'notified' } | { outcome: 'not-issued' };
+/**
+ * The signals that end the workflow's clock, sent after the transaction that made the change
+ * commits. They only save waiting: the activities read the clarification before acting, so a
+ * reminder or an overdue mark never follows a response, a withdrawal or a resolution.
+ */
+export const CLARIFICATION_SIGNALS = ['responded', 'withdrawn', 'resolved'] as const;
+export type ClarificationSignal = (typeof CLARIFICATION_SIGNALS)[number];
+
+/** The day after issue the declarant is reminded, unless they have responded (spec 07a). */
+export const REMINDER_DAY = 20;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * What the clock is set from: the issue time and the Commission policy's reply window, read by
+ * `clarificationClock` when the workflow starts its clock.
+ */
+export interface ClarificationClock {
+  /** ISO 8601. */
+  issuedAt: string;
+  replyWindowDays: number;
+}
+
+/**
+ * The due date (issued at plus the reply window) and the reminder (issued at plus twenty days).
+ * A reply window of twenty days or less has no reminder: it would come on or after the due date.
+ */
+export function clarificationDeadlines(
+  issuedAt: Date,
+  replyWindowDays: number,
+): { reminderAt: Date | null; dueAt: Date } {
+  const dueAt = new Date(issuedAt.getTime() + replyWindowDays * DAY_MS);
+  const reminderAt = new Date(issuedAt.getTime() + REMINDER_DAY * DAY_MS);
+  return { reminderAt: reminderAt < dueAt ? reminderAt : null, dueAt };
+}
+
+/**
+ * How a run ended: the clarification never got issued, or it was withdrawn before its letter; the
+ * clock ended on a signal; or the due date passed without a response (`overdue`).
+ */
+export type ClarificationResult =
+  { outcome: 'not-issued' } | { outcome: ClarificationSignal } | { outcome: 'overdue' };
 
 /** Failure type of a clarification that disappeared; not retried. */
 export const CLARIFICATION_MISSING = 'clarification-missing';

@@ -1,12 +1,13 @@
 import type { ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import { InternalApi, InternalApiRejected } from '../internal-api/internal-api.js';
 import {
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type RevocationReason,
   type UploadDownload,
 } from './documents-client.js';
 
@@ -24,9 +25,14 @@ export interface HttpDocumentsClientOptions {
 const downloadSchema = z.object({
   downloadUrl: z.url(),
   expiresAt: z.iso.datetime({ offset: true }),
+  purpose: z.string().min(1),
+  fileName: z.string().nullable(),
+  sha256: z.string().min(1),
 }) satisfies z.ZodType<UploadDownload>;
 
 const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
+
+const CONFLICT = 409;
 
 /** Rendering and signing a document takes seconds. */
 const ISSUE_TIMEOUT_MS = 30_000;
@@ -65,7 +71,9 @@ export class HttpDocumentsClient extends DocumentsClient {
       tenant,
       schema: downloadSchema,
     });
-    return found === null ? null : { downloadUrl: found.downloadUrl, expiresAt: found.expiresAt };
+    if (found === null) return null;
+    const { downloadUrl, expiresAt, purpose, fileName, sha256 } = found;
+    return { downloadUrl, expiresAt, purpose, fileName, sha256 };
   }
 
   async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
@@ -77,5 +85,21 @@ export class HttpDocumentsClient extends DocumentsClient {
     });
     if (!issued) throw new DocumentsUnavailable('The documents service answered 404');
     return { id: issued.id, verificationId: issued.verificationId };
+  }
+
+  async revoke(documentId: string, tenant: string, reason: RevocationReason): Promise<void> {
+    try {
+      const revoked = await this.api.post({
+        path: `internal/v1/documents/${encodeURIComponent(documentId)}/revoke`,
+        tenant,
+        body: { reason },
+        schema: issuedSchema,
+      });
+      if (!revoked) throw new DocumentsUnavailable(`Documents has no document ${documentId}`);
+    } catch (error) {
+      // Already revoked: what was asked for is done.
+      if (error instanceof InternalApiRejected && error.status === CONFLICT) return;
+      throw error;
+    }
   }
 }

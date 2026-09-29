@@ -31,9 +31,12 @@ export interface InternalPostRequest<T> extends InternalRequest<T> {
   body: unknown;
 }
 
+const CONFLICT = 409;
+
 /**
- * The service refused a write with a 4xx other than 401 and 404: the request itself is wrong
- * (validation, conflict), so sending it again changes nothing. Activities do not retry it.
+ * The service refused a write with a 4xx other than 401 and 404, or a read with 409 (the resource
+ * is in a state that refuses it, e.g. an upload that is not clean): the request itself is wrong,
+ * so sending it again changes nothing. Activities do not retry it.
  */
 export class InternalApiRejected extends Error {
   constructor(
@@ -50,7 +53,7 @@ export class InternalApiRejected extends Error {
  * credentials, one retry with a fresh token after a 401) and the Commission in `X-Acting-Tenant`.
  * A success is validated against `schema`; 404 is null; an unreachable service, a 5xx or a body
  * outside the contract is the `unavailable` error, which workflow activities retry. A write
- * refused with another 4xx is `InternalApiRejected`.
+ * refused with another 4xx, or a read refused with 409, is `InternalApiRejected`.
  */
 export class InternalApi {
   private readonly fetch: typeof fetch;
@@ -81,7 +84,11 @@ export class InternalApi {
     }
     if (response.status === 404) return null;
     const ok = response.status === 200 || (method === 'POST' && response.status === 201);
-    if (!ok && method === 'POST' && response.status >= 400 && response.status < 500) {
+    const refused =
+      method === 'POST'
+        ? response.status >= 400 && response.status < 500
+        : response.status === CONFLICT;
+    if (!ok && refused) {
       throw new InternalApiRejected(this.options.service, response.status);
     }
     if (!ok) {

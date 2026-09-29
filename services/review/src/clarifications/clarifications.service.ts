@@ -3,12 +3,13 @@ import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/ap
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, CLR } from '@adili/numbering';
-import { eq, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import {
   type CaseStatus,
   type ClarificationItem,
+  type ClarificationStatus,
   clarificationResponses,
   clarifications,
   reviewCases,
@@ -17,23 +18,39 @@ import {
 import { Clock, nairobiDate, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
+import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { requireAssignee, staffTenant } from './access.js';
-import type { ClarificationInput } from './clarification-input.js';
+import type {
+  ClarificationInput,
+  ResolutionInput,
+  WithdrawalInput,
+} from './clarification-input.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
+import { clarificationDeadlines } from './contract.js';
 import { type CaseStatusChangedData, REVIEW_CASE_STATUS_CHANGED } from '../cases/events.js';
-import { CLARIFICATION_ISSUED, type ClarificationEventData } from './events.js';
+import {
+  CLARIFICATION_ISSUED,
+  CLARIFICATION_RESOLVED,
+  CLARIFICATION_WITHDRAWN,
+  type ClarificationEventData,
+} from './events.js';
 import { clarificationView, type ClarificationView } from './representation.js';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The case status while the declarant has a clarification to answer. */
 const AWAITING: CaseStatus = 'awaiting-clarification';
 
 /**
+ * Clarifications still open on a case: awaiting the declarant (`issued`, `overdue`) or awaiting
+ * the reviewer's decision on the response (`responded`). Resolving or withdrawing closes one.
+ */
+const OPEN: readonly ClarificationStatus[] = ['issued', 'overdue', 'responded'];
+
+/**
  * Clarifications of review cases (spec 07a, Act s.35(2)-(4)): the assignee composes a draft and
  * issues it. Issuing allocates the `CLR` reference, sets the due date from the Commission's
  * policy, moves the case to `awaiting-clarification` and records the timeline entries and events
- * in one transaction, which also starts `ClarificationWorkflow` (letter, then notices).
+ * in one transaction, which also starts `ClarificationWorkflow` (letter, notices, then the clock).
+ * The assignee then resolves it, raises a follow-up or withdraws it.
  */
 @Injectable()
 export class ClarificationsService {
@@ -41,6 +58,7 @@ export class ClarificationsService {
     @InjectDatabase() private readonly db: Database<ReviewSchema>,
     private readonly events: EventPublisher,
     private readonly directory: DirectoryClient,
+    private readonly documents: DocumentsClient,
     private readonly workflows: ClarificationWorkflows,
     private readonly clock: Clock,
   ) {}
@@ -101,11 +119,7 @@ export class ClarificationsService {
         .from(clarifications)
         .where(eq(clarifications.id, clarificationId));
       const clarification = notFoundIfInvisible(found);
-      const [response] = await tx
-        .select()
-        .from(clarificationResponses)
-        .where(eq(clarificationResponses.clarificationId, clarificationId));
-      return clarificationView(clarification, response ?? null);
+      return clarificationView(clarification, await responseOf(tx, clarificationId));
     });
   }
 
@@ -147,7 +161,7 @@ export class ClarificationsService {
         issuer: commission.issuerCode,
         period: nairobiYear(now),
       });
-      const dueAt = new Date(now.getTime() + policy.replyWindowDays * DAY_MS);
+      const { dueAt } = clarificationDeadlines(now, policy.replyWindowDays);
       const [issued] = await tx
         .update(clarifications)
         .set({ status: 'issued', reference, issuedAt: now, dueAt })
@@ -177,27 +191,206 @@ export class ClarificationsService {
         data: { clarificationId, caseId: kase.id },
       });
       if (kase.status !== AWAITING) {
-        await tx.insert(reviewTimeline).values({
-          id: uuidv7(),
-          tenant,
-          caseId: kase.id,
-          kind: 'status-changed',
-          ref: null,
-          actor: principal.subject,
-          summary: `Status changed from ${kase.status} to ${AWAITING}`,
-        });
-        await this.events.record<CaseStatusChangedData>(tx, {
-          type: REVIEW_CASE_STATUS_CHANGED,
-          subject: kase.id,
-          tenant,
-          data: { caseId: kase.id, from: kase.status, to: AWAITING },
-        });
+        await this.changeStatus(tx, tenant, kase.id, kase.status, AWAITING, principal.subject);
       }
 
       // Last, inside the transaction: if Temporal cannot be reached nothing is issued. The
       // workflow's first activity waits for this transaction to commit.
       await this.workflows.start({ tenant, clarificationId });
       return clarificationView(notFoundIfInvisible(issued));
+    });
+  }
+
+  /**
+   * The assignee marks an open clarification resolved with a note. When no other clarification of
+   * the case is open, the case is `clarified` and then `ready-for-determination` (spec 08). The
+   * workflow's clock ends.
+   */
+  async resolve(
+    principal: Principal,
+    clarificationId: string,
+    input: ResolutionInput,
+  ): Promise<ClarificationView> {
+    const tenant = staffTenant(principal);
+    const now = this.clock.now();
+    const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      requireAssignee(principal, kase.assignee);
+      requireOpen(clarification.status, 'resolved');
+      const [resolved] = await tx
+        .update(clarifications)
+        .set({ status: 'resolved', resolvedAt: now, resolutionNote: input.note })
+        .where(eq(clarifications.id, clarificationId))
+        .returning();
+      const done = notFoundIfInvisible(resolved);
+      await tx.insert(reviewTimeline).values({
+        id: uuidv7(),
+        tenant,
+        caseId: kase.id,
+        kind: 'clarification-resolved',
+        ref: clarificationId,
+        actor: principal.subject,
+        summary: `Clarification ${done.reference ?? clarificationId} resolved`,
+      });
+      await this.events.record<ClarificationEventData>(tx, {
+        type: CLARIFICATION_RESOLVED,
+        subject: clarificationId,
+        tenant,
+        data: { clarificationId, caseId: kase.id },
+      });
+      await this.settleCase(tx, tenant, kase, principal.subject);
+      return clarificationView(done, await responseOf(tx, clarificationId));
+    });
+    await this.workflows.signal(clarificationId, 'resolved');
+    return view;
+  }
+
+  /**
+   * The assignee raises a follow-up: a new draft of the same case with the items of the
+   * clarification it follows and `followUpOf` naming it. Once issued it has its own `CLR`
+   * reference, letter and clock.
+   */
+  async followUp(principal: Principal, clarificationId: string): Promise<ClarificationView> {
+    const tenant = staffTenant(principal);
+    return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      requireAssignee(principal, kase.assignee);
+      if (clarification.status === 'draft' || clarification.status === 'withdrawn') {
+        throw new ProblemException(
+          {
+            type: 'not-followable',
+            title: 'Conflict',
+            status: HttpStatus.CONFLICT,
+            detail: `A ${clarification.status} clarification cannot be followed up.`,
+          },
+          { code: 'not-followable' },
+        );
+      }
+      const [created] = await tx
+        .insert(clarifications)
+        .values({
+          id: uuidv7(),
+          tenant,
+          caseId: kase.id,
+          personId: clarification.personId,
+          status: 'draft',
+          items: clarification.items.map((item) => ({ ...item, id: uuidv7() })),
+          followUpOf: clarificationId,
+          createdBy: principal.subject,
+        })
+        .returning();
+      return clarificationView(notFoundIfInvisible(created));
+    });
+  }
+
+  /**
+   * The assignee withdraws a clarification issued in error: it becomes `withdrawn` with the
+   * reason, its letter is revoked through documents as `issued-in-error` (last before commit, so
+   * a documents outage is a 503 and nothing changes), and the workflow's clock ends. When no
+   * clarification of the case is left open, the case moves on as after a resolution, or back to
+   * `assigned` when none was resolved.
+   */
+  async withdraw(
+    principal: Principal,
+    clarificationId: string,
+    input: WithdrawalInput,
+  ): Promise<ClarificationView> {
+    const tenant = staffTenant(principal);
+    const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      requireAssignee(principal, kase.assignee);
+      requireOpen(clarification.status, 'withdrawn');
+      const [withdrawn] = await tx
+        .update(clarifications)
+        .set({ status: 'withdrawn', withdrawnReason: input.reason })
+        .where(eq(clarifications.id, clarificationId))
+        .returning();
+      const done = notFoundIfInvisible(withdrawn);
+      await tx.insert(reviewTimeline).values({
+        id: uuidv7(),
+        tenant,
+        caseId: kase.id,
+        kind: 'clarification-withdrawn',
+        ref: clarificationId,
+        actor: principal.subject,
+        summary: `Clarification ${done.reference ?? clarificationId} withdrawn as issued in error`,
+      });
+      await this.events.record<ClarificationEventData>(tx, {
+        type: CLARIFICATION_WITHDRAWN,
+        subject: clarificationId,
+        tenant,
+        data: { clarificationId, caseId: kase.id },
+      });
+      await this.settleCase(tx, tenant, kase, principal.subject);
+      // A letter documents is still rendering is revoked by the workflow when it is kept.
+      const letter = done.letterDocumentId;
+      if (letter !== null) {
+        await withDocuments(() => this.documents.revoke(letter, tenant, 'issued-in-error'));
+      }
+      return clarificationView(done, await responseOf(tx, clarificationId));
+    });
+    await this.workflows.signal(clarificationId, 'withdrawn');
+    return view;
+  }
+
+  /**
+   * After a clarification closed: the case's count of open clarifications and, when none is left
+   * while the case awaits clarification, its status: `clarified` then `ready-for-determination`
+   * when a clarification of the case was resolved, else back to `assigned`.
+   */
+  private async settleCase(
+    tx: Transaction,
+    tenant: string,
+    kase: { id: string; status: CaseStatus },
+    actor: string,
+  ): Promise<void> {
+    const [open] = await tx
+      .select({ value: count() })
+      .from(clarifications)
+      .where(and(eq(clarifications.caseId, kase.id), inArray(clarifications.status, OPEN)));
+    const openCount = open?.value ?? 0;
+    await tx
+      .update(reviewCases)
+      .set({ openClarifications: openCount })
+      .where(eq(reviewCases.id, kase.id));
+    if (openCount > 0 || kase.status !== AWAITING) return;
+    const [resolved] = await tx
+      .select({ value: count() })
+      .from(clarifications)
+      .where(and(eq(clarifications.caseId, kase.id), eq(clarifications.status, 'resolved')));
+    const path: CaseStatus[] =
+      (resolved?.value ?? 0) > 0 ? ['clarified', 'ready-for-determination'] : ['assigned'];
+    let from = kase.status;
+    for (const to of path) {
+      await this.changeStatus(tx, tenant, kase.id, from, to, actor);
+      from = to;
+    }
+  }
+
+  /** Moves the case to `to`, with the timeline entry and `review.case.status-changed.v1`. */
+  private async changeStatus(
+    tx: Transaction,
+    tenant: string,
+    caseId: string,
+    from: CaseStatus,
+    to: CaseStatus,
+    actor: string,
+  ): Promise<void> {
+    await tx.update(reviewCases).set({ status: to }).where(eq(reviewCases.id, caseId));
+    await tx.insert(reviewTimeline).values({
+      id: uuidv7(),
+      tenant,
+      caseId,
+      kind: 'status-changed',
+      ref: null,
+      actor,
+      summary: `Status changed from ${from} to ${to}`,
+    });
+    await this.events.record<CaseStatusChangedData>(tx, {
+      type: REVIEW_CASE_STATUS_CHANGED,
+      subject: caseId,
+      tenant,
+      data: { caseId, from, to },
     });
   }
 }
@@ -225,6 +418,14 @@ async function lockForWork(tx: Transaction, clarificationId: string) {
   return { clarification, kase: notFoundIfInvisible(kase) };
 }
 
+async function responseOf(tx: Transaction, clarificationId: string) {
+  const [response] = await tx
+    .select()
+    .from(clarificationResponses)
+    .where(eq(clarificationResponses.clarificationId, clarificationId));
+  return response ?? null;
+}
+
 function storedItems(input: ClarificationInput): ClarificationItem[] {
   return input.items.map((item) => ({
     id: uuidv7(),
@@ -248,6 +449,20 @@ function notADraft(): ProblemException {
   );
 }
 
+/** Resolving and withdrawing act on an open clarification only. */
+function requireOpen(status: ClarificationStatus, action: 'resolved' | 'withdrawn'): void {
+  if (OPEN.includes(status)) return;
+  throw new ProblemException(
+    {
+      type: 'clarification-not-open',
+      title: 'Conflict',
+      status: HttpStatus.CONFLICT,
+      detail: `A ${status} clarification cannot be ${action}.`,
+    },
+    { code: 'clarification-not-open', status },
+  );
+}
+
 /** A directory outage is a 503 the reviewer can retry; nothing has been issued. */
 export async function withDirectory<T>(call: () => Promise<T>): Promise<T> {
   try {
@@ -259,6 +474,21 @@ export async function withDirectory<T>(call: () => Promise<T>): Promise<T> {
       title: 'Service Unavailable',
       status: HttpStatus.SERVICE_UNAVAILABLE,
       detail: 'The Commission directory cannot be reached. Try again shortly.',
+    });
+  }
+}
+
+/** A documents outage is a 503 the caller can retry; nothing has changed. */
+export async function withDocuments<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (!(error instanceof DocumentsUnavailable)) throw error;
+    throw new ProblemException({
+      type: 'documents-unavailable',
+      title: 'Service Unavailable',
+      status: HttpStatus.SERVICE_UNAVAILABLE,
+      detail: 'The documents service cannot be reached. Try again shortly.',
     });
   }
 }

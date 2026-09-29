@@ -15,7 +15,15 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { type ClarificationInput, clarificationInput, uuidParam } from './clarification-input.js';
+import {
+  type ClarificationInput,
+  clarificationInput,
+  type ResolutionInput,
+  resolutionInput,
+  uuidParam,
+  type WithdrawalInput,
+  withdrawalInput,
+} from './clarification-input.js';
 import { ClarificationsService } from './clarifications.service.js';
 import type { ClarificationView } from './representation.js';
 
@@ -102,5 +110,66 @@ export class ClarificationsController {
     @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
   ): Promise<ClarificationView> {
     return this.clarifications.issue(principal, clarificationId);
+  }
+
+  @Post('clarifications/:clarificationId/resolve')
+  @HttpCode(200)
+  @ApiUuidParam('clarificationId')
+  @ApiOperation({
+    operationId: 'resolveClarification',
+    summary: 'Mark the clarification resolved with a note',
+  })
+  @ApiOkResponse({ description: 'Resolved', schema: schemaRef('Clarification') })
+  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(403, NOT_ASSIGNEE)
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `clarification-not-open`')
+  resolve(
+    @CurrentPrincipal() principal: Principal,
+    @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
+    @Body(new ZodValidationPipe(resolutionInput)) body: ResolutionInput,
+  ): Promise<ClarificationView> {
+    return this.clarifications.resolve(principal, clarificationId, body);
+  }
+
+  @Post('clarifications/:clarificationId/follow-up')
+  @ApiUuidParam('clarificationId')
+  @ApiOperation({
+    operationId: 'createFollowUpClarification',
+    summary: 'Create a new draft pre-filled with the unresolved items',
+  })
+  @ApiCreatedResponse({
+    description: 'Draft with followUpOf set',
+    schema: schemaRef('Clarification'),
+  })
+  @ApiProblemResponse(403, NOT_ASSIGNEE)
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `not-followable` (a draft or a withdrawn clarification)')
+  followUp(
+    @CurrentPrincipal() principal: Principal,
+    @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
+  ): Promise<ClarificationView> {
+    return this.clarifications.followUp(principal, clarificationId);
+  }
+
+  @Post('clarifications/:clarificationId/withdraw')
+  @HttpCode(200)
+  @ApiUuidParam('clarificationId')
+  @ApiOperation({
+    operationId: 'withdrawClarification',
+    summary: 'Withdraw an issued clarification (letter revoked as issued in error)',
+  })
+  @ApiOkResponse({ description: 'Withdrawn', schema: schemaRef('Clarification') })
+  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(403, NOT_ASSIGNEE)
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `clarification-not-open`')
+  @ApiProblemResponse(503, 'The documents service could not revoke the letter; nothing changed')
+  withdraw(
+    @CurrentPrincipal() principal: Principal,
+    @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
+    @Body(new ZodValidationPipe(withdrawalInput)) body: WithdrawalInput,
+  ): Promise<ClarificationView> {
+    return this.clarifications.withdraw(principal, clarificationId, body);
   }
 }

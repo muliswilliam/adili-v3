@@ -27,3 +27,25 @@ export const clarificationInput = z.object({
 export type ClarificationInput = z.infer<typeof clarificationInput>;
 
 export const uuidParam = z.uuid();
+
+/** review.yaml `resolveClarification` body: the reviewer's note. */
+export const resolutionInput = z.object({ note: z.string().trim().min(1).max(2000) });
+export type ResolutionInput = z.infer<typeof resolutionInput>;
+
+/** review.yaml `withdrawClarification` body: why it was issued in error. */
+export const withdrawalInput = z.object({ reason: z.string().trim().min(1).max(1000) });
+export type WithdrawalInput = z.infer<typeof withdrawalInput>;
+
+/** review.yaml `ClarificationResponseInput`: the declarant's answers, by item position. */
+export const responseInput = z.object({
+  items: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        text: z.string().trim().min(1).max(2000),
+        attachments: z.array(z.uuid()).max(10),
+      }),
+    )
+    .min(1),
+});
+export type ResponseInput = z.infer<typeof responseInput>;

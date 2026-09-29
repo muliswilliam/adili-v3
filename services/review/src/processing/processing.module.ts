@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { TemporalWorkerModule } from '@adili/temporal';
 
 import { ClarificationActivities } from '../clarifications/activities.js';
+import { ClockModule } from '../clock.module.js';
 import { config } from '../config.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
@@ -35,7 +36,13 @@ const workflowsPath = fileURLToPath(
       workflowsPath,
       // One worker per service: every workflow of the review service runs on this queue.
       activities: [ProcessingActivities, ClarificationActivities],
-      imports: [DeclarationsModule, DirectoryModule, DocumentsModule, NotificationsModule],
+      imports: [
+        ClockModule,
+        DeclarationsModule,
+        DirectoryModule,
+        DocumentsModule,
+        NotificationsModule,
+      ],
     }),
   ],
   controllers: [DeclarationSubmittedConsumer],

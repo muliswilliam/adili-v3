@@ -11,6 +11,7 @@ import {
   type PulledVersion,
 } from '../declarations/declarations-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
+import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { caseTenant } from './access.js';
 import {
@@ -103,9 +104,11 @@ export class CaseViewService {
     notFoundIfInvisible(pulled.attachments.find((attachment) => attachment.uploadId === upload));
     let link: AttachmentDownload | null;
     try {
-      link = await this.documents.getUploadDownload(upload, tenant);
+      const found = await this.documents.getUploadDownload(upload, tenant);
+      link = found && { downloadUrl: found.downloadUrl, expiresAt: found.expiresAt };
     } catch (error) {
-      if (error instanceof DocumentsUnavailable) {
+      // A filed attachment is clean; one documents refuses is as good as unreachable.
+      if (error instanceof DocumentsUnavailable || error instanceof InternalApiRejected) {
         throw unavailable(
           'documents-unavailable',
           'The documents service could not give the link.',

@@ -260,6 +260,46 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/{documentId}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      tags:
+        - internal
+      summary: Revoke an issued document (services)
+      description: |
+        Sets `status` to revoked with the reason, e.g. a clarification letter withdrawn as issued
+        in error (spec 07a); the verify page then shows the document revoked. Service tokens with
+        scope documents:internal, acting in X-Acting-Tenant for the issuing tenant. A document
+        already revoked is refused with 409.
+      operationId: revokeDocument
+      x-draft: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  $ref: '#/components/schemas/RevocationReason'
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already revoked
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/documents/{documentId}:
     parameters:
       - $ref: '#/components/parameters/DocumentId'
@@ -551,6 +591,10 @@ components:
         - superseded
         - revoked
         - expired
+    RevocationReason:
+      type: string
+      enum:
+        - issued-in-error
     IssueDocument:
       type: object
       required:

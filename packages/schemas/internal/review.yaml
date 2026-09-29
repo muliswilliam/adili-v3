@@ -469,7 +469,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not issued or responded
+          description: 'Problem code `clarification-not-open`: not issued, overdue or responded'
           content:
             application/problem+json:
               schema:
@@ -492,6 +492,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `not-followable`: a draft or a withdrawn clarification'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/clarifications/{clarificationId}/withdraw:
     parameters:
       - $ref: '#/components/parameters/ClarificationId'
@@ -523,7 +529,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not issued
+          description: 'Problem code `clarification-not-open`: not issued, overdue or responded'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not revoke the letter; nothing changed
           content:
             application/problem+json:
               schema:
@@ -587,7 +599,16 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already responded, withdrawn or resolved; or an attachment is not clean
+          description: |
+            Problem code `already-responded`, `clarification-closed` (withdrawn or resolved),
+            `attachment-not-clean` or `attachment-not-accepted` (not an upload of the Commission
+            with purpose clarification-attachment)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not check the attachments; nothing changed
           content:
             application/problem+json:
               schema:
@@ -2006,7 +2027,8 @@ components:
             properties:
               index:
                 type: integer
-                description: Position of the clarification item being answered
+                minimum: 0
+                description: Position of the clarification item being answered, once each
               text:
                 type: string
                 minLength: 1

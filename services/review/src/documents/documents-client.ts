@@ -1,8 +1,17 @@
-/** A short-lived link to a clean upload (documents.yaml `UploadDownload`). */
+/**
+ * A short-lived link to a clean upload, with what the upload is (documents.yaml `UploadDownload`):
+ * its purpose, the name it was given (display only) and its SHA-256.
+ */
 export interface UploadDownload {
   downloadUrl: string;
   expiresAt: string;
+  purpose: string;
+  fileName: string | null;
+  sha256: string;
 }
+
+/** Why a document is revoked (documents.yaml `RevocationReason`). */
+export type RevocationReason = 'issued-in-error';
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
@@ -51,7 +60,8 @@ export class DocumentsUnavailable extends Error {
 export abstract class DocumentsClient {
   /**
    * A presigned GET on a clean upload of the Commission (`getUploadDownload`); null when the
-   * Commission has no such upload. Documents records the download in its own audit trail.
+   * Commission has no such upload. Throws `InternalApiRejected` (409) when the upload is not
+   * clean. Documents records the download in its own audit trail.
    */
   abstract getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null>;
 
@@ -60,4 +70,10 @@ export abstract class DocumentsClient {
    * `InternalApiRejected` when documents refuses the request.
    */
   abstract issue(request: IssueDocumentRequest): Promise<IssuedDocument>;
+
+  /**
+   * Revokes an issued document of the Commission (`revokeDocument`): its verify page then shows it
+   * revoked, with the reason. A document already revoked is left as it is.
+   */
+  abstract revoke(documentId: string, tenant: string, reason: RevocationReason): Promise<void>;
 }

@@ -1,9 +1,20 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiProblemResponse, schemaRef, ZodValidationPipe } from '@adili/api-kit';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  ApiProblemResponse,
+  RequireIdempotencyKey,
+  schemaRef,
+  ZodValidationPipe,
+} from '@adili/api-kit';
 
 import { DeclarantPerson } from './access.js';
-import { uuidParam } from './clarification-input.js';
+import { type ResponseInput, responseInput, uuidParam } from './clarification-input.js';
 import { DeclarantClarificationsService } from './declarant-clarifications.service.js';
 import type { DeclarantClarificationView } from './representation.js';
 
@@ -45,5 +56,28 @@ export class DeclarantClarificationsController {
     @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
   ): Promise<DeclarantClarificationView> {
     return this.clarifications.get(personId, clarificationId);
+  }
+
+  @Post(':clarificationId/response')
+  @RequireIdempotencyKey()
+  @ApiParam({ name: 'clarificationId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'respondToClarification',
+    summary: 'Submit the response once (accepted after the due date, marked late)',
+  })
+  @ApiCreatedResponse({ description: 'Responded', schema: schemaRef('DeclarantClarification') })
+  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(
+    409,
+    'Problem code `already-responded`, `clarification-closed`, `attachment-not-clean` or `attachment-not-accepted`',
+  )
+  @ApiProblemResponse(503, 'The documents service could not check the attachments')
+  respond(
+    @DeclarantPerson() personId: string,
+    @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
+    @Body(new ZodValidationPipe(responseInput)) body: ResponseInput,
+  ): Promise<DeclarantClarificationView> {
+    return this.clarifications.respond(personId, clarificationId, body);
   }
 }
