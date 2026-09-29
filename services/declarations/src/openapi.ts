@@ -16,6 +16,15 @@ import {
   sectionSaveResultSchema,
 } from './drafts/representation.js';
 import {
+  corpusImportResultSchema,
+  corpusPassageSchema,
+  helpArticleInputSchema,
+  helpArticleSchema,
+  helpLanguageSchema,
+  helpPassageSchema,
+  helpTagSchema,
+} from './help/representation.js';
+import {
   cancelReasonSchema,
   commissionRefSchema,
   commissionSummarySchema,
@@ -76,4 +85,11 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarationAttachment: declarationAttachmentSchema,
   DeclarationSummary: declarationSummarySchema,
   DeclarationListItem: declarationListItemSchema,
+  HelpLanguage: helpLanguageSchema,
+  HelpTag: helpTagSchema,
+  HelpPassage: helpPassageSchema,
+  HelpArticleInput: helpArticleInputSchema,
+  HelpArticle: helpArticleSchema,
+  CorpusPassage: corpusPassageSchema,
+  CorpusImportResult: corpusImportResultSchema,
 };

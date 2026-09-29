@@ -18,6 +18,7 @@ import {
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { DraftsModule } from './drafts/drafts.module.js';
+import { HelpModule } from './help/help.module.js';
 import { ObligationsModule } from './obligations/obligations.module.js';
 
 const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
@@ -58,6 +59,7 @@ class FieldCipherModule {}
     FieldCipherModule,
     ObligationsModule,
     DraftsModule,
+    HelpModule,
   ],
 })
 export class AppModule {}
