@@ -259,20 +259,19 @@ paths:
         action: obligations.listed
         resource: filing-obligation
   /v1/obligations/{id}/declaration:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
     post:
       tags:
         - declarations
       summary: Start (or return the existing) draft declaration for the declarant's obligation
-      description: Type, statement date and income period are derived from the obligation. Declarant only.
+      description: Type, statement date and income period are derived from the obligation; bio is pre-filled from the roster record. Declarant only.
       operationId: startDeclaration
-      x-draft: true
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Existing draft
@@ -287,9 +286,180 @@ paths:
               schema:
                 $ref: '#/components/schemas/Declaration'
         '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Obligation is filed or cancelled (`obligation-closed`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The roster record could not be read (`directory-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}:
+    get:
+      tags:
+        - declarations
+      summary: Draft header and section completeness (no contents)
+      operationId: getDeclaration
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The draft
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - declarations
+      summary: Discard the draft
+      operationId: discardDeclaration
+      x-draft: true
+      parameters:
+        - $ref: '#/components/parameters/DeclarationId'
+      responses:
+        '204':
+          description: Discarded
+        '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Obligation is filed or cancelled
+          description: Not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/sections/{sectionKey}:
+    get:
+      tags:
+        - declarations
+      summary: One section's contents (decrypted for the owning declarant)
+      operationId: getDeclarationSection
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: sectionKey
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/SectionKey'
+      responses:
+        '200':
+          description: Section contents
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionEnvelope'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.section.read
+        resource: declaration-section
+    put:
+      tags:
+        - declarations
+      summary: Save a section (autosave); requires If-Match with the current draft version
+      description: The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out.
+      operationId: saveDeclarationSection
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: sectionKey
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/SectionKey'
+        - name: If-Match
+          in: header
+          description: The draft version read (its ETag)
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SectionContents'
+      responses:
+        '200':
+          description: Saved; new version in ETag
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionSaveResult'
+        '400':
+          description: Validation failed, or a locked field was changed (`identity-locked-field`), or a nil flag conflicts with items (`nil-conflicts-with-items`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Not a draft (`declaration-not-draft`), or the statement is archived (`section-archived`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '412':
+          description: If-Match does not match the current draft version (`draft-version-mismatch`); reload
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '428':
+          description: If-Match header missing (`if-match-required`)
           content:
             application/problem+json:
               schema:
@@ -312,118 +482,6 @@ paths:
                   $ref: '#/components/schemas/DeclarationListItem'
         '404':
           $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    get:
-      tags:
-        - declarations
-      summary: Draft header and section completeness (no contents)
-      operationId: getDeclaration
-      x-draft: true
-      responses:
-        '200':
-          description: The draft
-          headers:
-            ETag:
-              schema:
-                type: string
-              description: Draft version for If-Match on section saves
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Declaration'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    delete:
-      tags:
-        - declarations
-      summary: Discard the draft
-      operationId: discardDeclaration
-      x-draft: true
-      responses:
-        '204':
-          description: Discarded
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Not a draft
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/sections/{sectionKey}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/SectionKey'
-    get:
-      tags:
-        - declarations
-      summary: One section's contents (decrypted for the owning declarant)
-      operationId: getDeclarationSection
-      x-draft: true
-      responses:
-        '200':
-          description: Section contents
-          headers:
-            ETag:
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SectionEnvelope'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      tags:
-        - declarations
-      summary: Save a section (autosave); requires If-Match with the current draft version
-      operationId: saveDeclarationSection
-      x-draft: true
-      parameters:
-        - name: If-Match
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SectionContents'
-      responses:
-        '200':
-          description: Saved; new version in ETag
-          headers:
-            ETag:
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SectionSaveResult'
-        '400':
-          description: Validation failed, or a locked field was changed (code `identity-locked-field`), or nil flag conflicts with items (code `nil-conflicts-with-items`)
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '412':
-          description: If-Match does not match the current draft version; reload
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '428':
-          description: If-Match header missing
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/attachments:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -1976,6 +2034,205 @@ components:
         - cycle
         - commissions
         - totals
+    SectionKey:
+      type: string
+      pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
+      description: bio, household, other, or statement:<personKey>
+    Completeness:
+      type: string
+      enum:
+        - not-started
+        - incomplete
+        - complete
+        - archived
+    DeclarationStatus:
+      type: string
+      enum:
+        - draft
+        - amending
+        - submitted
+        - discarded
+    Declaration:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        obligationId:
+          type: string
+          format: uuid
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        incomePeriod:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+              description: 'Exclusive: the income period is (from, to]'
+            to:
+              type: string
+              format: date
+            fromSource:
+              type: string
+              enum:
+                - declared
+                - assumed
+              description: '`declared`: from is the statement date of a declaration on Adili; `assumed`: there is none, so it was derived from the type'
+          required:
+            - from
+            - to
+            - fromSource
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+        schemaVersion:
+          type: string
+          const: declaration.v1
+        draftVersion:
+          type: integer
+          description: Also the ETag; send it as If-Match on section saves
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                $ref: '#/components/schemas/SectionKey'
+              completeness:
+                $ref: '#/components/schemas/Completeness'
+              updatedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                  - type: 'null'
+                description: Null until the declarant first saves the section
+              personName:
+                description: Whose financial statement it is, for statement sections
+                type:
+                  - string
+                  - 'null'
+              counts:
+                description: Items by category, e.g. income, assets, liabilities
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  type: integer
+            required:
+              - key
+              - completeness
+              - updatedAt
+              - personName
+          description: Sections in First Schedule order; archived statements listed with completeness archived
+        lastSection:
+          anyOf:
+            - $ref: '#/components/schemas/SectionKey'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - obligationId
+        - commission
+        - type
+        - statementDate
+        - incomePeriod
+        - status
+        - schemaVersion
+        - draftVersion
+        - sections
+        - lastSection
+        - createdAt
+        - updatedAt
+    SectionContents:
+      type: object
+      propertyNames:
+        type: string
+      additionalProperties: {}
+      description: 'The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation'
+    CompletenessIssue:
+      type: object
+      properties:
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        path:
+          type: string
+          description: JSON pointer within the section contents
+        code:
+          type: string
+        message:
+          type: string
+      required:
+        - sectionKey
+        - path
+        - code
+        - message
+    SectionEnvelope:
+      type: object
+      properties:
+        key:
+          $ref: '#/components/schemas/SectionKey'
+        completeness:
+          $ref: '#/components/schemas/Completeness'
+        contents:
+          $ref: '#/components/schemas/SectionContents'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessIssue'
+        draftVersion:
+          type: integer
+      required:
+        - key
+        - completeness
+        - contents
+        - issues
+        - draftVersion
+    SectionSaveResult:
+      type: object
+      properties:
+        key:
+          $ref: '#/components/schemas/SectionKey'
+        completeness:
+          $ref: '#/components/schemas/Completeness'
+        draftVersion:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessIssue'
+        sectionsChanged:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                $ref: '#/components/schemas/SectionKey'
+              action:
+                type: string
+                enum:
+                  - created
+                  - archived
+                  - restored
+            required:
+              - key
+              - action
+          description: Statement sections created or archived by a household save
+      required:
+        - key
+        - completeness
+        - draftVersion
+        - issues
+        - sectionsChanged
     ProblemDetails:
       type: object
       properties:
@@ -2116,128 +2373,6 @@ components:
                 type: object
                 description: Subset of the declaration.v1 document limited to the granted persons and sections
                 additionalProperties: true
-    SectionKey:
-      type: string
-      description: bio, household, other, or statement:<personKey>
-      pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
-    Completeness:
-      type: string
-      enum:
-        - not-started
-        - incomplete
-        - complete
-        - archived
-    DeclarationStatus:
-      type: string
-      enum:
-        - draft
-        - amending
-        - submitted
-        - discarded
-    Declaration:
-      type: object
-      required:
-        - id
-        - obligationId
-        - commission
-        - type
-        - statementDate
-        - incomePeriod
-        - status
-        - schemaVersion
-        - draftVersion
-        - sections
-        - createdAt
-        - updatedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        obligationId:
-          type: string
-          format: uuid
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        type:
-          $ref: '#/components/schemas/ObligationType'
-        statementDate:
-          type: string
-          format: date
-        incomePeriod:
-          type: object
-          required:
-            - from
-            - to
-            - fromSource
-          properties:
-            from:
-              type: string
-              format: date
-            to:
-              type: string
-              format: date
-            fromSource:
-              type: string
-              enum:
-                - declared
-                - assumed
-        status:
-          $ref: '#/components/schemas/DeclarationStatus'
-        schemaVersion:
-          const: declaration.v1
-        draftVersion:
-          type: integer
-        sections:
-          type: array
-          description: Live sections in First Schedule order; archived statements listed with completeness archived
-          items:
-            type: object
-            required:
-              - key
-              - completeness
-              - updatedAt
-              - personName
-            properties:
-              key:
-                $ref: '#/components/schemas/SectionKey'
-              completeness:
-                $ref: '#/components/schemas/Completeness'
-              updatedAt:
-                type:
-                  - string
-                  - 'null'
-                format: date-time
-              personName:
-                type:
-                  - string
-                  - 'null'
-                description: For statement sections
-              counts:
-                type: object
-                additionalProperties:
-                  type: integer
-        lastSection:
-          oneOf:
-            - $ref: '#/components/schemas/SectionKey'
-            - type: 'null'
-        reference:
-          oneOf:
-            - $ref: '#/components/schemas/DeclarationReference'
-            - type: 'null'
-        currentVersion:
-          type:
-            - integer
-            - 'null'
-        amendingFromVersion:
-          type:
-            - integer
-            - 'null'
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
     DeclarationListItem:
       type: object
       required:
@@ -2272,83 +2407,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-    SectionContents:
-      type: object
-      description: 'The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation'
-      additionalProperties: true
-    SectionEnvelope:
-      type: object
-      required:
-        - key
-        - completeness
-        - contents
-        - draftVersion
-      properties:
-        key:
-          $ref: '#/components/schemas/SectionKey'
-        completeness:
-          $ref: '#/components/schemas/Completeness'
-        contents:
-          $ref: '#/components/schemas/SectionContents'
-        issues:
-          type: array
-          items:
-            $ref: '#/components/schemas/CompletenessIssue'
-        draftVersion:
-          type: integer
-    SectionSaveResult:
-      type: object
-      required:
-        - key
-        - completeness
-        - draftVersion
-        - issues
-        - sectionsChanged
-      properties:
-        key:
-          $ref: '#/components/schemas/SectionKey'
-        completeness:
-          $ref: '#/components/schemas/Completeness'
-        draftVersion:
-          type: integer
-        issues:
-          type: array
-          items:
-            $ref: '#/components/schemas/CompletenessIssue'
-        sectionsChanged:
-          type: array
-          description: Statement sections created or archived by a household save
-          items:
-            type: object
-            required:
-              - key
-              - action
-            properties:
-              key:
-                $ref: '#/components/schemas/SectionKey'
-              action:
-                type: string
-                enum:
-                  - created
-                  - archived
-                  - restored
-    CompletenessIssue:
-      type: object
-      required:
-        - sectionKey
-        - path
-        - code
-        - message
-      properties:
-        sectionKey:
-          $ref: '#/components/schemas/SectionKey'
-        path:
-          type: string
-          description: JSON pointer within the section contents
-        code:
-          type: string
-        message:
-          type: string
     SuggestionSource:
       type: string
       enum:

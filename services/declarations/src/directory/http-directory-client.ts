@@ -36,6 +36,8 @@ const rosterRecordSchema = z.object({
   tenant: z.string(),
   personnelFileNumber: z.string(),
   fullName: z.string(),
+  designation: z.string().nullable(),
+  reportingEntity: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   state: z.enum(['not_onboarded', 'onboarded', 'exited']),
   appointmentDate: civilDate.nullable(),
   exitDate: civilDate.nullable(),

@@ -1,0 +1,184 @@
+import { Body, Controller, Get, Headers, HttpStatus, Param, Post, Put, Res } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  ApiProblemResponse,
+  AuditedRead,
+  CurrentPrincipal,
+  type Principal,
+  schemaRef,
+} from '@adili/api-kit';
+
+import { DraftsService } from './drafts.service.js';
+import type { Declaration, SectionEnvelope, SectionSaveResult } from './representation.js';
+
+const NOT_VISIBLE = 'Not found, or not visible to the caller';
+
+/** The part of Fastify's reply the routes use. */
+interface Reply {
+  status(code: number): unknown;
+  header(name: string, value: string): unknown;
+}
+
+const ETAG_HEADER = {
+  ETag: {
+    schema: { type: 'string' },
+    description: 'The draft version; send it as If-Match on section saves',
+  },
+};
+
+const ApiDeclarationIdParam = () =>
+  ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } });
+
+const ApiSectionKeyParam = () => ApiParam({ name: 'sectionKey', schema: schemaRef('SectionKey') });
+
+/** The draft version as an `ETag`. */
+function etag(draftVersion: number): string {
+  return `"${String(draftVersion)}"`;
+}
+
+/**
+ * Declaration drafts (spec 05). Declarant only, by the `person_id` claim: any other caller gets
+ * 404 on every route, as if the declaration did not exist.
+ */
+@ApiTags('declarations')
+@Controller('v1')
+export class DraftsController {
+  constructor(private readonly drafts: DraftsService) {}
+
+  @Post('obligations/:id/declaration')
+  @ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'startDeclaration',
+    summary: "Start (or return the existing) draft declaration for the declarant's obligation",
+    description:
+      'Type, statement date and income period are derived from the obligation; bio is pre-filled from the roster record. Declarant only.',
+  })
+  @ApiOkResponse({ description: 'Existing draft', schema: schemaRef('Declaration') })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Draft created with pre-filled bio',
+    schema: schemaRef('Declaration'),
+  })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Obligation is filed or cancelled (`obligation-closed`)')
+  @ApiProblemResponse(503, 'The roster record could not be read (`directory-unavailable`)')
+  async start(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id') obligationId: string,
+    @Res({ passthrough: true }) reply: Reply,
+  ): Promise<Declaration> {
+    const { created, declaration } = await this.drafts.start(principal, obligationId);
+    reply.status(created ? HttpStatus.CREATED : HttpStatus.OK);
+    reply.header('ETag', etag(declaration.draftVersion));
+    return declaration;
+  }
+
+  @Get('declarations/:declarationId')
+  @ApiDeclarationIdParam()
+  @ApiOperation({
+    operationId: 'getDeclaration',
+    summary: 'Draft header and section completeness (no contents)',
+  })
+  @ApiOkResponse({
+    description: 'The draft',
+    headers: ETAG_HEADER,
+    schema: schemaRef('Declaration'),
+  })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  async get(
+    @CurrentPrincipal() principal: Principal,
+    @Param('declarationId') declarationId: string,
+    @Res({ passthrough: true }) reply: Reply,
+  ): Promise<Declaration> {
+    const declaration = await this.drafts.get(principal, declarationId);
+    reply.header('ETag', etag(declaration.draftVersion));
+    return declaration;
+  }
+
+  @Get('declarations/:declarationId/sections/:sectionKey')
+  @ApiDeclarationIdParam()
+  @ApiSectionKeyParam()
+  @AuditedRead({ action: 'declaration.section.read', resource: 'declaration-section' })
+  @ApiOperation({
+    operationId: 'getDeclarationSection',
+    summary: "One section's contents (decrypted for the owning declarant)",
+  })
+  @ApiOkResponse({
+    description: 'Section contents',
+    headers: ETAG_HEADER,
+    schema: schemaRef('SectionEnvelope'),
+  })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  async getSection(
+    @CurrentPrincipal() principal: Principal,
+    @Param('declarationId') declarationId: string,
+    @Param('sectionKey') sectionKey: string,
+    @Res({ passthrough: true }) reply: Reply,
+  ): Promise<SectionEnvelope> {
+    const section = await this.drafts.getSection(principal, declarationId, sectionKey);
+    reply.header('ETag', etag(section.draftVersion));
+    return section;
+  }
+
+  @Put('declarations/:declarationId/sections/:sectionKey')
+  @ApiDeclarationIdParam()
+  @ApiSectionKeyParam()
+  @ApiOperation({
+    operationId: 'saveDeclarationSection',
+    summary: 'Save a section (autosave); requires If-Match with the current draft version',
+    description:
+      'The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out.',
+  })
+  @ApiHeader({
+    name: 'If-Match',
+    required: true,
+    description: 'The draft version read (its ETag)',
+    schema: { type: 'string' },
+  })
+  @ApiBody({ required: true, schema: schemaRef('SectionContents') })
+  @ApiOkResponse({
+    description: 'Saved; new version in ETag',
+    headers: ETAG_HEADER,
+    schema: schemaRef('SectionSaveResult'),
+  })
+  @ApiProblemResponse(
+    400,
+    'Validation failed, or a locked field was changed (`identity-locked-field`), or a nil flag conflicts with items (`nil-conflicts-with-items`)',
+  )
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(
+    409,
+    'Not a draft (`declaration-not-draft`), or the statement is archived (`section-archived`)',
+  )
+  @ApiProblemResponse(
+    412,
+    'If-Match does not match the current draft version (`draft-version-mismatch`); reload',
+  )
+  @ApiProblemResponse(428, 'If-Match header missing (`if-match-required`)')
+  async saveSection(
+    @CurrentPrincipal() principal: Principal,
+    @Param('declarationId') declarationId: string,
+    @Param('sectionKey') sectionKey: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) reply: Reply,
+  ): Promise<SectionSaveResult> {
+    const result = await this.drafts.saveSection(
+      principal,
+      declarationId,
+      sectionKey,
+      ifMatch,
+      body,
+    );
+    reply.header('ETag', etag(result.draftVersion));
+    return result;
+  }
+}

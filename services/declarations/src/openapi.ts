@@ -1,6 +1,16 @@
 import type { z } from 'zod';
 
 import {
+  completenessIssueSchema,
+  completenessSchema,
+  declarationSchema,
+  declarationStatusSchema,
+  sectionContentsSchema,
+  sectionEnvelopeSchema,
+  sectionKeySchema,
+  sectionSaveResultSchema,
+} from './drafts/representation.js';
+import {
   cancelReasonSchema,
   commissionRefSchema,
   commissionSummarySchema,
@@ -42,4 +52,12 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   SummaryCycle: summaryCycleSchema,
   CommissionSummary: commissionSummarySchema,
   NationalSummary: nationalSummarySchema,
+  SectionKey: sectionKeySchema,
+  Completeness: completenessSchema,
+  DeclarationStatus: declarationStatusSchema,
+  Declaration: declarationSchema,
+  SectionContents: sectionContentsSchema,
+  CompletenessIssue: completenessIssueSchema,
+  SectionEnvelope: sectionEnvelopeSchema,
+  SectionSaveResult: sectionSaveResultSchema,
 };

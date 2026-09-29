@@ -7,6 +7,10 @@ export interface PulledRosterRecord {
   tenant: string;
   personnelFileNumber: string;
   fullName: string;
+  /** Pre-fills the declaration's bio (locked there); null when the roster gives none. */
+  designation: string | null;
+  /** The declarant's employer as the roster names it; null when the roster gives none. */
+  reportingEntity: { id: string; name: string } | null;
   state: 'not_onboarded' | 'onboarded' | 'exited';
   appointmentDate: string | null;
   exitDate: string | null;

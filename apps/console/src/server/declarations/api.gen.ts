@@ -108,35 +108,16 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
         /**
          * Start (or return the existing) draft declaration for the declarant's obligation
-         * @description Type, statement date and income period are derived from the obligation. Declarant only.
+         * @description Type, statement date and income period are derived from the obligation; bio is pre-filled from the roster record. Declarant only.
          */
         post: operations["startDeclaration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/declarations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The declarant's declarations (drafts now; submitted later) */
-        get: operations["getMyDeclarations"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -147,9 +128,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
+            path?: never;
             cookie?: never;
         };
         /** Draft header and section completeness (no contents) */
@@ -167,16 +146,33 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                sectionKey: components["parameters"]["SectionKey"];
-            };
+            path?: never;
             cookie?: never;
         };
         /** One section's contents (decrypted for the owning declarant) */
         get: operations["getDeclarationSection"];
-        /** Save a section (autosave); requires If-Match with the current draft version */
+        /**
+         * Save a section (autosave); requires If-Match with the current draft version
+         * @description The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out.
+         */
         put: operations["saveDeclarationSection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/declarations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The declarant's declarations (drafts now; submitted later) */
+        get: operations["getMyDeclarations"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -971,6 +967,89 @@ export interface components {
             }[];
             totals: components["schemas"]["StatusCounts"];
         };
+        /** @description bio, household, other, or statement:<personKey> */
+        SectionKey: string;
+        /** @enum {string} */
+        Completeness: "not-started" | "incomplete" | "complete" | "archived";
+        /** @enum {string} */
+        DeclarationStatus: "draft" | "amending" | "submitted" | "discarded";
+        Declaration: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            obligationId: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            incomePeriod: {
+                /**
+                 * Format: date
+                 * @description Exclusive: the income period is (from, to]
+                 */
+                from: string;
+                /** Format: date */
+                to: string;
+                /**
+                 * @description `declared`: from is the statement date of a declaration on Adili; `assumed`: there is none, so it was derived from the type
+                 * @enum {string}
+                 */
+                fromSource: "declared" | "assumed";
+            };
+            status: components["schemas"]["DeclarationStatus"];
+            /** @constant */
+            schemaVersion: "declaration.v1";
+            /** @description Also the ETag; send it as If-Match on section saves */
+            draftVersion: number;
+            /** @description Sections in First Schedule order; archived statements listed with completeness archived */
+            sections: {
+                key: components["schemas"]["SectionKey"];
+                completeness: components["schemas"]["Completeness"];
+                /** @description Null until the declarant first saves the section */
+                updatedAt: string | null;
+                /** @description Whose financial statement it is, for statement sections */
+                personName: string | null;
+                /** @description Items by category, e.g. income, assets, liabilities */
+                counts?: {
+                    [key: string]: number;
+                };
+            }[];
+            lastSection: components["schemas"]["SectionKey"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation */
+        SectionContents: {
+            [key: string]: unknown;
+        };
+        CompletenessIssue: {
+            sectionKey: components["schemas"]["SectionKey"];
+            /** @description JSON pointer within the section contents */
+            path: string;
+            code: string;
+            message: string;
+        };
+        SectionEnvelope: {
+            key: components["schemas"]["SectionKey"];
+            completeness: components["schemas"]["Completeness"];
+            contents: components["schemas"]["SectionContents"];
+            issues: components["schemas"]["CompletenessIssue"][];
+            draftVersion: number;
+        };
+        SectionSaveResult: {
+            key: components["schemas"]["SectionKey"];
+            completeness: components["schemas"]["Completeness"];
+            draftVersion: number;
+            issues: components["schemas"]["CompletenessIssue"][];
+            /** @description Statement sections created or archived by a household save */
+            sectionsChanged: {
+                key: components["schemas"]["SectionKey"];
+                /** @enum {string} */
+                action: "created" | "archived" | "restored";
+            }[];
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1022,54 +1101,6 @@ export interface components {
                 };
             }[];
         };
-        /** @description bio, household, other, or statement:<personKey> */
-        SectionKey: string;
-        /** @enum {string} */
-        Completeness: "not-started" | "incomplete" | "complete" | "archived";
-        /** @enum {string} */
-        DeclarationStatus: "draft" | "amending" | "submitted" | "discarded";
-        Declaration: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            obligationId: string;
-            commission: components["schemas"]["CommissionRef"];
-            type: components["schemas"]["ObligationType"];
-            /** Format: date */
-            statementDate: string;
-            incomePeriod: {
-                /** Format: date */
-                from: string;
-                /** Format: date */
-                to: string;
-                /** @enum {string} */
-                fromSource: "declared" | "assumed";
-            };
-            status: components["schemas"]["DeclarationStatus"];
-            /** @constant */
-            schemaVersion: "declaration.v1";
-            draftVersion: number;
-            /** @description Live sections in First Schedule order; archived statements listed with completeness archived */
-            sections: {
-                key: components["schemas"]["SectionKey"];
-                completeness: components["schemas"]["Completeness"];
-                /** Format: date-time */
-                updatedAt: string | null;
-                /** @description For statement sections */
-                personName: string | null;
-                counts?: {
-                    [key: string]: number;
-                };
-            }[];
-            lastSection?: components["schemas"]["SectionKey"] | null;
-            reference?: components["schemas"]["DeclarationReference"] | null;
-            currentVersion?: number | null;
-            amendingFromVersion?: number | null;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
         DeclarationListItem: {
             /** Format: uuid */
             id: string;
@@ -1083,36 +1114,6 @@ export interface components {
             completenessPercent: number;
             /** Format: date-time */
             updatedAt: string;
-        };
-        /** @description The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation */
-        SectionContents: {
-            [key: string]: unknown;
-        };
-        SectionEnvelope: {
-            key: components["schemas"]["SectionKey"];
-            completeness: components["schemas"]["Completeness"];
-            contents: components["schemas"]["SectionContents"];
-            issues?: components["schemas"]["CompletenessIssue"][];
-            draftVersion: number;
-        };
-        SectionSaveResult: {
-            key: components["schemas"]["SectionKey"];
-            completeness: components["schemas"]["Completeness"];
-            draftVersion: number;
-            issues: components["schemas"]["CompletenessIssue"][];
-            /** @description Statement sections created or archived by a household save */
-            sectionsChanged: {
-                key: components["schemas"]["SectionKey"];
-                /** @enum {string} */
-                action: "created" | "archived" | "restored";
-            }[];
-        };
-        CompletenessIssue: {
-            sectionKey: components["schemas"]["SectionKey"];
-            /** @description JSON pointer within the section contents */
-            path: string;
-            code: string;
-            message: string;
         };
         /** @enum {string} */
         SuggestionSource: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
@@ -1658,9 +1659,26 @@ export interface operations {
                     "application/json": components["schemas"]["Declaration"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Obligation is filed or cancelled */
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Obligation is filed or cancelled (`obligation-closed`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The roster record could not be read (`directory-unavailable`) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1670,33 +1688,12 @@ export interface operations {
             };
         };
     };
-    getMyDeclarations: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarationListItem"][];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
     getDeclaration: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
+                declarationId: string;
             };
             cookie?: never;
         };
@@ -1705,7 +1702,7 @@ export interface operations {
             /** @description The draft */
             200: {
                 headers: {
-                    /** @description Draft version for If-Match on section saves */
+                    /** @description The draft version; send it as If-Match on section saves */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -1713,7 +1710,15 @@ export interface operations {
                     "application/json": components["schemas"]["Declaration"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     discardDeclaration: {
@@ -1751,8 +1756,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                sectionKey: components["parameters"]["SectionKey"];
+                declarationId: string;
+                sectionKey: components["schemas"]["SectionKey"];
             };
             cookie?: never;
         };
@@ -1761,6 +1766,7 @@ export interface operations {
             /** @description Section contents */
             200: {
                 headers: {
+                    /** @description The draft version; send it as If-Match on section saves */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -1768,18 +1774,27 @@ export interface operations {
                     "application/json": components["schemas"]["SectionEnvelope"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     saveDeclarationSection: {
         parameters: {
             query?: never;
             header: {
+                /** @description The draft version read (its ETag) */
                 "If-Match": string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                sectionKey: components["parameters"]["SectionKey"];
+                declarationId: string;
+                sectionKey: components["schemas"]["SectionKey"];
             };
             cookie?: never;
         };
@@ -1792,6 +1807,7 @@ export interface operations {
             /** @description Saved; new version in ETag */
             200: {
                 headers: {
+                    /** @description The draft version; send it as If-Match on section saves */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -1799,7 +1815,7 @@ export interface operations {
                     "application/json": components["schemas"]["SectionSaveResult"];
                 };
             };
-            /** @description Validation failed, or a locked field was changed (code `identity-locked-field`), or nil flag conflicts with items (code `nil-conflicts-with-items`) */
+            /** @description Validation failed, or a locked field was changed (`identity-locked-field`), or a nil flag conflicts with items (`nil-conflicts-with-items`) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1808,8 +1824,25 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description If-Match does not match the current draft version; reload */
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a draft (`declaration-not-draft`), or the statement is archived (`section-archived`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description If-Match does not match the current draft version (`draft-version-mismatch`); reload */
             412: {
                 headers: {
                     [name: string]: unknown;
@@ -1818,7 +1851,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description If-Match header missing */
+            /** @description If-Match header missing (`if-match-required`) */
             428: {
                 headers: {
                     [name: string]: unknown;
@@ -1827,6 +1860,27 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+        };
+    };
+    getMyDeclarations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationListItem"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     linkDeclarationAttachment: {
