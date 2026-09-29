@@ -6,6 +6,7 @@ import { allocateReference, CLR } from '@adili/numbering';
 import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { findCase, type ReviewTransaction } from '../cases/case-lookup.js';
 import { changeCaseStatus } from '../cases/case-status.js';
 import {
   type CaseStatus,
@@ -100,7 +101,7 @@ export class ClarificationsService {
   ): Promise<ClarificationView> {
     const tenant = caseTenant(principal);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      const { clarification, kase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, kase.assignee);
       if (clarification.status !== 'draft') throw notADraft();
       const [updated] = await tx
@@ -128,7 +129,7 @@ export class ClarificationsService {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      const { clarification, kase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, kase.assignee);
       if (clarification.status !== 'draft') throw notADraft();
       if (clarification.items.length === 0) {
@@ -217,7 +218,7 @@ export class ClarificationsService {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
     const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      const { clarification, kase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, kase.assignee);
       requireResponded(clarification.status);
       const [resolved] = await tx
@@ -256,7 +257,7 @@ export class ClarificationsService {
   async followUp(principal: Principal, clarificationId: string): Promise<ClarificationView> {
     const tenant = caseTenant(principal);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      const { clarification, kase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, kase.assignee);
       if (clarification.status === 'draft' || clarification.status === 'withdrawn') {
         throw new ProblemException(
@@ -310,7 +311,7 @@ export class ClarificationsService {
   ): Promise<ClarificationView> {
     const tenant = caseTenant(principal);
     const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { clarification, kase } = await lockForWork(tx, clarificationId);
+      const { clarification, kase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, kase.assignee);
       requireOpen(clarification.status);
       const [withdrawn] = await tx
@@ -352,7 +353,7 @@ export class ClarificationsService {
    * when a clarification of the case was resolved, else back to `assigned`.
    */
   private async settleCase(
-    tx: Transaction,
+    tx: ReviewTransaction,
     tenant: string,
     kase: { id: string; status: CaseStatus },
     actor: string,
@@ -381,30 +382,19 @@ export class ClarificationsService {
   }
 }
 
-type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
-
 /** The clarification and its case, locked for the rest of the transaction; 404 when invisible. */
-async function lockForWork(tx: Transaction, clarificationId: string) {
+async function lockForWork(tx: ReviewTransaction, tenant: string, clarificationId: string) {
   const [found] = await tx
     .select()
     .from(clarifications)
     .where(eq(clarifications.id, clarificationId))
     .for('update');
   const clarification = notFoundIfInvisible(found);
-  const [kase] = await tx
-    .select({
-      id: reviewCases.id,
-      assignee: reviewCases.assignee,
-      status: reviewCases.status,
-      windowEndsAt: reviewCases.windowEndsAt,
-    })
-    .from(reviewCases)
-    .where(eq(reviewCases.id, clarification.caseId))
-    .for('update');
-  return { clarification, kase: notFoundIfInvisible(kase) };
+  const kase = await findCase(tx, tenant, clarification.caseId, { lock: true });
+  return { clarification, kase };
 }
 
-async function responseOf(tx: Transaction, clarificationId: string) {
+async function responseOf(tx: ReviewTransaction, clarificationId: string) {
   const [response] = await tx
     .select()
     .from(clarificationResponses)

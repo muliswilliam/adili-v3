@@ -5,6 +5,7 @@ import { EventPublisher } from '@adili/events';
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import type { ReviewTransaction } from '../cases/case-lookup.js';
 import {
   type ClarificationResponseAttachment,
   type ClarificationStatus,
@@ -28,7 +29,6 @@ import { clarificationView, type DeclarantClarificationView } from './representa
 
 type ClarificationRow = typeof clarifications.$inferSelect;
 type ResponseRow = typeof clarificationResponses.$inferSelect;
-type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
 
 /** The upload purpose of a clarification response's attachments (documents.yaml). */
 export const CLARIFICATION_ATTACHMENT = 'clarification-attachment';
@@ -240,7 +240,7 @@ function personSubject(personId: string): string {
 }
 
 /** The person's row-level security context (`app.person`) for the rest of the transaction. */
-async function asPerson(tx: Transaction, personId: string): Promise<void> {
+async function asPerson(tx: ReviewTransaction, personId: string): Promise<void> {
   await tx.execute(
     sql`select set_config('app.person', ${personId}, true), set_config('app.subject', ${personSubject(personId)}, true)`,
   );

@@ -11,6 +11,7 @@ import type {
 } from '../processing/contract.js';
 import { band, type Flag, score } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
+import type { ReviewTransaction } from './case-lookup.js';
 import { type CaseProcessedData, REVIEW_CASE_CREATED, REVIEW_CASE_UPDATED } from './events.js';
 import { reviewCases, reviewCaseVersions, reviewFlags, reviewTimeline } from './schema.js';
 
@@ -25,8 +26,6 @@ export interface CaseSettings {
   issueWindowMonths: number;
   declarant: DeclarantReadModel;
 }
-
-type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
 
 /**
  * Creates or updates the review case of a submitted version, idempotently by declaration and
@@ -126,7 +125,7 @@ export async function upsertCase(
  * are version 1's (Act s.35(2)), and an amendment never resets them.
  */
 async function amendCase(
-  tx: Transaction,
+  tx: ReviewTransaction,
   events: EventPublisher,
   { input, facts, flags }: UpsertCaseRequest,
   caseId: string,
@@ -181,7 +180,7 @@ async function amendCase(
 
 /** The version among those the case has processed (the case view's version list). */
 async function recordVersion(
-  tx: Transaction,
+  tx: ReviewTransaction,
   { input, facts }: UpsertCaseRequest,
   caseId: string,
   amendment: boolean,
@@ -200,7 +199,7 @@ async function recordVersion(
 
 /** The flags a version raised, on the case. */
 async function insertFlags(
-  tx: Transaction,
+  tx: ReviewTransaction,
   input: ProcessingInput,
   caseId: string,
   flags: Flag[],

@@ -13,6 +13,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from
 import { v7 as uuidv7 } from 'uuid';
 
 import { AppModule } from '../../src/app.module.js';
+import type { ReviewTransaction } from '../../src/cases/case-lookup.js';
 import { Clock } from '../../src/clock.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
@@ -42,8 +43,6 @@ export interface Caller {
   scopes?: string[];
 }
 
-type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
-
 export interface ReviewApi {
   app: NestFastifyApplication;
   /**
@@ -51,7 +50,7 @@ export interface ReviewApi {
    * are under FORCE row-level security: use `asPlatform` to see every tenant's rows.
    */
   db: Database<ReviewSchema>;
-  asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
+  asPlatform<T>(work: (tx: ReviewTransaction) => Promise<T>): Promise<T>;
   declarations: FakeDeclarations;
   directory: FakeDirectory;
   /** Documents; each letter issued pulls its payload from this app's internal endpoint. */
