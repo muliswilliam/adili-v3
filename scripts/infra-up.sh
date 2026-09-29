@@ -7,8 +7,8 @@ set -eu
 # shellcheck source=SCRIPTDIR/lib/compose.sh
 . "$(dirname "$0")/lib/compose.sh"
 
-init_jobs="temporal-schema temporal-namespace seaweedfs-buckets openbao-keys"
-long_running=$(compose config --services | grep -vxF -e temporal-schema -e temporal-namespace -e seaweedfs-buckets -e openbao-keys)
+init_jobs=$(compose_services init)
+long_running=$(compose_services long-running)
 
 # Pull registry images that are not cached yet. adili/keycloak:dev is built locally, so it is
 # skipped here and `up --pull never` builds it instead of failing on a Hub lookup.
