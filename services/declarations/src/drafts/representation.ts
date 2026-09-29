@@ -84,11 +84,24 @@ export const completenessIssueSchema = z.object({
 });
 export type CompletenessIssue = z.infer<typeof completenessIssueSchema>;
 
+export const notIncludedSchema = z
+  .array(
+    z.object({
+      personKey: z.string().regex(/^child:[0-9a-f-]{36}$/),
+      reason: z.enum(['over-18-at-statement-date']),
+    }),
+  )
+  .meta({
+    description:
+      'Household only: children listed who get no financial statement, with the reason (eighteen or older on the statement date)',
+  });
+
 export const sectionEnvelopeSchema = z.object({
   key: sectionKeySchema,
   completeness: completenessSchema,
   contents: sectionContentsSchema,
   issues: z.array(completenessIssueSchema),
+  notIncluded: notIncludedSchema.optional(),
   draftVersion: z.int(),
 });
 export type SectionEnvelope = z.infer<typeof sectionEnvelopeSchema>;
@@ -98,6 +111,7 @@ export const sectionSaveResultSchema = z.object({
   completeness: completenessSchema,
   draftVersion: z.int(),
   issues: z.array(completenessIssueSchema),
+  notIncluded: notIncludedSchema.optional(),
   sectionsChanged: z
     .array(
       z.object({
@@ -105,6 +119,9 @@ export const sectionSaveResultSchema = z.object({
         action: z.enum(['created', 'archived', 'restored']),
       }),
     )
-    .meta({ description: 'Statement sections created or archived by a household save' }),
+    .meta({
+      description:
+        'Statement sections created, archived or restored by a household save; an archived statement is kept until the draft is discarded',
+    }),
 });
 export type SectionSaveResult = z.infer<typeof sectionSaveResultSchema>;

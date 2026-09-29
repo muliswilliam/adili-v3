@@ -118,6 +118,8 @@ export interface SectionMetadata {
   nil?: Record<string, boolean>;
   archived?: boolean;
   lockedFields?: string[];
+  /** Household: the children who get no statement, by person key, with the reason. */
+  notIncluded?: { personKey: string; reason: string }[];
 }
 
 /** One capture section of a declaration: `bio`, `household`, `statement:<personKey>`, `other`. */

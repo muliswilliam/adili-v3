@@ -2176,6 +2176,22 @@ components:
         - path
         - code
         - message
+    NotIncluded:
+      type: array
+      items:
+        type: object
+        properties:
+          personKey:
+            type: string
+            pattern: ^child:[0-9a-f-]{36}$
+          reason:
+            type: string
+            enum:
+              - over-18-at-statement-date
+        required:
+          - personKey
+          - reason
+      description: 'Household only: children listed who get no financial statement, with the reason (eighteen or older on the statement date)'
     SectionEnvelope:
       type: object
       properties:
@@ -2189,6 +2205,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CompletenessIssue'
+        notIncluded:
+          $ref: '#/components/schemas/NotIncluded'
         draftVersion:
           type: integer
       required:
@@ -2210,6 +2228,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CompletenessIssue'
+        notIncluded:
+          $ref: '#/components/schemas/NotIncluded'
         sectionsChanged:
           type: array
           items:
@@ -2226,7 +2246,7 @@ components:
             required:
               - key
               - action
-          description: Statement sections created or archived by a household save
+          description: Statement sections created, archived or restored by a household save; an archived statement is kept until the draft is discarded
       required:
         - key
         - completeness

@@ -2,8 +2,10 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import type { DeclarationSectionKey } from '@adili/forms';
-import { and, eq, max, ne, sql } from 'drizzle-orm';
+import type { DeclarationSectionKey, PersonKey } from '@adili/forms';
+import { isDeepStrictEqual } from 'node:util';
+
+import { and, eq, like, max, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { DeclarationsSchema } from '../db/schema.js';
@@ -14,8 +16,15 @@ import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
 import { deriveHeader } from './derive.js';
 import { declarationDraftStarted } from './events.js';
+import {
+  duplicatePeople,
+  householdPeople,
+  type NotIncluded,
+  planStatements,
+  type StatementPerson,
+} from './household.js';
 import type { Declaration, SectionEnvelope, SectionSaveResult } from './representation.js';
-import { SectionCipher, type StoredSection } from './section-cipher.js';
+import { type SealedSection, SectionCipher, type StoredSection } from './section-cipher.js';
 import {
   applyLockedFields,
   displayName,
@@ -28,9 +37,16 @@ import {
   sectionMetadata,
   sectionRank,
   shapeErrors,
+  type StatementFrame,
   statementPersonKey,
 } from './sections.js';
-import { declarationSections, declarations, type SectionMetadata } from './schema.js';
+import {
+  declarationSections,
+  declarations,
+  type SectionCompleteness,
+  type SectionMetadata,
+  type StoredEnvelope,
+} from './schema.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -223,6 +239,7 @@ export class DraftsService {
       completeness: state.section.completeness,
       contents,
       issues,
+      ...(key === 'household' && { notIncluded: notIncludedOf(state.section.metadata) }),
       draftVersion: state.declaration.draftVersion,
     };
   }
@@ -270,13 +287,26 @@ export class DraftsService {
     if (errors.length > 0) throw validationProblem(errors);
 
     const stored = await this.open(declaration, section);
-    const contents = this.prepare(declaration, key, body, stored, section.metadata);
+    const prepared = this.prepare(declaration, key, body, stored, section.metadata);
+    const household =
+      key === 'household' ? householdPeople(prepared, declaration.statementDate) : null;
+    const contents = household?.contents ?? prepared;
+    if (household) {
+      const duplicates = duplicatePeople(contents);
+      if (duplicates.length > 0) throw validationProblem(duplicates);
+    }
     const assessment = await this.assess(declaration, key, contents, state.sibling);
     const metadata: SectionMetadata = {
       ...section.metadata,
       ...sectionMetadata(key, contents),
+      ...(household && { notIncluded: household.notIncluded }),
     };
     const sealed = await this.sections.seal(declaration.tenant, declaration.id, key, contents);
+    // Saved at the version the conditional bump below produces, or not at all.
+    const savedVersion = expected + 1;
+    const statements = household
+      ? await this.statementChanges(person, declaration, household.statements, savedVersion)
+      : [];
 
     const draftVersion = await withPerson(this.db, person, async (tx) => {
       const [bumped] = await tx
@@ -312,19 +342,132 @@ export class DraftsService {
           .set({ completeness: assessment.sibling.completeness })
           .where(sectionIs(declaration.id, sibling.sectionKey));
       }
+      await writeStatementChanges(tx, declaration.id, statements);
       return bumped.draftVersion;
     });
     await this.sections.cache(
       { declarationId: declaration.id, sectionKey: key, savedVersion: draftVersion },
       contents,
     );
+    await Promise.all(
+      statements.flatMap((change) =>
+        change.contents
+          ? [
+              this.sections.cache(
+                { declarationId: declaration.id, sectionKey: change.key, savedVersion },
+                change.contents,
+              ),
+            ]
+          : [],
+      ),
+    );
     return {
       key,
       completeness: assessment.section.completeness,
       draftVersion,
       issues: assessment.section.issues,
-      sectionsChanged: [],
+      ...(household && { notIncluded: household.notIncluded }),
+      sectionsChanged: statements.flatMap((change) =>
+        change.action ? [{ key: change.key, action: change.action }] : [],
+      ),
     };
+  }
+
+  /**
+   * What a household save does to the financial statements (S5): an empty statement for each
+   * person new to it, the statement of each person back in it restored, the statement of each
+   * person gone from it (or a child no longer under eighteen) archived, and the name on each live
+   * statement kept in step with the household. Nothing is deleted before discard. Sealed ahead
+   * of the save's transaction, at the version it will write.
+   */
+  private async statementChanges(
+    person: PersonContext,
+    declaration: DeclarationRow,
+    wanted: StatementPerson[],
+    savedVersion: number,
+  ): Promise<StatementChange[]> {
+    const rows = await withPerson(this.db, person, (tx) =>
+      tx
+        .select()
+        .from(declarationSections)
+        .where(
+          and(
+            eq(declarationSections.declarationId, declaration.id),
+            like(declarationSections.sectionKey, 'statement:%'),
+          ),
+        ),
+    );
+    const byKey = new Map(rows.map((row) => [row.sectionKey, row]));
+    const plan = planStatements(
+      wanted,
+      rows.map((row) => ({
+        personKey: statementPersonKey(row.sectionKey as DeclarationSectionKey) ?? 'officer',
+        archived: row.metadata.archived === true,
+      })),
+    );
+    const frame = (who: StatementPerson) => ({
+      personKey: who.personKey,
+      personName: who.personName,
+      statementDate: declaration.statementDate,
+      incomePeriod: { from: declaration.incomePeriodFrom, to: declaration.incomePeriodTo },
+    });
+    const seal = async (
+      key: DeclarationSectionKey,
+      contents: SectionContents,
+    ): Promise<SealedSection & { contents: SectionContents }> => ({
+      contents,
+      ...(await this.sections.seal(declaration.tenant, declaration.id, key, contents)),
+    });
+
+    const created = plan.create.map(async (who): Promise<StatementChange> => {
+      const key = `statement:${who.personKey}` as const;
+      const contents = emptyStatement(frame(who) as StatementFrame);
+      return {
+        key,
+        action: 'created',
+        insert: true,
+        completeness: 'not-started',
+        metadata: sectionMetadata(key, contents),
+        savedVersion,
+        ...(await seal(key, contents)),
+      };
+    });
+    const renamed = [...plan.restore, ...plan.keep].map(
+      async (who): Promise<StatementChange | null> => {
+        const key = `statement:${who.personKey}` as const;
+        const row = byKey.get(key);
+        if (!row) return null;
+        const restoring = row.metadata.archived === true;
+        const stored = await this.open(declaration, row);
+        const sameName = isDeepStrictEqual(stored.personName, who.personName);
+        if (!restoring && sameName) return null;
+        const contents = sameName ? stored : { ...stored, ...frame(who) };
+        const metadata = { ...row.metadata };
+        delete metadata.archived;
+        return {
+          key,
+          ...(restoring && { action: 'restored' as const }),
+          insert: false,
+          // A statement never saved stays not started; one saved is assessed again.
+          completeness:
+            row.updatedAt === null ? 'not-started' : statementCompleteness(who.personKey, contents),
+          metadata,
+          ...(sameName ? {} : { savedVersion, ...(await seal(key, contents)) }),
+        };
+      },
+    );
+    const archived = plan.archive.map((personKey): StatementChange => {
+      const key = `statement:${personKey}` as const;
+      return {
+        key,
+        action: 'archived',
+        insert: false,
+        completeness: 'archived',
+        metadata: { ...byKey.get(key)?.metadata, archived: true },
+      };
+    });
+    const changes = await Promise.all([...created, ...renamed]);
+    return [...changes.filter((change) => change !== null), ...archived];
   }
 
   /**
@@ -428,14 +571,15 @@ export class DraftsService {
         })
         .from(declarationSections)
         .where(eq(declarationSections.declarationId, declarationId));
-      // Names of whose statements they are live in bio and household, encrypted.
+      // Names of whose statements they are live in bio and household, encrypted; an archived
+      // statement's person is no longer in the household, so its own copy of the name is used.
       const named = await tx
         .select()
         .from(declarationSections)
         .where(
           and(
             eq(declarationSections.declarationId, declarationId),
-            sql`${declarationSections.sectionKey} in ('bio', 'household')`,
+            sql`(${declarationSections.sectionKey} in ('bio', 'household') or ${declarationSections.completeness} = 'archived')`,
           ),
         );
       return { declaration, commission, sections, named };
@@ -473,13 +617,21 @@ export class DraftsService {
     };
   }
 
-  /** Display names by person key: the officer from bio, spouses and children from household. */
+  /**
+   * Display names by person key: the officer from bio, spouses and children from household, and
+   * people removed from the household from their archived statements.
+   */
   private async personNames(
     declaration: DeclarationRow,
     named: SectionRow[],
   ): Promise<Map<string, string>> {
     const names = new Map<string, string>();
+    const archived: SectionRow[] = [];
     for (const section of named) {
+      if (section.completeness === 'archived') {
+        archived.push(section);
+        continue;
+      }
       const contents = await this.open(declaration, section);
       if (section.sectionKey === 'bio') {
         const name = displayName(contents.name);
@@ -497,6 +649,12 @@ export class DraftsService {
           if (name) names.set(`${kind}:${item.id}`, name);
         }
       }
+    }
+    for (const section of archived) {
+      const personKey = statementPersonKey(section.sectionKey as DeclarationSectionKey);
+      if (!personKey || names.has(personKey)) continue;
+      const name = displayName((await this.open(declaration, section)).personName);
+      if (name) names.set(personKey, name);
     }
     return names;
   }
@@ -564,6 +722,91 @@ function validationProblem(errors: { path: string; message: string }[]): Problem
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** The household's children who get no statement, as stored in its clear metadata. */
+function notIncludedOf(metadata: SectionMetadata): NotIncluded[] {
+  return (metadata.notIncluded ?? []) as NotIncluded[];
+}
+
+/** A statement section a household save creates, restores, renames or archives. */
+interface StatementChange {
+  key: DeclarationSectionKey;
+  /** As reported in `sectionsChanged`; none for a rename only. */
+  action?: 'created' | 'restored' | 'archived';
+  insert: boolean;
+  completeness: SectionCompleteness;
+  metadata: SectionMetadata;
+  /** New contents, when they change: sealed, and to cache at `savedVersion`. */
+  contents?: SectionContents;
+  ciphertext?: Buffer;
+  envelope?: StoredEnvelope;
+  savedVersion?: number;
+}
+
+async function writeStatementChanges(
+  tx: Transaction,
+  declarationId: string,
+  changes: readonly StatementChange[],
+): Promise<void> {
+  // Statements are listed by creation within a kind: a millisecond apart, they keep the order the
+  // household lists the people in.
+  const createdAt = Date.now();
+  let created = 0;
+  for (const change of changes) {
+    const { ciphertext, envelope, savedVersion } = change;
+    const sealed =
+      ciphertext && envelope && savedVersion !== undefined
+        ? { ciphertext, envelope, savedVersion }
+        : undefined;
+    if (change.insert) {
+      if (!sealed) throw new Error('A new statement must be sealed');
+      await tx.insert(declarationSections).values({
+        declarationId,
+        sectionKey: change.key,
+        completeness: change.completeness,
+        metadata: change.metadata,
+        createdAt: new Date(createdAt + created++),
+        ...sealed,
+      });
+      continue;
+    }
+    await tx
+      .update(declarationSections)
+      .set({ completeness: change.completeness, metadata: change.metadata, ...sealed })
+      .where(sectionIs(declarationId, change.key));
+  }
+}
+
+/** A statement's completeness on its own (statements are assessed one by one). */
+function statementCompleteness(
+  personKey: PersonKey,
+  contents: SectionContents,
+): 'complete' | 'incomplete' {
+  const assessed = assessSections({
+    bio: undefined,
+    household: undefined,
+    statements: new Map([[personKey, contents]]),
+  });
+  return assessed.get(`statement:${personKey}`)?.completeness ?? 'incomplete';
+}
+
+/**
+ * The draft's live sections: every section but the statements archived by household edits. The
+ * one place archived statements are left out, for completeness and the summary; they stay stored
+ * (and listed on the draft as `archived`) until the draft is discarded.
+ */
+export async function liveSections(tx: Transaction, declarationId: string): Promise<SectionRow[]> {
+  const rows = await tx
+    .select()
+    .from(declarationSections)
+    .where(
+      and(
+        eq(declarationSections.declarationId, declarationId),
+        ne(declarationSections.completeness, 'archived'),
+      ),
+    );
+  return inScheduleOrder(rows);
 }
 
 function sectionIs(declarationId: string, sectionKey: string) {

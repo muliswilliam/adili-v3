@@ -1031,11 +1031,18 @@ export interface components {
             code: string;
             message: string;
         };
+        /** @description Household only: children listed who get no financial statement, with the reason (eighteen or older on the statement date) */
+        NotIncluded: {
+            personKey: string;
+            /** @enum {string} */
+            reason: "over-18-at-statement-date";
+        }[];
         SectionEnvelope: {
             key: components["schemas"]["SectionKey"];
             completeness: components["schemas"]["Completeness"];
             contents: components["schemas"]["SectionContents"];
             issues: components["schemas"]["CompletenessIssue"][];
+            notIncluded?: components["schemas"]["NotIncluded"];
             draftVersion: number;
         };
         SectionSaveResult: {
@@ -1043,7 +1050,8 @@ export interface components {
             completeness: components["schemas"]["Completeness"];
             draftVersion: number;
             issues: components["schemas"]["CompletenessIssue"][];
-            /** @description Statement sections created or archived by a household save */
+            notIncluded?: components["schemas"]["NotIncluded"];
+            /** @description Statement sections created, archived or restored by a household save; an archived statement is kept until the draft is discarded */
             sectionsChanged: {
                 key: components["schemas"]["SectionKey"];
                 /** @enum {string} */
