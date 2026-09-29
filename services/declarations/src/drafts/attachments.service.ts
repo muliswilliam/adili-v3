@@ -37,11 +37,11 @@ type AttachmentRow = typeof declarationAttachments.$inferSelect;
 /**
  * Attachments on a draft's statement items (spec 05). The bytes stay in the documents service:
  * linking verifies through its internal API that the upload is the Commission's, clean and
- * uploaded as a declaration attachment, records the link there (so the orphan sweep keeps it),
- * then in one transaction stores the row (name, hash, size), adds the reference to the item
- * inside the encrypted section and bumps the draft version. Unlinking removes both; the object is
- * left to documents' orphan sweep. Declarant only, under person row-level security; each change
- * is an event with identifiers only.
+ * uploaded as a declaration attachment, then in one transaction stores the row (name, hash,
+ * size), adds the reference to the item inside the encrypted section and bumps the draft version,
+ * and only then records the link in documents (so the orphan sweep keeps it). Unlinking removes
+ * both; the object is left to documents' orphan sweep. Declarant only, under person row-level
+ * security; each change is an event with identifiers only.
  */
 @Injectable()
 export class AttachmentsService {
@@ -85,7 +85,6 @@ export class AttachmentsService {
     if (!hasItem(contents, itemId)) notFoundIfInvisible(null);
 
     const upload = await this.verified(tenant, uploadId);
-    await this.documentsCall(uploadId, () => this.documents.markLinked(tenant, uploadId));
 
     const attachment: AttachmentRow = {
       id: uuidv7(),
@@ -134,6 +133,19 @@ export class AttachmentsService {
       { declarationId, sectionKey, savedVersion: saved.draftVersion },
       saved.contents,
     );
+    // Marked in documents (so its orphan sweep keeps the object) only once the link is stored: a
+    // link refused above leaves no mark. If the mark fails, the link is taken back.
+    try {
+      await this.documents.markLinked(tenant, uploadId);
+    } catch {
+      await this.takeBack(person, attachment);
+      throw new ProblemException({
+        type: 'documents-unavailable',
+        title: 'Documents unavailable',
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        detail: 'The file could not be attached. Try again.',
+      });
+    }
     return {
       attachment: {
         id: attachment.id,
@@ -172,38 +184,82 @@ export class AttachmentsService {
           ),
         )
         .limit(1);
-      const attachment = notFoundIfInvisible(found);
-      const [section] = await tx
-        .select()
-        .from(declarationSections)
-        .where(sectionIs(declarationId, attachment.sectionKey))
-        .limit(1);
-      await tx.delete(declarationAttachments).where(eq(declarationAttachments.id, attachmentId));
-      let contents: SectionContents | undefined;
-      let draftVersion = declaration.draftVersion;
-      if (section) {
-        contents = withoutAttachment(
-          await this.sections.open(declaration.tenant, section),
-          attachment.uploadId,
-        );
-        draftVersion = await this.store(tx, declaration, attachment.sectionKey, contents);
-      }
-      await this.events.record(
-        tx,
-        declarationAttachmentUnlinked(declaration.tenant, {
-          declarationId,
-          uploadId: attachment.uploadId,
-        }),
-      );
-      return { draftVersion, sectionKey: attachment.sectionKey, contents };
+      return this.remove(tx, declaration, notFoundIfInvisible(found));
     });
-    if (saved.contents) {
-      await this.sections.cache(
-        { declarationId, sectionKey: saved.sectionKey, savedVersion: saved.draftVersion },
-        saved.contents,
-      );
-    }
+    await this.cacheRemoved(declarationId, saved);
     return { draftVersion: saved.draftVersion };
+  }
+
+  /**
+   * Takes back a link whose mark in documents failed after it was stored: the row and the
+   * reference are removed again in a transaction of their own, which bumps the draft version and
+   * records the unlink. Nothing to do when the draft or the row went meanwhile (a discard or a
+   * save removing the item unlinked it already).
+   */
+  private async takeBack(person: PersonContext, attachment: AttachmentRow): Promise<void> {
+    const removed = await withPerson(this.db, person, async (tx) => {
+      const [declaration] = await tx
+        .select()
+        .from(declarations)
+        .where(
+          and(eq(declarations.id, attachment.declarationId), ne(declarations.status, 'discarded')),
+        )
+        .limit(1)
+        .for('update');
+      if (!declaration) return null;
+      const [stored] = await tx
+        .select()
+        .from(declarationAttachments)
+        .where(eq(declarationAttachments.id, attachment.id))
+        .limit(1);
+      return stored ? this.remove(tx, declaration, stored) : null;
+    });
+    if (removed) await this.cacheRemoved(attachment.declarationId, removed);
+  }
+
+  /**
+   * Removes an attachment in the transaction (its declaration row locked): the row, the reference
+   * in its section (re-sealed at a bumped draft version) and the unlink event.
+   */
+  private async remove(
+    tx: Transaction,
+    declaration: DeclarationRow,
+    attachment: AttachmentRow,
+  ): Promise<{ draftVersion: number; sectionKey: string; contents?: SectionContents }> {
+    const [section] = await tx
+      .select()
+      .from(declarationSections)
+      .where(sectionIs(declaration.id, attachment.sectionKey))
+      .limit(1);
+    await tx.delete(declarationAttachments).where(eq(declarationAttachments.id, attachment.id));
+    let contents: SectionContents | undefined;
+    let draftVersion = declaration.draftVersion;
+    if (section) {
+      contents = withoutAttachment(
+        await this.sections.open(declaration.tenant, section),
+        attachment.uploadId,
+      );
+      draftVersion = await this.store(tx, declaration, attachment.sectionKey, contents);
+    }
+    await this.events.record(
+      tx,
+      declarationAttachmentUnlinked(declaration.tenant, {
+        declarationId: declaration.id,
+        uploadId: attachment.uploadId,
+      }),
+    );
+    return { draftVersion, sectionKey: attachment.sectionKey, contents };
+  }
+
+  private async cacheRemoved(
+    declarationId: string,
+    removed: { draftVersion: number; sectionKey: string; contents?: SectionContents },
+  ): Promise<void> {
+    if (!removed.contents) return;
+    await this.sections.cache(
+      { declarationId, sectionKey: removed.sectionKey, savedVersion: removed.draftVersion },
+      removed.contents,
+    );
   }
 
   /** Re-encrypts the section and bumps the draft version (the declaration row is locked). */

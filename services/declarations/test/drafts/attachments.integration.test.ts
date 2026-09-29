@@ -277,6 +277,41 @@ describe('linking an attachment (S10)', () => {
     expect(again.statusCode).toBe(409);
     expect(again.json()).toMatchObject({ type: 'upload-already-linked' });
     expect(await attachmentRows(draft.id)).toHaveLength(1);
+    // Only the link that was stored is marked in documents.
+    expect(api.documents.linked).toEqual([`psc ${deed.id}`]);
+  });
+
+  it('takes the link back and answers 503 when documents cannot mark it', async () => {
+    const draft = await draftWithItems();
+    const deed = upload('psc');
+    api.documents.givenUploads(deed);
+    api.documents.markLinkedUnavailable = true;
+
+    const response = await link(draft.id, {
+      sectionKey: STATEMENT,
+      itemId: ASSET_ID,
+      uploadId: deed.id,
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'documents-unavailable' });
+    expect(await attachmentRows(draft.id)).toEqual([]);
+    const section = await statement(draft.id);
+    // Stored at 3, taken back at 4.
+    expect(section.draftVersion).toBe(4);
+    expect(itemOf(section, 'assets', ASSET_ID).attachments).toEqual([]);
+    expect(
+      (await events('declaration.attachment-unlinked.v1')).map((event) => event.envelope),
+    ).toEqual([expect.objectContaining({ data: { declarationId: draft.id, uploadId: deed.id } })]);
+
+    api.documents.markLinkedUnavailable = false;
+    const again = await link(draft.id, {
+      sectionKey: STATEMENT,
+      itemId: ASSET_ID,
+      uploadId: deed.id,
+    });
+    expect(again.statusCode).toBe(201);
+    expect(api.documents.linked).toEqual([`psc ${deed.id}`]);
   });
 
   it('answers 404 for an item the statement does not have, or a section without items', async () => {

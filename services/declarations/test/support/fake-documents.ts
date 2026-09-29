@@ -33,11 +33,13 @@ export function upload(tenant: string, overrides: Partial<FakeUpload> = {}): Fak
 /**
  * The documents internal uploads API for tests: answers only for the acting Commission's uploads
  * (404 otherwise, as documents does) and only for clean ones (409). `linked` lists the uploads
- * whose link was recorded, as `<tenant> <uploadId>`; `unavailable` makes every call fail.
+ * whose link was recorded, as `<tenant> <uploadId>`; `unavailable` makes every call fail, and
+ * `markLinkedUnavailable` only the call that records a link.
  */
 export class FakeDocuments extends DocumentsClient {
   readonly linked: string[] = [];
   unavailable = false;
+  markLinkedUnavailable = false;
   private readonly uploads = new Map<string, FakeUpload>();
 
   givenUploads(...uploads: FakeUpload[]): void {
@@ -47,6 +49,7 @@ export class FakeDocuments extends DocumentsClient {
   reset(): void {
     this.linked.length = 0;
     this.unavailable = false;
+    this.markLinkedUnavailable = false;
     this.uploads.clear();
   }
 
@@ -61,6 +64,9 @@ export class FakeDocuments extends DocumentsClient {
   }
 
   markLinked(tenant: string, uploadId: string): Promise<void> {
+    if (this.markLinkedUnavailable) {
+      return Promise.reject(new DocumentsUnavailable('The documents service did not answer'));
+    }
     return this.answer(tenant, uploadId, () => {
       this.linked.push(`${tenant} ${uploadId}`);
     });
