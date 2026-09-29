@@ -23,7 +23,7 @@ import type { ObligationPolicy } from './engine.js';
  *
  * Row-level security (migration 0002): the roster snapshot, obligations and reminders are tenant
  * data for staff and system transactions (`app.tenant`, or `platform`), and a declarant reads their
- * own rows across Commissions through `app.person` (`withPerson`), read-only.
+ * own rows across Commissions through `app.person` (`withPerson`), read-only (ADR-017).
  */
 
 const timestamps = {

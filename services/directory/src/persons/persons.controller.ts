@@ -83,7 +83,7 @@ export class DeclarantProfileController {
 /**
  * Internal: not routed by the public entrypoint. Contacts are personal data: only the
  * notifications service's token carries `directory:person-contacts`, and it names the tenant it
- * sends for in X-Acting-Tenant (ADR-013 §8.1); a person not onboarded there is 404.
+ * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-016); a person not onboarded there is 404.
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')

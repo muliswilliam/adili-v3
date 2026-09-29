@@ -35,9 +35,9 @@ const contactsBody = z.object({
  * Reads a person's verified contacts from the directory
  * (`GET /internal/v1/persons/{personId}/contacts`, client generated from
  * packages/schemas/internal/directory.yaml via `pnpm generate:api`) on api-kit's service client:
- * the service's own token, the message's tenant in `X-Acting-Tenant` (ADR-013 §8.1). A person
- * the directory does not know, or who is not onboarded at that tenant (404), has no contacts;
- * every other failure is a `ContactLookupError`.
+ * the service's own token, the message's tenant in `X-Acting-Tenant` (ADR-013 §8.1, ADR-016). A
+ * person the directory does not know, or who is not onboarded at that tenant (404), has no
+ * contacts; every other failure is a `ContactLookupError`.
  */
 export class DirectoryPersonContacts extends PersonContactsSource {
   private readonly directory: ServiceClient<paths>;

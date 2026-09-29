@@ -70,7 +70,7 @@ export async function withTenant<TSchema extends Record<string, unknown>, TResul
 
 /**
  * Runs `work` in a transaction scoped to one person, for a declarant's own data across
- * Commissions. Person policies read `app.person` (and `app.subject`), reset when the transaction
+ * Commissions (ADR-017). Person policies read `app.person` (and `app.subject`), reset when the transaction
  * ends as with `withTenant`; `app.tenant` stays unset, so tenant policies admit nothing.
  *
  * A reset setting reads back as `''`, not null, on a connection that has had it: policies compare

@@ -5,7 +5,7 @@ import { config } from '../config.js';
 import { DirectoryClient } from './directory-client.js';
 import { DIRECTORY_INTERNAL_SCOPE, HttpDirectoryClient } from './http-directory-client.js';
 
-/** The directory's internal API, called with the service's own token (ADR-013 §8.1). */
+/** The directory's internal API, called with the service's own token (ADR-013 §8.1, ADR-016). */
 @Module({
   providers: [
     {

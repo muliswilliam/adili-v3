@@ -8,7 +8,7 @@ import {
 } from './http-notifications-client.js';
 import { NotificationsClient } from './notifications-client.js';
 
-/** The notifications internal messages API, called with the service's own token (ADR-013 §8.1). */
+/** The notifications internal messages API, called with the service's own token (ADR-013 §5, ADR-016). */
 @Module({
   providers: [
     {

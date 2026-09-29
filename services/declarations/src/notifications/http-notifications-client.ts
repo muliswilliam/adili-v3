@@ -16,8 +16,9 @@ export const NOTIFICATIONS_MESSAGES_SCOPE = 'messages';
 
 /**
  * How long a reminder waits for notifications: its synchronous budget for the contact lookup and
- * the provider (5 s, spec 03 and 04) plus the hop. A recorded exception to ADR-013's 2 s default;
- * the reminder activity retries, with the same Idempotency-Key, what gets no answer in time.
+ * the provider (5 s, spec 03 and 04) plus the hop. Recorded in ADR-016 (not ADR-013's 2 s
+ * default); the reminder activity retries, with the same Idempotency-Key, what gets no answer in
+ * time.
  */
 export const NOTIFICATIONS_SEND_TIMEOUT_MS = 8_000;
 
