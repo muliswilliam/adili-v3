@@ -77,21 +77,33 @@ export async function seedDemoCommissions(db: Database<DirectorySchema>): Promis
  * a demo Commission, the rest copied from the current one, and announces it
  * (`directory.policy.changed.v1`) so the declarations service pulls it. Obligations created from
  * then on are reminded at those offsets, e.g. 29 days before the due date for an officer appointed
- * yesterday (an initial due in 29 days), so the reminder goes out today. Changes nothing when the
- * offsets are in force already. Never run against real data: the product changes the
+ * yesterday (an initial due in 29 days), so the reminder goes out today. `obligationsStartDate`
+ * (default: the current one) must not be after the demo officer's appointment, or no initial is
+ * owed; the seed sets it to the day the Commission was created. Changes nothing when both are in
+ * force already. Never run against real data: the product changes the
  * obligations-start date only (spec 04).
  */
 export async function useDemoReminderOffsets(
   db: Database<DirectorySchema>,
   events: EventPublisher,
-  { tenant, reminderOffsetsDays }: { tenant: string; reminderOffsetsDays: number[] },
+  {
+    tenant,
+    reminderOffsetsDays,
+    obligationsStartDate,
+  }: { tenant: string; reminderOffsetsDays: number[]; obligationsStartDate?: string },
 ): Promise<void> {
   await withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
     const current = await readCurrentPolicy(tx, tenant);
-    if (sameOffsets(current.reminderOffsetsDays, reminderOffsetsDays)) return;
+    const startDate = obligationsStartDate ?? current.obligationsStartDate;
+    if (
+      sameOffsets(current.reminderOffsetsDays, reminderOffsetsDays) &&
+      startDate === current.obligationsStartDate
+    ) {
+      return;
+    }
     await createPolicyVersion(tx, events, {
       tenant,
-      obligationsStartDate: current.obligationsStartDate,
+      obligationsStartDate: startDate,
       effectiveFrom: new Date(),
       createdBy: SEEDED_BY,
       createdByName: 'Reminder demo',

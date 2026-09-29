@@ -61,6 +61,20 @@ describe('useDemoReminderOffsets', () => {
     ]);
   });
 
+  it('moves the obligations-start date back when asked, so a recent appointment owes an initial', async () => {
+    await useDemoReminderOffsets(api.db, events, {
+      tenant: 'psc',
+      reminderOffsetsDays: [29, 7],
+      obligationsStartDate: '2026-09-01',
+    });
+
+    expect((await history()).current).toMatchObject({
+      version: 2,
+      reminderOffsetsDays: [29, 7],
+      obligationsStartDate: '2026-09-01',
+    });
+  });
+
   it('changes nothing when the offsets are in force already', async () => {
     await useDemoReminderOffsets(api.db, events, { tenant: 'psc', reminderOffsetsDays: [29, 7] });
     await useDemoReminderOffsets(api.db, events, { tenant: 'psc', reminderOffsetsDays: [29, 7] });
