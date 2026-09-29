@@ -17,6 +17,7 @@ import {
   determinations,
   outbox,
   reviewCases,
+  reviewFlags,
   reviewTimeline,
 } from '../../src/db/schema.js';
 import { caseIds, givenQueuedCase, givenQueuedCases, temporalOf } from '../support/closures.js';
@@ -27,10 +28,11 @@ import { historyPayloads } from '../support/workflow-history.js';
 /**
  * S3 at the workflow seam: the daily closure sweep, as its Temporal schedule starts it, proposes
  * `compliant-no-issues` (proposer `system`) for the low-band cases whose window has passed with no
- * open flag or clarification, diverts the deterministic sample (2%) to review, leaves every other
- * case untouched, and records the run with `closure.sweep.completed.v1`; ids and counts only in
- * Temporal's history. The sample re-enters the reviewers' queue; the proposals stay out of the
- * approvals inbox (they are approved in bulk).
+ * open flag (none, or all reviewed), no open clarification and no determination, held by a
+ * reviewer or not; diverts the deterministic sample (2%) to review, leaves every other case
+ * untouched (determined or kept for further action among them), and records the run with
+ * `closure.sweep.completed.v1`; ids and counts only in Temporal's history. The sample re-enters
+ * the reviewers' queue; the proposals stay out of the approvals inbox (they are approved in bulk).
  */
 describe('closure sweep (S3)', () => {
   let api: ReviewApi;
@@ -78,15 +80,35 @@ describe('closure sweep (S3)', () => {
     const windowOpen = await givenQueuedCase(api, 'psc', {
       windowEndsAt: new Date('2028-08-01T00:00:00.000Z'),
     });
+    // Held by a reviewer who reviewed every flag: eligible all the same.
     const held = await givenQueuedCase(api, 'psc', { status: 'assigned', assignee: 'reviewer-a' });
+    await api.asPlatform((tx) =>
+      tx.insert(reviewFlags).values({
+        id: randomUUID(),
+        tenant: 'psc',
+        caseId: held,
+        versionId: randomUUID(),
+        ruleId: 'no-previous-version',
+        severity: 'info',
+        title: 'No previous version',
+        indicator: 'First declaration on Adili',
+        evidence: {},
+        itemRefs: [],
+        reviewedAt: new Date('2028-01-10T08:00:00.000Z'),
+        reviewedBy: 'reviewer-a',
+        reviewNote: 'First declaration: nothing to compare.',
+      }),
+    );
+    const determined = await givenQueuedCase(api, 'psc', { status: 'determined' });
+    const furtherAction = await givenQueuedCase(api, 'psc', { status: 'further-action' });
     const tscCase = await givenQueuedCase(api, 'tsc');
-    const ineligible = [openFlag, openClarification, medium, windowOpen, held];
+    const ineligible = [openFlag, openClarification, medium, windowOpen, determined, furtherAction];
 
     expect(await runSweeps()).toEqual({ swept: 2 });
 
     // Eligible: one system proposal each, `compliant-no-issues`, waiting for approval.
     const proposals = await api.asPlatform((tx) => tx.select().from(determinations));
-    expect(proposals.map((row) => row.caseId).sort()).toEqual([...eligible, tscCase].sort());
+    expect(proposals.map((row) => row.caseId).sort()).toEqual([...eligible, held, tscCase].sort());
     for (const proposal of proposals) {
       expect(proposal).toMatchObject({
         outcome: 'compliant-no-issues',
@@ -127,7 +149,8 @@ describe('closure sweep (S3)', () => {
       expect(byId.get(id)?.sampledAt).toBeNull();
       expect(proposals.some((row) => row.caseId === id)).toBe(false);
     }
-    expect(byId.get(held)?.status).toBe('assigned');
+    // The held case keeps its reviewer and status while its closure waits for approval.
+    expect(byId.get(held)).toMatchObject({ status: 'assigned', assignee: 'reviewer-a' });
 
     // The runs, recorded with their counts, and announced.
     const sweeps = await api.asPlatform((tx) => tx.select().from(closureSweeps));
@@ -145,7 +168,7 @@ describe('closure sweep (S3)', () => {
         {
           tenant: 'psc',
           cycleYear: 2027,
-          proposed: 12,
+          proposed: 13,
           sampled: 2,
           sampleRate: 0.02,
           ranAt: new Date(SWEEP_DAY),
@@ -169,7 +192,7 @@ describe('closure sweep (S3)', () => {
           data: {
             sweepId: pscSweep?.id,
             cycleYear: 2027,
-            proposed: 12,
+            proposed: 13,
             sampled: 2,
             sampleRate: 0.02,
           },
@@ -177,7 +200,7 @@ describe('closure sweep (S3)', () => {
       ]),
     );
     const proposed = await outboxOf('determination.proposed.v1');
-    expect(proposed).toHaveLength(13);
+    expect(proposed).toHaveLength(14);
     expect(proposed[0]?.data).toEqual({
       determinationId: expect.any(String) as string,
       caseId: expect.any(String) as string,

@@ -171,7 +171,7 @@ export const reviewCases = pgTable(
       table.id,
     ),
     index('review_cases_tenant_assignee_idx').on(table.tenant, table.assignee),
-    // The closure sweep's eligibility: a cycle's low-band cases still in the queue.
+    // The closure sweep's eligibility: a cycle's low-band cases, by status.
     index('review_cases_closure_idx').on(table.tenant, table.cycleYear, table.band, table.status),
     check('review_cases_type_check', sql`${table.type} in (${inList(DECLARATION_TYPES)})`),
     check('review_cases_band_check', sql`${table.band} in (${inList(PRIORITY_BANDS)})`),
