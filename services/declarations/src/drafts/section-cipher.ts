@@ -20,6 +20,12 @@ export interface StoredSection extends SealedSection {
 /** How long a decrypted section stays cached for re-renders. */
 const CACHE_SECONDS = 600;
 
+/**
+ * How long a cache call may take before it counts as failed. An unreachable Valkey queues
+ * commands instead of failing them, so without a bound a save or read would wait on it.
+ */
+const CACHE_WAIT_MS = 250;
+
 type Valkey = Pick<ReturnType<typeof createValkey>, 'get' | 'set'>;
 
 /**
@@ -74,7 +80,9 @@ export class SectionCipher {
     contents: SectionContents,
   ): Promise<void> {
     try {
-      await this.valkey.set(cacheKey(section), JSON.stringify(contents), 'EX', CACHE_SECONDS);
+      await withinCacheWait(
+        this.valkey.set(cacheKey(section), JSON.stringify(contents), 'EX', CACHE_SECONDS),
+      );
     } catch (error) {
       this.logger.warn(`Draft section cache write failed: ${errorName(error)}`);
     }
@@ -82,7 +90,7 @@ export class SectionCipher {
 
   private async cached(key: string): Promise<SectionContents | null> {
     try {
-      const value = await this.valkey.get(key);
+      const value = await withinCacheWait(this.valkey.get(key));
       return value === null ? null : (JSON.parse(value) as SectionContents);
     } catch (error) {
       this.logger.warn(`Draft section cache read failed: ${errorName(error)}`);
@@ -101,6 +109,25 @@ function cacheKey({
   savedVersion,
 }: Pick<StoredSection, 'declarationId' | 'sectionKey' | 'savedVersion'>): string {
   return `draft-section:${declarationId}:${sectionKey}:${String(savedVersion)}`;
+}
+
+class CacheTimeout extends Error {
+  override readonly name = 'CacheTimeout';
+}
+
+/** Settles with the cache call, or rejects with `CacheTimeout` once it has taken too long. */
+async function withinCacheWait<T>(call: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new CacheTimeout());
+    }, CACHE_WAIT_MS);
+  });
+  try {
+    return await Promise.race([call, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function errorName(error: unknown): string {
