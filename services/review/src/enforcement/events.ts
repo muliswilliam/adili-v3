@@ -14,7 +14,12 @@ export const ACTION_ISSUED = 'action.issued.v1';
 export const ACTION_RESPONDED = 'action.responded.v1';
 export const ACTION_COMPLIED = 'action.complied.v1';
 export const ACTION_CANCELLED = 'action.cancelled.v1';
+export const ACTION_REINSTATED = 'action.reinstated.v1';
+/** For the employer (the reporting entity) to open disciplinary proceedings (spec 08 step 4). */
+export const ACTION_DISCIPLINARY_REFERRED = 'action.disciplinary-referred.v1';
 export const LADDER_RESTARTED = 'ladder.restarted.v1';
+export const PAYROLL_INSTRUCTION_SENT = 'payroll.instruction.sent.v1';
+export const PAYROLL_INSTRUCTION_ACKNOWLEDGED = 'payroll.instruction.acknowledged.v1';
 
 /** Every `action.*` event. */
 export interface ActionEventData extends Record<string, unknown> {
@@ -30,6 +35,30 @@ export interface ActionEventData extends Record<string, unknown> {
   reference?: string;
   /** `action.complied.v1` and `action.cancelled.v1`: what closed the ladder. */
   cause?: ClosingCause;
+}
+
+/**
+ * `action.disciplinary-referred.v1`: the issued referral, with the roster record and reporting
+ * entity it is for (identifiers only), so the employer can act on it.
+ */
+export interface DisciplinaryReferredData extends ActionEventData {
+  personId: string | null;
+  rosterRecordId: string | null;
+  reportingEntityId: string | null;
+}
+
+/**
+ * `payroll.instruction.sent.v1` and `payroll.instruction.acknowledged.v1`: an instruction of a
+ * salary stoppage, by its reference (the `ADM` reference, `-R` for the resume); the
+ * acknowledgement adds payroll's status and reference.
+ */
+export interface PayrollInstructionData extends Record<string, unknown> {
+  actionId: string;
+  ladderId: string;
+  instructionReference: string;
+  action: 'stop_salary' | 'resume_salary';
+  status?: string;
+  payrollReference?: string | null;
 }
 
 /** `ladder.restarted.v1`: a supervisor restarted a declined ladder at a step. */

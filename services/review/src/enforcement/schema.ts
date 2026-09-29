@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -16,7 +17,7 @@ import { PROPOSER_KINDS } from '../approvals/schema.js';
 /**
  * The enforcement ladder (spec 08, refines ADR-003): one ladder per overdue filing obligation or
  * unanswered clarification, run by `EnforcementWorkflow`, and its administrative actions (notice to
- * comply, warning; #209 adds salary stoppage and disciplinary referral). Tenant data under the same
+ * comply, warning, salary stoppage, disciplinary referral). Tenant data under the same
  * row-level security as every review table; a declarant reads their own issued actions through
  * `app.person`.
  */
@@ -77,7 +78,7 @@ export interface ActionResponse {
   submittedAt: string;
 }
 
-/** A payroll instruction's acknowledgement (#209). */
+/** A payroll instruction's acknowledgement, as the integration-gateway answered it. */
 export interface PayrollAcknowledgement {
   instructionReference: string;
   action: 'stop_salary' | 'resume_salary';
@@ -99,6 +100,9 @@ export const LADDER_HISTORY_KINDS = [
   'action-responded',
   'action-complied',
   'action-cancelled',
+  'action-reinstated',
+  'payroll-instruction-sent',
+  'payroll-instruction-acknowledged',
 ] as const;
 export type LadderHistoryKind = (typeof LADDER_HISTORY_KINDS)[number];
 
@@ -126,7 +130,7 @@ export const enforcementLadders = pgTable(
     subjectId: uuid().notNull(),
     /** The declarant; null for an officer who never onboarded (no notification by person). */
     personId: uuid(),
-    /** The roster record (payroll, #209); null when the subject does not name one. */
+    /** The roster record (payroll); null when the subject does not name one. */
     rosterRecordId: uuid(),
     /** The clarification's case; null for an obligation. */
     caseId: uuid(),
@@ -167,7 +171,8 @@ export const enforcementLadders = pgTable(
 /**
  * An administrative action: one step of a ladder, drafted by the system, approved or declined by
  * an officer, then issued as a Restricted letter with an `ADM` reference. The declarant answers an
- * issued notice or warning once.
+ * issued notice or warning once. A salary stoppage carries its payroll instructions (stop, and
+ * resume on compliance) and their acknowledgements.
  */
 export const administrativeActions = pgTable(
   'administrative_actions',
@@ -212,6 +217,11 @@ export const administrativeActions = pgTable(
     payrollStopAck: jsonb().$type<PayrollAcknowledgement>(),
     payrollResumeReference: text(),
     payrollResumeAck: jsonb().$type<PayrollAcknowledgement>(),
+    /** The day payroll stops the salary from, fixed when the stop is first sent (`YYYY-MM-DD`). */
+    salaryStopEffectiveDate: date({ mode: 'string' }),
+    /** When payroll acknowledged the stop, and the resume. */
+    salaryStoppedAt: timestamp({ withTimezone: true }),
+    salaryReinstatedAt: timestamp({ withTimezone: true }),
     ...timestamps,
   },
   (table) => [

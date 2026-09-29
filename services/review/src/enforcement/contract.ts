@@ -18,12 +18,14 @@ export function enforcementWorkflowId(subjectKind: SubjectKind, subjectId: strin
 }
 
 /**
- * The steps `EnforcementWorkflow` drafts, in order. #209 appends salary stoppage and the
- * disciplinary referral; until then, after the warning's window the ladder waits for compliance.
+ * The steps `EnforcementWorkflow` drafts, in order. After the disciplinary referral the ladder
+ * waits for compliance.
  */
 export const LADDER_STEPS = [
   'notice-to-comply',
   'warning',
+  'salary-stoppage',
+  'disciplinary-referral',
 ] as const satisfies readonly ActionStep[];
 export type LadderStep = (typeof LADDER_STEPS)[number];
 
@@ -77,6 +79,8 @@ export type ActionChannel = (typeof ACTION_CHANNELS)[number];
 
 export interface ActionNotice extends ActionRef {
   channel: ActionChannel;
+  /** The salary reinstated after a stoppage, rather than the step issued. */
+  reinstatement?: boolean;
 }
 
 /**
@@ -85,9 +89,23 @@ export interface ActionNotice extends ActionRef {
  */
 export type ActionNoticeOutcome = 'sent' | 'failed' | 'rejected' | 'skipped';
 
-/** When the issued step's window ends (ISO 8601), set when its letter was requested. */
+/**
+ * When the issued step's window ends (ISO 8601), set when its letter was requested; null for the
+ * disciplinary referral, after which the ladder waits for compliance with no deadline.
+ */
 export interface IssuedAction {
-  windowEndsAt: string;
+  windowEndsAt: string | null;
+}
+
+/**
+ * What `stopSalary` did: payroll acknowledged the stop (now or before), or there is no roster
+ * record to stop a salary on (nothing sent; the step waits for compliance, unissued).
+ */
+export type SalaryStopOutcome = 'stopped' | 'no-roster-record';
+
+/** What `reinstateSalary` did: the stoppage it reinstated, or null when no salary was stopped. */
+export interface Reinstatement {
+  actionId: string | null;
 }
 
 export interface CloseRequest extends LadderRef {
@@ -122,6 +140,9 @@ export function isCompliance(cause: ClosingCause): boolean {
 
 /** Failure type of a ladder or action that disappeared; not retried. */
 export const LADDER_MISSING = 'ladder-missing';
+
+/** Failure type of a payroll instruction the gateway or payroll refused; not retried. */
+export const PAYROLL_REFUSED = 'payroll-refused';
 
 /** Failure type of a letter the documents service refused; not retried. */
 export const ACTION_LETTER_REFUSED = 'action-letter-refused';

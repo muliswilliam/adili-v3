@@ -10,7 +10,11 @@ export type ReviewTemplate =
   | 'decision-email'
   | 'decision-sms'
   | 'notice-email'
-  | 'notice-sms';
+  | 'notice-sms'
+  | 'salary-stopped-email'
+  | 'salary-stopped-sms'
+  | 'salary-reinstated-email'
+  | 'salary-reinstated-sms';
 
 /**
  * A templated message to a person, whose verified contacts the notifications service resolves

@@ -9,6 +9,7 @@ import {
   DirectoryClient,
   DirectoryUnavailable,
   type LadderPolicy,
+  type PayrollRosterFacts,
 } from './directory-client.js';
 
 /** The scope the review service's token needs for the directory's internal API. */
@@ -59,10 +60,21 @@ const commissionSchema = z.object({
 });
 
 /**
+ * The roster record's fields payroll needs. `employerCode` is optional: the directory's record
+ * does not carry it yet.
+ */
+const rosterRecordSchema = z.object({
+  personnelFileNumber: z.string().min(1),
+  nationalId: z.string().min(1),
+  employerCode: z.string().min(1).nullish(),
+  reportingEntity: z.object({ id: z.uuid() }).nullish(),
+});
+
+/**
  * The directory's `internalGetTenantPolicy` (clarification periods, ladder windows) and
- * `internalGetCommission` with the review service's
- * own token, cached per Commission for a few minutes: a policy or a name changes rarely, and a
- * case's window is fixed when the case is created.
+ * `internalGetCommission` with the review service's own token, cached per Commission for a few
+ * minutes: a policy or a name changes rarely, and a case's window is fixed when the case is
+ * created. `internalGetRosterRecord` (payroll's facts) is read uncached, each time.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly api: InternalApi;
@@ -128,5 +140,20 @@ export class HttpDirectoryClient extends DirectoryClient {
     const commission = { slug: found.slug, issuerCode: found.issuerCode, name: found.name };
     this.commissions.set(slug, { commission, until: this.now() + this.ttlMs });
     return commission;
+  }
+
+  async getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null> {
+    const found = await this.api.get({
+      path: `internal/v1/commissions/${encodeURIComponent(slug)}/roster/records/${encodeURIComponent(recordId)}`,
+      tenant: slug,
+      schema: rosterRecordSchema,
+    });
+    if (!found) return null;
+    return {
+      personalNumber: found.personnelFileNumber,
+      nationalId: found.nationalId,
+      employerCode: found.employerCode ?? null,
+      reportingEntityId: found.reportingEntity?.id ?? null,
+    };
   }
 }

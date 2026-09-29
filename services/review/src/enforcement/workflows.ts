@@ -42,6 +42,16 @@ const {
   retry: RETRY,
 });
 
+/**
+ * Payroll instructions through the integration-gateway: retried with backoff until payroll
+ * acknowledges (idempotent by instruction reference, so a retry never stops a salary twice); the
+ * stoppage stays `approved-pending-payroll` meanwhile.
+ */
+const { stopSalary, reinstateSalary } = proxyActivities<EnforcementActivities>({
+  startToCloseTimeout: '1 minute',
+  retry: RETRY,
+});
+
 export const decidedSignal = defineSignal(DECIDED_SIGNAL);
 export const closedSignal = defineSignal<[ClosingCause]>(CLOSED_SIGNAL);
 
@@ -60,11 +70,15 @@ const DECISION_RECHECK = '1 day';
 /**
  * `EnforcementWorkflow(subjectKind, subjectId)` (spec 08): started when a filing obligation goes
  * overdue or a clarification goes unanswered, with the subject as workflow id, so a repeated event
- * starts nothing. For each step (notice to comply, then warning): draft it (`system`), wait for an
- * officer to approve or decline it; once approved, request its Restricted `ADM` letter, tell the
- * declarant by email and SMS, mark it issued and wait out its window. A decline ends the ladder (a
- * supervisor may restart it at that step). Compliance (the obligation filed, the clarification
- * answered or resolved) ends it at any point; so does the subject going away.
+ * starts nothing. For each step (notice to comply, warning, salary stoppage, disciplinary
+ * referral): draft it (`system`), wait for an officer to approve or decline it (the last two a
+ * supervisor's); once approved, for the stoppage send `stop_salary` to payroll and wait for its
+ * acknowledgement, then request its Restricted `ADM` letter, tell the declarant by email and SMS
+ * (not of the referral, which goes to the employer as an event), mark it issued and wait out its
+ * window. A declined step ends the ladder (a supervisor may restart it at that step), except the
+ * disciplinary referral: declined, the ladder waits for compliance. Compliance (the obligation
+ * filed, the clarification answered or resolved) ends it at any point, and reinstates a stopped
+ * salary (`resume_salary`, then the declarant told); the subject going away ends it too.
  */
 export async function enforcement(input: EnforcementInput): Promise<EnforcementResult> {
   let closing: ClosingCause | null = null;
@@ -91,6 +105,8 @@ export async function enforcement(input: EnforcementInput): Promise<EnforcementR
     const action: ActionRef = { tenant: input.tenant, actionId };
 
     const decision = await decided(action, closed, () => decisions, seen);
+    // A declined referral leaves the salary stopped until the declarant complies.
+    if (decision === 'declined' && step === 'disciplinary-referral') break;
     if (decision === 'declined') return { outcome: 'declined', step };
     if (decision === 'closed') {
       const cause = closed();
@@ -98,24 +114,43 @@ export async function enforcement(input: EnforcementInput): Promise<EnforcementR
       return cause === null ? { outcome: 'closed' } : close(ladder, cause);
     }
 
+    if (step === 'salary-stoppage') {
+      // No roster record to stop a salary on: nothing is sent or issued; compliance ends it.
+      if ((await stopSalary(action)) === 'no-roster-record') break;
+      const stoppedThen = closed();
+      if (stoppedThen !== null) return close(ladder, stoppedThen);
+    }
     await issueLetter(action);
-    for (const channel of ACTION_CHANNELS) {
-      await notifyAction({ ...action, channel });
+    if (step !== 'disciplinary-referral') {
+      for (const channel of ACTION_CHANNELS) {
+        await notifyAction({ ...action, channel });
+      }
     }
     const { windowEndsAt } = await markIssued(action);
+    // After the referral, no deadline: the ladder waits for compliance.
+    if (windowEndsAt === null) break;
     const cause = await closedBefore(new Date(windowEndsAt), closed);
     if (cause !== null) return close(ladder, cause);
   }
-  // #209 drafts the salary stoppage here. Until then, the ladder waits for compliance.
   await condition(() => closed() !== null);
   const cause = closed();
   return cause === null ? { outcome: 'closed' } : close(ladder, cause);
 }
 
-/** Records the closing of the ladder: open steps complied or cancelled. */
+/**
+ * Records the closing of the ladder (open steps complied or cancelled); on compliance, reinstates
+ * a stopped salary and tells the declarant.
+ */
 async function close(ladder: LadderRef, cause: ClosingCause): Promise<EnforcementResult> {
   await closeLadder({ ...ladder, cause });
-  return { outcome: isCompliance(cause) ? 'complied' : 'ended', cause };
+  if (!isCompliance(cause)) return { outcome: 'ended', cause };
+  const { actionId } = await reinstateSalary(ladder);
+  if (actionId !== null) {
+    for (const channel of ACTION_CHANNELS) {
+      await notifyAction({ tenant: ladder.tenant, actionId, channel, reinstatement: true });
+    }
+  }
+  return { outcome: 'complied', cause };
 }
 
 /**

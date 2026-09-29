@@ -31,6 +31,8 @@ export const STEP_LABELS: Record<ActionStep, string> = {
 export const STEP_LETTERS: Record<LadderStep, ActionLetterType> = {
   'notice-to-comply': 'notice-to-comply',
   warning: 'warning',
+  'salary-stoppage': 'salary-stoppage',
+  'disciplinary-referral': 'disciplinary-referral',
 };
 
 /** The template version of the step letters this service's payload fills. */
@@ -101,8 +103,11 @@ export async function recordHistory(
     .values({ id: uuidv7(), tenant, ladderId, actionId, kind, actor, at });
 }
 
-/** Steps that went to (or are going to) the declarant: compliance marks them `complied`. */
-const COMPLIABLE = ['approved', 'issued', 'responded'] as const;
+/**
+ * Steps that went to (or are going to) the declarant: compliance marks them `complied`. A stoppage
+ * whose stop payroll has not yet acknowledged is among them: the stop is resumed once it is.
+ */
+const COMPLIABLE = ['approved', 'approved-pending-payroll', 'issued', 'responded'] as const;
 
 /**
  * Closes an active or declined ladder for `cause`, once: compliance marks its issued steps

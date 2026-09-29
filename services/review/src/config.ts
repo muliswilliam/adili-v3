@@ -20,6 +20,8 @@ export const envSchema = baseEnvSchema.extend({
   DOCUMENTS_URL: z.url(),
   /** Base URL of the notifications service, which sends clarification emails and SMS. */
   NOTIFICATIONS_URL: z.url(),
+  /** Base URL of the integration-gateway, which sends salary stop and resume instructions. */
+  INTEGRATION_GATEWAY_URL: z.url(),
   /** The declarant portal, linked from clarification letters and messages. */
   PORTAL_URL: z.url(),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */

@@ -107,4 +107,53 @@ describe('HttpDirectoryClient', () => {
 
     await expect(directory.getCommission('nowhere')).rejects.toThrow(DirectoryUnavailable);
   });
+  it("reads a roster record's payroll facts each time, uncached; the employer code when the record has one", async () => {
+    const record = {
+      id: '0199b000-0000-7000-8000-0000000000f1',
+      personnelFileNumber: 'PSC/2019/0077',
+      fullName: 'Grace Wanjiru',
+      nationalId: '27451863',
+      reportingEntity: { id: '0199b000-0000-7000-8000-0000000000f2', name: 'State Department' },
+      tenant: 'psc',
+    };
+    const answers = [record, { ...record, employerCode: 'MOH', reportingEntity: null }];
+    const fetch = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.resolve(Response.json(answers.shift())),
+    );
+    const directory = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens: { token: () => Promise.resolve('token'), invalidate: vi.fn() },
+      fetch,
+      now: () => 0,
+    });
+
+    expect(await directory.getRosterRecord('psc', record.id)).toEqual({
+      personalNumber: 'PSC/2019/0077',
+      nationalId: '27451863',
+      employerCode: null,
+      reportingEntityId: '0199b000-0000-7000-8000-0000000000f2',
+    });
+    expect(await directory.getRosterRecord('psc', record.id)).toEqual({
+      personalNumber: 'PSC/2019/0077',
+      nationalId: '27451863',
+      employerCode: 'MOH',
+      reportingEntityId: null,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect((fetch.mock.calls[0]?.[0] as URL).href).toBe(
+      `http://directory.test/internal/v1/commissions/psc/roster/records/${record.id}`,
+    );
+  });
+
+  it('answers null for a roster record the Commission does not have', async () => {
+    const directory = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens: { token: () => Promise.resolve('token'), invalidate: vi.fn() },
+      fetch: () => Promise.resolve(new Response(null, { status: 404 })),
+    });
+
+    expect(
+      await directory.getRosterRecord('psc', '0199b000-0000-7000-8000-0000000000f3'),
+    ).toBeNull();
+  });
 });

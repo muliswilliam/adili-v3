@@ -231,6 +231,7 @@ describe('enforcement ladder', () => {
       issuedAt: PAST,
       // Fourteen days: the directory's policy has no ladder windows, so spec 08's apply.
       actBy: '2026-01-19T08:00:00.000Z',
+      salaryStoppedFrom: null,
       respondUrl: `http://localhost:3010/notices/${notice.id}`,
     });
     const noticeParams = {
@@ -282,7 +283,7 @@ describe('enforcement ladder', () => {
     expect(second.statusCode, second.body).toBe(200);
     const warningReference = second.json<ActionView>().reference;
     expect(warningReference).toMatch(/^ADM-PSC-2026-0000002-[0-9A-Z]$/);
-    const issued = await stepIs('warning', 'issued');
+    await stepIs('warning', 'issued');
     await vi.waitFor(
       () => {
         expect(api.documents.issued).toHaveLength(2);
@@ -303,11 +304,13 @@ describe('enforcement ladder', () => {
       'notice-email',
       'notice-sms',
     ]);
-    // After the warning's window the ladder waits for compliance (#209 drafts the stoppage).
-    expect(issued.ladder.status).toBe('active');
-    expect(issued.actions.map((action) => [action.step, action.status])).toEqual([
+    // After the warning's window the salary stoppage waits for a supervisor.
+    const stoppage = await stepIs('salary-stoppage', 'proposed');
+    expect(stoppage.ladder.status).toBe('active');
+    expect(stoppage.actions.map((action) => [action.step, action.status])).toEqual([
       ['notice-to-comply', 'issued'],
       ['warning', 'issued'],
+      ['salary-stoppage', 'proposed'],
     ]);
 
     // History and events: who did what, identifiers only (S19).
@@ -326,6 +329,7 @@ describe('enforcement ladder', () => {
       ['action-proposed', 'system:review'],
       ['action-approved', 'supervisor-s'],
       ['action-issued', 'system:review'],
+      ['action-proposed', 'system:review'],
     ]);
     expect(await outboxOf('action.approved.v1')).toMatchObject([
       {
@@ -344,7 +348,7 @@ describe('enforcement ladder', () => {
       },
       { subject: warning.id, data: { step: 'warning', approver: 'supervisor-s' } },
     ]);
-    expect(await outboxOf('action.proposed.v1')).toHaveLength(2);
+    expect(await outboxOf('action.proposed.v1')).toHaveLength(3);
     expect(await outboxOf('action.issued.v1')).toHaveLength(2);
     for (const type of ['action.proposed.v1', 'action.approved.v1', 'action.issued.v1']) {
       for (const event of await outboxOf(type)) {

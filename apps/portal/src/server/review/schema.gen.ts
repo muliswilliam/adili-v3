@@ -416,7 +416,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Fields the notice to comply and warning templates need (documents service) */
+        /** Fields the step letter templates need (notice to comply, warning, salary stoppage, disciplinary referral; documents service) */
         get: operations["internalGetActionLetterPayload"];
         put?: never;
         post?: never;
@@ -711,7 +711,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Decline a proposed step with a note (ends the ladder) */
+        /** Decline a proposed step with a note (ends the ladder; a declined disciplinary referral leaves it waiting for compliance) */
         post: operations["declineAction"];
         delete?: never;
         options?: never;
@@ -1623,8 +1623,16 @@ export interface components {
             whatToDo: "file-declaration" | "respond-to-clarification";
             /** Format: date-time */
             issuedAt: string;
-            /** Format: date-time */
-            actBy: string;
+            /**
+             * Format: date-time
+             * @description By when to act; null for the disciplinary referral, which sets no deadline
+             */
+            actBy: string | null;
+            /**
+             * Format: date
+             * @description The salary stoppage's effective date (payroll stops the salary from this day); null for other steps
+             */
+            salaryStoppedFrom: string | null;
             /** Format: uri */
             respondUrl: string;
         };

@@ -12,6 +12,7 @@ import { config } from '../config.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
+import { IntegrationGatewayModule } from '../integration-gateway/integration-gateway.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ProcessingActivities } from './activities.js';
 import { DeclarationSubmittedConsumer } from './declaration-submitted.consumer.js';
@@ -51,6 +52,7 @@ const workflowsPath = fileURLToPath(
         DeclarationsModule,
         DirectoryModule,
         DocumentsModule,
+        IntegrationGatewayModule,
         NotificationsModule,
       ],
     }),

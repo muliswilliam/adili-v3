@@ -171,7 +171,11 @@ export class EnforcementService {
     });
   }
 
-  /** An officer the rule admits declines a drafted step with a note: the ladder ends, declined. */
+  /**
+   * An officer the rule admits declines a drafted step with a note: the ladder ends, declined;
+   * except a declined disciplinary referral, after which the ladder waits for compliance (a
+   * stopped salary stays stopped until then).
+   */
   async decline(principal: Principal, actionId: string, input: ReasonInput): Promise<ActionView> {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
@@ -190,10 +194,12 @@ export class EnforcementService {
         .where(eq(administrativeActions.id, action.id))
         .returning();
       const declined = notFoundIfInvisible(updated);
-      await tx
-        .update(enforcementLadders)
-        .set({ status: 'declined', endedAt: now })
-        .where(eq(enforcementLadders.id, ladder.id));
+      if (declined.step !== 'disciplinary-referral') {
+        await tx
+          .update(enforcementLadders)
+          .set({ status: 'declined', endedAt: now })
+          .where(eq(enforcementLadders.id, ladder.id));
+      }
       await recordAction(tx, this.events, declined, {
         kind: 'action-declined',
         type: ACTION_DECLINED,
@@ -347,10 +353,7 @@ function requireProposed(status: ActionStatus): void {
 
 /** The step a restart drafts again: the declined one (the notice when none is found). */
 function restartStep(declined: ActionRow | undefined): LadderStep {
-  const step = declined?.step;
-  return (LADDER_STEPS as readonly string[]).includes(step ?? '')
-    ? (step as LadderStep)
-    : 'notice-to-comply';
+  return declined?.step ?? LADDER_STEPS[0];
 }
 
 const cursorPayload = z.tuple([z.iso.datetime({ offset: true }), z.uuid()]);

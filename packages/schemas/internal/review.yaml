@@ -663,7 +663,7 @@ paths:
     get:
       tags: [internal]
       operationId: internalGetActionLetterPayload
-      summary: Fields the notice to comply and warning templates need (documents service)
+      summary: Fields the step letter templates need (notice to comply, warning, salary stoppage, disciplinary referral; documents service)
       responses:
         '200':
           description: Payload
@@ -1172,7 +1172,7 @@ paths:
     post:
       tags: [actions]
       operationId: declineAction
-      summary: Decline a proposed step with a note (ends the ladder)
+      summary: Decline a proposed step with a note (ends the ladder; a declined disciplinary referral leaves it waiting for compliance)
       requestBody:
         required: true
         content:
@@ -3063,6 +3063,7 @@ components:
           whatToDo,
           issuedAt,
           actBy,
+          salaryStoppedFrom,
           respondUrl,
         ]
       properties:
@@ -3098,8 +3099,13 @@ components:
           type: string
           format: date-time
         actBy:
-          type: string
+          type: [string, 'null']
           format: date-time
+          description: By when to act; null for the disciplinary referral, which sets no deadline
+        salaryStoppedFrom:
+          type: [string, 'null']
+          format: date
+          description: The salary stoppage's effective date (payroll stops the salary from this day); null for other steps
         respondUrl:
           type: string
           format: uri

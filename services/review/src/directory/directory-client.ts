@@ -38,6 +38,23 @@ export interface CommissionFacts {
   name: string;
 }
 
+/**
+ * What payroll needs of a roster record (directory.yaml `InternalRosterRecord`), read at send time
+ * (spec 08). Personal data: used where it is read, never stored, logged or put in workflow history.
+ */
+export interface PayrollRosterFacts {
+  /** The personal number payroll knows the officer by: the roster's personnel file number. */
+  personalNumber: string;
+  nationalId: string;
+  /**
+   * The payroll employer code; null while the directory's roster record does not carry one
+   * (directory.yaml has no such field yet).
+   */
+  employerCode: string | null;
+  /** The reporting entity (the employer the disciplinary referral is for); null when none. */
+  reportingEntityId: string | null;
+}
+
 /** The directory is unreachable or answered outside its contract; activities retry. */
 export class DirectoryUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -62,4 +79,10 @@ export abstract class DirectoryClient {
 
   /** The Commission's name and issuer code; throws `DirectoryUnavailable` for no Commission. */
   abstract getCommission(slug: string): Promise<CommissionFacts>;
+
+  /**
+   * What payroll needs of one roster record of the Commission (`internalGetRosterRecord`); null
+   * when the Commission has no such record. Never cached: read each time an instruction is sent.
+   */
+  abstract getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null>;
 }

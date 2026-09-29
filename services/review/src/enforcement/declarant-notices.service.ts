@@ -180,9 +180,8 @@ export class DeclarantNoticesService {
               letterDownloadUrl:
                 row.letterDocumentId === null ? null : letterDownloadUrl(row.letterDocumentId),
               response: responseView(row),
-              // Salary stoppage and reinstatement come with #209.
-              salaryStoppedAt: null,
-              salaryReinstatedAt: null,
+              salaryStoppedAt: row.salaryStoppedAt?.toISOString() ?? null,
+              salaryReinstatedAt: row.salaryReinstatedAt?.toISOString() ?? null,
             },
           ],
     );

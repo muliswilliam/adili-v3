@@ -16,7 +16,10 @@ import {
   type SubjectKind,
 } from './schema.js';
 
-/** review.yaml `ActionLetterPayload`: the fields `notice-to-comply.v1` and `warning.v1` render. */
+/**
+ * review.yaml `ActionLetterPayload`: the fields the step letters (`notice-to-comply.v1`,
+ * `warning.v1`, `salary-stoppage.v1`, `disciplinary-referral.v1`) render.
+ */
 export interface ActionLetterPayload {
   declarantName: string;
   personnelFileNumber: string;
@@ -28,7 +31,10 @@ export interface ActionLetterPayload {
   subjectReference: string;
   whatToDo: 'file-declaration' | 'respond-to-clarification';
   issuedAt: string;
-  actBy: string;
+  /** Null for the disciplinary referral, which sets no deadline. */
+  actBy: string | null;
+  /** The salary stoppage: the day payroll stops the salary from (`YYYY-MM-DD`); else null. */
+  salaryStoppedFrom: string | null;
   respondUrl: string;
 }
 
@@ -54,13 +60,13 @@ export class ActionLetterPayloadService {
           and(
             eq(administrativeActions.id, actionId),
             isNotNull(administrativeActions.reference),
-            isNotNull(administrativeActions.windowEndsAt),
+            isNotNull(administrativeActions.issuedAt),
           ),
         ),
     );
     const { action, ladder } = notFoundIfInvisible(found);
-    if (action.reference === null || action.issuedAt === null || action.windowEndsAt === null) {
-      throw new Error(`Action ${actionId} is issued without a reference or window`);
+    if (action.reference === null || action.issuedAt === null) {
+      throw new Error(`Action ${actionId} is issued without a reference`);
     }
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
     return {
@@ -74,7 +80,8 @@ export class ActionLetterPayloadService {
       subjectReference: ladder.subjectReference,
       whatToDo: whatToDo(ladder),
       issuedAt: action.issuedAt.toISOString(),
-      actBy: action.windowEndsAt.toISOString(),
+      actBy: action.windowEndsAt?.toISOString() ?? null,
+      salaryStoppedFrom: action.salaryStopEffectiveDate,
       respondUrl: portalNoticeUrl(actionId),
     };
   }

@@ -57,6 +57,13 @@
       "when": 1790688713431,
       "tag": "0007_enforcement_ladder",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790692471188,
+      "tag": "0008_salary_stoppage_payroll",
+      "breakpoints": true
     }
   ]
 }

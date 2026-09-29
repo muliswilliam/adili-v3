@@ -20,6 +20,7 @@ import { DeclarationsClient } from '../../src/declarations/declarations-client.j
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient, type ReviewLetter } from '../../src/documents/documents-client.js';
 import { EnforcementConsumer } from '../../src/enforcement/enforcement.consumer.js';
+import { IntegrationGatewayClient } from '../../src/integration-gateway/integration-gateway-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
@@ -27,6 +28,7 @@ import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
+import { FakeIntegrationGateway } from './fake-integration-gateway.js';
 import { FakeNotifications } from './fake-notifications.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
@@ -57,6 +59,8 @@ export interface ReviewApi {
   /** Documents; each letter issued pulls its payload from this app's internal endpoint. */
   documents: FakeDocuments;
   notifications: FakeNotifications;
+  /** The integration-gateway's payroll instructions. */
+  gateway: FakeIntegrationGateway;
   clock: FakeClock;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
   consumer: DeclarationSubmittedConsumer;
@@ -108,6 +112,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
   const directory = new FakeDirectory();
   const documents = new FakeDocuments();
   const notifications = new FakeNotifications();
+  const gateway = new FakeIntegrationGateway();
   const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
@@ -122,6 +127,8 @@ export async function startReviewApi(): Promise<ReviewApi> {
     .useValue(documents)
     .overrideProvider(NotificationsClient)
     .useValue(notifications)
+    .overrideProvider(IntegrationGatewayClient)
+    .useValue(gateway)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(OutboxRelay)
@@ -152,6 +159,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     directory,
     documents,
     notifications,
+    gateway,
     clock,
     consumer: app.get(DeclarationSubmittedConsumer),
     enforcement: app.get(EnforcementConsumer),
@@ -181,6 +189,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
       directory.reset();
       documents.reset();
       notifications.reset();
+      gateway.reset();
       clock.reset();
     },
     async close() {

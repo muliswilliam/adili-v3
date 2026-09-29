@@ -26,7 +26,8 @@ export type ReviewLetter =
   | { type: ActionLetterType; payload: { actionId: string } };
 
 /** The letters of the enforcement ladder's steps (documents.yaml `DocumentType`). */
-export type ActionLetterType = 'notice-to-comply' | 'warning';
+export type ActionLetterType =
+  'notice-to-comply' | 'warning' | 'salary-stoppage' | 'disciplinary-referral';
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
