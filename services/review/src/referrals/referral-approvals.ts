@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, count, eq, gt, lte, or, sql } from 'drizzle-orm';
+import { and, asc } from 'drizzle-orm';
 
 import {
-  type AgeCounts,
   type ApprovalPosition,
   ApprovalSource,
   type PendingApproval,
+  type ProposalTable,
 } from '../approvals/approval-source.js';
 import { mergedReviewers, reviewersOfRecord } from '../approvals/separation-of-duties.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
@@ -15,8 +15,6 @@ import { referrals } from './schema.js';
 /** How much of the narrative the inbox card shows. */
 const NARRATIVE_EXCERPT = 200;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Proposed referrals as the approvals inbox lists them (spec 08): the grounds, the declarant and
  * what the referral rests on, for a supervisor who neither proposed it nor held any of its cases.
@@ -24,6 +22,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 @Injectable()
 export class ReferralApprovals extends ApprovalSource {
   readonly kind = 'referral' as const;
+
+  protected readonly proposals: ProposalTable = {
+    table: referrals,
+    id: referrals.id,
+    tenant: referrals.tenant,
+    status: referrals.status,
+    proposedAt: referrals.proposedAt,
+  };
 
   async pending(
     tx: ReviewTransaction,
@@ -34,18 +40,7 @@ export class ReferralApprovals extends ApprovalSource {
     const rows = await tx
       .select()
       .from(referrals)
-      .where(
-        and(
-          eq(referrals.tenant, tenant),
-          eq(referrals.status, 'proposed'),
-          after === null
-            ? undefined
-            : or(
-                gt(referrals.proposedAt, after.proposedAt),
-                and(eq(referrals.proposedAt, after.proposedAt), gt(referrals.id, after.subjectId)),
-              ),
-        ),
-      )
+      .where(and(this.waiting(tenant), this.after(after)))
       .orderBy(asc(referrals.proposedAt), asc(referrals.id))
       .limit(limit);
     const reviewers = await reviewersOfRecord(
@@ -85,43 +80,5 @@ export class ReferralApprovals extends ApprovalSource {
         },
       };
     });
-  }
-
-  async ageCounts(tx: ReviewTransaction, tenant: string, now: Date): Promise<AgeCounts> {
-    const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
-    const monthAgo = new Date(now.getTime() - 30 * DAY_MS);
-    const [counts] = await tx
-      .select({
-        total: count(),
-        from7To30Days:
-          sql<number>`count(*) filter (where ${lte(referrals.proposedAt, weekAgo)} and ${gt(referrals.proposedAt, monthAgo)})`.mapWith(
-            Number,
-          ),
-        over30Days:
-          sql<number>`count(*) filter (where ${lte(referrals.proposedAt, monthAgo)})`.mapWith(
-            Number,
-          ),
-      })
-      .from(referrals)
-      .where(and(eq(referrals.tenant, tenant), eq(referrals.status, 'proposed')));
-    if (!counts) return { under7Days: 0, from7To30Days: 0, over30Days: 0 };
-    return {
-      under7Days: counts.total - counts.from7To30Days - counts.over30Days,
-      from7To30Days: counts.from7To30Days,
-      over30Days: counts.over30Days,
-    };
-  }
-
-  async find(
-    tx: ReviewTransaction,
-    tenant: string,
-    subjectId: string,
-  ): Promise<{ pending: boolean } | null> {
-    const [found] = await tx
-      .select({ status: referrals.status })
-      .from(referrals)
-      .where(and(eq(referrals.id, subjectId), eq(referrals.tenant, tenant)))
-      .for('update');
-    return found ? { pending: found.status === 'proposed' } : null;
   }
 }
