@@ -18,7 +18,7 @@ import {
 import { fallbackIssuerCode } from '../access.js';
 import type { Transaction } from '../apply-page.js';
 import { addDays, type CivilDate, daysBetween, nairobiDate } from '../dates.js';
-import type { ObligationStatus } from '../engine.js';
+import { movesForward, type ObligationStatus, type OpenStatus } from '../engine.js';
 import { obligationReminderRecorded, obligationStatusChanged } from '../events.js';
 import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
 import {
@@ -123,12 +123,14 @@ export class ObligationSteps {
   }
 
   /**
-   * Moves an open obligation to `to` with an `obligation.status-changed.v1` event. A terminal
-   * obligation (cancelled, filed) is left alone. Returns the status it has afterwards.
+   * Moves an open obligation on to `to` with an `obligation.status-changed.v1` event. A terminal
+   * obligation (cancelled, filed) is left alone, and so is one already further on (roster ingest
+   * moves statuses on too): both write the date-based status, so they converge. Returns the
+   * status it has afterwards.
    */
   async setStatus(
     { obligationId, tenant }: ObligationRef,
-    to: ObligationStatus,
+    to: OpenStatus,
   ): Promise<ObligationStatus> {
     return withTenant(this.db, systemContext(tenant), async (tx) => {
       const [row] = await tx
@@ -140,9 +142,7 @@ export class ObligationSteps {
         this.logger.warn({ obligationId }, 'Obligation of a running workflow not found');
         return 'cancelled';
       }
-      if (row.status === to || row.status === 'cancelled' || row.status === 'filed') {
-        return row.status;
-      }
+      if (!movesForward(row.status, to)) return row.status;
       await tx
         .update(filingObligations)
         .set({ status: to })

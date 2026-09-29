@@ -11,7 +11,7 @@ import {
   setHandler,
 } from '@temporalio/workflow';
 
-import type { ObligationStatus } from '../engine.js';
+import type { ObligationStatus, OpenStatus } from '../engine.js';
 import type { ObligationActivities } from './activities.js';
 import type { CycleOpeningActivities } from './cycle-opening-activities.js';
 import {
@@ -134,7 +134,7 @@ export async function filingObligation({
     if (ms > 0) await condition(() => signals.ended !== null, ms);
   };
   /** Moves the status on; the end of the workflow when it had become terminal meanwhile. */
-  const changeStatus = async (to: ObligationStatus): Promise<FilingObligationEnd | null> => {
+  const changeStatus = async (to: OpenStatus): Promise<FilingObligationEnd | null> => {
     const status = await setStatus(ref, to);
     state.status = status;
     return endOf(status);

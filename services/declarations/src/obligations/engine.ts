@@ -300,6 +300,16 @@ export function statusOn(
   return 'due';
 }
 
+/**
+ * Whether moving from `from` to the open status `to` goes forward in time. An obligation's dates
+ * never change in place (a correction supersedes it), so its date-based status only moves
+ * upcoming → due → overdue; a terminal status never moves.
+ */
+export function movesForward(from: ObligationStatus, to: OpenStatus): boolean {
+  const index = (OPEN_STATUSES as readonly ObligationStatus[]).indexOf(from);
+  return index !== -1 && OPEN_STATUSES.indexOf(to) > index;
+}
+
 function biennialStatementDate(year: number, policy: ObligationPolicy): CivilDate {
   return atMonthDay(year, policy.biennial.statementDate);
 }

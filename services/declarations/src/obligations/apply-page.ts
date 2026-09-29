@@ -11,9 +11,12 @@ import {
   type CycleCalendar,
   type DesiredObligation,
   type ObligationPolicy,
+  movesForward,
   type ObligationStatus,
+  type ObligationType,
   type PlanOperation,
   planObligations,
+  statusOn,
 } from './engine.js';
 import {
   obligationCreated,
@@ -96,9 +99,10 @@ export async function applyRosterPage(
 /**
  * Runs the obligation engine for the given roster snapshots against their obligations and applies
  * the plan (cancel, supersede, create, link the person) with one event per created or cancelled
- * obligation, in the caller's transaction. `keep` narrows the plan (the cycle opening only
- * creates the cycle's biennials). Returns what the obligations' workflows must be told after
- * commit.
+ * obligation, in the caller's transaction, then moves the kept open obligations on to today's
+ * status. `keep` narrows the plan to what the caller is for (the cycle opening only creates the
+ * cycle's biennials, the sweep only cancels), and then statuses are left to the workflows.
+ * Returns what the obligations' workflows must be told after commit.
  *
  * The snapshots are locked, so two events touching the same record (an import and an onboarding,
  * or the cycle opening) apply one after the other rather than planning from the same state.
@@ -108,7 +112,7 @@ export async function reconcileSnapshots(
   events: EventPublisher,
   context: ReconcileContext,
   rosterRecordIds: readonly string[],
-  keep: (operation: PlanOperation) => boolean = () => true,
+  keep?: (operation: PlanOperation) => boolean,
 ): Promise<ObligationChanges> {
   if (rosterRecordIds.length === 0) return noChanges();
   const ids = [...rosterRecordIds];
@@ -123,6 +127,8 @@ export async function reconcileSnapshots(
       rosterRecordId: filingObligations.rosterRecordId,
       type: filingObligations.type,
       cycleKey: filingObligations.cycleKey,
+      statementDate: filingObligations.statementDate,
+      dueDate: filingObligations.dueDate,
       status: filingObligations.status,
       personId: filingObligations.personId,
     })
@@ -151,12 +157,67 @@ export async function reconcileSnapshots(
       today: context.today,
       existing: existingByRecord.get(snapshot.rosterRecordId) ?? [],
     });
-    for (const operation of operations.filter(keep)) {
+    for (const operation of keep ? operations.filter(keep) : operations) {
       plan.push({ rosterRecordId: snapshot.rosterRecordId, operation });
     }
   }
   const statusOf = new Map(existing.map((row) => [row.id, row.status]));
-  return applyPlan(tx, events, context, plan, statusOf);
+  const changes = await applyPlan(tx, events, context, plan, statusOf);
+  if (keep) return changes;
+  const ended = new Set(
+    plan.flatMap(({ operation }) =>
+      operation.kind === 'cancel' || operation.kind === 'supersede' ? [operation.obligationId] : [],
+    ),
+  );
+  await moveStatusesOn(
+    tx,
+    events,
+    context,
+    existing.filter((row) => !ended.has(row.id)),
+  );
+  return changes;
+}
+
+/**
+ * Moves the open obligations kept by the plan on to their date-based status for today (#91), with
+ * an `obligation.status-changed.v1` event each, so an ingest after a missed timer (a workflow not
+ * yet started, or down) corrects them. Forward only, like the workflow's `setStatus`, and on rows
+ * locked by the caller: whichever of the two writes first, the other finds the status there and
+ * changes nothing.
+ */
+async function moveStatusesOn(
+  tx: Transaction,
+  events: EventPublisher,
+  context: ReconcileContext,
+  kept: readonly {
+    id: string;
+    type: ObligationType;
+    statementDate: CivilDate;
+    dueDate: CivilDate;
+    status: ObligationStatus;
+  }[],
+): Promise<void> {
+  const moves = kept.flatMap((row) => {
+    const to = statusOn(row.type, row.statementDate, row.dueDate, context.today);
+    return movesForward(row.status, to) ? [{ id: row.id, from: row.status, to }] : [];
+  });
+  for (const [to, group] of Map.groupBy(moves, (move) => move.to)) {
+    await tx
+      .update(filingObligations)
+      .set({ status: to })
+      .where(
+        inArray(
+          filingObligations.id,
+          group.map((move) => move.id),
+        ),
+      );
+  }
+  await events.recordAll(
+    tx,
+    moves.map(({ id, from, to }) =>
+      obligationStatusChanged(context.tenant, { obligationId: id, from, to, reason: null }),
+    ),
+  );
 }
 
 async function upsertSnapshots(

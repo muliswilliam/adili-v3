@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Context } from '@temporalio/activity';
 
-import type { ObligationStatus } from '../engine.js';
+import type { ObligationStatus, OpenStatus } from '../engine.js';
 import {
   type LoadedObligation,
   type ObligationRef,
@@ -32,8 +32,8 @@ export class ObligationActivities {
     return this.steps.load(obligationId);
   }
 
-  /** Moves an open obligation to `status`; returns the status it has afterwards. */
-  setStatus(obligation: ObligationRef, status: ObligationStatus): Promise<ObligationStatus> {
+  /** Moves an open obligation on to `status`; returns the status it has afterwards. */
+  setStatus(obligation: ObligationRef, status: OpenStatus): Promise<ObligationStatus> {
     return this.steps.setStatus(obligation, status);
   }
 

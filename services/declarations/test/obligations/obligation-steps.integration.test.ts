@@ -384,6 +384,17 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     ]);
   });
 
+  it('never moves an open status back, so it converges with ingest on the later date-based status', async () => {
+    const { initial } = await officer();
+
+    await expect(api.steps.setStatus(psc(initial), 'overdue')).resolves.toBe('overdue');
+    await expect(api.steps.setStatus(psc(initial), 'due')).resolves.toBe('overdue');
+
+    expect((await events('obligation.status-changed.v1')).map((e) => e.data)).toEqual([
+      { obligationId: initial, from: 'due', to: 'overdue', reason: null },
+    ]);
+  });
+
   it("runs in the obligation's tenant: named with another tenant, a step finds nothing", async () => {
     const { biennial } = await officer();
 

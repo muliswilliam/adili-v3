@@ -383,3 +383,93 @@ describe('S9 declarant.onboarded.v1', () => {
     expect(snapshot?.personId).toBe(personId);
   });
 });
+
+describe('#91 statuses recomputed on ingest', () => {
+  /** An officer appointed 2027-06-20: initial due 2027-07-20, and the 2027 biennial (1 Nov). */
+  const appointed = rosterRecord('psc', { appointmentDate: '2027-06-20' });
+
+  async function ingest() {
+    const importId = randomUUID();
+    api.directory.givenImport(importId, [appointed]);
+    await api.consumers.importCompleted(importCompleted(importId));
+  }
+
+  async function statuses() {
+    const rows = await asPlatform((tx) =>
+      tx
+        .select({ type: filingObligations.type, status: filingObligations.status })
+        .from(filingObligations)
+        .where(eq(filingObligations.rosterRecordId, appointed.id))
+        .orderBy(asc(filingObligations.type)),
+    );
+    return Object.fromEntries(rows.map((row) => [row.type, row.status]));
+  }
+
+  async function statusEvents() {
+    const rows = await api.db
+      .select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(eq(outbox.eventType, 'obligation.status-changed.v1'))
+      .orderBy(asc(outbox.id));
+    return rows.map((row) => row.envelope.data);
+  }
+
+  it("moves open obligations on to the engine's status for today, with one event each, once", async () => {
+    await ingest();
+    expect(await statuses()).toEqual({ biennial: 'upcoming', initial: 'due' });
+
+    // A later import, after the initial's due date and the biennial's statement date.
+    api.clock.setToday('2027-11-02');
+    await ingest();
+    await ingest();
+
+    expect(await statuses()).toEqual({ biennial: 'due', initial: 'overdue' });
+    expect(await statusEvents()).toEqual([
+      expect.objectContaining({ from: 'due', to: 'overdue', reason: null }),
+      expect.objectContaining({ from: 'upcoming', to: 'due', reason: null }),
+    ]);
+  });
+
+  it('never moves a status back: an ingest that planned from an earlier day leaves it', async () => {
+    await ingest();
+    const initial = await asPlatform(async (tx) => {
+      const [row] = await tx
+        .select({ id: filingObligations.id })
+        .from(filingObligations)
+        .where(
+          and(
+            eq(filingObligations.rosterRecordId, appointed.id),
+            eq(filingObligations.type, 'initial'),
+          ),
+        );
+      return row?.id ?? '';
+    });
+    // The workflow moved it on at midnight after the due date, while this ingest's day was earlier.
+    await api.steps.setStatus({ obligationId: initial, tenant: 'psc' }, 'overdue');
+
+    await ingest();
+
+    expect(await statuses()).toEqual({ biennial: 'upcoming', initial: 'overdue' });
+    expect(await statusEvents()).toEqual([expect.objectContaining({ from: 'due', to: 'overdue' })]);
+  });
+
+  it('leaves filed and cancelled obligations alone', async () => {
+    await ingest();
+    await asPlatform((tx) =>
+      tx
+        .update(filingObligations)
+        .set({ status: 'filed' })
+        .where(
+          and(
+            eq(filingObligations.rosterRecordId, appointed.id),
+            eq(filingObligations.type, 'initial'),
+          ),
+        ),
+    );
+    api.clock.setToday('2027-11-02');
+
+    await ingest();
+
+    expect(await statuses()).toEqual({ biennial: 'due', initial: 'filed' });
+  });
+});
