@@ -451,7 +451,7 @@ export interface paths {
         put?: never;
         /**
          * Match personnel file number and national ID against a Commission's roster
-         * @description Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+         * @description Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither; a session of the client IP that ran out of codes or resends uses up a per client IP attempt). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
          */
         post: operations["identifyDeclarant"];
         delete?: never;
@@ -491,7 +491,7 @@ export interface paths {
         put?: never;
         /**
          * Verify the 6-digit code for a channel
-         * @description Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410).
+         * @description Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410), which also uses up an identify attempt of the client IP.
          */
         post: operations["verifyOnboardingOtp"];
         delete?: never;
@@ -511,7 +511,7 @@ export interface paths {
         put?: never;
         /**
          * Send a new code (60-second cooldown, at most 3 per channel)
-         * @description Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410). Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
+         * @description Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410), which also uses up an identify attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
          */
         post: operations["resendOnboardingOtp"];
         delete?: never;

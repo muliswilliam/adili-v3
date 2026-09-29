@@ -10,6 +10,12 @@ import {
 import { config } from '../config.js';
 import { keyedHash } from './secret.js';
 
+/**
+ * The per client IP budget of identify (`RATE_LIMITS`). A session that runs out of codes or
+ * resends uses up an attempt of it too (`OnboardingCodesService`).
+ */
+export const IDENTIFY_RATE_LIMIT = 'onboarding-identify';
+
 /** The header the portal BFF copies the session secret into from its httpOnly cookie. */
 export const ONBOARDING_SECRET_HEADER = 'x-onboarding-secret';
 

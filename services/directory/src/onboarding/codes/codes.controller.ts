@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Post, Req } from '@nestjs/common';
 import {
   ApiAcceptedResponse,
   ApiBody,
@@ -8,6 +8,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  type AuthenticatedRequest,
   byClientIp,
   RATE_LIMIT_HEADERS,
   RateLimit,
@@ -56,7 +57,7 @@ export class OnboardingCodesController {
     operationId: 'verifyOnboardingOtp',
     summary: 'Verify the 6-digit code for a channel',
     description:
-      'Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410).',
+      'Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410), which also uses up an identify attempt of the client IP.',
   })
   @ApiSessionRoute()
   @ApiChannelParam()
@@ -78,8 +79,9 @@ export class OnboardingCodesController {
     @Param('channel', new ZodValidationPipe(otpChannelSchema)) channel: OtpChannel,
     @SessionSecret() secret: string | undefined,
     @Body(new ZodValidationPipe(verifyOnboardingOtpBody)) body: VerifyOnboardingOtpBody,
+    @Req() request: AuthenticatedRequest,
   ): Promise<OnboardingSession> {
-    return this.codes.verify(sessionId, secret, channel, body.code);
+    return this.codes.verify(sessionId, secret, channel, body.code, byClientIp(request));
   }
 
   @Post('otp/:channel/resend')
@@ -88,7 +90,7 @@ export class OnboardingCodesController {
     operationId: 'resendOnboardingOtp',
     summary: 'Send a new code (60-second cooldown, at most 3 per channel)',
     description:
-      'Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410). Re-read the session for the next `resendAvailableAt` and `resendsLeft`.',
+      'Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410), which also uses up an identify attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.',
   })
   @ApiSessionRoute()
   @ApiChannelParam()
@@ -104,8 +106,9 @@ export class OnboardingCodesController {
     @Param('sessionId') sessionId: string,
     @Param('channel', new ZodValidationPipe(otpChannelSchema)) channel: OtpChannel,
     @SessionSecret() secret: string | undefined,
+    @Req() request: AuthenticatedRequest,
   ): Promise<void> {
-    return this.codes.resend(sessionId, secret, channel);
+    return this.codes.resend(sessionId, secret, channel, byClientIp(request));
   }
 
   @Post('contacts')
