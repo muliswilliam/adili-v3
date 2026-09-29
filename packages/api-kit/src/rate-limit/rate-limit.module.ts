@@ -8,13 +8,10 @@ import {
 } from '@nestjs/common';
 import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 
-import {
-  RATE_LIMIT_POLICIES,
-  RATE_LIMIT_RULES,
-  RateLimitGuard,
-  RateLimitRefundInterceptor,
-  type RateLimitRule,
-} from './rate-limit.guard.js';
+import { RateLimitRefundInterceptor } from './rate-limit-refund.interceptor.js';
+import { RateLimitGuard } from './rate-limit.guard.js';
+import { RATE_LIMIT_RULES, type RateLimitRule } from './rate-limit.rules.js';
+import { RATE_LIMIT_POLICIES, RateLimiter } from './rate-limiter.js';
 import {
   RATE_LIMIT_CLOCK,
   type RateLimitClock,
@@ -93,6 +90,7 @@ export class RateLimitModule {
           : { provide: RateLimitStore, useClass: store },
         { provide: RATE_LIMIT_POLICIES, useValue: options.policies },
         { provide: RATE_LIMIT_CLOCK, useValue: options.clock ?? null },
+        RateLimiter,
         RateLimitGuard,
         RateLimitRefundInterceptor,
         RateLimitPolicyCheck,
@@ -101,6 +99,7 @@ export class RateLimitModule {
         RateLimitStore,
         RATE_LIMIT_POLICIES,
         RATE_LIMIT_CLOCK,
+        RateLimiter,
         RateLimitGuard,
         RateLimitRefundInterceptor,
       ],
