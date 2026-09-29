@@ -68,6 +68,18 @@ export class DeterminationsService {
           detail: "Only the case's assignee can propose its determination.",
         });
       }
+      if (reviewCase.openClarifications > 0) {
+        throw new ProblemException(
+          {
+            type: 'clarification-open',
+            title: 'Conflict',
+            status: HttpStatus.CONFLICT,
+            detail:
+              'A clarification of the case is still open; resolve or withdraw it before proposing a determination.',
+          },
+          { code: 'clarification-open' },
+        );
+      }
       const [open] = await tx
         .select({ id: determinations.id, status: determinations.status })
         .from(determinations)

@@ -765,7 +765,9 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 'A determination is already proposed or approved: problem code `determination-open`'
+          description: >-
+            A determination is already proposed or approved (problem code `determination-open`), or
+            a clarification of the case is still open (problem code `clarification-open`)
           content:
             application/problem+json:
               schema:

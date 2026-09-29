@@ -63,7 +63,10 @@ export class DeterminationsController {
   @ApiProblemResponse(400, 'Body failed validation')
   @ApiProblemResponse(403, 'Problem code `not-the-assignee`')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, 'Problem code `determination-open`: one is already proposed or approved')
+  @ApiProblemResponse(
+    409,
+    'Problem code `determination-open`: one is already proposed or approved; `clarification-open`: a clarification of the case is still open',
+  )
   propose(
     @CurrentPrincipal() principal: Principal,
     @Param('caseId', new ZodValidationPipe(uuidParam)) caseId: string,

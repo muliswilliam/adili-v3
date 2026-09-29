@@ -1,10 +1,12 @@
+import { randomUUID } from 'node:crypto';
+
 import { parse } from '@adili/numbering';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { outbox, reviewCases, reviewTimeline } from '../../src/db/schema.js';
+import { clarifications, outbox, reviewCases, reviewTimeline } from '../../src/db/schema.js';
 import { determinationIssuanceWorkflowId } from '../../src/determinations/contract.js';
 import type { DeclarantDecisionView } from '../../src/determinations/declarant-decisions.service.js';
 import type { DeterminationView } from '../../src/determinations/representation.js';
@@ -490,6 +492,50 @@ describe('determinations: propose, approve, return, withdraw', () => {
       const second = await propose(api, caseId, reviewerA);
       expect(second.statusCode).toBe(409);
       expect(second.json()).toMatchObject({ code: 'determination-open' });
+    });
+
+    it('propose: not while a clarification of the case is open (409 clarification-open)', async () => {
+      const caseId = await givenWorkedCase(api, version, [reviewerA]);
+      const clarificationId = randomUUID();
+      await api.asPlatform(async (tx) => {
+        await tx.insert(clarifications).values({
+          id: clarificationId,
+          tenant: 'psc',
+          caseId,
+          personId: version.personId,
+          reference: 'CLR-PSC-2027-0000001-K',
+          status: 'issued',
+          items: [],
+          issuedAt: new Date('2027-12-01T08:00:00.000Z'),
+          dueAt: new Date('2027-12-31T08:00:00.000Z'),
+          createdBy: 'reviewer-a',
+        });
+        await tx
+          .update(reviewCases)
+          .set({ openClarifications: 1 })
+          .where(eq(reviewCases.id, caseId));
+      });
+
+      const refused = await propose(api, caseId, reviewerA);
+      expect(refused.statusCode).toBe(409);
+      expect(refused.json()).toMatchObject({
+        type: 'clarification-open',
+        code: 'clarification-open',
+      });
+      expect(await outboxOf('determination.proposed.v1')).toEqual([]);
+
+      // Resolved: the case takes a proposal.
+      await api.asPlatform(async (tx) => {
+        await tx
+          .update(clarifications)
+          .set({ status: 'resolved' })
+          .where(eq(clarifications.id, clarificationId));
+        await tx
+          .update(reviewCases)
+          .set({ openClarifications: 0 })
+          .where(eq(reviewCases.id, caseId));
+      });
+      expect((await propose(api, caseId, reviewerA)).statusCode).toBe(201);
     });
 
     it('propose: a supervisor holding the case proposes, and cannot approve it', async () => {
