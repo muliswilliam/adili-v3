@@ -18,7 +18,8 @@ import { Clock } from '../../src/clock.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
-import { DocumentsClient } from '../../src/documents/documents-client.js';
+import { DocumentsClient, type ReviewLetter } from '../../src/documents/documents-client.js';
+import { EnforcementConsumer } from '../../src/enforcement/enforcement.consumer.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
@@ -59,6 +60,8 @@ export interface ReviewApi {
   clock: FakeClock;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
   consumer: DeclarationSubmittedConsumer;
+  /** The inbox consumers of the obligation and clarification events that drive the ladder. */
+  enforcement: EnforcementConsumer;
   /** The processing workflow's activities, for driving its steps directly. */
   activities: ProcessingActivities;
   get(
@@ -135,10 +138,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     const token = await signer({ sub: 'service-account-documents', scopes: ['review:internal'] });
     const response = await app.inject({
       method: 'GET',
-      url:
-        letter.type === 'clarification-letter'
-          ? `/internal/v1/review/clarifications/${letter.payload.clarificationId}/letter-payload`
-          : `/internal/v1/review/determinations/${letter.payload.determinationId}/letter-payload`,
+      url: letterPayloadPath(letter),
       headers: { authorization: `Bearer ${token}`, 'x-acting-tenant': tenant },
     });
     return { status: response.statusCode, body: response.json<unknown>() };
@@ -154,6 +154,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     notifications,
     clock,
     consumer: app.get(DeclarationSubmittedConsumer),
+    enforcement: app.get(EnforcementConsumer),
     activities: app.get(ProcessingActivities),
     async get(path, caller, headers = {}) {
       const token = await signer(caller);
@@ -174,7 +175,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
+        sql`truncate ladder_history, administrative_actions, enforcement_ladders, closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
       );
       declarations.reset();
       directory.reset();
@@ -188,6 +189,18 @@ export async function startReviewApi(): Promise<ReviewApi> {
       await app.close();
     },
   };
+}
+
+/** Where the documents service pulls a letter's fields from. */
+function letterPayloadPath(letter: ReviewLetter): string {
+  switch (letter.type) {
+    case 'clarification-letter':
+      return `/internal/v1/review/clarifications/${letter.payload.clarificationId}/letter-payload`;
+    case 'decision-letter':
+      return `/internal/v1/review/determinations/${letter.payload.determinationId}/letter-payload`;
+    default:
+      return `/internal/v1/review/actions/${letter.payload.actionId}/letter-payload`;
+  }
 }
 
 /** `declaration.submitted.v1` for a version, as the RabbitMQ transport delivers it. */

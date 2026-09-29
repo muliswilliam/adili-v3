@@ -5,6 +5,7 @@ import { InternalApi } from '../internal-api/internal-api.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
+  type ObligationFacts,
   type PreviousVersionRef,
   type PulledVersion,
   type ReadContext,
@@ -65,6 +66,18 @@ const previousSchema = z.object({
   submittedAt: instant,
 }) satisfies z.ZodType<PreviousVersionRef>;
 
+const obligationSchema = z.object({
+  obligationId: z.uuid(),
+  rosterRecordId: z.uuid(),
+  personId: z.uuid().nullable(),
+  type: z.enum(['initial', 'biennial', 'final']),
+  cycleKey: z.string().min(1),
+  dueDate: civilDate,
+  status: z.enum(['upcoming', 'due', 'overdue', 'filed', 'cancelled']),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+}) satisfies z.ZodType<ObligationFacts>;
+
 /**
  * The declarations service's internal API with the review service's own token
  * (`declarations:internal`) and the Commission in `X-Acting-Tenant`. Every document read names
@@ -111,6 +124,14 @@ export class HttpDeclarationsClient extends DeclarationsClient {
       query: { personId, tenant, beforeVersionId },
       tenant,
       schema: previousSchema,
+    });
+  }
+
+  getObligation(obligationId: string, tenant: string): Promise<ObligationFacts | null> {
+    return this.api.get({
+      path: `internal/v1/obligations/${encodeURIComponent(obligationId)}`,
+      tenant,
+      schema: obligationSchema,
     });
   }
 }

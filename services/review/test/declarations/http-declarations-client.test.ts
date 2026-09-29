@@ -86,6 +86,27 @@ describe('HttpDeclarationsClient', () => {
     });
   });
 
+  it('reads a filing obligation with the Commission as acting tenant; 404 is none', async () => {
+    const obligation = {
+      obligationId: VERSION,
+      rosterRecordId: CASE,
+      personId: PERSON,
+      type: 'biennial',
+      cycleKey: 'biennial:2027',
+      dueDate: '2027-12-31',
+      status: 'overdue',
+      declarantName: 'James Otieno',
+      personnelFileNumber: 'PSC/0001',
+    };
+    const { declarations, fetch } = client(json(obligation), new Response(null, { status: 404 }));
+
+    expect(await declarations.getObligation(VERSION, 'psc')).toEqual(obligation);
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect((url as URL).href).toBe(`http://declarations.test/internal/v1/obligations/${VERSION}`);
+    expect(init?.headers).toMatchObject({ 'x-acting-tenant': 'psc' });
+    expect(await declarations.getObligation(VERSION, 'psc')).toBeNull();
+  });
+
   it('retries once with a fresh token after a 401', async () => {
     const { declarations, tokens, fetch } = client(json({}, 401), json(document));
 

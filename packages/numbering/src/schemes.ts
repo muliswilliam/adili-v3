@@ -42,5 +42,12 @@ export const CLR = defineScheme({ code: 'CLR', issuer: true, period: true, seque
  */
 export const CMP = defineScheme({ code: 'CMP', issuer: true, period: true, sequenceDigits: 7 });
 
-/** Schemes this package knows; later slices add theirs (DCB, ADM, RFL...) the same way. */
-export const numberingSchemes: readonly NumberingScheme[] = [OFR, CLR, CMP];
+/**
+ * Administrative action (spec 08, the enforcement ladder): a notice to comply, warning, salary
+ * stoppage or disciplinary referral, numbered by the Responsible Commission when an officer
+ * approves it, per Commission and calendar year of approval. `ADM-PSC-2027-0000001-4`.
+ */
+export const ADM = defineScheme({ code: 'ADM', issuer: true, period: true, sequenceDigits: 7 });
+
+/** Schemes this package knows; later slices add theirs (DCB, RFL...) the same way. */
+export const numberingSchemes: readonly NumberingScheme[] = [OFR, CLR, CMP, ADM];

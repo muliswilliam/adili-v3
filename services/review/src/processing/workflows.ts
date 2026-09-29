@@ -11,6 +11,7 @@ import type { ProcessingInput, ProcessingResult } from './contract.js';
 export { clarification } from '../clarifications/workflows.js';
 export { closureNotices, closureSweep, closureSweeps } from '../closures/workflows.js';
 export { determinationIssuance } from '../determinations/workflows.js';
+export { enforcement } from '../enforcement/workflows.js';
 
 /**
  * Pulls from declarations and the directory, and database work: retried with backoff until they

@@ -25,6 +25,21 @@ describe('separation of duties', () => {
     expect(cannotApprove(caller, parties)).toBe(reason);
   });
 
+  it.each([
+    ['a reviewer who held the case', principal('sup-r', 'reviewer'), 'reviewer-of-record'],
+    ['another reviewer', principal('reviewer-b', 'reviewer'), null],
+    ['another supervisor', principal('sup-s', 'supervisor'), null],
+    ['a helpdesk agent', principal('helpdesk-h', 'helpdesk'), 'role'],
+  ])('review staff may decide a notice or warning: %s', (_, caller, reason) => {
+    expect(
+      cannotApprove(caller, {
+        proposer: null,
+        reviewersOfRecord: new Set(['sup-r']),
+        approverRole: 'review-staff',
+      }),
+    ).toBe(reason);
+  });
+
   it('a system proposal has no proposer to exclude', () => {
     expect(
       cannotApprove(principal('sup-s', 'supervisor'), {

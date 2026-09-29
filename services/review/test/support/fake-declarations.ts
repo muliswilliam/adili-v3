@@ -5,6 +5,7 @@ import type { DeclarationV1 } from '@adili/forms';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
+  type ObligationFacts,
   type PreviousVersionRef,
   type PulledVersion,
   type ReadContext,
@@ -41,6 +42,29 @@ export function submittedVersion(fixture: VersionFixture): StoredVersion {
   };
 }
 
+/** A filing obligation held by the fake, with the Commission it belongs to. */
+export interface StoredObligation extends ObligationFacts {
+  tenant: string;
+}
+
+/** An overdue biennial obligation of an onboarded officer of `tenant`, unless said otherwise. */
+export function overdueObligation(
+  fixture: Partial<StoredObligation> & { tenant: string },
+): StoredObligation {
+  return {
+    obligationId: randomUUID(),
+    rosterRecordId: randomUUID(),
+    personId: randomUUID(),
+    type: 'biennial',
+    cycleKey: 'biennial:2027',
+    dueDate: '2027-12-31',
+    status: 'overdue',
+    declarantName: 'Grace Wanjiru',
+    personnelFileNumber: `${fixture.tenant.toUpperCase()}/${randomUUID().slice(0, 6)}`,
+    ...fixture,
+  };
+}
+
 /**
  * The declarations internal API for tests: submitted versions per Commission, the previous-version
  * lookup, and a record of every document read (who read it, for which case). `failReads` makes
@@ -55,10 +79,24 @@ export class FakeDeclarations extends DeclarationsClient {
     caseId: string | undefined;
   }[] = [];
   private readonly versions: StoredVersion[] = [];
+  private readonly obligations = new Map<string, StoredObligation>();
   private failures = 0;
 
   given(...versions: StoredVersion[]): void {
     this.versions.push(...versions);
+  }
+
+  givenObligation(...obligations: StoredObligation[]): void {
+    for (const obligation of obligations) {
+      this.obligations.set(obligation.obligationId, structuredClone(obligation));
+    }
+  }
+
+  /** The obligation moves on (filed, cancelled), as spec 04's engine would move it. */
+  setObligationStatus(obligationId: string, status: StoredObligation['status']): void {
+    const found = this.obligations.get(obligationId);
+    if (!found) throw new Error(`No obligation ${obligationId}`);
+    found.status = status;
   }
 
   /** The next `count` reads (document or lookup) fail. */
@@ -69,6 +107,7 @@ export class FakeDeclarations extends DeclarationsClient {
   reset(): void {
     this.reads.length = 0;
     this.versions.length = 0;
+    this.obligations.clear();
     this.failures = 0;
   }
 
@@ -122,6 +161,17 @@ export class FakeDeclarations extends DeclarationsClient {
           }
         : null,
     );
+  }
+
+  getObligation(obligationId: string, tenant: string): Promise<ObligationFacts | null> {
+    if (this.failing()) {
+      return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
+    }
+    const found = this.obligations.get(obligationId);
+    if (found?.tenant !== tenant) return Promise.resolve(null);
+    const pulled: Partial<StoredObligation> = structuredClone(found);
+    delete pulled.tenant;
+    return Promise.resolve(pulled as ObligationFacts);
   }
 
   private failing(): boolean {

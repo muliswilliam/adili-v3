@@ -50,6 +50,13 @@
       "when": 1790685073528,
       "tag": "0006_bulk_closures",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790688713431,
+      "tag": "0007_enforcement_ladder",
+      "breakpoints": true
     }
   ]
 }

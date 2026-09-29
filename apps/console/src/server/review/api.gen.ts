@@ -407,6 +407,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/actions/{actionId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                actionId: components["parameters"]["ActionId"];
+            };
+            cookie?: never;
+        };
+        /** Fields the notice to comply and warning templates need (documents service) */
+        get: operations["internalGetActionLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -1455,11 +1474,22 @@ export interface components {
             step: components["schemas"]["ActionStep"];
             status: components["schemas"]["ActionStatus"];
             proposerKind: components["schemas"]["ProposerKind"];
+            /** @description The proposing officer; null for the system's drafts */
+            proposer: components["schemas"]["Assignee"] | null;
             /** Format: date-time */
             proposedAt: string;
             approver: components["schemas"]["Assignee"] | null;
             /** Format: date-time */
             approvedAt: string | null;
+            declinedBy: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            declinedAt: string | null;
+            declineNote: string | null;
+            /**
+             * Format: date-time
+             * @description When the letter was requested; the window runs from here
+             */
+            issuedAt: string | null;
             /** Format: date-time */
             windowEndsAt: string | null;
             /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
@@ -1494,6 +1524,11 @@ export interface components {
             personnelFileNumber: string;
             /** @enum {string} */
             status: "active" | "complied" | "declined" | "ended";
+            /**
+             * @description What closed the ladder: compliance (`filed`, `clarification-responded`, `clarification-resolved`) or the subject gone (`obligation-cancelled`, `clarification-withdrawn`); null while active or declined
+             * @enum {string|null}
+             */
+            closingCause: "filed" | "clarification-responded" | "clarification-resolved" | "obligation-cancelled" | "clarification-withdrawn" | null;
             currentStep: components["schemas"]["ActionStep"] | null;
             steps: components["schemas"]["AdministrativeAction"][];
             /** Format: date-time */
@@ -1568,6 +1603,30 @@ export interface components {
             decidedAt: string;
             /** Format: uri */
             portalUrl: string;
+        };
+        ActionLetterPayload: {
+            declarantName: string;
+            personnelFileNumber: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            step: components["schemas"]["ActionStep"];
+            stepLabel: string;
+            /** @enum {string} */
+            subjectKind: "obligation" | "clarification";
+            /** @description The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference */
+            subjectReference: string;
+            /** @enum {string} */
+            whatToDo: "file-declaration" | "respond-to-clarification";
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            actBy: string;
+            /** Format: uri */
+            respondUrl: string;
         };
         DeclarantDecision: {
             /** Format: uuid */
@@ -2393,6 +2452,30 @@ export interface operations {
             503: components["responses"]["DirectoryUnavailable"];
         };
     };
+    internalGetActionLetterPayload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                actionId: components["parameters"]["ActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionLetterPayload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
     getCaseRegistryChecks: {
         parameters: {
             query?: never;
@@ -2942,7 +3025,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Not proposed */
+            /** @description Not proposed (problem code `not-proposed`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2951,6 +3034,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     declineAction: {
@@ -2977,8 +3061,26 @@ export interface operations {
                     "application/json": components["schemas"]["AdministrativeAction"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            400: components["responses"]["ValidationProblem"];
+            /** @description Role or `separation-of-duties`, as for approval */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Not proposed (problem code `not-proposed`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     restartLadder: {
@@ -3003,7 +3105,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Ladder not declined */
+            /** @description Ladder not declined (problem code `ladder-not-declined`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3220,9 +3322,19 @@ export interface operations {
                     "application/json": components["schemas"]["DeclarantNotice"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
-            /** @description Already responded or step not open */
+            /** @description Problem code `already-responded`, `notice-closed`, `attachment-not-clean` or `attachment-not-accepted` */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not check the attachments; nothing changed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

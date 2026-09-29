@@ -13,6 +13,7 @@ import type { Assignee } from '../cases/representation.js';
 import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeterminationApprovals } from '../determinations/determination-approvals.js';
+import { ActionApprovals } from '../enforcement/action-approvals.js';
 import type { ApprovalPosition, ApprovalSource, PendingApproval } from './approval-source.js';
 import { APPROVAL_REASSIGNED, type ApprovalReassignedData } from './events.js';
 import {
@@ -86,9 +87,10 @@ export class ApprovalsService {
     private readonly events: EventPublisher,
     private readonly clock: Clock,
     determinations: DeterminationApprovals,
+    actions: ActionApprovals,
   ) {
-    // The ladder's actions and referrals add their sources here.
-    this.sources = [determinations];
+    // Referrals add their source here.
+    this.sources = [determinations, actions];
   }
 
   async list(principal: Principal, slug: string, query: ApprovalsQuery): Promise<ApprovalPage> {

@@ -15,6 +15,7 @@ import { ClosuresModule } from './closures/closures.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { DeterminationsModule } from './determinations/determinations.module.js';
+import { EnforcementModule } from './enforcement/enforcement.module.js';
 import { ProcessingModule } from './processing/processing.module.js';
 
 @Module({
@@ -45,6 +46,7 @@ import { ProcessingModule } from './processing/processing.module.js';
     DeterminationsModule,
     ApprovalsModule,
     ClosuresModule,
+    EnforcementModule,
     ProcessingModule,
   ],
 })

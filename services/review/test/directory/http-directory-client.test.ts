@@ -34,6 +34,37 @@ describe('HttpDirectoryClient', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("reads the Commission's ladder windows from its policy, each defaulting to spec 08's", async () => {
+    const policies = [
+      { clarification: { issueWindowMonths: 6, replyWindowDays: 30 } },
+      {
+        clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
+        ladder: { noticeWindowDays: 21, stoppageWindowDays: 45 },
+      },
+    ];
+    const fetch = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.resolve(Response.json(policies.shift())),
+    );
+    const directory = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens: { token: () => Promise.resolve('token'), invalidate: vi.fn() },
+      fetch,
+      cacheTtlMs: 0,
+      now: () => 0,
+    });
+
+    expect(await directory.getLadderPolicy('psc')).toEqual({
+      noticeWindowDays: 14,
+      warningWindowDays: 14,
+      stoppageWindowDays: 30,
+    });
+    expect(await directory.getLadderPolicy('psc')).toEqual({
+      noticeWindowDays: 21,
+      warningWindowDays: 14,
+      stoppageWindowDays: 45,
+    });
+  });
+
   it('reads a Commission once, then from its cache until it expires', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
       Promise.resolve(

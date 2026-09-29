@@ -17,12 +17,16 @@ export type RevocationReason = 'issued-in-error';
  * The letters the review service issues, and the record whose letter payload each names: the
  * documents service pulls the fields the template renders from the review service's letter payload
  * endpoint for that record (`internalGetClarificationLetterPayload`,
- * `internalGetDeterminationLetterPayload`), so no personal data travels in the request's logs or
- * in workflow history.
+ * `internalGetDeterminationLetterPayload`, `internalGetActionLetterPayload`), so no personal data
+ * travels in the request's logs or in workflow history.
  */
 export type ReviewLetter =
   | { type: 'clarification-letter'; payload: { clarificationId: string } }
-  | { type: 'decision-letter'; payload: { determinationId: string } };
+  | { type: 'decision-letter'; payload: { determinationId: string } }
+  | { type: ActionLetterType; payload: { actionId: string } };
+
+/** The letters of the enforcement ladder's steps (documents.yaml `DocumentType`). */
+export type ActionLetterType = 'notice-to-comply' | 'warning';
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
@@ -34,8 +38,11 @@ export type IssueDocumentRequest = ReviewLetter & {
   issuerTenant: string;
   /** The owning record, e.g. `clarification:<uuid>`. */
   subjectRef: string;
-  /** The person allowed to download the document (the documents owner rule). */
-  subjectPersonId: string;
+  /**
+   * The person allowed to download the document (the documents owner rule); null for an officer
+   * who never onboarded.
+   */
+  subjectPersonId: string | null;
   /** Shown on the verify page: reference, type, issuer and issue time. */
   publicPayload: {
     reference: string;

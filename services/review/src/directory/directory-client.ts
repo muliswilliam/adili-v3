@@ -9,6 +9,27 @@ export interface ClarificationPolicy {
   replyWindowDays: number;
 }
 
+/**
+ * The enforcement ladder's windows of a Commission's policy (spec 08, Administrative Mechanisms):
+ * how long the declarant has to act after a notice to comply, a warning and a salary stoppage.
+ */
+export interface LadderPolicy {
+  noticeWindowDays: number;
+  warningWindowDays: number;
+  stoppageWindowDays: number;
+}
+
+/**
+ * The windows while the directory's policy has no `ladder` fields (directory.yaml
+ * `TenantPolicyVersion` does not carry them yet): 14 days after a notice, 14 after a warning, 30
+ * after a stoppage, as spec 08 sets them.
+ */
+export const DEFAULT_LADDER_POLICY: LadderPolicy = {
+  noticeWindowDays: 14,
+  warningWindowDays: 14,
+  stoppageWindowDays: 30,
+};
+
 /** A Commission as its letters and messages name it (directory.yaml `InternalCommission`). */
 export interface CommissionFacts {
   slug: string;
@@ -32,6 +53,12 @@ export class DirectoryUnavailable extends Error {
 export abstract class DirectoryClient {
   /** The Commission's clarification periods; throws `DirectoryUnavailable` for no policy. */
   abstract getClarificationPolicy(slug: string): Promise<ClarificationPolicy>;
+
+  /**
+   * The Commission's ladder windows (`ladder` of its policy in force), each defaulting to
+   * `DEFAULT_LADDER_POLICY`; throws `DirectoryUnavailable` for no policy.
+   */
+  abstract getLadderPolicy(slug: string): Promise<LadderPolicy>;
 
   /** The Commission's name and issuer code; throws `DirectoryUnavailable` for no Commission. */
   abstract getCommission(slug: string): Promise<CommissionFacts>;

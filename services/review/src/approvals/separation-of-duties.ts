@@ -2,7 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { and, inArray, isNotNull } from 'drizzle-orm';
 
-import { isSupervisor } from '../cases/access.js';
+import { isSupervisor, reviewTenant } from '../cases/access.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { reviewAssignments, reviewCases } from '../cases/schema.js';
 
@@ -15,12 +15,18 @@ export interface ApprovalParties {
   proposer: string | null;
   /** Everyone who held the case (reviewer-of-record history). */
   reviewersOfRecord: ReadonlySet<string>;
+  /**
+   * Who may decide it: a `supervisor` (the default), or any of the Commission's `review-staff`
+   * (a reviewer or a supervisor: the ladder's notices and warnings, spec 08).
+   */
+  approverRole?: 'supervisor' | 'review-staff';
 }
 
 /**
  * The separation-of-duties rule (ADR-004, spec 08): the approver did not propose, never held the
- * case, and holds `supervisor`. Null when `principal` may approve; else why not. The proposer and
- * the reviewers of record are told so whatever their role (spec 08 S1).
+ * case, and holds `supervisor` (or, where the approval admits review staff, a review role). Null
+ * when `principal` may approve; else why not. The proposer and the reviewers of record are told so
+ * whatever their role (spec 08 S1).
  */
 export function cannotApprove(
   principal: Principal,
@@ -28,8 +34,11 @@ export function cannotApprove(
 ): CannotApproveReason | null {
   if (parties.proposer === principal.subject) return 'proposer';
   if (parties.reviewersOfRecord.has(principal.subject)) return 'reviewer-of-record';
-  if (!isSupervisor(principal)) return 'role';
-  return null;
+  const admitted =
+    parties.approverRole === 'review-staff'
+      ? reviewTenant(principal) !== null
+      : isSupervisor(principal);
+  return admitted ? null : 'role';
 }
 
 /**

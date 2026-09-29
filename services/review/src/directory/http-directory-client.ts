@@ -5,8 +5,10 @@ import { InternalApi } from '../internal-api/internal-api.js';
 import {
   type ClarificationPolicy,
   type CommissionFacts,
+  DEFAULT_LADDER_POLICY,
   DirectoryClient,
   DirectoryUnavailable,
+  type LadderPolicy,
 } from './directory-client.js';
 
 /** The scope the review service's token needs for the directory's internal API. */
@@ -25,12 +27,30 @@ export interface HttpDirectoryClientOptions {
   fetch?: typeof fetch;
 }
 
+const windowDays = z.int().positive();
+
+/**
+ * The policy's periods the review service reads. The ladder's windows are optional: the directory's
+ * policy does not carry them yet, and each one it leaves out takes the spec 08 default.
+ */
 const policySchema = z.object({
   clarification: z.object({
     issueWindowMonths: z.int().positive(),
-    replyWindowDays: z.int().positive(),
+    replyWindowDays: windowDays,
   }),
+  ladder: z
+    .object({
+      noticeWindowDays: windowDays.optional(),
+      warningWindowDays: windowDays.optional(),
+      stoppageWindowDays: windowDays.optional(),
+    })
+    .optional(),
 });
+
+interface ReviewPolicy {
+  clarification: ClarificationPolicy;
+  ladder: LadderPolicy;
+}
 
 const commissionSchema = z.object({
   slug: z.string(),
@@ -39,13 +59,14 @@ const commissionSchema = z.object({
 });
 
 /**
- * The directory's `internalGetTenantPolicy` and `internalGetCommission` with the review service's
+ * The directory's `internalGetTenantPolicy` (clarification periods, ladder windows) and
+ * `internalGetCommission` with the review service's
  * own token, cached per Commission for a few minutes: a policy or a name changes rarely, and a
  * case's window is fixed when the case is created.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly api: InternalApi;
-  private readonly policies = new Map<string, { policy: ClarificationPolicy; until: number }>();
+  private readonly policies = new Map<string, { policy: ReviewPolicy; until: number }>();
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
   private readonly now: () => number;
@@ -65,6 +86,14 @@ export class HttpDirectoryClient extends DirectoryClient {
   }
 
   async getClarificationPolicy(slug: string): Promise<ClarificationPolicy> {
+    return (await this.policy(slug)).clarification;
+  }
+
+  async getLadderPolicy(slug: string): Promise<LadderPolicy> {
+    return (await this.policy(slug)).ladder;
+  }
+
+  private async policy(slug: string): Promise<ReviewPolicy> {
     const cached = this.policies.get(slug);
     if (cached && cached.until > this.now()) return cached.policy;
     const found = await this.api.get({
@@ -73,8 +102,18 @@ export class HttpDirectoryClient extends DirectoryClient {
       schema: policySchema,
     });
     if (!found) throw new DirectoryUnavailable(`The directory has no policy for ${slug}`);
-    this.policies.set(slug, { policy: found.clarification, until: this.now() + this.ttlMs });
-    return found.clarification;
+    const policy: ReviewPolicy = {
+      clarification: found.clarification,
+      ladder: {
+        noticeWindowDays: found.ladder?.noticeWindowDays ?? DEFAULT_LADDER_POLICY.noticeWindowDays,
+        warningWindowDays:
+          found.ladder?.warningWindowDays ?? DEFAULT_LADDER_POLICY.warningWindowDays,
+        stoppageWindowDays:
+          found.ladder?.stoppageWindowDays ?? DEFAULT_LADDER_POLICY.stoppageWindowDays,
+      },
+    };
+    this.policies.set(slug, { policy, until: this.now() + this.ttlMs });
+    return policy;
   }
 
   async getCommission(slug: string): Promise<CommissionFacts> {

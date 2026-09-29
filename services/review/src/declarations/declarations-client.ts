@@ -40,6 +40,26 @@ export interface PreviousVersionRef {
 }
 
 /**
+ * A filing obligation as the declarations service's internal obligation endpoint gives it
+ * (declarations.yaml `internalGetObligation`, spec 04): what the enforcement ladder is about and
+ * whom it addresses. The name and file number are the roster's, for the Actions view and letters.
+ */
+export interface ObligationFacts {
+  obligationId: string;
+  rosterRecordId: string;
+  /** Null until the officer onboards. */
+  personId: string | null;
+  type: 'initial' | 'biennial' | 'final';
+  /** `initial:<appointment date>`, `biennial:<year>` or `final:<exit date>`. */
+  cycleKey: string;
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
+  status: 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
+  declarantName: string;
+  personnelFileNumber: string;
+}
+
+/**
  * On whose behalf content is read. The declarations service records every read as an audited
  * read naming the acting subject and, when there is one, the review case (ADR-008).
  */
@@ -84,4 +104,7 @@ export abstract class DeclarationsClient {
     tenant: string,
     beforeVersionId: string,
   ): Promise<PreviousVersionRef | null>;
+
+  /** A filing obligation of the Commission (spec 04); null when it has no such obligation. */
+  abstract getObligation(obligationId: string, tenant: string): Promise<ObligationFacts | null>;
 }

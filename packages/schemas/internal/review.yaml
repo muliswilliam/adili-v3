@@ -657,6 +657,24 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/actions/{actionId}/letter-payload:
+    parameters:
+      - $ref: '#/components/parameters/ActionId'
+    get:
+      tags: [internal]
+      operationId: internalGetActionLetterPayload
+      summary: Fields the notice to comply and warning templates need (documents service)
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionLetterPayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -1141,11 +1159,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not proposed
+          description: 'Not proposed (problem code `not-proposed`)'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/actions/{actionId}/decline:
     parameters:
       - $ref: '#/components/parameters/ActionId'
@@ -1166,10 +1186,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdministrativeAction'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Role or `separation-of-duties`, as for approval'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Not proposed (problem code `not-proposed`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/ladders/{ladderId}/restart:
     parameters:
       - $ref: '#/components/parameters/LadderId'
@@ -1189,7 +1221,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Ladder not declined
+          description: 'Ladder not declined (problem code `ladder-not-declined`)'
           content:
             application/problem+json:
               schema:
@@ -1386,8 +1418,16 @@ paths:
                 $ref: '#/components/schemas/DeclarantNotice'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '409':
-          description: Already responded or step not open
+          description: 'Problem code `already-responded`, `notice-closed`, `attachment-not-clean` or `attachment-not-accepted`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not check the attachments; nothing changed
           content:
             application/problem+json:
               schema:
@@ -2657,9 +2697,14 @@ components:
           step,
           status,
           proposerKind,
+          proposer,
           proposedAt,
           approver,
           approvedAt,
+          declinedBy,
+          declinedAt,
+          declineNote,
+          issuedAt,
           windowEndsAt,
           reference,
           letter,
@@ -2680,6 +2725,11 @@ components:
           $ref: '#/components/schemas/ActionStatus'
         proposerKind:
           $ref: '#/components/schemas/ProposerKind'
+        proposer:
+          description: The proposing officer; null for the system's drafts
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
         proposedAt:
           type: string
           format: date-time
@@ -2690,6 +2740,19 @@ components:
         approvedAt:
           type: [string, 'null']
           format: date-time
+        declinedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        declinedAt:
+          type: [string, 'null']
+          format: date-time
+        declineNote:
+          type: [string, 'null']
+        issuedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the letter was requested; the window runs from here
         windowEndsAt:
           type: [string, 'null']
           format: date-time
@@ -2748,6 +2811,7 @@ components:
           declarantName,
           personnelFileNumber,
           status,
+          closingCause,
           currentStep,
           steps,
           startedAt,
@@ -2772,6 +2836,21 @@ components:
         status:
           type: string
           enum: [active, complied, declined, ended]
+        closingCause:
+          description: >-
+            What closed the ladder: compliance (`filed`, `clarification-responded`,
+            `clarification-resolved`) or the subject gone (`obligation-cancelled`,
+            `clarification-withdrawn`); null while active or declined
+          type: [string, 'null']
+          enum:
+            [
+              filed,
+              clarification-responded,
+              clarification-resolved,
+              obligation-cancelled,
+              clarification-withdrawn,
+              null,
+            ]
         currentStep:
           oneOf:
             - $ref: '#/components/schemas/ActionStep'
@@ -2967,6 +3046,61 @@ components:
           type: string
           format: date-time
         portalUrl:
+          type: string
+          format: uri
+    ActionLetterPayload:
+      type: object
+      required:
+        [
+          declarantName,
+          personnelFileNumber,
+          commission,
+          reference,
+          step,
+          stepLabel,
+          subjectKind,
+          subjectReference,
+          whatToDo,
+          issuedAt,
+          actBy,
+          respondUrl,
+        ]
+      properties:
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        reference:
+          type: string
+          description: 'ADM-<ISSUER>-<YEAR>-<seq>-<check>'
+        step:
+          $ref: '#/components/schemas/ActionStep'
+        stepLabel:
+          type: string
+        subjectKind:
+          type: string
+          enum: [obligation, clarification]
+        subjectReference:
+          type: string
+          description: "The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference"
+        whatToDo:
+          type: string
+          enum: [file-declaration, respond-to-clarification]
+        issuedAt:
+          type: string
+          format: date-time
+        actBy:
+          type: string
+          format: date-time
+        respondUrl:
           type: string
           format: uri
     DeclarantDecision:
