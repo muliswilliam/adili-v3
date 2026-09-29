@@ -13,6 +13,7 @@ import {
   statement,
 } from '../fixtures/declarations.js';
 import { contractErrors, okResponse } from '../support/contract.js';
+import { processed, twoVersions } from '../support/cases.js';
 import { type StoredVersion, submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
 
@@ -61,61 +62,36 @@ describe('compare case versions', () => {
   });
 
   /** Version 1 and version 2 of one declaration, submitted a month apart. */
-  function twoVersions(tenant = 'psc'): { first: StoredVersion; second: StoredVersion } {
-    const first = submittedVersion({
-      tenant,
-      submittedAt: '2027-12-15T09:30:00.000Z',
-      document: declaration([
-        statement('officer', { income: [salary], assets: [land, car] }),
-        statement(SPOUSE, { assets: [spouseAccount] }),
-      ]),
-    });
-    const second = submittedVersion({
-      tenant,
-      declarationId: first.declarationId,
-      personId: first.personId,
-      reference: first.reference,
-      version: 2,
-      submittedAt: '2028-01-20T08:00:00.000Z',
-      document: declaration([
-        statement('officer', {
-          income: [revalued(salary, 480_000_000)],
-          assets: [
-            { ...revalued(land, 1_300_000_000), change: { changed: true, kind: 'value-change' } },
-            flat,
-          ],
-        }),
-        statement(SPOUSE, { assets: [revalued(spouseAccount, 5_000_000)] }),
-      ]),
-    });
-    return { first, second };
-  }
-
-  /** Runs the processing workflow's steps for a version, as the worker would; returns the case. */
-  async function processed(version: StoredVersion, tenant = 'psc'): Promise<string> {
-    const input = {
-      tenant,
-      declarationId: version.declarationId,
-      versionId: version.versionId,
-      version: version.version,
-    };
-    const facts = await api.activities.pullVersion(input);
-    if (!facts) throw new Error('version not pulled');
-    const previous = await api.activities.pullPreviousVersion({
-      tenant,
-      personId: facts.personId,
-      versionId: version.versionId,
-    });
-    const flags = await api.activities.runRules({ input, facts, previous });
-    const { caseId } = await api.activities.upsertCase({ input, facts, flags });
-    return caseId;
-  }
+  const versionsOf = (tenant: string) =>
+    twoVersions(
+      {
+        tenant,
+        submittedAt: '2027-12-15T09:30:00.000Z',
+        document: declaration([
+          statement('officer', { income: [salary], assets: [land, car] }),
+          statement(SPOUSE, { assets: [spouseAccount] }),
+        ]),
+      },
+      {
+        submittedAt: '2028-01-20T08:00:00.000Z',
+        document: declaration([
+          statement('officer', {
+            income: [revalued(salary, 480_000_000)],
+            assets: [
+              { ...revalued(land, 1_300_000_000), change: { changed: true, kind: 'value-change' } },
+              flat,
+            ],
+          }),
+          statement(SPOUSE, { assets: [revalued(spouseAccount, 5_000_000)] }),
+        ]),
+      },
+    );
 
   async function amendedCase(tenant = 'psc'): Promise<{ caseId: string; first: StoredVersion }> {
-    const { first, second } = twoVersions(tenant);
+    const { first, second } = versionsOf(tenant);
     api.declarations.given(first, second);
-    await processed(first, tenant);
-    const caseId = await processed(second, tenant);
+    await processed(api, first);
+    const caseId = await processed(api, second);
     api.declarations.reads.length = 0;
     return { caseId, first };
   }
@@ -238,7 +214,7 @@ describe('compare case versions', () => {
       document: declaration([statement('officer', { income: [salary], assets: [land] })]),
     });
     api.declarations.given(only);
-    const caseId = await processed(only);
+    const caseId = await processed(api, only);
     api.declarations.reads.length = 0;
 
     const response = await compare(caseId, reviewer);

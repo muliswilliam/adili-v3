@@ -1,10 +1,11 @@
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
-import { type StoredVersion, submittedVersion } from '../support/fake-declarations.js';
-import { type ReviewApi, startReviewApi, submittedEvent } from '../support/review-api.js';
+import { processedFromInbox, processingInput, twoVersions } from '../support/cases.js';
+import type { StoredVersion } from '../support/fake-declarations.js';
+import { type ReviewApi, startReviewApi } from '../support/review-api.js';
 
 /**
  * S6 at the inbox seam: `declaration.submitted.v1` for version 2 of a declaration whose case is
@@ -38,32 +39,26 @@ describe('amendment re-processing', () => {
   const salary = income();
 
   /** Version 1 and its amendment, version 2: the land is up 30% and not marked as changed. */
-  function twoVersions(): { first: StoredVersion; second: StoredVersion } {
-    const first = submittedVersion({
-      tenant: 'psc',
-      submittedAt: '2027-12-15T09:30:00.000Z',
-      document: declaration([
-        statement('officer', { income: [salary], assets: [land, foreignAccount] }),
-      ]),
-    });
-    const second = submittedVersion({
-      tenant: 'psc',
-      declarationId: first.declarationId,
-      personId: first.personId,
-      reference: first.reference,
-      version: 2,
-      submittedAt: '2028-01-20T08:00:00.000Z',
-      declarantName: 'James Otieno Ouma',
-      personnelFileNumber: first.personnelFileNumber,
-      document: declaration([
-        statement('officer', {
-          income: [revalued(salary, 480_000_000)],
-          assets: [revalued(land, 1_300_000_000), revalued(foreignAccount, 50_000_000)],
-        }),
-      ]),
-    });
-    return { first, second };
-  }
+  const versions = () =>
+    twoVersions(
+      {
+        tenant: 'psc',
+        submittedAt: '2027-12-15T09:30:00.000Z',
+        document: declaration([
+          statement('officer', { income: [salary], assets: [land, foreignAccount] }),
+        ]),
+      },
+      {
+        submittedAt: '2028-01-20T08:00:00.000Z',
+        declarantName: 'James Otieno Ouma',
+        document: declaration([
+          statement('officer', {
+            income: [revalued(salary, 480_000_000)],
+            assets: [revalued(land, 1_300_000_000), revalued(foreignAccount, 50_000_000)],
+          }),
+        ]),
+      },
+    );
 
   const caseOf = async (declarationId: string) => {
     const [found] = await api.asPlatform((tx) =>
@@ -75,20 +70,10 @@ describe('amendment re-processing', () => {
   const flagsOf = (caseId: string) =>
     api.asPlatform((tx) => tx.select().from(reviewFlags).where(eq(reviewFlags.caseId, caseId)));
 
-  async function processed(version: StoredVersion) {
-    await api.consumer.submitted(submittedEvent('psc', version));
-    return vi.waitFor(
-      async () => {
-        const found = await caseOf(version.declarationId);
-        if (found?.currentVersion !== version.version) throw new Error('not processed yet');
-        return found;
-      },
-      { timeout: 45_000, interval: 250 },
-    );
-  }
+  const processed = (version: StoredVersion) => processedFromInbox(api, version);
 
   it('S6: version 2 for an open case recomputes the flags, keeps reviewed ones marked, keeps the assignee, adds a timeline entry and review.case.updated.v1', async () => {
-    const { first, second } = twoVersions();
+    const { first, second } = versions();
     api.declarations.given(first, second);
 
     const created = await processed(first);
@@ -221,7 +206,7 @@ describe('amendment re-processing', () => {
   });
 
   it('S6: an amendment after the due date of an on-time filing is not late: no late-filing flag', async () => {
-    const { first, second } = twoVersions();
+    const { first, second } = versions();
     // Version 1 on time (due 2027-12-31); the amendment comes after the due date.
     const late = { ...second, late: true };
     api.declarations.given(first, late);
@@ -236,23 +221,18 @@ describe('amendment re-processing', () => {
   });
 
   it('S6: a repeated or out-of-order announcement changes nothing', async () => {
-    const { first, second } = twoVersions();
+    const { first, second } = versions();
     api.declarations.given(first, second);
     const created = await processed(first);
     await processed(second);
     const flagsAfter = await flagsOf(created.id);
 
     // Version 2 announced again (a new event, so the inbox lets it through), then version 1.
-    const input = (version: StoredVersion) => ({
-      tenant: 'psc',
-      declarationId: version.declarationId,
-      versionId: version.versionId,
-      version: version.version,
-    });
     for (const version of [second, first]) {
-      const facts = await api.activities.pullVersion(input(version));
+      const input = processingInput(version);
+      const facts = await api.activities.pullVersion(input);
       if (!facts) throw new Error('version not pulled');
-      const outcome = await api.activities.upsertCase({ input: input(version), facts, flags: [] });
+      const outcome = await api.activities.upsertCase({ input, facts, flags: [] });
       expect(outcome).toEqual({ outcome: 'unchanged', caseId: created.id });
     }
 

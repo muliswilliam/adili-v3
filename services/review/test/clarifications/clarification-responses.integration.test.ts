@@ -22,6 +22,7 @@ import {
   reviewTimeline,
 } from '../../src/db/schema.js';
 import { asset, declaration, SPOUSE, statement } from '../fixtures/declarations.js';
+import { givenAssignedCase } from '../support/cases.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
@@ -110,34 +111,6 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
     api.clock.set('2027-12-20T08:00:00.000Z');
   });
-
-  async function givenAssignedCase(): Promise<string> {
-    const { caseId } = await api.activities.upsertCase({
-      input: {
-        tenant: 'psc',
-        declarationId: version.declarationId,
-        versionId: version.versionId,
-        version: 1,
-      },
-      facts: {
-        personId: version.personId,
-        reference: version.reference,
-        type: 'biennial',
-        statementDate: '2027-11-01',
-        submittedAt: version.submittedAt,
-        late: false,
-        dueDate: '2027-12-31',
-      },
-      flags: [],
-    });
-    await api.asPlatform((tx) =>
-      tx
-        .update(reviewCases)
-        .set({ status: 'assigned', assignee: 'reviewer-a', claimedAt: new Date() })
-        .where(eq(reviewCases.id, caseId)),
-    );
-    return caseId;
-  }
 
   /** A clarification of the case, drafted and issued by reviewer A. */
   async function issued(caseId: string): Promise<ClarificationView> {
@@ -239,7 +212,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
 
   describe('S14: the declarant responds', () => {
     it('lists the clarification with the letter link (owner rule), items and due date', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       const documentId = await letterOf(clarification.id);
 
@@ -260,7 +233,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('responds with per-item text and two clean attachments: responded, event, workflow signalled', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       api.clock.set('2028-01-05T10:00:00.000Z');
 
@@ -324,7 +297,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it("keeps the declarant's name, file number, items and answers out of the workflow history", async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       await letterOf(clarification.id);
       expect((await respond(clarification.id)).statusCode).toBe(201);
@@ -345,7 +318,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('a second response is 409 already-responded; the first stands', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       expect((await respond(clarification.id)).statusCode).toBe(201);
 
@@ -367,7 +340,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('after the due date the response is accepted and marked late', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       // Due 2028-01-19 08:00Z.
       api.clock.set('2028-01-19T08:00:01.000Z');
@@ -388,7 +361,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('an overdue clarification takes a late response', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       await api.app.get(ClarificationActivities).markOverdue({
         tenant: 'psc',
@@ -403,7 +376,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('refuses attachments that are not clean, not for a clarification or not the Commission’s, and bad answers; nothing changes', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       const infected = randomUUID();
       const roster = randomUUID();
@@ -445,7 +418,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('another person, staff and a withdrawn clarification: 404 or 409 clarification-closed', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       const someoneElse: Caller = {
         sub: 'declarant-x',
@@ -466,7 +439,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
 
   describe('S15: the assignee resolves, follows up or withdraws', () => {
     it('resolves with a note: resolved; the case clarified then ready for determination', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       expect((await respond(clarification.id)).statusCode).toBe(201);
       api.clock.set('2028-01-10T09:00:00.000Z');
@@ -512,7 +485,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('only a responded clarification is resolved: issued or overdue is 409, and nothing changes', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
 
       const early = await resolve(clarification.id);
@@ -542,7 +515,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('resolving one of two open clarifications keeps the case awaiting clarification', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const first = await issued(caseId);
       const second = await issued(caseId);
       const textOnly = {
@@ -567,7 +540,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('only the assignee resolves, follows up or withdraws', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
 
       expect((await resolve(clarification.id, reviewerB)).statusCode).toBe(403);
@@ -583,7 +556,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('a follow-up is a new draft with followUpOf and the same items; issued, it takes a new CLR', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       expect((await respond(clarification.id)).statusCode).toBe(201);
 
@@ -632,7 +605,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('withdraws: withdrawn, the letter revoked as issued in error, event, clock ended, case back to assigned', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       const documentId = await letterOf(clarification.id);
 
@@ -680,7 +653,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('withdrawing when documents cannot revoke the letter is 503 and changes nothing', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       await letterOf(clarification.id);
       api.documents.failCalls(1);
@@ -699,7 +672,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
 
     it('the clock is the issue time and the due date stored at issue, from the Commission’s reply window', async () => {
       api.directory.givenCommission('psc', { issueWindowMonths: 6, replyWindowDays: 45 });
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
 
       expect(clarification.dueAt).toBe('2028-02-03T08:00:00.000Z');
@@ -710,7 +683,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
 
     it('a policy change after issue does not move the due date the clock runs to', async () => {
       api.directory.givenCommission('psc', { issueWindowMonths: 6, replyWindowDays: 45 });
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
 
       api.directory.givenCommission('psc', { issueWindowMonths: 6, replyWindowDays: 10 });
@@ -721,7 +694,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('day 20: the reminder goes by email and SMS with the days left, recorded once', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       await vi.waitFor(
         () => {
@@ -763,7 +736,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('day 30 without a response: overdue, event, once', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       const input = { tenant: 'psc', clarificationId: clarification.id };
 
@@ -784,7 +757,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
     });
 
     it('after a response: no reminder, nothing recorded, never overdue', async () => {
-      const caseId = await givenAssignedCase();
+      const caseId = await givenAssignedCase(api, version);
       const clarification = await issued(caseId);
       expect((await respond(clarification.id)).statusCode).toBe(201);
       const input = { tenant: 'psc', clarificationId: clarification.id };

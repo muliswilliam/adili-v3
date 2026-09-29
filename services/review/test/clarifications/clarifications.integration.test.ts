@@ -13,6 +13,7 @@ import type {
 } from '../../src/clarifications/representation.js';
 import { clarifications, outbox, reviewCases, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, SPOUSE, statement } from '../fixtures/declarations.js';
+import { givenAssignedCase } from '../support/cases.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
@@ -89,37 +90,6 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     api.clock.set('2027-12-20T08:00:00.000Z');
   });
 
-  /** The case of `version`, assigned to `assignee` (claiming is the assignment slice's). */
-  async function givenAssignedCase(assignee: string | null = 'reviewer-a'): Promise<string> {
-    const { caseId } = await api.activities.upsertCase({
-      input: {
-        tenant: 'psc',
-        declarationId: version.declarationId,
-        versionId: version.versionId,
-        version: 1,
-      },
-      facts: {
-        personId: version.personId,
-        reference: version.reference,
-        type: 'biennial',
-        statementDate: '2027-11-01',
-        submittedAt: version.submittedAt,
-        late: false,
-        dueDate: '2027-12-31',
-      },
-      flags: [],
-    });
-    if (assignee) {
-      await api.asPlatform((tx) =>
-        tx
-          .update(reviewCases)
-          .set({ status: 'assigned', assignee, assigneeName: assignee, claimedAt: new Date() })
-          .where(eq(reviewCases.id, caseId)),
-      );
-    }
-    return caseId;
-  }
-
   async function draft(caseId: string, body: unknown = twoItems, caller = reviewerA) {
     return api.send('POST', `/v1/review/cases/${caseId}/clarifications`, caller, body);
   }
@@ -137,7 +107,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   }
 
   it('S12: the assignee drafts a clarification with two items', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
 
     const response = await draft(caseId);
 
@@ -159,7 +129,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: the assignee updates a draft; an issued one is 409 not-a-draft', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId, { items: [] })).json<ClarificationView>();
 
     const updated = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
@@ -180,7 +150,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: issuing allocates CLR-PSC-2027-0000001, sets due +30 days, moves the case, requests the letter, notifies by person and starts the workflow', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
 
     const response = await issue(id);
@@ -321,7 +291,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: the next clarification of the Commission that year takes the next number', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const first = (await draft(caseId)).json<ClarificationView>();
     const second = (await draft(caseId)).json<ClarificationView>();
 
@@ -333,7 +303,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: a non-assignee gets 403; staff of another Commission and declarants get 404', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
 
     expect((await draft(caseId, twoItems, reviewerB)).statusCode).toBe(403);
@@ -354,7 +324,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it("S18: only the Commission's reviewers and supervisors reach its clarifications; everyone else gets 404", async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id: draftId } = (await draft(caseId)).json<ClarificationView>();
     const { id: issuedId } = (await draft(caseId)).json<ClarificationView>();
     expect((await issue(issuedId)).statusCode).toBe(200);
@@ -401,7 +371,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: after the window end, issuing is 409 clarification-window-closed', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
     // Received 2027-12-10 09:00Z; the six-month window ends 2028-06-10 09:00Z.
     api.clock.set('2028-06-10T09:00:01.000Z');
@@ -419,7 +389,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: with no items, issuing is 400', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId, { items: [] })).json<ClarificationView>();
 
     const response = await issue(id);
@@ -429,7 +399,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('S12: issuing needs an Idempotency-Key, and a retry with the same key replays the answer', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
     const url = `/v1/review/clarifications/${id}/issue`;
 
@@ -445,7 +415,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it('the letter payload serves only the template fields, to a documents service token acting for the Commission', async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
     const payloadUrl = `/internal/v1/review/clarifications/${id}/letter-payload`;
     const psc = { 'x-acting-tenant': 'psc' };
@@ -522,7 +492,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
   });
 
   it("declarant: lists and reads their issued clarifications with the letter link, never drafts or other people's", async () => {
-    const caseId = await givenAssignedCase();
+    const caseId = await givenAssignedCase(api, version);
     const hidden = (await draft(caseId)).json<ClarificationView>();
     const { id } = (await draft(caseId)).json<ClarificationView>();
     const issued = (await issue(id)).json<ClarificationView>();
