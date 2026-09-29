@@ -4,6 +4,7 @@ import { numberingSchema } from '@adili/numbering/schema';
 
 import { declarationSchema } from '../declaration/schema.js';
 import { draftsSchema } from '../drafts/schema.js';
+import { helpSchema } from '../help/schema.js';
 import { obligationsSchema } from '../obligations/schema.js';
 
 /** Drizzle schema of the declarations database. Only this service reads or writes it (ADR-013). */
@@ -14,6 +15,7 @@ export const schema = {
   ...obligationsSchema,
   ...declarationSchema,
   ...draftsSchema,
+  ...helpSchema,
 };
 
 export type DeclarationsSchema = typeof schema;
@@ -23,4 +25,5 @@ export * from '@adili/events/schema';
 export * from '@adili/numbering/schema';
 export * from '../declaration/schema.js';
 export * from '../drafts/schema.js';
+export * from '../help/schema.js';
 export * from '../obligations/schema.js';
