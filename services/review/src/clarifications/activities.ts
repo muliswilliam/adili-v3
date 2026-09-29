@@ -167,18 +167,18 @@ export class ClarificationActivities {
   }
 
   /**
-   * What the workflow sets its clock from: the issue time, and the reply window of the
-   * Commission's policy in force (the directory). The due date the declarant sees was set from
-   * the same window when the clarification was issued.
+   * What the workflow sets its clock from: the issue time and the due date stored at issue (from
+   * the reply window of the Commission's policy then). A later policy change moves neither.
    */
   async clarificationClock({
     tenant,
     clarificationId,
   }: ClarificationWorkflowInput): Promise<ClarificationClock> {
     const found = await load(this.db, tenant, clarificationId);
-    if (found.issuedAt === null) throw new Error(`Clarification ${clarificationId} is not issued`);
-    const policy = await this.directory.getClarificationPolicy(tenant);
-    return { issuedAt: found.issuedAt.toISOString(), replyWindowDays: policy.replyWindowDays };
+    if (found.issuedAt === null || found.dueAt === null) {
+      throw new Error(`Clarification ${clarificationId} is not issued`);
+    }
+    return { issuedAt: found.issuedAt.toISOString(), dueAt: found.dueAt.toISOString() };
   }
 
   /**

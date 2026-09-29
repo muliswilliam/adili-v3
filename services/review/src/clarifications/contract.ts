@@ -61,26 +61,28 @@ export const REMINDER_DAY = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * What the clock is set from: the issue time and the Commission policy's reply window, read by
- * `clarificationClock` when the workflow starts its clock.
+ * What the clock is set from, read by `clarificationClock` when the workflow starts its clock: the
+ * issue time and the due date stored at issue. A policy change after issue moves neither.
  */
 export interface ClarificationClock {
   /** ISO 8601. */
   issuedAt: string;
-  replyWindowDays: number;
+  /** ISO 8601. */
+  dueAt: string;
+}
+
+/** The due date of a clarification issued at `issuedAt`: the Commission's reply window later. */
+export function clarificationDueAt(issuedAt: Date, replyWindowDays: number): Date {
+  return new Date(issuedAt.getTime() + replyWindowDays * DAY_MS);
 }
 
 /**
- * The due date (issued at plus the reply window) and the reminder (issued at plus twenty days).
- * A reply window of twenty days or less has no reminder: it would come on or after the due date.
+ * The reminder: twenty days after issue. A clarification due within twenty days of issue has no
+ * reminder: it would come on or after the due date.
  */
-export function clarificationDeadlines(
-  issuedAt: Date,
-  replyWindowDays: number,
-): { reminderAt: Date | null; dueAt: Date } {
-  const dueAt = new Date(issuedAt.getTime() + replyWindowDays * DAY_MS);
-  const reminderAt = new Date(issuedAt.getTime() + REMINDER_DAY * DAY_MS);
-  return { reminderAt: reminderAt < dueAt ? reminderAt : null, dueAt };
+export function reminderAt(issuedAt: Date, dueAt: Date): Date | null {
+  const reminder = new Date(issuedAt.getTime() + REMINDER_DAY * DAY_MS);
+  return reminder < dueAt ? reminder : null;
 }
 
 /**

@@ -18,7 +18,7 @@ import { clarification } from '../../src/clarifications/workflows.js';
 /**
  * `ClarificationWorkflow` against mocked activities in Temporal's time-skipping test environment:
  * the letter, then the notices, the wait for the issue transaction to commit, and (S13) the clock
- * set from the issue time and the Commission's reply window: the day-20 reminder, `overdue` at the
+ * set from the issue time and the stored due date: the day-20 reminder, `overdue` at the
  * due date, and the signals that end it.
  */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
@@ -63,7 +63,8 @@ describe('ClarificationWorkflow', () => {
 
   /**
    * Activities that record what ran and when. `clarificationClock` answers the time it was
-   * called as the issue time, with `replyWindowDays`; `on` runs extra work inside an activity.
+   * called as the issue time and the due date `replyWindowDays` later, as issue stored them; `on`
+   * runs extra work inside an activity.
    */
   function activities(
     options: {
@@ -94,7 +95,7 @@ describe('ClarificationWorkflow', () => {
         await record('clock');
         return {
           issuedAt: new Date(issuedAt).toISOString(),
-          replyWindowDays: options.replyWindowDays ?? 30,
+          dueAt: new Date(issuedAt + (options.replyWindowDays ?? 30) * DAY_MS).toISOString(),
         };
       }),
       recordReminder: vi.fn(async () => {

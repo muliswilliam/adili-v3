@@ -26,7 +26,7 @@ import type {
   WithdrawalInput,
 } from './clarification-input.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
-import { clarificationDeadlines } from './contract.js';
+import { clarificationDueAt } from './contract.js';
 import { type CaseStatusChangedData, REVIEW_CASE_STATUS_CHANGED } from '../cases/events.js';
 import {
   CLARIFICATION_ISSUED,
@@ -161,7 +161,7 @@ export class ClarificationsService {
         issuer: commission.issuerCode,
         period: nairobiYear(now),
       });
-      const { dueAt } = clarificationDeadlines(now, policy.replyWindowDays);
+      const dueAt = clarificationDueAt(now, policy.replyWindowDays);
       const [issued] = await tx
         .update(clarifications)
         .set({ status: 'issued', reference, issuedAt: now, dueAt })

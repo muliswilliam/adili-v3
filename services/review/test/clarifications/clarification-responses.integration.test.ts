@@ -650,15 +650,27 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
   describe('S13: what the clock does, against the database', () => {
     const activities = () => api.app.get(ClarificationActivities);
 
-    it('the clock is set from the issue time and the Commission’s reply window', async () => {
+    it('the clock is the issue time and the due date stored at issue, from the Commission’s reply window', async () => {
       api.directory.givenCommission('psc', { issueWindowMonths: 6, replyWindowDays: 45 });
       const caseId = await givenAssignedCase();
       const clarification = await issued(caseId);
 
+      expect(clarification.dueAt).toBe('2028-02-03T08:00:00.000Z');
       expect(
         await activities().clarificationClock({ tenant: 'psc', clarificationId: clarification.id }),
-      ).toEqual({ issuedAt: '2027-12-20T08:00:00.000Z', replyWindowDays: 45 });
-      expect(clarification.dueAt).toBe('2028-02-03T08:00:00.000Z');
+      ).toEqual({ issuedAt: '2027-12-20T08:00:00.000Z', dueAt: '2028-02-03T08:00:00.000Z' });
+    });
+
+    it('a policy change after issue does not move the due date the clock runs to', async () => {
+      api.directory.givenCommission('psc', { issueWindowMonths: 6, replyWindowDays: 45 });
+      const caseId = await givenAssignedCase();
+      const clarification = await issued(caseId);
+
+      api.directory.givenCommission('psc', { issueWindowMonths: 6, replyWindowDays: 10 });
+
+      expect(
+        await activities().clarificationClock({ tenant: 'psc', clarificationId: clarification.id }),
+      ).toEqual({ issuedAt: '2027-12-20T08:00:00.000Z', dueAt: '2028-02-03T08:00:00.000Z' });
     });
 
     it('day 20: the reminder goes by email and SMS with the days left, recorded once', async () => {

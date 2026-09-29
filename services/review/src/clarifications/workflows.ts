@@ -8,12 +8,12 @@ import { condition, defineSignal, proxyActivities, setHandler, sleep } from '@te
 import type { ClarificationActivities } from './activities.js';
 import {
   CLARIFICATION_SIGNALS,
-  clarificationDeadlines,
   type ClarificationResult,
   type ClarificationSignal,
   type ClarificationWorkflowInput,
   NOTICE_CHANNELS,
   type Notice,
+  reminderAt,
 } from './contract.js';
 
 /**
@@ -45,7 +45,7 @@ const COMMIT_WAIT_SECONDS = 60;
  * `ClarificationWorkflow(clarificationId)` (spec 07a), started by the issue transaction with the
  * clarification as workflow id: request the Restricted letter from documents (which pulls its
  * fields from the review service), tell the declarant by email and SMS, then run the clock set
- * from the issue time and the Commission's reply window: a reminder at day twenty unless the
+ * from the issue time and the due date stored at issue: a reminder at day twenty unless the
  * declarant has responded, and at the due date the clarification is marked `overdue` (spec 08
  * escalates). The `responded`, `withdrawn` and `resolved` signals end the clock.
  */
@@ -67,12 +67,10 @@ export async function clarification(
   await notify(input, 'issued');
 
   const clock = await clarificationClock(input);
-  const { reminderAt, dueAt } = clarificationDeadlines(
-    new Date(clock.issuedAt),
-    clock.replyWindowDays,
-  );
-  if (reminderAt !== null) {
-    const beforeReminder = await signalledBefore(reminderAt, signalled);
+  const dueAt = new Date(clock.dueAt);
+  const reminder = reminderAt(new Date(clock.issuedAt), dueAt);
+  if (reminder !== null) {
+    const beforeReminder = await signalledBefore(reminder, signalled);
     if (beforeReminder !== null) return { outcome: beforeReminder };
     await notify(input, 'reminder');
     await recordReminder(input);
