@@ -30,9 +30,12 @@ describe('SectionCipher', () => {
     const sections = new SectionCipher(new FakeCipher(), silentValkey);
 
     await expect(
-      sections.cache({ declarationId: 'declaration-1', sectionKey: 'bio', savedVersion: 1 }, {
-        note: 'kept',
-      }),
+      sections.cache(
+        { declarationId: 'declaration-1', sectionKey: 'bio', savedVersion: 1 },
+        {
+          note: 'kept',
+        },
+      ),
     ).resolves.toBeUndefined();
   });
 });
