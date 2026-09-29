@@ -199,13 +199,18 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
     expect(parse(resumed.lastReference ?? '').sequence).toBe(150);
   });
 
-  it('S4: filters by type and skips the cases the supervisor once held', async () => {
+  it('S4: filters by reporting entity and type, and skips the cases the supervisor once held', async () => {
     const cases = await givenProposals(5);
+    const entity = randomUUID();
     await api.asPlatform(async (tx) => {
       await tx
         .update(reviewCases)
         .set({ type: 'initial' })
         .where(eq(reviewCases.id, cases[0] ?? ''));
+      await tx
+        .update(reviewCases)
+        .set({ reportingEntityId: entity })
+        .where(inArray(reviewCases.id, [cases[2] ?? '', cases[3] ?? '']));
       await tx.insert(reviewAssignments).values({
         id: randomUUID(),
         tenant: 'psc',
@@ -217,9 +222,21 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
       });
     });
 
+    const summary = await api.get(`${CLOSURES}&reportingEntityId=${entity}`, supervisor);
+    expect(summary.json()).toMatchObject({ eligibleProposed: 2, approved: 0 });
+    const ofEntity = await approveAll(supervisor, `${CLOSURES}&reportingEntityId=${entity}`);
+    expect(ofEntity.statusCode, ofEntity.body).toBe(200);
+    expect(ofEntity.json<BulkResult>()).toMatchObject({ approved: 2, skipped: 0 });
+    expect(
+      (await closures())
+        .filter((row) => row.status === 'approved')
+        .map((row) => row.caseId)
+        .sort(),
+    ).toEqual([cases[2], cases[3]].sort());
+
     const biennial = await approveAll(supervisor, `${CLOSURES}&type=biennial`);
 
-    expect(biennial.json<BulkResult>()).toMatchObject({ approved: 3, skipped: 1, chunks: 1 });
+    expect(biennial.json<BulkResult>()).toMatchObject({ approved: 1, skipped: 1, chunks: 1 });
     const initial = await approveAll(supervisor, `${CLOSURES}&type=initial`);
     expect(initial.json<BulkResult>()).toMatchObject({ approved: 1, skipped: 0 });
   });
@@ -237,12 +254,9 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
       expect((await approveAll(caller)).statusCode).toBe(404);
       expect((await api.get(CLOSURES, caller)).statusCode).toBe(404);
     }
-    const reportingEntity = await approveAll(
-      supervisor,
-      `${CLOSURES}&reportingEntityId=${randomUUID()}`,
+    expect((await approveAll(supervisor, `${CLOSURES}&reportingEntityId=nope`)).statusCode).toBe(
+      400,
     );
-    expect(reportingEntity.statusCode).toBe(400);
-    expect(reportingEntity.json()).toMatchObject({ type: 'filter-unsupported' });
     expect(
       (await api.send('POST', CLOSURES, supervisor)).statusCode,
       'an idempotency key is required',

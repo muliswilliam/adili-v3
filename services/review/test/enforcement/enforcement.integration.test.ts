@@ -748,7 +748,8 @@ describe('enforcement ladder', () => {
       subjectKind: 'clarification',
       personId: version.personId,
       caseId,
-      rosterRecordId: null,
+      // The case's roster record, from the declaration: a stoppage stops the salary on it.
+      rosterRecordId: version.rosterRecordId,
       subjectReference: 'CLR-PSC-2027-0000009-K',
       declarantName: 'James Otieno',
       personnelFileNumber: 'PSC/2019/0042',

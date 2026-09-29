@@ -2711,7 +2711,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description A determination is already proposed or approved: problem code `determination-open` */
+            /** @description A determination is already proposed or approved (problem code `determination-open`), or a clarification of the case is still open (problem code `clarification-open`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3041,7 +3041,7 @@ export interface operations {
                     "application/json": components["schemas"]["ClosureSummary"];
                 };
             };
-            /** @description Query failed validation; problem code `filter-unsupported` for `reportingEntityId` */
+            /** @description Query failed validation */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3080,7 +3080,7 @@ export interface operations {
                     "application/json": components["schemas"]["BulkApprovalResult"];
                 };
             };
-            /** @description Query failed validation; problem code `filter-unsupported` for `reportingEntityId` */
+            /** @description Query failed validation */
             400: {
                 headers: {
                     [name: string]: unknown;

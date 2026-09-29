@@ -19,6 +19,9 @@ import { reviewCases, reviewCaseVersions, reviewFlags, reviewTimeline } from './
 export interface DeclarantReadModel {
   declarantName: string;
   personnelFileNumber: string;
+  /** The roster record the declaration was filed for, and its reporting entity. */
+  rosterRecordId: string;
+  reportingEntityId: string | null;
 }
 
 export interface CaseSettings {
@@ -70,6 +73,8 @@ export async function upsertCase(
         status: 'unassigned',
         declarantName: declarant.declarantName,
         personnelFileNumber: declarant.personnelFileNumber,
+        rosterRecordId: declarant.rosterRecordId,
+        reportingEntityId: declarant.reportingEntityId,
         openFlags: flags.length,
       })
       .onConflictDoNothing({ target: reviewCases.declarationId })
@@ -154,6 +159,8 @@ async function amendCase(
       openFlags: flags.length,
       declarantName: declarant.declarantName,
       personnelFileNumber: declarant.personnelFileNumber,
+      rosterRecordId: declarant.rosterRecordId,
+      reportingEntityId: declarant.reportingEntityId,
     })
     .where(eq(reviewCases.id, caseId));
   await tx.insert(reviewTimeline).values({

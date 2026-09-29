@@ -29,6 +29,8 @@ export function submittedVersion(fixture: VersionFixture): StoredVersion {
     versionId: randomUUID(),
     version: 1,
     personId: randomUUID(),
+    rosterRecordId: randomUUID(),
+    reportingEntityId: randomUUID(),
     reference: `DEC-${fixture.tenant.toUpperCase()}-2027-${String(Math.floor(Math.random() * 9_000_000) + 1_000_000).padStart(7, '0')}-4`,
     type: 'biennial',
     statementDate: '2027-11-01',

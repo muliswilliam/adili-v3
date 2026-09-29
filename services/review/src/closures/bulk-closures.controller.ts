@@ -22,8 +22,7 @@ import {
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 const SUPERVISORS = 'Problem code `supervisor-required`: bulk closure is for supervisors';
-const FILTER =
-  'Query failed validation; problem code `filter-unsupported` for the reporting entity filter';
+const FILTER = 'Query failed validation';
 
 /**
  * Bulk closure (spec 08): the system's `compliant-no-issues` proposals of a cycle, counted and

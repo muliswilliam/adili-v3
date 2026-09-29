@@ -631,6 +631,7 @@ async function subjectOf(
     tx
       .select({
         clarification: clarifications,
+        rosterRecordId: reviewCases.rosterRecordId,
         declarantName: reviewCases.declarantName,
         personnelFileNumber: reviewCases.personnelFileNumber,
       })
@@ -646,7 +647,8 @@ async function subjectOf(
         standing: 'owed',
         facts: {
           personId: clarification.personId,
-          rosterRecordId: null,
+          // The case's: its salary is stopped and resumed on the declaration's roster record.
+          rosterRecordId: found.rosterRecordId,
           caseId: clarification.caseId,
           subjectReference: clarification.reference ?? clarification.id,
           declarantName: found.declarantName,

@@ -1051,7 +1051,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClosureSummary'
         '400':
-          description: 'Query failed validation; problem code `filter-unsupported` for `reportingEntityId`'
+          description: Query failed validation
           content:
             application/problem+json:
               schema:
@@ -1094,7 +1094,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkApprovalResult'
         '400':
-          description: 'Query failed validation; problem code `filter-unsupported` for `reportingEntityId`'
+          description: Query failed validation
           content:
             application/problem+json:
               schema:

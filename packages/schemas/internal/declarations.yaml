@@ -2323,6 +2323,8 @@ components:
         - versionId
         - version
         - personId
+        - rosterRecordId
+        - reportingEntityId
         - reference
         - type
         - statementDate
@@ -2346,6 +2348,18 @@ components:
           type: string
           format: uuid
           description: The declarant; the review service looks up their previous version with it
+        rosterRecordId:
+          type: string
+          format: uuid
+          description: >-
+            The roster record of the obligation the version was filed for; the review service keeps
+            it on the case to stop and resume the salary of a clarification's ladder
+        reportingEntityId:
+          type: [string, 'null']
+          format: uuid
+          description: >-
+            The reporting entity of that roster record, null when it has none; the review service
+            keeps it on the case for the bulk closure filter
         reference:
           $ref: '#/components/schemas/DeclarationReference'
         type:

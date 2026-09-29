@@ -9,6 +9,10 @@ export interface PulledVersion {
   version: number;
   /** The declarant: the person whose earlier versions the rules compare against. */
   personId: string;
+  /** The roster record of the obligation the version was filed for. */
+  rosterRecordId: string;
+  /** That roster record's reporting entity; null when it has none. */
+  reportingEntityId: string | null;
   reference: string;
   type: 'initial' | 'biennial' | 'final';
   /** `YYYY-MM-DD`. */

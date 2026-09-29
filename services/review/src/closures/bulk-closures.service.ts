@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, CMP } from '@adili/numbering';
@@ -82,7 +82,7 @@ export class BulkClosuresService {
     slug: string,
     filter: ClosureFilter,
   ): Promise<ClosureSummaryView> {
-    const tenant = supervisorTenant(principal, slug, filter);
+    const tenant = supervisorTenant(principal, slug);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const cases = casesMatching(tenant, filter);
       const [proposals] = await tx
@@ -137,7 +137,7 @@ export class BulkClosuresService {
     filter: ClosureFilter,
     idempotencyKey: string,
   ): Promise<BulkApprovalResultView> {
-    const tenant = supervisorTenant(principal, slug, filter);
+    const tenant = supervisorTenant(principal, slug);
     // Before anything changes, so an outage is a 503 and nothing is approved.
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
     const bulkApprovalId = uuidv5(
@@ -296,24 +296,11 @@ export class BulkClosuresService {
 
 /**
  * The tenant of a supervisor's bulk closure request for Commission `slug`: 404 for anyone outside
- * its review staff, 403 `supervisor-required` for its reviewers, 400 for the reporting entity
- * filter, which review cases cannot answer yet (they do not record the reporting entity).
+ * its review staff, 403 `supervisor-required` for its reviewers.
  */
-function supervisorTenant(principal: Principal, slug: string, filter: ClosureFilter): string {
+function supervisorTenant(principal: Principal, slug: string): string {
   const tenant = queueTenant(principal, slug);
   requireSupervisor(principal);
-  if (filter.reportingEntityId !== undefined) {
-    throw new ProblemException(
-      {
-        type: 'filter-unsupported',
-        title: 'Validation failed',
-        status: HttpStatus.BAD_REQUEST,
-        detail: 'Filtering bulk closures by reporting entity is not available yet.',
-        errors: [{ path: 'reportingEntityId', message: 'Not supported yet' }],
-      },
-      { code: 'filter-unsupported' },
-    );
-  }
   return tenant;
 }
 
@@ -326,12 +313,15 @@ function bulkClosure(tenant: string): SQL | undefined {
   );
 }
 
-/** The Commission's cases of the filter's cycle and type. */
+/** The Commission's cases of the filter's cycle, type and reporting entity. */
 function casesMatching(tenant: string, filter: ClosureFilter): SQL | undefined {
   return and(
     eq(reviewCases.tenant, tenant),
     eq(reviewCases.cycleYear, filter.cycleYear),
     filter.type === undefined ? undefined : eq(reviewCases.type, filter.type),
+    filter.reportingEntityId === undefined
+      ? undefined
+      : eq(reviewCases.reportingEntityId, filter.reportingEntityId),
   );
 }
 

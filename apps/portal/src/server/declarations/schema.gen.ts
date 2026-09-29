@@ -1256,6 +1256,16 @@ export interface components {
              * @description The declarant; the review service looks up their previous version with it
              */
             personId: string;
+            /**
+             * Format: uuid
+             * @description The roster record of the obligation the version was filed for; the review service keeps it on the case to stop and resume the salary of a clarification's ladder
+             */
+            rosterRecordId: string;
+            /**
+             * Format: uuid
+             * @description The reporting entity of that roster record, null when it has none; the review service keeps it on the case for the bulk closure filter
+             */
+            reportingEntityId: string | null;
             reference: components["schemas"]["DeclarationReference"];
             type: components["schemas"]["ObligationType"];
             /** Format: date */

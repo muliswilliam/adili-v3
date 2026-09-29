@@ -39,6 +39,8 @@ const versionSchema = z.object({
   versionId: z.uuid(),
   version: z.int().positive(),
   personId: z.uuid(),
+  rosterRecordId: z.uuid(),
+  reportingEntityId: z.uuid().nullable(),
   reference: z.string().min(1),
   type: z.enum(['initial', 'biennial', 'final']),
   statementDate: civilDate,

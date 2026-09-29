@@ -141,6 +141,14 @@ export const reviewCases = pgTable(
     /** Read model for queue search: confidential, tenant-scoped. */
     declarantName: text().notNull(),
     personnelFileNumber: text().notNull(),
+    /**
+     * The roster record of the obligation the declaration was filed for, from the version: a
+     * clarification's ladder stops and resumes the salary on it. Null for cases processed before it
+     * was recorded.
+     */
+    rosterRecordId: uuid(),
+    /** That roster record's reporting entity: the bulk closure filter. */
+    reportingEntityId: uuid(),
     openFlags: integer().notNull().default(0),
     openClarifications: integer().notNull().default(0),
     /** When the closure sweep diverted the case to review instead of proposing its closure. */
