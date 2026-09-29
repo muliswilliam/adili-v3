@@ -7,7 +7,11 @@ import { and, desc, eq, inArray, isNotNull, lt, ne, or, sql } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
-import { reviewersOfRecord, requireCanApprove } from '../approvals/separation-of-duties.js';
+import {
+  mergedReviewers,
+  reviewersOfRecord,
+  requireCanApprove,
+} from '../approvals/separation-of-duties.js';
 import { caseTenant, queueTenant } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { clarifications, reviewFlags } from '../cases/schema.js';
@@ -372,11 +376,6 @@ async function lockForDecision(
     reviewersOfRecord: mergedReviewers(await reviewersOfRecord(tx, referral.sources.caseIds)),
   });
   return referral;
-}
-
-/** Everyone who held any of the cases. */
-export function mergedReviewers(byCase: Map<string, Set<string>>): Set<string> {
-  return new Set([...byCase.values()].flatMap((subjects) => [...subjects]));
 }
 
 /** Approving and declining act on a proposal still waiting only. */

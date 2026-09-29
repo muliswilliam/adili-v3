@@ -10,7 +10,7 @@ import {
 import { reviewersOfRecord } from '../approvals/separation-of-duties.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { reviewCases } from '../cases/schema.js';
-import { officer } from './representation.js';
+import { officer } from '../cases/representation.js';
 import { determinations } from './schema.js';
 
 /** How much of the reasons the inbox card shows. */

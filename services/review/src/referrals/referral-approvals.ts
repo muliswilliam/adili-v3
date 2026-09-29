@@ -7,10 +7,9 @@ import {
   ApprovalSource,
   type PendingApproval,
 } from '../approvals/approval-source.js';
-import { reviewersOfRecord } from '../approvals/separation-of-duties.js';
+import { mergedReviewers, reviewersOfRecord } from '../approvals/separation-of-duties.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
-import { officer } from '../determinations/representation.js';
-import { mergedReviewers } from './referrals.service.js';
+import { officer } from '../cases/representation.js';
 import { referrals } from './schema.js';
 
 /** How much of the narrative the inbox card shows. */

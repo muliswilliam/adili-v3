@@ -6,7 +6,7 @@ import { desc, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
-import { caseTenant, isSupervisor, queueTenant } from '../cases/access.js';
+import { caseTenant, queueTenant, requireSupervisor } from '../cases/access.js';
 import { knownName } from '../cases/assignment.service.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import type { Assignee } from '../cases/representation.js';
@@ -233,23 +233,6 @@ async function latestReassignments(
     });
   }
   return latest;
-}
-
-/**
- * Approvals (the inbox, bulk closures) are the supervisors': a reviewer gets 403
- * `supervisor-required`.
- */
-export function requireSupervisor(principal: Principal): void {
-  if (isSupervisor(principal)) return;
-  throw new ProblemException(
-    {
-      type: 'supervisor-required',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: 'Approvals are for supervisors.',
-    },
-    { code: 'supervisor-required' },
-  );
 }
 
 const cursorPayload = z.tuple([z.iso.datetime({ offset: true }), z.uuid()]);

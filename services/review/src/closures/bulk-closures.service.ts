@@ -7,8 +7,7 @@ import { and, asc, count, desc, eq, isNotNull, max, not, type SQL, sql } from 'd
 import { v5 as uuidv5 } from 'uuid';
 import { z } from 'zod';
 
-import { requireSupervisor } from '../approvals/approvals.service.js';
-import { queueTenant } from '../cases/access.js';
+import { queueTenant, requireSupervisor } from '../cases/access.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { changeCaseStatus } from '../cases/case-status.js';
 import { DECLARATION_TYPES, reviewAssignments, reviewCases } from '../cases/schema.js';

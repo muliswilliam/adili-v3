@@ -15,6 +15,11 @@ export interface Assignee {
   name: string;
 }
 
+/** An officer as a view names them: the name their token gave, else their subject. */
+export function officer(subject: string | null, name: string | null): Assignee | null {
+  return subject === null ? null : { subject, name: name ?? subject };
+}
+
 /** review.yaml `CaseListItem`: a row of the queue. */
 export interface CaseListItem {
   id: string;

@@ -6,9 +6,8 @@ import { ADM, allocateReference } from '@adili/numbering';
 import { and, desc, eq, inArray, lt, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { requireSupervisor } from '../approvals/approvals.service.js';
 import { caseReviewersOfRecord, requireCanApprove } from '../approvals/separation-of-duties.js';
-import { caseTenant, queueTenant } from '../cases/access.js';
+import { caseTenant, queueTenant, requireSupervisor } from '../cases/access.js';
 import { type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { Clock, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';

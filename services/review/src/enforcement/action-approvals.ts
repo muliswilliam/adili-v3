@@ -9,7 +9,7 @@ import {
 } from '../approvals/approval-source.js';
 import { reviewersOfRecord } from '../approvals/separation-of-duties.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
-import { officer } from '../determinations/representation.js';
+import { officer } from '../cases/representation.js';
 import { type ActionRow, approverRoleOf } from './ladder-records.js';
 import { ACTION_STEPS, administrativeActions, enforcementLadders } from './schema.js';
 

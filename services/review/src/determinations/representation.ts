@@ -1,5 +1,5 @@
 import type { ProposerKind } from '../approvals/schema.js';
-import type { Assignee } from '../cases/representation.js';
+import { type Assignee, officer } from '../cases/representation.js';
 import type {
   DeterminationOutcome,
   determinations,
@@ -28,11 +28,6 @@ export interface DeterminationView {
   returnReason: string | null;
   reference: string | null;
   letterAvailable: boolean;
-}
-
-/** An officer as a view names them: the name their token gave, else their subject. */
-export function officer(subject: string | null, name: string | null): Assignee | null {
-  return subject === null ? null : { subject, name: name ?? subject };
 }
 
 export function determinationView(row: DeterminationRow): DeterminationView {

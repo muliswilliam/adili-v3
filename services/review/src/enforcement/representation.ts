@@ -1,6 +1,6 @@
 import type { ProposerKind } from '../approvals/schema.js';
 import type { Assignee } from '../cases/representation.js';
-import { officer } from '../determinations/representation.js';
+import { officer } from '../cases/representation.js';
 import type { ActionRow, LadderRow } from './ladder-records.js';
 import {
   ACTION_STEPS,

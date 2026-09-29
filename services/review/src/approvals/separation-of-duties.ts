@@ -107,3 +107,8 @@ export async function caseReviewersOfRecord(
   const found = await reviewersOfRecord(tx, [caseId]);
   return found.get(caseId) ?? new Set();
 }
+
+/** Everyone who held any of the cases. */
+export function mergedReviewers(byCase: Map<string, Set<string>>): Set<string> {
+  return new Set([...byCase.values()].flatMap((subjects) => [...subjects]));
+}
