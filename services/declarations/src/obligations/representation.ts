@@ -1,23 +1,18 @@
 import { z } from 'zod';
 
-import {
-  CANCEL_REASON_VALUES,
-  OBLIGATION_STATUS_VALUES,
-  OBLIGATION_TYPE_VALUES,
-  REMINDER_CHANNEL_VALUES,
-  REMINDER_OUTCOME_VALUES,
-} from './schema.js';
+import { CANCEL_REASONS, OBLIGATION_STATUSES, OBLIGATION_TYPES } from './engine.js';
+import { REMINDER_CHANNEL_VALUES, REMINDER_OUTCOME_VALUES } from './schema.js';
 
 /**
  * Response bodies of the obligations API (spec 04). They are the contract: the OpenAPI document,
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-export const obligationTypeSchema = z.enum(OBLIGATION_TYPE_VALUES);
+export const obligationTypeSchema = z.enum(OBLIGATION_TYPES);
 
-export const obligationStatusSchema = z.enum(OBLIGATION_STATUS_VALUES);
+export const obligationStatusSchema = z.enum(OBLIGATION_STATUSES);
 
-export const cancelReasonSchema = z.enum(CANCEL_REASON_VALUES);
+export const cancelReasonSchema = z.enum(CANCEL_REASONS);
 
 export const reminderOutcomeSchema = z.enum(REMINDER_OUTCOME_VALUES);
 

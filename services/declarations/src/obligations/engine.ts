@@ -33,11 +33,13 @@ import { addDays, atMonthDay, type CivilDate } from './dates.js';
 export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
 export type ObligationType = (typeof OBLIGATION_TYPES)[number];
 
-export const OBLIGATION_STATUSES = ['upcoming', 'due', 'overdue', 'filed', 'cancelled'] as const;
-export type ObligationStatus = (typeof OBLIGATION_STATUSES)[number];
+/** The statuses of an obligation still owed: it is created in one, and moves between them by date. */
+export const OPEN_STATUSES = ['upcoming', 'due', 'overdue'] as const;
+export type OpenStatus = (typeof OPEN_STATUSES)[number];
 
-/** The status an obligation can be created in; `filed` and `cancelled` are terminal. */
-export type OpenStatus = Extract<ObligationStatus, 'upcoming' | 'due' | 'overdue'>;
+/** Every status; `filed` and `cancelled` are terminal. */
+export const OBLIGATION_STATUSES = [...OPEN_STATUSES, 'filed', 'cancelled'] as const;
+export type ObligationStatus = (typeof OBLIGATION_STATUSES)[number];
 
 export const CANCEL_REASONS = [
   'exited-before-statement-date',

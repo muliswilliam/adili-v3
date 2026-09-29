@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { BIENNIAL_CYCLE_KEY } from './cycle-key.js';
-import { OBLIGATION_STATUS_VALUES, OBLIGATION_TYPE_VALUES } from './schema.js';
+import { OBLIGATION_STATUSES, OBLIGATION_TYPES } from './engine.js';
 
 const cycleParameter = z
   .string()
@@ -19,9 +19,9 @@ export type SummaryQuery = z.infer<typeof summaryQuery>;
 
 /** Query of `GET /v1/commissions/{slug}/obligations`. */
 export const listCommissionObligationsQuery = z.object({
-  type: z.enum(OBLIGATION_TYPE_VALUES).optional(),
+  type: z.enum(OBLIGATION_TYPES).optional(),
   status: z
-    .enum(OBLIGATION_STATUS_VALUES)
+    .enum(OBLIGATION_STATUSES)
     .optional()
     .meta({ description: 'Only obligations with this status; cancelled ones only when asked for' }),
   onboarded: z

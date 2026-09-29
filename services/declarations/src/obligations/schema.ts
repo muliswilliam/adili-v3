@@ -14,7 +14,12 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import type { ObligationPolicy } from './engine.js';
+import {
+  CANCEL_REASONS,
+  OBLIGATION_STATUSES,
+  OBLIGATION_TYPES,
+  type ObligationPolicy,
+} from './engine.js';
 
 /**
  * The obligations read and write model of the declarations service (spec 04). Only this service
@@ -77,19 +82,9 @@ export const rosterSnapshots = pgTable(
   ],
 );
 
-export const OBLIGATION_TYPE_VALUES = ['initial', 'biennial', 'final'] as const;
-export const OBLIGATION_STATUS_VALUES = [
-  'upcoming',
-  'due',
-  'overdue',
-  'filed',
-  'cancelled',
-] as const;
-export const CANCEL_REASON_VALUES = [
-  'exited-before-statement-date',
-  'exit-reversed',
-  'superseded',
-] as const;
+/** `'a', 'b'` for a check constraint over a list of values. */
+const sqlList = (values: readonly string[]) =>
+  sql.raw(values.map((value) => `'${value}'`).join(', '));
 
 /**
  * Filing obligations: one per roster record per duty (initial, biennial per cycle, final),
@@ -108,13 +103,13 @@ export const filingObligations = pgTable(
     /** Null until the declarant onboards (then set on every open obligation of the record). */
     personId: uuid(),
     ofr: text(),
-    type: text({ enum: OBLIGATION_TYPE_VALUES }).notNull(),
+    type: text({ enum: OBLIGATION_TYPES }).notNull(),
     /** `initial:<appointment date>`, `biennial:<year>` or `final:<exit date>`. */
     cycleKey: text().notNull(),
     statementDate: date({ mode: 'string' }).notNull(),
     dueDate: date({ mode: 'string' }).notNull(),
-    status: text({ enum: OBLIGATION_STATUS_VALUES }).notNull(),
-    cancelReason: text({ enum: CANCEL_REASON_VALUES }),
+    status: text({ enum: OBLIGATION_STATUSES }).notNull(),
+    cancelReason: text({ enum: CANCEL_REASONS }),
     /** The directory policy version whose periods and offsets the obligation was computed with. */
     policyVersionId: uuid().notNull(),
     policyVersion: integer().notNull(),
@@ -136,10 +131,10 @@ export const filingObligations = pgTable(
     index('filing_obligations_tenant_status_due_idx').on(table.tenant, table.status, table.dueDate),
     index('filing_obligations_person_id_idx').on(table.personId),
     index('filing_obligations_roster_record_id_idx').on(table.rosterRecordId),
-    check('filing_obligations_type_check', sql`${table.type} in ('initial', 'biennial', 'final')`),
+    check('filing_obligations_type_check', sql`${table.type} in (${sqlList(OBLIGATION_TYPES)})`),
     check(
       'filing_obligations_status_check',
-      sql`${table.status} in ('upcoming', 'due', 'overdue', 'filed', 'cancelled')`,
+      sql`${table.status} in (${sqlList(OBLIGATION_STATUSES)})`,
     ),
     check(
       'filing_obligations_cancel_reason_check',
@@ -189,7 +184,7 @@ export const obligationReminders = pgTable(
     unique('obligation_reminders_obligation_offset_key').on(table.obligationId, table.offsetDays),
     check(
       'obligation_reminders_outcome_check',
-      sql`${table.outcome} in ('sent', 'skipped-not-onboarded', 'skipped-no-contact', 'skipped-past-due-at-creation', 'failed')`,
+      sql`${table.outcome} in (${sqlList(REMINDER_OUTCOME_VALUES)})`,
     ),
   ],
 );

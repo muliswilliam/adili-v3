@@ -14,6 +14,7 @@ import { and, asc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { Clock } from '../../clock.js';
 import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
+import { OPEN_STATUSES } from '../engine.js';
 import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
 import { reconcileSnapshots, storedReconcileContext } from '../apply-page.js';
 import { nairobiDate } from '../dates.js';
@@ -82,7 +83,7 @@ export class ObligationsSweep {
           .from(filingObligations)
           .where(
             and(
-              inArray(filingObligations.status, ['upcoming', 'due', 'overdue']),
+              inArray(filingObligations.status, [...OPEN_STATUSES]),
               isNull(filingObligations.workflowStartedAt),
               lt(
                 filingObligations.createdAt,

@@ -28,7 +28,7 @@ import {
   type SummaryQuery,
 } from './commission-query.js';
 import { addDays, atMonthDay, nairobiDate } from './dates.js';
-import type { ObligationStatus, ObligationType } from './engine.js';
+import { OPEN_STATUSES, type ObligationStatus, type ObligationType } from './engine.js';
 import { biennialCycleKey, biennialYear } from './cycle-key.js';
 import { obligationColumns, toObligation } from './obligations.service.js';
 import type {
@@ -66,11 +66,9 @@ const STATUTORY_BIENNIAL: MonthDays = { statementDate: '11-01', dueDate: '12-31'
  */
 const UNLISTED_OPENING_LEAD_DAYS = 120;
 
-const OPEN_STATUSES = ['upcoming', 'due', 'overdue'] as const;
-
 /** Statuses a summary counts: every one but `cancelled`. */
 type CountedStatus = Exclude<ObligationStatus, 'cancelled'>;
-const COUNTED_STATUSES = ['upcoming', 'due', 'overdue', 'filed'] as const;
+const COUNTED_STATUSES = [...OPEN_STATUSES, 'filed'] as const satisfies readonly CountedStatus[];
 
 /** An obligation's latest reminder (by scheduled time) as JSON, times in epoch milliseconds. */
 interface LastReminderRow {
