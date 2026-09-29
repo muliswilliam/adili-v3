@@ -5,13 +5,9 @@ import { EventPublisher } from '@adili/events';
 import { allocateReference, RFL } from '@adili/numbering';
 import { and, desc, eq, inArray, isNotNull, lt, ne, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { z } from 'zod';
 
-import {
-  mergedReviewers,
-  reviewersOfRecord,
-  requireCanApprove,
-} from '../approvals/separation-of-duties.js';
+import { lockForDecision, requireProposed } from '../approvals/decisions.js';
+import { mergedReviewers, reviewersOfRecord } from '../approvals/separation-of-duties.js';
 import { caseTenant, queueTenant } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { clarifications, reviewFlags } from '../cases/schema.js';
@@ -21,6 +17,7 @@ import type { ReasonInput } from '../determinations/determination-input.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { administrativeActions, enforcementLadders } from '../enforcement/schema.js';
 import { withUpstream } from '../internal-api/upstream.js';
+import { decodeCursor, encodeCursor } from '../paging.js';
 import { evidencePreview, planEvidence } from './evidence-package.js';
 import {
   REFERRAL_APPROVED,
@@ -34,7 +31,7 @@ import {
 import type { ReferralInput, ReferralsQuery } from './referral-input.js';
 import { ReferralWorkflows } from './referral-workflows.js';
 import { referralView, type ReferralView } from './representation.js';
-import { referrals, type ReferralStatus } from './schema.js';
+import { referrals } from './schema.js';
 
 type ReferralRow = typeof referrals.$inferSelect;
 
@@ -197,8 +194,8 @@ export class ReferralsService {
             after === null
               ? undefined
               : or(
-                  lt(referrals.proposedAt, after.proposedAt),
-                  and(eq(referrals.proposedAt, after.proposedAt), lt(referrals.id, after.id)),
+                  lt(referrals.proposedAt, after.at),
+                  and(eq(referrals.proposedAt, after.at), lt(referrals.id, after.id)),
                 ),
           ),
         )
@@ -210,7 +207,7 @@ export class ReferralsService {
         items: page.map((row) => referralView(row)),
         nextCursor:
           rows.length > query.limit && last
-            ? encodeCursor({ proposedAt: last.proposedAt, id: last.id })
+            ? encodeCursor({ at: last.proposedAt, id: last.id })
             : null,
       };
     });
@@ -239,8 +236,8 @@ export class ReferralsService {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const referral = await lockForDecision(tx, tenant, principal, referralId);
-      requireProposed(referral.status);
+      const referral = await lockReferralForDecision(tx, tenant, principal, referralId);
+      requireProposed('referral', referral.status);
       const commission = await withUpstream(() => this.directory.getCommission(tenant));
       const reference = await allocateReference(tx, RFL, {
         issuer: commission.issuerCode,
@@ -280,8 +277,8 @@ export class ReferralsService {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const referral = await lockForDecision(tx, tenant, principal, referralId);
-      requireProposed(referral.status);
+      const referral = await lockReferralForDecision(tx, tenant, principal, referralId);
+      requireProposed('referral', referral.status);
       const [updated] = await tx
         .update(referrals)
         .set({
@@ -359,71 +356,29 @@ export async function issuedActionsOf(
  * applied to the caller (403): not its proposer, and not a reviewer of record of any case it rests
  * on.
  */
-async function lockForDecision(
+function lockReferralForDecision(
   tx: ReviewTransaction,
   tenant: string,
   principal: Principal,
   referralId: string,
 ): Promise<ReferralRow> {
-  const [found] = await tx
-    .select()
-    .from(referrals)
-    .where(and(eq(referrals.id, visibleId(referralId)), eq(referrals.tenant, tenant)))
-    .for('update');
-  const referral = notFoundIfInvisible(found);
-  requireCanApprove(principal, {
-    proposer: referral.proposer,
-    reviewersOfRecord: mergedReviewers(await reviewersOfRecord(tx, referral.sources.caseIds)),
-  });
-  return referral;
-}
-
-/** Approving and declining act on a proposal still waiting only. */
-function requireProposed(status: ReferralStatus): void {
-  if (status === 'proposed') return;
-  throw new ProblemException(
-    {
-      type: 'not-proposed',
-      title: 'Conflict',
-      status: HttpStatus.CONFLICT,
-      detail: `The referral is ${status}; it no longer waits for approval.`,
+  return lockForDecision(
+    principal,
+    async () => {
+      const [found] = await tx
+        .select()
+        .from(referrals)
+        .where(and(eq(referrals.id, visibleId(referralId)), eq(referrals.tenant, tenant)))
+        .for('update');
+      return found;
     },
-    { code: 'not-proposed', referralStatus: status },
+    async (referral) => ({
+      proposer: referral.proposer,
+      reviewersOfRecord: mergedReviewers(await reviewersOfRecord(tx, referral.sources.caseIds)),
+    }),
   );
 }
 
 function unique(ids: readonly string[]): string[] {
   return [...new Set(ids)];
-}
-
-interface ReferralPosition {
-  proposedAt: Date;
-  id: string;
-}
-
-const cursorPayload = z.tuple([z.iso.datetime({ offset: true }), z.uuid()]);
-
-/** Opaque to clients: base64url of `[proposedAt, id]`. */
-function encodeCursor(position: ReferralPosition): string {
-  return Buffer.from(JSON.stringify([position.proposedAt.toISOString(), position.id])).toString(
-    'base64url',
-  );
-}
-
-/** The position a cursor names; 400 for one this list did not issue. */
-function decodeCursor(value: string): ReferralPosition {
-  try {
-    const parsed = cursorPayload.safeParse(
-      JSON.parse(Buffer.from(value, 'base64url').toString('utf8')),
-    );
-    if (parsed.success) return { proposedAt: new Date(parsed.data[0]), id: parsed.data[1] };
-  } catch {
-    // Not JSON: not a cursor this list issued.
-  }
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Bad Request',
-    status: HttpStatus.BAD_REQUEST,
-    detail: 'The cursor is not one this list issued.',
-  });
 }

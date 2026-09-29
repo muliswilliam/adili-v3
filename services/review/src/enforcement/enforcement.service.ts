@@ -6,7 +6,8 @@ import { ADM, allocateReference } from '@adili/numbering';
 import { and, desc, eq, inArray, lt, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { caseReviewersOfRecord, requireCanApprove } from '../approvals/separation-of-duties.js';
+import { lockForDecision, requireProposed } from '../approvals/decisions.js';
+import { caseReviewersOfRecord } from '../approvals/separation-of-duties.js';
 import { caseTenant, queueTenant, requireSupervisor } from '../cases/access.js';
 import { type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { Clock, nairobiYear } from '../clock.js';
@@ -14,6 +15,7 @@ import type { ReviewSchema } from '../db/schema.js';
 import type { ReasonInput } from '../determinations/determination-input.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { withUpstream } from '../internal-api/upstream.js';
+import { decodeCursor, encodeCursor } from '../paging.js';
 import { LADDER_STEPS, type LadderStep } from './contract.js';
 import { EnforcementWorkflows } from './enforcement-workflows.js';
 import {
@@ -33,7 +35,6 @@ import { actionView, type ActionView, ladderView, type LadderView } from './repr
 import {
   ACTION_STATUSES,
   ACTION_STEPS,
-  type ActionStatus,
   administrativeActions,
   enforcementLadders,
 } from './schema.js';
@@ -84,11 +85,8 @@ export class EnforcementService {
         after === null
           ? undefined
           : or(
-              lt(enforcementLadders.startedAt, after.startedAt),
-              and(
-                eq(enforcementLadders.startedAt, after.startedAt),
-                lt(enforcementLadders.id, after.id),
-              ),
+              lt(enforcementLadders.startedAt, after.at),
+              and(eq(enforcementLadders.startedAt, after.at), lt(enforcementLadders.id, after.id)),
             ),
       ];
       const rows = await tx
@@ -116,7 +114,7 @@ export class EnforcementService {
         ),
         nextCursor:
           rows.length > query.limit && last
-            ? encodeCursor({ startedAt: last.startedAt, id: last.id })
+            ? encodeCursor({ at: last.startedAt, id: last.id })
             : null,
       };
     });
@@ -140,8 +138,8 @@ export class EnforcementService {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { action, ladder } = await lockForDecision(tx, tenant, principal, actionId);
-      requireProposed(action.status);
+      const { action, ladder } = await lockStepForDecision(tx, tenant, principal, actionId);
+      requireProposed('step', action.status);
       const commission = await withUpstream(() => this.directory.getCommission(tenant));
       const reference = await allocateReference(tx, ADM, {
         issuer: commission.issuerCode,
@@ -179,8 +177,8 @@ export class EnforcementService {
     const tenant = caseTenant(principal);
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const { action, ladder } = await lockForDecision(tx, tenant, principal, actionId);
-      requireProposed(action.status);
+      const { action, ladder } = await lockStepForDecision(tx, tenant, principal, actionId);
+      requireProposed('step', action.status);
       const [updated] = await tx
         .update(administrativeActions)
         .set({
@@ -280,31 +278,35 @@ export class EnforcementService {
  * applied to the caller (403): the proposer (none for the system's drafts) and, for a
  * clarification's ladder, everyone who held its case may not decide it.
  */
-async function lockForDecision(
+function lockStepForDecision(
   tx: ReviewTransaction,
   tenant: string,
   principal: Principal,
   actionId: string,
 ): Promise<{ action: ActionRow; ladder: LadderRow }> {
-  const [action] = await tx
-    .select()
-    .from(administrativeActions)
-    .where(
-      and(
-        eq(administrativeActions.id, visibleId(actionId)),
-        eq(administrativeActions.tenant, tenant),
-      ),
-    )
-    .for('update');
-  const found = notFoundIfInvisible(action);
-  const ladder = await findLadder(tx, tenant, found.ladderId, { lock: true });
-  requireCanApprove(principal, {
-    proposer: found.proposer,
-    reviewersOfRecord:
-      ladder.caseId === null ? new Set() : await caseReviewersOfRecord(tx, ladder.caseId),
-    approverRole: approverRoleOf(found.step),
-  });
-  return { action: found, ladder };
+  return lockForDecision(
+    principal,
+    async () => {
+      const [action] = await tx
+        .select()
+        .from(administrativeActions)
+        .where(
+          and(
+            eq(administrativeActions.id, visibleId(actionId)),
+            eq(administrativeActions.tenant, tenant),
+          ),
+        )
+        .for('update');
+      if (!action) return undefined;
+      return { action, ladder: await findLadder(tx, tenant, action.ladderId, { lock: true }) };
+    },
+    async ({ action, ladder }) => ({
+      proposer: action.proposer,
+      reviewersOfRecord:
+        ladder.caseId === null ? new Set<string>() : await caseReviewersOfRecord(tx, ladder.caseId),
+      approverRole: approverRoleOf(action.step),
+    }),
+  );
 }
 
 /** The ladder of the tenant, locked for update when `lock` is set; 404 when invisible. */
@@ -336,53 +338,7 @@ export async function actionsOf(
     .where(inArray(administrativeActions.ladderId, [...ladderIds]));
 }
 
-/** Approving and declining act on a step still waiting only. */
-function requireProposed(status: ActionStatus): void {
-  if (status === 'proposed') return;
-  throw new ProblemException(
-    {
-      type: 'not-proposed',
-      title: 'Conflict',
-      status: HttpStatus.CONFLICT,
-      detail: `The step is ${status}; it no longer waits for a decision.`,
-    },
-    { code: 'not-proposed', actionStatus: status },
-  );
-}
-
 /** The step a restart drafts again: the declined one (the notice when none is found). */
 function restartStep(declined: ActionRow | undefined): LadderStep {
   return declined?.step ?? LADDER_STEPS[0];
-}
-
-const cursorPayload = z.tuple([z.iso.datetime({ offset: true }), z.uuid()]);
-
-interface LadderPosition {
-  startedAt: Date;
-  id: string;
-}
-
-/** Opaque to clients: base64url of `[startedAt, id]`. */
-function encodeCursor(position: LadderPosition): string {
-  return Buffer.from(JSON.stringify([position.startedAt.toISOString(), position.id])).toString(
-    'base64url',
-  );
-}
-
-/** The position a cursor names; 400 for one this list did not issue. */
-function decodeCursor(value: string): LadderPosition {
-  try {
-    const parsed = cursorPayload.safeParse(
-      JSON.parse(Buffer.from(value, 'base64url').toString('utf8')),
-    );
-    if (parsed.success) return { startedAt: new Date(parsed.data[0]), id: parsed.data[1] };
-  } catch {
-    // Not JSON: not a cursor this list issued.
-  }
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Bad Request',
-    status: HttpStatus.BAD_REQUEST,
-    detail: 'The cursor is not one this list issued.',
-  });
 }

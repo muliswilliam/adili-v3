@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { desc, inArray } from 'drizzle-orm';
@@ -14,8 +14,10 @@ import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeterminationApprovals } from '../determinations/determination-approvals.js';
 import { ActionApprovals } from '../enforcement/action-approvals.js';
+import { decodeCursor, encodeCursor, type Position } from '../paging.js';
 import { ReferralApprovals } from '../referrals/referral-approvals.js';
 import type { ApprovalPosition, ApprovalSource, PendingApproval } from './approval-source.js';
+import { notProposed } from './decisions.js';
 import { APPROVAL_REASSIGNED, type ApprovalReassignedData } from './events.js';
 import {
   APPROVAL_KINDS,
@@ -97,7 +99,7 @@ export class ApprovalsService {
   async list(principal: Principal, slug: string, query: ApprovalsQuery): Promise<ApprovalPage> {
     const tenant = queueTenant(principal, slug);
     requireSupervisor(principal);
-    const after = query.cursor === undefined ? null : decodeCursor(query.cursor);
+    const after = query.cursor === undefined ? null : approvalPosition(decodeCursor(query.cursor));
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       // Each kind's next page in the same order; merged, the first `limit` are this page.
@@ -127,7 +129,7 @@ export class ApprovalsService {
         }),
         nextCursor:
           candidates.length > query.limit && last
-            ? encodeCursor({ proposedAt: last.proposedAt, subjectId: last.subjectId })
+            ? encodeCursor({ at: last.proposedAt, id: last.subjectId })
             : null,
         counts: await this.counts(tx, tenant, now),
       };
@@ -149,17 +151,7 @@ export class ApprovalsService {
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const source = this.sources.find((candidate) => candidate.kind === kind);
       const found = notFoundIfInvisible(source ? await source.find(tx, tenant, subjectId) : null);
-      if (!found.pending) {
-        throw new ProblemException(
-          {
-            type: 'not-proposed',
-            title: 'Conflict',
-            status: HttpStatus.CONFLICT,
-            detail: 'This has been decided; it no longer waits for approval.',
-          },
-          { code: 'not-proposed' },
-        );
-      }
+      if (!found.pending) throw notProposed();
       const name = await knownName(tx, tenant, input.toSupervisor);
       await tx.insert(approvalReassignments).values({
         id: uuidv7(),
@@ -235,31 +227,7 @@ async function latestReassignments(
   return latest;
 }
 
-const cursorPayload = z.tuple([z.iso.datetime({ offset: true }), z.uuid()]);
-
-/** Opaque to clients: base64url of `[proposedAt, subjectId]`. */
-function encodeCursor(position: ApprovalPosition): string {
-  return Buffer.from(
-    JSON.stringify([position.proposedAt.toISOString(), position.subjectId]),
-  ).toString('base64url');
-}
-
-/** The position a cursor names; 400 for one this inbox did not issue. */
-function decodeCursor(value: string): ApprovalPosition {
-  try {
-    const parsed = cursorPayload.safeParse(
-      JSON.parse(Buffer.from(value, 'base64url').toString('utf8')),
-    );
-    if (parsed.success) {
-      return { proposedAt: new Date(parsed.data[0]), subjectId: parsed.data[1] };
-    }
-  } catch {
-    // Not JSON: not a cursor this inbox issued.
-  }
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Bad Request',
-    status: HttpStatus.BAD_REQUEST,
-    detail: 'The cursor is not one this inbox issued.',
-  });
+/** The inbox's place a cursor names. */
+function approvalPosition({ at, id }: Position): ApprovalPosition {
+  return { proposedAt: at, subjectId: id };
 }

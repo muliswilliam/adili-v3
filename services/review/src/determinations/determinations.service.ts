@@ -6,7 +6,8 @@ import { allocateReference, CMP } from '@adili/numbering';
 import { and, eq, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { caseReviewersOfRecord, requireCanApprove } from '../approvals/separation-of-duties.js';
+import { lockForDecision, requireProposed } from '../approvals/decisions.js';
+import { caseReviewersOfRecord } from '../approvals/separation-of-duties.js';
 import { caseTenant } from '../cases/access.js';
 import { type CaseRow, findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { changeCaseStatus } from '../cases/case-status.js';
@@ -27,12 +28,7 @@ import {
   type DeterminationEventData,
 } from './events.js';
 import { determinationView, type DeterminationView, OUTCOME_LABELS } from './representation.js';
-import {
-  type DeterminationOutcome,
-  determinations,
-  OPEN_PROPOSAL_STATUSES,
-  type ProposalStatus,
-} from './schema.js';
+import { type DeterminationOutcome, determinations, OPEN_PROPOSAL_STATUSES } from './schema.js';
 
 type DeterminationRow = typeof determinations.$inferSelect;
 
@@ -164,7 +160,7 @@ export class DeterminationsService {
         principal,
         determinationId,
       );
-      requireProposed(determination.status);
+      requireProposed('determination', determination.status);
       const commission = await withUpstream(() => this.directory.getCommission(tenant));
       const reference = await allocateReference(tx, CMP, {
         issuer: commission.issuerCode,
@@ -214,7 +210,7 @@ export class DeterminationsService {
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { determination } = await this.lockForDecision(tx, tenant, principal, determinationId);
-      requireProposed(determination.status);
+      requireProposed('determination', determination.status);
       const [updated] = await tx
         .update(determinations)
         .set({
@@ -253,7 +249,7 @@ export class DeterminationsService {
           detail: 'Only the officer who proposed a determination can withdraw it.',
         });
       }
-      requireProposed(determination.status);
+      requireProposed('determination', determination.status);
       const [updated] = await tx
         .update(determinations)
         .set({ status: 'withdrawn', withdrawnAt: now })
@@ -275,19 +271,24 @@ export class DeterminationsService {
    * The determination and its case, locked, for a supervisor's decision; the separation-of-duties
    * rule applied to the caller (403).
    */
-  private async lockForDecision(
+  private lockForDecision(
     tx: ReviewTransaction,
     tenant: string,
     principal: Principal,
     determinationId: string,
   ): Promise<{ determination: DeterminationRow; reviewCase: CaseRow }> {
-    const determination = await lockDetermination(tx, tenant, determinationId);
-    const reviewCase = await findCase(tx, tenant, determination.caseId, { lock: true });
-    requireCanApprove(principal, {
-      proposer: determination.proposer,
-      reviewersOfRecord: await caseReviewersOfRecord(tx, reviewCase.id),
-    });
-    return { determination, reviewCase };
+    return lockForDecision(
+      principal,
+      async () => {
+        const determination = await lockDetermination(tx, tenant, determinationId);
+        const reviewCase = await findCase(tx, tenant, determination.caseId, { lock: true });
+        return { determination, reviewCase };
+      },
+      async ({ determination, reviewCase }) => ({
+        proposer: determination.proposer,
+        reviewersOfRecord: await caseReviewersOfRecord(tx, reviewCase.id),
+      }),
+    );
   }
 }
 
@@ -347,20 +348,6 @@ async function lockDetermination(
     )
     .for('update');
   return notFoundIfInvisible(found);
-}
-
-/** Approving, returning and withdrawing act on a proposal still waiting only. */
-function requireProposed(status: ProposalStatus): void {
-  if (status === 'proposed') return;
-  throw new ProblemException(
-    {
-      type: 'not-proposed',
-      title: 'Conflict',
-      status: HttpStatus.CONFLICT,
-      detail: `The determination is ${status}; it no longer waits for approval.`,
-    },
-    { code: 'not-proposed', determinationStatus: status },
-  );
 }
 
 /**
