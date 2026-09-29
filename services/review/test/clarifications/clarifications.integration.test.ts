@@ -353,6 +353,53 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect(row?.status).toBe('draft');
   });
 
+  it("S18: only the Commission's reviewers and supervisors reach its clarifications; everyone else gets 404", async () => {
+    const caseId = await givenAssignedCase();
+    const { id: draftId } = (await draft(caseId)).json<ClarificationView>();
+    const { id: issuedId } = (await draft(caseId)).json<ClarificationView>();
+    expect((await issue(issuedId)).statusCode).toBe(200);
+
+    const outsiders: [string, Caller][] = [
+      ['tsc reviewer', tscReviewer],
+      ['declarant', declarant],
+      ['helpdesk', { tenant: 'psc', roles: ['helpdesk'] }],
+      ['commission-admin', { tenant: 'psc', roles: ['commission-admin'] }],
+      ['reporting-officer', { tenant: 'psc', roles: ['reporting-officer'] }],
+      ['platform-admin', { tenant: 'platform', roles: ['platform-admin'] }],
+      ['eacc-analyst', { tenant: 'eacc', roles: ['eacc-analyst'] }],
+    ];
+    const clarification = (id: string, action = '') =>
+      `/v1/review/clarifications/${id}${action ? `/${action}` : ''}`;
+    for (const [who, caller] of outsiders) {
+      const calls: [string, ReturnType<ReviewApi['get']>][] = [
+        ['get', api.get(clarification(issuedId), caller)],
+        ['draft', draft(caseId, twoItems, caller)],
+        ['update', api.send('PUT', clarification(draftId), caller, twoItems)],
+        ['issue', issue(draftId, caller)],
+        ['resolve', api.send('POST', clarification(issuedId, 'resolve'), caller, { note: 'n' })],
+        ['follow-up', api.send('POST', clarification(issuedId, 'follow-up'), caller)],
+        [
+          'withdraw',
+          api.send('POST', clarification(issuedId, 'withdraw'), caller, { reason: 'r' }),
+        ],
+      ];
+      for (const [operation, call] of calls) {
+        expect((await call).statusCode, `${who} ${operation}`).toBe(404);
+      }
+    }
+
+    const rows = await api.asPlatform((tx) =>
+      tx
+        .select({ id: clarifications.id, status: clarifications.status })
+        .from(clarifications)
+        .where(eq(clarifications.caseId, caseId)),
+    );
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.status]))).toEqual({
+      [draftId]: 'draft',
+      [issuedId]: 'issued',
+    });
+  });
+
   it('S12: after the window end, issuing is 409 clarification-window-closed', async () => {
     const caseId = await givenAssignedCase();
     const { id } = (await draft(caseId)).json<ClarificationView>();
