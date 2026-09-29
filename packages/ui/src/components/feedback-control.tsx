@@ -36,7 +36,7 @@ export interface Feedback {
   note: string | null;
 }
 
-/** Longest note the contracts accept. */
+/** Longest note the ai-gateway and review contracts accept; the assistant's is 500. */
 export const FEEDBACK_NOTE_MAX_LENGTH = 1000;
 
 export interface FeedbackMessages {
@@ -112,11 +112,19 @@ export type FeedbackControlProps = Omit<ComponentProps<'div'>, 'children' | 'onC
   ratedBy?: string;
   /** Turns the buttons and the form off. */
   disabled?: boolean;
+  /** Longest note the form takes. Defaults to 1,000; the portal's assistant takes 500. */
+  noteMaxLength?: number;
   messages?: Partial<FeedbackMessages>;
 };
 
-const rateButtonClassName =
-  'size-7 text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground [&_svg]:size-[15px]';
+// Buttons stay focusable while a rating saves, so they look off through aria-disabled instead.
+const busyClassName =
+  'aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:active:translate-y-0';
+
+const rateButtonClassName = cn(
+  busyClassName,
+  'size-7 text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground [&_svg]:size-[15px]',
+);
 
 /**
  * Lets a reviewer rate an AI output. "Helpful" is sent in one press; "Not helpful" opens a form
@@ -131,6 +139,7 @@ export function FeedbackControl({
   readOnly = false,
   ratedBy,
   disabled = false,
+  noteMaxLength = FEEDBACK_NOTE_MAX_LENGTH,
   messages,
   className,
   ...props
@@ -305,7 +314,7 @@ export function FeedbackControl({
             <FormField label={copy.noteLabel} hint={copy.noteHint}>
               <Textarea
                 rows={2}
-                maxLength={FEEDBACK_NOTE_MAX_LENGTH}
+                maxLength={noteMaxLength}
                 readOnly={saving}
                 value={note}
                 onChange={(event) => {
@@ -320,6 +329,7 @@ export function FeedbackControl({
                 type="button"
                 variant="ghost"
                 size="sm"
+                className={busyClassName}
                 aria-disabled={saving || undefined}
                 onClick={() => {
                   if (!saving) closeForm();
@@ -327,7 +337,12 @@ export function FeedbackControl({
               >
                 {copy.cancel}
               </Button>
-              <Button type="submit" size="sm" aria-disabled={saving || undefined}>
+              <Button
+                type="submit"
+                size="sm"
+                className={busyClassName}
+                aria-disabled={saving || undefined}
+              >
                 {copy.send}
               </Button>
             </div>

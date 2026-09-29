@@ -42,7 +42,7 @@ describe('SourceRefLink', () => {
       name: 'Open in the declaration: Assets, Building, 4-bedroom house on LR 12715/482, Wanjiku Njeri Kamau',
     });
     expect(link.textContent).toBe('4-bedroom house on LR 12715/482');
-    expect(link.getAttribute('data-kind')).toBe('item');
+    expect(link.getAttribute('data-target')).toBe('item');
 
     fireEvent.click(link);
 
@@ -61,7 +61,7 @@ describe('SourceRefLink', () => {
     ).toBeDefined();
   });
 
-  it('marks what kind of target it opens', () => {
+  it('marks what it opens', () => {
     render(
       <>
         <SourceRefLink onOpen={vi.fn()} sourceRef={SPOUSE} label="Amani · statement" />
@@ -70,9 +70,9 @@ describe('SourceRefLink', () => {
       </>,
     );
 
-    expect(screen.getAllByRole('button').map((button) => button.getAttribute('data-kind'))).toEqual(
-      ['person', 'field', 'section'],
-    );
+    expect(
+      screen.getAllByRole('button').map((button) => button.getAttribute('data-target')),
+    ).toEqual(['person', 'field', 'section']);
   });
 
   it('is plain text when the ref points at nothing', () => {

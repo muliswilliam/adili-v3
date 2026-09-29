@@ -264,6 +264,14 @@ describe('FeedbackControl', () => {
     expect(sendButton.matches(':disabled')).toBe(false);
   });
 
+  it('takes a shorter note limit', () => {
+    render(<Rated noteMaxLength={500} />);
+
+    fireEvent.click(notHelpful());
+
+    expect(screen.getByRole('textbox', { name: 'Note' }).getAttribute('maxlength')).toBe('500');
+  });
+
   it('ignores presses while a rating is saving', async () => {
     const { promise: saved, resolve: finish } = Promise.withResolvers<undefined>();
     const onRate = vi.fn(() => saved);

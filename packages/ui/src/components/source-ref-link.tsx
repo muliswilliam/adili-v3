@@ -36,7 +36,7 @@ export function sourceRefTarget({
   return null;
 }
 
-const KIND_ICONS: Record<SourceRefTarget, IconProps['icon']> = {
+const TARGET_ICONS: Record<SourceRefTarget, IconProps['icon']> = {
   item: File01Icon,
   person: UserIcon,
   field: LeftToRightListBulletIcon,
@@ -64,7 +64,7 @@ export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'chil
    * 12715/482, Wanjiku Njeri Kamau". Defaults to `label`.
    */
   targetLabel?: string;
-  /** Replaces the icon chosen by the ref's kind (an item's type icon, for instance). */
+  /** Replaces the icon chosen by what the ref opens (an item's type icon, for instance). */
   icon?: IconProps['icon'];
   /**
    * Opens the target: in the console, the declaration pane scrolled to it and highlighted; in the
@@ -96,7 +96,12 @@ export function SourceRefLink({
   if (!target) {
     const { id, title, ...rest } = props;
     const spanProps = Object.fromEntries(
-      Object.entries(rest).filter(([key]) => key.startsWith('data-') || key.startsWith('aria-')),
+      // A plain span can't be named, so a caller's aria-label or aria-labelledby is left off.
+      Object.entries(rest).filter(
+        ([key]) =>
+          key.startsWith('data-') ||
+          (key.startsWith('aria-') && key !== 'aria-label' && key !== 'aria-labelledby'),
+      ),
     );
     return (
       <span
@@ -114,14 +119,14 @@ export function SourceRefLink({
     <button
       type="button"
       aria-label={`${copy.openPrefix}: ${targetLabel ?? label}`}
-      data-kind={target}
+      data-target={target}
       {...props}
       className={cn(linkClassName, className)}
       onClick={() => {
         onOpen(sourceRef);
       }}
     >
-      <Icon icon={icon ?? KIND_ICONS[target]} />
+      <Icon icon={icon ?? TARGET_ICONS[target]} />
       <span className="truncate">{label}</span>
     </button>
   );
