@@ -164,6 +164,7 @@ describe('linking an attachment (S10)', () => {
     const draft = await draftWithItems();
     const deed = upload('psc', { fileName: 'title-deed-kisumu.pdf', size: 1_204_551 });
     api.documents.givenUploads(deed);
+    api.clock.setToday('2027-10-15');
 
     const response = await link(draft.id, {
       sectionKey: STATEMENT,
@@ -182,7 +183,14 @@ describe('linking an attachment (S10)', () => {
       fileName: 'title-deed-kisumu.pdf',
       sha256: deed.sha256,
       size: 1_204_551,
+      linkedAt: '2027-10-15T09:00:00.000Z',
     });
+    const header = (
+      await api.request('GET', `/v1/declarations/${draft.id}`, declarant(ACHIENG))
+    ).json<Declaration>();
+    expect(header.sections.find((section) => section.key === STATEMENT)?.updatedAt).toBe(
+      '2027-10-15T09:00:00.000Z',
+    );
 
     const rows = await attachmentRows(draft.id);
     expect(rows).toEqual([

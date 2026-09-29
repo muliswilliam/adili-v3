@@ -423,6 +423,7 @@ describe('saving a section (S4)', () => {
   it('saves bio, bumps the version and reports completeness', async () => {
     const draft = await started();
     const bio = fullBio(await bioContents(draft.id));
+    api.clock.setToday('2027-10-15');
 
     const response = await save(draft.id, 'bio', bio, '"1"');
 
@@ -448,7 +449,7 @@ describe('saving a section (S4)', () => {
     ).json<Declaration>();
     expect(header).toMatchObject({ draftVersion: 2, lastSection: 'bio' });
     expect(header.sections[0]).toMatchObject({ key: 'bio', completeness: 'complete' });
-    expect(header.sections[0]?.updatedAt).not.toBeNull();
+    expect(header.sections[0]?.updatedAt).toBe('2027-10-15T09:00:00.000Z');
   });
 
   it('keeps what is missing as incomplete, with the issues', async () => {

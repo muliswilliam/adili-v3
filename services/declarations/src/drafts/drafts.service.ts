@@ -562,7 +562,7 @@ export class DraftsService {
         )
         .returning({ draftVersion: declarations.draftVersion });
       if (!bumped) throw versionMismatch();
-      const now = new Date();
+      const now = this.clock.now();
       await tx
         .update(declarationSections)
         .set({
@@ -583,7 +583,7 @@ export class DraftsService {
           .set({ completeness: assessment.sibling.completeness })
           .where(sectionIs(declaration.id, sibling.sectionKey));
       }
-      await writeStatementChanges(tx, declaration.id, statements);
+      await writeStatementChanges(tx, declaration.id, statements, now);
       if (statementPersonKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
       return bumped.draftVersion;
     });
@@ -1045,10 +1045,11 @@ async function writeStatementChanges(
   tx: Transaction,
   declarationId: string,
   changes: readonly StatementChange[],
+  now: Date,
 ): Promise<void> {
   // Statements are listed by creation within a kind: a millisecond apart, they keep the order the
   // household lists the people in.
-  const createdAt = Date.now();
+  const createdAt = now.getTime();
   let created = 0;
   for (const change of changes) {
     const { ciphertext, envelope, savedVersion } = change;

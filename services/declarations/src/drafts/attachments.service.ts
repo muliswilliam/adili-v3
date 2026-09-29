@@ -5,6 +5,7 @@ import { EventPublisher } from '@adili/events';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import {
   type CleanUpload,
@@ -50,6 +51,7 @@ export class AttachmentsService {
     private readonly documents: DocumentsClient,
     private readonly sections: SectionCipher,
     private readonly events: EventPublisher,
+    private readonly clock: Clock,
   ) {}
 
   /**
@@ -95,7 +97,7 @@ export class AttachmentsService {
       uploadId,
       sha256: upload.sha256,
       size: upload.size,
-      linkedAt: new Date(),
+      linkedAt: this.clock.now(),
     };
     let saved: { draftVersion: number; contents: SectionContents };
     try {
@@ -287,7 +289,7 @@ export class AttachmentsService {
         ciphertext: sealed.ciphertext,
         envelope: sealed.envelope,
         savedVersion: draftVersion,
-        updatedAt: new Date(),
+        updatedAt: this.clock.now(),
       })
       .where(sectionIs(declaration.id, sectionKey));
     return draftVersion;
