@@ -128,6 +128,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/documents/{documentId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke an issued document (services)
+         * @description Sets `status` to revoked with the reason, e.g. a clarification letter withdrawn as issued
+         *     in error (spec 07a); the verify page then shows the document revoked. Service tokens with
+         *     scope documents:internal, acting in X-Acting-Tenant for the issuing tenant. A document
+         *     already revoked is refused with 409.
+         */
+        post: operations["revokeDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/documents/{documentId}": {
         parameters: {
             query?: never;
@@ -267,6 +292,8 @@ export interface components {
         DisclosureLevel: "public" | "restricted" | "confidential";
         /** @enum {string} */
         DocumentStatus: "valid" | "superseded" | "revoked" | "expired";
+        /** @enum {string} */
+        RevocationReason: "issued-in-error";
         IssueDocument: {
             type: components["schemas"]["DocumentType"];
             templateVersion: number;
@@ -618,6 +645,44 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             /** @description Already superseded or revoked */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    revokeDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["DocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: components["schemas"]["RevocationReason"];
+                };
+            };
+        };
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Already revoked */
             409: {
                 headers: {
                     [name: string]: unknown;
