@@ -2,7 +2,7 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApiProblemResponse, schemaRef, ZodValidationPipe } from '@adili/api-kit';
 
-import { ActingTenant, InternalRoute } from './access.js';
+import { ActingTenant, InternalRoute } from '../internal-api/acting-tenant.js';
 import { uuidParam } from './clarification-input.js';
 import { type ClarificationLetterPayload, LetterPayloadService } from './letter-payload.service.js';
 

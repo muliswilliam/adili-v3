@@ -20,7 +20,8 @@ import { Clock, nairobiDate, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
-import { requireAssignee, staffTenant } from './access.js';
+import { caseTenant } from '../cases/access.js';
+import { requireAssignee } from './access.js';
 import type {
   ClarificationInput,
   ResolutionInput,
@@ -68,7 +69,7 @@ export class ClarificationsService {
     caseId: string,
     input: ClarificationInput,
   ): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const [found] = await tx
         .select({ assignee: reviewCases.assignee, personId: reviewCases.personId })
@@ -97,7 +98,7 @@ export class ClarificationsService {
     clarificationId: string,
     input: ClarificationInput,
   ): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
       requireAssignee(principal, kase.assignee);
@@ -112,7 +113,7 @@ export class ClarificationsService {
   }
 
   async get(principal: Principal, clarificationId: string): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const [found] = await tx
         .select()
@@ -124,7 +125,7 @@ export class ClarificationsService {
   }
 
   async issue(principal: Principal, clarificationId: string): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     const now = this.clock.now();
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
@@ -213,7 +214,7 @@ export class ClarificationsService {
     clarificationId: string,
     input: ResolutionInput,
   ): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     const now = this.clock.now();
     const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
@@ -253,7 +254,7 @@ export class ClarificationsService {
    * transaction. Once issued it has its own `CLR` reference, letter and clock.
    */
   async followUp(principal: Principal, clarificationId: string): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
       requireAssignee(principal, kase.assignee);
@@ -307,7 +308,7 @@ export class ClarificationsService {
     clarificationId: string,
     input: WithdrawalInput,
   ): Promise<ClarificationView> {
-    const tenant = staffTenant(principal);
+    const tenant = caseTenant(principal);
     const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
       requireAssignee(principal, kase.assignee);
