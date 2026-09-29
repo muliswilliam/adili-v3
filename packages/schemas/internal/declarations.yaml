@@ -150,6 +150,48 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/declarations/progress:
+    get:
+      tags:
+        - obligations
+      summary: Declarants not started, in progress, submitted and late, per reporting entity
+      description: "A cycle's obligations (the current cycle by default, scoped as the obligations summary) counted per reporting entity: `submitted` when filed, `late` when overdue, otherwise `inProgress` with a live draft and `notStarted` without one. Counts only, no declarant or draft content. The Commission's reporting officers and commission admins; anyone else gets 404."
+      operationId: getCommissionDeclarationProgress
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: cycle
+          required: false
+          in: query
+          description: A biennial cycle key, e.g. `biennial:2027`; the current cycle when omitted
+          schema:
+            examples:
+              - biennial:2027
+            type: string
+            pattern: ^biennial:(\d{4})$
+      responses:
+        '200':
+          description: Counts per reporting entity and totals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationProgress'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/obligations:
     get:
       tags:
@@ -2092,6 +2134,75 @@ components:
         - cycle
         - commissions
         - totals
+    ProgressCounts:
+      type: object
+      properties:
+        notStarted:
+          type: integer
+          description: Upcoming or due, with no live draft
+        inProgress:
+          type: integer
+          description: Upcoming or due, with a live draft
+        submitted:
+          type: integer
+          description: Filed
+        late:
+          type: integer
+          description: Overdue and not filed, with or without a draft
+      required:
+        - notStarted
+        - inProgress
+        - submitted
+        - late
+    ReportingEntityRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: As the roster names it
+      required:
+        - id
+        - name
+    DeclarationProgress:
+      type: object
+      properties:
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        cycle:
+          description: 'The cycle counted: the one asked for, or the current one (the latest opened, or the first while none has)'
+          $ref: '#/components/schemas/SummaryCycle'
+        cycles:
+          type: array
+          items:
+            $ref: '#/components/schemas/SummaryCycle'
+          description: Every cycle of the calendar under the Commission's policy, oldest first
+        reportingEntities:
+          type: array
+          items:
+            type: object
+            properties:
+              reportingEntity:
+                anyOf:
+                  - $ref: '#/components/schemas/ReportingEntityRef'
+                  - type: 'null'
+                description: Null for declarants whose roster record names none
+              counts:
+                $ref: '#/components/schemas/ProgressCounts'
+            required:
+              - reportingEntity
+              - counts
+          description: One entry per reporting entity with an obligation counted, by name, those with none last
+        total:
+          $ref: '#/components/schemas/ProgressCounts'
+      required:
+        - commission
+        - cycle
+        - cycles
+        - reportingEntities
+        - total
     SectionKey:
       type: string
       pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$

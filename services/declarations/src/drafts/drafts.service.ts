@@ -86,6 +86,7 @@ import {
   declarationAttachments,
   declarationSections,
   declarations,
+  obligationDrafts,
   type SectionMetadata,
 } from './schema.js';
 
@@ -224,6 +225,12 @@ export class DraftsService {
             savedVersion: 1,
           })),
         );
+        await tx.insert(obligationDrafts).values({
+          obligationId,
+          declarationId: id,
+          tenant: obligation.tenant,
+          personId: person.personId,
+        });
         await this.events.record(
           tx,
           declarationDraftStarted(obligation.tenant, {
@@ -350,6 +357,7 @@ export class DraftsService {
         .update(declarations)
         .set({ status: 'discarded' })
         .where(eq(declarations.id, declaration.id));
+      await tx.delete(obligationDrafts).where(eq(obligationDrafts.declarationId, declaration.id));
       for (const { uploadId } of unlinked) {
         await this.events.record(
           tx,

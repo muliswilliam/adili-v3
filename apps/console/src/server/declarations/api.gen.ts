@@ -84,6 +84,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/declarations/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Declarants not started, in progress, submitted and late, per reporting entity
+         * @description A cycle's obligations (the current cycle by default, scoped as the obligations summary) counted per reporting entity: `submitted` when filed, `late` when overdue, otherwise `inProgress` with a live draft and `notStarted` without one. Counts only, no declarant or draft content. The Commission's reporting officers and commission admins; anyone else gets 404.
+         */
+        get: operations["getCommissionDeclarationProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/obligations": {
         parameters: {
             query?: never;
@@ -975,6 +995,36 @@ export interface components {
             }[];
             totals: components["schemas"]["StatusCounts"];
         };
+        ProgressCounts: {
+            /** @description Upcoming or due, with no live draft */
+            notStarted: number;
+            /** @description Upcoming or due, with a live draft */
+            inProgress: number;
+            /** @description Filed */
+            submitted: number;
+            /** @description Overdue and not filed, with or without a draft */
+            late: number;
+        };
+        ReportingEntityRef: {
+            /** Format: uuid */
+            id: string;
+            /** @description As the roster names it */
+            name: string;
+        };
+        DeclarationProgress: {
+            commission: components["schemas"]["CommissionRef"];
+            /** @description The cycle counted: the one asked for, or the current one (the latest opened, or the first while none has) */
+            cycle: components["schemas"]["SummaryCycle"];
+            /** @description Every cycle of the calendar under the Commission's policy, oldest first */
+            cycles: components["schemas"]["SummaryCycle"][];
+            /** @description One entry per reporting entity with an obligation counted, by name, those with none last */
+            reportingEntities: {
+                /** @description Null for declarants whose roster record names none */
+                reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+                counts: components["schemas"]["ProgressCounts"];
+            }[];
+            total: components["schemas"]["ProgressCounts"];
+        };
         /** @description bio, household, other, or statement:<personKey> */
         SectionKey: string;
         /** @enum {string} */
@@ -1581,6 +1631,49 @@ export interface operations {
              *     Requires one of the roles: reporting-officer, reviewer, supervisor, commission-admin, eacc-analyst, eacc-supervisor, platform-admin
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getCommissionDeclarationProgress: {
+        parameters: {
+            query?: {
+                /** @description A biennial cycle key, e.g. `biennial:2027`; the current cycle when omitted */
+                cycle?: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts per reporting entity and totals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationProgress"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

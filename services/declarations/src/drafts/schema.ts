@@ -178,4 +178,30 @@ export const declarationAttachments = pgTable(
   ],
 );
 
-export const draftsSchema = { declarations, declarationSections, declarationAttachments };
+/**
+ * The obligations that have a live draft (#300): identifiers only, one row per obligation, written
+ * in the same transaction as the `declaration.draft-started.v1` and removed with
+ * `declaration.draft-discarded.v1`. It is how the Commission counts drafts in progress without
+ * reading drafts: the declarant writes their own rows (`app.person`), the tenant reads (migration
+ * 0010), and `declarations` stays readable by nobody else while a draft.
+ */
+export const obligationDrafts = pgTable(
+  'obligation_drafts',
+  {
+    obligationId: uuid().primaryKey(),
+    declarationId: uuid()
+      .notNull()
+      .references(() => declarations.id, { onDelete: 'cascade' }),
+    tenant: text().notNull(),
+    personId: uuid().notNull(),
+    startedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique('obligation_drafts_declaration_id_key').on(table.declarationId)],
+);
+
+export const draftsSchema = {
+  declarations,
+  declarationSections,
+  declarationAttachments,
+  obligationDrafts,
+};

@@ -46,3 +46,20 @@ export function commissionReadTenant(
   const tenant = TENANT_KEY.test(slug) ? staffTenant(principal, options) : null;
   return notFoundIfInvisible(tenant === PLATFORM_TENANT || tenant === slug ? tenant : null);
 }
+
+/** The roles that read their Commission's declaration progress counts (#300). */
+export const PROGRESS_ROLES = ['reporting-officer', 'commission-admin'] as const;
+
+/**
+ * The RLS tenant of a read of Commission `slug`'s declaration progress: the caller's own
+ * Commission when they hold a `PROGRESS_ROLES` role there. Anyone else, platform admins and EACC
+ * included, gets 404, as if it did not exist.
+ */
+export function progressReadTenant(principal: Principal, slug: string): string {
+  const permitted =
+    TENANT_KEY.test(slug) &&
+    slug !== PLATFORM_TENANT &&
+    principal.tenant === slug &&
+    principal.roles.some((role) => (PROGRESS_ROLES as readonly string[]).includes(role));
+  return notFoundIfInvisible(permitted ? slug : null);
+}
