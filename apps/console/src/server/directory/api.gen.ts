@@ -741,6 +741,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/commissions/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        /** A Commission's name and issuer code (services naming it in letters and messages) */
+        get: operations["internalGetCommission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/commissions/{slug}/policy": {
         parameters: {
             query?: never;
@@ -1414,6 +1433,12 @@ export interface components {
             issuerCode: string;
             name: string;
             hasRoster: boolean;
+        };
+        InternalCommission: {
+            slug: components["schemas"]["Slug"];
+            /** @description Issuer segment of the Commission's reference numbers (ADR-011) */
+            issuerCode: string;
+            name: string;
         };
         IdentifyDeclarant: {
             commission: components["schemas"]["Slug"];
@@ -3828,6 +3853,29 @@ export interface operations {
             };
             400: components["responses"]["ValidationProblem"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    internalGetCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Commission */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalCommission"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };

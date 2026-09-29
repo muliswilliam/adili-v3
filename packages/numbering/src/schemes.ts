@@ -30,5 +30,11 @@ export function defineScheme(scheme: NumberingScheme): NumberingScheme {
  */
 export const OFR = defineScheme({ code: 'OFR', issuer: false, period: false, sequenceDigits: 7 });
 
-/** Schemes this package knows; later slices add theirs (DCB, CLR...) the same way. */
-export const numberingSchemes: readonly NumberingScheme[] = [OFR];
+/**
+ * Clarification request (Act s.35): issued by the Responsible Commission, numbered per Commission
+ * and calendar year of issue. `CLR-PSC-2028-0000451-3`.
+ */
+export const CLR = defineScheme({ code: 'CLR', issuer: true, period: true, sequenceDigits: 7 });
+
+/** Schemes this package knows; later slices add theirs (DCB, CMP...) the same way. */
+export const numberingSchemes: readonly NumberingScheme[] = [OFR, CLR];

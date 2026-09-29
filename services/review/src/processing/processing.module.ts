@@ -3,9 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { Module } from '@nestjs/common';
 import { TemporalWorkerModule } from '@adili/temporal';
 
+import { ClarificationActivities } from '../clarifications/activities.js';
 import { config } from '../config.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
+import { DocumentsModule } from '../documents/documents.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ProcessingActivities } from './activities.js';
 import { DeclarationSubmittedConsumer } from './declaration-submitted.consumer.js';
 import { ProcessingWorkflows } from './processing-workflows.js';
@@ -20,7 +23,8 @@ const workflowsPath = fileURLToPath(
 
 /**
  * Processing of submitted declarations (spec 07a): the `declaration.submitted.v1` consumer and the
- * review worker hosting `DeclarationProcessingWorkflow` and its activities.
+ * review worker hosting `DeclarationProcessingWorkflow`, `ClarificationWorkflow` and their
+ * activities.
  */
 @Module({
   imports: [
@@ -29,8 +33,9 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [ProcessingActivities],
-      imports: [DeclarationsModule, DirectoryModule],
+      // One worker per service: every workflow of the review service runs on this queue.
+      activities: [ProcessingActivities, ClarificationActivities],
+      imports: [DeclarationsModule, DirectoryModule, DocumentsModule, NotificationsModule],
     }),
   ],
   controllers: [DeclarationSubmittedConsumer],

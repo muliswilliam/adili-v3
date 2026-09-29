@@ -13,15 +13,19 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from
 import { v7 as uuidv7 } from 'uuid';
 
 import { AppModule } from '../../src/app.module.js';
+import { Clock } from '../../src/clock.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
+import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
+import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
+import { FakeNotifications } from './fake-notifications.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -34,6 +38,8 @@ export interface Caller {
   name?: string;
   /** The `person_id` claim of an onboarded declarant's token; absent by default. */
   personId?: string;
+  /** OAuth scopes (`scope`), as service tokens carry them. */
+  scopes?: string[];
 }
 
 type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
@@ -48,18 +54,26 @@ export interface ReviewApi {
   asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
   declarations: FakeDeclarations;
   directory: FakeDirectory;
+  /** Documents; each letter issued pulls its payload from this app's internal endpoint. */
   documents: FakeDocuments;
+  notifications: FakeNotifications;
+  clock: FakeClock;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
   consumer: DeclarationSubmittedConsumer;
   /** The processing workflow's activities, for driving its steps directly. */
   activities: ProcessingActivities;
-  get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
+  get(
+    url: string,
+    caller: Caller,
+    headers?: Record<string, string>,
+  ): ReturnType<NestFastifyApplication['inject']>;
   /** A request with a JSON body (when given) as `caller`. */
   send(
     method: 'POST' | 'PUT',
     url: string,
     caller: Caller,
     body?: unknown,
+    headers?: Record<string, string>,
   ): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table. */
   reset(): Promise<void>;
@@ -91,6 +105,8 @@ export async function startReviewApi(): Promise<ReviewApi> {
   const declarations = new FakeDeclarations();
   const directory = new FakeDirectory();
   const documents = new FakeDocuments();
+  const notifications = new FakeNotifications();
+  const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -102,6 +118,10 @@ export async function startReviewApi(): Promise<ReviewApi> {
     .useValue(directory)
     .overrideProvider(DocumentsClient)
     .useValue(documents)
+    .overrideProvider(NotificationsClient)
+    .useValue(notifications)
+    .overrideProvider(Clock)
+    .useValue(clock)
     .overrideProvider(OutboxRelay)
     .useValue({})
     .compile();
@@ -111,6 +131,17 @@ export async function startReviewApi(): Promise<ReviewApi> {
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
+  // The documents service pulls a letter's fields with its own service token (review:internal).
+  documents.payloadSource = async (tenant, clarificationId) => {
+    const token = await signer({ sub: 'service-account-documents', scopes: ['review:internal'] });
+    const response = await app.inject({
+      method: 'GET',
+      url: `/internal/v1/review/clarifications/${clarificationId}/letter-payload`,
+      headers: { authorization: `Bearer ${token}`, 'x-acting-tenant': tenant },
+    });
+    return { status: response.statusCode, body: response.json<unknown>() };
+  };
+
   return {
     app,
     db,
@@ -118,32 +149,36 @@ export async function startReviewApi(): Promise<ReviewApi> {
     declarations,
     directory,
     documents,
+    notifications,
+    clock,
     consumer: app.get(DeclarationSubmittedConsumer),
     activities: app.get(ProcessingActivities),
-    async get(path, caller) {
+    async get(path, caller, headers = {}) {
       const token = await signer(caller);
       return app.inject({
         method: 'GET',
         url: path,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { ...headers, authorization: `Bearer ${token}` },
       });
     },
-    async send(method, path, caller, body) {
+    async send(method, path, caller, body, headers = {}) {
       const token = await signer(caller);
       return app.inject({
         method,
         url: path,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { ...headers, authorization: `Bearer ${token}` },
         ...(body === undefined ? {} : { payload: body as object }),
       });
     },
     async reset() {
       await db.execute(
-        sql`truncate clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox`,
+        sql`truncate clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
       );
       declarations.reset();
       directory.reset();
       documents.reset();
+      notifications.reset();
+      clock.reset();
     },
     async close() {
       // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
@@ -200,8 +235,22 @@ async function applyMigrations(db: Database<ReviewSchema>): Promise<void> {
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
-  const signer = ({ sub = randomUUID(), tenant = null, roles = [], name, personId }: Caller) =>
-    new SignJWT({ azp: 'console', tenant, realm_access: { roles }, name, person_id: personId })
+  const signer = ({
+    sub = randomUUID(),
+    tenant = null,
+    roles = [],
+    name,
+    personId,
+    scopes,
+  }: Caller) =>
+    new SignJWT({
+      azp: 'console',
+      tenant,
+      realm_access: { roles },
+      name,
+      person_id: personId,
+      scope: scopes?.join(' '),
+    })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuedAt()
       .setIssuer(ISSUER)

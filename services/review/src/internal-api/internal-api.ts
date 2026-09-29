@@ -26,11 +26,31 @@ export interface InternalRequest<T> {
   schema: z.ZodType<T>;
 }
 
+export interface InternalPostRequest<T> extends InternalRequest<T> {
+  /** Sent as JSON. */
+  body: unknown;
+}
+
 /**
- * A GET on another service's internal API with the review service's own token (client
+ * The service refused a write with a 4xx other than 401 and 404: the request itself is wrong
+ * (validation, conflict), so sending it again changes nothing. Activities do not retry it.
+ */
+export class InternalApiRejected extends Error {
+  constructor(
+    readonly service: string,
+    readonly status: number,
+  ) {
+    super(`The ${service} service refused the request with ${String(status)}`);
+    this.name = 'InternalApiRejected';
+  }
+}
+
+/**
+ * Calls on another service's internal API with the review service's own token (client
  * credentials, one retry with a fresh token after a 401) and the Commission in `X-Acting-Tenant`.
- * 200 is validated against `schema`; 404 is null; anything else, an unreachable service or a body
- * outside the contract is the `unavailable` error, which workflow activities retry.
+ * A success is validated against `schema`; 404 is null; an unreachable service, a 5xx or a body
+ * outside the contract is the `unavailable` error, which workflow activities retry. A write
+ * refused with another 4xx is `InternalApiRejected`.
  */
 export class InternalApi {
   private readonly fetch: typeof fetch;
@@ -39,14 +59,32 @@ export class InternalApi {
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
-  async get<T>(request: InternalRequest<T>): Promise<T | null> {
-    let response = await this.send(request);
+  /** A GET answered 200. */
+  get<T>(request: InternalRequest<T>): Promise<T | null> {
+    return this.call(request, 'GET', undefined);
+  }
+
+  /** A POST answered 200 or 201. */
+  post<T>(request: InternalPostRequest<T>): Promise<T | null> {
+    return this.call(request, 'POST', JSON.stringify(request.body));
+  }
+
+  private async call<T>(
+    request: InternalRequest<T>,
+    method: 'GET' | 'POST',
+    payload: string | undefined,
+  ): Promise<T | null> {
+    let response = await this.send(request, method, payload);
     if (response.status === 401) {
       this.options.tokens.invalidate();
-      response = await this.send(request);
+      response = await this.send(request, method, payload);
     }
     if (response.status === 404) return null;
-    if (response.status !== 200) {
+    const ok = response.status === 200 || (method === 'POST' && response.status === 201);
+    if (!ok && method === 'POST' && response.status >= 400 && response.status < 500) {
+      throw new InternalApiRejected(this.options.service, response.status);
+    }
+    if (!ok) {
       throw this.options.unavailable(
         `The ${this.options.service} service answered ${String(response.status)}`,
       );
@@ -69,7 +107,11 @@ export class InternalApi {
     return parsed.data;
   }
 
-  private async send(request: InternalRequest<unknown>): Promise<Response> {
+  private async send(
+    request: InternalRequest<unknown>,
+    method: 'GET' | 'POST',
+    body: string | undefined,
+  ): Promise<Response> {
     let token: string;
     try {
       token = await this.options.tokens.token();
@@ -87,8 +129,11 @@ export class InternalApi {
     }
     try {
       return await this.fetch(url, {
+        method,
+        body,
         headers: {
           accept: 'application/json',
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
           authorization: `Bearer ${token}`,
           [ACTING_TENANT_HEADER]: request.tenant,
           ...request.headers,

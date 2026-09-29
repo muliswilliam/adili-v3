@@ -2108,6 +2108,24 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /internal/v1/commissions/{slug}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags:
+        - internal
+      summary: A Commission's name and issuer code (services naming it in letters and messages)
+      operationId: internalGetCommission
+      x-draft: true
+      responses:
+        '200':
+          description: The Commission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommission'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /internal/v1/commissions/{slug}/policy:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -3633,6 +3651,20 @@ components:
           type: string
         hasRoster:
           type: boolean
+    InternalCommission:
+      type: object
+      required:
+        - slug
+        - issuerCode
+        - name
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: Issuer segment of the Commission's reference numbers (ADR-011)
+        name:
+          type: string
     IdentifyDeclarant:
       type: object
       required:

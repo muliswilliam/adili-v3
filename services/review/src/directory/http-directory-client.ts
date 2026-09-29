@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { InternalApi } from '../internal-api/internal-api.js';
 import {
   type ClarificationPolicy,
+  type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
 } from './directory-client.js';
@@ -31,14 +32,21 @@ const policySchema = z.object({
   }),
 });
 
+const commissionSchema = z.object({
+  slug: z.string(),
+  issuerCode: z.string().min(1),
+  name: z.string().min(1),
+});
+
 /**
- * The directory's `internalGetTenantPolicy` with the review service's own token, cached per
- * Commission for a few minutes: a policy changes rarely, and a case's window is fixed when the
- * case is created.
+ * The directory's `internalGetTenantPolicy` and `internalGetCommission` with the review service's
+ * own token, cached per Commission for a few minutes: a policy or a name changes rarely, and a
+ * case's window is fixed when the case is created.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly api: InternalApi;
-  private readonly cache = new Map<string, { policy: ClarificationPolicy; until: number }>();
+  private readonly policies = new Map<string, { policy: ClarificationPolicy; until: number }>();
+  private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
   private readonly now: () => number;
 
@@ -57,7 +65,7 @@ export class HttpDirectoryClient extends DirectoryClient {
   }
 
   async getClarificationPolicy(slug: string): Promise<ClarificationPolicy> {
-    const cached = this.cache.get(slug);
+    const cached = this.policies.get(slug);
     if (cached && cached.until > this.now()) return cached.policy;
     const found = await this.api.get({
       path: `internal/v1/commissions/${encodeURIComponent(slug)}/policy`,
@@ -65,7 +73,21 @@ export class HttpDirectoryClient extends DirectoryClient {
       schema: policySchema,
     });
     if (!found) throw new DirectoryUnavailable(`The directory has no policy for ${slug}`);
-    this.cache.set(slug, { policy: found.clarification, until: this.now() + this.ttlMs });
+    this.policies.set(slug, { policy: found.clarification, until: this.now() + this.ttlMs });
     return found.clarification;
+  }
+
+  async getCommission(slug: string): Promise<CommissionFacts> {
+    const cached = this.commissions.get(slug);
+    if (cached && cached.until > this.now()) return cached.commission;
+    const found = await this.api.get({
+      path: `internal/v1/commissions/${encodeURIComponent(slug)}`,
+      tenant: slug,
+      schema: commissionSchema,
+    });
+    if (!found) throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
+    const commission = { slug: found.slug, issuerCode: found.issuerCode, name: found.name };
+    this.commissions.set(slug, { commission, until: this.now() + this.ttlMs });
+    return commission;
   }
 }
