@@ -37,7 +37,16 @@ export const NotHelpfulForm: Story = {
   },
 };
 
-/** Both buttons are off while a rating is being saved. */
+/** Sending without a reason asks for one. */
+export const ReasonMissing: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Not helpful' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Send rating' }));
+  },
+};
+
+/** Both buttons and the form are off, as while a rating is being saved. */
 export const WhileSaving: Story = { args: { disabled: true } };
 
 /** A supervisor sees the reviewer's rating as text. */
@@ -49,4 +58,4 @@ export const ReadOnly: Story = {
   },
 };
 
-export const Named: Story = { args: { label: 'Rate the summary' } };
+export const Named: Story = { args: { messages: { group: 'Rate the summary' } } };

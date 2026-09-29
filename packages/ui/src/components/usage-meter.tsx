@@ -51,6 +51,16 @@ const DEFAULT_MESSAGES: UsageMeterMessages = {
   usedUpNote: 'Budget used up',
 };
 
+// Colours and the note added to the meter's name, per level.
+const LOOK: Record<
+  UsageLevel,
+  { text: string; bar: string; note: 'highNote' | 'usedUpNote' | null; alert: boolean }
+> = {
+  normal: { text: 'text-muted-foreground', bar: 'bg-primary', note: null, alert: false },
+  high: { text: 'text-warning', bar: 'bg-warning', note: 'highNote', alert: true },
+  'used-up': { text: 'text-destructive', bar: 'bg-destructive', note: 'usedUpNote', alert: true },
+};
+
 export type UsageMeterProps = Omit<ComponentProps<'div'>, 'children'> & {
   tokensUsed: number;
   monthlyTokens: number;
@@ -60,7 +70,7 @@ export type UsageMeterProps = Omit<ComponentProps<'div'>, 'children'> & {
 };
 
 /**
- * Tokens used this month against a tenant's budget: a bar with a notch at 80%, the tokens used
+ * Tokens used this month against a Commission's budget: a bar with a notch at 80%, the tokens used
  * and the percentage. From 80% the bar turns amber and the percentage gets an alert icon; at the
  * budget it turns red and reads "Used up". The level is always in text as well as colour.
  */
@@ -75,9 +85,9 @@ export function UsageMeter({
   const copy = { ...DEFAULT_MESSAGES, ...messages };
   const percent = usagePercent(tokensUsed, monthlyTokens);
   const level = usageLevel(tokensUsed, monthlyTokens);
+  const look = LOOK[level];
   const status = level === 'used-up' ? copy.usedUp : `${String(Math.floor(percent))}%`;
-  const note =
-    level === 'used-up' ? `. ${copy.usedUpNote}` : level === 'high' ? `. ${copy.highNote}` : '';
+  const note = look.note ? `. ${copy[look.note]}` : '';
 
   return (
     <div
@@ -106,12 +116,10 @@ export function UsageMeter({
         <span
           className={cn(
             'inline-flex items-center gap-1 text-[12.5px] font-semibold [&_svg]:size-[13px]',
-            level === 'normal' && 'text-muted-foreground',
-            level === 'high' && 'text-warning',
-            level === 'used-up' && 'text-destructive',
+            look.text,
           )}
         >
-          {level === 'normal' ? null : <Icon icon={Alert02Icon} strokeWidth={2.2} />}
+          {look.alert ? <Icon icon={Alert02Icon} strokeWidth={2.2} /> : null}
           {status}
         </span>
       </div>
@@ -122,12 +130,7 @@ export function UsageMeter({
         )}
       >
         <div
-          className={cn(
-            'absolute inset-y-0 left-0 rounded-full',
-            level === 'normal' && 'bg-primary',
-            level === 'high' && 'bg-warning',
-            level === 'used-up' && 'bg-destructive',
-          )}
+          className={cn('absolute inset-y-0 left-0 rounded-full', look.bar)}
           style={{ width: `${String(Math.min(100, percent))}%` }}
         />
         <div

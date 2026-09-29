@@ -40,6 +40,8 @@ export interface Feedback {
 export const FEEDBACK_NOTE_MAX_LENGTH = 1000;
 
 export interface FeedbackMessages {
+  /** Names the pair of buttons, e.g. "Rate the summary". */
+  group: string;
   helpful: string;
   notHelpful: string;
   /** Names the form that opens for "Not helpful". */
@@ -53,8 +55,10 @@ export interface FeedbackMessages {
   notePlaceholder: string;
   cancel: string;
   send: string;
-  /** Announced to screen readers once a rating is sent. */
+  /** Announced to screen readers once a rating is saved. */
   sent: string;
+  /** Announced when saving fails; the form stays open with what was entered. */
+  failed: string;
   /** The read-only line: "Faith Achieng: not helpful, too long", or "Rated helpful". */
   readOnly: (feedback: Feedback, ratedBy: string | undefined, reasonName: string | null) => string;
 }
@@ -68,6 +72,7 @@ const REASON_NAMES: Record<FeedbackReason, string> = {
 };
 
 const DEFAULT_MESSAGES: FeedbackMessages = {
+  group: 'Rate this output',
   helpful: 'Helpful',
   notHelpful: 'Not helpful',
   formLabel: 'Why was this not helpful?',
@@ -81,6 +86,7 @@ const DEFAULT_MESSAGES: FeedbackMessages = {
   cancel: 'Cancel',
   send: 'Send rating',
   sent: 'Rating sent. Thank you.',
+  failed: 'Rating not sent. Try again.',
   readOnly: ({ rating }, ratedBy, reasonName) => {
     const text = `${rating === 'helpful' ? 'helpful' : 'not helpful'}${reasonName ? `, ${reasonName.toLowerCase()}` : ''}`;
     return ratedBy ? `${ratedBy}: ${text}` : `Rated ${text}`;
@@ -90,35 +96,36 @@ const DEFAULT_MESSAGES: FeedbackMessages = {
 export type FeedbackControlProps = Omit<ComponentProps<'div'>, 'children' | 'onChange'> & {
   /** The rating already given, or null. */
   value: Feedback | null;
-  /** Called with a new rating. Hold it in `value` once it is saved. */
-  onRate?: (feedback: Feedback) => void;
+  /**
+   * Called with a new rating; hold it in `value` once it is saved. Return a promise to keep the
+   * control busy until the save ends: the form closes and "Rating sent" is announced only when
+   * it resolves, and a rejection keeps the form open with what was entered.
+   */
+  onRate?: (feedback: Feedback) => void | Promise<void>;
   /** Shows the rating as text, for someone who can read but not rate (a supervisor). */
   readOnly?: boolean;
   /** Who gave the rating, for the read-only line. */
   ratedBy?: string;
-  /** Names the pair of buttons. Defaults to "Rate this output". */
-  label?: string;
-  /** Turns the buttons off, e.g. while a rating is being saved. */
+  /** Turns the buttons and the form off. */
   disabled?: boolean;
   messages?: Partial<FeedbackMessages>;
 };
 
 const rateButtonClassName =
-  'size-7 rounded-lg text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground [&_svg]:size-[15px]';
+  'size-7 text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground [&_svg]:size-[15px]';
 
 /**
  * Lets a reviewer rate an AI output. "Helpful" is sent in one press; "Not helpful" opens a form
  * under the buttons asking what was wrong (Inaccurate, Missed something, Unclear, Too long,
  * Other) with an optional note, sent with "Send rating". One rating per person per output:
  * rating again replaces it, and a sent "Not helpful" reopens with its reason to change it. Both
- * buttons are labelled and show their state in `aria-pressed`; sending is announced politely.
+ * buttons are labelled and show their state in `aria-pressed`; saving is announced politely.
  */
 export function FeedbackControl({
   value,
   onRate,
   readOnly = false,
   ratedBy,
-  label = 'Rate this output',
   disabled = false,
   messages,
   className,
@@ -131,6 +138,8 @@ export function FeedbackControl({
   const [note, setNote] = useState('');
   const [missingReason, setMissingReason] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = disabled || saving;
   const reasonRef = useRef<HTMLButtonElement>(null);
   const notHelpfulRef = useRef<HTMLButtonElement>(null);
   // Set when the form closes from inside it, so focus goes back to the button that opened it.
@@ -162,9 +171,25 @@ export function FeedbackControl({
     );
   }
 
-  function rate(feedback: Feedback) {
-    onRate?.(feedback);
-    setAnnouncement(copy.sent);
+  // A live region only speaks when its text changes, so the same message twice in a row gets a
+  // trailing no-break space to be read again.
+  function announce(text: string) {
+    setAnnouncement((previous) => (previous === text ? `${text}\u00a0` : text));
+  }
+
+  /** Saves a rating; resolves true once it is saved. */
+  async function rate(feedback: Feedback): Promise<boolean> {
+    setSaving(true);
+    try {
+      await onRate?.(feedback);
+      announce(copy.sent);
+      return true;
+    } catch {
+      announce(copy.failed);
+      return false;
+    } finally {
+      setSaving(false);
+    }
   }
 
   function openForm() {
@@ -179,31 +204,30 @@ export function FeedbackControl({
     setOpen(false);
   }
 
-  function send(event: SyntheticEvent) {
+  async function send(event: SyntheticEvent) {
     event.preventDefault();
     if (!reason) {
       setMissingReason(true);
       reasonRef.current?.focus();
       return;
     }
-    rate({ rating: 'not-helpful', reason, note: note.trim() || null });
-    closeForm();
+    if (await rate({ rating: 'not-helpful', reason, note: note.trim() || null })) closeForm();
   }
 
   return (
     <div className={cn('flex flex-col items-end gap-2', className)} {...props}>
-      <div role="group" aria-label={label} className="inline-flex items-center gap-0.5">
+      <div role="group" aria-label={copy.group} className="inline-flex items-center gap-0.5">
         <Tooltip content={copy.helpful}>
           <Button
             variant="ghost"
             size="icon"
             className={rateButtonClassName}
             aria-pressed={!open && value?.rating === 'helpful'}
-            disabled={disabled}
+            disabled={busy}
             onClick={() => {
               setOpen(false);
               if (value?.rating !== 'helpful')
-                rate({ rating: 'helpful', reason: null, note: null });
+                void rate({ rating: 'helpful', reason: null, note: null });
             }}
           >
             <Icon icon={ThumbsUpIcon} />
@@ -219,7 +243,7 @@ export function FeedbackControl({
             aria-pressed={open || value?.rating === 'not-helpful'}
             aria-expanded={open}
             aria-controls={open ? formId : undefined}
-            disabled={disabled}
+            disabled={busy}
             onClick={() => {
               if (open) setOpen(false);
               else openForm();
@@ -235,50 +259,54 @@ export function FeedbackControl({
           id={formId}
           aria-label={copy.formLabel}
           noValidate
-          onSubmit={send}
-          className="grid gap-2.5 self-stretch rounded-[10px] bg-muted p-3"
+          onSubmit={(event) => {
+            void send(event);
+          }}
+          className="self-stretch rounded-lg bg-muted p-3"
         >
-          <FormField
-            label={copy.reasonLabel}
-            error={missingReason ? copy.reasonRequired : undefined}
-          >
-            <Select
-              ref={reasonRef}
-              value={reason}
-              onValueChange={(next) => {
-                setReason(next as FeedbackReason);
-                setMissingReason(false);
-              }}
-              placeholder={copy.reasonPlaceholder}
-              className="bg-card"
+          <fieldset disabled={busy} className="grid min-w-0 gap-2.5">
+            <FormField
+              label={copy.reasonLabel}
+              error={missingReason ? copy.reasonRequired : undefined}
             >
-              {FEEDBACK_REASONS.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {copy.reasons[key]}
-                </SelectItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label={copy.noteLabel} hint={copy.noteHint}>
-            <Textarea
-              rows={2}
-              maxLength={FEEDBACK_NOTE_MAX_LENGTH}
-              value={note}
-              onChange={(event) => {
-                setNote(event.target.value);
-              }}
-              placeholder={copy.notePlaceholder}
-              className="min-h-0 bg-card"
-            />
-          </FormField>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={closeForm}>
-              {copy.cancel}
-            </Button>
-            <Button type="submit" size="sm">
-              {copy.send}
-            </Button>
-          </div>
+              <Select
+                ref={reasonRef}
+                value={reason}
+                onValueChange={(next) => {
+                  setReason(next as FeedbackReason);
+                  setMissingReason(false);
+                }}
+                placeholder={copy.reasonPlaceholder}
+                className="bg-card"
+              >
+                {FEEDBACK_REASONS.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {copy.reasons[key]}
+                  </SelectItem>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label={copy.noteLabel} hint={copy.noteHint}>
+              <Textarea
+                rows={2}
+                maxLength={FEEDBACK_NOTE_MAX_LENGTH}
+                value={note}
+                onChange={(event) => {
+                  setNote(event.target.value);
+                }}
+                placeholder={copy.notePlaceholder}
+                className="min-h-0 bg-card"
+              />
+            </FormField>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={closeForm}>
+                {copy.cancel}
+              </Button>
+              <Button type="submit" size="sm">
+                {copy.send}
+              </Button>
+            </div>
+          </fieldset>
         </form>
       ) : null}
       <div role="status" className="sr-only">

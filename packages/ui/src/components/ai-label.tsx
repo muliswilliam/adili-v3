@@ -37,20 +37,38 @@ export interface AiLabelDetails {
   generatedAt: string;
 }
 
+export interface AiLabelMessages {
+  /** What each task's output is called; a task missing here is printed as given. */
+  taskNames: Record<string, string>;
+  /** `3` → "prompt v3". */
+  promptVersion: (version: number) => string;
+  /** The formatted time → "generated 2 Sep 2026, 14:33". */
+  generatedAt: (time: string) => string;
+}
+
+const DEFAULT_MESSAGES: AiLabelMessages = {
+  taskNames: AI_TASK_NAMES,
+  promptVersion: (version) => `prompt v${String(version)}`,
+  generatedAt: (time) => `generated ${time}`,
+};
+
 /**
  * The sentence an AiLabel shows in its tooltip: "Summary · Anthropic claude-opus-5 · prompt v3 ·
  * generated 2 Sep 2026, 14:33", in Kenyan time.
  */
-export function describeAiOutput({
-  task,
-  provider,
-  model,
-  promptVersion,
-  generatedAt,
-}: AiLabelDetails): string {
-  const taskName = AI_TASK_NAMES[task] ?? task;
+export function describeAiOutput(
+  { task, provider, model, promptVersion, generatedAt }: AiLabelDetails,
+  messages?: Partial<AiLabelMessages>,
+): string {
+  const copy = { ...DEFAULT_MESSAGES, ...messages };
+  const taskName = copy.taskNames[task] ?? task;
   const providerName = AI_PROVIDER_NAMES[provider] ?? provider;
-  return `${taskName} · ${providerName} ${model} · prompt v${String(promptVersion)} · generated ${formatDateTime(generatedAt)}`;
+  return [
+    taskName,
+    `${providerName} ${model}`,
+    copy.promptVersion(promptVersion),
+    copy.generatedAt(formatDateTime(generatedAt)),
+  ].join(' · ');
 }
 
 export type AiLabelProps = Omit<ComponentProps<'span'>, 'children'> & {
@@ -64,8 +82,8 @@ export type AiLabelProps = Omit<ComponentProps<'span'>, 'children'> & {
   edited?: boolean;
   /** The text once `edited`. Defaults to "AI draft, edited". */
   editedText?: string;
-  /** Replaces the tooltip sentence. Defaults to `describeAiOutput`. */
-  describe?: (details: AiLabelDetails) => string;
+  /** Replaces any of the tooltip's copy. */
+  messages?: Partial<AiLabelMessages>;
   /** `sm` is the 20px mark for a block or an item inside a panel. */
   size?: 'default' | 'sm';
 };
@@ -82,12 +100,12 @@ export function AiLabel({
   text = 'AI-assisted',
   edited = false,
   editedText = 'AI draft, edited',
-  describe = describeAiOutput,
+  messages,
   size = 'default',
   className,
   ...props
 }: AiLabelProps) {
-  const sentence = describe(details);
+  const sentence = describeAiOutput(details, messages);
   const shown = edited ? editedText : text;
 
   return (

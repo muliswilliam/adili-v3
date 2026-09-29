@@ -77,7 +77,9 @@ describe('SourceRefLink', () => {
   });
 
   it('names the target with the label when there is no longer description', () => {
-    render(<SourceRefLink sourceRef={BIO} label="Personal and employment details" />);
+    render(
+      <SourceRefLink onOpen={vi.fn()} sourceRef={BIO} label="Personal and employment details" />,
+    );
 
     expect(
       screen.getByRole('button', {
@@ -89,9 +91,9 @@ describe('SourceRefLink', () => {
   it('marks what kind of target it opens', () => {
     render(
       <>
-        <SourceRefLink sourceRef={SPOUSE} label="Amani · statement" />
-        <SourceRefLink sourceRef={DESIGNATION} label="Designation" />
-        <SourceRefLink sourceRef={BIO} label="Personal and employment details" />
+        <SourceRefLink onOpen={vi.fn()} sourceRef={SPOUSE} label="Amani · statement" />
+        <SourceRefLink onOpen={vi.fn()} sourceRef={DESIGNATION} label="Designation" />
+        <SourceRefLink onOpen={vi.fn()} sourceRef={BIO} label="Personal and employment details" />
       </>,
     );
 
@@ -111,6 +113,7 @@ describe('SourceRefLink', () => {
   it('takes other copy', () => {
     render(
       <SourceRefLink
+        onOpen={vi.fn()}
         sourceRef={DESIGNATION}
         label="Cheo"
         messages={{ openPrefix: 'Fungua kwenye tamko' }}

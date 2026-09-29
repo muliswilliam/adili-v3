@@ -75,12 +75,18 @@ describe('AiLabel', () => {
       <AiLabel
         details={SUMMARY}
         text="Kwa msaada wa AI"
-        describe={({ promptVersion }) => `Toleo ${String(promptVersion)}`}
+        messages={{
+          taskNames: { 'summarize-declaration': 'Muhtasari' },
+          promptVersion: (version) => `toleo ${String(version)}`,
+          generatedAt: (time) => `iliundwa ${time}`,
+        }}
       />,
     );
 
-    expect(screen.getByRole('img', { name: 'Kwa msaada wa AI. Toleo 3' }).textContent).toBe(
-      'Kwa msaada wa AI',
-    );
+    expect(
+      screen.getByRole('img', {
+        name: 'Kwa msaada wa AI. Muhtasari · Anthropic claude-opus-5 · toleo 3 · iliundwa 2 Sep 2026, 14:33',
+      }).textContent,
+    ).toBe('Kwa msaada wa AI');
   });
 });

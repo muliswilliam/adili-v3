@@ -3,6 +3,7 @@ export {
   AI_TASK_NAMES,
   AiLabel,
   type AiLabelDetails,
+  type AiLabelMessages,
   type AiLabelProps,
   describeAiOutput,
 } from './components/ai-label';

@@ -21,7 +21,7 @@ export interface SourceRef {
   fieldPath: string | null;
 }
 
-/** What a ref opens: an item, a person's statement, a single field, or a whole section. */
+/** What a ref opens: an item, a person's financial statement, a single field, or a whole section. */
 export type SourceRefKind = 'item' | 'person' | 'field' | 'section';
 
 /** The most specific part a ref names, or null when it names nothing. */
@@ -105,13 +105,13 @@ export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'chil
    * Opens the target: in the console, the declaration pane scrolled to it and highlighted; on a
    * route, a navigation with `sourceRefToSearch`.
    */
-  onOpen?: (ref: SourceRef) => void;
+  onOpen: (ref: SourceRef) => void;
   messages?: Partial<SourceRefLinkMessages>;
 }
 
 /**
  * A chip that opens the part of the declaration an AI output drew on: an item, a person's
- * statement, a field or a section, with an icon for each. Screen readers hear where it goes:
+ * financial statement, a field or a section, with an icon for each. Screen readers hear where it goes:
  * "Open in the declaration: Assets, Building, 4-bedroom house on LR 12715/482". A ref that names
  * nothing is plain text.
  */
@@ -140,7 +140,7 @@ export function SourceRefLink({
       data-kind={kind}
       className={cn(linkClassName, className)}
       onClick={() => {
-        onOpen?.(sourceRef);
+        onOpen(sourceRef);
       }}
     >
       <Icon icon={icon ?? KIND_ICONS[kind]} />

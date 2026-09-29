@@ -27,5 +27,8 @@ export const UsedUp: Story = { args: { tokensUsed: 1_500_000, monthlyTokens: 1_5
 
 export const NoneUsed: Story = { args: { tokensUsed: 0, monthlyTokens: 1_000_000 } };
 
+/** A Commission with no budget: any use counts as used up. */
+export const NoBudget: Story = { args: { tokensUsed: 1_200, monthlyTokens: 0 } };
+
 /** The 10px bar in a Commission's detail. */
 export const Large: Story = { args: { size: 'lg' } };

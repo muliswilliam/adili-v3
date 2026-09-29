@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -11,23 +11,34 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = () => undefined;
 });
 
-/** Keeps the rating the way a panel would, after the server accepted it. */
+/** Keeps the rating the way a panel would, once the server accepted it. */
 function Rated({
   initial = null,
   onRate = vi.fn(),
   ...props
-}: Partial<FeedbackControlProps> & { initial?: Feedback | null }) {
+}: Partial<FeedbackControlProps> & {
+  initial?: Feedback | null;
+  onRate?: (feedback: Feedback) => void | Promise<void>;
+}) {
   const [value, setValue] = useState(initial);
   return (
     <FeedbackControl
       value={value}
-      onRate={(feedback) => {
-        onRate(feedback);
+      onRate={async (feedback) => {
+        await onRate(feedback);
         setValue(feedback);
       }}
       {...props}
     />
   );
+}
+
+/** Clicks and lets the save settle. */
+async function press(element: HTMLElement) {
+  await act(async () => {
+    fireEvent.click(element);
+    await Promise.resolve();
+  });
 }
 
 const helpful = () => screen.getByRole('button', { name: 'Helpful' });
@@ -49,11 +60,11 @@ describe('FeedbackControl', () => {
     expect(screen.queryByRole('form')).toBeNull();
   });
 
-  it('rates helpful in one press and says so', () => {
+  it('rates helpful in one press and says so', async () => {
     const onRate = vi.fn();
     render(<Rated onRate={onRate} />);
 
-    fireEvent.click(helpful());
+    await press(helpful());
 
     expect(onRate).toHaveBeenCalledWith({ rating: 'helpful', reason: null, note: null });
     expect(helpful().getAttribute('aria-pressed')).toBe('true');
@@ -69,7 +80,7 @@ describe('FeedbackControl', () => {
     expect(onRate).not.toHaveBeenCalled();
   });
 
-  it('asks why before sending not helpful, and sends the reason and note', () => {
+  it('asks why before sending not helpful, and sends the reason and note', async () => {
     const onRate = vi.fn();
     render(<Rated onRate={onRate} />);
 
@@ -86,7 +97,7 @@ describe('FeedbackControl', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), {
       target: { value: '  It left out the second plot.  ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Send rating' }));
+    await press(screen.getByRole('button', { name: 'Send rating' }));
 
     expect(onRate).toHaveBeenCalledWith({
       rating: 'not-helpful',
@@ -99,7 +110,7 @@ describe('FeedbackControl', () => {
     expect(screen.getByRole('status').textContent).toBe('Rating sent. Thank you.');
   });
 
-  it('requires a reason, and sends no note when it is blank', () => {
+  it('requires a reason, and sends no note when it is blank', async () => {
     const onRate = vi.fn();
     render(<Rated onRate={onRate} />);
 
@@ -116,7 +127,7 @@ describe('FeedbackControl', () => {
 
     expect(screen.queryByRole('alert')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send rating' }));
+    await press(screen.getByRole('button', { name: 'Send rating' }));
 
     expect(onRate).toHaveBeenCalledWith({ rating: 'not-helpful', reason: 'too-long', note: null });
   });
@@ -144,7 +155,7 @@ describe('FeedbackControl', () => {
     expect(screen.queryByRole('form')).toBeNull();
   });
 
-  it('reopens a sent not helpful rating with its reason and note, to change them', () => {
+  it('reopens a sent not helpful rating with its reason and note, to change them', async () => {
     const onRate = vi.fn();
     render(
       <Rated
@@ -165,7 +176,7 @@ describe('FeedbackControl', () => {
     );
 
     pickReason('Inaccurate');
-    fireEvent.click(screen.getByRole('button', { name: 'Send rating' }));
+    await press(screen.getByRole('button', { name: 'Send rating' }));
 
     expect(onRate).toHaveBeenCalledWith({
       rating: 'not-helpful',
@@ -174,13 +185,13 @@ describe('FeedbackControl', () => {
     });
   });
 
-  it('switches a not helpful rating to helpful', () => {
+  it('switches a not helpful rating to helpful', async () => {
     const onRate = vi.fn();
     render(
       <Rated initial={{ rating: 'not-helpful', reason: 'other', note: null }} onRate={onRate} />,
     );
 
-    fireEvent.click(helpful());
+    await press(helpful());
 
     expect(onRate).toHaveBeenCalledWith({ rating: 'helpful', reason: null, note: null });
     expect(notHelpful().getAttribute('aria-pressed')).toBe('false');
@@ -208,6 +219,57 @@ describe('FeedbackControl', () => {
     expect((notHelpful() as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('stays busy until the save ends, and closes the form only then', async () => {
+    const { promise: saved, resolve: finish } = Promise.withResolvers<undefined>();
+    render(<Rated onRate={() => saved} />);
+
+    fireEvent.click(notHelpful());
+    pickReason('Unclear');
+    await press(screen.getByRole('button', { name: 'Send rating' }));
+
+    expect(screen.getByRole('form')).toBeDefined();
+    // Inside a disabled fieldset: disabled, though the button's own property stays false.
+    expect(screen.getByRole('button', { name: 'Send rating' }).matches(':disabled')).toBe(true);
+    expect((helpful() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('status').textContent).toBe('');
+
+    await act(async () => {
+      finish(undefined);
+      await saved;
+    });
+
+    expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Rating sent. Thank you.');
+  });
+
+  it('keeps the form and what was entered when the save fails', async () => {
+    render(<Rated onRate={() => Promise.reject(new Error('503'))} />);
+
+    fireEvent.click(notHelpful());
+    pickReason('Other');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), {
+      target: { value: 'Wrong year.' },
+    });
+    await press(screen.getByRole('button', { name: 'Send rating' }));
+
+    expect(screen.getByRole('status').textContent).toBe('Rating not sent. Try again.');
+    expect(screen.getByRole('form')).toBeDefined();
+    expect(screen.getByDisplayValue('Wrong year.')).toBeDefined();
+    expect(notHelpful().getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Send rating' }).matches(':disabled')).toBe(false);
+  });
+
+  it('changes the announcement so a second rating is read out again', async () => {
+    render(<Rated />);
+
+    await press(helpful());
+    fireEvent.click(notHelpful());
+    pickReason('Unclear');
+    await press(screen.getByRole('button', { name: 'Send rating' }));
+
+    expect(screen.getByRole('status').textContent).toBe('Rating sent. Thank you.\u00a0');
+  });
+
   it('shows someone else rating as text when read-only', () => {
     const { rerender } = render(
       <FeedbackControl
@@ -232,8 +294,7 @@ describe('FeedbackControl', () => {
   it('takes a group name and other copy', () => {
     render(
       <Rated
-        label="Rate the summary"
-        messages={{ helpful: 'Inasaidia', notHelpful: 'Haisaidii' }}
+        messages={{ group: 'Rate the summary', helpful: 'Inasaidia', notHelpful: 'Haisaidii' }}
       />,
     );
 

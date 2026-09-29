@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { userEvent } from 'storybook/test';
 
 import { AiLabel, type AiLabelDetails } from './ai-label';
 
@@ -23,6 +24,13 @@ type Story = StoryObj<typeof meta>;
 
 /** Focus or hover it for the task, provider, model, prompt version and time. */
 export const Default: Story = {};
+
+/** The tooltip, as keyboard focus opens it. */
+export const TooltipOpen: Story = {
+  play: async () => {
+    await userEvent.tab();
+  },
+};
 
 export const PanelHeader: Story = {
   args: { text: 'AI-assisted · generated 24 days ago for version 2' },

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Building03Icon } from '@hugeicons/core-free-icons';
+import { fn } from 'storybook/test';
 
 import { SourceRefLink } from './source-ref-link';
 
@@ -15,6 +16,7 @@ const meta = {
   title: 'AI/SourceRefLink',
   component: SourceRefLink,
   args: {
+    onOpen: fn(),
     sourceRef: HOUSE,
     label: '4-bedroom house on LR 12715/482',
     targetLabel: 'Assets, Building, 4-bedroom house on LR 12715/482, Wanjiku Njeri Kamau',
