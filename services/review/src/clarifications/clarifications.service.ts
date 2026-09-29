@@ -6,6 +6,7 @@ import { allocateReference, CLR } from '@adili/numbering';
 import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { changeCaseStatus } from '../cases/case-status.js';
 import {
   type CaseStatus,
   type ClarificationItem,
@@ -27,7 +28,6 @@ import type {
 } from './clarification-input.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
 import { clarificationDueAt } from './contract.js';
-import { type CaseStatusChangedData, REVIEW_CASE_STATUS_CHANGED } from '../cases/events.js';
 import {
   CLARIFICATION_ISSUED,
   CLARIFICATION_RESOLVED,
@@ -169,10 +169,7 @@ export class ClarificationsService {
         .returning();
       await tx
         .update(reviewCases)
-        .set({
-          status: AWAITING,
-          openClarifications: sql`${reviewCases.openClarifications} + 1`,
-        })
+        .set({ openClarifications: sql`${reviewCases.openClarifications} + 1` })
         .where(eq(reviewCases.id, kase.id));
 
       await tx.insert(reviewTimeline).values({
@@ -190,9 +187,13 @@ export class ClarificationsService {
         tenant,
         data: { clarificationId, caseId: kase.id },
       });
-      if (kase.status !== AWAITING) {
-        await this.changeStatus(tx, tenant, kase.id, kase.status, AWAITING, principal.subject);
-      }
+      await changeCaseStatus(tx, this.events, {
+        tenant,
+        caseId: kase.id,
+        from: kase.status,
+        to: AWAITING,
+        actor: principal.subject,
+      });
 
       // Last, inside the transaction: if Temporal cannot be reached nothing is issued. The
       // workflow's first activity waits for this transaction to commit.
@@ -373,36 +374,9 @@ export class ClarificationsService {
       (resolved?.value ?? 0) > 0 ? ['clarified', 'ready-for-determination'] : ['assigned'];
     let from = kase.status;
     for (const to of path) {
-      await this.changeStatus(tx, tenant, kase.id, from, to, actor);
+      await changeCaseStatus(tx, this.events, { tenant, caseId: kase.id, from, to, actor });
       from = to;
     }
-  }
-
-  /** Moves the case to `to`, with the timeline entry and `review.case.status-changed.v1`. */
-  private async changeStatus(
-    tx: Transaction,
-    tenant: string,
-    caseId: string,
-    from: CaseStatus,
-    to: CaseStatus,
-    actor: string,
-  ): Promise<void> {
-    await tx.update(reviewCases).set({ status: to }).where(eq(reviewCases.id, caseId));
-    await tx.insert(reviewTimeline).values({
-      id: uuidv7(),
-      tenant,
-      caseId,
-      kind: 'status-changed',
-      ref: null,
-      actor,
-      summary: `Status changed from ${from} to ${to}`,
-    });
-    await this.events.record<CaseStatusChangedData>(tx, {
-      type: REVIEW_CASE_STATUS_CHANGED,
-      subject: caseId,
-      tenant,
-      data: { caseId, from, to },
-    });
   }
 }
 

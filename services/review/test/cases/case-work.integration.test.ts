@@ -240,6 +240,20 @@ describe('review case: assignment, detail, notes and flags', () => {
           .where(and(eq(reviewTimeline.caseId, caseId), eq(reviewTimeline.kind, 'assigned'))),
       );
       expect(timeline).toHaveLength(4);
+      // Every status move has its timeline entry, as for any other transition.
+      const moves = await api.asPlatform((tx) =>
+        tx
+          .select()
+          .from(reviewTimeline)
+          .where(and(eq(reviewTimeline.caseId, caseId), eq(reviewTimeline.kind, 'status-changed')))
+          .orderBy(asc(reviewTimeline.at), asc(reviewTimeline.id)),
+      );
+      expect(moves.map((entry) => [entry.summary, entry.actor])).toEqual([
+        ['Status changed from unassigned to assigned', 'reviewer-a'],
+        ['Status changed from assigned to unassigned', 'reviewer-a'],
+        ['Status changed from unassigned to assigned', 'supervisor-s'],
+        ['Status changed from assigned to unassigned', 'supervisor-s'],
+      ]);
 
       const assigned = await eventsOf('review.case.assigned.v1');
       expect(assigned.map((event) => event.data)).toEqual([

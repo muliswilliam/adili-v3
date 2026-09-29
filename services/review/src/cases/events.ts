@@ -1,3 +1,5 @@
+import type { CaseStatus } from './schema.js';
+
 /**
  * Events the review service publishes about cases (spec 07a, outbox, CloudEvents). Identifiers and
  * states only: never declaration content, names or amounts. The tenant extension is the
@@ -30,8 +32,8 @@ export interface CaseAssignedData extends Record<string, unknown> {
 /** `review.case.status-changed.v1`. */
 export interface CaseStatusChangedData extends Record<string, unknown> {
   caseId: string;
-  from: string;
-  to: string;
+  from: CaseStatus;
+  to: CaseStatus;
 }
 
 /** `review.case.viewed.v1`: who opened the case (its declaration was read for them). */

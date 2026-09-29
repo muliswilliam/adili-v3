@@ -8,20 +8,10 @@ import { v7 as uuidv7 } from 'uuid';
 import type { ReviewSchema } from '../db/schema.js';
 import { caseTenant, isSupervisor } from './access.js';
 import { caseItem, type CaseRow, findCase, type ReviewTransaction } from './case-lookup.js';
-import {
-  type CaseAssignedData,
-  type CaseStatusChangedData,
-  REVIEW_CASE_ASSIGNED,
-  REVIEW_CASE_STATUS_CHANGED,
-} from './events.js';
+import { changeCaseStatus, statusAfterAssignment } from './case-status.js';
+import { type CaseAssignedData, REVIEW_CASE_ASSIGNED } from './events.js';
 import type { CaseListItem } from './representation.js';
-import {
-  type AssignmentKind,
-  type CaseStatus,
-  reviewAssignments,
-  reviewCases,
-  reviewTimeline,
-} from './schema.js';
+import { type AssignmentKind, reviewAssignments, reviewCases, reviewTimeline } from './schema.js';
 
 interface AssignmentChange {
   assignee: string | null;
@@ -108,7 +98,7 @@ export class AssignmentService {
       const change = await decide(row, tx);
       if (change === null) return caseItem(tx, row);
 
-      const status = nextStatus(row.status, change.assignee);
+      const status = statusAfterAssignment(row.status, change.assignee);
       const now = new Date();
       const [updated] = await tx
         .update(reviewCases)
@@ -116,7 +106,6 @@ export class AssignmentService {
           assignee: change.assignee,
           assigneeName: change.assigneeName,
           claimedAt: change.assignee === null ? null : now,
-          status,
         })
         .where(eq(reviewCases.id, row.id))
         .returning();
@@ -148,23 +137,17 @@ export class AssignmentService {
         tenant,
         data: { caseId: row.id, assignee: change.assignee, by: change.by, kind: change.kind },
       });
-      if (status !== row.status) {
-        await this.events.record<CaseStatusChangedData>(tx, {
-          type: REVIEW_CASE_STATUS_CHANGED,
-          subject: row.id,
-          tenant,
-          data: { caseId: row.id, from: row.status, to: status },
-        });
-      }
-      return caseItem(tx, updated);
+      await changeCaseStatus(tx, this.events, {
+        tenant,
+        caseId: row.id,
+        from: row.status,
+        to: status,
+        actor: change.by,
+        at: now,
+      });
+      return caseItem(tx, { ...updated, status });
     });
   }
-}
-
-function nextStatus(status: CaseStatus, assignee: string | null): CaseStatus {
-  if (assignee !== null && status === 'unassigned') return 'assigned';
-  if (assignee === null && status === 'assigned') return 'unassigned';
-  return status;
 }
 
 function summaryOf(change: AssignmentChange): string {
