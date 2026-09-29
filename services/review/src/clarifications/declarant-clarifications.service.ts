@@ -208,7 +208,7 @@ export class DeclarantClarificationsService {
           .from(reviewCases)
           .where(inArray(reviewCases.id, caseIds)),
       );
-      for (const kase of cases) references.set(kase.id, kase.reference);
+      for (const reviewCase of cases) references.set(reviewCase.id, reviewCase.reference);
       const commission = await withUpstream(() => this.directory.getCommission(tenant));
       names.set(tenant, commission.name);
     }

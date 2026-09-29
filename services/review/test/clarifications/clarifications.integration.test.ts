@@ -177,10 +177,10 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     });
 
     // The case awaits the declarant, with the timeline entries and events in the same transaction.
-    const [kase] = await api.asPlatform((tx) =>
+    const [reviewCase] = await api.asPlatform((tx) =>
       tx.select().from(reviewCases).where(eq(reviewCases.id, caseId)),
     );
-    expect(kase).toMatchObject({ status: 'awaiting-clarification', openClarifications: 1 });
+    expect(reviewCase).toMatchObject({ status: 'awaiting-clarification', openClarifications: 1 });
     const timeline = await api.asPlatform((tx) =>
       tx
         .select()

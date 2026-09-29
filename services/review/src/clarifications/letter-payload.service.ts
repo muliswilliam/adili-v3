@@ -50,7 +50,7 @@ export class LetterPayloadService {
         .from(clarifications)
         .where(and(eq(clarifications.id, clarificationId), ne(clarifications.status, 'draft')));
       if (!clarification) return null;
-      const [kase] = await tx
+      const [reviewCase] = await tx
         .select({
           id: reviewCases.id,
           declarationId: reviewCases.declarationId,
@@ -60,19 +60,19 @@ export class LetterPayloadService {
         })
         .from(reviewCases)
         .where(eq(reviewCases.id, clarification.caseId));
-      return kase ? { clarification, kase } : null;
+      return reviewCase ? { clarification, reviewCase } : null;
     });
-    const { clarification, kase } = notFoundIfInvisible(found);
+    const { clarification, reviewCase } = notFoundIfInvisible(found);
     if (!clarification.reference || !clarification.issuedAt || !clarification.dueAt) {
       throw new Error(`Clarification ${clarificationId} is issued without a reference`);
     }
 
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
-    const document = await this.document(tenant, kase);
+    const document = await this.document(tenant, reviewCase);
     return {
-      declarantName: kase.declarantName,
+      declarantName: reviewCase.declarantName,
       commission: { name: commission.name, issuerCode: commission.issuerCode },
-      declarationReference: kase.reference,
+      declarationReference: reviewCase.reference,
       clarificationReference: clarification.reference,
       items: clarification.items.map((item) => ({
         label: itemLabel(item, document),
@@ -88,13 +88,13 @@ export class LetterPayloadService {
   /** The case's current version as filed; an outage is a 502 documents retries. */
   private async document(
     tenant: string,
-    kase: { id: string; declarationId: string; currentVersion: number },
+    reviewCase: { id: string; declarationId: string; currentVersion: number },
   ): Promise<DeclarationV1 | null> {
     try {
       const pulled = await this.declarations.getVersionDocument(
-        kase.declarationId,
-        kase.currentVersion,
-        { tenant, actingSubject: SYSTEM_SUBJECT, caseId: kase.id },
+        reviewCase.declarationId,
+        reviewCase.currentVersion,
+        { tenant, actingSubject: SYSTEM_SUBJECT, caseId: reviewCase.id },
       );
       return (pulled?.document as unknown as DeclarationV1 | undefined) ?? null;
     } catch (error) {
