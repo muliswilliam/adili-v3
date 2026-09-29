@@ -508,13 +508,52 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
 
       const again = await resolve(clarification.id);
       expect(again.statusCode).toBe(409);
-      expect(again.json()).toMatchObject({ code: 'clarification-not-open' });
+      expect(again.json()).toMatchObject({ code: 'clarification-not-responded' });
     });
 
-    it('resolving one of two open clarifications keeps the case awaiting clarification; the signal ends the clock', async () => {
+    it('only a responded clarification is resolved: issued or overdue is 409, and nothing changes', async () => {
+      const caseId = await givenAssignedCase();
+      const clarification = await issued(caseId);
+
+      const early = await resolve(clarification.id);
+      expect(early.statusCode).toBe(409);
+      expect(early.json()).toMatchObject({
+        type: 'clarification-not-responded',
+        code: 'clarification-not-responded',
+        clarificationStatus: 'issued',
+      });
+
+      await api.app
+        .get(ClarificationActivities)
+        .markOverdue({ tenant: 'psc', clarificationId: clarification.id });
+      const overdue = await resolve(clarification.id);
+      expect(overdue.statusCode).toBe(409);
+      expect(overdue.json()).toMatchObject({
+        code: 'clarification-not-responded',
+        clarificationStatus: 'overdue',
+      });
+
+      expect(await row(clarification.id)).toMatchObject({ status: 'overdue', resolvedAt: null });
+      expect(await events('clarification.resolved.v1')).toEqual([]);
+      expect(await caseRow(caseId)).toMatchObject({
+        status: 'awaiting-clarification',
+        openClarifications: 1,
+      });
+    });
+
+    it('resolving one of two open clarifications keeps the case awaiting clarification', async () => {
       const caseId = await givenAssignedCase();
       const first = await issued(caseId);
       const second = await issued(caseId);
+      const textOnly = {
+        items: [
+          { index: 0, text: 'The plot was revalued.', attachments: [] },
+          { index: 1, text: 'Acquired in 2026.', attachments: [] },
+        ],
+      };
+      expect((await respond(first.id, textOnly)).statusCode).toBe(201);
+      expect((await respond(second.id, textOnly)).statusCode).toBe(201);
+      expect(await workflowResult(first.id)).toEqual({ outcome: 'responded' });
 
       expect((await resolve(first.id)).statusCode).toBe(200);
 
@@ -522,7 +561,6 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
         status: 'awaiting-clarification',
         openClarifications: 1,
       });
-      expect(await workflowResult(first.id)).toEqual({ outcome: 'resolved' });
 
       expect((await resolve(second.id)).statusCode).toBe(200);
       expect(await caseRow(caseId)).toMatchObject({ status: 'ready-for-determination' });

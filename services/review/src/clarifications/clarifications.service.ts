@@ -202,9 +202,10 @@ export class ClarificationsService {
   }
 
   /**
-   * The assignee marks an open clarification resolved with a note. When no other clarification of
-   * the case is open, the case is `clarified` and then `ready-for-determination` (spec 08). The
-   * workflow's clock ends.
+   * The assignee marks a responded clarification resolved with a note. One still awaiting the
+   * declarant (`issued`, `overdue`) is not resolved: the reviewer withdraws one issued in error,
+   * and an overdue one escalates (spec 08). When no other clarification of the case is open, the
+   * case is `clarified` and then `ready-for-determination`. The workflow's clock ends.
    */
   async resolve(
     principal: Principal,
@@ -216,7 +217,7 @@ export class ClarificationsService {
     const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
       requireAssignee(principal, kase.assignee);
-      requireOpen(clarification.status, 'resolved');
+      requireResponded(clarification.status);
       const [resolved] = await tx
         .update(clarifications)
         .set({ status: 'resolved', resolvedAt: now, resolutionNote: input.note })
@@ -299,7 +300,7 @@ export class ClarificationsService {
     const view = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const { clarification, kase } = await lockForWork(tx, clarificationId);
       requireAssignee(principal, kase.assignee);
-      requireOpen(clarification.status, 'withdrawn');
+      requireOpen(clarification.status);
       const [withdrawn] = await tx
         .update(clarifications)
         .set({ status: 'withdrawn', withdrawnReason: input.reason })
@@ -449,17 +450,31 @@ function notADraft(): ProblemException {
   );
 }
 
-/** Resolving and withdrawing act on an open clarification only. */
-function requireOpen(status: ClarificationStatus, action: 'resolved' | 'withdrawn'): void {
+/** Resolving acts on a responded clarification only. */
+function requireResponded(status: ClarificationStatus): void {
+  if (status === 'responded') return;
+  throw new ProblemException(
+    {
+      type: 'clarification-not-responded',
+      title: 'Conflict',
+      status: HttpStatus.CONFLICT,
+      detail: `A ${status} clarification cannot be resolved: only a responded one can.`,
+    },
+    { code: 'clarification-not-responded', clarificationStatus: status },
+  );
+}
+
+/** Withdrawing acts on an open clarification only. */
+function requireOpen(status: ClarificationStatus): void {
   if (OPEN.includes(status)) return;
   throw new ProblemException(
     {
       type: 'clarification-not-open',
       title: 'Conflict',
       status: HttpStatus.CONFLICT,
-      detail: `A ${status} clarification cannot be ${action}.`,
+      detail: `A ${status} clarification cannot be withdrawn.`,
     },
-    { code: 'clarification-not-open', status },
+    { code: 'clarification-not-open', clarificationStatus: status },
   );
 }
 

@@ -2068,7 +2068,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Problem code `clarification-not-open`: not issued, overdue or responded */
+            /** @description Problem code `clarification-not-responded`: only a responded clarification is resolved. One still issued or overdue is withdrawn if issued in error; overdue escalates (spec 08) */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -123,7 +123,7 @@ export class ClarificationsController {
   @ApiProblemResponse(400, 'Body failed validation')
   @ApiProblemResponse(403, NOT_ASSIGNEE)
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, 'Problem code `clarification-not-open`')
+  @ApiProblemResponse(409, 'Problem code `clarification-not-responded`')
   resolve(
     @CurrentPrincipal() principal: Principal,
     @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,

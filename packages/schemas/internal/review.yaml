@@ -469,7 +469,9 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 'Problem code `clarification-not-open`: not issued, overdue or responded'
+          description: >-
+            Problem code `clarification-not-responded`: only a responded clarification is resolved.
+            One still issued or overdue is withdrawn if issued in error; overdue escalates (spec 08)
           content:
             application/problem+json:
               schema:
