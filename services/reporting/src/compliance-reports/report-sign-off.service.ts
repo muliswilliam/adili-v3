@@ -4,11 +4,12 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { canonicalJson, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { type FormMV1, validateFormM } from '@adili/forms';
+import { type FormMV1, type FormValidationError, validateFormM } from '@adili/forms';
 import { allocateReference, RPT } from '@adili/numbering';
 import { and, eq } from 'drizzle-orm';
 
 import {
+  federatedTenant,
   formMTenant,
   requireCommissionAdmin,
   requireStepUp,
@@ -16,7 +17,7 @@ import {
 } from '../access.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
-import { DirectoryClient } from '../directory/directory-client.js';
+import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
 import { dueDateOf } from '../financial-year.js';
 import { commissionOf } from './commission.js';
 import {
@@ -25,11 +26,12 @@ import {
   type ComplianceReportReviewedData,
   type ComplianceReportSubmittedData,
 } from './events.js';
+import { federatedRuleProblems, reportCountsOf } from './federated-submission.js';
 import { ACTION_LABELS } from './form-m.js';
-import type { ReportingTransaction, ReportRow } from './reports.js';
+import { ensureReport, type ReportingTransaction, type ReportRow } from './reports.js';
 import { ReportWorkflows } from './report-workflows.js';
 import { type ComplianceReportView, reportView } from './representation.js';
-import { complianceReports, reportReceipts, reportRemarks } from './schema.js';
+import { complianceReports, reportReceipts, reportRemarks, type ReportSource } from './schema.js';
 import { openSnapshot, sealSnapshot } from './snapshot.js';
 import type { ConfirmBody, ManualFieldsBody, RemarksBody, ReviewedBody } from './sign-off-input.js';
 
@@ -41,7 +43,8 @@ type NonFilerRow = FormMV1['partII']['initial']['nonFilers'][number];
  * Part I contact details and Part B, then confirms with a fresh step-up, which allocates the `RPT`
  * reference, completes Part III, freezes the document with its hash and submits it to EACC. The
  * workflow then issues the Form M PDF and the receipt and tells both officers. Edits keep the
- * report's status; a report being compiled or already submitted refuses them with 409.
+ * report's status; a report being compiled or already submitted refuses them with 409. A
+ * federated Commission's system files its own document along the same submission path.
  */
 @Injectable()
 export class ReportSignOffService {
@@ -229,54 +232,163 @@ export class ReportSignOffService {
             { code: 'incomplete' },
           );
         }
-        const reference = await allocateReference(tx, RPT, {
-          issuer: commission.issuerCode,
-          period: fy,
+        return this.submit(tx, report, document, {
+          commission,
+          signedBy: principal,
+          now,
+          source: report.source,
         });
-        document.meta = { ...document.meta, reference, source: report.source };
-        const sha256 = createHash('sha256').update(canonicalJson(document)).digest('hex');
-        const sealed = await sealSnapshot(this.cipher, tenant, report.id, document);
-        const late = nairobiDate(now) > dueDateOf(fy);
-        const [row] = await tx
-          .update(complianceReports)
-          .set({
-            status: 'submitted',
-            reference,
-            confirmedBy: principal.subject,
-            confirmedByName: principal.name,
-            confirmedAt: now,
-            submittedAt: now,
-            late,
-            snapshotCiphertext: sealed.ciphertext,
-            envelope: sealed.envelope,
-            canonicalSha256: sha256,
-          })
-          .where(eq(complianceReports.id, report.id))
-          .returning();
-        if (!row?.counts) throw new Error(`Report ${report.id} has no counts to submit`);
-        await tx.insert(reportReceipts).values({
-          reportId: row.id,
-          tenant,
-          fy,
-          reference,
-          source: row.source,
-          submittedAt: now,
-          late,
-          counts: row.counts,
-        });
-        await this.events.record<ComplianceReportSubmittedData>(tx, {
-          type: COMPLIANCE_REPORT_SUBMITTED,
-          subject: row.id,
-          tenant,
-          data: { reportId: row.id, fy, status: 'submitted', reference, late, source: row.source },
-        });
-        await this.tellWorkflow(tenant, fy);
-        return row;
       },
     );
     // Without the document: this answer is kept for replays of the key, and names live only in
     // the encrypted snapshot. The console reads the report as filed with `getComplianceReport`.
     return reportView(submitted, commission, null);
+  }
+
+  /**
+   * A federated Commission's system files its `form-m.v1` document (a client-credentials token
+   * with `reports:submit` for the Commission, and an `Idempotency-Key` at the controller). The
+   * document must be valid against the schema (400 `invalid-document`), name the token's
+   * Commission (403 `tenant-mismatch`) and keep the business rules (400 `inconsistent-document`);
+   * then it is submitted along the hosted confirm's path with `source = federated`: the `RPT`
+   * reference, the frozen document and its hash, EACC's receipt, the event, and from the workflow
+   * the Form M PDF, the receipt and the officers' emails. A draft the platform compiled for the
+   * year is superseded; a submitted report is 409 `report-submitted`. The answer leaves the
+   * document out (null), as confirm's does.
+   */
+  async submitFederated(principal: Principal, body: unknown): Promise<ComplianceReportView> {
+    const tenant = federatedTenant(principal);
+    const checked = validateFormM(body);
+    if (!checked.ok) {
+      throw documentProblem(
+        'invalid-document',
+        'The document is not a valid form-m.v1 document: fix the fields named.',
+        checked.errors,
+      );
+    }
+    const document = checked.value;
+    const commission = await commissionOf(this.directory, tenant);
+    if (document.partI.issuerCode !== commission.issuerCode) {
+      throw new ProblemException(
+        {
+          type: 'about:blank',
+          title: 'Forbidden',
+          status: HttpStatus.FORBIDDEN,
+          detail: 'The document names another Commission than the one the token is issued for.',
+        },
+        { code: 'tenant-mismatch' },
+      );
+    }
+    const now = this.clock.now();
+    const broken = federatedRuleProblems(document, nairobiDate(now));
+    if (broken.length > 0) {
+      throw documentProblem(
+        'inconsistent-document',
+        'The document breaks the rules of Form M: fix the fields named.',
+        broken,
+      );
+    }
+    const fy = document.partI.period.financialYearStart;
+    const submitted = await withTenant(
+      this.db,
+      { tenant, subject: principal.subject },
+      async (tx) => {
+        const { id } = await ensureReport(tx, tenant, fy, now);
+        const [report] = await tx
+          .select()
+          .from(complianceReports)
+          .where(eq(complianceReports.id, id))
+          .for('update');
+        if (!report) throw new Error(`Report ${id} vanished while it was submitted`);
+        if (report.status === 'submitted') throw reportSubmitted();
+        // The federated document supersedes a draft compiled here, remarks and review included.
+        await tx.delete(reportRemarks).where(eq(reportRemarks.reportId, report.id));
+        return this.submit(tx, report, document, {
+          commission,
+          signedBy: principal,
+          now,
+          source: 'federated',
+          changes: {
+            counts: reportCountsOf(document),
+            compiledAt: now,
+            reviewedBy: null,
+            reviewedByName: null,
+            reviewedAt: null,
+          },
+        });
+      },
+    );
+    return reportView(submitted, commission, null);
+  }
+
+  /**
+   * Submits the locked `report` with its complete `document`, for the hosted confirm and the
+   * federated submission alike: allocates the `RPT` reference, puts it and the source in the
+   * document's `meta`, freezes the document with its canonical SHA-256, marks the report
+   * `submitted` (late after 31 July) as signed by `signedBy` with `changes`, records EACC's
+   * receipt, publishes `compliance-report.submitted.v1` and tells the workflow before the commit,
+   * so a Temporal outage submits nothing. The workflow issues the Form M PDF and the receipt and
+   * tells the officers once the commit is visible.
+   */
+  private async submit(
+    tx: ReportingTransaction,
+    report: ReportRow,
+    document: FormMV1,
+    options: {
+      commission: CommissionFacts;
+      signedBy: Principal;
+      now: Date;
+      source: ReportSource;
+      changes?: Partial<typeof complianceReports.$inferInsert>;
+    },
+  ): Promise<ReportRow> {
+    const { commission, signedBy, now, source, changes = {} } = options;
+    const { tenant, fy } = report;
+    const reference = await allocateReference(tx, RPT, {
+      issuer: commission.issuerCode,
+      period: fy,
+    });
+    document.meta = { ...document.meta, reference, source };
+    const sha256 = createHash('sha256').update(canonicalJson(document)).digest('hex');
+    const sealed = await sealSnapshot(this.cipher, tenant, report.id, document);
+    const late = nairobiDate(now) > dueDateOf(fy);
+    const [row] = await tx
+      .update(complianceReports)
+      .set({
+        ...changes,
+        status: 'submitted',
+        source,
+        reference,
+        confirmedBy: signedBy.subject,
+        confirmedByName: signedBy.name,
+        confirmedAt: now,
+        submittedAt: now,
+        late,
+        snapshotCiphertext: sealed.ciphertext,
+        envelope: sealed.envelope,
+        canonicalSha256: sha256,
+      })
+      .where(eq(complianceReports.id, report.id))
+      .returning();
+    if (!row?.counts) throw new Error(`Report ${report.id} has no counts to submit`);
+    await tx.insert(reportReceipts).values({
+      reportId: row.id,
+      tenant,
+      fy,
+      reference,
+      source,
+      submittedAt: now,
+      late,
+      counts: row.counts,
+    });
+    await this.events.record<ComplianceReportSubmittedData>(tx, {
+      type: COMPLIANCE_REPORT_SUBMITTED,
+      subject: row.id,
+      tenant,
+      data: { reportId: row.id, fy, status: 'submitted', reference, late, source },
+    });
+    await this.tellWorkflow(tenant, fy);
+    return row;
   }
 
   /**
@@ -354,21 +466,44 @@ async function lockedReport(
       detail: 'The resource does not exist or is not visible to you.',
     });
   }
-  if (report.status === 'submitted' || report.status === 'compiling') {
-    const submitted = report.status === 'submitted';
+  if (report.status === 'submitted') throw reportSubmitted();
+  if (report.status === 'compiling') {
     throw new ProblemException(
       {
         type: 'about:blank',
         title: 'Conflict',
         status: HttpStatus.CONFLICT,
-        detail: submitted
-          ? 'The report is submitted and can no longer change.'
-          : 'The report is being compiled. Try again once the draft is ready.',
+        detail: 'The report is being compiled. Try again once the draft is ready.',
       },
-      { code: submitted ? 'report-submitted' : 'report-compiling' },
+      { code: 'report-compiling' },
     );
   }
   return report;
+}
+
+/** 409 `report-submitted`: one report per Commission per year, frozen once submitted. */
+function reportSubmitted(): ProblemException {
+  return new ProblemException(
+    {
+      type: 'about:blank',
+      title: 'Conflict',
+      status: HttpStatus.CONFLICT,
+      detail: 'The report is submitted and can no longer change.',
+    },
+    { code: 'report-submitted' },
+  );
+}
+
+/** 400 with the document's problems by field path (`errors`), under `code`. */
+function documentProblem(
+  code: 'invalid-document' | 'inconsistent-document',
+  detail: string,
+  errors: FormValidationError[],
+): ProblemException {
+  return new ProblemException(
+    { type: 'about:blank', title: 'Bad Request', status: HttpStatus.BAD_REQUEST, detail, errors },
+    { code },
+  );
 }
 
 function invalid(detail: string, errors: { path: string; message: string }[]): ProblemException {

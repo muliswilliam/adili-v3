@@ -12,6 +12,7 @@ import { AnnualCompileActivities } from './annual-compile-activities.js';
 import { AnnualCompileSchedule } from './annual-compile-schedule.js';
 import { ComplianceReportsController } from './compliance-reports.controller.js';
 import { ComplianceReportsService } from './compliance-reports.service.js';
+import { FederatedReportsController } from './federated-reports.controller.js';
 import { ReportSignOffService } from './report-sign-off.service.js';
 import { ReportWorkflowsModule } from './report-workflows.js';
 
@@ -24,9 +25,9 @@ const workflowsPath = fileURLToPath(
 );
 
 /**
- * Compliance reports (spec 09): the Form M workspace endpoints, the schedule of the yearly compile
- * and the reporting worker hosting `ComplianceReportWorkflow`, the yearly compile and their
- * activities.
+ * Compliance reports (spec 09): the Form M workspace endpoints, federated submission, the schedule
+ * of the yearly compile and the reporting worker hosting `ComplianceReportWorkflow`, the yearly
+ * compile and their activities.
  */
 @Module({
   imports: [
@@ -44,7 +45,7 @@ const workflowsPath = fileURLToPath(
       imports: [ClockModule, CipherModule, UpstreamModule, ReportWorkflowsModule],
     }),
   ],
-  controllers: [ComplianceReportsController],
+  controllers: [ComplianceReportsController, FederatedReportsController],
   providers: [ComplianceReportsService, ReportSignOffService, AnnualCompileSchedule],
 })
 export class ComplianceReportsModule {}

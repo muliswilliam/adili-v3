@@ -82,3 +82,18 @@ export function requireStepUp(principal: Principal, now: Date): void {
     { code: 'step-up-required' },
   );
 }
+
+/**
+ * The Commission a federated system's token (`reports:submit`, client credentials) files for: its
+ * `tenant` claim. A token that names no Commission gets 403.
+ */
+export function federatedTenant(principal: Principal): string {
+  const { tenant } = principal;
+  if (tenant !== null && TENANT_SLUG.test(tenant)) return tenant;
+  throw new ProblemException({
+    type: 'about:blank',
+    title: 'Forbidden',
+    status: HttpStatus.FORBIDDEN,
+    detail: 'The token is not issued for a Commission.',
+  });
+}
