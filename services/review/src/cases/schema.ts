@@ -160,6 +160,28 @@ export const reviewCases = pgTable(
   ],
 );
 
+/**
+ * Every submitted version a case has processed, as the version's metadata gave it: number,
+ * submission, lateness and whether it amended an earlier one. Facts only, no content.
+ */
+export const reviewCaseVersions = pgTable(
+  'review_case_versions',
+  {
+    id: uuid().primaryKey(),
+    tenant: text().notNull(),
+    caseId: uuid()
+      .notNull()
+      .references(() => reviewCases.id),
+    versionId: uuid().notNull(),
+    version: integer().notNull(),
+    submittedAt: timestamp({ withTimezone: true }).notNull(),
+    late: boolean().notNull(),
+    amendment: boolean().notNull(),
+    processedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('review_case_versions_case_version_key').on(table.caseId, table.version)],
+);
+
 /** Every assignment change of a case, in order: who reviewed it (separation of duties, spec 08). */
 export const reviewAssignments = pgTable(
   'review_assignments',
@@ -325,6 +347,7 @@ export const reviewTimeline = pgTable(
 
 export const casesSchema = {
   reviewCases,
+  reviewCaseVersions,
   reviewAssignments,
   reviewFlags,
   clarifications,

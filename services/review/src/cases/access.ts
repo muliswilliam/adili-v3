@@ -31,3 +31,15 @@ export function queueTenant(principal: Principal, slug: string): string {
   const tenant = reviewTenant(principal);
   return notFoundIfInvisible(tenant !== null && tenant === slug ? tenant : null);
 }
+
+/**
+ * The RLS tenant of work on a single case: the caller's own Commission when they review there.
+ * Anyone else gets 404; a case of another Commission is then invisible under row-level security.
+ */
+export function caseTenant(principal: Principal): string {
+  return notFoundIfInvisible(reviewTenant(principal));
+}
+
+export function isSupervisor(principal: Principal): boolean {
+  return principal.roles.includes(SUPERVISOR);
+}

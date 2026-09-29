@@ -12,7 +12,7 @@ import type {
 import { band, type Flag, score } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import { type CaseProcessedData, REVIEW_CASE_CREATED, REVIEW_CASE_UPDATED } from './events.js';
-import { reviewCases, reviewFlags, reviewTimeline } from './schema.js';
+import { reviewCases, reviewCaseVersions, reviewFlags, reviewTimeline } from './schema.js';
 
 type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
 
@@ -80,6 +80,7 @@ export async function upsertCase(
     }
 
     await insertFlags(tx, input, caseId, flags);
+    await recordVersion(tx, { input, facts, flags }, caseId, false);
     await tx.insert(reviewTimeline).values({
       id: uuidv7(),
       tenant: input.tenant,
@@ -127,6 +128,7 @@ async function amendCase(
     .delete(reviewFlags)
     .where(and(eq(reviewFlags.caseId, caseId), isNull(reviewFlags.reviewedAt)));
   await insertFlags(tx, input, caseId, flags);
+  await recordVersion(tx, { input, facts, flags }, caseId, true);
 
   const caseScore = score(flags);
   const caseBand = band(caseScore);
@@ -161,6 +163,25 @@ async function amendCase(
       versionId: input.versionId,
       band: caseBand,
     },
+  });
+}
+
+/** The version among those the case has processed (the case view's version list). */
+async function recordVersion(
+  tx: Transaction,
+  { input, facts }: UpsertCaseRequest,
+  caseId: string,
+  amendment: boolean,
+): Promise<void> {
+  await tx.insert(reviewCaseVersions).values({
+    id: uuidv7(),
+    tenant: input.tenant,
+    caseId,
+    versionId: input.versionId,
+    version: input.version,
+    submittedAt: new Date(facts.submittedAt),
+    late: facts.late,
+    amendment,
   });
 }
 

@@ -16,10 +16,12 @@ import { AppModule } from '../../src/app.module.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
+import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
 import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
+import { FakeDocuments } from './fake-documents.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -46,11 +48,19 @@ export interface ReviewApi {
   asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
   declarations: FakeDeclarations;
   directory: FakeDirectory;
+  documents: FakeDocuments;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
   consumer: DeclarationSubmittedConsumer;
   /** The processing workflow's activities, for driving its steps directly. */
   activities: ProcessingActivities;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
+  /** A request with a JSON body (when given) as `caller`. */
+  send(
+    method: 'POST' | 'PUT',
+    url: string,
+    caller: Caller,
+    body?: unknown,
+  ): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table. */
   reset(): Promise<void>;
   close(): Promise<void>;
@@ -80,6 +90,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
   const { signer, jwk } = await tokenSigner();
   const declarations = new FakeDeclarations();
   const directory = new FakeDirectory();
+  const documents = new FakeDocuments();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -89,6 +100,8 @@ export async function startReviewApi(): Promise<ReviewApi> {
     .useValue(declarations)
     .overrideProvider(DirectoryClient)
     .useValue(directory)
+    .overrideProvider(DocumentsClient)
+    .useValue(documents)
     .overrideProvider(OutboxRelay)
     .useValue({})
     .compile();
@@ -104,6 +117,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     asPlatform: (work) => withTenant(db, { tenant: 'platform', subject: 'test' }, work),
     declarations,
     directory,
+    documents,
     consumer: app.get(DeclarationSubmittedConsumer),
     activities: app.get(ProcessingActivities),
     async get(path, caller) {
@@ -114,12 +128,22 @@ export async function startReviewApi(): Promise<ReviewApi> {
         headers: { authorization: `Bearer ${token}` },
       });
     },
+    async send(method, path, caller, body) {
+      const token = await signer(caller);
+      return app.inject({
+        method,
+        url: path,
+        headers: { authorization: `Bearer ${token}` },
+        ...(body === undefined ? {} : { payload: body as object }),
+      });
+    },
     async reset() {
       await db.execute(
-        sql`truncate clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_cases, outbox, inbox`,
+        sql`truncate clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox`,
       );
       declarations.reset();
       directory.reset();
+      documents.reset();
     },
     async close() {
       // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.

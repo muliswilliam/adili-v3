@@ -130,11 +130,16 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
-          description: Declarations service unavailable; case metadata may still be shown by the client
+          description: >-
+            Problem type `declarations-unavailable`: the declaration could not be read. The problem
+            carries the rest of the case detail (document null, versions empty) so the client can still
+            show the case; no view is recorded.
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/ProblemDetails'
+                allOf:
+                  - $ref: '#/components/schemas/ProblemDetails'
+                  - $ref: '#/components/schemas/CaseDetail'
   /v1/review/cases/{caseId}/compare:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -187,6 +192,12 @@ paths:
                     format: date-time
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          description: 'Problem type `declarations-unavailable` or `documents-unavailable`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/claim:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -204,7 +215,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already assigned
+          description: 'Problem type `case-already-assigned`: another officer holds the case'
           content:
             application/problem+json:
               schema:
@@ -252,6 +263,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseListItem'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -282,6 +295,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/review/cases/{caseId}/flags/{flagId}/reviewed:
@@ -316,8 +331,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Flag'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem type `flag-already-reviewed`: the flag was marked reviewed before'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/clarifications:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -1861,10 +1884,17 @@ components:
             - type: 'null'
         versions:
           type: array
+          description: Every version the case has processed, from the review service's own records; only the current one's document is pulled
           items:
             type: object
-            required: [version, submittedAt, late]
+            required: [versionId, version, submittedAt, late, amendment]
             properties:
+              versionId:
+                type: string
+                format: uuid
+              amendment:
+                type: boolean
+                description: The version amended an earlier one of the same declaration
               version:
                 type: integer
               submittedAt:

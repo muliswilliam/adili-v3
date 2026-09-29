@@ -16,6 +16,8 @@ export const envSchema = baseEnvSchema.extend({
   DECLARATIONS_URL: z.url(),
   /** Base URL of the directory service, whose internal API serves Commission policies. */
   DIRECTORY_URL: z.url(),
+  /** Base URL of the documents service, whose internal API serves attachment downloads. */
+  DOCUMENTS_URL: z.url(),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('review'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

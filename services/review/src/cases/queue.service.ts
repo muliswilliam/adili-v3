@@ -20,14 +20,13 @@ import {
 import type { ReviewSchema } from '../db/schema.js';
 import { queueTenant } from './access.js';
 import { decodeQueueCursor, encodeQueueCursor, type QueueQuery } from './queue-query.js';
-import type { CaseListItem, CasePage, QueueSummary } from './representation.js';
 import {
-  CASE_STATUSES,
-  type ClarificationStatus,
-  clarifications,
-  PRIORITY_BANDS,
-  reviewCases,
-} from './schema.js';
+  caseListItem,
+  type CasePage,
+  type LatestClarification,
+  type QueueSummary,
+} from './representation.js';
+import { CASE_STATUSES, clarifications, PRIORITY_BANDS, reviewCases } from './schema.js';
 
 /**
  * A Commission's review queue (spec 07a): its cases ordered by score, then oldest first, with
@@ -76,7 +75,7 @@ export class QueueService {
         .orderBy(desc(reviewCases.score), asc(reviewCases.receivedAt), asc(reviewCases.id))
         .limit(query.limit + 1);
       const page = rows.slice(0, query.limit);
-      const latest = new Map<string, { status: ClarificationStatus; dueAt: Date | null }>();
+      const latest = new Map<string, LatestClarification>();
       if (page.length > 0) {
         const issued = await tx
           .select({
@@ -100,33 +99,7 @@ export class QueueService {
 
       const last = page.at(-1);
       return {
-        items: page.map((row): CaseListItem => {
-          const clarification = latest.get(row.id);
-          return {
-            id: row.id,
-            reference: row.reference,
-            declarantName: row.declarantName,
-            personnelFileNumber: row.personnelFileNumber,
-            type: row.type,
-            cycleYear: row.cycleYear,
-            receivedAt: row.receivedAt.toISOString(),
-            windowEndsAt: row.windowEndsAt.toISOString(),
-            late: row.late,
-            band: row.band,
-            status: row.status,
-            assignee:
-              row.assignee === null
-                ? null
-                : { subject: row.assignee, name: row.assigneeName ?? row.assignee },
-            openFlags: row.openFlags,
-            clarification: {
-              open: row.openClarifications,
-              status: clarification?.status ?? null,
-              dueAt: clarification?.dueAt?.toISOString() ?? null,
-            },
-            currentVersion: row.currentVersion,
-          };
-        }),
+        items: page.map((row) => caseListItem(row, latest.get(row.id))),
         nextCursor:
           rows.length > query.limit && last
             ? encodeQueueCursor({
