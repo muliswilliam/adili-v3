@@ -1,3 +1,4 @@
+import type { DeterminationView } from '../determinations/representation.js';
 import type { Evidence, ItemRef, Severity } from '../rules/index.js';
 import type {
   CaseStatus,
@@ -167,6 +168,8 @@ export interface CaseDetail {
   document: Record<string, unknown> | null;
   versions: CaseVersionView[];
   reviewerHistory: Assignee[];
+  /** Every determination of the case, oldest first: the current one last (spec 08). */
+  determinations: DeterminationView[];
 }
 
 /** A short-lived link to an attachment of the declaration under review. */

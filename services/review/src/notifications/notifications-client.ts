@@ -6,7 +6,9 @@ export type ReviewTemplate =
   | 'clarification-issued-email'
   | 'clarification-issued-sms'
   | 'clarification-reminder-email'
-  | 'clarification-reminder-sms';
+  | 'clarification-reminder-sms'
+  | 'decision-email'
+  | 'decision-sms';
 
 /**
  * A templated message to a person, whose verified contacts the notifications service resolves

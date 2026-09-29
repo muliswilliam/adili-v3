@@ -14,14 +14,21 @@ export interface UploadDownload {
 export type RevocationReason = 'issued-in-error';
 
 /**
- * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010). For a clarification letter the payload names the clarification only: the documents
- * service pulls the fields the template renders from the review service's
- * `internalGetClarificationLetterPayload`, so no personal data travels in the request's logs or in
- * workflow history.
+ * The letters the review service issues, and the record whose letter payload each names: the
+ * documents service pulls the fields the template renders from the review service's letter payload
+ * endpoint for that record (`internalGetClarificationLetterPayload`,
+ * `internalGetDeterminationLetterPayload`), so no personal data travels in the request's logs or
+ * in workflow history.
  */
-export interface IssueDocumentRequest {
-  type: 'clarification-letter';
+export type ReviewLetter =
+  | { type: 'clarification-letter'; payload: { clarificationId: string } }
+  | { type: 'decision-letter'; payload: { determinationId: string } };
+
+/**
+ * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
+ * ADR-010): a Restricted letter of the review service.
+ */
+export type IssueDocumentRequest = ReviewLetter & {
   templateVersion: number;
   disclosureLevel: 'restricted';
   issuerTenant: string;
@@ -29,15 +36,14 @@ export interface IssueDocumentRequest {
   subjectRef: string;
   /** The person allowed to download the document (the documents owner rule). */
   subjectPersonId: string;
-  payload: { clarificationId: string };
   /** Shown on the verify page: reference, type, issuer and issue time. */
   publicPayload: {
     reference: string;
-    type: 'clarification-letter';
+    type: ReviewLetter['type'];
     issuer: string;
     issuedAt: string;
   };
-}
+};
 
 /** What the review service keeps of an issued document (documents.yaml `IssuedDocument`). */
 export interface IssuedDocument {

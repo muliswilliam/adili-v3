@@ -98,7 +98,11 @@ export type TimelineKind =
   | 'clarification-follow-up'
   | 'clarification-overdue'
   | 'clarification-reminder-sent'
-  | 'status-changed';
+  | 'status-changed'
+  | 'determination-proposed'
+  | 'determination-approved'
+  | 'determination-returned'
+  | 'determination-withdrawn';
 
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 

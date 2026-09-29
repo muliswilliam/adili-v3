@@ -9,6 +9,7 @@ import type { ProcessingInput, ProcessingResult } from './contract.js';
 
 // The worker bundles this module: every workflow of the review service is exported from it.
 export { clarification } from '../clarifications/workflows.js';
+export { determinationIssuance } from '../determinations/workflows.js';
 
 /**
  * Pulls from declarations and the directory, and database work: retried with backoff until they

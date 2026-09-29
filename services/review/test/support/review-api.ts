@@ -131,11 +131,14 @@ export async function startReviewApi(): Promise<ReviewApi> {
   await app.getHttpAdapter().getInstance().ready();
 
   // The documents service pulls a letter's fields with its own service token (review:internal).
-  documents.payloadSource = async (tenant, clarificationId) => {
+  documents.payloadSource = async (tenant, letter) => {
     const token = await signer({ sub: 'service-account-documents', scopes: ['review:internal'] });
     const response = await app.inject({
       method: 'GET',
-      url: `/internal/v1/review/clarifications/${clarificationId}/letter-payload`,
+      url:
+        letter.type === 'clarification-letter'
+          ? `/internal/v1/review/clarifications/${letter.payload.clarificationId}/letter-payload`
+          : `/internal/v1/review/determinations/${letter.payload.determinationId}/letter-payload`,
       headers: { authorization: `Bearer ${token}`, 'x-acting-tenant': tenant },
     });
     return { status: response.statusCode, body: response.json<unknown>() };
@@ -171,7 +174,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
+        sql`truncate approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
       );
       declarations.reset();
       directory.reset();

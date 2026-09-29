@@ -639,6 +639,24 @@ paths:
           $ref: '#/components/responses/DeclarationsUnavailable'
         '503':
           $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/determinations/{determinationId}/letter-payload:
+    parameters:
+      - $ref: '#/components/parameters/DeterminationId'
+    get:
+      tags: [internal]
+      operationId: internalGetDeterminationLetterPayload
+      summary: Fields the decision letter template needs (documents service)
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeterminationLetterPayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -700,7 +718,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: A determination is already proposed or approved
+          description: 'A determination is already proposed or approved: problem code `determination-open`'
           content:
             application/problem+json:
               schema:
@@ -738,7 +756,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Determination'
         '403':
-          description: 'Problem code `separation-of-duties` or role'
+          description: 'Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role)'
           content:
             application/problem+json:
               schema:
@@ -746,11 +764,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not proposed
+          description: 'Not proposed: problem code `not-proposed`'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/determinations/{determinationId}/return:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
@@ -772,9 +792,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Determination'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `separation-of-duties` or `supervisor-required`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/determinations/{determinationId}/withdraw:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
@@ -793,6 +823,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/determinations/{determinationId}/letter:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
@@ -855,10 +891,21 @@ paths:
                     type: [string, 'null']
                   counts:
                     type: object
+                    description: 'Pending approvals by kind (`determination`, `action`, `referral`) and by age band (`under-7-days`, `7-to-30-days`, `over-30-days`), whatever the kind filter'
                     additionalProperties:
                       type: integer
+        '400':
+          description: The cursor is not one this inbox issued
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `supervisor-required`: approvals are for supervisors'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/review/approvals/{kind}/{subjectId}/reassign:
@@ -891,10 +938,24 @@ paths:
       responses:
         '200':
           description: Reassigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalReassignment'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `supervisor-required`: approvals are for supervisors'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Decided already: problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/closures:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -1953,6 +2014,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Assignee'
+        determinations:
+          type: array
+          description: Every determination of the case, oldest first; the current one is last
+          items:
+            $ref: '#/components/schemas/Determination'
     VersionComparison:
       type: object
       required: [previousVersion, currentVersion, statements]
@@ -2397,6 +2463,16 @@ components:
           format: date-time
         returnReason:
           type: [string, 'null']
+        returnedBy:
+          description: The supervisor who returned it; null unless returned
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        returnedAt:
+          type: [string, 'null']
+          format: date-time
+        furtherActionNote:
+          type: [string, 'null']
         reference:
           type: [string, 'null']
           description: 'CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval'
@@ -2793,6 +2869,58 @@ components:
           type: string
         personnelFileNumber:
           type: string
+    ApprovalReassignment:
+      type: object
+      required: [kind, subjectId, reassignedTo]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ApprovalKind'
+        subjectId:
+          type: string
+          format: uuid
+        reassignedTo:
+          $ref: '#/components/schemas/Assignee'
+    DeterminationLetterPayload:
+      type: object
+      required:
+        [
+          declarantName,
+          commission,
+          declarationReference,
+          determinationReference,
+          outcome,
+          outcomeLabel,
+          reasons,
+          decidedAt,
+          portalUrl,
+        ]
+      properties:
+        declarantName:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarationReference:
+          type: string
+        determinationReference:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/DeterminationOutcome'
+        outcomeLabel:
+          type: string
+        reasons:
+          type: string
+        decidedAt:
+          type: string
+          format: date-time
+        portalUrl:
+          type: string
+          format: uri
     DeclarantDecision:
       type: object
       required:

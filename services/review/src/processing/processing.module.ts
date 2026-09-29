@@ -5,6 +5,7 @@ import { TemporalWorkerModule } from '@adili/temporal';
 
 import { ClarificationActivities } from '../clarifications/activities.js';
 import { ClockModule } from '../clock.module.js';
+import { DeterminationActivities } from '../determinations/activities.js';
 import { config } from '../config.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
@@ -24,8 +25,8 @@ const workflowsPath = fileURLToPath(
 
 /**
  * Processing of submitted declarations (spec 07a): the `declaration.submitted.v1` consumer and the
- * review worker hosting `DeclarationProcessingWorkflow`, `ClarificationWorkflow` and their
- * activities.
+ * review worker hosting `DeclarationProcessingWorkflow`, `ClarificationWorkflow`,
+ * `DeterminationIssuanceWorkflow` and their activities.
  */
 @Module({
   imports: [
@@ -35,7 +36,7 @@ const workflowsPath = fileURLToPath(
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
       // One worker per service: every workflow of the review service runs on this queue.
-      activities: [ProcessingActivities, ClarificationActivities],
+      activities: [ProcessingActivities, ClarificationActivities, DeterminationActivities],
       imports: [
         ClockModule,
         DeclarationsModule,

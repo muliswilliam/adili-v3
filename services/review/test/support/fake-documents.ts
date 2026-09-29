@@ -5,6 +5,7 @@ import {
   DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type ReviewLetter,
   type RevocationReason,
   type UploadDownload,
 } from '../../src/documents/documents-client.js';
@@ -13,7 +14,7 @@ import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
 /** How the fake documents service pulls a letter's fields, as the real one would over HTTP. */
 export type PayloadSource = (
   tenant: string,
-  clarificationId: string,
+  letter: ReviewLetter,
 ) => Promise<{ status: number; body: unknown }>;
 
 export interface IssuedLetter {
@@ -35,8 +36,8 @@ export interface FakeUpload {
 /**
  * The documents internal API for tests: uploads per Commission, and a record of every download
  * link issued (which upload, for which Commission) and every document revoked. Each document
- * issued pulls the letter payload by clarification id from the review service (as documents does
- * when it renders the template) and records what it got.
+ * issued pulls the letter payload by the record it names (clarification or determination) from the
+ * review service (as documents does when it renders the template) and records what it got.
  */
 export class FakeDocuments extends DocumentsClient {
   readonly downloads: { uploadId: string; tenant: string }[] = [];
@@ -112,7 +113,7 @@ export class FakeDocuments extends DocumentsClient {
       throw new DocumentsUnavailable('The documents service is unreachable');
     }
     if (!this.payloadSource) throw new Error('No payload source for the fake documents service');
-    const pulled = await this.payloadSource(request.issuerTenant, request.payload.clarificationId);
+    const pulled = await this.payloadSource(request.issuerTenant, request);
     if (pulled.status !== 200) {
       throw new DocumentsUnavailable(`The payload pull answered ${String(pulled.status)}`);
     }

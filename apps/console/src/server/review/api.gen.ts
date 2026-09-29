@@ -388,6 +388,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/determinations/{determinationId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                determinationId: components["parameters"]["DeterminationId"];
+            };
+            cookie?: never;
+        };
+        /** Fields the decision letter template needs (documents service) */
+        get: operations["internalGetDeterminationLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -1150,6 +1169,8 @@ export interface components {
                 late: boolean;
             }[];
             reviewerHistory: components["schemas"]["Assignee"][];
+            /** @description Every determination of the case, oldest first; the current one is last */
+            determinations?: components["schemas"]["Determination"][];
         };
         VersionComparison: {
             previousVersion: number;
@@ -1341,6 +1362,11 @@ export interface components {
             /** Format: date-time */
             approvedAt: string | null;
             returnReason: string | null;
+            /** @description The supervisor who returned it; null unless returned */
+            returnedBy?: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            returnedAt?: string | null;
+            furtherActionNote?: string | null;
             /** @description CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval */
             reference: string | null;
             letterAvailable: boolean;
@@ -1500,6 +1526,28 @@ export interface components {
             sentAt: string | null;
             declarantName: string;
             personnelFileNumber: string;
+        };
+        ApprovalReassignment: {
+            kind: components["schemas"]["ApprovalKind"];
+            /** Format: uuid */
+            subjectId: string;
+            reassignedTo: components["schemas"]["Assignee"];
+        };
+        DeterminationLetterPayload: {
+            declarantName: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarationReference: string;
+            determinationReference: string;
+            outcome: components["schemas"]["DeterminationOutcome"];
+            outcomeLabel: string;
+            reasons: string;
+            /** Format: date-time */
+            decidedAt: string;
+            /** Format: uri */
+            portalUrl: string;
         };
         DeclarantDecision: {
             /** Format: uuid */
@@ -2301,6 +2349,30 @@ export interface operations {
             503: components["responses"]["DirectoryUnavailable"];
         };
     };
+    internalGetDeterminationLetterPayload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                determinationId: components["parameters"]["DeterminationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeterminationLetterPayload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
     getCaseRegistryChecks: {
         parameters: {
             query?: never;
@@ -2381,7 +2453,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description A determination is already proposed or approved */
+            /** @description A determination is already proposed or approved: problem code `determination-open` */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2437,7 +2509,7 @@ export interface operations {
                     "application/json": components["schemas"]["Determination"];
                 };
             };
-            /** @description Problem code `separation-of-duties` or role */
+            /** @description Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2447,7 +2519,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Not proposed */
+            /** @description Not proposed: problem code `not-proposed` */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2456,6 +2528,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     returnDetermination: {
@@ -2482,8 +2555,25 @@ export interface operations {
                     "application/json": components["schemas"]["Determination"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Problem code `separation-of-duties` or `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     withdrawDetermination: {
@@ -2508,6 +2598,15 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getDeterminationLetter: {
@@ -2566,13 +2665,31 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["ApprovalItem"][];
                         nextCursor: string | null;
+                        /** @description Pending approvals by kind (`determination`, `action`, `referral`) and by age band (`under-7-days`, `7-to-30-days`, `over-30-days`), whatever the kind filter */
                         counts: {
                             [key: string]: number;
                         };
                     };
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description The cursor is not one this inbox issued */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `supervisor-required`: approvals are for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -2599,10 +2716,29 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ApprovalReassignment"];
+                };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Problem code `supervisor-required`: approvals are for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Decided already: problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getBulkClosureSummary: {

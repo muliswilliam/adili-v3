@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
 import { format, InvalidReferenceError, parse } from './reference.js';
-import { CLR, defineScheme, OFR } from './schemes.js';
+import { CLR, CMP, defineScheme, OFR } from './schemes.js';
 
 // Test-only scheme with issuer and period, to exercise the full ADR-011 shape.
 const DCB = defineScheme({ code: 'DCB', issuer: true, period: true, sequenceDigits: 7 });
@@ -64,6 +64,17 @@ describe('parse', () => {
       issuer: 'PSC',
       period: 2028,
       sequence: 451,
+    });
+  });
+
+  it('knows CMP by default, with issuer and year of approval', () => {
+    const reference = format(CMP, { issuer: 'PSC', period: 2027, sequence: 1 });
+    expect(reference).toMatch(/^CMP-PSC-2027-0000001-[0-9A-Z]$/);
+    expect(parse(reference)).toMatchObject({
+      scheme: 'CMP',
+      issuer: 'PSC',
+      period: 2027,
+      sequence: 1,
     });
   });
 

@@ -36,5 +36,11 @@ export const OFR = defineScheme({ code: 'OFR', issuer: false, period: false, seq
  */
 export const CLR = defineScheme({ code: 'CLR', issuer: true, period: true, sequenceDigits: 7 });
 
-/** Schemes this package knows; later slices add theirs (DCB, CMP...) the same way. */
-export const numberingSchemes: readonly NumberingScheme[] = [OFR, CLR];
+/**
+ * Compliance determination (spec 08): numbered by the Responsible Commission when a supervisor
+ * approves it, per Commission and calendar year of approval. `CMP-PSC-2027-0000001-7`.
+ */
+export const CMP = defineScheme({ code: 'CMP', issuer: true, period: true, sequenceDigits: 7 });
+
+/** Schemes this package knows; later slices add theirs (DCB, ADM, RFL...) the same way. */
+export const numberingSchemes: readonly NumberingScheme[] = [OFR, CLR, CMP];

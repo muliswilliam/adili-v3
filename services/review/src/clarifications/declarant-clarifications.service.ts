@@ -240,7 +240,7 @@ function personSubject(personId: string): string {
 }
 
 /** The person's row-level security context (`app.person`) for the rest of the transaction. */
-async function asPerson(tx: ReviewTransaction, personId: string): Promise<void> {
+export async function asPerson(tx: ReviewTransaction, personId: string): Promise<void> {
   await tx.execute(
     sql`select set_config('app.person', ${personId}, true), set_config('app.subject', ${personSubject(personId)}, true)`,
   );

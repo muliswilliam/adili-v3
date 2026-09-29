@@ -1,0 +1,136 @@
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  ApiProblemResponse,
+  CurrentPrincipal,
+  type Principal,
+  RequireIdempotencyKey,
+  schemaRef,
+  ZodValidationPipe,
+} from '@adili/api-kit';
+import { z } from 'zod';
+
+import {
+  type DeterminationInput,
+  determinationInput,
+  type ReasonInput,
+  reasonInput,
+} from './determination-input.js';
+import { DeterminationsService } from './determinations.service.js';
+import type { DeterminationView } from './representation.js';
+
+const NOT_VISIBLE = 'Not found, or not visible to the caller';
+const DECIDER =
+  'Problem code `separation-of-duties` (the caller proposed it or held the case) or `supervisor-required`';
+
+const uuidParam = z.uuid();
+
+const ApiUuidParam = (name: string) =>
+  ApiParam({ name, schema: { type: 'string', format: 'uuid' } });
+
+/**
+ * Compliance determinations for the Commission's reviewers and supervisors (spec 08). The case's
+ * assignee proposes; a supervisor who neither proposed it nor held the case approves or returns;
+ * the proposer withdraws. Anyone outside the Commission's review staff gets 404.
+ */
+@ApiTags('determinations')
+@Controller('v1/review')
+export class DeterminationsController {
+  constructor(private readonly determinations: DeterminationsService) {}
+
+  @Post('cases/:caseId/determinations')
+  @ApiUuidParam('caseId')
+  @ApiOperation({
+    operationId: 'proposeDetermination',
+    summary: 'Propose a compliance determination (assignee)',
+  })
+  @ApiCreatedResponse({ description: 'Proposed', schema: schemaRef('Determination') })
+  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(403, 'Problem code `not-the-assignee`')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `determination-open`: one is already proposed or approved')
+  propose(
+    @CurrentPrincipal() principal: Principal,
+    @Param('caseId', new ZodValidationPipe(uuidParam)) caseId: string,
+    @Body(new ZodValidationPipe(determinationInput)) body: DeterminationInput,
+  ): Promise<DeterminationView> {
+    return this.determinations.propose(principal, caseId, body);
+  }
+
+  @Get('determinations/:determinationId')
+  @ApiUuidParam('determinationId')
+  @ApiOperation({ operationId: 'getDetermination', summary: 'One determination' })
+  @ApiOkResponse({ description: 'Determination', schema: schemaRef('Determination') })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  get(
+    @CurrentPrincipal() principal: Principal,
+    @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
+  ): Promise<DeterminationView> {
+    return this.determinations.get(principal, determinationId);
+  }
+
+  @Post('determinations/:determinationId/approve')
+  @HttpCode(200)
+  @RequireIdempotencyKey()
+  @ApiUuidParam('determinationId')
+  @ApiOperation({
+    operationId: 'approveDetermination',
+    summary:
+      'Approve (supervisor who is neither proposer nor reviewer of record); allocates CMP and issues the letter',
+  })
+  @ApiOkResponse({ description: 'Approved', schema: schemaRef('Determination') })
+  @ApiProblemResponse(403, DECIDER)
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `not-proposed`')
+  @ApiProblemResponse(503, 'The Commission directory could not be reached; nothing changed')
+  approve(
+    @CurrentPrincipal() principal: Principal,
+    @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
+  ): Promise<DeterminationView> {
+    return this.determinations.approve(principal, determinationId);
+  }
+
+  @Post('determinations/:determinationId/return')
+  @HttpCode(200)
+  @ApiUuidParam('determinationId')
+  @ApiOperation({
+    operationId: 'returnDetermination',
+    summary: 'Return to the proposer with a reason',
+  })
+  @ApiOkResponse({ description: 'Returned', schema: schemaRef('Determination') })
+  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(403, DECIDER)
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `not-proposed`')
+  return(
+    @CurrentPrincipal() principal: Principal,
+    @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
+    @Body(new ZodValidationPipe(reasonInput)) body: ReasonInput,
+  ): Promise<DeterminationView> {
+    return this.determinations.return(principal, determinationId, body);
+  }
+
+  @Post('determinations/:determinationId/withdraw')
+  @HttpCode(200)
+  @ApiUuidParam('determinationId')
+  @ApiOperation({
+    operationId: 'withdrawDetermination',
+    summary: 'Proposer withdraws while proposed',
+  })
+  @ApiOkResponse({ description: 'Withdrawn', schema: schemaRef('Determination') })
+  @ApiProblemResponse(403, 'Problem code `not-the-proposer`')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `not-proposed`')
+  withdraw(
+    @CurrentPrincipal() principal: Principal,
+    @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
+  ): Promise<DeterminationView> {
+    return this.determinations.withdraw(principal, determinationId);
+  }
+}
