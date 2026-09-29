@@ -180,6 +180,14 @@ describe('AssistantMessage', () => {
     expect(status()).toBe('No. Declare the whole value.');
   });
 
+  it('reads a retried answer from its start when it streams straight away', () => {
+    const { rerender } = render(<AssistantMessage status="streaming" text="Yes. A vehicle" />);
+    rerender(<AssistantMessage status="error" text="Yes. A vehicle" />);
+    rerender(<AssistantMessage status="streaming" text="No. Declare the whole value. It" />);
+
+    expect(status()).toBe('No. Declare the whole value.');
+  });
+
   it('says when too many questions were asked', () => {
     const { container } = render(<AssistantMessage status="rate-limited" />);
 

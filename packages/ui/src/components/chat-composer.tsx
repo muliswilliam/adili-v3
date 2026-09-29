@@ -70,7 +70,7 @@ export function ChatComposer({
       noValidate
       onSubmit={send}
       className={cn(
-        'flex items-end gap-2 rounded-[14px] bg-card py-1.5 pr-1.5 pl-3 shadow-control focus-within:shadow-control-focus',
+        'flex items-end gap-2 rounded-item bg-card py-1.5 pr-1.5 pl-3 shadow-control focus-within:shadow-control-focus',
         disabled && 'opacity-50',
         className,
       )}

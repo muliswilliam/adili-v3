@@ -87,7 +87,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
 | `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
-| `rounded-item` | 14px | | `Repeater` item cards and their add button |
+| `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips |
 | `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
 
 Dialogs use 20px (22px at the top of the phone sheet), as in the kit.

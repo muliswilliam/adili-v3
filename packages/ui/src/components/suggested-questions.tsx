@@ -54,7 +54,7 @@ export function SuggestedQuestions({
               }}
               className={cn(
                 focusRing,
-                'cursor-pointer rounded-[14px] bg-card px-3 py-[7px] text-left text-[13.5px] leading-[1.35] text-ai-subtle-foreground shadow-[0_0_0_1px] shadow-ai/25 hover:bg-ai-subtle disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-card',
+                'cursor-pointer rounded-item bg-card px-3 py-[7px] text-left text-[13.5px] leading-[1.35] text-ai-subtle-foreground shadow-[0_0_0_1px] shadow-ai/25 hover:bg-ai-subtle disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-card',
               )}
             >
               {question}

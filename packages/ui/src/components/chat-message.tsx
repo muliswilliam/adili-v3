@@ -68,7 +68,7 @@ const DEFAULT_MESSAGES: Omit<ChatMessageMessages, keyof CitationMessages> = {
   rateLimited: 'You have asked many questions in a short time. Try again in a minute.',
 };
 
-const bubbleClassName = 'rounded-[14px] px-[13px] py-2.5 text-sm leading-[1.55]';
+const bubbleClassName = 'rounded-item px-[13px] py-2.5 text-sm leading-[1.55]';
 
 export type UserMessageProps = Omit<ComponentProps<'div'>, 'children'> & {
   text: string;
@@ -102,7 +102,7 @@ export type AssistantMessageProps = Omit<ComponentProps<'div'>, 'children'> & {
   onReadPassage?: (citation: Citation) => void;
   /** Who a declined answer points to. */
   officer?: ReportingOfficer;
-  /** Asks again after `error` or `rate-limited`; the button is left out without it. */
+  /** Asks again after `error`; the button is left out without it. */
   onRetry?: () => void;
   /** Under an answered or declined message: the section link and the FeedbackControl. */
   actions?: ReactNode;
@@ -111,7 +111,7 @@ export type AssistantMessageProps = Omit<ComponentProps<'div'>, 'children'> & {
 
 // Shown on mount only when the message is new; answered and declined messages can come from
 // history, so they speak only when they change.
-const NEW_ONLY: readonly AssistantMessageStatus[] = ['answered', 'declined'];
+const SILENT_FROM_HISTORY: readonly AssistantMessageStatus[] = ['answered', 'declined'];
 
 /**
  * An answer from Adili, in every state: thinking (three dots), streaming (with a caret), answered
@@ -139,16 +139,19 @@ export function AssistantMessage({
   const officerName = officer?.name;
 
   useEffect(() => {
-    const first = previousStatus.current === null;
-    const changed = previousStatus.current !== status;
+    const previous = previousStatus.current;
+    const first = previous === null;
+    const changed = previous !== status;
     previousStatus.current = status;
 
     // A message from history starts with its text already read.
-    announced.current ??= NEW_ONLY.includes(status) ? text.length : 0;
-    if (first && NEW_ONLY.includes(status)) return;
+    announced.current ??= SILENT_FROM_HISTORY.includes(status) ? text.length : 0;
+    if (first && SILENT_FROM_HISTORY.includes(status)) return;
 
-    // Try again streams a new answer, so its sentences are counted from the start.
-    if (status === 'thinking') announced.current = 0;
+    // Asking again streams a new answer, so its sentences are counted from the start.
+    if (status === 'thinking' || previous === 'error' || previous === 'rate-limited') {
+      announced.current = 0;
+    }
 
     let next = '';
     if (status === 'streaming' || status === 'answered') {
