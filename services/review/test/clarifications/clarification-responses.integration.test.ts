@@ -25,6 +25,7 @@ import { asset, declaration, SPOUSE, statement } from '../fixtures/declarations.
 import { contractErrors, okResponse } from '../support/contract.js';
 import { submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
+import { historyPayloads } from '../support/workflow-history.js';
 
 /**
  * S13 (the activities behind the workflow's clock, against the database), S14 and S15 at the HTTP
@@ -126,8 +127,6 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
         submittedAt: version.submittedAt,
         late: false,
         dueDate: '2027-12-31',
-        declarantName: 'James Otieno',
-        personnelFileNumber: 'PSC/2019/0042',
       },
       flags: [],
     });
@@ -322,6 +321,27 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
       const staffView = await api.get(`/v1/review/clarifications/${clarification.id}`, reviewerA);
       expect(staffView.json<ClarificationView>().response?.items).toHaveLength(2);
       await expectNoContentInEvents();
+    });
+
+    it("keeps the declarant's name, file number, items and answers out of the workflow history", async () => {
+      const caseId = await givenAssignedCase();
+      const clarification = await issued(caseId);
+      await letterOf(clarification.id);
+      expect((await respond(clarification.id)).statusCode).toBe(201);
+      expect(await workflowResult(clarification.id)).toEqual({ outcome: 'responded' });
+
+      const history = await historyPayloads(temporal, clarificationWorkflowId(clarification.id));
+
+      expect(history).toContain(clarification.id);
+      for (const personal of [
+        version.declarantName,
+        version.personnelFileNumber,
+        clarification.reference ?? 'CLR-',
+        ...twoItems.items.map((item) => item.text),
+        ...answers.items.map((item) => item.text),
+      ]) {
+        expect(history).not.toContain(personal);
+      }
     });
 
     it('a second response is 409 already-responded; the first stands', async () => {

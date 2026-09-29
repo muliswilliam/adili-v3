@@ -106,8 +106,6 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
         submittedAt: version.submittedAt,
         late: false,
         dueDate: '2027-12-31',
-        declarantName: 'James Otieno',
-        personnelFileNumber: 'PSC/2019/0042',
       },
       flags: [],
     });

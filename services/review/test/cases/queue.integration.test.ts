@@ -7,7 +7,9 @@ import type { CaseListItem, CasePage, QueueSummary } from '../../src/cases/repre
 import { clarifications, reviewCases } from '../../src/db/schema.js';
 import type { VersionFacts } from '../../src/processing/contract.js';
 import type { Flag, Severity } from '../../src/rules/index.js';
+import { declaration, statement } from '../fixtures/declarations.js';
 import { contractErrors, okResponse } from '../support/contract.js';
+import { submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
 
 /** S7 (and the queue half of S18) at the HTTP seam. */
@@ -57,20 +59,35 @@ describe('review queue and summary', () => {
   /** A case as the processing workflow leaves it; returns its id. */
   async function givenCase(fixture: CaseFixture): Promise<string> {
     const tenant = fixture.tenant ?? 'psc';
+    const version = submittedVersion({
+      tenant,
+      reference:
+        fixture.reference ?? `DEC-${tenant.toUpperCase()}-2027-${randomUUID().slice(0, 7)}-1`,
+      type: fixture.type ?? 'biennial',
+      statementDate: fixture.statementDate ?? '2027-11-01',
+      submittedAt: fixture.submittedAt,
+      late: fixture.late ?? false,
+      declarantName: fixture.declarantName ?? 'Achieng Otieno',
+      personnelFileNumber:
+        fixture.personnelFileNumber ?? `${tenant.toUpperCase()}/${randomUUID().slice(0, 6)}`,
+      document: declaration([statement('officer')]),
+    });
+    api.declarations.given(version);
     const result = await api.activities.upsertCase({
-      input: { tenant, declarationId: randomUUID(), versionId: randomUUID(), version: 1 },
+      input: {
+        tenant,
+        declarationId: version.declarationId,
+        versionId: version.versionId,
+        version: 1,
+      },
       facts: {
-        personId: randomUUID(),
-        reference:
-          fixture.reference ?? `DEC-${tenant.toUpperCase()}-2027-${randomUUID().slice(0, 7)}-1`,
-        type: fixture.type ?? 'biennial',
-        statementDate: fixture.statementDate ?? '2027-11-01',
-        submittedAt: fixture.submittedAt,
-        late: fixture.late ?? false,
-        dueDate: '2027-12-31',
-        declarantName: fixture.declarantName ?? 'Achieng Otieno',
-        personnelFileNumber:
-          fixture.personnelFileNumber ?? `${tenant.toUpperCase()}/${randomUUID().slice(0, 6)}`,
+        personId: version.personId,
+        reference: version.reference,
+        type: version.type,
+        statementDate: version.statementDate,
+        submittedAt: version.submittedAt,
+        late: version.late,
+        dueDate: version.dueDate,
       },
       flags: (fixture.severities ?? []).map(flagOf),
     });

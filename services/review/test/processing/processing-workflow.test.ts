@@ -5,7 +5,7 @@ import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { ProcessingActivities } from '../../src/processing/activities.js';
+import { ProcessingActivities } from '../../src/processing/activities.js';
 import {
   type PreviousVersion,
   type ProcessingInput,
@@ -16,6 +16,9 @@ import {
 } from '../../src/processing/contract.js';
 import { declarationProcessing } from '../../src/processing/workflows.js';
 import type { Flag } from '../../src/rules/index.js';
+import { declaration, statement } from '../fixtures/declarations.js';
+import { FakeDeclarations, submittedVersion } from '../support/fake-declarations.js';
+import { historyPayloads } from '../support/workflow-history.js';
 
 /**
  * `DeclarationProcessingWorkflow` against mocked activities in Temporal's time-skipping test
@@ -40,8 +43,6 @@ const facts: VersionFacts = {
   submittedAt: '2027-12-10T09:00:00.000Z',
   late: false,
   dueDate: '2027-12-31',
-  declarantName: 'James Otieno',
-  personnelFileNumber: 'PSC/0001',
 };
 
 const noPrevious: Flag = {
@@ -158,6 +159,42 @@ describe('DeclarationProcessingWorkflow', () => {
     expect(result).toEqual({ outcome: 'missing' });
     expect(mocks.runRules).not.toHaveBeenCalled();
     expect(mocks.upsertCase).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it("keeps the declarant's name and personnel file number out of the workflow history", async () => {
+    const declarations = new FakeDeclarations();
+    declarations.given(
+      submittedVersion({
+        tenant: input.tenant,
+        declarationId: input.declarationId,
+        versionId: input.versionId,
+        declarantName: 'James Otieno',
+        personnelFileNumber: 'PSC/2019/0042',
+        document: declaration([statement('officer')]),
+      }),
+    );
+    // The real pull, against the fake declarations service: what it hands on enters the history.
+    const real = new ProcessingActivities(
+      undefined as never,
+      undefined as never,
+      declarations,
+      undefined as never,
+    );
+    let workflowId = '';
+    const mocks = activities({
+      pullVersion: (request) => real.pullVersion(request),
+      upsertCase: vi.fn(() => {
+        workflowId = Context.current().info.workflowExecution?.workflowId ?? '';
+        return Promise.resolve({ outcome: 'created' as const, caseId: 'case-1' });
+      }),
+    });
+
+    await env.execute(declarationProcessing, { workflowsPath, activities: mocks, args: [input] });
+
+    const history = await historyPayloads(env.env.client, workflowId);
+    expect(history).toContain(input.versionId);
+    expect(history).not.toContain('James Otieno');
+    expect(history).not.toContain('PSC/2019/0042');
   }, 60_000);
 
   it('does not retry a version that disappeared between pulls', async () => {

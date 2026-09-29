@@ -177,10 +177,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const flags = await api.activities.runRules({ input, facts, previous: null });
 
     const first = await api.activities.upsertCase({ input, facts, flags });
-    const second = await api.activities.upsertCase({ input, facts, flags });
+    const again = await api.activities.upsertCase({ input, facts, flags });
 
     expect(first.outcome).toBe('created');
-    expect(second).toEqual({ outcome: 'unchanged', caseId: first.caseId });
+    expect(again).toEqual({ outcome: 'unchanged', caseId: first.caseId });
     expect(await casesOf(version.declarationId)).toHaveLength(1);
     const flagRows = await api.asPlatform((tx) =>
       tx.select().from(reviewFlags).where(eq(reviewFlags.caseId, first.caseId)),
@@ -189,8 +189,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     expect(await api.db.select().from(outbox)).toHaveLength(1);
 
     // A later version of the case takes the amendment path (S6, amendment.integration.test.ts).
+    const second = { ...version, versionId: crypto.randomUUID(), version: 2 };
+    api.declarations.given(second);
     const amended = await api.activities.upsertCase({
-      input: { ...input, versionId: crypto.randomUUID(), version: 2 },
+      input: { ...input, versionId: second.versionId, version: 2 },
       facts,
       flags,
     });

@@ -2,9 +2,11 @@
  * What passes between `DeclarationProcessingWorkflow`, its activities and the consumer that starts
  * it. Bundled into the workflow sandbox: types and constants only.
  *
- * Declaration content never passes through the workflow: it would sit in Temporal's history, a
- * second store of financial content. Activities pull the document where they use it and hand on
- * clear facts only (metadata, and flags whose evidence is percentages, counts and dates).
+ * Declaration content and personal data never pass through the workflow: they would sit in
+ * Temporal's history, a second store. Activities pull the document where they use it and hand on
+ * ids, versions, numbers, flags and dates only (flags' evidence is percentages, counts and dates).
+ * The declarant's name and personnel file number, the queue's read model, are pulled and written
+ * by `upsertCase` itself.
  */
 import type { Flag } from '../rules/index.js';
 
@@ -24,7 +26,7 @@ export interface ProcessingInput {
   version: number;
 }
 
-/** The version's metadata as `pullVersion` found it: no content. */
+/** The version's metadata as `pullVersion` found it: no content, no names. */
 export interface VersionFacts {
   personId: string;
   reference: string;
@@ -33,9 +35,6 @@ export interface VersionFacts {
   submittedAt: string;
   late: boolean;
   dueDate: string;
-  /** Read model for queue search (confidential, tenant-scoped in the review database). */
-  declarantName: string;
-  personnelFileNumber: string;
 }
 
 /** The person's previous submitted version at the Commission, as the declarations lookup gives it. */

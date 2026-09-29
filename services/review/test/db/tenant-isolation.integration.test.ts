@@ -5,6 +5,8 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { clarifications, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
+import { declaration, statement } from '../fixtures/declarations.js';
+import { submittedVersion } from '../support/fake-declarations.js';
 import { type ReviewApi, startReviewApi } from '../support/review-api.js';
 
 /** Row-level security of the review tables (ADR-006). */
@@ -16,18 +18,29 @@ describe('review tables under row-level security', () => {
   beforeAll(async () => {
     api = await startReviewApi();
     api.directory.givenCommission('psc');
+    const version = submittedVersion({
+      tenant: 'psc',
+      personId,
+      reference: 'DEC-PSC-2027-0000009-2',
+      submittedAt: '2027-12-01T08:00:00Z',
+      document: declaration([statement('officer')]),
+    });
+    api.declarations.given(version);
     ({ caseId } = await api.activities.upsertCase({
-      input: { tenant: 'psc', declarationId: randomUUID(), versionId: randomUUID(), version: 1 },
+      input: {
+        tenant: 'psc',
+        declarationId: version.declarationId,
+        versionId: version.versionId,
+        version: 1,
+      },
       facts: {
         personId,
-        reference: 'DEC-PSC-2027-0000009-2',
+        reference: version.reference,
         type: 'biennial',
         statementDate: '2027-11-01',
-        submittedAt: '2027-12-01T08:00:00Z',
+        submittedAt: version.submittedAt,
         late: false,
         dueDate: '2027-12-31',
-        declarantName: 'James Otieno',
-        personnelFileNumber: 'PSC/0009',
       },
       flags: [
         {

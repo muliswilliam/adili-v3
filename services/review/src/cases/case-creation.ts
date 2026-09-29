@@ -14,6 +14,18 @@ import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import { type CaseProcessedData, REVIEW_CASE_CREATED, REVIEW_CASE_UPDATED } from './events.js';
 import { reviewCases, reviewCaseVersions, reviewFlags, reviewTimeline } from './schema.js';
 
+/** The queue's read model of the declarant, as `upsertCase` pulled it (never through Temporal). */
+export interface DeclarantReadModel {
+  declarantName: string;
+  personnelFileNumber: string;
+}
+
+export interface CaseSettings {
+  /** The Commission policy's clarification window, from receipt. */
+  issueWindowMonths: number;
+  declarant: DeclarantReadModel;
+}
+
 type Transaction = Parameters<Parameters<Database<ReviewSchema>['transaction']>[0]>[0];
 
 /**
@@ -31,7 +43,7 @@ export async function upsertCase(
   db: Database<ReviewSchema>,
   events: EventPublisher,
   { input, facts, flags }: UpsertCaseRequest,
-  issueWindowMonths: number,
+  { issueWindowMonths, declarant }: CaseSettings,
 ): Promise<UpsertCaseOutcome> {
   return withTenant(db, systemContext(input.tenant), async (tx) => {
     const caseId = uuidv7();
@@ -57,8 +69,8 @@ export async function upsertCase(
         score: caseScore,
         band: caseBand,
         status: 'unassigned',
-        declarantName: facts.declarantName,
-        personnelFileNumber: facts.personnelFileNumber,
+        declarantName: declarant.declarantName,
+        personnelFileNumber: declarant.personnelFileNumber,
         openFlags: flags.length,
       })
       .onConflictDoNothing({ target: reviewCases.declarationId })
@@ -75,7 +87,7 @@ export async function upsertCase(
       if (existing.currentVersion >= input.version) {
         return { outcome: 'unchanged', caseId: existing.id };
       }
-      await amendCase(tx, events, { input, facts, flags }, existing.id);
+      await amendCase(tx, events, { input, facts, flags }, existing.id, declarant);
       return { outcome: 'updated', caseId: existing.id };
     }
 
@@ -118,6 +130,7 @@ async function amendCase(
   events: EventPublisher,
   { input, facts, flags }: UpsertCaseRequest,
   caseId: string,
+  declarant: DeclarantReadModel,
 ): Promise<void> {
   const kept = await tx
     .update(reviewFlags)
@@ -140,8 +153,8 @@ async function amendCase(
       score: caseScore,
       band: caseBand,
       openFlags: flags.length,
-      declarantName: facts.declarantName,
-      personnelFileNumber: facts.personnelFileNumber,
+      declarantName: declarant.declarantName,
+      personnelFileNumber: declarant.personnelFileNumber,
     })
     .where(eq(reviewCases.id, caseId));
   await tx.insert(reviewTimeline).values({

@@ -37,7 +37,7 @@ export class ProcessingActivities {
     private readonly directory: DirectoryClient,
   ) {}
 
-  /** The version's metadata and read-model fields; null when declarations has no such version. */
+  /** The version's metadata; null when declarations has no such version. */
   async pullVersion(input: ProcessingInput): Promise<VersionFacts | null> {
     const pulled = await this.declarations.getVersionDocument(input.declarationId, input.version, {
       tenant: input.tenant,
@@ -52,8 +52,6 @@ export class ProcessingActivities {
       submittedAt: pulled.submittedAt,
       late: pulled.late,
       dueDate: pulled.dueDate,
-      declarantName: pulled.declarantName,
-      personnelFileNumber: pulled.personnelFileNumber,
     };
   }
 
@@ -106,15 +104,30 @@ export class ProcessingActivities {
 
   /**
    * Creates the case of the version with the clarification window of the Commission's policy, or
-   * updates the case with a later version (the amendment path); idempotent by version.
+   * updates the case with a later version (the amendment path); idempotent by version. The
+   * declarant's name and personnel file number (the queue's read model) are pulled here and
+   * written straight to the case, so they never enter the workflow's history.
    */
   async upsertCase(request: UpsertCaseRequest): Promise<UpsertCaseOutcome> {
-    const policy = await this.directory.getClarificationPolicy(request.input.tenant);
-    return upsertCase(this.db, this.events, request, policy.issueWindowMonths);
+    const { input } = request;
+    const pulled = await pullDocument(
+      this.declarations,
+      input.tenant,
+      input.declarationId,
+      input.version,
+    );
+    const policy = await this.directory.getClarificationPolicy(input.tenant);
+    return upsertCase(this.db, this.events, request, {
+      issueWindowMonths: policy.issueWindowMonths,
+      declarant: {
+        declarantName: pulled.declarantName,
+        personnelFileNumber: pulled.personnelFileNumber,
+      },
+    });
   }
 }
 
-/** A version's document for the rules; one that disappeared since `pullVersion` is not retried. */
+/** A version as pulled by a later step; one that disappeared since `pullVersion` is not retried. */
 async function pullDocument(
   declarations: DeclarationsClient,
   tenant: string,

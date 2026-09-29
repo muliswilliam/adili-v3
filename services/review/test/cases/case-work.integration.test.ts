@@ -140,11 +140,11 @@ describe('review case: assignment, detail, notes and flags', () => {
         submittedAt: version.submittedAt,
         late: version.late,
         dueDate: version.dueDate,
-        declarantName: version.declarantName,
-        personnelFileNumber: version.personnelFileNumber,
       },
       flags,
     });
+    // Processing read the version as the system; the tests count the reviewers' reads.
+    api.declarations.reads.length = 0;
     return { caseId, version };
   }
 
@@ -472,12 +472,11 @@ describe('review case: assignment, detail, notes and flags', () => {
           submittedAt: amended.submittedAt,
           late: amended.late,
           dueDate: amended.dueDate,
-          declarantName: amended.declarantName,
-          personnelFileNumber: amended.personnelFileNumber,
         },
         flags: [],
       });
       expect(outcome).toBe('updated');
+      api.declarations.reads.length = 0;
 
       const response = await api.get(at(casePath, { caseId }), reviewerA);
 
