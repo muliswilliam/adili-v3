@@ -14,6 +14,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from './drawer';
+import { ReminderHistory } from './reminder-history';
 import { StatusBadge } from './status-badge';
 import {
   Table,
@@ -55,27 +56,24 @@ function ObligationDetail() {
           <DescriptionItem term="Statement date">1 Nov 2027</DescriptionItem>
           <DescriptionItem term="Due date">31 Dec 2027</DescriptionItem>
         </DescriptionList>
-        <Table caption="Reminder history">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Offset</TableHead>
-              <TableHead>Sent</TableHead>
-              <TableHead>Outcome</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell>30 days before</TableCell>
-              <TableCell>1 Dec 2027</TableCell>
-              <TableCell>Sent by SMS and email</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>14 days before</TableCell>
-              <TableCell>17 Dec 2027</TableCell>
-              <TableCell>Sent by SMS and email</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <ReminderHistory
+          reminders={[
+            {
+              offsetDays: 30,
+              scheduledAt: '2027-12-01T09:14:00.000Z',
+              sentAt: '2027-12-01T09:14:06.000Z',
+              channels: ['sms', 'email'],
+              outcome: 'sent',
+            },
+            {
+              offsetDays: 14,
+              scheduledAt: '2027-12-17T09:14:00.000Z',
+              sentAt: '2027-12-17T09:14:04.000Z',
+              channels: ['sms', 'email'],
+              outcome: 'sent',
+            },
+          ]}
+        />
       </DrawerBody>
       <DrawerFooter>
         <Button variant="secondary">Roster record</Button>
