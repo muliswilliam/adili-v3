@@ -219,10 +219,32 @@
   --shadow-button-destructive: var(--elevation-button-destructive);
 }
 
-/* Skeleton shimmer and the indeterminate progress sweep. */
+/* Skeleton shimmer, the indeterminate progress sweep and the chat's typing marks. */
 @theme {
   --animate-shimmer: shimmer 1.2s linear infinite;
   --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
+  /* A streaming answer's caret and the three dots while Adili is thinking. */
+  --animate-caret: caret 1s steps(2) infinite;
+  --animate-typing: typing 1.2s infinite;
+
+  @keyframes caret {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes typing {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: none;
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
 
   @keyframes shimmer {
     to {
