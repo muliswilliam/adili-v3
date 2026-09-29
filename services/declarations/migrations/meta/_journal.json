@@ -50,6 +50,13 @@
       "when": 1790627999901,
       "tag": "0006_obligation_reminder_offsets",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790666439353,
+      "tag": "0007_reminder_messages",
+      "breakpoints": true
     }
   ]
 }

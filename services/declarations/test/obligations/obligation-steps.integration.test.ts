@@ -4,7 +4,12 @@ import { withTenant } from '@adili/data-access';
 import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { filingObligations, obligationReminders, outbox } from '../../src/db/schema.js';
+import {
+  commissionRefs,
+  filingObligations,
+  obligationReminders,
+  outbox,
+} from '../../src/db/schema.js';
 import type { Transaction } from '../../src/obligations/apply-page.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
@@ -244,6 +249,61 @@ describe('sendReminder', () => {
     // Another reminder of the same obligation has other keys.
     await api.steps.sendReminder(reminder(initial, 7), attempt(true).run);
     expect(api.notifications.sent.at(-1)?.idempotencyKey).not.toBe(email1?.idempotencyKey);
+  });
+
+  it('resends the body of its first attempt, so a Commission renamed between attempts does not break the Idempotency-Key', async () => {
+    const { initial } = await officer(PERSON);
+    // The first SMS reached notifications, but its answer did not come back in time.
+    api.notifications.answer('sms', 'lost');
+    const first = attempt(false);
+    await expect(api.steps.sendReminder(reminder(initial), first.run)).rejects.toBeInstanceOf(
+      ReminderRetryable,
+    );
+    await asPlatform((tx) =>
+      tx
+        .update(commissionRefs)
+        .set({ name: 'Public Service Commission of Kenya' })
+        .where(eq(commissionRefs.slug, 'psc')),
+    );
+
+    await expect(
+      api.steps.sendReminder(reminder(initial), attempt(true, first.saved.at(-1)).run),
+    ).resolves.toBe('sent');
+
+    const [sms1, , sms2] = api.notifications.sent;
+    expect(sms2?.params).toEqual(sms1?.params);
+    expect(sms2?.params.commissionName).toBe('Public Service Commission');
+    expect((await remindersOf(initial)).find((r) => r.offsetDays === 14)).toMatchObject({
+      outcome: 'sent',
+      channels: ['sms', 'email'],
+    });
+  });
+
+  it('counts a channel whose key was taken by another message as failed, without sending it again', async () => {
+    const { initial } = await officer(PERSON);
+    // Another body under the SMS key: what notifications answers is 422.
+    await api.notifications.sendReminder({
+      channel: 'sms',
+      personId: PERSON,
+      tenant: 'psc',
+      params: {
+        type: 'initial',
+        commissionName: 'Someone else',
+        statementDate: '2027-07-01',
+        dueDate: '2027-07-31',
+        daysLeft: 14,
+        portalUrl: 'http://localhost:3010',
+      },
+      idempotencyKey: reminderMessageKey(reminder(initial), 'sms'),
+    });
+
+    await expect(api.steps.sendReminder(reminder(initial), attempt(false).run)).resolves.toBe(
+      'sent',
+    );
+    expect((await remindersOf(initial)).find((r) => r.offsetDays === 14)).toMatchObject({
+      outcome: 'sent',
+      channels: ['email'],
+    });
   });
 
   it("counts the days left from the reminder's planned day, so a retried request is the same", async () => {

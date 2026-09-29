@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { components, paths } from './notifications-api.gen.js';
 import {
   NotificationsClient,
+  NotificationsKeyReused,
   NotificationsRejected,
   NotificationsUnavailable,
   type ReminderChannel,
@@ -54,8 +55,8 @@ export interface HttpNotificationsClientOptions {
  * own token with `messages`, one retry after a 401), with the reminder channel's
  * `Idempotency-Key`, so a retried request never sends a second message.
  *
- * A 400 (or a key reused for another body, 422) is `NotificationsRejected`: the same request
- * cannot succeed. Anything else unexpected, including 409 (the first request with the key still
+ * A 400 is `NotificationsRejected` and a key already used for another body (422)
+ * `NotificationsKeyReused`: the same request cannot succeed. Anything else unexpected, including 409 (the first request with the key still
  * running), is `NotificationsUnavailable`: retry later.
  */
 export class HttpNotificationsClient extends NotificationsClient {
@@ -85,13 +86,18 @@ export class HttpNotificationsClient extends NotificationsClient {
     const rejected = () => {
       throw new NotificationsRejected(`notifications refused the ${message.channel} reminder`);
     };
+    const keyReused = () => {
+      throw new NotificationsKeyReused(
+        `notifications took another ${message.channel} reminder under its Idempotency-Key`,
+      );
+    };
     const sent = await this.notifications.call(
       (api) =>
         api.POST('/internal/v1/messages', {
           body,
           params: { header: { 'Idempotency-Key': message.idempotencyKey } },
         }),
-      { status: 201, schema: messageSchema, otherwise: { 400: rejected, 422: rejected } },
+      { status: 201, schema: messageSchema, otherwise: { 400: rejected, 422: keyReused } },
     );
     return sent.status === 'sent'
       ? { status: 'sent', messageId: sent.id }

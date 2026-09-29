@@ -8,6 +8,7 @@ import { parse } from 'yaml';
 
 import { HttpNotificationsClient } from '../../src/notifications/http-notifications-client.js';
 import {
+  NotificationsKeyReused,
   NotificationsRejected,
   NotificationsUnavailable,
   type ReminderMessage,
@@ -146,13 +147,13 @@ describe('HttpNotificationsClient', () => {
     ]);
   });
 
-  it('is rejected on a 400 or a reused key (422), and unavailable on anything else unexpected', async () => {
+  it('is rejected on a 400, key-reused on a 422, and unavailable on anything else unexpected', async () => {
     await expect(
       clientAnswering(json({ status: 400 }, 400)).client.sendReminder(MESSAGE),
     ).rejects.toBeInstanceOf(NotificationsRejected);
     await expect(
       clientAnswering(json({ status: 422 }, 422)).client.sendReminder(MESSAGE),
-    ).rejects.toBeInstanceOf(NotificationsRejected);
+    ).rejects.toBeInstanceOf(NotificationsKeyReused);
     // The first request with the key is still running: ask again later.
     await expect(
       clientAnswering(json({ status: 409 }, 409)).client.sendReminder(MESSAGE),

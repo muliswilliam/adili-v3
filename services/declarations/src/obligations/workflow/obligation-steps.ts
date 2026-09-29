@@ -9,9 +9,11 @@ import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import {
   NotificationsClient,
+  NotificationsKeyReused,
   NotificationsRejected,
   NotificationsUnavailable,
   type ReminderChannel,
+  type ReminderParams,
 } from '../../notifications/notifications-client.js';
 import { fallbackIssuerCode } from '../access.js';
 import type { Transaction } from '../apply-page.js';
@@ -24,6 +26,7 @@ import {
   filingObligations,
   obligationReminders,
   type ReminderOutcome,
+  reminderMessages,
 } from '../schema.js';
 import type {
   LoadedObligation,
@@ -223,15 +226,15 @@ export class ObligationSteps {
     }
 
     const progress: ChannelProgress = { ...attempt.progress };
-    // Everything sent derives from the reminder, not the clock, so a retry sends the same request.
-    const params = {
+    // The body of the first attempt, sent again by every retry (see `reminderMessages`).
+    const params = await this.frozenParams(obligation.tenant, request, {
       type: obligation.type,
       commissionName: obligation.commissionName.slice(0, COMMISSION_NAME_MAX),
       statementDate: obligation.statementDate,
       dueDate: obligation.dueDate,
       daysLeft: daysLeft(nairobiDate(new Date(request.scheduledAt)), obligation.dueDate),
       portalUrl: config.PORTAL_URL,
-    };
+    });
     const retryable: string[] = [];
     for (const channel of CHANNELS) {
       if (progress[channel]) continue;
@@ -253,7 +256,21 @@ export class ObligationSteps {
           retryable.push(`${channel}: ${outcome.error}`);
         }
       } catch (error) {
-        if (error instanceof NotificationsRejected) {
+        if (error instanceof NotificationsKeyReused) {
+          // Cannot happen while the body is frozen: another request took this reminder's key. A
+          // message went out, or failed, under it; sending again under a new key could send it
+          // twice, so the channel counts as failed, loudly.
+          this.logger.error(
+            {
+              err: error,
+              obligationId: request.obligationId,
+              channel,
+              idempotencyKey: reminderMessageKey(request, channel),
+            },
+            'Reminder key already used for another message',
+          );
+          progress[channel] = { status: 'failed', error: 'idempotency-key-reused' };
+        } else if (error instanceof NotificationsRejected) {
           this.logger.error(
             { err: error, obligationId: request.obligationId, channel },
             'Reminder refused by notifications',
@@ -284,6 +301,33 @@ export class ObligationSteps {
     }
     const noContact = CHANNELS.every((channel) => progress[channel]?.status === 'no-contact');
     return this.record(obligation.tenant, request, noContact ? 'skipped-no-contact' : 'failed', {});
+  }
+
+  /**
+   * The template parameters the reminder sends: those its first attempt stored, else `rendered`,
+   * stored now for every later attempt.
+   */
+  private async frozenParams(
+    tenant: string,
+    { obligationId, offsetDays }: ReminderRequest,
+    rendered: ReminderParams,
+  ): Promise<ReminderParams> {
+    return withTenant(this.db, systemContext(tenant), async (tx) => {
+      await tx
+        .insert(reminderMessages)
+        .values({ obligationId, offsetDays, tenant, params: rendered })
+        .onConflictDoNothing();
+      const [row] = await tx
+        .select({ params: reminderMessages.params })
+        .from(reminderMessages)
+        .where(
+          and(
+            eq(reminderMessages.obligationId, obligationId),
+            eq(reminderMessages.offsetDays, offsetDays),
+          ),
+        );
+      return row?.params ?? rendered;
+    });
   }
 
   private async recordedOutcome({

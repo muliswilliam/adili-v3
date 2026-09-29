@@ -14,6 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import type { ReminderParams } from '../notifications/notifications-client.js';
 import {
   CANCEL_REASONS,
   OBLIGATION_STATUSES,
@@ -190,6 +191,26 @@ export const obligationReminders = pgTable(
 );
 
 /**
+ * The message each reminder sends, as its first attempt rendered it (template parameters). Every
+ * later attempt sends this body again, so notifications sees the same request under the reminder
+ * channel's `Idempotency-Key` even when the Commission's name or the obligation changed in
+ * between, and never refuses it as a key reused for another body. Tenant data (migration 0007).
+ */
+export const reminderMessages = pgTable(
+  'reminder_messages',
+  {
+    obligationId: uuid()
+      .notNull()
+      .references(() => filingObligations.id),
+    offsetDays: integer().notNull(),
+    tenant: text().notNull(),
+    params: jsonb().$type<ReminderParams>().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.obligationId, table.offsetDays] })],
+);
+
+/**
  * The Commission policy version in force as last pulled from the directory (periods, reminder
  * offsets, obligations-start date). Platform data about each tenant; refreshed on every roster
  * event.
@@ -246,6 +267,7 @@ export const obligationsSchema = {
   rosterSnapshots,
   filingObligations,
   obligationReminders,
+  reminderMessages,
   tenantPolicyCache,
   commissionRefs,
   cycleCalendar,

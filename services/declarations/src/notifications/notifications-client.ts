@@ -48,7 +48,18 @@ export class NotificationsRejected extends Error {
   override readonly name = 'NotificationsRejected';
 }
 
+/**
+ * Notifications already took another request under this `Idempotency-Key` (422): a message went
+ * out, or failed, with a body other than this one. Resending the same body cannot help.
+ */
+export class NotificationsKeyReused extends Error {
+  override readonly name = 'NotificationsKeyReused';
+}
+
 export abstract class NotificationsClient {
-  /** Throws `NotificationsUnavailable` or `NotificationsRejected` when no outcome is known. */
+  /**
+   * Throws `NotificationsUnavailable`, `NotificationsRejected` or `NotificationsKeyReused` when no
+   * outcome is known.
+   */
   abstract sendReminder(message: ReminderMessage): Promise<SendOutcome>;
 }
