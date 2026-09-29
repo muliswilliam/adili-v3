@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PersonObligation } from '../declarations/declarations-client.js';
-import { ladderWindowDays, twoMissedCycles } from './missed-cycles.js';
+import type { PersonObligation } from '../../src/declarations/declarations-client.js';
+import { ladderWindowDays, twoMissedCycles } from '../../src/referrals/missed-cycles.js';
 
 const biennial = (
   year: number,

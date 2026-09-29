@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { inClosureSample, sampleBucket } from './sampling.js';
+import { inClosureSample, sampleBucket } from '../../src/closures/sampling.js';
 
 describe('closure sampling', () => {
   const ids = Array.from({ length: 20_000 }, () => randomUUID());

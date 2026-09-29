@@ -1,7 +1,7 @@
 import type { Principal } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
-import { cannotApprove } from './separation-of-duties.js';
+import { cannotApprove } from '../../src/approvals/separation-of-duties.js';
 
 const principal = (subject: string, role: string): Principal => ({
   subject,
