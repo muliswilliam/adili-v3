@@ -13,6 +13,7 @@ import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-cl
 import type { Transaction } from '../obligations/apply-page.js';
 import { fallbackIssuerCode } from '../obligations/access.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
+import { keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
 import { deriveHeader } from './derive.js';
 import { declarationDraftStarted } from './events.js';
@@ -525,7 +526,8 @@ export class DraftsService {
     const personKey = statementPersonKey(key);
     if (personKey) {
       return {
-        ...body,
+        // Attachment references are the service's: only link and unlink change them.
+        ...keepAttachments(body, stored),
         personKey,
         personName: stored.personName,
         statementDate: declaration.statementDate,
@@ -717,7 +719,7 @@ export class DraftsService {
   }
 }
 
-function personOf(principal: Principal): PersonContext {
+export function personOf(principal: Principal): PersonContext {
   return {
     personId: notFoundIfInvisible(principal.personId),
     subject: principal.subject,
@@ -752,7 +754,7 @@ function versionMismatch(): ProblemException {
   });
 }
 
-function validationProblem(errors: { path: string; message: string }[]): ProblemException {
+export function validationProblem(errors: { path: string; message: string }[]): ProblemException {
   return new ProblemException({
     type: 'about:blank',
     title: 'Validation failed',
@@ -850,7 +852,7 @@ export async function liveSections(tx: Transaction, declarationId: string): Prom
   return inScheduleOrder(rows);
 }
 
-function sectionIs(declarationId: string, sectionKey: string) {
+export function sectionIs(declarationId: string, sectionKey: string) {
   return and(
     eq(declarationSections.declarationId, declarationId),
     eq(declarationSections.sectionKey, sectionKey),
@@ -925,7 +927,7 @@ function inScheduleOrder<T extends Pick<SectionSummaryRow, 'sectionKey' | 'creat
 }
 
 /** The unique constraint a failed query violated, looking through Drizzle's error wrapper. */
-function violatedUniqueConstraint(error: unknown): string | undefined {
+export function violatedUniqueConstraint(error: unknown): string | undefined {
   for (let cause = error; cause instanceof Error; cause = cause.cause) {
     if ('code' in cause && cause.code === '23505' && 'constraint' in cause) {
       return typeof cause.constraint === 'string' ? cause.constraint : undefined;

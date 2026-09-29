@@ -40,62 +40,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/attachments:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags: [declarations]
-      operationId: linkDeclarationAttachment
-      summary: Link a clean upload (purpose declaration-attachment) to an item
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [sectionKey, itemId, uploadId]
-              properties:
-                sectionKey:
-                  $ref: '#/components/schemas/SectionKey'
-                itemId:
-                  type: string
-                  format: uuid
-                uploadId:
-                  type: string
-                  format: uuid
-      responses:
-        '201':
-          description: Linked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarationAttachment'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Upload is not clean, has the wrong purpose, or belongs to another tenant
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/attachments/{attachmentId}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - name: attachmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    delete:
-      tags: [declarations]
-      operationId: unlinkDeclarationAttachment
-      summary: Remove an attachment from its item
-      responses:
-        '204':
-          description: Unlinked
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/declarations/{declarationId}/summary:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -1392,30 +1336,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-    DeclarationAttachment:
-      type: object
-      required: [id, sectionKey, itemId, uploadId, fileName, sha256, size, linkedAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        sectionKey:
-          $ref: '#/components/schemas/SectionKey'
-        itemId:
-          type: string
-          format: uuid
-        uploadId:
-          type: string
-          format: uuid
-        fileName:
-          type: string
-        sha256:
-          type: string
-        size:
-          type: integer
-        linkedAt:
-          type: string
-          format: date-time
     DeclarationSummary:
       type: object
       required:

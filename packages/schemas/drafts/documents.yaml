@@ -1,5 +1,5 @@
-# Drafted operations of the documents API for specs not implemented yet: 06 (document issuance)
-# and the specs that issue documents through it (07a, 08, 09). `pnpm --filter @adili/documents contracts`
+# Drafted operations of the documents API for specs not implemented yet: 05 (the upload link
+# marker), 06 (document issuance) and the specs that issue documents through it (07a, 08, 09). `pnpm --filter @adili/documents contracts`
 # merges them into packages/schemas/internal/documents.yaml, where they may reference the
 # implemented components (e.g. `#/components/schemas/ProblemDetails`). When an operation or
 # component is implemented, delete it here: the export fails while both define it.
@@ -8,6 +8,47 @@
 # clarification-attachment, action-response, access-representation) to UPLOAD_PURPOSES in
 # services/documents/src/uploads/purposes.ts, which widens the UploadPurpose enum.
 paths:
+  /internal/v1/uploads/{id}/linked:
+    post:
+      tags: [internal]
+      operationId: markUploadLinked
+      summary: Record that the owning service linked a clean upload (spec 05)
+      description: |
+        Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant.
+        The owning service calls it when it links a clean upload to its record (declarations: an
+        attachment on an item), so the orphan sweep keeps the object; clean uploads with no link
+        recorded are deleted after 30 days. Idempotent.
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Link recorded
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem type `upload-not-clean`: the upload is not clean'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/documents/issue:
     post:
       tags: [internal]

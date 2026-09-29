@@ -22,3 +22,26 @@ export function declarationDraftStarted(
 ): NewEvent<DeclarationDraftStartedData> {
   return { type: DECLARATION_DRAFT_STARTED, subject: data.declarationId, tenant, data };
 }
+
+export const DECLARATION_ATTACHMENT_LINKED = 'declaration.attachment-linked.v1';
+export const DECLARATION_ATTACHMENT_UNLINKED = 'declaration.attachment-unlinked.v1';
+
+/** An upload linked to, or unlinked from, an item of a draft. No file name or hash. */
+export interface DeclarationAttachmentData extends Record<string, unknown> {
+  declarationId: string;
+  uploadId: string;
+}
+
+export function declarationAttachmentLinked(
+  tenant: string,
+  data: DeclarationAttachmentData,
+): NewEvent<DeclarationAttachmentData> {
+  return { type: DECLARATION_ATTACHMENT_LINKED, subject: data.declarationId, tenant, data };
+}
+
+export function declarationAttachmentUnlinked(
+  tenant: string,
+  data: DeclarationAttachmentData,
+): NewEvent<DeclarationAttachmentData> {
+  return { type: DECLARATION_ATTACHMENT_UNLINKED, subject: data.declarationId, tenant, data };
+}

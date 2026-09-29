@@ -163,6 +163,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/declarations/{declarationId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link a clean upload (purpose declaration-attachment) to an item
+         * @description The upload must be the Commission's, clean, and uploaded with purpose declaration-attachment. Its name, SHA-256 and size are kept, and a reference is added to the item inside the encrypted statement. Records `declaration.attachment-linked.v1`.
+         */
+        post: operations["linkDeclarationAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/attachments/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove an attachment from its item
+         * @description Removes the attachment and the item's reference to it. The file is left to the documents orphan sweep. Records `declaration.attachment-unlinked.v1`.
+         */
+        delete: operations["unlinkDeclarationAttachment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/declarations": {
         parameters: {
             query?: never;
@@ -175,45 +215,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Link a clean upload (purpose declaration-attachment) to an item */
-        post: operations["linkDeclarationAttachment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/attachments/{attachmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove an attachment from its item */
-        delete: operations["unlinkDeclarationAttachment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1058,6 +1059,33 @@ export interface components {
                 action: "created" | "archived" | "restored";
             }[];
         };
+        AttachmentLink: {
+            /** @description The statement section holding the item */
+            sectionKey: components["schemas"]["SectionKey"];
+            /** Format: uuid */
+            itemId: string;
+            /**
+             * Format: uuid
+             * @description A clean upload of the Commission with purpose declaration-attachment
+             */
+            uploadId: string;
+        };
+        DeclarationAttachment: {
+            /** Format: uuid */
+            id: string;
+            sectionKey: components["schemas"]["SectionKey"];
+            /** Format: uuid */
+            itemId: string;
+            /** Format: uuid */
+            uploadId: string;
+            fileName: string;
+            /** @description Hex SHA-256 of the clean object */
+            sha256: string;
+            /** @description Bytes */
+            size: number;
+            /** Format: date-time */
+            linkedAt: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1231,20 +1259,6 @@ export interface components {
             version: number;
             /** Format: date-time */
             updatedAt: string;
-        };
-        DeclarationAttachment: {
-            /** Format: uuid */
-            id: string;
-            sectionKey: components["schemas"]["SectionKey"];
-            /** Format: uuid */
-            itemId: string;
-            /** Format: uuid */
-            uploadId: string;
-            fileName: string;
-            sha256: string;
-            size: number;
-            /** Format: date-time */
-            linkedAt: string;
         };
         DeclarationSummary: {
             declaration: components["schemas"]["Declaration"];
@@ -1870,6 +1884,111 @@ export interface operations {
             };
         };
     };
+    linkDeclarationAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachmentLink"];
+            };
+        };
+        responses: {
+            /** @description Linked; new draft version in ETag */
+            201: {
+                headers: {
+                    /** @description The new draft version; send it as If-Match on the next section save */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationAttachment"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller, or the statement has no such item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload is unknown or another Commission's (`upload-not-found`), not clean (`upload-not-clean`), has the wrong purpose (`upload-wrong-purpose`) or is attached already (`upload-already-linked`); or not a draft (`declaration-not-draft`), or the statement is archived (`section-archived`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The upload could not be checked (`documents-unavailable`); retry */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    unlinkDeclarationAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+                attachmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unlinked; new draft version in ETag */
+            204: {
+                headers: {
+                    /** @description The new draft version; send it as If-Match on the next section save */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a draft (`declaration-not-draft`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getMyDeclarations: {
         parameters: {
             query?: never;
@@ -1887,70 +2006,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DeclarationListItem"][];
                 };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    linkDeclarationAttachment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    sectionKey: components["schemas"]["SectionKey"];
-                    /** Format: uuid */
-                    itemId: string;
-                    /** Format: uuid */
-                    uploadId: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Linked */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarationAttachment"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Upload is not clean, has the wrong purpose, or belongs to another tenant */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    unlinkDeclarationAttachment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Unlinked */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             404: components["responses"]["NotFound"];
         };

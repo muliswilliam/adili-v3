@@ -125,3 +125,24 @@ export const sectionSaveResultSchema = z.object({
     }),
 });
 export type SectionSaveResult = z.infer<typeof sectionSaveResultSchema>;
+
+export const attachmentLinkSchema = z.object({
+  sectionKey: sectionKeySchema.meta({ description: 'The statement section holding the item' }),
+  itemId: z.uuid(),
+  uploadId: z.uuid().meta({
+    description: 'A clean upload of the Commission with purpose declaration-attachment',
+  }),
+});
+export type AttachmentLink = z.infer<typeof attachmentLinkSchema>;
+
+export const declarationAttachmentSchema = z.object({
+  id: z.uuid(),
+  sectionKey: sectionKeySchema,
+  itemId: z.uuid(),
+  uploadId: z.uuid(),
+  fileName: z.string(),
+  sha256: z.string().meta({ description: 'Hex SHA-256 of the clean object' }),
+  size: z.int().meta({ description: 'Bytes' }),
+  linkedAt: z.iso.datetime(),
+});
+export type DeclarationAttachment = z.infer<typeof declarationAttachmentSchema>;

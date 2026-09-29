@@ -464,6 +464,102 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/attachments:
+    post:
+      tags:
+        - declarations
+      summary: Link a clean upload (purpose declaration-attachment) to an item
+      description: The upload must be the Commission's, clean, and uploaded with purpose declaration-attachment. Its name, SHA-256 and size are kept, and a reference is added to the item inside the encrypted statement. Records `declaration.attachment-linked.v1`.
+      operationId: linkDeclarationAttachment
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachmentLink'
+      responses:
+        '201':
+          description: Linked; new draft version in ETag
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The new draft version; send it as If-Match on the next section save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationAttachment'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller, or the statement has no such item
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Upload is unknown or another Commission's (`upload-not-found`), not clean (`upload-not-clean`), has the wrong purpose (`upload-wrong-purpose`) or is attached already (`upload-already-linked`); or not a draft (`declaration-not-draft`), or the statement is archived (`section-archived`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The upload could not be checked (`documents-unavailable`); retry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/attachments/{attachmentId}:
+    delete:
+      tags:
+        - declarations
+      summary: Remove an attachment from its item
+      description: Removes the attachment and the item's reference to it. The file is left to the documents orphan sweep. Records `declaration.attachment-unlinked.v1`.
+      operationId: unlinkDeclarationAttachment
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: attachmentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Unlinked; new draft version in ETag
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The new draft version; send it as If-Match on the next section save
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Not a draft (`declaration-not-draft`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/declarations:
     get:
       tags:
@@ -480,69 +576,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DeclarationListItem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/attachments:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags:
-        - declarations
-      summary: Link a clean upload (purpose declaration-attachment) to an item
-      operationId: linkDeclarationAttachment
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - sectionKey
-                - itemId
-                - uploadId
-              properties:
-                sectionKey:
-                  $ref: '#/components/schemas/SectionKey'
-                itemId:
-                  type: string
-                  format: uuid
-                uploadId:
-                  type: string
-                  format: uuid
-      responses:
-        '201':
-          description: Linked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarationAttachment'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Upload is not clean, has the wrong purpose, or belongs to another tenant
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/attachments/{attachmentId}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - name: attachmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    delete:
-      tags:
-        - declarations
-      summary: Remove an attachment from its item
-      operationId: unlinkDeclarationAttachment
-      x-draft: true
-      responses:
-        '204':
-          description: Unlinked
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/declarations/{declarationId}/summary:
@@ -2253,6 +2286,57 @@ components:
         - draftVersion
         - issues
         - sectionsChanged
+    AttachmentLink:
+      type: object
+      properties:
+        sectionKey:
+          description: The statement section holding the item
+          $ref: '#/components/schemas/SectionKey'
+        itemId:
+          type: string
+          format: uuid
+        uploadId:
+          type: string
+          format: uuid
+          description: A clean upload of the Commission with purpose declaration-attachment
+      required:
+        - sectionKey
+        - itemId
+        - uploadId
+    DeclarationAttachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        itemId:
+          type: string
+          format: uuid
+        uploadId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        sha256:
+          type: string
+          description: Hex SHA-256 of the clean object
+        size:
+          type: integer
+          description: Bytes
+        linkedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sectionKey
+        - itemId
+        - uploadId
+        - fileName
+        - sha256
+        - size
+        - linkedAt
     ProblemDetails:
       type: object
       properties:
@@ -2727,38 +2811,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-    DeclarationAttachment:
-      type: object
-      required:
-        - id
-        - sectionKey
-        - itemId
-        - uploadId
-        - fileName
-        - sha256
-        - size
-        - linkedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        sectionKey:
-          $ref: '#/components/schemas/SectionKey'
-        itemId:
-          type: string
-          format: uuid
-        uploadId:
-          type: string
-          format: uuid
-        fileName:
-          type: string
-        sha256:
-          type: string
-        size:
-          type: integer
-        linkedAt:
-          type: string
-          format: date-time
     DeclarationSummary:
       type: object
       required:

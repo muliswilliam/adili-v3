@@ -37,6 +37,7 @@ import { Clock } from '../../src/clock.js';
 import type { Transaction } from '../../src/obligations/apply-page.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
+import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { DirectoryEventsConsumer } from '../../src/obligations/directory-events.consumer.js';
 import {
@@ -51,6 +52,7 @@ import {
   type StoppedWorkflow,
 } from '../../src/obligations/workflows.js';
 import { FakeDirectory } from './fake-directory.js';
+import { FakeDocuments } from './fake-documents.js';
 import { FakeNotifications } from './fake-notifications.js';
 import { FakeTemporal } from './fake-temporal.js';
 
@@ -175,6 +177,8 @@ export interface DeclarationsApi {
   /** The field cipher, in memory: records calls without plaintext. */
   cipher: FakeCipher;
   directory: FakeDirectory;
+  /** The documents internal uploads API: attachments are verified and marked linked there. */
+  documents: FakeDocuments;
   notifications: FakeNotifications;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
@@ -212,7 +216,7 @@ export interface DeclarationsApi {
 /**
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
- * directory is `FakeDirectory`, notifications `FakeNotifications`, the field cipher `FakeCipher`, workflows are recorded (see
+ * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the field cipher `FakeCipher`, workflows are recorded (see
  * `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay in the outbox
  * for assertions). The service's Temporal worker polls the suite's own task queue. The test role owns the tables, so
  * FORCE row-level security applies to it as to the service's role.
@@ -242,6 +246,7 @@ export async function startDeclarationsApi({
 
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
+  const documents = new FakeDocuments();
   const workflows = new RecordingWorkflows();
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
@@ -255,6 +260,8 @@ export async function startDeclarationsApi({
     .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
     .overrideProvider(DirectoryClient)
     .useValue(directory)
+    .overrideProvider(DocumentsClient)
+    .useValue(documents)
     .overrideProvider(NotificationsClient)
     .useValue(notifications)
     .overrideProvider(Clock)
@@ -301,6 +308,7 @@ export async function startDeclarationsApi({
     app,
     db,
     directory,
+    documents,
     notifications,
     workflows,
     temporal,
@@ -343,6 +351,7 @@ export async function startDeclarationsApi({
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
+      documents.reset();
       notifications.reset();
       workflows.reset();
       temporal.reset();

@@ -1,7 +1,9 @@
 import type { z } from 'zod';
 
 import {
+  attachmentLinkSchema,
   completenessIssueSchema,
+  declarationAttachmentSchema,
   completenessSchema,
   declarationSchema,
   declarationStatusSchema,
@@ -62,4 +64,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   NotIncluded: notIncludedSchema,
   SectionEnvelope: sectionEnvelopeSchema,
   SectionSaveResult: sectionSaveResultSchema,
+  AttachmentLink: attachmentLinkSchema,
+  DeclarationAttachment: declarationAttachmentSchema,
 };
