@@ -836,6 +836,10 @@ paths:
       tags: [determinations]
       operationId: getDeterminationLetter
       summary: Decision letter download; issued on first request for bulk closures
+      description: >-
+        The Commission's reviewers and supervisors, and the declarant for their own approved
+        determinations; anyone else 404. A bulk closure's letter is issued the first time anyone
+        asks for it, then served like any other.
       responses:
         '200':
           description: Download link
@@ -846,7 +850,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not approved
+          description: 'Not approved: problem code `not-approved`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused the letter
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service or the directory could not be reached; try again
           content:
             application/problem+json:
               schema:
@@ -985,6 +1001,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClosureSummary'
+        '400':
+          description: 'Query failed validation; problem code `filter-unsupported` for `reportingEntityId`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -993,6 +1015,12 @@ paths:
       tags: [closures]
       operationId: approveBulkClosures
       summary: Approve system-proposed closures matching the filters, in chunks (supervisor)
+      description: >-
+        Chunks of 100 per transaction, each allocating its CMP numbers in sequence, moving the
+        cases to `determined` and notifying the declarants by person; no letter is rendered
+        (`getDeterminationLetter` issues it on first request). Closures of cases the caller once
+        held are skipped and counted. Sent again with the same Idempotency-Key after a failure,
+        the approval resumes and reports every closure approved under the key.
       parameters:
         - name: cycleYear
           in: query
@@ -1016,10 +1044,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkApprovalResult'
+        '400':
+          description: 'Query failed validation; problem code `filter-unsupported` for `reportingEntityId`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/commissions/{slug}/actions:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -2480,7 +2516,7 @@ components:
           type: boolean
     LetterDownload:
       type: object
-      required: [documentId, verificationId, downloadUrl, expiresAt]
+      required: [documentId, verificationId, downloadUrl]
       properties:
         documentId:
           type: string
@@ -2488,11 +2524,11 @@ components:
         verificationId:
           type: string
         downloadUrl:
-          type: string
+          type: [string, 'null']
           format: uri
-        expiresAt:
-          type: string
-          format: date-time
+          description: >-
+            The declarant's portal download of their own letter (the documents owner rule); null
+            for staff, who download the document by id from the documents service
     ApprovalKind:
       type: string
       enum: [determination, action, referral]
@@ -2540,27 +2576,39 @@ components:
             - type: 'null'
     ClosureSummary:
       type: object
-      required: [cycleYear, eligibleProposed, sampled, approved, sampleRate, windowClosedAt]
+      required:
+        [cycleYear, eligibleProposed, sampled, approved, sampleRate, windowClosedAt, lastSweptAt]
       properties:
         cycleYear:
           type: integer
         eligibleProposed:
           type: integer
+          description: System `compliant-no-issues` proposals waiting for approval
         sampled:
           type: integer
+          description: Cases the sweep diverted to review instead of proposing their closure
         approved:
           type: integer
         sampleRate:
           type: number
+          description: Fraction of eligible cases diverted to review, e.g. 0.02 for 2%
         windowClosedAt:
           type: [string, 'null']
           format: date-time
+          description: When the last low-band case of the cycle and filters leaves its clarification window
+        lastSweptAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the closure sweep last ran for the cycle; null before the first sweep
     BulkApprovalResult:
       type: object
-      required: [approved, firstReference, lastReference, chunks]
+      required: [approved, skipped, firstReference, lastReference, chunks]
       properties:
         approved:
           type: integer
+        skipped:
+          type: integer
+          description: Waiting closures of cases the caller once held, left for another supervisor
         firstReference:
           type: [string, 'null']
         lastReference:

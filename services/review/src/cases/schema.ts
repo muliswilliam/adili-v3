@@ -102,7 +102,8 @@ export type TimelineKind =
   | 'determination-proposed'
   | 'determination-approved'
   | 'determination-returned'
-  | 'determination-withdrawn';
+  | 'determination-withdrawn'
+  | 'sampled-for-review';
 
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -142,6 +143,8 @@ export const reviewCases = pgTable(
     personnelFileNumber: text().notNull(),
     openFlags: integer().notNull().default(0),
     openClarifications: integer().notNull().default(0),
+    /** When the closure sweep diverted the case to review instead of proposing its closure. */
+    sampledAt: timestamp({ withTimezone: true }),
     ...timestamps,
   },
   (table) => [
@@ -160,6 +163,8 @@ export const reviewCases = pgTable(
       table.id,
     ),
     index('review_cases_tenant_assignee_idx').on(table.tenant, table.assignee),
+    // The closure sweep's eligibility: a cycle's low-band cases still in the queue.
+    index('review_cases_closure_idx').on(table.tenant, table.cycleYear, table.band, table.status),
     check('review_cases_type_check', sql`${table.type} in (${inList(DECLARATION_TYPES)})`),
     check('review_cases_band_check', sql`${table.band} in (${inList(PRIORITY_BANDS)})`),
     check('review_cases_status_check', sql`${table.status} in (${inList(CASE_STATUSES)})`),

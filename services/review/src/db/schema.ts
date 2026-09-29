@@ -4,6 +4,7 @@ import { numberingSchema } from '@adili/numbering/schema';
 
 import { approvalsSchema } from '../approvals/schema.js';
 import { casesSchema } from '../cases/schema.js';
+import { closuresSchema } from '../closures/schema.js';
 import { determinationsSchema } from '../determinations/schema.js';
 
 /** Drizzle schema of the review database. Only this service reads or writes it (ADR-013). */
@@ -12,6 +13,7 @@ export const schema = {
   ...casesSchema,
   ...determinationsSchema,
   ...approvalsSchema,
+  ...closuresSchema,
   // `CLR` and `CMP` reference counters (ADR-011), allocated in the transaction of the legal act.
   ...numberingSchema,
   // Stored outcomes of `Idempotency-Key` writes (issuing a clarification, approving a determination).
@@ -25,4 +27,5 @@ export * from '@adili/events/schema';
 export * from '@adili/numbering/schema';
 export * from '../approvals/schema.js';
 export * from '../cases/schema.js';
+export * from '../closures/schema.js';
 export * from '../determinations/schema.js';

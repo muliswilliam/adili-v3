@@ -549,7 +549,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Decision letter download; issued on first request for bulk closures */
+        /**
+         * Decision letter download; issued on first request for bulk closures
+         * @description The Commission's reviewers and supervisors, and the declarant for their own approved determinations; anyone else 404. A bulk closure's letter is issued the first time anyone asks for it, then served like any other.
+         */
         get: operations["getDeterminationLetter"];
         put?: never;
         post?: never;
@@ -610,7 +613,10 @@ export interface paths {
         /** Eligible system proposals, sampled and approved counts for a cycle and filters */
         get: operations["getBulkClosureSummary"];
         put?: never;
-        /** Approve system-proposed closures matching the filters, in chunks (supervisor) */
+        /**
+         * Approve system-proposed closures matching the filters, in chunks (supervisor)
+         * @description Chunks of 100 per transaction, each allocating its CMP numbers in sequence, moving the cases to `determined` and notifying the declarants by person; no letter is rendered (`getDeterminationLetter` issues it on first request). Closures of cases the caller once held are skipped and counted. Sent again with the same Idempotency-Key after a failure, the approval resumes and reports every closure approved under the key.
+         */
         post: operations["approveBulkClosures"];
         delete?: never;
         options?: never;
@@ -1375,10 +1381,11 @@ export interface components {
             /** Format: uuid */
             documentId: string;
             verificationId: string;
-            /** Format: uri */
-            downloadUrl: string;
-            /** Format: date-time */
-            expiresAt: string;
+            /**
+             * Format: uri
+             * @description The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service
+             */
+            downloadUrl: string | null;
         };
         /** @enum {string} */
         ApprovalKind: "determination" | "action" | "referral";
@@ -1401,15 +1408,28 @@ export interface components {
         };
         ClosureSummary: {
             cycleYear: number;
+            /** @description System `compliant-no-issues` proposals waiting for approval */
             eligibleProposed: number;
+            /** @description Cases the sweep diverted to review instead of proposing their closure */
             sampled: number;
             approved: number;
+            /** @description Fraction of eligible cases diverted to review, e.g. 0.02 for 2% */
             sampleRate: number;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the last low-band case of the cycle and filters leaves its clarification window
+             */
             windowClosedAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the closure sweep last ran for the cycle; null before the first sweep
+             */
+            lastSweptAt: string | null;
         };
         BulkApprovalResult: {
             approved: number;
+            /** @description Waiting closures of cases the caller once held, left for another supervisor */
+            skipped: number;
             firstReference: string | null;
             lastReference: string | null;
             chunks: number;
@@ -2630,8 +2650,26 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Not approved */
+            /** @description Not approved: problem code `not-approved` */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused the letter */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service or the directory could not be reached; try again */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2765,6 +2803,15 @@ export interface operations {
                     "application/json": components["schemas"]["ClosureSummary"];
                 };
             };
+            /** @description Query failed validation; problem code `filter-unsupported` for `reportingEntityId` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -2795,8 +2842,18 @@ export interface operations {
                     "application/json": components["schemas"]["BulkApprovalResult"];
                 };
             };
+            /** @description Query failed validation; problem code `filter-unsupported` for `reportingEntityId` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     listEnforcementLadders: {

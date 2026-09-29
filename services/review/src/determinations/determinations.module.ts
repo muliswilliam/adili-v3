@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { ClockModule } from '../clock.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
+import { DocumentsModule } from '../documents/documents.module.js';
 import { DeclarantDecisionsController } from './declarant-decisions.controller.js';
 import { DeclarantDecisionsService } from './declarant-decisions.service.js';
 import { DeterminationApprovals } from './determination-approvals.js';
+import { DeterminationLetterService } from './determination-letter.service.js';
 import { DeterminationWorkflows } from './determination-workflows.js';
 import { DeterminationsController } from './determinations.controller.js';
 import { DeterminationsService } from './determinations.service.js';
@@ -18,7 +20,7 @@ import { DeterminationLetterPayloadService } from './letter-payload.service.js';
  * Exports the determinations' source of the approvals inbox.
  */
 @Module({
-  imports: [ClockModule, DirectoryModule],
+  imports: [ClockModule, DirectoryModule, DocumentsModule],
   controllers: [
     DeterminationsController,
     DeclarantDecisionsController,
@@ -26,6 +28,7 @@ import { DeterminationLetterPayloadService } from './letter-payload.service.js';
   ],
   providers: [
     DeterminationsService,
+    DeterminationLetterService,
     DeterminationWorkflows,
     DeterminationApprovals,
     DeclarantDecisionsService,

@@ -43,6 +43,13 @@
       "when": 1790680670032,
       "tag": "0005_determinations",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790685073528,
+      "tag": "0006_bulk_closures",
+      "breakpoints": true
     }
   ]
 }

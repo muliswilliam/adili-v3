@@ -174,7 +174,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
+        sql`truncate closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
       );
       declarations.reset();
       directory.reset();

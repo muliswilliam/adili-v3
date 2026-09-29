@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { ApplicationFailure } from '@temporalio/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import { portal } from '../clarifications/links.js';
@@ -13,20 +13,19 @@ import { NotificationsClient } from '../notifications/notifications-client.js';
 import { systemContext } from '../system-context.js';
 import {
   DECISION_LETTER_REFUSED,
+  type DecisionChannel,
   type DecisionLetterOutcome,
   type DecisionNotice,
   type DecisionNoticeOutcome,
   DETERMINATION_MISSING,
   type DeterminationIssuanceInput,
 } from './contract.js';
+import { issueDecisionLetter } from './decision-letter.js';
 import { OUTCOME_LABELS } from './representation.js';
 import { determinations } from './schema.js';
 
 /** Namespace of the messages' idempotency keys: one key per determination and channel. */
 const MESSAGE_KEY_NAMESPACE = '9b3f7c2a-1d84-4e6b-8f5a-2c7e9d0b4a61';
-
-/** The template version of `decision-letter` this service's payload fills. */
-export const DECISION_LETTER_TEMPLATE_VERSION = 1;
 
 /** The portal page where the declarant sees a decision. */
 export function portalDecisionUrl(determinationId: string): string {
@@ -40,8 +39,6 @@ export function portalDecisionUrl(determinationId: string): string {
  */
 @Injectable()
 export class DeterminationActivities {
-  private readonly logger = new Logger(DeterminationActivities.name);
-
   constructor(
     @InjectDatabase() private readonly db: Database<ReviewSchema>,
     private readonly directory: DirectoryClient,
@@ -51,37 +48,19 @@ export class DeterminationActivities {
 
   /**
    * Asks documents to issue the Restricted decision letter (ADR-010), once: the letter's document
-   * and verification ids are kept on the determination. The request names the determination only;
-   * documents pulls the template fields from the letter payload endpoint.
+   * and verification ids are kept on the determination (`issueDecisionLetter`).
    */
   async requestDecisionLetter({
     tenant,
     determinationId,
   }: DeterminationIssuanceInput): Promise<DecisionLetterOutcome> {
-    const found = await load(this.db, tenant, determinationId);
-    if (found.status !== 'approved') return 'not-approved';
-    if (found.letterDocumentId !== null) return 'already-requested';
-    if (found.reference === null || found.approvedAt === null) {
-      throw new Error(`Determination ${determinationId} is approved without a reference`);
-    }
-    const commission = await this.directory.getCommission(tenant);
-    let issued;
+    let letter;
     try {
-      issued = await this.documents.issue({
-        type: 'decision-letter',
-        templateVersion: DECISION_LETTER_TEMPLATE_VERSION,
-        disclosureLevel: 'restricted',
-        issuerTenant: tenant,
-        subjectRef: `determination:${determinationId}`,
-        subjectPersonId: found.personId,
-        payload: { determinationId },
-        publicPayload: {
-          reference: found.reference,
-          type: 'decision-letter',
-          issuer: commission.name,
-          issuedAt: found.approvedAt.toISOString(),
-        },
-      });
+      letter = await issueDecisionLetter(
+        { db: this.db, directory: this.directory, documents: this.documents },
+        tenant,
+        determinationId,
+      );
     } catch (error) {
       if (error instanceof InternalApiRejected) {
         throw ApplicationFailure.nonRetryable(
@@ -91,56 +70,74 @@ export class DeterminationActivities {
       }
       throw error;
     }
-    await withTenant(this.db, systemContext(tenant), (tx) =>
-      tx
-        .update(determinations)
-        .set({ letterDocumentId: issued.id, letterVerificationId: issued.verificationId })
-        .where(
-          and(eq(determinations.id, determinationId), isNull(determinations.letterDocumentId)),
-        ),
-    );
-    return 'requested';
+    switch (letter.status) {
+      case 'missing':
+        throw ApplicationFailure.nonRetryable(
+          `Determination ${determinationId} does not exist`,
+          DETERMINATION_MISSING,
+        );
+      case 'not-approved':
+        return 'not-approved';
+      case 'existing':
+        return 'already-requested';
+      case 'issued':
+        return 'requested';
+    }
   }
 
-  /**
-   * Tells the declarant of the decision, by person, on one channel. The same channel always
-   * carries the same idempotency key, so a retry is not delivered twice. A message notifications
-   * refuses is not retried: sending it again would be refused again.
-   */
+  /** Tells the declarant of the decision, by person, on one channel (`sendDecisionNotice`). */
   async notifyDecision({
     tenant,
     determinationId,
     channel,
   }: DecisionNotice): Promise<DecisionNoticeOutcome> {
     const found = await load(this.db, tenant, determinationId);
-    if (found.reference === null) {
-      throw new Error(`Determination ${determinationId} is not approved`);
-    }
     const commission = await this.directory.getCommission(tenant);
-    const template = `decision-${channel}` as const;
-    try {
-      const sent = await this.notifications.send({
-        channel,
-        personId: found.personId,
-        template,
-        params: {
-          commission: commission.name,
-          reference: found.reference,
-          outcome: OUTCOME_LABELS[found.outcome],
-          portalUrl: portalDecisionUrl(determinationId),
-        },
-        tenant,
-        idempotencyKey: uuidv5(`${determinationId}:${template}`, MESSAGE_KEY_NAMESPACE),
-      });
-      return sent.status;
-    } catch (error) {
-      if (!(error instanceof InternalApiRejected)) throw error;
-      this.logger.warn(
-        { determinationId, template, status: error.status },
-        'Notifications refused a decision message',
-      );
-      return 'rejected';
-    }
+    return sendDecisionNotice(this.notifications, found, commission.name, channel);
+  }
+}
+
+type DeterminationRow = typeof determinations.$inferSelect;
+
+const noticeLogger = new Logger('DecisionNotices');
+
+/**
+ * Tells the declarant of an approved determination's decision, by person, on one channel. The
+ * same channel always carries the same idempotency key, so a retry is not delivered twice. A
+ * message notifications refuses is not retried: sending it again would be refused again. Bulk
+ * closures' notices send theirs the same way.
+ */
+export async function sendDecisionNotice(
+  notifications: NotificationsClient,
+  determination: DeterminationRow,
+  commissionName: string,
+  channel: DecisionChannel,
+): Promise<DecisionNoticeOutcome> {
+  const { id, tenant, reference } = determination;
+  if (reference === null) throw new Error(`Determination ${id} is not approved`);
+  const template = `decision-${channel}` as const;
+  try {
+    const sent = await notifications.send({
+      channel,
+      personId: determination.personId,
+      template,
+      params: {
+        commission: commissionName,
+        reference,
+        outcome: OUTCOME_LABELS[determination.outcome],
+        portalUrl: portalDecisionUrl(id),
+      },
+      tenant,
+      idempotencyKey: uuidv5(`${id}:${template}`, MESSAGE_KEY_NAMESPACE),
+    });
+    return sent.status;
+  } catch (error) {
+    if (!(error instanceof InternalApiRejected)) throw error;
+    noticeLogger.warn(
+      { determinationId: id, template, status: error.status },
+      'Notifications refused a decision message',
+    );
+    return 'rejected';
   }
 }
 

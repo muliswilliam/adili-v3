@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
 import {
   ApiCreatedResponse,
   ApiOkResponse,
@@ -8,6 +8,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  type AuthenticatedRequest,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -16,6 +17,11 @@ import {
 } from '@adili/api-kit';
 import { z } from 'zod';
 
+import { declarantPersonOf } from '../clarifications/access.js';
+import {
+  DeterminationLetterService,
+  type LetterDownloadView,
+} from './determination-letter.service.js';
 import {
   type DeterminationInput,
   determinationInput,
@@ -42,7 +48,10 @@ const ApiUuidParam = (name: string) =>
 @ApiTags('determinations')
 @Controller('v1/review')
 export class DeterminationsController {
-  constructor(private readonly determinations: DeterminationsService) {}
+  constructor(
+    private readonly determinations: DeterminationsService,
+    private readonly letters: DeterminationLetterService,
+  ) {}
 
   @Post('cases/:caseId/determinations')
   @ApiUuidParam('caseId')
@@ -73,6 +82,27 @@ export class DeterminationsController {
     @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
   ): Promise<DeterminationView> {
     return this.determinations.get(principal, determinationId);
+  }
+
+  @Get('determinations/:determinationId/letter')
+  @ApiUuidParam('determinationId')
+  @ApiOperation({
+    operationId: 'getDeterminationLetter',
+    summary: 'Decision letter download; issued on first request for bulk closures',
+    description:
+      "The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served.",
+  })
+  @ApiOkResponse({ description: 'Download link', schema: schemaRef('LetterDownload') })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Problem code `not-approved`')
+  @ApiProblemResponse(502, 'The documents service refused the letter')
+  @ApiProblemResponse(503, 'The documents service or the directory could not be reached')
+  letter(
+    @CurrentPrincipal() principal: Principal,
+    @Req() request: AuthenticatedRequest,
+    @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
+  ): Promise<LetterDownloadView> {
+    return this.letters.letter(principal, declarantPersonOf(request), determinationId);
   }
 
   @Post('determinations/:determinationId/approve')

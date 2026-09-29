@@ -232,8 +232,11 @@ async function latestReassignments(
   return latest;
 }
 
-/** The inbox is the supervisors': a reviewer gets 403 `supervisor-required`. */
-function requireSupervisor(principal: Principal): void {
+/**
+ * Approvals (the inbox, bulk closures) are the supervisors': a reviewer gets 403
+ * `supervisor-required`.
+ */
+export function requireSupervisor(principal: Principal): void {
   if (isSupervisor(principal)) return;
   throw new ProblemException(
     {

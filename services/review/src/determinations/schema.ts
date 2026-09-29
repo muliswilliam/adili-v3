@@ -62,6 +62,8 @@ export const determinations = pgTable(
     reference: text(),
     letterDocumentId: uuid(),
     letterVerificationId: text(),
+    /** The supervisor's bulk approval that approved this system closure, if one did. */
+    bulkApprovalId: uuid(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -77,6 +79,7 @@ export const determinations = pgTable(
     index('determinations_case_id_idx').on(table.caseId),
     index('determinations_tenant_status_idx').on(table.tenant, table.status, table.proposedAt),
     index('determinations_person_status_idx').on(table.personId, table.status),
+    index('determinations_bulk_approval_idx').on(table.bulkApprovalId),
     check(
       'determinations_outcome_check',
       sql`${table.outcome} in (${inList(DETERMINATION_OUTCOMES)})`,

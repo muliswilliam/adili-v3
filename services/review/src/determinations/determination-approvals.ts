@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, count, eq, gt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, lte, or, type SQL, sql } from 'drizzle-orm';
 
 import {
   type AgeCounts,
@@ -18,7 +18,13 @@ const REASONS_EXCERPT = 200;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Proposed determinations as the approvals inbox lists them (spec 08). */
+/**
+ * The system's `compliant-no-issues` proposals are bulk closures: a supervisor approves them by
+ * filter on the bulk closure screen, so they stay out of the inbox, which would drown in them.
+ */
+const notBulkClosure: SQL = sql`not (${determinations.proposerKind} = 'system' and ${determinations.outcome} = 'compliant-no-issues')`;
+
+/** Proposed determinations as the approvals inbox lists them (spec 08), bulk closures aside. */
 @Injectable()
 export class DeterminationApprovals extends ApprovalSource {
   readonly kind = 'determination' as const;
@@ -42,6 +48,7 @@ export class DeterminationApprovals extends ApprovalSource {
         and(
           eq(determinations.tenant, tenant),
           eq(determinations.status, 'proposed'),
+          notBulkClosure,
           after === null
             ? undefined
             : or(
@@ -96,7 +103,13 @@ export class DeterminationApprovals extends ApprovalSource {
           ),
       })
       .from(determinations)
-      .where(and(eq(determinations.tenant, tenant), eq(determinations.status, 'proposed')));
+      .where(
+        and(
+          eq(determinations.tenant, tenant),
+          eq(determinations.status, 'proposed'),
+          notBulkClosure,
+        ),
+      );
     if (!counts) return { under7Days: 0, from7To30Days: 0, over30Days: 0 };
     return {
       under7Days: counts.total - counts.from7To30Days - counts.over30Days,

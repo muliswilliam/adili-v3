@@ -106,7 +106,7 @@ export class DeterminationsService {
         })
         .returning();
       const proposed = notFoundIfInvisible(created);
-      await this.record(tx, proposed, {
+      await recordDetermination(tx, this.events, proposed, {
         kind: 'determination-proposed',
         type: DETERMINATION_PROPOSED,
         actor: principal.subject,
@@ -163,7 +163,7 @@ export class DeterminationsService {
         .where(eq(determinations.id, determination.id))
         .returning();
       const approved = notFoundIfInvisible(updated);
-      await this.record(tx, approved, {
+      await recordDetermination(tx, this.events, approved, {
         kind: 'determination-approved',
         type: DETERMINATION_APPROVED,
         actor: principal.subject,
@@ -208,7 +208,7 @@ export class DeterminationsService {
         .where(eq(determinations.id, determination.id))
         .returning();
       const returned = notFoundIfInvisible(updated);
-      await this.record(tx, returned, {
+      await recordDetermination(tx, this.events, returned, {
         kind: 'determination-returned',
         type: DETERMINATION_RETURNED,
         actor: principal.subject,
@@ -241,7 +241,7 @@ export class DeterminationsService {
         .where(eq(determinations.id, determination.id))
         .returning();
       const withdrawn = notFoundIfInvisible(updated);
-      await this.record(tx, withdrawn, {
+      await recordDetermination(tx, this.events, withdrawn, {
         kind: 'determination-withdrawn',
         type: DETERMINATION_WITHDRAWN,
         actor: principal.subject,
@@ -270,46 +270,48 @@ export class DeterminationsService {
     });
     return { determination, reviewCase };
   }
+}
 
-  /** The case timeline entry and the `determination.*` event of a change. */
-  private async record(
-    tx: ReviewTransaction,
-    row: DeterminationRow,
-    change: {
-      kind: TimelineKind;
-      type: string;
-      actor: string;
-      summary: string;
-      at: Date;
-      approver?: string;
-    },
-  ): Promise<void> {
-    await tx.insert(reviewTimeline).values({
-      id: uuidv7(),
-      tenant: row.tenant,
+/** A change of a determination, as its timeline entry and event record it. */
+export interface DeterminationChange {
+  kind: TimelineKind;
+  type: string;
+  actor: string;
+  summary: string;
+  at: Date;
+  approver?: string;
+}
+
+/** The case timeline entry and the `determination.*` event of a change. */
+export async function recordDetermination(
+  tx: ReviewTransaction,
+  events: EventPublisher,
+  row: DeterminationRow,
+  change: DeterminationChange,
+): Promise<void> {
+  await tx.insert(reviewTimeline).values({
+    id: uuidv7(),
+    tenant: row.tenant,
+    caseId: row.caseId,
+    kind: change.kind,
+    ref: row.id,
+    actor: change.actor,
+    summary: change.summary,
+    at: change.at,
+  });
+  await events.record<DeterminationEventData>(tx, {
+    type: change.type,
+    subject: row.id,
+    tenant: row.tenant,
+    data: {
+      determinationId: row.id,
       caseId: row.caseId,
-      kind: change.kind,
-      ref: row.id,
-      actor: change.actor,
-      summary: change.summary,
-      at: change.at,
-    });
-    await this.events.record<DeterminationEventData>(tx, {
-      type: change.type,
-      subject: row.id,
-      tenant: row.tenant,
-      data: {
-        determinationId: row.id,
-        caseId: row.caseId,
-        outcome: row.outcome,
-        proposerKind: row.proposerKind,
-        approver: change.approver ?? row.approver,
-        ...(row.status === 'approved' && row.reference !== null
-          ? { reference: row.reference }
-          : {}),
-      },
-    });
-  }
+      outcome: row.outcome,
+      proposerKind: row.proposerKind,
+      approver: change.approver ?? row.approver,
+      ...(row.status === 'approved' && row.reference !== null ? { reference: row.reference } : {}),
+    },
+  });
 }
 
 /** The determination of the tenant, locked for update; 404 when invisible. */

@@ -11,6 +11,7 @@ import {
 import { ApprovalsModule } from './approvals/approvals.module.js';
 import { CasesModule } from './cases/cases.module.js';
 import { ClarificationsModule } from './clarifications/clarifications.module.js';
+import { ClosuresModule } from './closures/closures.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { DeterminationsModule } from './determinations/determinations.module.js';
@@ -43,6 +44,7 @@ import { ProcessingModule } from './processing/processing.module.js';
     ClarificationsModule,
     DeterminationsModule,
     ApprovalsModule,
+    ClosuresModule,
     ProcessingModule,
   ],
 })
