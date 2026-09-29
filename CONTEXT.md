@@ -43,6 +43,10 @@ _Avoid_: employee, entry
 The identifier a Responsible Commission uses for an officer; the onboarding match key.
 _Avoid_: staff number, PF, employee ID
 
+**Roster exit**:
+The confirmed departure from office of a roster record's declarant, as at an exit date. It owes a final declaration.
+_Avoid_: termination, removal, offboarding
+
 **Onboarding**:
 The one-time process that turns a roster record into a declarant account: Commission selection, file-number match, email and phone OTP, Keycloak account.
 _Avoid_: registration, sign-up, invitation
@@ -56,6 +60,18 @@ _Avoid_: return, filing, form
 **Filing obligation**:
 A declarant's duty to make a specific declaration by a due date.
 _Avoid_: deadline, task
+
+**Cycle opening**:
+The day a biennial cycle's filing obligations are created for every declarant on a roster, a set number of days (120 by default) before its statement date.
+_Avoid_: cycle start, launch
+
+**Obligations policy**:
+A Responsible Commission's versioned rules for filing obligations: the statutory periods, the reminder schedule and the obligations start date, before which no declaration is owed on Adili.
+_Avoid_: settings, configuration, tenant policy (in prose)
+
+**Reminder**:
+A message to a declarant by SMS and email a set number of days before a filing obligation's due date, recorded with its outcome whether it was sent or skipped.
+_Avoid_: notification (alone), alert, nudge
 
 **Statement date**:
 The date the financial position is declared as at.

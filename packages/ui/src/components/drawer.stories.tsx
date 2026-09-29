@@ -132,10 +132,10 @@ export const FromARow: Story = {
     const [open, setOpen] = useState(false);
     return (
       <>
-        <Table caption="Officers and their obligations">
+        <Table caption="Declarants and their obligations">
           <TableHeader>
             <TableRow>
-              <TableHead>Officer</TableHead>
+              <TableHead>Declarant</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
