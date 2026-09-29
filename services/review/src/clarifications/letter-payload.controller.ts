@@ -25,6 +25,8 @@ export class LetterPayloadController {
   })
   @ApiOkResponse({ description: 'Payload', schema: schemaRef('ClarificationLetterPayload') })
   @ApiProblemResponse(404, 'No issued clarification with this id at the acting Commission')
+  @ApiProblemResponse(502, 'The declaration could not be read')
+  @ApiProblemResponse(503, 'The Commission directory could not be reached')
   payload(
     @ActingTenant() tenant: string,
     @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,

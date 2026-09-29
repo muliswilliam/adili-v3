@@ -12,6 +12,7 @@ import {
   type PulledVersion,
   type ReadContext,
 } from '../declarations/declarations-client.js';
+import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { reviewTenant } from './access.js';
 import { compareVersions, type VersionComparison } from './comparison.js';
 import { reviewCases } from './schema.js';
@@ -87,13 +88,4 @@ export class CompareService {
     if (!pulled) throw declarationsUnavailable();
     return pulled;
   }
-}
-
-function declarationsUnavailable(): ProblemException {
-  return new ProblemException({
-    type: 'declarations-unavailable',
-    title: 'Declarations unavailable',
-    status: HttpStatus.BAD_GATEWAY,
-    detail: 'The declaration could not be read from the declarations service. Try again shortly.',
-  });
 }

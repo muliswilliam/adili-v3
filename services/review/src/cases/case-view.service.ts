@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -12,6 +12,7 @@ import {
 } from '../declarations/declarations-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { caseTenant } from './access.js';
 import {
@@ -109,10 +110,7 @@ export class CaseViewService {
     } catch (error) {
       // A filed attachment is clean; one documents refuses is as good as unreachable.
       if (error instanceof DocumentsUnavailable || error instanceof InternalApiRejected) {
-        throw unavailable(
-          'documents-unavailable',
-          'The documents service could not give the link.',
-        );
+        throw upstreamUnavailable('documents', 'The documents service could not give the link.');
       }
       throw error;
     }
@@ -129,31 +127,16 @@ export class CaseViewService {
         caseId: row.id,
       });
     } catch (error) {
-      if (error instanceof DeclarationsUnavailable) {
-        throw unavailable(
-          'declarations-unavailable',
-          'The declaration could not be read from the declarations service. Try again shortly.',
-        );
-      }
+      if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
       throw error;
     }
     if (pulled === null) {
-      throw unavailable(
-        'declarations-unavailable',
+      throw declarationsUnavailable(
         'The declarations service does not have the version under review.',
       );
     }
     return pulled;
   }
-}
-
-function unavailable(type: string, detail: string): ProblemException {
-  return new ProblemException({
-    type,
-    title: 'Upstream service unavailable',
-    status: HttpStatus.BAD_GATEWAY,
-    detail,
-  });
 }
 
 /** Everything the case view shows from the review database. */

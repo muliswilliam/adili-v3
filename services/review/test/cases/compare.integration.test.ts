@@ -278,7 +278,11 @@ describe('compare case versions', () => {
     const response = await compare(caseId, reviewer);
 
     expect(response.statusCode).toBe(502);
-    expect(response.json()).toMatchObject({ type: 'declarations-unavailable' });
+    expect(response.json()).toMatchObject({
+      type: 'declarations-unavailable',
+      title: 'Upstream service unavailable',
+      status: 502,
+    });
     expect(await api.db.select().from(outbox)).toHaveLength(eventsBefore.length);
   });
 });

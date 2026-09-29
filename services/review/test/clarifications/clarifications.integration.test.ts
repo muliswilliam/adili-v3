@@ -509,6 +509,16 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     ).toBe(404);
     expect((await api.get(payloadUrl, reviewerA, psc)).statusCode).toBe(403);
     expect((await api.get(payloadUrl, documentsService)).statusCode).toBe(400);
+
+    // Declarations unreachable: the same 502 as every other read of the declaration.
+    api.declarations.failReads(1);
+    const unavailable = await api.get(payloadUrl, documentsService, psc);
+    expect(unavailable.statusCode).toBe(502);
+    expect(unavailable.json()).toMatchObject({
+      type: 'declarations-unavailable',
+      title: 'Upstream service unavailable',
+      status: 502,
+    });
   });
 
   it("declarant: lists and reads their issued clarifications with the letter link, never drafts or other people's", async () => {

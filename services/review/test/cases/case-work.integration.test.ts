@@ -443,6 +443,7 @@ describe('review case: assignment, detail, notes and flags', () => {
       const body = response.json<Record<string, unknown>>();
       expect(body).toMatchObject({
         type: 'declarations-unavailable',
+        title: 'Upstream service unavailable',
         status: 502,
         case: { id: caseId, status: 'unassigned' },
         document: null,

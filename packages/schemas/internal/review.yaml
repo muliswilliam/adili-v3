@@ -162,6 +162,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          $ref: '#/components/responses/DeclarationsUnavailable'
   /v1/review/cases/{caseId}/attachments/{uploadId}/download:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -438,6 +440,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/clarifications/{clarificationId}/resolve:
     parameters:
       - $ref: '#/components/parameters/ClarificationId'
@@ -631,6 +635,10 @@ paths:
                 $ref: '#/components/schemas/ClarificationLetterPayload'
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/DeclarationsUnavailable'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -1516,6 +1524,22 @@ components:
             $ref: '#/components/schemas/ProblemDetails'
     ValidationProblem:
       description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    DeclarationsUnavailable:
+      description: >-
+        Problem type `declarations-unavailable` (title "Upstream service unavailable"): the
+        declaration could not be read from the declarations service
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    DirectoryUnavailable:
+      description: >-
+        Problem type `directory-unavailable` (title "Upstream service unavailable"): the Commission
+        directory could not be reached; nothing changed, try again
       content:
         application/problem+json:
           schema:

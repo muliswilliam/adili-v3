@@ -19,10 +19,10 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
 import type { ResponseInput } from './clarification-input.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
-import { withDirectory, withDocuments } from './clarifications.service.js';
 import { CLARIFICATION_RESPONDED, type ClarificationRespondedData } from './events.js';
 import { letterDownloadUrl } from './links.js';
 import { clarificationView, type DeclarantClarificationView } from './representation.js';
@@ -141,7 +141,7 @@ export class DeclarantClarificationsService {
       for (const uploadId of attachments) {
         let upload;
         try {
-          upload = await withDocuments(() => this.documents.getUploadDownload(uploadId, tenant));
+          upload = await withUpstream(() => this.documents.getUploadDownload(uploadId, tenant));
         } catch (error) {
           if (error instanceof InternalApiRejected) throw attachmentRefused(uploadId, 'not-clean');
           throw error;
@@ -209,7 +209,7 @@ export class DeclarantClarificationsService {
           .where(inArray(reviewCases.id, caseIds)),
       );
       for (const kase of cases) references.set(kase.id, kase.reference);
-      const commission = await withDirectory(() => this.directory.getCommission(tenant));
+      const commission = await withUpstream(() => this.directory.getCommission(tenant));
       names.set(tenant, commission.name);
     }
     return rows.map((row) => {

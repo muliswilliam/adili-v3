@@ -19,9 +19,10 @@ import {
 } from '../cases/schema.js';
 import { Clock, nairobiDate, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
-import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
+import { DirectoryClient } from '../directory/directory-client.js';
+import { DocumentsClient } from '../documents/documents-client.js';
 import { caseTenant } from '../cases/access.js';
+import { withUpstream } from '../internal-api/upstream.js';
 import { requireAssignee } from './access.js';
 import type {
   ClarificationInput,
@@ -156,8 +157,8 @@ export class ClarificationsService {
       }
 
       const [policy, commission] = await Promise.all([
-        withDirectory(() => this.directory.getClarificationPolicy(tenant)),
-        withDirectory(() => this.directory.getCommission(tenant)),
+        withUpstream(() => this.directory.getClarificationPolicy(tenant)),
+        withUpstream(() => this.directory.getCommission(tenant)),
       ]);
       const reference = await allocateReference(tx, CLR, {
         issuer: commission.issuerCode,
@@ -339,7 +340,7 @@ export class ClarificationsService {
       // A letter documents is still rendering is revoked by the workflow when it is kept.
       const letter = done.letterDocumentId;
       if (letter !== null) {
-        await withDocuments(() => this.documents.revoke(letter, tenant, 'issued-in-error'));
+        await withUpstream(() => this.documents.revoke(letter, tenant, 'issued-in-error'));
       }
       return clarificationView(done, await responseOf(tx, clarificationId));
     });
@@ -451,34 +452,4 @@ function requireOpen(status: ClarificationStatus): void {
     },
     { code: 'clarification-not-open', clarificationStatus: status },
   );
-}
-
-/** A directory outage is a 503 the reviewer can retry; nothing has been issued. */
-export async function withDirectory<T>(call: () => Promise<T>): Promise<T> {
-  try {
-    return await call();
-  } catch (error) {
-    if (!(error instanceof DirectoryUnavailable)) throw error;
-    throw new ProblemException({
-      type: 'directory-unavailable',
-      title: 'Service Unavailable',
-      status: HttpStatus.SERVICE_UNAVAILABLE,
-      detail: 'The Commission directory cannot be reached. Try again shortly.',
-    });
-  }
-}
-
-/** A documents outage is a 503 the caller can retry; nothing has changed. */
-export async function withDocuments<T>(call: () => Promise<T>): Promise<T> {
-  try {
-    return await call();
-  } catch (error) {
-    if (!(error instanceof DocumentsUnavailable)) throw error;
-    throw new ProblemException({
-      type: 'documents-unavailable',
-      title: 'Service Unavailable',
-      status: HttpStatus.SERVICE_UNAVAILABLE,
-      detail: 'The documents service cannot be reached. Try again shortly.',
-    });
-  }
 }

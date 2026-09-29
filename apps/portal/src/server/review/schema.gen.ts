@@ -1570,6 +1570,24 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
+        /** @description Problem type `declarations-unavailable` (title "Upstream service unavailable"): the declaration could not be read from the declarations service */
+        DeclarationsUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Problem type `directory-unavailable` (title "Upstream service unavailable"): the Commission directory could not be reached; nothing changed, try again */
+        DirectoryUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
     };
     parameters: {
         Slug: string;
@@ -1711,6 +1729,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            502: components["responses"]["DeclarationsUnavailable"];
         };
     };
     getCaseAttachmentDownload: {
@@ -2038,6 +2057,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     resolveClarification: {
@@ -2277,6 +2297,8 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            502: components["responses"]["DeclarationsUnavailable"];
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     getCaseRegistryChecks: {

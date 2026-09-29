@@ -105,6 +105,7 @@ export class ClarificationsController {
   @ApiProblemResponse(403, NOT_ASSIGNEE)
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(409, 'Problem code `clarification-window-closed` or `not-a-draft`')
+  @ApiProblemResponse(503, 'The Commission directory could not be reached; nothing changed')
   issue(
     @CurrentPrincipal() principal: Principal,
     @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,

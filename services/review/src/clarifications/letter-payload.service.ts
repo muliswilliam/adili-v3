@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { notFoundIfInvisible } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import type { DeclarationV1 } from '@adili/forms';
 import { and, eq, ne } from 'drizzle-orm';
@@ -11,8 +11,8 @@ import {
   DeclarationsUnavailable,
 } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
+import { declarationsUnavailable, withUpstream } from '../internal-api/upstream.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
-import { withDirectory } from './clarifications.service.js';
 import { itemLabel, REQUIREMENT_LABELS } from './labels.js';
 import { portalClarificationUrl } from './links.js';
 
@@ -67,7 +67,7 @@ export class LetterPayloadService {
       throw new Error(`Clarification ${clarificationId} is issued without a reference`);
     }
 
-    const commission = await withDirectory(() => this.directory.getCommission(tenant));
+    const commission = await withUpstream(() => this.directory.getCommission(tenant));
     const document = await this.document(tenant, kase);
     return {
       declarantName: kase.declarantName,
@@ -85,7 +85,7 @@ export class LetterPayloadService {
     };
   }
 
-  /** The case's current version as filed; an outage is a 503 documents retries. */
+  /** The case's current version as filed; an outage is a 502 documents retries. */
   private async document(
     tenant: string,
     kase: { id: string; declarationId: string; currentVersion: number },
@@ -99,12 +99,7 @@ export class LetterPayloadService {
       return (pulled?.document as unknown as DeclarationV1 | undefined) ?? null;
     } catch (error) {
       if (!(error instanceof DeclarationsUnavailable)) throw error;
-      throw new ProblemException({
-        type: 'declarations-unavailable',
-        title: 'Service Unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The declaration cannot be read right now. Try again shortly.',
-      });
+      throw declarationsUnavailable();
     }
   }
 }
