@@ -1,10 +1,11 @@
 import { type Database, withTenant } from '@adili/data-access';
+import type { EventPublisher } from '@adili/events';
 import { eq } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../db/schema.js';
 import { PLATFORM_TENANT } from './access.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
-import { nairobiToday } from './policy-versions.js';
+import { createPolicyVersion, nairobiToday, readCurrentPolicy } from './policy-versions.js';
 import { commissionCategories, commissions, tenantPolicyVersions } from './schema.js';
 
 /** The tenants the demo accounts in the Keycloak realm import belong to. */
@@ -69,4 +70,36 @@ export async function seedDemoCommissions(db: Database<DirectorySchema>): Promis
         });
     }
   });
+}
+
+/**
+ * For the local reminder demo (#92): puts a policy version with `reminderOffsetsDays` in force for
+ * a demo Commission, the rest copied from the current one, and announces it
+ * (`directory.policy.changed.v1`) so the declarations service pulls it. Obligations created from
+ * then on are reminded at those offsets, e.g. 29 days before the due date for an officer appointed
+ * yesterday (an initial due in 29 days), so the reminder goes out today. Changes nothing when the
+ * offsets are in force already. Never run against real data: the product changes the
+ * obligations-start date only (spec 04).
+ */
+export async function useDemoReminderOffsets(
+  db: Database<DirectorySchema>,
+  events: EventPublisher,
+  { tenant, reminderOffsetsDays }: { tenant: string; reminderOffsetsDays: number[] },
+): Promise<void> {
+  await withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
+    const current = await readCurrentPolicy(tx, tenant);
+    if (sameOffsets(current.reminderOffsetsDays, reminderOffsetsDays)) return;
+    await createPolicyVersion(tx, events, {
+      tenant,
+      obligationsStartDate: current.obligationsStartDate,
+      effectiveFrom: new Date(),
+      createdBy: SEEDED_BY,
+      createdByName: 'Reminder demo',
+      reminderOffsetsDays,
+    });
+  });
+}
+
+function sameOffsets(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((days, index) => days === b[index]);
 }

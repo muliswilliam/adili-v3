@@ -20,6 +20,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts",
     "db:seed": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/seed.ts",
+    "demo:reminder-offsets": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/demo-reminder-offsets.ts",
     "contracts": "node --disable-warning=DEP0205 --env-file=.env.example --import @swc-node/register/esm-register ../../packages/schemas/scripts/export-contract.mjs"
   },
   "dependencies": {

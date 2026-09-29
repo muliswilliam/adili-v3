@@ -59,6 +59,11 @@ export interface CreatePolicyVersion {
   /** Who creates it: the token's `sub` and display name. */
   createdBy: string;
   createdByName: string | null;
+  /**
+   * Replaces the reminder offsets. Only the local reminder demo sets it (`useDemoReminderOffsets`):
+   * the product changes the obligations-start date alone (spec 04).
+   */
+  reminderOffsetsDays?: number[];
 }
 
 /**
@@ -85,7 +90,9 @@ export async function createPolicyVersion(
       tenant: command.tenant,
       version: current.version + 1,
       effectiveFrom: command.effectiveFrom,
-      policy: current.policy,
+      policy: command.reminderOffsetsDays
+        ? { ...current.policy, reminderOffsetsDays: command.reminderOffsetsDays }
+        : current.policy,
       obligationsStartDate: command.obligationsStartDate,
       createdBy: command.createdBy,
       createdByName: command.createdByName,
