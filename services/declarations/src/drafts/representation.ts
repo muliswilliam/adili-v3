@@ -146,3 +146,45 @@ export const declarationAttachmentSchema = z.object({
   linkedAt: z.iso.datetime(),
 });
 export type DeclarationAttachment = z.infer<typeof declarationAttachmentSchema>;
+
+/** Why a draft cannot be submitted: never before its statement date, and not until slice 06. */
+export const CANNOT_SUBMIT_REASON_VALUES = [
+  'submission-not-available',
+  'before-statement-date',
+] as const;
+export type CannotSubmitReason = (typeof CANNOT_SUBMIT_REASON_VALUES)[number];
+
+export const declarationSummarySchema = z.object({
+  declaration: declarationSchema,
+  document: z.record(z.string(), z.unknown()).meta({
+    description:
+      'The declaration.v1 document assembled from the live sections (decrypted for the declarant): archived statements left out, paragraph 9 material changes composed from the flagged items and the marital-status change',
+  }),
+  valid: z.boolean().meta({ description: 'Whether the document validates against declaration.v1' }),
+  blocking: z.array(completenessIssueSchema).meta({
+    description:
+      'What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once',
+  }),
+  canSubmit: z.boolean().meta({ description: 'Always false in slice 05' }),
+  cannotSubmitReason: z.enum(CANNOT_SUBMIT_REASON_VALUES).meta({
+    description:
+      '`before-statement-date`: the statement date (Nairobi) has not come; `submission-not-available`: submission opens in the next release',
+  }),
+  attestationText: z.string().meta({ description: 'The solemn declaration the declarant makes' }),
+});
+export type DeclarationSummary = z.infer<typeof declarationSummarySchema>;
+
+export const declarationListItemSchema = z.object({
+  id: z.uuid(),
+  obligationId: z.uuid(),
+  commission: commissionRefSchema,
+  type: obligationTypeSchema,
+  statementDate: z.iso.date(),
+  status: declarationStatusSchema,
+  completenessPercent: z.int().min(0).max(100).meta({
+    description:
+      'Complete sections out of the live ones (archived statements left out), rounded down',
+  }),
+  updatedAt: z.iso.datetime(),
+});
+export type DeclarationListItem = z.infer<typeof declarationListItemSchema>;

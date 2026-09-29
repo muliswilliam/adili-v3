@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { ClockModule } from '../clock.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
 import { AttachmentsController } from './attachments.controller.js';
@@ -14,7 +15,7 @@ import { SectionCipher } from './section-cipher.js';
  * attachments on statement items held by the documents service.
  */
 @Module({
-  imports: [DirectoryModule, DocumentsModule],
+  imports: [ClockModule, DirectoryModule, DocumentsModule],
   controllers: [DraftsController, AttachmentsController],
   providers: [DraftsService, AttachmentsService, SectionCipher],
 })

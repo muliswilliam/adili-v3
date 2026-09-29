@@ -6,56 +6,6 @@
 # `CommissionRef`, `ObligationType`, `ProblemDetails`). When an operation or component is
 # implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/me/declarations:
-    get:
-      tags: [declarations]
-      operationId: getMyDeclarations
-      summary: The declarant's declarations (drafts now; submitted later)
-      responses:
-        '200':
-          description: List
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DeclarationListItem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}:
-    delete:
-      parameters:
-        - $ref: '#/components/parameters/DeclarationId'
-      tags: [declarations]
-      operationId: discardDeclaration
-      summary: Discard the draft
-      responses:
-        '204':
-          description: Discarded
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Not a draft
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/summary:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    get:
-      tags: [declarations]
-      operationId: getDeclarationSummary
-      summary: The assembled declaration validated against declaration.v1, with completeness
-      responses:
-        '200':
-          description: Summary
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarationSummary'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/declarations/{declarationId}/submit:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -1097,33 +1047,6 @@ components:
                 type: object
                 description: Subset of the declaration.v1 document limited to the granted persons and sections
                 additionalProperties: true
-    DeclarationListItem:
-      type: object
-      required:
-        [id, obligationId, commission, type, statementDate, status, completenessPercent, updatedAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        obligationId:
-          type: string
-          format: uuid
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        type:
-          $ref: '#/components/schemas/ObligationType'
-        statementDate:
-          type: string
-          format: date
-        status:
-          $ref: '#/components/schemas/DeclarationStatus'
-        completenessPercent:
-          type: integer
-          minimum: 0
-          maximum: 100
-        updatedAt:
-          type: string
-          format: date-time
     SuggestionSource:
       type: string
       enum: [kra, ntsa, brs, ardhisasa, document]
@@ -1336,32 +1259,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-    DeclarationSummary:
-      type: object
-      required:
-        [declaration, document, valid, blocking, canSubmit, cannotSubmitReason, attestationText]
-      properties:
-        declaration:
-          $ref: '#/components/schemas/Declaration'
-        document:
-          type: object
-          description: The assembled declaration.v1 document (decrypted for the owner)
-          additionalProperties: true
-        valid:
-          type: boolean
-          description: Validates against declaration.v1
-        blocking:
-          type: array
-          items:
-            $ref: '#/components/schemas/CompletenessIssue'
-        canSubmit:
-          type: boolean
-          description: Always false in slice 05
-        cannotSubmitReason:
-          type: [string, 'null']
-          enum: [submission-not-available, before-statement-date, incomplete, null]
-        attestationText:
-          type: string
     DeclarationReference:
       type: string
       description: 'ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>'

@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Headers, HttpStatus, Param, Post, Put, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Res,
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiHeader,
@@ -17,7 +29,13 @@ import {
 } from '@adili/api-kit';
 
 import { DraftsService } from './drafts.service.js';
-import type { Declaration, SectionEnvelope, SectionSaveResult } from './representation.js';
+import type {
+  Declaration,
+  DeclarationListItem,
+  DeclarationSummary,
+  SectionEnvelope,
+  SectionSaveResult,
+} from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
@@ -101,6 +119,60 @@ export class DraftsController {
     const declaration = await this.drafts.get(principal, declarationId);
     reply.header('ETag', etag(declaration.draftVersion));
     return declaration;
+  }
+
+  @Get('me/declarations')
+  @ApiOperation({
+    operationId: 'getMyDeclarations',
+    summary: "The signed-in declarant's declarations (drafts now; submitted later)",
+    description:
+      'Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.',
+  })
+  @ApiOkResponse({
+    description: 'Declarations, last updated first',
+    schema: { type: 'array', items: schemaRef('DeclarationListItem') },
+  })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  mine(@CurrentPrincipal() principal: Principal): Promise<DeclarationListItem[]> {
+    return this.drafts.mine(principal);
+  }
+
+  @Delete('declarations/:declarationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiDeclarationIdParam()
+  @ApiOperation({
+    operationId: 'discardDeclaration',
+    summary: 'Discard the draft',
+    description:
+      'Deletes the sections and attachments (records `declaration.attachment-unlinked.v1` for each, then `declaration.draft-discarded.v1`). The obligation is untouched: starting again makes a fresh draft.',
+  })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Discarded' })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'Not a draft (`declaration-not-draft`)')
+  async discard(
+    @CurrentPrincipal() principal: Principal,
+    @Param('declarationId') declarationId: string,
+  ): Promise<void> {
+    await this.drafts.discard(principal, declarationId);
+  }
+
+  @Get('declarations/:declarationId/summary')
+  @ApiDeclarationIdParam()
+  @AuditedRead({ action: 'declaration.summary.read', resource: 'declaration' })
+  @ApiOperation({
+    operationId: 'getDeclarationSummary',
+    summary:
+      'The assembled declaration validated against declaration.v1, with what blocks submission',
+    description:
+      'Assembled from the live sections (archived statements left out), paragraph 9 material changes composed from the items. `canSubmit` is false in this slice.',
+  })
+  @ApiOkResponse({ description: 'Summary', schema: schemaRef('DeclarationSummary') })
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  summary(
+    @CurrentPrincipal() principal: Principal,
+    @Param('declarationId') declarationId: string,
+  ): Promise<DeclarationSummary> {
+    return this.drafts.summary(principal, declarationId);
   }
 
   @Get('declarations/:declarationId/sections/:sectionKey')

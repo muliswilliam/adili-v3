@@ -30,6 +30,13 @@ export function hasItem(contents: SectionContents, itemId: string): boolean {
   return ITEM_LISTS.some((list) => itemsOf(contents, list).some((item) => item.id === itemId));
 }
 
+/** The ids of the statement's items, every list. */
+export function itemIds(contents: SectionContents): string[] {
+  return ITEM_LISTS.flatMap((list) =>
+    itemsOf(contents, list).flatMap((item) => (typeof item.id === 'string' ? [item.id] : [])),
+  );
+}
+
 /** The contents with `ref` added to the item's attachments; null when there is no such item. */
 export function withAttachment(
   contents: SectionContents,

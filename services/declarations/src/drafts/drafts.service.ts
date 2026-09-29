@@ -2,21 +2,32 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import type { DeclarationSectionKey, PersonKey } from '@adili/forms';
+import {
+  ATTESTATION_TEXT,
+  type DeclarationSectionKey,
+  declarationIssues,
+  type PersonKey,
+} from '@adili/forms';
 import { isDeepStrictEqual } from 'node:util';
 
-import { and, eq, like, max, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, like, max, ne, notInArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import type { Transaction } from '../obligations/apply-page.js';
 import { fallbackIssuerCode } from '../obligations/access.js';
+import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
-import { keepAttachments } from './attachments.js';
+import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
 import { deriveHeader } from './derive.js';
-import { declarationDraftStarted } from './events.js';
+import {
+  declarationAttachmentUnlinked,
+  declarationDraftDiscarded,
+  declarationDraftStarted,
+} from './events.js';
 import {
   duplicatePeople,
   householdPeople,
@@ -25,7 +36,13 @@ import {
   type StatementPerson,
 } from './household.js';
 import { composeMaterialChanges } from './material-changes.js';
-import type { Declaration, SectionEnvelope, SectionSaveResult } from './representation.js';
+import type {
+  Declaration,
+  DeclarationListItem,
+  DeclarationSummary,
+  SectionEnvelope,
+  SectionSaveResult,
+} from './representation.js';
 import { type SealedSection, SectionCipher, type StoredSection } from './section-cipher.js';
 import {
   applyLockedFields,
@@ -43,7 +60,9 @@ import {
   type StatementFrame,
   statementPersonKey,
 } from './sections.js';
+import { assembleDocument, blockingIssues, cannotSubmitReason } from './summary.js';
 import {
+  declarationAttachments,
   declarationSections,
   declarations,
   type SectionCompleteness,
@@ -64,7 +83,7 @@ type SectionSummaryRow = Omit<SectionRow, 'ciphertext' | 'envelope'>;
 
 /**
  * Declaration drafts (spec 05): start from an obligation, read the draft, read and save its
- * capture sections. Every route is the declarant's own by the `person_id` claim, under
+ * capture sections, summarise it, discard it, list the declarant's own. Every route is the declarant's own by the `person_id` claim, under
  * person-scoped row-level security; anyone else, staff included, gets 404. Section contents are
  * encrypted with the Commission's key before they reach the database; clear metadata is derived
  * here on save, never taken from the client. Each save is one transaction that bumps the draft
@@ -77,6 +96,7 @@ export class DraftsService {
     private readonly directory: DirectoryClient,
     private readonly sections: SectionCipher,
     private readonly events: EventPublisher,
+    private readonly clock: Clock,
   ) {}
 
   /**
@@ -221,6 +241,190 @@ export class DraftsService {
     return this.read(personOf(principal), declarationId);
   }
 
+  /**
+   * The draft as it would be declared (S11, S12): the `declaration.v1` document assembled from the
+   * live sections only (an archived statement never reaches it or paragraph 9), whether it
+   * validates, what blocks submission by section and field, and the solemn declaration. Nothing
+   * can be submitted in this slice; the reason says whether the statement date has come.
+   */
+  async summary(principal: Principal, declarationId: string): Promise<DeclarationSummary> {
+    const person = personOf(principal);
+    const found = await withPerson(this.db, person, async (tx) => {
+      const declaration = await liveDeclaration(tx, declarationId);
+      if (!declaration) return null;
+      return { declaration, sections: await liveSections(tx, declaration.id) };
+    });
+    const { declaration, sections } = notFoundIfInvisible(found);
+    const live = await Promise.all(
+      sections.map(async (section) => ({
+        key: section.sectionKey as DeclarationSectionKey,
+        contents: await this.open(declaration, section),
+      })),
+    );
+    const document = assembleDocument(
+      {
+        type: declaration.type,
+        statementDate: declaration.statementDate,
+        incomePeriod: {
+          from: declaration.incomePeriodFrom,
+          to: declaration.incomePeriodTo,
+          fromSource: declaration.previousStatementDateSource,
+        },
+      },
+      live,
+    );
+
+    // Each section as its own view reports it (rules and schema), with paragraph 9 as composed.
+    const statements = new Map<PersonKey, SectionContents>();
+    const byKey = new Map<string, SectionContents>();
+    for (const { key, contents } of live) {
+      const personKey = statementPersonKey(key);
+      if (personKey) statements.set(personKey, contents);
+      else byKey.set(key, contents);
+    }
+    const assessed = assessSections({
+      bio: byKey.get('bio'),
+      household: byKey.get('household'),
+      statements,
+      other: document.otherInformation,
+    });
+    const validated = declarationIssues(document);
+
+    return {
+      declaration: await this.read(person, declaration.id),
+      document,
+      valid: validated.issues.length === 0 && validated.declaration.length === 0,
+      blocking: blockingIssues(
+        [...assessed.values()].flatMap((assessment) => assessment.issues),
+        validated.issues,
+      ),
+      canSubmit: false,
+      cannotSubmitReason: cannotSubmitReason(
+        nairobiDate(this.clock.now()),
+        declaration.statementDate,
+      ),
+      attestationText: ATTESTATION_TEXT,
+    };
+  }
+
+  /**
+   * Discards the draft (S15): its sections and attachment rows are deleted, with an unlink event
+   * per attachment (the files are left to the documents orphan sweep), and the declaration is
+   * marked `discarded`. The obligation is untouched, so a new start makes a fresh draft. 404 when
+   * the draft is not the caller's or already discarded, 409 when it is no longer a draft.
+   */
+  async discard(principal: Principal, declarationId: string): Promise<void> {
+    const person = personOf(principal);
+    if (!UUID.test(declarationId)) notFoundIfInvisible(null);
+    await withPerson(this.db, person, async (tx) => {
+      const [found] = await tx
+        .select()
+        .from(declarations)
+        .where(and(eq(declarations.id, declarationId), ne(declarations.status, 'discarded')))
+        .limit(1)
+        .for('update');
+      const declaration = notFoundIfInvisible(found);
+      if (declaration.status !== 'draft') {
+        throw new ProblemException({
+          type: 'declaration-not-draft',
+          title: 'Not a draft',
+          status: HttpStatus.CONFLICT,
+          detail: 'Only a draft declaration can be discarded.',
+        });
+      }
+      const unlinked = await tx
+        .delete(declarationAttachments)
+        .where(eq(declarationAttachments.declarationId, declarationId))
+        .returning({ uploadId: declarationAttachments.uploadId });
+      await tx
+        .delete(declarationSections)
+        .where(eq(declarationSections.declarationId, declarationId));
+      await tx
+        .update(declarations)
+        .set({ status: 'discarded' })
+        .where(eq(declarations.id, declarationId));
+      for (const { uploadId } of unlinked) {
+        await this.events.record(
+          tx,
+          declarationAttachmentUnlinked(declaration.tenant, { declarationId, uploadId }),
+        );
+      }
+      await this.events.record(
+        tx,
+        declarationDraftDiscarded(declaration.tenant, { declarationId }),
+      );
+    });
+  }
+
+  /**
+   * The declarant's live declarations (S16), last updated first, each with how much is complete:
+   * complete sections out of the live ones (archived statements left out).
+   */
+  async mine(principal: Principal): Promise<DeclarationListItem[]> {
+    const person = personOf(principal);
+    const { rows, completeness, commissions } = await withPerson(this.db, person, async (tx) => {
+      const rows = await tx
+        .select()
+        .from(declarations)
+        .where(
+          and(eq(declarations.personId, person.personId), ne(declarations.status, 'discarded')),
+        )
+        .orderBy(desc(declarations.updatedAt), desc(declarations.id));
+      if (rows.length === 0) return { rows, completeness: [], commissions: [] };
+      const completeness = await tx
+        .select({
+          declarationId: declarationSections.declarationId,
+          completeness: declarationSections.completeness,
+          sections: count(),
+        })
+        .from(declarationSections)
+        .where(
+          and(
+            inArray(
+              declarationSections.declarationId,
+              rows.map((row) => row.id),
+            ),
+            ne(declarationSections.completeness, 'archived'),
+          ),
+        )
+        .groupBy(declarationSections.declarationId, declarationSections.completeness);
+      const commissions = await tx
+        .select({
+          slug: commissionRefs.slug,
+          issuerCode: commissionRefs.issuerCode,
+          name: commissionRefs.name,
+        })
+        .from(commissionRefs)
+        .where(
+          inArray(
+            commissionRefs.slug,
+            rows.map((row) => row.tenant),
+          ),
+        );
+      return { rows, completeness, commissions };
+    });
+    const bySlug = new Map(commissions.map((commission) => [commission.slug, commission]));
+    return rows.map((row) => {
+      const counted = completeness.filter((group) => group.declarationId === row.id);
+      const live = counted.reduce((sum, group) => sum + group.sections, 0);
+      const complete = counted
+        .filter((group) => group.completeness === 'complete')
+        .reduce((sum, group) => sum + group.sections, 0);
+      const commission = bySlug.get(row.tenant);
+      const issuerCode = commission?.issuerCode ?? fallbackIssuerCode(row.tenant);
+      return {
+        id: row.id,
+        obligationId: row.obligationId,
+        commission: { slug: row.tenant, issuerCode, name: commission?.name ?? issuerCode },
+        type: row.type,
+        statementDate: row.statementDate,
+        status: row.status,
+        completenessPercent: live === 0 ? 0 : Math.floor((complete * 100) / live),
+        updatedAt: row.updatedAt.toISOString(),
+      };
+    });
+  }
+
   /** One section's contents, decrypted for the declarant, with what it still needs. */
   async getSection(
     principal: Principal,
@@ -363,6 +567,7 @@ export class DraftsService {
           .where(sectionIs(declaration.id, sibling.sectionKey));
       }
       await writeStatementChanges(tx, declaration.id, statements);
+      if (statementPersonKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
       return bumped.draftVersion;
     });
     await this.sections.cache(
@@ -535,6 +740,38 @@ export class DraftsService {
       };
     }
     return body;
+  }
+
+  /**
+   * In a statement save's transaction: the attachments of items the save removed are unlinked,
+   * each with its event, as an unlink would (the references went with the items).
+   */
+  private async unlinkRemovedItems(
+    tx: Transaction,
+    declaration: DeclarationRow,
+    key: DeclarationSectionKey,
+    contents: SectionContents,
+  ): Promise<void> {
+    const kept = itemIds(contents).filter((id) => UUID.test(id));
+    const unlinked = await tx
+      .delete(declarationAttachments)
+      .where(
+        and(
+          eq(declarationAttachments.declarationId, declaration.id),
+          eq(declarationAttachments.sectionKey, key),
+          ...(kept.length > 0 ? [notInArray(declarationAttachments.itemId, kept)] : []),
+        ),
+      )
+      .returning({ uploadId: declarationAttachments.uploadId });
+    for (const { uploadId } of unlinked) {
+      await this.events.record(
+        tx,
+        declarationAttachmentUnlinked(declaration.tenant, {
+          declarationId: declaration.id,
+          uploadId,
+        }),
+      );
+    }
   }
 
   /** Completeness of a section, and for bio and household of the other one too. */

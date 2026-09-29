@@ -135,8 +135,51 @@ export interface paths {
         get: operations["getDeclaration"];
         put?: never;
         post?: never;
-        /** Discard the draft */
+        /**
+         * Discard the draft
+         * @description Deletes the sections and attachments (records `declaration.attachment-unlinked.v1` for each, then `declaration.draft-discarded.v1`). The obligation is untouched: starting again makes a fresh draft.
+         */
         delete: operations["discardDeclaration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/declarations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in declarant's declarations (drafts now; submitted later)
+         * @description Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.
+         */
+        get: operations["getMyDeclarations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The assembled declaration validated against declaration.v1, with what blocks submission
+         * @description Assembled from the live sections (archived statements left out), paragraph 9 material changes composed from the items. `canSubmit` is false in this slice.
+         */
+        get: operations["getDeclarationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -198,42 +241,6 @@ export interface paths {
          * @description Removes the attachment and the item's reference to it. The file is left to the documents orphan sweep. Records `declaration.attachment-unlinked.v1`.
          */
         delete: operations["unlinkDeclarationAttachment"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/declarations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The declarant's declarations (drafts now; submitted later) */
-        get: operations["getMyDeclarations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        /** The assembled declaration validated against declaration.v1, with completeness */
-        get: operations["getDeclarationSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1086,6 +1093,41 @@ export interface components {
             /** Format: date-time */
             linkedAt: string;
         };
+        DeclarationSummary: {
+            declaration: components["schemas"]["Declaration"];
+            /** @description The declaration.v1 document assembled from the live sections (decrypted for the declarant): archived statements left out, paragraph 9 material changes composed from the flagged items and the marital-status change */
+            document: {
+                [key: string]: unknown;
+            };
+            /** @description Whether the document validates against declaration.v1 */
+            valid: boolean;
+            /** @description What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once */
+            blocking: components["schemas"]["CompletenessIssue"][];
+            /** @description Always false in slice 05 */
+            canSubmit: boolean;
+            /**
+             * @description `before-statement-date`: the statement date (Nairobi) has not come; `submission-not-available`: submission opens in the next release
+             * @enum {string}
+             */
+            cannotSubmitReason: "submission-not-available" | "before-statement-date";
+            /** @description The solemn declaration the declarant makes */
+            attestationText: string;
+        };
+        DeclarationListItem: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            obligationId: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            status: components["schemas"]["DeclarationStatus"];
+            /** @description Complete sections out of the live ones (archived statements left out), rounded down */
+            completenessPercent: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1136,20 +1178,6 @@ export interface components {
                     [key: string]: unknown;
                 };
             }[];
-        };
-        DeclarationListItem: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            obligationId: string;
-            commission: components["schemas"]["CommissionRef"];
-            type: components["schemas"]["ObligationType"];
-            /** Format: date */
-            statementDate: string;
-            status: components["schemas"]["DeclarationStatus"];
-            completenessPercent: number;
-            /** Format: date-time */
-            updatedAt: string;
         };
         /** @enum {string} */
         SuggestionSource: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
@@ -1259,21 +1287,6 @@ export interface components {
             version: number;
             /** Format: date-time */
             updatedAt: string;
-        };
-        DeclarationSummary: {
-            declaration: components["schemas"]["Declaration"];
-            /** @description The assembled declaration.v1 document (decrypted for the owner) */
-            document: {
-                [key: string]: unknown;
-            };
-            /** @description Validates against declaration.v1 */
-            valid: boolean;
-            blocking: components["schemas"]["CompletenessIssue"][];
-            /** @description Always false in slice 05 */
-            canSubmit: boolean;
-            /** @enum {string|null} */
-            cannotSubmitReason: "submission-not-available" | "before-statement-date" | "incomplete" | null;
-            attestationText: string;
         };
         /**
          * @description ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>
@@ -1748,7 +1761,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
+                declarationId: string;
             };
             cookie?: never;
         };
@@ -1761,9 +1774,77 @@ export interface operations {
                 };
                 content?: never;
             };
-            404: components["responses"]["NotFound"];
-            /** @description Not a draft */
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a draft (`declaration-not-draft`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getMyDeclarations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declarations, last updated first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationListItem"][];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getDeclarationSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationSummary"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1987,50 +2068,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    getMyDeclarations: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarationListItem"][];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getDeclarationSummary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Summary */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarationSummary"];
-                };
-            };
-            404: components["responses"]["NotFound"];
         };
     };
     submitDeclaration: {

@@ -352,6 +352,48 @@ describe('linking an attachment (S10)', () => {
     });
     expect(itemOf(section, 'income', incomeItem().id).attachments).toEqual([]);
   });
+
+  it('unlinks the attachments of an item a save removes, with an event each', async () => {
+    const draft = await draftWithItems();
+    const deed = upload('psc');
+    const payslip = upload('psc');
+    api.documents.givenUploads(deed, payslip);
+    await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
+    await link(draft.id, { sectionKey: STATEMENT, itemId: incomeItem().id, uploadId: payslip.id });
+
+    const saved = await saveStatement(
+      draft.id,
+      statementBody({ assetsNil: true, assets: [] }),
+      '"4"',
+    );
+
+    expect(saved.statusCode).toBe(200);
+    expect((await attachmentRows(draft.id)).map((row) => row.uploadId)).toEqual([payslip.id]);
+    const unlinked = await events('declaration.attachment-unlinked.v1');
+    expect(unlinked.map((event) => event.envelope)).toEqual([
+      expect.objectContaining({
+        subject: draft.id,
+        tenant: 'psc',
+        data: { declarationId: draft.id, uploadId: deed.id },
+      }),
+    ]);
+    expect(itemOf(await statement(draft.id), 'income', incomeItem().id).attachments).toEqual([
+      { uploadId: payslip.id, fileName: payslip.fileName, sha256: payslip.sha256 },
+    ]);
+  });
+
+  it('keeps the attachments when a save keeps the item', async () => {
+    const draft = await draftWithItems();
+    const deed = upload('psc');
+    api.documents.givenUploads(deed);
+    await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
+
+    const saved = await saveStatement(draft.id, statementBody(), '"3"');
+
+    expect(saved.statusCode).toBe(200);
+    expect(await attachmentRows(draft.id)).toHaveLength(1);
+    expect(await events('declaration.attachment-unlinked.v1')).toEqual([]);
+  });
 });
 
 describe('unlinking an attachment (S10)', () => {

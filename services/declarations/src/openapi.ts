@@ -5,8 +5,10 @@ import {
   completenessIssueSchema,
   declarationAttachmentSchema,
   completenessSchema,
+  declarationListItemSchema,
   declarationSchema,
   declarationStatusSchema,
+  declarationSummarySchema,
   notIncludedSchema,
   sectionContentsSchema,
   sectionEnvelopeSchema,
@@ -66,4 +68,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   SectionSaveResult: sectionSaveResultSchema,
   AttachmentLink: attachmentLinkSchema,
   DeclarationAttachment: declarationAttachmentSchema,
+  DeclarationSummary: declarationSummarySchema,
+  DeclarationListItem: declarationListItemSchema,
 };

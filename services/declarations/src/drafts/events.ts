@@ -45,3 +45,17 @@ export function declarationAttachmentUnlinked(
 ): NewEvent<DeclarationAttachmentData> {
   return { type: DECLARATION_ATTACHMENT_UNLINKED, subject: data.declarationId, tenant, data };
 }
+
+export const DECLARATION_DRAFT_DISCARDED = 'declaration.draft-discarded.v1';
+
+/** A draft the declarant discarded: its sections and attachments are gone. */
+export interface DeclarationDraftDiscardedData extends Record<string, unknown> {
+  declarationId: string;
+}
+
+export function declarationDraftDiscarded(
+  tenant: string,
+  data: DeclarationDraftDiscardedData,
+): NewEvent<DeclarationDraftDiscardedData> {
+  return { type: DECLARATION_DRAFT_DISCARDED, subject: data.declarationId, tenant, data };
+}
