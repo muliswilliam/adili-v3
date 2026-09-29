@@ -2375,7 +2375,7 @@ components:
           description: 'The declaration.v1 document assembled from the live sections (decrypted for the declarant): archived statements left out, paragraph 9 material changes composed from the flagged items and the marital-status change'
         valid:
           type: boolean
-          description: Whether the document validates against declaration.v1
+          description: The document validates against declaration.v1 and every live section has been saved at least once
         blocking:
           type: array
           items:

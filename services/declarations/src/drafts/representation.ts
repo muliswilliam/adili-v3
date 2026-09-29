@@ -160,7 +160,10 @@ export const declarationSummarySchema = z.object({
     description:
       'The declaration.v1 document assembled from the live sections (decrypted for the declarant): archived statements left out, paragraph 9 material changes composed from the flagged items and the marital-status change',
   }),
-  valid: z.boolean().meta({ description: 'Whether the document validates against declaration.v1' }),
+  valid: z.boolean().meta({
+    description:
+      'The document validates against declaration.v1 and every live section has been saved at least once',
+  }),
   blocking: z.array(completenessIssueSchema).meta({
     description:
       'What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once',

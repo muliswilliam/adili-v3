@@ -1099,7 +1099,7 @@ export interface components {
             document: {
                 [key: string]: unknown;
             };
-            /** @description Whether the document validates against declaration.v1 */
+            /** @description The document validates against declaration.v1 and every live section has been saved at least once */
             valid: boolean;
             /** @description What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once */
             blocking: components["schemas"]["CompletenessIssue"][];
