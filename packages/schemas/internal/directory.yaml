@@ -2176,7 +2176,7 @@ paths:
       tags:
         - onboarding
       summary: Send the set-password email again
-      description: 'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.'
+      description: 'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email, until 24 hours after confirm (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.'
       operationId: resendSetPasswordEmail
       parameters:
         - name: sessionId
@@ -4312,6 +4312,7 @@ components:
         expiresAt:
           type: string
           format: date-time
+          description: 'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse'
       required:
         - id
         - state
@@ -4410,6 +4411,7 @@ components:
         expiresAt:
           type: string
           format: date-time
+          description: 'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse'
         secret:
           type: string
           description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret

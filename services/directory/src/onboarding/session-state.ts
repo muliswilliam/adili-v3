@@ -6,7 +6,9 @@
  *                 └─> email-contact-required ─> ──┘                   └─> phone-contact-required ─> ─┘                  └─> identity-mismatch
  *
  * Any live state may also end as `expired` (session past `expiresAt`, or codes or resends
- * exhausted). `confirmed`, `identity-mismatch` and `expired` are terminal.
+ * exhausted). `confirmed`, `identity-mismatch` and `expired` are terminal. A terminal session
+ * stays readable until its `expiresAt`; a `confirmed` one with a new account lives as long as
+ * its set-password link (`confirmedExpiry`), for resend-password-email.
  */
 
 export const ONBOARDING_STATES = [
@@ -111,6 +113,7 @@ export function showsDetails(state: OnboardingState): boolean {
 }
 
 const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 /** Timing rules of sessions and their one-time codes (spec 03, OTP and rate limits). */
 export const ONBOARDING_TIMING = {
@@ -118,8 +121,13 @@ export const ONBOARDING_TIMING = {
   sessionTtlMs: 30 * MINUTE_MS,
   /** ...extended by this on each successful step... */
   stepExtensionMs: 10 * MINUTE_MS,
-  /** ...up to this long after it was created. */
+  /** ...up to this long after it was created (the steps before confirm). */
   sessionCapMs: 60 * MINUTE_MS,
+  /**
+   * How long a set-password link stays valid, and so how long a session confirmed with a new
+   * account lives after confirm: the check-email step can resend the link while it could lapse.
+   */
+  setPasswordLinkTtlMs: 24 * HOUR_MS,
   /** A one-time code is valid this long after it was sent. */
   otpTtlMs: 10 * MINUTE_MS,
   /** Wrong codes allowed against one code; the last one ends the session. */
@@ -148,6 +156,16 @@ export function extendedExpiry(session: { createdAt: Date; expiresAt: Date }): D
       session.createdAt.getTime() + ONBOARDING_TIMING.sessionCapMs,
     ),
   );
+}
+
+/**
+ * The expiry of a session confirmed at `now` with a new account: the set-password link's
+ * lifespan, so the check-email step can send a fresh link however late the first one lapses.
+ * The 60-minute cap bounds only the steps before confirm; a confirmed session serves nothing
+ * but reading it and resend-password-email.
+ */
+export function confirmedExpiry(now: Date): Date {
+  return new Date(now.getTime() + ONBOARDING_TIMING.setPasswordLinkTtlMs);
 }
 
 /** Whether a session has run out at `now`, whatever its state. */

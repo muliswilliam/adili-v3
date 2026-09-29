@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canTransition,
+  confirmedExpiry,
   extendedExpiry,
   hasExpired,
   initialExpiry,
@@ -45,6 +46,10 @@ describe('onboarding session state machine', () => {
     expect(pendingChannel('email-pending')).toBe('email');
     expect(pendingChannel('phone-pending')).toBe('phone');
     expect(pendingChannel('email-verified')).toBeNull();
+  });
+
+  it('lives 24 hours after a confirm with a new account, as long as the set-password link', () => {
+    expect(confirmedExpiry(created).getTime() - created.getTime()).toBe(24 * 60 * MINUTE);
   });
 
   it('lives 30 minutes, 10 more per step, at most 60', () => {

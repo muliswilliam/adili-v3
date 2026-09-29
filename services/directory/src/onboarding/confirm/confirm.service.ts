@@ -23,6 +23,7 @@ import { namesMatch } from '../iprs/name-rule.js';
 import { reject, Rejection } from '../rejection.js';
 import type { OnboardingConfirmResult } from '../representation.js';
 import {
+  confirmedExpiry,
   extendedExpiry,
   type IprsOutcome,
   type OnboardingOutcome,
@@ -69,7 +70,8 @@ const MAX_ROUNDS = 3;
  *   a person onboarded with another Commission gets this Commission added to their account
  *   (`linked-existing-account`), their person's contacts left as they are. The record becomes
  *   `onboarded`, linked to the person, with the contacts the declarant supplied written back
- *   where the record still has none; the summary is recomputed; the session is `confirmed`;
+ *   where the record still has none; the summary is recomputed; the session is `confirmed`
+ *   (with a new account, for the 24 hours of the set-password link: `confirmedExpiry`);
  *   `declarant.onboarded.v1` is recorded.
  * - After the commit, a new account's set-password email is sent. Should that fail, the account
  *   stands, and the session says `setPasswordEmail: failed` with resend open at once, so the
@@ -278,9 +280,11 @@ export class ConfirmService {
       outcome,
       iprsOutcome: 'match',
       personId: person.id,
-      // The check-email step and its resends run on this session: give it a step's time.
-      expiresAt: extendedExpiry(session),
-      ...(outcome === 'account-created' ? { passwordEmailSentAt: now } : {}),
+      // A new account's check-email step resends the set-password link on this session, so it
+      // lives as long as the link does; a linked account's session only has its outcome to show.
+      ...(outcome === 'account-created'
+        ? { expiresAt: confirmedExpiry(now), passwordEmailSentAt: now }
+        : { expiresAt: extendedExpiry(session) }),
     });
     await this.events.record(
       tx,

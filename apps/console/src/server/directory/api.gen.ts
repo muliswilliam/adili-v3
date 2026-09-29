@@ -571,7 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Send the set-password email again
-         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
+         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email, until 24 hours after confirm (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
          */
         post: operations["resendSetPasswordEmail"];
         delete?: never;
@@ -1489,7 +1489,10 @@ export interface components {
             ofr?: components["schemas"]["Ofr"] | null;
             /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
             setPasswordEmail: ("sent" | "failed") | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse
+             */
             expiresAt: string;
         };
         OnboardingSessionCreated: {
@@ -1520,7 +1523,10 @@ export interface components {
             ofr?: components["schemas"]["Ofr"] | null;
             /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
             setPasswordEmail: ("sent" | "failed") | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse
+             */
             expiresAt: string;
             /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
             secret: string;

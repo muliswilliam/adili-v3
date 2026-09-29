@@ -22,7 +22,7 @@ export class PasswordEmailController {
     operationId: 'resendSetPasswordEmail',
     summary: 'Send the set-password email again',
     description:
-      'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.',
+      'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email, until 24 hours after confirm (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.',
   })
   @ApiSessionRoute()
   @SessionIdempotencyKey()

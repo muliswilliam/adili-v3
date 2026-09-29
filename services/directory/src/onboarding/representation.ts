@@ -114,7 +114,10 @@ export const onboardingSessionSchema = z.object({
     description:
       'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session',
   }),
-  expiresAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime().meta({
+    description:
+      'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse',
+  }),
 });
 
 export type OnboardingSession = z.infer<typeof onboardingSessionSchema>;

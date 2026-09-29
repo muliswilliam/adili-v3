@@ -14,7 +14,7 @@ import { OnboardingSessions, refuseDuringCooldown, wrongStep } from '../sessions
 /**
  * Resending the set-password email (spec 03, "check your email"): only for a session confirmed
  * with a new account (409 otherwise), at most one a minute (429 `resend-cooldown` with
- * `retryAfterSeconds`). Keycloak's execute-actions email again, with a fresh 24-hour link; the
+ * `retryAfterSeconds`), until 24 hours after confirm (the session's expiry, then 410). Keycloak's execute-actions email again, with a fresh 24-hour link; the
  * identity provider failing is 502 `identity-unavailable` and starts no cooldown.
  */
 @Injectable()
