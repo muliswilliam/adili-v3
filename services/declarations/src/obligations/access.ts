@@ -1,17 +1,5 @@
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
-
-/** Roles of a Commission's staff, who see their own Commission's obligations. */
-export const COMMISSION_STAFF_ROLES = [
-  'reporting-officer',
-  'reviewer',
-  'supervisor',
-  'commission-admin',
-] as const;
-
-/** EACC's roles: counts of any Commission, never declarants. */
-export const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'] as const;
-
-export const PLATFORM_ADMIN = 'platform-admin';
+import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
 
 /** `app.tenant` of reads across every Commission. */
 export const PLATFORM_TENANT = 'platform';

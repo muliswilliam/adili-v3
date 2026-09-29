@@ -11,7 +11,9 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN, TENANT_SLUG } from './access.js';
+import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
+
+import { TENANT_SLUG } from './access.js';
 import { CommissionObligationsService } from './commission-obligations.service.js';
 import {
   type ListCommissionObligationsQuery,

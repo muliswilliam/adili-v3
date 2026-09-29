@@ -30,6 +30,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../../packages/bff-auth
+      '@adili/roles':
+        specifier: workspace:*
+        version: link:../../packages/roles
       '@adili/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -722,6 +725,24 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
 
+  packages/roles:
+    devDependencies:
+      '@adili/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@adili/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.6
+      eslint:
+        specifier: ^10.11.0
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/schemas:
     devDependencies:
       '@redocly/cli':
@@ -1230,6 +1251,9 @@ importers:
       '@adili/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@adili/roles':
+        specifier: workspace:*
+        version: link:../../packages/roles
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

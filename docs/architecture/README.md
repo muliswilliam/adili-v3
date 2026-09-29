@@ -207,6 +207,7 @@ flowchart TB
 - `cache`: Valkey client and readiness
 - `telemetry`: OpenTelemetry preload
 - `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
+- `roles`: realm role names and the role groups a service enforces and an app shows (e.g. a Commission's staff, EACC), defined once
 - `schemas`: external-system contracts (OpenAPI)
 - `ui`: design system shared by the apps and the Keycloak theme
 - Added with the features that need them: `authz` (CASL policies), `audit-client`, `numbering`, `clients` (generated internal API clients)
@@ -769,6 +770,7 @@ adili-v3/
 │   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
 │   ├── forms/               # validators, generated types and Zod schemas for the form JSON Schemas (FE + BE)
+│   ├── roles/               # realm role groups checked by services and shown by apps (FE + BE)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
 ├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks

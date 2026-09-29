@@ -1,0 +1,29 @@
+{
+  "name": "@adili/roles",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Keycloak realm roles by name and the groups of them that the services and the apps both check, so each group is defined once.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@adili/eslint-config": "workspace:*",
+    "@adili/tsconfig": "workspace:*",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.11.0",
+    "typescript": "~6.0.3"
+  }
+}

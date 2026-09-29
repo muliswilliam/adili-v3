@@ -1,3 +1,5 @@
+import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
+
 export interface Workspace {
   id: string;
   title: string;
@@ -30,13 +32,8 @@ export const COMMISSION_WRITE_ROLES = ['platform-admin'] as const;
 /** Roles that import and maintain a Commission's roster; commission admins only read it. */
 export const ROSTER_WRITE_ROLES = ['reporting-officer'] as const;
 
-/** The Commission's own staff, who see its officers' obligations (spec 04). */
-export const OBLIGATIONS_ROLES = [
-  'reporting-officer',
-  'reviewer',
-  'supervisor',
-  'commission-admin',
-] as const;
+/** The Commission's own staff, who see its declarants' obligations (spec 04). */
+export const OBLIGATIONS_ROLES = COMMISSION_STAFF_ROLES;
 
 /**
  * Roles that open their own Commission's obligations policy from the Obligations workspace and
@@ -49,12 +46,8 @@ export function opensOwnPolicy(roles: readonly string[]): boolean {
   return OWN_POLICY_ROLES.some((role) => roles.includes(role));
 }
 
-/** National roles, who see obligation counts per Commission but no officer (spec 04). */
-export const NATIONAL_OBLIGATIONS_ROLES = [
-  'platform-admin',
-  'eacc-analyst',
-  'eacc-supervisor',
-] as const;
+/** National roles, who see obligation counts per Commission but no declarant (spec 04). */
+export const NATIONAL_OBLIGATIONS_ROLES = [PLATFORM_ADMIN, ...EACC_ROLES] as const;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
