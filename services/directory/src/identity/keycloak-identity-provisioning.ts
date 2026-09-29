@@ -121,7 +121,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   }
 
   async findByEmail(email: string): Promise<IdentityUser | null> {
-    const wanted = email.trim().toLowerCase();
+    const wanted = keycloakEmail(email);
     const response = await this.request('GET', '/users', {
       query: { email: wanted, exact: 'true', briefRepresentation: 'false' },
     });
@@ -140,7 +140,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   }
 
   async createStaffUser(input: CreateStaffUserInput): Promise<string> {
-    const email = input.email.trim().toLowerCase();
+    const email = keycloakEmail(input.email);
     return this.createUser(
       {
         username: email,
@@ -158,7 +158,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   async createDeclarantUser(input: CreateDeclarantUserInput): Promise<string> {
     const representation = {
       username: input.ofr,
-      email: input.email.trim().toLowerCase(),
+      email: keycloakEmail(input.email),
       ...splitName(input.name),
       enabled: true,
       emailVerified: true,
@@ -580,6 +580,11 @@ interface Profile {
   firstName: string | undefined;
   lastName: string | undefined;
   phone: string | undefined;
+}
+
+/** An email as Keycloak keeps it (trimmed, lower-cased), to store and to look up alike. */
+function keycloakEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
 
 function profileOf(user: UserRepresentation): Profile {

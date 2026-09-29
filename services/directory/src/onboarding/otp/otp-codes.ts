@@ -1,7 +1,7 @@
+import type { ContactChannel } from '@adili/contacts';
 import { hkdfSync, randomInt, timingSafeEqual } from 'node:crypto';
 
 import { keyedHash } from '../secret.js';
-import type { OtpChannel } from '../session-state.js';
 
 /** A 6-digit one-time code from the CSPRNG. */
 export function generateOtpCode(): string {
@@ -22,7 +22,7 @@ export function sessionOtpKey(key: string, sessionId: string): Buffer {
  * own key (`sessionOtpKey`), so a code is only ever valid for the session and channel it was
  * sent for.
  */
-export function otpCodeHmac(key: string, sessionId: string, channel: OtpChannel, code: string) {
+export function otpCodeHmac(key: string, sessionId: string, channel: ContactChannel, code: string) {
   return keyedHash(sessionOtpKey(key, sessionId), 'onboarding-otp', channel, code);
 }
 
@@ -30,7 +30,7 @@ export function otpCodeHmac(key: string, sessionId: string, channel: OtpChannel,
 export function otpCodeMatches(
   key: string,
   sessionId: string,
-  channel: OtpChannel,
+  channel: ContactChannel,
   code: string,
   codeHmac: string,
 ): boolean {

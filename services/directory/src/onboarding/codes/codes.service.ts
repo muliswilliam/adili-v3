@@ -1,24 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ProblemException, RateLimiter } from '@adili/api-kit';
+import type { ContactChannel } from '@adili/contacts';
 import { and, eq } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { config } from '../../config.js';
+import { CHANNELS, contactRequiredChannel, pendingChannel } from '../channels.js';
 import { commissionOfSession } from '../commissions/onboarding-commission.js';
-import { sessionContactChanges, writeBackDeclarantContact } from '../contacts.js';
+import { sessionContact, sessionContactChanges, writeBackDeclarantContact } from '../contacts.js';
 import { OnboardingFailures } from '../failures/onboarding-failures.js';
 import { otpCodeMatches } from '../otp/otp-codes.js';
 import { OtpIssuer } from '../otp/otp-issuer.js';
-import { IDENTIFY_RATE_LIMIT } from '../public-route.js';
+import { IDENTIFY_RATE_LIMIT, type SessionCredentials } from '../public-route.js';
 import { reject } from '../rejection.js';
 import type { OnboardingSession, ProvideOnboardingContactBody } from '../representation.js';
 import { onboardingOtps } from '../schema.js';
-import {
-  contactRequiredChannel,
-  ONBOARDING_TIMING,
-  type OtpChannel,
-  pendingChannel,
-} from '../session-state.js';
+import { ONBOARDING_TIMING } from '../session-state.js';
 import {
   OnboardingSessions,
   refuseDuringCooldown,
@@ -63,15 +60,14 @@ export class OnboardingCodesService {
   ) {}
 
   verify(
-    sessionId: string,
-    secret: string | undefined,
-    channel: OtpChannel,
+    credentials: SessionCredentials,
+    channel: ContactChannel,
     code: string,
     clientKey: string | undefined,
   ): Promise<OnboardingSession> {
     return this.chargingExhaustion(clientKey, () =>
       this.otp.sending((issue) =>
-        this.sessions.withLiveSession(sessionId, secret, async (context) => {
+        this.sessions.withLiveSession(credentials, async (context) => {
           const { tx, session, now } = context;
           if (pendingChannel(session.state) !== channel) throw wrongStep();
           const otp = await currentOtp(tx, session, channel);
@@ -102,23 +98,35 @@ export class OnboardingCodesService {
             .where(
               and(eq(onboardingOtps.sessionId, session.id), eq(onboardingOtps.channel, channel)),
             );
-          const verifiedState = channel === 'email' ? 'email-verified' : 'phone-verified';
-          let current = await this.sessions.transition(tx, session, verifiedState, now, {
-            set: sessionContactChanges(channel, { verifiedAt: now }),
-          });
+          let current = await this.sessions.transition(
+            tx,
+            session,
+            CHANNELS[channel].states.verified,
+            now,
+            { set: sessionContactChanges(channel, { verifiedAt: now }) },
+          );
           await writeBackDeclarantContact(tx, current, channel, now);
 
-          if (channel === 'email') {
-            if (current.phone) {
+          const next = CHANNELS[channel].next;
+          if (next !== null) {
+            if (sessionContact(current, next).value !== null) {
               const commission = await commissionOfSession(tx, session);
-              await issue(tx, current, 'phone', { commissionName: commission.name, now });
-              current = await this.sessions.transition(tx, current, 'phone-pending', now, {
-                extend: false,
-              });
+              await issue(tx, current, next, { commissionName: commission.name, now });
+              current = await this.sessions.transition(
+                tx,
+                current,
+                CHANNELS[next].states.pending,
+                now,
+                { extend: false },
+              );
             } else {
-              current = await this.sessions.transition(tx, current, 'phone-contact-required', now, {
-                extend: false,
-              });
+              current = await this.sessions.transition(
+                tx,
+                current,
+                CHANNELS[next].states.contactRequired,
+                now,
+                { extend: false },
+              );
             }
           }
           return this.sessions.view(tx, current, now);
@@ -128,14 +136,13 @@ export class OnboardingCodesService {
   }
 
   resend(
-    sessionId: string,
-    secret: string | undefined,
-    channel: OtpChannel,
+    credentials: SessionCredentials,
+    channel: ContactChannel,
     clientKey: string | undefined,
   ): Promise<void> {
     return this.chargingExhaustion(clientKey, () =>
       this.otp.sending((issue) =>
-        this.sessions.withLiveSession(sessionId, secret, async (context) => {
+        this.sessions.withLiveSession(credentials, async (context) => {
           const { tx, session, now } = context;
           if (pendingChannel(session.state) !== channel) throw wrongStep();
           const otp = await currentOtp(tx, session, channel);
@@ -153,17 +160,16 @@ export class OnboardingCodesService {
   }
 
   provideContact(
-    sessionId: string,
-    secret: string | undefined,
+    credentials: SessionCredentials,
     { channel, value }: ProvideOnboardingContactBody,
   ): Promise<OnboardingSession> {
     return this.otp.sending((issue) =>
-      this.sessions.withLiveSession(sessionId, secret, async ({ tx, session, now }) => {
+      this.sessions.withLiveSession(credentials, async ({ tx, session, now }) => {
         if (contactRequiredChannel(session.state) !== channel) throw wrongStep();
         const pending = await this.sessions.transition(
           tx,
           session,
-          channel === 'email' ? 'email-pending' : 'phone-pending',
+          CHANNELS[channel].states.pending,
           now,
           { set: sessionContactChanges(channel, { value, source: 'declarant' }) },
         );
@@ -214,7 +220,7 @@ export class OnboardingCodesService {
 const RATE_LIMITED_ENDINGS = new WeakSet<ProblemException>();
 
 /** The channel's current code; a session waiting for one always has it. */
-async function currentOtp(tx: Transaction, session: SessionRow, channel: OtpChannel) {
+async function currentOtp(tx: Transaction, session: SessionRow, channel: ContactChannel) {
   const [otp]: OtpRow[] = await tx
     .select()
     .from(onboardingOtps)

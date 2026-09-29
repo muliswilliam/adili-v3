@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { errorType, ProblemException } from '@adili/api-kit';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, OFR } from '@adili/numbering';
+import { CONTACT_CHANNELS } from '@adili/contacts';
 import { eq, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
@@ -20,6 +21,7 @@ import { writeBackDeclarantContact } from '../contacts.js';
 import { declarantOnboarded, onboardingIdentityMismatch } from '../events.js';
 import { IprsLookup, IprsUnavailable } from '../iprs/iprs-lookup.js';
 import { namesMatch } from '../iprs/name-rule.js';
+import type { SessionCredentials } from '../public-route.js';
 import { reject, Rejection } from '../rejection.js';
 import type { OnboardingConfirmResult } from '../representation.js';
 import {
@@ -27,7 +29,6 @@ import {
   extendedExpiry,
   type IprsOutcome,
   type OnboardingOutcome,
-  OTP_CHANNELS,
 } from '../session-state.js';
 import {
   OnboardingSessions,
@@ -94,19 +95,20 @@ export class ConfirmService {
     private readonly identity: IdentityProvisioning,
   ) {}
 
-  async confirm(sessionId: string, secret: string | undefined): Promise<OnboardingConfirmResult> {
+  async confirm(credentials: SessionCredentials): Promise<OnboardingConfirmResult> {
+    const { sessionId } = credentials;
     for (let round = 1; round <= MAX_ROUNDS; round++) {
-      const record = await this.sessions.withLiveSession(sessionId, secret, (context) =>
+      const record = await this.sessions.withLiveSession(credentials, (context) =>
         this.confirmable(context, { lock: false }),
       );
       const verdict = await this.lookUp(sessionId, record);
-      const confirmed = await this.decide(sessionId, secret, record, verdict);
+      const confirmed = await this.decide(credentials, record, verdict);
       if (confirmed === RECHECK) continue;
       if (
         confirmed.setPasswordEmailFor &&
         !(await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailFor))
       ) {
-        return this.setPasswordEmailFailed(sessionId, secret, confirmed.result);
+        return this.setPasswordEmailFailed(credentials, confirmed.result);
       }
       return confirmed.result;
     }
@@ -146,15 +148,14 @@ export class ConfirmService {
 
   /** Under the locks: the mismatch, or the account, for the record IPRS was asked about. */
   private async decide(
-    sessionId: string,
-    secret: string | undefined,
+    credentials: SessionCredentials,
     checked: RosterRecord,
     verdict: IprsOutcome,
   ): Promise<Confirmed | typeof RECHECK> {
     // What the identity provider did, to undo if the transaction does not commit.
     const undo: Restore[] = [];
     try {
-      return await this.sessions.withLiveSession(sessionId, secret, async (context) => {
+      return await this.sessions.withLiveSession(credentials, async (context) => {
         // Records before the summary, as every roster change locks them.
         const record = await this.confirmable(context, { lock: true });
         if (record instanceof Rejection) return record;
@@ -167,7 +168,7 @@ export class ConfirmService {
         return this.onboard(context, record, undo);
       });
     } catch (error) {
-      await this.undo(undo, sessionId);
+      await this.undo(undo, credentials.sessionId);
       if (error instanceof EmailTaken) throw ProblemException.fromCode('email-in-use');
       if (
         error instanceof IdentityUnavailable ||
@@ -175,7 +176,7 @@ export class ConfirmService {
         error instanceof UsernameTaken
       ) {
         this.logger.warn(
-          { sessionId, err: errorType(error) },
+          { sessionId: credentials.sessionId, err: errorType(error) },
           'Declarant account not created or linked',
         );
         throw ProblemException.fromCode('identity-unavailable');
@@ -272,7 +273,7 @@ export class ConfirmService {
         updatedAt: now,
       })
       .where(eq(rosterRecords.id, record.id));
-    for (const channel of OTP_CHANNELS) {
+    for (const channel of CONTACT_CHANNELS) {
       await writeBackDeclarantContact(tx, session, channel, now);
     }
     await recomputeRosterSummary(tx, session.tenant);
@@ -329,11 +330,10 @@ export class ConfirmService {
    * a later resend succeeded; the portal re-reads the session, which has the current state.
    */
   private async setPasswordEmailFailed(
-    sessionId: string,
-    secret: string | undefined,
+    credentials: SessionCredentials,
     confirmed: OnboardingConfirmResult,
   ): Promise<OnboardingConfirmResult> {
-    return this.sessions.withLiveSession(sessionId, secret, async ({ tx, session, now }) => {
+    return this.sessions.withLiveSession(credentials, async ({ tx, session, now }) => {
       const amended = await this.sessions.amend(tx, session, {
         passwordEmailSentAt: null,
         updatedAt: now,

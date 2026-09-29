@@ -3831,10 +3831,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
             };
             path: {
                 sessionId: string;
@@ -3935,10 +3935,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
             };
             path: {
                 sessionId: string;

@@ -77,14 +77,9 @@ export { Icon, type IconProps } from './components/icon';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
-export {
-  type ContactKind,
-  maskContact,
-  MaskedContact,
-  type MaskedContactProps,
-  maskEmail,
-  maskPhone,
-} from './components/masked-contact';
+export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
+// The masking rules live in @adili/contacts (the services mask with them too).
+export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
 export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';

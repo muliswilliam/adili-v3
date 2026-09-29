@@ -15,8 +15,9 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import type { ContactChannel } from '@adili/contacts';
 
-import { ApiSessionRoute, OnboardingController, SessionSecret } from '../public-route.js';
+import { ApiSessionRoute, OnboardingController, SessionCredentials } from '../public-route.js';
 import {
   type OnboardingSession,
   otpChannelSchema,
@@ -25,7 +26,6 @@ import {
   type VerifyOnboardingOtpBody,
   verifyOnboardingOtpBody,
 } from '../representation.js';
-import type { OtpChannel } from '../session-state.js';
 import { OnboardingCodesService } from './codes.service.js';
 
 const ApiChannelParam = () =>
@@ -59,8 +59,8 @@ export class OnboardingCodesController {
     description:
       'Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410), which also uses up an identify attempt of the client IP.',
   })
-  @ApiSessionRoute()
   @ApiChannelParam()
+  @ApiSessionRoute()
   @ApiBody({ schema: schemaRef('VerifyOnboardingOtp') })
   @ApiOkResponse({
     description: 'Verified; the session moved on',
@@ -75,13 +75,12 @@ export class OnboardingCodesController {
   @WRONG_STEP_409("this channel's code")
   @SEND_FAILED_502
   verify(
-    @Param('sessionId') sessionId: string,
-    @Param('channel', new ZodValidationPipe(otpChannelSchema)) channel: OtpChannel,
-    @SessionSecret() secret: string | undefined,
+    @SessionCredentials() credentials: SessionCredentials,
+    @Param('channel', new ZodValidationPipe(otpChannelSchema)) channel: ContactChannel,
     @Body(new ZodValidationPipe(verifyOnboardingOtpBody)) body: VerifyOnboardingOtpBody,
     @Req() request: AuthenticatedRequest,
   ): Promise<OnboardingSession> {
-    return this.codes.verify(sessionId, secret, channel, body.code, byClientIp(request));
+    return this.codes.verify(credentials, channel, body.code, byClientIp(request));
   }
 
   @Post('otp/:channel/resend')
@@ -92,8 +91,8 @@ export class OnboardingCodesController {
     description:
       'Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410), which also uses up an identify attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.',
   })
-  @ApiSessionRoute()
   @ApiChannelParam()
+  @ApiSessionRoute()
   @ApiAcceptedResponse({ description: 'New code sent', headers: RATE_LIMIT_HEADERS })
   @WRONG_STEP_409("this channel's code")
   @ApiProblemResponse(
@@ -103,12 +102,11 @@ export class OnboardingCodesController {
   )
   @SEND_FAILED_502
   resend(
-    @Param('sessionId') sessionId: string,
-    @Param('channel', new ZodValidationPipe(otpChannelSchema)) channel: OtpChannel,
-    @SessionSecret() secret: string | undefined,
+    @SessionCredentials() credentials: SessionCredentials,
+    @Param('channel', new ZodValidationPipe(otpChannelSchema)) channel: ContactChannel,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
-    return this.codes.resend(sessionId, secret, channel, byClientIp(request));
+    return this.codes.resend(credentials, channel, byClientIp(request));
   }
 
   @Post('contacts')
@@ -130,10 +128,9 @@ export class OnboardingCodesController {
   @WRONG_STEP_409('this contact')
   @SEND_FAILED_502
   provideContact(
-    @Param('sessionId') sessionId: string,
-    @SessionSecret() secret: string | undefined,
+    @SessionCredentials() credentials: SessionCredentials,
     @Body(new ZodValidationPipe(provideOnboardingContactBody)) body: ProvideOnboardingContactBody,
   ): Promise<OnboardingSession> {
-    return this.codes.provideContact(sessionId, secret, body);
+    return this.codes.provideContact(credentials, body);
   }
 }

@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, switchTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
+import { type ContactChannel, maskContact } from '@adili/contacts';
 import { and, eq } from 'drizzle-orm';
 
 import { Clock } from '../clock.js';
@@ -10,6 +11,7 @@ import type { Transaction } from '../commissions/commissions.service.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { persons } from '../persons/schema.js';
 import { reportingEntities, rosterRecords } from '../roster/schema.js';
+import { pendingChannel } from './channels.js';
 import { commissionOfSession } from './commissions/onboarding-commission.js';
 import { sessionContact } from './contacts.js';
 import {
@@ -17,7 +19,7 @@ import {
   onboardingSessionEnded,
   onboardingSessionStarted,
 } from './events.js';
-import { maskContact } from './masking.js';
+import type { SessionCredentials } from './public-route.js';
 import { reject, type Rejection, unwrap } from './rejection.js';
 import type { OnboardingSession } from './representation.js';
 import { onboardingOtps, onboardingSessions } from './schema.js';
@@ -31,8 +33,6 @@ import {
   isTerminal,
   ONBOARDING_TIMING,
   type OnboardingState,
-  type OtpChannel,
-  pendingChannel,
   resendAvailableAt,
   setPasswordEmailStatus,
   showsDetails,
@@ -92,8 +92,7 @@ export class OnboardingSessions {
    * `work` may return `reject(error)` to commit what it wrote and then fail with `error`.
    */
   async withLiveSession<T>(
-    sessionId: string,
-    secret: string | undefined,
+    { sessionId, secret }: SessionCredentials,
     work: (context: SessionContext) => Promise<T | Rejection>,
   ): Promise<T> {
     if (!UUID.test(sessionId) || !secret) throw sessionNotFound();
@@ -311,7 +310,7 @@ function passwordEmailAvailableAt(session: SessionRow, now: Date): string | null
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function contactView(session: SessionRow, channel: OtpChannel) {
+function contactView(session: SessionRow, channel: ContactChannel) {
   const { value, source, verifiedAt } = sessionContact(session, channel);
   if (value === null || source === null) return null;
   return { masked: maskContact(channel, value), source, verified: verifiedAt !== null };

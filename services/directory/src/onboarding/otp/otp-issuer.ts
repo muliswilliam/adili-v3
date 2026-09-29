@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { errorType, ProblemException } from '@adili/api-kit';
+import type { ContactChannel } from '@adili/contacts';
 import { sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { config } from '../../config.js';
 import { sessionContact } from '../contacts.js';
 import { onboardingOtps } from '../schema.js';
-import { ONBOARDING_TIMING, type OtpChannel } from '../session-state.js';
+import { ONBOARDING_TIMING } from '../session-state.js';
 import type { SessionRow } from '../sessions.repository.js';
 import { generateOtpCode, otpCodeHmac } from './otp-codes.js';
 import { OtpDelivery, OtpDeliveryFailed, type OtpMessage } from './otp-delivery.js';
@@ -29,7 +30,7 @@ export interface IssueOptions {
 export type IssueCode = (
   tx: Transaction,
   session: SessionRow,
-  channel: OtpChannel,
+  channel: ContactChannel,
   options: IssueOptions,
 ) => Promise<void>;
 
@@ -89,7 +90,7 @@ export class OtpIssuer {
 
   private message(
     session: SessionRow,
-    channel: OtpChannel,
+    channel: ContactChannel,
     { commissionName }: IssueOptions,
     code: string,
   ): OtpMessage {
@@ -123,7 +124,7 @@ export class OtpIssuer {
 async function store(
   tx: Transaction,
   session: SessionRow,
-  channel: OtpChannel,
+  channel: ContactChannel,
   code: string,
   { resend = false, now }: IssueOptions,
 ): Promise<void> {

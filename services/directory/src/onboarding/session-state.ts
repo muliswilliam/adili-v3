@@ -32,9 +32,6 @@ export const TERMINAL_STATES = [
 ] as const satisfies readonly OnboardingState[];
 export type TerminalState = (typeof TERMINAL_STATES)[number];
 
-export const OTP_CHANNELS = ['email', 'phone'] as const;
-export type OtpChannel = (typeof OTP_CHANNELS)[number];
-
 /** How confirm ended, as the declarant is told (`OnboardingOutcome` in the contract). */
 export const ONBOARDING_OUTCOMES = [
   'account-created',
@@ -91,20 +88,6 @@ export function isTerminal(state: OnboardingState): state is TerminalState {
 export function canTransition(from: OnboardingState, to: OnboardingState): boolean {
   if (to === 'expired') return !isTerminal(from);
   return TRANSITIONS[from].includes(to);
-}
-
-/** The channel whose code the session waits for, if any. */
-export function pendingChannel(state: OnboardingState): OtpChannel | null {
-  if (state === 'email-pending') return 'email';
-  if (state === 'phone-pending') return 'phone';
-  return null;
-}
-
-/** The channel whose contact the session waits for the declarant to supply, if any. */
-export function contactRequiredChannel(state: OnboardingState): OtpChannel | null {
-  if (state === 'email-contact-required') return 'email';
-  if (state === 'phone-contact-required') return 'phone';
-  return null;
 }
 
 /** Whether the session shows the roster details (the confirm step and after). */

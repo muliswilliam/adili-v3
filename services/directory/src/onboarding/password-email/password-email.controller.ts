@@ -1,4 +1,4 @@
-import { Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiAcceptedResponse, ApiOperation } from '@nestjs/swagger';
 import { ApiProblemResponse, byClientIp, RATE_LIMIT_HEADERS, RateLimit } from '@adili/api-kit';
 
@@ -6,7 +6,7 @@ import {
   ApiSessionRoute,
   OnboardingController,
   SessionIdempotencyKey,
-  SessionSecret,
+  SessionCredentials,
 } from '../public-route.js';
 import { PasswordEmailService } from './password-email.service.js';
 
@@ -24,8 +24,8 @@ export class PasswordEmailController {
     description:
       'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email, until 24 hours after confirm (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.',
   })
-  @ApiSessionRoute()
   @SessionIdempotencyKey()
+  @ApiSessionRoute()
   @ApiAcceptedResponse({ description: 'Email requested', headers: RATE_LIMIT_HEADERS })
   @ApiProblemResponse(
     409,
@@ -42,10 +42,7 @@ export class PasswordEmailController {
     'Problem code `identity-unavailable`: the email could not be sent; try again',
     'OnboardingProblem',
   )
-  resend(
-    @Param('sessionId') sessionId: string,
-    @SessionSecret() secret: string | undefined,
-  ): Promise<void> {
-    return this.passwordEmail.resend(sessionId, secret);
+  resend(@SessionCredentials() credentials: SessionCredentials): Promise<void> {
+    return this.passwordEmail.resend(credentials);
   }
 }

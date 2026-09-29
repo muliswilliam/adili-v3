@@ -1,4 +1,4 @@
-import { Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
@@ -12,7 +12,7 @@ import {
   ApiSessionRoute,
   OnboardingController,
   SessionIdempotencyKey,
-  SessionSecret,
+  SessionCredentials,
 } from '../public-route.js';
 import type { OnboardingConfirmResult } from '../representation.js';
 import { ConfirmService } from './confirm.service.js';
@@ -31,8 +31,8 @@ export class ConfirmController {
     description:
       'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`). Idempotent per Idempotency-Key: a retry gets the first answer back.',
   })
-  @ApiSessionRoute()
   @SessionIdempotencyKey()
+  @ApiSessionRoute()
   @ApiOkResponse({
     description: 'Outcome of the confirmation, with the session as it now is',
     schema: schemaRef('OnboardingConfirmResult'),
@@ -53,10 +53,7 @@ export class ConfirmController {
     'Problem code `iprs-unavailable`: IPRS could not be checked; try again later, the session is unchanged',
     'OnboardingProblem',
   )
-  confirm(
-    @Param('sessionId') sessionId: string,
-    @SessionSecret() secret: string | undefined,
-  ): Promise<OnboardingConfirmResult> {
-    return this.confirmation.confirm(sessionId, secret);
+  confirm(@SessionCredentials() credentials: SessionCredentials): Promise<OnboardingConfirmResult> {
+    return this.confirmation.confirm(credentials);
   }
 }

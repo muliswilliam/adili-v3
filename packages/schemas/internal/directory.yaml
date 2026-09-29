@@ -1799,18 +1799,18 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: channel
-          required: true
-          in: path
-          schema:
-            $ref: '#/components/schemas/OtpChannel'
-          description: email or phone
         - name: X-Onboarding-Secret
           in: header
           description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
           required: true
           schema:
             type: string
+        - name: channel
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/OtpChannel'
+          description: email or phone
       requestBody:
         required: true
         content:
@@ -1905,18 +1905,18 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: channel
-          required: true
-          in: path
-          schema:
-            $ref: '#/components/schemas/OtpChannel'
-          description: email or phone
         - name: X-Onboarding-Secret
           in: header
           description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
           required: true
           schema:
             type: string
+        - name: channel
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/OtpChannel'
+          description: email or phone
       responses:
         '202':
           description: New code sent
@@ -2078,6 +2078,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
         - name: Idempotency-Key
           in: header
           description: Client-generated UUID, unique per logical request; reuse on retry
@@ -2085,12 +2091,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: X-Onboarding-Secret
-          in: header
-          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
-          required: true
-          schema:
-            type: string
       responses:
         '200':
           description: Outcome of the confirmation, with the session as it now is
@@ -2185,6 +2185,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
         - name: Idempotency-Key
           in: header
           description: Client-generated UUID, unique per logical request; reuse on retry
@@ -2192,12 +2198,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: X-Onboarding-Secret
-          in: header
-          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
-          required: true
-          schema:
-            type: string
       responses:
         '202':
           description: Email requested
