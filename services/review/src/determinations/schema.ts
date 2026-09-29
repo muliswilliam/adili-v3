@@ -22,6 +22,10 @@ export type DeterminationOutcome = (typeof DETERMINATION_OUTCOMES)[number];
 export const PROPOSAL_STATUSES = ['proposed', 'approved', 'returned', 'withdrawn'] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 
+/** review.yaml `FurtherActionLink.kind`: what a further-action determination links to. */
+export const FURTHER_ACTION_KINDS = ['action', 'referral'] as const;
+export type FurtherActionKind = (typeof FURTHER_ACTION_KINDS)[number];
+
 /** Determinations that hold the case: at most one per case at a time. */
 export const OPEN_PROPOSAL_STATUSES = ['proposed', 'approved'] as const;
 
@@ -44,6 +48,9 @@ export const determinations = pgTable(
     outcome: text({ enum: DETERMINATION_OUTCOMES }).notNull(),
     reasons: text().notNull(),
     furtherActionNote: text(),
+    /** The administrative action or referral a further-action determination links to. */
+    furtherActionKind: text({ enum: FURTHER_ACTION_KINDS }),
+    furtherActionId: uuid(),
     proposerKind: text({ enum: PROPOSER_KINDS }).notNull(),
     /** The proposing officer's subject; null for a system proposal. */
     proposer: text(),
@@ -83,6 +90,10 @@ export const determinations = pgTable(
     check(
       'determinations_outcome_check',
       sql`${table.outcome} in (${inList(DETERMINATION_OUTCOMES)})`,
+    ),
+    check(
+      'determinations_further_action_check',
+      sql`(${table.furtherActionKind} is null) = (${table.furtherActionId} is null) and (${table.furtherActionKind} is null or ${table.furtherActionKind} in (${inList(FURTHER_ACTION_KINDS)}))`,
     ),
     check('determinations_status_check', sql`${table.status} in (${inList(PROPOSAL_STATUSES)})`),
     check(

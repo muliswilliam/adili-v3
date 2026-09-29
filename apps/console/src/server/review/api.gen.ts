@@ -1401,6 +1401,17 @@ export interface components {
             outcome: "compliant" | "non-compliant" | "further-action";
             reasons: string;
             furtherActionNote?: string | null;
+            /** @description For `further-action` only: the administrative action or referral the further action is, of the same declarant (400 otherwise) */
+            furtherActionLink?: components["schemas"]["FurtherActionLink"] | null;
+        };
+        FurtherActionLink: {
+            /** @enum {string} */
+            kind: "action" | "referral";
+            /**
+             * Format: uuid
+             * @description The administrative action's or the referral's id
+             */
+            id: string;
         };
         Determination: {
             /** Format: uuid */
@@ -1423,6 +1434,8 @@ export interface components {
             /** Format: date-time */
             returnedAt?: string | null;
             furtherActionNote?: string | null;
+            /** @description The action or referral a `further-action` determination links to; null when none */
+            furtherActionLink?: components["schemas"]["FurtherActionLink"] | null;
             /** @description CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval */
             reference: string | null;
             letterAvailable: boolean;

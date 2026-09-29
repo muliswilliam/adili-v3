@@ -2579,6 +2579,24 @@ components:
         furtherActionNote:
           type: [string, 'null']
           maxLength: 2000
+        furtherActionLink:
+          description: >-
+            For `further-action` only: the administrative action or referral the further action
+            is, of the same declarant (400 otherwise)
+          oneOf:
+            - $ref: '#/components/schemas/FurtherActionLink'
+            - type: 'null'
+    FurtherActionLink:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [action, referral]
+        id:
+          type: string
+          format: uuid
+          description: The administrative action's or the referral's id
     Determination:
       type: object
       required:
@@ -2638,6 +2656,11 @@ components:
           format: date-time
         furtherActionNote:
           type: [string, 'null']
+        furtherActionLink:
+          description: The action or referral a `further-action` determination links to; null when none
+          oneOf:
+            - $ref: '#/components/schemas/FurtherActionLink'
+            - type: 'null'
         reference:
           type: [string, 'null']
           description: 'CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval'

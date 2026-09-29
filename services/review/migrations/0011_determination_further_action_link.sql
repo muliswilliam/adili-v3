@@ -1,0 +1,3 @@
+ALTER TABLE "determinations" ADD COLUMN "further_action_kind" text;--> statement-breakpoint
+ALTER TABLE "determinations" ADD COLUMN "further_action_id" uuid;--> statement-breakpoint
+ALTER TABLE "determinations" ADD CONSTRAINT "determinations_further_action_check" CHECK (("determinations"."further_action_kind" is null) = ("determinations"."further_action_id" is null) and ("determinations"."further_action_kind" is null or "determinations"."further_action_kind" in ('action', 'referral')));

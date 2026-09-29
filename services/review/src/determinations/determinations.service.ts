@@ -14,8 +14,10 @@ import { type CaseStatus, reviewTimeline, type TimelineKind } from '../cases/sch
 import { Clock, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
+import { administrativeActions } from '../enforcement/schema.js';
 import { withUpstream } from '../internal-api/upstream.js';
-import type { DeterminationInput, ReasonInput } from './determination-input.js';
+import { referrals } from '../referrals/schema.js';
+import type { DeterminationInput, FurtherActionLink, ReasonInput } from './determination-input.js';
 import { DeterminationWorkflows } from './determination-workflows.js';
 import {
   DETERMINATION_APPROVED,
@@ -100,6 +102,9 @@ export class DeterminationsService {
           { code: 'determination-open', determinationId: open.id },
         );
       }
+      if (input.furtherActionLink) {
+        await requireDeclarantsOwn(tx, tenant, reviewCase.personId, input.furtherActionLink);
+      }
       const [created] = await tx
         .insert(determinations)
         .values({
@@ -110,6 +115,8 @@ export class DeterminationsService {
           outcome: input.outcome,
           reasons: input.reasons,
           furtherActionNote: input.furtherActionNote ?? null,
+          furtherActionKind: input.furtherActionLink?.kind ?? null,
+          furtherActionId: input.furtherActionLink?.id ?? null,
           proposerKind: 'user',
           proposer: principal.subject,
           proposerName: principal.name,
@@ -354,6 +361,35 @@ function requireProposed(status: ProposalStatus): void {
     },
     { code: 'not-proposed', determinationStatus: status },
   );
+}
+
+/**
+ * A further-action link names an administrative action or a referral of the Commission about the
+ * case's declarant; anything else is a 400.
+ */
+async function requireDeclarantsOwn(
+  tx: ReviewTransaction,
+  tenant: string,
+  personId: string,
+  link: FurtherActionLink,
+): Promise<void> {
+  const table = link.kind === 'action' ? administrativeActions : referrals;
+  const [found] = await tx
+    .select({ id: table.id })
+    .from(table)
+    .where(and(eq(table.id, link.id), eq(table.tenant, tenant), eq(table.personId, personId)));
+  if (found) return;
+  throw new ProblemException({
+    type: 'about:blank',
+    title: 'Validation failed',
+    status: HttpStatus.BAD_REQUEST,
+    errors: [
+      {
+        path: 'furtherActionLink.id',
+        message: `${link.id} is not an ${link.kind === 'action' ? 'administrative action' : 'referral'} of this declarant`,
+      },
+    ],
+  });
 }
 
 /** A further-action determination keeps the case open; any other closes it. */

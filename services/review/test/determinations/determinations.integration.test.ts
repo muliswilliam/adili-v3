@@ -6,7 +6,13 @@ import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { clarifications, outbox, reviewCases, reviewTimeline } from '../../src/db/schema.js';
+import {
+  clarifications,
+  outbox,
+  referrals,
+  reviewCases,
+  reviewTimeline,
+} from '../../src/db/schema.js';
 import { determinationIssuanceWorkflowId } from '../../src/determinations/contract.js';
 import type { DeclarantDecisionView } from '../../src/determinations/declarant-decisions.service.js';
 import type { DeterminationView } from '../../src/determinations/representation.js';
@@ -15,6 +21,7 @@ import { givenAssignedCase } from '../support/cases.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { approve, givenWorkedCase, propose } from '../support/determinations.js';
 import { submittedVersion } from '../support/fake-declarations.js';
+import { givenLadder } from '../support/referrals.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
 import { historyPayloads } from '../support/workflow-history.js';
 
@@ -118,6 +125,7 @@ describe('determinations: propose, approve, return, withdraw', () => {
       approver: null,
       approvedAt: null,
       returnReason: null,
+      furtherActionLink: null,
       reference: null,
       letterAvailable: false,
     });
@@ -368,18 +376,36 @@ describe('determinations: propose, approve, return, withdraw', () => {
     });
     api.declarations.given(other);
     const otherCase = await givenWorkedCase(api, other, [reviewerA]);
-    const second = (
-      await propose(api, otherCase, reviewerA, {
-        outcome: 'further-action',
-        reasons: 'Refer the undeclared plot.',
-        furtherActionNote: 'Start a referral.',
-      })
-    ).json<DeterminationView>();
-    expect(second.furtherActionNote).toBe('Start a referral.');
+    const { actionId } = await givenLadder(api, {
+      tenant: 'psc',
+      subjectKind: 'obligation',
+      subjectId: randomUUID(),
+      personId: other.personId,
+      subjectReference: 'biennial:2027',
+      startedAt: new Date('2027-12-01T08:00:00.000Z'),
+      actionReference: 'ADM-PSC-2027-0000001-K',
+    });
+    const response = await propose(api, otherCase, reviewerA, {
+      outcome: 'further-action',
+      reasons: 'Refer the undeclared plot.',
+      furtherActionNote: 'The notice to comply already issued covers it.',
+      furtherActionLink: { kind: 'action', id: actionId },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const second = response.json<DeterminationView>();
+    expect(second).toMatchObject({
+      furtherActionNote: 'The notice to comply already issued covers it.',
+      furtherActionLink: { kind: 'action', id: actionId },
+    });
 
     const approved = (await approve(api, second.id, supervisorS)).json<DeterminationView>();
 
     expect(approved.reference).toMatch(/^CMP-PSC-2027-0000002-[0-9A-Z]$/);
+    const read = await api.get(`/v1/review/determinations/${second.id}`, reviewerA);
+    expect(
+      contractErrors(okResponse('/v1/review/determinations/{determinationId}', 'get'), read.json()),
+    ).toEqual([]);
+    expect(read.json()).toMatchObject({ furtherActionLink: { kind: 'action', id: actionId } });
     const [row] = await api.asPlatform((tx) =>
       tx.select().from(reviewCases).where(eq(reviewCases.id, otherCase)),
     );
@@ -536,6 +562,56 @@ describe('determinations: propose, approve, return, withdraw', () => {
           .where(eq(reviewCases.id, caseId));
       });
       expect((await propose(api, caseId, reviewerA)).statusCode).toBe(201);
+    });
+
+    it('propose: a further-action link names an action or referral of the same declarant, on further action only (400 otherwise)', async () => {
+      const caseId = await givenWorkedCase(api, version, [reviewerA]);
+      const referralOf = async (personId: string) => {
+        const id = randomUUID();
+        await api.asPlatform((tx) =>
+          tx.insert(referrals).values({
+            id,
+            tenant: 'psc',
+            personId,
+            caseId: null,
+            cycleYear: 2027,
+            grounds: 'two-missed-cycles',
+            proposerKind: 'system',
+            proposedAt: new Date('2027-12-01T08:00:00.000Z'),
+            sources: {
+              caseIds: [],
+              flagIds: [],
+              clarificationIds: [],
+              obligationIds: [],
+              actionIds: [],
+            },
+            narrative: 'Two biennial declarations unfiled.',
+            status: 'proposed',
+            declarantName: 'James Otieno',
+            personnelFileNumber: 'PSC/0001',
+          }),
+        );
+        return id;
+      };
+      const own = await referralOf(version.personId);
+      const someoneElses = await referralOf(randomUUID());
+      const furtherAction = (link: unknown, outcome = 'further-action') =>
+        propose(api, caseId, reviewerA, { outcome, reasons, furtherActionLink: link });
+
+      for (const [link, outcome] of [
+        [{ kind: 'referral', id: own }, 'non-compliant'],
+        [{ kind: 'referral', id: someoneElses }, 'further-action'],
+        [{ kind: 'action', id: own }, 'further-action'],
+        [{ kind: 'referral', id: randomUUID() }, 'further-action'],
+        [{ kind: 'case', id: own }, 'further-action'],
+      ] as const) {
+        const refused = await furtherAction(link, outcome);
+        expect(refused.statusCode, JSON.stringify(link)).toBe(400);
+      }
+
+      const linked = await furtherAction({ kind: 'referral', id: own });
+      expect(linked.statusCode, linked.body).toBe(201);
+      expect(linked.json()).toMatchObject({ furtherActionLink: { kind: 'referral', id: own } });
     });
 
     it('propose: a supervisor holding the case proposes, and cannot approve it', async () => {
