@@ -10,6 +10,7 @@ import { Clock, nairobiDate } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
+import { issueLetter } from '../documents/letters.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
@@ -73,33 +74,20 @@ export class ClarificationActivities {
     if (found.reference === null || found.issuedAt === null) {
       throw new Error(`Clarification ${clarificationId} is issued without a reference`);
     }
-    const commission = await this.directory.getCommission(tenant);
-    let issued;
-    try {
-      issued = await this.documents.issue({
+    const issued = await issueLetter(
+      { directory: this.directory, documents: this.documents },
+      {
         type: 'clarification-letter',
+        payload: { clarificationId },
+        tenant,
         templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
-        disclosureLevel: 'restricted',
-        issuerTenant: tenant,
         subjectRef: `clarification:${clarificationId}`,
         subjectPersonId: found.personId,
-        payload: { clarificationId },
-        publicPayload: {
-          reference: found.reference,
-          type: 'clarification-letter',
-          issuer: commission.name,
-          issuedAt: found.issuedAt.toISOString(),
-        },
-      });
-    } catch (error) {
-      if (error instanceof InternalApiRejected) {
-        throw ApplicationFailure.nonRetryable(
-          `Documents refused the letter of ${clarificationId} (${String(error.status)})`,
-          LETTER_REFUSED,
-        );
-      }
-      throw error;
-    }
+        reference: found.reference,
+        issuedAt: found.issuedAt,
+        refused: LETTER_REFUSED,
+      },
+    );
     const [kept] = await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .update(clarifications)

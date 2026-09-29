@@ -53,6 +53,7 @@ export class FakeDocuments extends DocumentsClient {
   private readonly known = new Map<string, { tenant: string; type: string; sha256: string }>();
   private readonly uploads = new Map<string, FakeUpload>();
   private failures = 0;
+  private refusals = 0;
 
   /** Clean declaration attachments of `tenant`. */
   givenUploads(tenant: string, ...uploadIds: string[]): void {
@@ -89,7 +90,13 @@ export class FakeDocuments extends DocumentsClient {
     this.failures = count;
   }
 
+  /** The next `count` documents asked for are refused (422), as documents refuses a bad request. */
+  refuseIssues(count: number): void {
+    this.refusals = count;
+  }
+
   reset(): void {
+    this.refusals = 0;
     this.downloads.length = 0;
     this.issued.length = 0;
     this.known.clear();
@@ -133,6 +140,10 @@ export class FakeDocuments extends DocumentsClient {
     if (this.failures > 0) {
       this.failures -= 1;
       throw new DocumentsUnavailable('The documents service is unreachable');
+    }
+    if (this.refusals > 0) {
+      this.refusals -= 1;
+      throw new InternalApiRejected('documents', 422);
     }
     if (!this.payloadSource) throw new Error('No payload source for the fake documents service');
     const pulled = await this.payloadSource(request.issuerTenant, request);

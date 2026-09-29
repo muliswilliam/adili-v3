@@ -4,7 +4,9 @@ import { eq } from 'drizzle-orm';
 import type { ReviewSchema } from '../db/schema.js';
 import type { DirectoryClient } from '../directory/directory-client.js';
 import type { DocumentsClient } from '../documents/documents-client.js';
+import { issueLetter } from '../documents/letters.js';
 import { systemContext } from '../system-context.js';
+import { DECISION_LETTER_REFUSED } from './contract.js';
 import { determinations } from './schema.js';
 
 /** The template version of `decision-letter` this service's payload fills. */
@@ -28,8 +30,9 @@ export type DecisionLetter =
  * the determination is locked while documents renders it, so the issuance workflow of an
  * individual determination and a first download of a bulk closure's letter (spec 08, on demand)
  * never issue two. The request names the determination only; documents pulls the template fields
- * from the letter payload endpoint, which reads without a lock. Documents' errors propagate
- * (`DocumentsUnavailable`, `InternalApiRejected`) and nothing is stored.
+ * from the letter payload endpoint, which reads without a lock. A letter documents refuses fails
+ * without retry (`DECISION_LETTER_REFUSED`); an outage (`DocumentsUnavailable`) propagates. Either
+ * way nothing is stored.
  */
 export async function issueDecisionLetter(
   { db, directory, documents }: DecisionLetterDeps,
@@ -54,22 +57,20 @@ export async function issueDecisionLetter(
     if (found.reference === null || found.approvedAt === null) {
       throw new Error(`Determination ${determinationId} is approved without a reference`);
     }
-    const commission = await directory.getCommission(tenant);
-    const issued = await documents.issue({
-      type: 'decision-letter',
-      templateVersion: DECISION_LETTER_TEMPLATE_VERSION,
-      disclosureLevel: 'restricted',
-      issuerTenant: tenant,
-      subjectRef: `determination:${determinationId}`,
-      subjectPersonId: found.personId,
-      payload: { determinationId },
-      publicPayload: {
-        reference: found.reference,
+    const issued = await issueLetter(
+      { directory, documents },
+      {
         type: 'decision-letter',
-        issuer: commission.name,
-        issuedAt: found.approvedAt.toISOString(),
+        payload: { determinationId },
+        tenant,
+        templateVersion: DECISION_LETTER_TEMPLATE_VERSION,
+        subjectRef: `determination:${determinationId}`,
+        subjectPersonId: found.personId,
+        reference: found.reference,
+        issuedAt: found.approvedAt,
+        refused: DECISION_LETTER_REFUSED,
       },
-    });
+    );
     await tx
       .update(determinations)
       .set({ letterDocumentId: issued.id, letterVerificationId: issued.verificationId })

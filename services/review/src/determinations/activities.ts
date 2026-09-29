@@ -12,7 +12,6 @@ import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { systemContext } from '../system-context.js';
 import {
-  DECISION_LETTER_REFUSED,
   type DecisionChannel,
   type DecisionLetterOutcome,
   type DecisionNotice,
@@ -54,22 +53,11 @@ export class DeterminationActivities {
     tenant,
     determinationId,
   }: DeterminationIssuanceInput): Promise<DecisionLetterOutcome> {
-    let letter;
-    try {
-      letter = await issueDecisionLetter(
-        { db: this.db, directory: this.directory, documents: this.documents },
-        tenant,
-        determinationId,
-      );
-    } catch (error) {
-      if (error instanceof InternalApiRejected) {
-        throw ApplicationFailure.nonRetryable(
-          `Documents refused the decision letter of ${determinationId} (${String(error.status)})`,
-          DECISION_LETTER_REFUSED,
-        );
-      }
-      throw error;
-    }
+    const letter = await issueDecisionLetter(
+      { db: this.db, directory: this.directory, documents: this.documents },
+      tenant,
+      determinationId,
+    );
     switch (letter.status) {
       case 'missing':
         throw ApplicationFailure.nonRetryable(

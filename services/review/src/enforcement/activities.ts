@@ -13,6 +13,7 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient, type LadderPolicy } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
+import { issueLetter } from '../documents/letters.js';
 import {
   IntegrationGatewayClient,
   type PayrollAction,
@@ -281,34 +282,20 @@ export class EnforcementActivities {
       if (action.reference === null || action.issuedAt === null) {
         throw new Error(`Action ${actionId} is approved without a reference`);
       }
-      const step = action.step;
-      const commission = await this.directory.getCommission(tenant);
-      let issued;
-      try {
-        issued = await this.documents.issue({
-          type: STEP_LETTERS[step],
+      const issued = await issueLetter(
+        { directory: this.directory, documents: this.documents },
+        {
+          type: STEP_LETTERS[action.step],
+          payload: { actionId },
+          tenant,
           templateVersion: ACTION_LETTER_TEMPLATE_VERSION,
-          disclosureLevel: 'restricted',
-          issuerTenant: tenant,
           subjectRef: `action:${actionId}`,
           subjectPersonId: action.personId,
-          payload: { actionId },
-          publicPayload: {
-            reference: action.reference,
-            type: STEP_LETTERS[step],
-            issuer: commission.name,
-            issuedAt: action.issuedAt.toISOString(),
-          },
-        });
-      } catch (error) {
-        if (error instanceof InternalApiRejected) {
-          throw ApplicationFailure.nonRetryable(
-            `Documents refused the letter of action ${actionId} (${String(error.status)})`,
-            ACTION_LETTER_REFUSED,
-          );
-        }
-        throw error;
-      }
+          reference: action.reference,
+          issuedAt: action.issuedAt,
+          refused: ACTION_LETTER_REFUSED,
+        },
+      );
       await tx
         .update(administrativeActions)
         .set({ letterDocumentId: issued.id, letterVerificationId: issued.verificationId })

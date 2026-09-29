@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { ApplicationFailure } from '@temporalio/common';
 import { and, eq } from 'drizzle-orm';
 
 import { reviewTenant } from '../cases/access.js';
@@ -10,8 +11,8 @@ import { letterDownloadUrl } from '../clarifications/links.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { upstreamUnavailable, withUpstream } from '../internal-api/upstream.js';
+import { DECISION_LETTER_REFUSED } from './contract.js';
 import { issueDecisionLetter } from './decision-letter.js';
 import { determinations } from './schema.js';
 
@@ -91,7 +92,7 @@ export class DeterminationLetterService {
         ),
       );
     } catch (error) {
-      if (error instanceof InternalApiRejected) {
+      if (error instanceof ApplicationFailure && error.type === DECISION_LETTER_REFUSED) {
         throw upstreamUnavailable('documents', 'The documents service refused the letter.');
       }
       throw error;
