@@ -23,6 +23,7 @@ import {
   planStatements,
   type StatementPerson,
 } from './household.js';
+import { composeMaterialChanges } from './material-changes.js';
 import type { Declaration, SectionEnvelope, SectionSaveResult } from './representation.js';
 import { type SealedSection, SectionCipher, type StoredSection } from './section-cipher.js';
 import {
@@ -32,6 +33,7 @@ import {
   emptyOther,
   emptyStatement,
   isSectionKey,
+  nilConflicts,
   prefillBio,
   type SectionContents,
   sectionMetadata,
@@ -229,7 +231,12 @@ export class DraftsService {
     const state = notFoundIfInvisible(
       await withPerson(this.db, person, (tx) => readSection(tx, declarationId, key)),
     );
-    const contents = await this.open(state.declaration, state.section);
+    const opened = await this.open(state.declaration, state.section);
+    // Paragraph 9's material changes follow the items as they are now, not as `other` was saved.
+    const contents =
+      key === 'other'
+        ? { ...opened, materialChanges: await this.materialChanges(person, state.declaration) }
+        : opened;
     const issues =
       state.section.completeness === 'not-started' || state.section.completeness === 'archived'
         ? []
@@ -285,9 +292,21 @@ export class DraftsService {
     if (!isRecord(body)) throw validationProblem([{ path: '', message: 'Expected an object' }]);
     const errors = shapeErrors(key, body);
     if (errors.length > 0) throw validationProblem(errors);
+    if (statementPersonKey(key)) {
+      const conflicts = nilConflicts(body);
+      if (conflicts.length > 0) {
+        throw new ProblemException({
+          type: 'nil-conflicts-with-items',
+          title: 'Nil conflicts with items',
+          status: HttpStatus.BAD_REQUEST,
+          detail: 'A category declared as having nothing to declare cannot list items.',
+          errors: conflicts,
+        });
+      }
+    }
 
     const stored = await this.open(declaration, section);
-    const prepared = this.prepare(declaration, key, body, stored, section.metadata);
+    const prepared = await this.prepare(person, declaration, key, body, stored, section.metadata);
     const household =
       key === 'household' ? householdPeople(prepared, declaration.statementDate) : null;
     const contents = household?.contents ?? prepared;
@@ -472,16 +491,20 @@ export class DraftsService {
 
   /**
    * The contents to store for a well-formed body: the service's own fields enforced. Household
-   * and paragraph 9 rules (statements created and archived, material changes composed) plug in
-   * here per section.
+   * rules (statements created and archived) plug in here per section. Paragraph 9's material
+   * changes are the service's: composed from the items, never taken from the body.
    */
-  private prepare(
+  private async prepare(
+    person: PersonContext,
     declaration: DeclarationRow,
     key: DeclarationSectionKey,
     body: SectionContents,
     stored: SectionContents,
     metadata: SectionMetadata,
-  ): SectionContents {
+  ): Promise<SectionContents> {
+    if (key === 'other') {
+      return { ...body, materialChanges: await this.materialChanges(person, declaration) };
+    }
     if (key === 'bio') {
       const { contents, changed } = applyLockedFields(body, stored, metadata.lockedFields ?? []);
       if (changed.length > 0) {
@@ -538,6 +561,24 @@ export class DraftsService {
     const section = assessed.get(key) ?? { completeness: 'incomplete', issues: [] };
     const siblingKey = key === 'bio' ? 'household' : key === 'household' ? 'bio' : undefined;
     return siblingKey ? { section, sibling: assessed.get(siblingKey) } : { section };
+  }
+
+  /**
+   * Paragraph 9's material changes as the draft stands: the marital-status change from bio and
+   * every flagged item of the live (not archived) statements, in First Schedule order.
+   */
+  private async materialChanges(person: PersonContext, declaration: DeclarationRow) {
+    const rows = await withPerson(this.db, person, (tx) => liveSections(tx, declaration.id));
+    let bio: SectionContents | undefined;
+    const statements: [PersonKey, SectionContents][] = [];
+    for (const row of rows) {
+      const personKey = statementPersonKey(row.sectionKey as DeclarationSectionKey);
+      if (!personKey && row.sectionKey !== 'bio') continue;
+      const contents = await this.open(declaration, row);
+      if (personKey) statements.push([personKey, contents]);
+      else bio = contents;
+    }
+    return composeMaterialChanges({ bio, statements });
   }
 
   private open(

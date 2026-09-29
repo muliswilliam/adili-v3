@@ -115,10 +115,13 @@ const CATEGORIES = [
   { list: 'liabilities', nil: 'liabilitiesNil' },
 ] as const;
 
-/** Each category is either declared nil or lists items, never both (S8). */
+/**
+ * Each category is either declared nil or lists items, never both (S8); an item flagged as
+ * changed since the last declaration says what kind of change and explains it (S9).
+ */
 function statementRules(key: DeclarationSectionKey, contents: unknown): DeclarationIssue[] {
   const statement = record(contents);
-  return CATEGORIES.flatMap(({ list, nil }) =>
+  const nilRules = CATEGORIES.flatMap(({ list, nil }) =>
     presenceRule(key, {
       flagged: statement[nil] === true,
       items: listOf(statement[list]).length,
@@ -134,6 +137,41 @@ function statementRules(key: DeclarationSectionKey, contents: unknown): Declarat
       },
     }),
   );
+  const changeRules = CATEGORIES.flatMap(({ list }) =>
+    listOf(statement[list]).flatMap((item, index) => {
+      const change = record(record(item).change);
+      if (change.changed !== true) return [];
+      const at = `/${list}/${String(index)}/change`;
+      return [
+        ...(filled(change.kind)
+          ? []
+          : [
+              issue(
+                key,
+                `${at}/kind`,
+                'required',
+                'Choose what changed since your last declaration.',
+              ),
+            ]),
+        ...(filled(change.explanation)
+          ? []
+          : [
+              issue(
+                key,
+                `${at}/explanation`,
+                'required',
+                'Explain what changed since your last declaration.',
+              ),
+            ]),
+      ];
+    }),
+  );
+  return [...nilRules, ...changeRules];
+}
+
+/** A string with something in it besides spaces. */
+function filled(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 /** Statuses with no current spouse; the others (married, separated) need one or "none". */

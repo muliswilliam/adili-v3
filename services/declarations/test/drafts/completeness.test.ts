@@ -174,7 +174,31 @@ describe('changed-since-last flags (S9)', () => {
       'statement:officer /liabilities/0/change/explanation required',
     ]);
   });
+
+  it('says what each missing part is for, on the field', () => {
+    const item = { ...incomeItem(), change: { changed: true } };
+    const found =
+      assessSections(draft(({ statement: s }) => (s.income = [item]))).get('statement:officer')
+        ?.issues ?? [];
+
+    expect(found.map(({ path, message }) => [path, message])).toEqual([
+      ['/income/0/change/kind', 'Choose what changed since your last declaration.'],
+      ['/income/0/change/explanation', 'Explain what changed since your last declaration.'],
+    ]);
+  });
+
+  it('takes a blank explanation as missing', () => {
+    const item = { ...incomeItem(), change: { ...promoted(), explanation: '   ' } };
+
+    expect(issues(draft(({ statement: s }) => (s.income = [item])))).toEqual([
+      'statement:officer /income/0/change/explanation required',
+    ]);
+  });
 });
+
+function promoted() {
+  return { changed: true, kind: 'value-change', explanation: 'Promoted in 2026.' } as const;
+}
 
 describe('marital status and spouses (S6)', () => {
   it.each([

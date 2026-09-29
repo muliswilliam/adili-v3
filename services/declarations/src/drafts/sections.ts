@@ -213,6 +213,26 @@ export function applyLockedFields(
   return { contents, changed };
 }
 
+const STATEMENT_CATEGORIES = [
+  { list: 'income', nil: 'incomeNil' },
+  { list: 'assets', nil: 'assetsNil' },
+  { list: 'liabilities', nil: 'liabilitiesNil' },
+] as const;
+
+/**
+ * The categories of a statement declared nil while listing items (S8). Such a save is refused
+ * rather than stored: "nothing to declare" and a list cannot both be the answer.
+ */
+export function nilConflicts(contents: SectionContents): ShapeError[] {
+  return STATEMENT_CATEGORIES.filter(
+    ({ list, nil }) =>
+      contents[nil] === true && Array.isArray(contents[list]) && contents[list].length > 0,
+  ).map(({ list }) => ({
+    path: list,
+    message: `You said there are no ${list} but listed some. Remove them or untick "No ${list}".`,
+  }));
+}
+
 /**
  * Clear metadata of a section's contents: item counts by category and nil flags for a statement,
  * people listed for the household, interests listed for paragraph 9. Counts and flags only,
