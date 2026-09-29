@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertTitle,
   Button,
   Drawer,
   DrawerBody,
@@ -10,20 +8,13 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-  formatDate,
-  formatDateTime,
   formatLongDate,
-  Icon,
   ObligationStatusBadge,
   obligationTypeLabel,
-  reminderChannelsLabel,
-  reminderOffsetLabel,
-  ReminderOutcomeText,
-  Skeleton,
+  ReminderHistory,
   Tooltip,
   useObligationDetail,
 } from '@adili/ui';
-import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { type ReactNode, useEffect, useEffectEvent } from 'react';
 
 import type {
@@ -63,7 +54,7 @@ export function ObligationDrawer({
   onUnauthenticated,
   recordLink,
 }: ObligationDrawerProps) {
-  const { detail } = useObligationDetail(obligation?.id ?? null, load, unavailable);
+  const { detail, retry } = useObligationDetail(obligation?.id ?? null, load, unavailable);
   const signIn = useEffectEvent(onUnauthenticated);
   const ended = detail?.ok === false && detail.error.kind === 'unauthenticated';
   useEffect(() => {
@@ -86,7 +77,7 @@ export function ObligationDrawer({
           </DrawerHeader>
           <DrawerBody>
             <Fields obligation={obligation} />
-            <Reminders obligation={obligation} detail={detail} />
+            <Reminders obligation={obligation} detail={detail} onRetry={retry} />
           </DrawerBody>
           <DrawerFooter>
             {recordLink ? recordLink(obligation.declarant) : null}
@@ -155,9 +146,11 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
 function Reminders({
   obligation,
   detail,
+  onRetry,
 }: {
   obligation: ObligationListItem;
   detail: DeclarationsResult<ObligationDetail> | null;
+  onRetry: () => void;
 }) {
   const schedule = [
     m.reminderSchedule(obligation.commission.name, obligation.policyVersion),
@@ -171,86 +164,35 @@ function Reminders({
         {m.reminders}
       </h3>
       <p className="text-[13px] text-muted-foreground">{schedule}</p>
-      <ReminderHistory detail={detail} />
+      <History detail={detail} onRetry={onRetry} />
     </section>
   );
 }
 
-function ReminderHistory({ detail }: { detail: DeclarationsResult<ObligationDetail> | null }) {
-  // Also while the session has ended and sign-in takes over.
+function History({
+  detail,
+  onRetry,
+}: {
+  detail: DeclarationsResult<ObligationDetail> | null;
+  onRetry: () => void;
+}) {
+  // Also while the session has ended and sign-in takes over: skeleton lines.
   if (detail === null || (!detail.ok && detail.error.kind === 'unauthenticated')) {
-    return (
-      <div aria-busy="true" aria-label={m.reminderHistory} className="grid gap-2.5 py-2">
-        <Skeleton className="w-full" />
-        <Skeleton className="w-5/6" />
-        <Skeleton className="w-2/3" />
-      </div>
-    );
+    return <ReminderHistory reminders={null} />;
   }
   if (!detail.ok) {
     const notFound = detail.error.kind === 'problem' && detail.error.problem.status === 404;
     return (
-      <Alert variant="destructive">
-        <Icon icon={AlertCircleIcon} />
-        <AlertTitle>{notFound ? m.detailNotFound : m.detailErrorTitle}</AlertTitle>
-      </Alert>
+      <ReminderHistory
+        reminders={null}
+        error={
+          notFound
+            ? { title: m.detailNotFound, tone: 'warning', retry: false }
+            : { title: m.detailErrorTitle }
+        }
+        onRetry={onRetry}
+      />
     );
   }
-  const { reminders } = detail.data;
-  if (reminders.length === 0) {
-    return <p className="py-2 text-sm text-muted-foreground">{m.noReminders}</p>;
-  }
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-150 border-collapse text-[13.5px]">
-        <caption className="sr-only">{m.reminderHistory}</caption>
-        <thead>
-          <tr className="border-b text-left text-xs text-muted-foreground">
-            {[
-              m.reminderOffset,
-              m.reminderScheduled,
-              m.reminderSent,
-              m.reminderChannels,
-              m.reminderOutcome,
-            ].map((column) => (
-              <th key={column} scope="col" className="py-2 pr-4 font-medium whitespace-nowrap">
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {reminders.map((reminder) => (
-            <tr
-              key={`${reminder.offsetDays}-${reminder.scheduledAt}`}
-              className="border-b last:border-b-0"
-            >
-              <th
-                scope="row"
-                className="py-2.5 pr-4 align-top text-left font-normal whitespace-nowrap"
-              >
-                {reminderOffsetLabel(reminder.offsetDays)}
-              </th>
-              <td className="py-2.5 pr-4 align-top whitespace-nowrap">
-                {formatDate(reminder.scheduledAt)}
-              </td>
-              <td className="py-2.5 pr-4 align-top whitespace-nowrap">
-                {reminder.sentAt ? (
-                  <span title={formatDateTime(reminder.sentAt)}>{formatDate(reminder.sentAt)}</span>
-                ) : (
-                  m.noValue
-                )}
-              </td>
-              <td className="py-2.5 pr-4 align-top whitespace-nowrap">
-                {reminderChannelsLabel(reminder.channels)}
-              </td>
-              <td className="py-2.5 align-top">
-                <ReminderOutcomeText outcome={reminder.outcome} channels={reminder.channels} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  return <ReminderHistory reminders={detail.data.reminders} />;
 }

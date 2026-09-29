@@ -1,9 +1,7 @@
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
   Button,
-  cn,
   Drawer,
   DrawerBody,
   DrawerClose,
@@ -13,26 +11,17 @@ import {
   DrawerHeader,
   DrawerTitle,
   formatDate,
-  formatDateTime,
   Icon,
   obligationCycleLabel,
   obligationTypeLabel,
-  reminderChannelsLabel,
-  reminderOffsetLabel,
-  ReminderOutcomeText,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  ReminderHistory,
+  type ReminderHistoryError,
   useObligationDetail,
 } from '@adili/ui';
-import { AlertCircleIcon, RefreshIcon } from '@hugeicons/core-free-icons';
+import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
-import type { Obligation, Reminder } from '../../server/declarations/types';
+import type { Obligation } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
 import { messages as m } from './obligation-messages';
 import {
@@ -111,7 +100,7 @@ export function ObligationDrawer({
                 {m.reminderSchedule(commission.name)}
               </p>
             </div>
-            <ReminderHistory detail={detail} onRetry={retry} />
+            <Reminders detail={detail} onRetry={retry} />
           </section>
         </DrawerBody>
         <DrawerFooter className="flex-wrap items-center">
@@ -139,7 +128,8 @@ function Fact({ term, children }: { term: ReactNode; children: ReactNode }) {
   );
 }
 
-function ReminderHistory({
+/** The reminder history once read; a session that ended says so instead. */
+function Reminders({
   detail,
   onRetry,
 }: {
@@ -147,95 +137,18 @@ function ReminderHistory({
   detail: ObligationDetailResult | null;
   onRetry: () => void;
 }) {
-  if (detail === null) {
-    return (
-      <div aria-busy="true" aria-label={m.reminderHistory} className="grid gap-3 py-2">
-        <Skeleton className="w-full" />
-        <Skeleton className="w-4/5" />
-        <Skeleton className="w-3/5" />
-      </div>
-    );
-  }
-  if (detail.status === 'unauthenticated') return <SessionEnded />;
-  if (detail.status === 'unavailable') {
-    return (
-      <Alert variant="destructive">
-        <Icon icon={AlertCircleIcon} />
-        <AlertTitle>{m.historyErrorTitle}</AlertTitle>
-        <AlertDescription className="grid justify-items-start gap-2.5">
-          <p>{m.errorDetail}</p>
-          <Button variant="secondary" size="sm" onClick={onRetry}>
-            <Icon icon={RefreshIcon} />
-            {m.tryAgain}
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  if (detail.status === 'not-found') {
-    return (
-      <Alert variant="warning">
-        <Icon icon={AlertCircleIcon} />
-        <AlertDescription>{m.historyNotFound}</AlertDescription>
-      </Alert>
-    );
-  }
-  const { reminders } = detail.obligation;
-  if (reminders.length === 0) {
-    return <p className="text-sm text-muted-foreground">{m.noReminders}</p>;
-  }
-  return <ReminderTable reminders={reminders} />;
-}
-
-// On phones each reminder becomes a short list of labelled facts with the outcome underneath.
-const phoneCell =
-  'max-sm:p-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:before:mr-1 max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]';
-
-function ReminderTable({ reminders }: { reminders: Reminder[] }) {
+  if (detail?.status === 'unauthenticated') return <SessionEnded />;
+  const error: ReminderHistoryError | null =
+    detail?.status === 'unavailable'
+      ? { title: m.historyErrorTitle, detail: m.errorDetail }
+      : detail?.status === 'not-found'
+        ? { title: m.historyNotFound, tone: 'warning', retry: false }
+        : null;
   return (
-    <Table caption={m.reminderHistory} className="text-[13.5px]">
-      <TableHeader className="max-sm:sr-only">
-        <TableRow>
-          <TableHead className="bg-transparent pl-0 first:pl-0">{m.whenColumn}</TableHead>
-          <TableHead className="bg-transparent">{m.scheduledColumn}</TableHead>
-          <TableHead className="bg-transparent">{m.sentColumn}</TableHead>
-          <TableHead className="bg-transparent">{m.channelsColumn}</TableHead>
-          <TableHead className="bg-transparent pr-0 last:pr-0">{m.outcomeColumn}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {reminders.map((reminder) => (
-          <TableRow
-            key={`${String(reminder.offsetDays)}-${reminder.scheduledAt}`}
-            className="max-sm:grid max-sm:gap-y-0.5 max-sm:py-2.5"
-          >
-            <TableCell className="py-2.5 pl-0 align-top font-medium whitespace-nowrap first:pl-0 max-sm:p-0">
-              {reminderOffsetLabel(reminder.offsetDays)}
-            </TableCell>
-            <TableCell
-              data-label={`${m.scheduledColumn}:`}
-              className={cn('py-2.5 align-top whitespace-nowrap', phoneCell)}
-            >
-              {formatDateTime(reminder.scheduledAt)}
-            </TableCell>
-            <TableCell
-              data-label={`${m.sentColumn}:`}
-              className={cn('py-2.5 align-top whitespace-nowrap', phoneCell)}
-            >
-              {reminder.sentAt ? formatDateTime(reminder.sentAt) : m.notSent}
-            </TableCell>
-            <TableCell
-              data-label={`${m.channelsColumn}:`}
-              className={cn('py-2.5 align-top whitespace-nowrap', phoneCell)}
-            >
-              {reminderChannelsLabel(reminder.channels)}
-            </TableCell>
-            <TableCell className="py-2.5 pr-0 align-top last:pr-0 max-sm:mt-1 max-sm:p-0">
-              <ReminderOutcomeText outcome={reminder.outcome} channels={reminder.channels} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <ReminderHistory
+      reminders={detail?.status === 'ok' ? detail.obligation.reminders : null}
+      error={error}
+      onRetry={onRetry}
+    />
   );
 }

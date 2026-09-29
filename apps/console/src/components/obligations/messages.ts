@@ -95,18 +95,10 @@ export const en = {
   reminderSchedule: (commission: string, version: number) =>
     `Reminder schedule set by ${commission} · policy v${formatNumber(version)}`,
   reminderScheduleNotOnboarded: 'none sent until onboarded',
-  reminderHistory: 'Reminder history',
-  reminderOffset: 'Offset',
-  reminderScheduled: 'Scheduled',
-  reminderSent: 'Sent',
-  reminderChannels: 'Channels',
-  reminderOutcome: 'Outcome',
-  noReminders: 'No reminders scheduled for this obligation.',
   rosterRecord: 'Roster record',
   close: 'Close',
   detailErrorTitle: 'The obligation could not be loaded',
   detailNotFound: 'This obligation is no longer on record.',
-  noValue: '-',
   // Commission detail card (FE-4)
   cardCycle: (cycle: string, due: string) => `${cycle} · due ${due}`,
   cardNotOnboarded: 'Not onboarded',

@@ -53,6 +53,15 @@ export const obligationMessages = {
   sms: 'SMS',
   email: 'Email',
   daysBefore: (days: number) => `${String(days)} ${days === 1 ? 'day' : 'days'} before`,
+  reminderHistory: 'Reminder history',
+  reminderWhen: 'When',
+  reminderScheduled: 'Scheduled',
+  reminderSent: 'Sent',
+  reminderChannels: 'Channels',
+  reminderOutcome: 'Outcome',
+  noReminders: 'No reminders sent yet.',
+  noValue: '-',
+  tryAgain: 'Try again',
   remindersSent: (count: number) =>
     count === 0
       ? 'No reminders sent yet'
@@ -162,7 +171,7 @@ export function reminderOffsetLabel(days: number): string {
 
 /** "SMS, Email", or "-" when none. */
 export function reminderChannelsLabel(channels: readonly ReminderChannel[]): string {
-  if (channels.length === 0) return '-';
+  if (channels.length === 0) return m.noValue;
   return channels.map((channel) => m[channel]).join(', ');
 }
 

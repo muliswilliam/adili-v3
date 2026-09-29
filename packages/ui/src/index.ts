@@ -159,6 +159,11 @@ export {
   ObligationStatusBadge,
   type ObligationStatusBadgeProps,
 } from './components/obligation-status-badge';
+export {
+  ReminderHistory,
+  type ReminderHistoryEntry,
+  type ReminderHistoryError,
+} from './components/reminder-history';
 export { ReminderOutcomeText } from './components/reminder-outcome';
 export {
   StatusMark,

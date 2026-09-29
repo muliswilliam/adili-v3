@@ -29,17 +29,9 @@ export const en = {
   detailsOf: (title: string) => ` of ${title}`,
   close: 'Close',
   reminderSchedule: (commission: string) => `Reminder schedule set by ${commission}.`,
-  reminderHistory: 'Reminder history',
-  noReminders: 'No reminders sent yet.',
   historyErrorTitle: 'Reminder history could not be loaded',
   historyNotFound:
     'This obligation is no longer available. Reload the page to see your current obligations.',
-  whenColumn: 'When',
-  scheduledColumn: 'Scheduled',
-  sentColumn: 'Sent',
-  channelsColumn: 'Channels',
-  outcomeColumn: 'Outcome',
-  notSent: '-',
 };
 
 /** Swahili translations, key by key; empty until reviewed. */

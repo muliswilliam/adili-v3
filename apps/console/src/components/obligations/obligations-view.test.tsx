@@ -410,9 +410,9 @@ describe('obligation drawer', () => {
     expect(loadObligation).toHaveBeenCalledWith(obligation().id);
     const rows = within(history).getAllByRole('row').slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      '14 days before5 Sep 20265 Sep 2026SMS, EmailSent by SMS and email',
-      '7 days before12 Sep 2026--Skipped: no contact details',
-      '30 days before20 Aug 2026--Skipped: the date had passed when this obligation was created',
+      '14 days before5 Sep 2026, 09:005 Sep 2026, 09:02SMS, EmailSent by SMS and email',
+      '7 days before12 Sep 2026, 09:00--Skipped: no contact details',
+      '30 days before20 Aug 2026, 09:00--Skipped: the date had passed when this obligation was created',
     ]);
     expect(within(drawer).getByRole('link', { name: 'Roster record' }).getAttribute('href')).toBe(
       `/roster/records/${obligation().declarant.rosterRecordId}`,
@@ -430,13 +430,18 @@ describe('obligation drawer', () => {
     ).toBeTruthy();
   });
 
-  it('says so when the reminder history cannot be read', async () => {
-    renderView({ loadObligation: vi.fn(() => Promise.resolve(unavailable)) });
+  it('says so when the reminder history cannot be read, and reads it again on retry', async () => {
+    const loadObligation = vi.fn(() => Promise.resolve(unavailable));
+    renderView({ loadObligation });
     fireEvent.click(within(table()).getByRole('button', { name: 'Achieng Otieno' }));
     const drawer = await screen.findByRole('dialog');
-    expect((await within(drawer).findByRole('alert')).textContent).toBe(
+    expect((await within(drawer).findByRole('alert')).textContent).toContain(
       'The obligation could not be loaded',
     );
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => {
+      expect(loadObligation).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('badges a cancelled obligation and marks a failed reminder red', async () => {
