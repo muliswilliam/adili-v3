@@ -30,9 +30,8 @@ export interface AgeCounts {
 }
 
 /**
- * One kind of approval the inbox unions (spec 08): determinations now; the ladder's actions and
- * referrals register theirs the same way. Every method runs in the caller's transaction, under
- * the tenant's row-level security.
+ * One kind of approval the inbox unions (spec 08): determinations, the ladder's actions and
+ * referrals. Every method runs in the caller's transaction, under the tenant's row-level security.
  */
 export abstract class ApprovalSource {
   abstract readonly kind: ApprovalKind;
