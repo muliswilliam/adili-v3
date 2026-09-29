@@ -432,6 +432,36 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     });
   });
 
+  it('records a missed reminder whose day was after the obligation was created as missed, not past at creation', async () => {
+    // Created 2027-07-10, due 2027-07-31: the 25-day reminder (6 July) was already past then;
+    // the 21-day one (10 July, the day of creation) and the 14-day one (17 July) were ahead, so a
+    // workflow that plans them later missed them.
+    const { initial } = await officer();
+    // The test clock says 10 July; the row's created_at is the database's real time.
+    await asPlatform((tx) =>
+      tx
+        .update(filingObligations)
+        .set({ createdAt: new Date('2027-07-10T12:00:00+03:00') })
+        .where(eq(filingObligations.id, initial)),
+    );
+
+    await api.steps.recordSkipped(psc(initial), [
+      { offsetDays: 25, scheduledAt: '2027-07-06T09:41:07.000Z' },
+      { offsetDays: 21, scheduledAt: '2027-07-10T09:41:07.000Z' },
+      { offsetDays: 14, scheduledAt: '2027-07-17T09:41:07.000Z' },
+    ]);
+
+    const outcomes = Object.fromEntries(
+      (await remindersOf(initial)).map((row) => [row.offsetDays, row.outcome]),
+    );
+    expect(outcomes).toEqual({
+      14: 'skipped-missed',
+      21: 'skipped-missed',
+      25: 'skipped-past-due-at-creation',
+      30: 'skipped-past-due-at-creation',
+    });
+  });
+
   it('records reminders missed by the workflow as skipped, once', async () => {
     const { biennial } = await officer();
     const missed = [{ offsetDays: 30, scheduledAt: '2027-12-01T09:41:07.000Z' }];
@@ -450,7 +480,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
           ),
         ),
     );
-    expect(rows).toEqual([{ outcome: 'skipped-past-due-at-creation' }]);
+    expect(rows).toEqual([{ outcome: 'skipped-missed' }]);
     expect(
       (await events('obligation.reminder-recorded.v1'))
         .map((e) => e.data)
@@ -460,7 +490,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
         obligationId: biennial,
         offsetDays: 30,
         channels: [],
-        outcome: 'skipped-past-due-at-creation',
+        outcome: 'skipped-missed',
       },
     ]);
   });

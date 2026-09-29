@@ -78,15 +78,17 @@ describe('reminderOutcomeLabel', () => {
     expect(reminderOutcomeLabel('skipped-past-due-at-creation', [])).toBe(
       'Skipped: the date had passed when this obligation was created',
     );
+    expect(reminderOutcomeLabel('skipped-missed', [])).toBe('Missed: not sent on its day');
     expect(reminderOutcomeLabel('failed', ['sms'])).toBe('Failed');
   });
 });
 
 describe('reminderOutcomeMeta', () => {
-  it('colours sent green, failed red and every skip muted', () => {
+  it('colours sent green, failed and missed red and every deliberate skip muted', () => {
     const tones: Record<ReminderOutcome, string> = {
       sent: 'text-success',
       failed: 'text-destructive',
+      'skipped-missed': 'text-destructive',
       'skipped-not-onboarded': 'text-muted-foreground',
       'skipped-no-contact': 'text-muted-foreground',
       'skipped-past-due-at-creation': 'text-muted-foreground',

@@ -17,7 +17,7 @@ import {
 } from '../../notifications/notifications-client.js';
 import { fallbackIssuerCode } from '../access.js';
 import type { Transaction } from '../apply-page.js';
-import { type CivilDate, daysBetween, nairobiDate } from '../dates.js';
+import { addDays, type CivilDate, daysBetween, nairobiDate } from '../dates.js';
 import type { ObligationStatus } from '../engine.js';
 import { obligationReminderRecorded, obligationStatusChanged } from '../events.js';
 import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
@@ -155,7 +155,11 @@ export class ObligationSteps {
     });
   }
 
-  /** Records reminders whose day passed before they could be sent: never sent. */
+  /**
+   * Records reminders whose day passed before they could be sent: never sent. One whose day was
+   * already past when the obligation was created is `skipped-past-due-at-creation`; one whose day
+   * came after (its workflow started, or woke, too late) is `skipped-missed`.
+   */
   async recordSkipped(
     { obligationId, tenant }: ObligationRef,
     reminders: readonly { offsetDays: number; scheduledAt: string }[],
@@ -163,10 +167,15 @@ export class ObligationSteps {
     if (reminders.length === 0) return;
     await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [row] = await tx
-        .select({ tenant: filingObligations.tenant })
+        .select({
+          tenant: filingObligations.tenant,
+          dueDate: filingObligations.dueDate,
+          createdAt: filingObligations.createdAt,
+        })
         .from(filingObligations)
         .where(eq(filingObligations.id, obligationId));
       if (!row) return;
+      const createdOn = nairobiDate(row.createdAt);
       const recorded = await tx
         .insert(obligationReminders)
         .values(
@@ -175,7 +184,10 @@ export class ObligationSteps {
             tenant: row.tenant,
             offsetDays: reminder.offsetDays,
             scheduledAt: new Date(reminder.scheduledAt),
-            outcome: 'skipped-past-due-at-creation' as const,
+            outcome:
+              addDays(row.dueDate, -reminder.offsetDays) < createdOn
+                ? ('skipped-past-due-at-creation' as const)
+                : ('skipped-missed' as const),
           })),
         )
         .onConflictDoNothing()

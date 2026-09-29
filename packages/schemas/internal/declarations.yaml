@@ -1568,6 +1568,7 @@ components:
         - skipped-not-onboarded
         - skipped-no-contact
         - skipped-past-due-at-creation
+        - skipped-missed
         - failed
     ReminderChannel:
       type: string

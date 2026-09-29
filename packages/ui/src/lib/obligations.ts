@@ -23,6 +23,7 @@ export type ReminderOutcome =
   | 'skipped-not-onboarded'
   | 'skipped-no-contact'
   | 'skipped-past-due-at-creation'
+  | 'skipped-missed'
   | 'failed';
 
 export type ReminderChannel = 'sms' | 'email';
@@ -49,6 +50,7 @@ export const obligationMessages = {
   skippedNotOnboarded: 'Skipped: not yet onboarded',
   skippedNoContact: 'Skipped: no contact details',
   skippedPastDue: 'Skipped: the date had passed when this obligation was created',
+  skippedMissed: 'Missed: not sent on its day',
   failed: 'Failed',
   sms: 'SMS',
   email: 'Email',
@@ -141,6 +143,8 @@ export function reminderOutcomeLabel(
       return m.skippedNoContact;
     case 'skipped-past-due-at-creation':
       return m.skippedPastDue;
+    case 'skipped-missed':
+      return m.skippedMissed;
     case 'failed':
       return m.failed;
   }
@@ -153,12 +157,13 @@ export interface ReminderOutcomeMeta {
 }
 
 /**
- * The icon beside each reminder outcome's words: a green tick when sent, a red alert when
- * sending failed (someone should look), a muted dash when it was skipped on purpose.
+ * The icon beside each reminder outcome's words: a green tick when sent, a red alert when it
+ * failed or was missed (someone should look), a muted dash when it was skipped on purpose.
  */
 export const reminderOutcomeMeta: Record<ReminderOutcome, ReminderOutcomeMeta> = {
   sent: { icon: Tick02Icon, iconClassName: 'text-success' },
   failed: { icon: AlertCircleIcon, iconClassName: 'text-destructive' },
+  'skipped-missed': { icon: AlertCircleIcon, iconClassName: 'text-destructive' },
   'skipped-not-onboarded': { icon: MinusSignIcon, iconClassName: 'text-muted-foreground' },
   'skipped-no-contact': { icon: MinusSignIcon, iconClassName: 'text-muted-foreground' },
   'skipped-past-due-at-creation': { icon: MinusSignIcon, iconClassName: 'text-muted-foreground' },

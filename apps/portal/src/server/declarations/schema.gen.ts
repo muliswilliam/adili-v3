@@ -784,7 +784,7 @@ export interface components {
         /** @enum {string} */
         CancelReason: "exited-before-statement-date" | "exit-reversed" | "superseded";
         /** @enum {string} */
-        ReminderOutcome: "sent" | "skipped-not-onboarded" | "skipped-no-contact" | "skipped-past-due-at-creation" | "failed";
+        ReminderOutcome: "sent" | "skipped-not-onboarded" | "skipped-no-contact" | "skipped-past-due-at-creation" | "skipped-missed" | "failed";
         /** @enum {string} */
         ReminderChannel: "sms" | "email";
         CommissionRef: {

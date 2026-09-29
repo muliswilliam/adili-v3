@@ -11,6 +11,9 @@ export default defineConfig({
     isolate: false,
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     exclude: ['**/*.integration.test.ts'],
+    // A workflow test's first run bundles the workflow code (seconds, more under a parallel turbo
+    // run), which the 5 s default does not always allow.
+    testTimeout: 30_000,
     // Config is validated at import; tests use the committed local defaults.
     env: { ...parseEnv(readFileSync('.env.example', 'utf8')), LOG_LEVEL: 'fatal' },
   },

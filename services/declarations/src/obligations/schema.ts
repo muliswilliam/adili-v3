@@ -149,6 +149,7 @@ export const REMINDER_OUTCOME_VALUES = [
   'skipped-not-onboarded',
   'skipped-no-contact',
   'skipped-past-due-at-creation',
+  'skipped-missed',
   'failed',
 ] as const;
 export type ReminderOutcome = (typeof REMINDER_OUTCOME_VALUES)[number];

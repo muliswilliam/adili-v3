@@ -338,6 +338,7 @@ describe('Obligation drawer', () => {
       'skipped-past-due-at-creation': [
         { channels: [], words: 'Skipped: the date had passed when this obligation was created' },
       ],
+      'skipped-missed': [{ channels: [], words: 'Missed: not sent on its day' }],
       failed: [{ channels: ['sms', 'email'], words: 'Failed' }],
     };
 
