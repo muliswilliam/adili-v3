@@ -10,6 +10,7 @@ const CITATIONS: Citation[] = [
     citation: 'Act s.31(4)',
     title: 'Declaring for a spouse',
     snippet: 'A public officer shall declare the income, assets and liabilities of a spouse.',
+    language: 'en',
   },
   {
     id: 'help-joint',
@@ -17,6 +18,7 @@ const CITATIONS: Citation[] = [
     citation: 'Help: Joint assets',
     title: 'Joint assets',
     snippet: 'If you own an asset with someone else, declare it once at its whole value.',
+    language: 'en',
   },
 ];
 

@@ -147,6 +147,9 @@ export function AssistantMessage({
     announced.current ??= NEW_ONLY.includes(status) ? text.length : 0;
     if (first && NEW_ONLY.includes(status)) return;
 
+    // Try again streams a new answer, so its sentences are counted from the start.
+    if (status === 'thinking') announced.current = 0;
+
     let next = '';
     if (status === 'streaming' || status === 'answered') {
       const sentences = nextAnnouncement(text, announced.current, status === 'answered');
@@ -288,6 +291,7 @@ function AssistantBody({
           <div className={warningClassName}>
             <Icon icon={Alert02Icon} />
             <p>
+              {text ? null : speaker}
               {copy.stopped}{' '}
               {onRetry ? (
                 <Button
@@ -306,7 +310,10 @@ function AssistantBody({
       return (
         <div className={warningClassName}>
           <Icon icon={Clock01Icon} />
-          <p>{copy.rateLimited}</p>
+          <p>
+            {speaker}
+            {copy.rateLimited}
+          </p>
         </div>
       );
   }

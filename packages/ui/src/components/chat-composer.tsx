@@ -87,7 +87,11 @@ export function ChatComposer({
           setDraft(event.target.value);
         }}
         onKeyDown={(event) => {
-          if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+          const composing =
+            event.nativeEvent.isComposing ||
+            // eslint-disable-next-line @typescript-eslint/no-deprecated -- Safari fires the Enter that ends a composition after it, marked only by keyCode 229
+            event.keyCode === 229;
+          if (event.key !== 'Enter' || event.shiftKey || composing) return;
           send(event);
         }}
         className="field-sizing-content max-h-[120px] min-h-8 flex-1 resize-none bg-transparent py-1.5 text-[14.5px] leading-[1.45] text-foreground outline-none placeholder:text-placeholder"

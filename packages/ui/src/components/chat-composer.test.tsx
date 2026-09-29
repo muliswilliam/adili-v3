@@ -43,6 +43,16 @@ describe('ChatComposer', () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it('does not send on the Enter that ends a composition in Safari', () => {
+    const onSend = vi.fn();
+    render(<ChatComposer onSend={onSend} />);
+
+    type('habari');
+    fireEvent.keyDown(input(), { key: 'Enter', keyCode: 229 });
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it('sends with the Send button', () => {
     const onSend = vi.fn();
     render(<ChatComposer onSend={onSend} />);

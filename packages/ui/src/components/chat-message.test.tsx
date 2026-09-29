@@ -11,6 +11,7 @@ const CITATIONS: Citation[] = [
     citation: 'AM 24',
     title: 'Approximate values',
     snippet: 'Declare approximate values as at the statement date.',
+    language: 'en',
   },
   {
     id: 'help-value',
@@ -18,6 +19,7 @@ const CITATIONS: Citation[] = [
     citation: 'Help: Valuing assets',
     title: 'Valuing assets',
     snippet: 'Use what the asset would sell for on the statement date.',
+    language: 'en',
   },
 ];
 
@@ -169,10 +171,22 @@ describe('AssistantMessage', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it('reads a retried answer from its start', () => {
+    const { rerender } = render(<AssistantMessage status="streaming" text="Yes. A vehicle" />);
+    rerender(<AssistantMessage status="error" text="Yes. A vehicle" />);
+    rerender(<AssistantMessage status="thinking" />);
+    rerender(<AssistantMessage status="streaming" text="No. Declare the whole value. It" />);
+
+    expect(status()).toBe('No. Declare the whole value.');
+  });
+
   it('says when too many questions were asked', () => {
-    render(<AssistantMessage status="rate-limited" />);
+    const { container } = render(<AssistantMessage status="rate-limited" />);
 
     expect(status()).toBe('You have asked many questions in a short time. Try again in a minute.');
+    expect(container.querySelector('p')?.textContent).toBe(
+      'Adili: You have asked many questions in a short time. Try again in a minute.',
+    );
   });
 
   it('takes other copy', () => {

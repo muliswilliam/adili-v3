@@ -39,6 +39,7 @@ const CITATIONS: Citation[] = [
     title: 'Jointly held assets',
     snippet:
       'Assets held jointly with another person shall be declared, stating the share held by the declarant.',
+    language: 'en',
   },
   {
     id: 'help-joint',
@@ -47,6 +48,7 @@ const CITATIONS: Citation[] = [
     title: 'Joint assets',
     snippet:
       'If you own an asset with someone else, declare it once in your statement at its whole value. Switch on "Jointly held" and enter your share, for example 50%.',
+    language: 'en',
   },
 ];
 

@@ -94,7 +94,8 @@ export function ChatPanel({
 /** How close to the bottom, in pixels, still counts as reading the latest message. */
 const FOLLOW_THRESHOLD = 90;
 
-export type ChatLogProps = ComponentProps<'div'> & {
+// The log keeps its own ref to follow new text, so it takes none from the caller.
+export type ChatLogProps = Omit<ComponentProps<'div'>, 'ref'> & {
   /** Names the log. Defaults to "Conversation". */
   label?: string;
 };

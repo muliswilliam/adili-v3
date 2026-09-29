@@ -19,7 +19,7 @@ export interface Citation {
   /** The passage text shown when the chip is expanded. */
   snippet: string;
   /** The passage's language, set on it so screen readers read it in the right voice. */
-  language?: 'en' | 'sw';
+  language: 'en' | 'sw';
 }
 
 export interface CitationMessages {

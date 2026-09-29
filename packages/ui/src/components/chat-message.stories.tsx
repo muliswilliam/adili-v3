@@ -14,6 +14,7 @@ const CITATIONS: Citation[] = [
     title: 'Approximate values',
     snippet:
       'Declare approximate values as at the statement date. A reasonable estimate of what the asset would sell for is enough; a professional valuation is not required.',
+    language: 'en',
   },
   {
     id: 'help-value',
@@ -22,6 +23,7 @@ const CITATIONS: Citation[] = [
     title: 'Valuing assets',
     snippet:
       'Use what the asset would sell for on the statement date. For a car, compare prices of similar cars; for land, recent sales nearby. A rough figure is fine.',
+    language: 'en',
   },
 ];
 
