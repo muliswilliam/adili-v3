@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
+import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -25,6 +26,7 @@ import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
+import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id'
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
 import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index'
@@ -38,6 +40,7 @@ import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/
 import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv'
 import { Route as CommissionsSlugImportsImportIdIndexRouteImport } from './routes/commissions/$slug/imports/$importId/index'
 import { Route as CommissionsSlugImportsImportIdReportDotcsvRouteImport } from './routes/commissions/$slug/imports/$importId/report[.]csv'
+import { Route as ReviewCasesCaseIdClarificationsClarificationIdRouteImport } from './routes/review/cases.$caseId.clarifications.$clarificationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRouteRoute = ReviewRouteRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RosterRouteRoute = RosterRouteRouteImport.update({
@@ -118,6 +126,11 @@ const RosterTemplateRoute = RosterTemplateRouteImport.update({
   id: '/template',
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
+} as any)
+const ApiMockFilesIdRoute = ApiMockFilesIdRouteImport.update({
+  id: '/api/mock-files/$id',
+  path: '/api/mock-files/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommissionsSlugIndexRoute = CommissionsSlugIndexRouteImport.update({
   id: '/',
@@ -191,10 +204,17 @@ const CommissionsSlugImportsImportIdReportDotcsvRoute =
     path: '/imports/$importId/report.csv',
     getParentRoute: () => CommissionsSlugRouteRoute,
   } as any)
+const ReviewCasesCaseIdClarificationsClarificationIdRoute =
+  ReviewCasesCaseIdClarificationsClarificationIdRouteImport.update({
+    id: '/cases/$caseId/clarifications/$clarificationId',
+    path: '/cases/$caseId/clarifications/$clarificationId',
+    getParentRoute: () => ReviewRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
@@ -210,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/commissions/': typeof CommissionsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
@@ -221,10 +242,12 @@ export interface FileRoutesByFullPath {
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
   '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/review': typeof ReviewRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -234,6 +257,7 @@ export interface FileRoutesByTo {
   '/roster/template': typeof RosterTemplateRoute
   '/commissions': typeof CommissionsIndexRoute
   '/roster': typeof RosterIndexRoute
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug': typeof CommissionsSlugIndexRoute
@@ -245,12 +269,14 @@ export interface FileRoutesByTo {
   '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
   '/commissions/$slug/imports/$importId': typeof CommissionsSlugImportsImportIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
@@ -266,6 +292,7 @@ export interface FileRoutesById {
   '/commissions/': typeof CommissionsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
@@ -277,6 +304,7 @@ export interface FileRoutesById {
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
   '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -284,6 +312,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/commissions'
+    | '/review'
     | '/roster'
     | '/commissions/$slug'
     | '/roster/api-access'
@@ -299,6 +328,7 @@ export interface FileRouteTypes {
     | '/commissions/'
     | '/roster/'
     | '/commissions/$slug/records'
+    | '/api/mock-files/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
     | '/commissions/$slug/'
@@ -310,10 +340,12 @@ export interface FileRouteTypes {
     | '/commissions/$slug/records/'
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
+    | '/review/cases/$caseId/clarifications/$clarificationId'
     | '/commissions/$slug/imports/$importId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/review'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -323,6 +355,7 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions'
     | '/roster'
+    | '/api/mock-files/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
     | '/commissions/$slug'
@@ -334,11 +367,13 @@ export interface FileRouteTypes {
     | '/commissions/$slug/records'
     | '/roster/imports/$importId'
     | '/commissions/$slug/imports/$importId/report.csv'
+    | '/review/cases/$caseId/clarifications/$clarificationId'
     | '/commissions/$slug/imports/$importId'
   id:
     | '__root__'
     | '/'
     | '/commissions'
+    | '/review'
     | '/roster'
     | '/commissions/$slug'
     | '/roster/api-access'
@@ -354,6 +389,7 @@ export interface FileRouteTypes {
     | '/commissions/'
     | '/roster/'
     | '/commissions/$slug/records'
+    | '/api/mock-files/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
     | '/commissions/$slug/'
@@ -365,16 +401,19 @@ export interface FileRouteTypes {
     | '/commissions/$slug/records/'
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
+    | '/review/cases/$caseId/clarifications/$clarificationId'
     | '/commissions/$slug/imports/$importId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
+  ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
+  ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -391,6 +430,13 @@ declare module '@tanstack/react-router' {
       path: '/commissions'
       fullPath: '/commissions'
       preLoaderRoute: typeof CommissionsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/roster': {
@@ -491,6 +537,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterTemplateRouteImport
       parentRoute: typeof RosterRouteRoute
     }
+    '/api/mock-files/$id': {
+      id: '/api/mock-files/$id'
+      path: '/api/mock-files/$id'
+      fullPath: '/api/mock-files/$id'
+      preLoaderRoute: typeof ApiMockFilesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/commissions/$slug/': {
       id: '/commissions/$slug/'
       path: '/'
@@ -582,6 +635,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRouteImport
       parentRoute: typeof CommissionsSlugRouteRoute
     }
+    '/review/cases/$caseId/clarifications/$clarificationId': {
+      id: '/review/cases/$caseId/clarifications/$clarificationId'
+      path: '/cases/$caseId/clarifications/$clarificationId'
+      fullPath: '/review/cases/$caseId/clarifications/$clarificationId'
+      preLoaderRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRouteImport
+      parentRoute: typeof ReviewRouteRoute
+    }
   }
 }
 
@@ -635,6 +695,19 @@ const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
 
 const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
+
+interface ReviewRouteRouteChildren {
+  ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
+}
+
+const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
+  ReviewCasesCaseIdClarificationsClarificationIdRoute:
+    ReviewCasesCaseIdClarificationsClarificationIdRoute,
+}
+
+const ReviewRouteRouteWithChildren = ReviewRouteRoute._addFileChildren(
+  ReviewRouteRouteChildren,
+)
 
 interface RosterApiAccessRouteRouteChildren {
   RosterApiAccessDocsRoute: typeof RosterApiAccessDocsRoute
@@ -705,10 +778,12 @@ const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
+  ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
+  ApiMockFilesIdRoute: ApiMockFilesIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -39,4 +39,25 @@ describe('createDocumentsClient', () => {
     expect(request?.headers.get('authorization')).toBe('Bearer token-1');
     expect(request?.headers.get('idempotency-key')).toBe('0199a0b4-0000-7000-8000-000000000001');
   });
+
+  it('answers from the mock when one is given', async () => {
+    const seen: Request[] = [];
+    const client = createDocumentsClient({
+      baseUrl: 'http://documents.test',
+      accessToken: 'token-1',
+      fetch: () => Promise.reject(new Error('the real service was called')),
+      mock: (request) => {
+        seen.push(request);
+        return Promise.resolve(
+          new Response(JSON.stringify({ downloadUrl: '/x' }), { status: 200 }),
+        );
+      },
+    });
+    const result = await client.GET('/v1/documents/{documentId}/download', {
+      params: { path: { documentId: 'doc-1' } },
+    });
+    expect(result.response.status).toBe(200);
+    expect(seen[0]?.url).toBe('http://documents.test/v1/documents/doc-1/download');
+    expect(seen[0]?.signal).toBeDefined();
+  });
 });

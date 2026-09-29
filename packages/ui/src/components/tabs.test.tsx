@@ -36,4 +36,18 @@ describe('Tabs', () => {
     expect(screen.getByRole('tab', { name: 'Imports' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tabpanel').textContent).toBe('Import history');
   });
+
+  it('keeps a visible focus outline on tabs and panels', () => {
+    render(<RosterTabs />);
+
+    // outline-none sets the outline style to none, which also hides the focus-visible outline.
+    for (const element of [
+      screen.getByRole('tab', { name: 'Records' }),
+      screen.getByRole('tabpanel'),
+    ]) {
+      expect(element.className).not.toContain('outline-none');
+      expect(element.className).toContain('outline-hidden');
+      expect(element.className).toContain('focus-visible:outline-solid');
+    }
+  });
 });

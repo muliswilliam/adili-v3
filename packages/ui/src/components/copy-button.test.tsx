@@ -50,6 +50,31 @@ describe('CopyButton', () => {
     expect(button.hasAttribute('data-copied')).toBe(false);
   });
 
+  it('drops the tick when a copy fails soon after a successful one', async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn(() => Promise.resolve());
+    mockClipboard(writeText);
+    const button = renderButton();
+
+    await act(async () => {
+      fireEvent.click(button);
+      await Promise.resolve();
+    });
+    expect(button.hasAttribute('data-copied')).toBe(true);
+
+    writeText.mockImplementation(() => Promise.reject(new Error('denied')));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      fireEvent.click(button);
+      await Promise.resolve();
+    });
+
+    expect(button.hasAttribute('data-copied')).toBe(false);
+    expect(screen.getByRole('alert').textContent).toContain('Could not copy');
+  });
+
   it('shows the tick for two seconds after copying', async () => {
     vi.useFakeTimers();
     mockClipboard(() => Promise.resolve());

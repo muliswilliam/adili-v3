@@ -10,7 +10,9 @@ import {
 } from 'react';
 
 import { cn } from '../lib/cn';
-import { describedBy, FieldError } from './form-field';
+import { focusRing } from '../lib/focus';
+import { joinIds } from '../lib/use-field-ids';
+import { FieldError } from './form-field';
 import { Icon } from './icon';
 
 export type FileRejection = 'type' | 'size';
@@ -40,11 +42,13 @@ export type FileDropZoneProps = Omit<ComponentProps<'button'>, 'onSelect' | 'chi
   /** Called when a file is rejected, after its message is shown. */
   onFileRejected?: (file: File, reason: FileRejection) => void;
   /**
-   * An error from outside, e.g. the server rejected the upload. The most recent of this and the
-   * client message is shown: a new value replaces the client message, and a newly rejected file
-   * replaces this. Compared by identity, so pass a string or a stable node.
+   * An error from outside, e.g. the server rejected the upload. A client message (a file rejected
+   * in the browser) is shown in place of this until either the next file is accepted or this
+   * changes to a new error. Clearing this never hides a client message, so a parent may reset
+   * it in `onFileRejected` or `onFileAccepted`; setting the same message again after clearing
+   * it shows it again.
    */
-  error?: ReactNode;
+  error?: string | undefined;
 };
 
 /**
@@ -118,7 +122,7 @@ export function FileDropZone({
   const [previousError, setPreviousError] = useState(error);
   if (error !== previousError) {
     setPreviousError(error);
-    setRejection(null);
+    if (error) setRejection(null);
   }
   const shownError = rejection ?? error;
   const errorId = shownError ? `${partId}-error` : undefined;
@@ -145,22 +149,28 @@ export function FileDropZone({
     setDragging(over);
   }
 
-  // Browsers do not send drag events to a disabled button, so without this a file dropped on
-  // a disabled zone would open in the tab.
+  // A disabled button ignores the pointer, so drag events reach the wrapper instead; without
+  // this a file dropped on a disabled zone would open in the tab. An enabled zone leaves drops
+  // elsewhere in the wrapper, such as on its error, to the page.
   function blockDrop(event: DragEvent<HTMLDivElement>) {
+    if (!disabled) return;
     event.preventDefault();
-    if (disabled) event.dataTransfer.dropEffect = 'none';
+    event.dataTransfer.dropEffect = 'none';
   }
 
   return (
-    <div className={cn('grid gap-2', className)} onDragOver={blockDrop} onDrop={blockDrop}>
+    <div
+      className={cn('grid gap-2', disabled && 'cursor-not-allowed', className)}
+      onDragOver={blockDrop}
+      onDrop={blockDrop}
+    >
       <button
         type="button"
         {...props}
         id={id}
         disabled={disabled}
-        aria-labelledby={describedBy(labelId, ariaLabelledBy)}
-        aria-describedby={describedBy(ariaDescribedBy, hintId, errorId)}
+        aria-labelledby={joinIds(labelId, ariaLabelledBy)}
+        aria-describedby={joinIds(ariaDescribedBy, hintId, errorId)}
         aria-invalid={invalid || undefined}
         data-dragging={dragging || undefined}
         onClick={(event) => {
@@ -186,7 +196,10 @@ export function FileDropZone({
           if (!disabled) take(event.dataTransfer.files[0]);
         }}
         // Children ignore the pointer so moving over them does not fire dragleave on the zone.
-        className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input bg-card px-5 py-7 text-center transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring enabled:hover:border-foreground enabled:hover:bg-brand-faint disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive/45 data-dragging:border-foreground data-dragging:bg-brand-faint [&>*]:pointer-events-none"
+        className={cn(
+          focusRing,
+          'flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input bg-card px-5 py-7 text-center transition-colors enabled:hover:border-foreground enabled:hover:bg-brand-faint disabled:pointer-events-none disabled:opacity-55 aria-invalid:border-destructive/45 data-dragging:border-foreground data-dragging:bg-brand-faint [&>*]:pointer-events-none',
+        )}
       >
         <span className="mb-0.5 flex size-11 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
           <Icon icon={Upload04Icon} className="size-[18px]" />

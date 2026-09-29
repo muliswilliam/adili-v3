@@ -64,6 +64,18 @@ export interface DeclarationV1 {
        */
       responsibleCommission: string;
       personnelFileNumber?: string;
+      /**
+       * Pre-filled from the Commission's roster when it has one (spec 05b); editable
+       */
+      jobGroup?: string;
+      /**
+       * Date of appointment; pre-filled from the Commission's roster when it has one (spec 05b); editable
+       */
+      appointmentDate?: string;
+      /**
+       * Pre-filled from the Commission's roster when it has one (spec 05b); editable
+       */
+      workStation?: string;
     };
   };
   /**
@@ -203,6 +215,10 @@ export interface ItemSource {
   at: string;
 }
 export interface Attachment {
+  /**
+   * The link's id, set by the declarations service when it links the upload; unlinking takes it
+   */
+  attachmentId: string;
   uploadId: string;
   fileName: string;
   sha256: string;

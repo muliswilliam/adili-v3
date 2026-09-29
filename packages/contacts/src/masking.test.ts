@@ -45,11 +45,23 @@ describe('maskPhone', () => {
     expect(maskPhone('+44 1234')).toBe('** *** ***');
   });
 
+  it('hides every digit after the country code of a short international number', () => {
+    expect(maskPhone('+504038659')).toBe('+504 ** *** ***');
+    expect(maskPhone('+2547123456')).toBe('+254 ** *** ***');
+    expect(maskPhone('+44 2079 460')).toBe('+44 ** *** ***');
+  });
+
+  it('shows the last three digits once the national number has eight', () => {
+    expect(maskPhone('+44 2079 4609')).toBe('+44 ** *** 609');
+    expect(maskPhone('+256 772 12345')).toBe('+256 ** *** 345');
+  });
+
   it('leaves an already masked value alone', () => {
     expect(maskPhone('07** *** 678')).toBe('07** *** 678');
     expect(maskPhone('07** *** 123')).toBe('07** *** 123');
     expect(maskPhone('+44 ** *** 958')).toBe('+44 ** *** 958');
     expect(maskPhone('** *** ***')).toBe('** *** ***');
+    expect(maskPhone('+504 ** *** ***')).toBe('+504 ** *** ***');
   });
 
   it('masks a value that merely contains a star', () => {

@@ -5,10 +5,12 @@ import {
   Badge,
   Button,
   Card,
+  cn,
   CopyButton,
   Dialog,
   DialogTrigger,
   EmptyState,
+  focusRing,
   Icon,
   Skeleton,
   useToast,
@@ -405,7 +407,10 @@ function IssuedCard({
             {m.apiSendWith}{' '}
             <Link
               to="/roster/api-access/docs"
-              className="rounded-sm font-medium text-foreground underline decoration-input underline-offset-3 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={cn(
+                focusRing,
+                'rounded-sm font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground',
+              )}
             >
               {m.apiDocsLink}
             </Link>

@@ -1,4 +1,12 @@
 export { Alert, AlertDescription, AlertTitle, type AlertProps } from './components/alert';
+export {
+  type AttachmentListItem,
+  AttachmentList,
+  type AttachmentListProps,
+  type AttachmentMessages,
+  type AttachmentStatus,
+  formatFileSize,
+} from './components/attachment-list';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export { Button, type ButtonProps, buttonVariants } from './components/button';
 export {
@@ -10,6 +18,13 @@ export {
   CardIcon,
   CardTitle,
 } from './components/card';
+export {
+  Chart,
+  type ChartDatum,
+  type ChartProps,
+  type ChartSeries,
+  type ChartValue,
+} from './components/chart';
 export {
   Checkbox,
   CheckboxGroup,
@@ -26,13 +41,32 @@ export {
   CodeString,
 } from './components/code-block';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
+export {
+  ConfidenceChip,
+  type ConfidenceChipProps,
+  confidenceLevel,
+  type ConfidenceLevel,
+  type ConfidenceMessages,
+} from './components/confidence-chip';
+export {
+  ConsentDialog,
+  type ConsentDialogProps,
+  type ConsentMessages,
+  consentTextVersion,
+  maskNationalId,
+  REGISTRY_KINDS,
+  type RegistryKind,
+} from './components/consent-dialog';
 export { CopyButton, type CopyButtonProps } from './components/copy-button';
+export { CountrySelect, type CountrySelectProps } from './components/country-select';
+export { CountySelect, type CountySelectProps } from './components/county-select';
 export {
   DataTable,
   type DataTableColumn,
   type DataTableProps,
   type DataTableSelection,
 } from './components/data-table';
+export { DateInput, type DateInputProps } from './components/date-input';
 export {
   DeadlineChip,
   type DeadlineChipProps,
@@ -80,9 +114,19 @@ export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo'
 export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
 // The masking rules live in @adili/contacts (the services mask with them too).
 export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
-export { Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
+export {
+  Menu,
+  MenuContent,
+  MenuItem,
+  type MenuItemProps,
+  MenuNote,
+  type MenuNoteProps,
+  MenuTrigger,
+} from './components/menu';
+export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
+export { PercentInput, type PercentInputProps } from './components/percent-input';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export {
   RadioCard,
@@ -104,6 +148,21 @@ export {
   type RegisterTimelineProps,
 } from './components/register-timeline';
 export {
+  type RegistryStatus,
+  type RegistryStatusEntry,
+  RegistryStatusList,
+  type RegistryStatusListProps,
+  type RegistryStatusMessages,
+  RegistryStatusRow,
+  type RegistryStatusRowProps,
+} from './components/registry-status';
+export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
+export {
+  SaveIndicator,
+  type SaveIndicatorProps,
+  type SaveStatus,
+} from './components/save-indicator';
+export {
   formatScope,
   isSameScope,
   isScopeWithin,
@@ -114,10 +173,31 @@ export {
   type ScopeSection,
   scopeSectionLabels,
 } from './components/scope-picker';
+export {
+  SectionNav,
+  type SectionNavProps,
+  type SectionNavSection,
+  type SectionStatus,
+} from './components/section-nav';
+export {
+  SegmentedChoice,
+  type SegmentedChoiceOption,
+  type SegmentedChoiceProps,
+} from './components/segmented-choice';
 export { Select, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
+export {
+  describeSource,
+  type ItemSourceDetails,
+  SOURCE_ICONS,
+  SOURCE_KINDS,
+  SOURCE_NAMES,
+  SourceBadge,
+  type SourceBadgeProps,
+  type SourceKind,
+} from './components/source-badge';
 export { Spinner } from './components/spinner';
 export {
   StatusMark,
@@ -126,6 +206,16 @@ export {
   statusMarkVariants,
 } from './components/status-mark';
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
+export {
+  emptyFieldDiff,
+  SUGGESTION_MESSAGES,
+  SuggestionCard,
+  type SuggestionCardProps,
+  type SuggestionField,
+  type SuggestionMatch,
+  type SuggestionMessages,
+  type SuggestionStatus,
+} from './components/suggestion-card';
 export {
   Table,
   TableBody,
@@ -151,6 +241,14 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
+export { focusRing, focusRingInset } from './lib/focus';
+export {
+  daysInMonth,
+  formatDayMonthYear,
+  parseDayMonthYear,
+  shapeDateText,
+} from './lib/date-input';
+export { addDays, daysBetween, plural } from './lib/calendar-days';
 export {
   formatCalendarDate,
   formatDate,
@@ -158,3 +256,13 @@ export {
   formatMonth,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { listNames } from './lib/list-names';
+export { formatNumber } from './lib/format-number';
+export {
+  formatMoney,
+  type MoneyInvalidReason,
+  type MoneyParseResult,
+  parseMoney,
+  shapeMoneyText,
+} from './lib/money';
+export { COUNTIES, COUNTRIES } from './lib/places';
