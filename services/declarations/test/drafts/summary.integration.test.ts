@@ -401,10 +401,43 @@ describe('summary of an incomplete draft (S12)', () => {
       ]),
     );
     expect(new Set(body.blocking.map((issue) => issue.sectionKey))).toEqual(
-      new Set(['bio', 'household', 'statement:officer']),
+      new Set(['bio', 'household', 'statement:officer', 'other']),
+    );
+    // Sections never saved block as a whole, ahead of their fields.
+    expect(body.blocking.filter((issue) => issue.code === 'section-not-started')).toEqual(
+      ['bio', 'household', 'statement:officer', 'other'].map((sectionKey) => ({
+        sectionKey,
+        path: '',
+        code: 'section-not-started',
+        message: expect.any(String) as string,
+      })),
     );
     const bioIssues = body.blocking.filter((issue) => issue.sectionKey === 'bio');
     expect(bioIssues.every((issue) => issue.message.length > 0)).toBe(true);
+  });
+
+  it('blocks on paragraph 9 until it is saved, even with nothing in it to fix', async () => {
+    const draft = await started();
+    await save(draft.id, 'bio', await bio(draft.id));
+    await save(draft.id, 'household', household(spouse(GRACE, 'Grace')));
+    await statement(draft.id, 'officer', NIL);
+    await statement(draft.id, `spouse:${GRACE}`, NIL);
+
+    const body = (await summary(draft.id)).json<DeclarationSummary>();
+
+    expect(contractErrors(SUMMARY_BODY, body)).toEqual([]);
+    expect(body.declaration.sections).toContainEqual(
+      expect.objectContaining({ key: 'other', completeness: 'not-started' }),
+    );
+    expect(body.valid).toBe(false);
+    expect(body.blocking).toEqual([
+      {
+        sectionKey: 'other',
+        path: '',
+        code: 'section-not-started',
+        message: expect.any(String) as string,
+      },
+    ]);
   });
 
   it('lists one issue once, however many checks find it', async () => {

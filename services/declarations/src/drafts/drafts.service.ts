@@ -60,7 +60,12 @@ import {
   type StatementFrame,
   statementPersonKey,
 } from './sections.js';
-import { assembleDocument, blockingIssues, cannotSubmitReason } from './summary.js';
+import {
+  assembleDocument,
+  blockingIssues,
+  cannotSubmitReason,
+  notStartedIssues,
+} from './summary.js';
 import {
   declarationAttachments,
   declarationSections,
@@ -290,12 +295,23 @@ export class DraftsService {
       other: document.otherInformation,
     });
     const validated = declarationIssues(document);
+    // A section never saved blocks, and the document is not valid, until the declarant saves it.
+    const notStarted = notStartedIssues(
+      sections.map((section) => ({
+        key: section.sectionKey as DeclarationSectionKey,
+        completeness: section.completeness,
+      })),
+    );
 
     return {
       declaration: await this.read(person, declaration.id),
       document,
-      valid: validated.issues.length === 0 && validated.declaration.length === 0,
+      valid:
+        notStarted.length === 0 &&
+        validated.issues.length === 0 &&
+        validated.declaration.length === 0,
       blocking: blockingIssues(
+        notStarted,
         [...assessed.values()].flatMap((assessment) => assessment.issues),
         validated.issues,
       ),

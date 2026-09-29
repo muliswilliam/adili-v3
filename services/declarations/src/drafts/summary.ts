@@ -91,6 +91,24 @@ export function blockingIssues(
 }
 
 /**
+ * The sections never saved, each blocking as a whole (path `''`): a section the declarant has not
+ * saved has not been declared, even when what the draft started it with would validate (paragraph
+ * 9 starts empty and valid, yet needs the declarant's own confirmation). In the order given.
+ */
+export function notStartedIssues(
+  sections: readonly { key: DeclarationSectionKey; completeness: string }[],
+): DeclarationIssue[] {
+  return sections
+    .filter((section) => section.completeness === 'not-started')
+    .map((section) => ({
+      sectionKey: section.key,
+      path: '',
+      code: 'section-not-started',
+      message: 'Open this section, check it and save it.',
+    }));
+}
+
+/**
  * Why the draft cannot be submitted in this slice: before its statement date nothing can be
  * (compared as Nairobi civil dates), and from it submission opens in the next release.
  */

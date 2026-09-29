@@ -1,7 +1,12 @@
 import { ATTESTATION_TEXT, declarationIssues } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
-import { assembleDocument, blockingIssues, cannotSubmitReason } from '../../src/drafts/summary.js';
+import {
+  assembleDocument,
+  blockingIssues,
+  cannotSubmitReason,
+  notStartedIssues,
+} from '../../src/drafts/summary.js';
 import {
   bio,
   CHILD_ID,
@@ -123,6 +128,22 @@ describe('blockingIssues', () => {
     const other = { sectionKey: 'bio' as const, path: '/birth', code: 'required', message: 'x' };
 
     expect(blockingIssues([rule], [schema, other])).toEqual([rule, other]);
+  });
+});
+
+describe('notStartedIssues', () => {
+  it('blocks on each section never saved, as a whole, in the order given', () => {
+    const issues = notStartedIssues([
+      { key: 'bio', completeness: 'complete' },
+      { key: 'statement:officer', completeness: 'not-started' },
+      { key: 'other', completeness: 'not-started' },
+    ]);
+
+    expect(issues.map(({ sectionKey, path, code }) => [sectionKey, path, code])).toEqual([
+      ['statement:officer', '', 'section-not-started'],
+      ['other', '', 'section-not-started'],
+    ]);
+    expect(issues.every((issue) => issue.message.length > 0)).toBe(true);
   });
 });
 
