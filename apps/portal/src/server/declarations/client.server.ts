@@ -24,14 +24,16 @@ export function declarationsClient(accessToken: string) {
   // for portal work without the declarations service running. `import.meta.env.DEV` is
   // `false` in production builds, so the bundler drops this branch and the mock's chunk with
   // it; keep the check inline here for that to work.
-  const send =
+  const send: (request: Request, init: RequestInit) => Promise<Response> =
     import.meta.env.DEV && process.env.NODE_ENV !== 'production' && config.DECLARATIONS_MOCK
       ? mockFetch
       : fetch;
   return createClient<paths>({
     baseUrl: config.DECLARATIONS_API_URL,
     headers: { accept: 'application/json', authorization: `Bearer ${accessToken}` },
-    fetch: (request) => send(new Request(request, { signal: AbortSignal.timeout(TIMEOUT_MS) })),
+    // The deadline goes to fetch itself: held only by a Request, a timeout signal can be
+    // garbage collected before it fires.
+    fetch: (request) => send(request, { signal: AbortSignal.timeout(TIMEOUT_MS) }),
   });
 }
 

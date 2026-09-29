@@ -99,7 +99,9 @@ export function createDirectoryClient(options: {
     headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
     fetch: (request) => {
       const timeoutMs = directoryTimeoutMs(request.method, new URL(request.url).pathname);
-      return fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) }));
+      // The deadline goes to fetch itself: held only by a Request, a timeout signal can be
+      // garbage collected before it fires.
+      return fetchImpl(request, { signal: AbortSignal.timeout(timeoutMs) });
     },
   });
 }

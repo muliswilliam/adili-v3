@@ -146,9 +146,12 @@ function createAuthenticatedClient<Paths extends object>(
     const headers = new Headers(request.headers);
     headers.set('authorization', `Bearer ${token}`);
     try {
-      return await fetchImpl(
-        new Request(request, { headers, signal: AbortSignal.timeout(timeoutMs) }),
-      );
+      // The deadline goes to fetch itself: a timeout signal only held by a Request (which follows
+      // it through a weak reference) can be garbage collected before it fires, and the call then
+      // waits for the server whatever the timeout.
+      return await fetchImpl(new Request(request, { headers }), {
+        signal: AbortSignal.timeout(timeoutMs),
+      });
     } catch (error) {
       throw new ServiceCallFailed(`${request.method} ${new URL(request.url).pathname} unanswered`, {
         cause: error,

@@ -58,8 +58,10 @@ export function createDeclarationsClient(options: {
   return createClient<paths>({
     baseUrl: options.baseUrl,
     headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
+    // The deadline goes to fetch itself: held only by a Request, a timeout signal can be garbage
+    // collected before it fires.
     fetch: (request) =>
-      fetchImpl(new Request(request, { signal: AbortSignal.timeout(DECLARATIONS_TIMEOUT_MS) })),
+      fetchImpl(request, { signal: AbortSignal.timeout(DECLARATIONS_TIMEOUT_MS) }),
   });
 }
 

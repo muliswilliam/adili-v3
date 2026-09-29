@@ -22,14 +22,16 @@ function createDirectoryClient(headers: Record<string, string>) {
   // so the bundler drops this branch and the mock's chunk with it; keep the check inline here
   // for that to work. The NODE_ENV check keeps the mock off even if a dev build were started
   // with production settings.
-  const send =
+  const send: (request: Request, init: RequestInit) => Promise<Response> =
     import.meta.env.DEV && process.env.NODE_ENV !== 'production' && config.DIRECTORY_MOCK
       ? mockFetch
       : fetch;
   return createClient<paths>({
     baseUrl: config.DIRECTORY_API_URL,
     headers: { accept: 'application/json', ...headers },
-    fetch: (request) => send(new Request(request, { signal: AbortSignal.timeout(TIMEOUT_MS) })),
+    // The deadline goes to fetch itself: held only by a Request, a timeout signal can be
+    // garbage collected before it fires.
+    fetch: (request) => send(request, { signal: AbortSignal.timeout(TIMEOUT_MS) }),
   });
 }
 
