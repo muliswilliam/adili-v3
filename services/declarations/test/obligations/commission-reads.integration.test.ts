@@ -9,6 +9,7 @@ import {
   cycleOpenings,
   filingObligations,
   obligationReminders,
+  outbox,
   rosterSnapshots,
 } from '../../src/db/schema.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
@@ -497,6 +498,28 @@ describe('S16 visibility of Commission obligations', () => {
 
     expect((await summary(caller, 'psc')).total.upcoming).toBe(5);
     expect(rows(tsc.items)).toEqual(['Akinyi Tsc biennial upcoming 2027-12-31']);
+  });
+
+  it('records each read of the list in the audit trail, never the summary (ADR-008)', async () => {
+    const caller = { tenant: 'psc', roles: ['supervisor'] };
+
+    await page(caller, '?q=akinyi');
+    await summary(caller);
+
+    const audited = (
+      await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
+    ).map((row) => row.envelope);
+    expect(audited).toHaveLength(1);
+    expect(audited[0]).toMatchObject({
+      source: 'adili/declarations',
+      tenant: 'psc',
+      data: {
+        action: 'obligations.listed',
+        resource: { type: 'filing-obligation', params: { slug: 'psc' } },
+        actor: { tenant: 'psc', roles: ['supervisor'] },
+        request: { method: 'GET', route: '/v1/commissions/:slug/obligations' },
+      },
+    });
   });
 
   it('answers 403 to a declarant and 401 without a token', async () => {

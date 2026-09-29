@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger'
 import {
   ApiProblemResponse,
   ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
   Roles,
@@ -79,6 +80,7 @@ export class ObligationsController {
   }
 
   @Get('obligations/:id')
+  @AuditedRead({ action: 'obligation.viewed', resource: 'filing-obligation' })
   @ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'getObligation',
@@ -120,6 +122,7 @@ export class ObligationsController {
   @Get('commissions/:slug/obligations')
   @ApiSlugParam()
   @Roles(...COMMISSION_STAFF_ROLES, PLATFORM_ADMIN)
+  @AuditedRead({ action: 'obligations.listed', resource: 'filing-obligation' })
   @ApiOperation({
     operationId: 'listCommissionObligations',
     summary: 'Declarants and their obligations for a Commission',

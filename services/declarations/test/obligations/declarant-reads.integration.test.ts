@@ -4,7 +4,7 @@ import { withTenant } from '@adili/data-access';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { filingObligations, obligationReminders } from '../../src/db/schema.js';
+import { filingObligations, obligationReminders, outbox } from '../../src/db/schema.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import type { MyObligations, ObligationDetail } from '../../src/obligations/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -252,6 +252,29 @@ describe('S17 GET /v1/obligations/{id}', () => {
     expect(platform.statusCode).toBe(200);
     expect(otherCommission.statusCode).toBe(404);
     expect(eacc.statusCode).toBe(404);
+  });
+
+  it('records each read of an obligation in the audit trail (ADR-008)', async () => {
+    const id = await obligationIdOf('psc', WANJIRU, 'initial');
+
+    expect(
+      (await api.get(`/v1/obligations/${id}`, { tenant: 'psc', roles: ['reviewer'] })).statusCode,
+    ).toBe(200);
+
+    const audited = (
+      await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
+    ).map((row) => row.envelope);
+    expect(audited.at(-1)).toMatchObject({
+      source: 'adili/declarations',
+      tenant: 'psc',
+      data: {
+        action: 'obligation.viewed',
+        resource: { type: 'filing-obligation', params: { id } },
+        actor: { tenant: 'psc', roles: ['reviewer'] },
+        outcome: 'success',
+        request: { method: 'GET', route: '/v1/obligations/:id' },
+      },
+    });
   });
 
   it('answers 404 for an unknown id and for one that is not a UUID', async () => {

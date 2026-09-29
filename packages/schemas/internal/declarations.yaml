@@ -96,6 +96,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: obligation.viewed
+        resource: filing-obligation
   /v1/commissions/{slug}/obligations/summary:
     get:
       tags:
@@ -252,6 +255,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: obligations.listed
+        resource: filing-obligation
   /v1/obligations/{id}/declaration:
     parameters:
       - name: id
