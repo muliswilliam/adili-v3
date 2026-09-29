@@ -7,6 +7,7 @@ import type {
   PayrollInstruction,
 } from '../integration-gateway/integration-gateway-client.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
+import { isCompliance } from './contract.js';
 import {
   ACTION_REINSTATED,
   PAYROLL_INSTRUCTION_ACKNOWLEDGED,
@@ -23,20 +24,28 @@ export function resumeReference(reference: string): string {
 
 /**
  * Why payroll is instructed, as the instruction carries it: the action's reference and the kind of
- * failure. No names, file numbers or amounts.
+ * failure; for a resume, why the ladder ended. No names, file numbers or amounts.
  */
 export function payrollReason(
   action: PayrollAction,
-  ladder: Pick<LadderRow, 'subjectKind'>,
+  ladder: Pick<LadderRow, 'subjectKind' | 'closingCause'>,
   reference: string,
 ): string {
   const failure =
     ladder.subjectKind === 'obligation'
       ? 'failure to file a declaration of income, assets and liabilities'
       : 'failure to respond to a request for clarification';
-  return action === 'stop_salary'
-    ? `Salary stoppage ${reference} under the Administrative Mechanisms for ${failure}`
-    : `Compliance after salary stoppage ${reference}: salary reinstated`;
+  if (action === 'stop_salary') {
+    return `Salary stoppage ${reference} under the Administrative Mechanisms for ${failure}`;
+  }
+  if (ladder.closingCause !== null && !isCompliance(ladder.closingCause)) {
+    const ended =
+      ladder.closingCause === 'obligation-cancelled'
+        ? 'filing obligation cancelled'
+        : 'clarification withdrawn';
+    return `Administrative action ended (${ended}) after salary stoppage ${reference}: salary reinstated`;
+  }
+  return `Compliance after salary stoppage ${reference}: salary reinstated`;
 }
 
 /** The acknowledgement as the action keeps it (review.yaml `PayrollAck`). */

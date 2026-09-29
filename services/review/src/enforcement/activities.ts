@@ -442,7 +442,7 @@ export class EnforcementActivities {
   }
 
   /**
-   * On compliance, reinstates the ladder's stopped salary: `resume_salary` through the
+   * When the ladder closes (compliance, or the subject gone), reinstates its stopped salary: `resume_salary` through the
    * integration-gateway (reference: the stoppage's `ADM` reference with `-R`), the acknowledgement
    * stored and the stoppage `reinstated`, once. Returns the stoppage reinstated (again, on a
    * retry), or null when no salary was stopped.

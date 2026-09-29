@@ -29,7 +29,8 @@ import { enforcement } from '../../src/enforcement/workflows.js';
  * the salary stoppage when the warning's ends (payroll stop acknowledged before its letter), the
  * disciplinary referral when the stoppage's ends, a decline ending the ladder (a declined referral
  * leaving it waiting), a restart drafting the declined step again, and compliance closing the
- * ladder at any point, reinstating a stopped salary.
+ * ladder at any point, reinstating a stopped salary; the subject going away (an obligation
+ * cancelled, a clarification withdrawn) ends it and still reinstates a stopped salary.
  */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
 
@@ -385,7 +386,7 @@ describe('EnforcementWorkflow', () => {
     expect(recorded.calls).not.toContain('letter:salary-stoppage');
   }, 60_000);
 
-  it('S7: a subject going away ends the ladder without reinstating (compliance only)', async () => {
+  it('an obligation cancelled while the salary is stopped ends the ladder and still reinstates the salary: resume, then the declarant told', async () => {
     const { mocks, recorded } = activities({
       on: closeWhenIssued('salary-stoppage', 'obligation-cancelled'),
     });
@@ -393,8 +394,14 @@ describe('EnforcementWorkflow', () => {
     const result = await run(mocks);
 
     expect(result).toEqual({ outcome: 'ended', cause: 'obligation-cancelled' });
-    expect(recorded.calls.at(-1)).toBe('close:obligation-cancelled');
-    expect(mocks.reinstateSalary).not.toHaveBeenCalled();
+    expect(recorded.calls.slice(-5)).toEqual([
+      'issued:salary-stoppage',
+      'close:obligation-cancelled',
+      'reinstate',
+      'email:reinstated',
+      'sms:reinstated',
+    ]);
+    expect(mocks.reinstateSalary).toHaveBeenCalledWith({ tenant: 'psc', ladderId: LADDER_ID });
   }, 60_000);
 
   it('S10: after the stoppage window the disciplinary referral is drafted; approved: letter, no message, then the ladder waits for compliance', async () => {
@@ -560,7 +567,7 @@ describe('EnforcementWorkflow', () => {
   }, 60_000);
 
   it('a withdrawn clarification ends the ladder without compliance', async () => {
-    const { mocks } = activities({
+    const { mocks, recorded } = activities({
       on: {
         'issued:notice-to-comply': () =>
           signalOwnWorkflow(CLOSED_SIGNAL, 'clarification-withdrawn'),
@@ -570,6 +577,9 @@ describe('EnforcementWorkflow', () => {
     const result = await run(mocks);
 
     expect(result).toEqual({ outcome: 'ended', cause: 'clarification-withdrawn' });
+    // No salary was stopped: nothing to reinstate, nobody told.
+    expect(recorded.calls.slice(-2)).toEqual(['close:clarification-withdrawn', 'reinstate']);
+    expect(recorded.calls).not.toContain('email:reinstated');
   }, 60_000);
 
   it.each([

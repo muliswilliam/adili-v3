@@ -483,6 +483,48 @@ describe('salary stoppage, reinstatement and disciplinary referral', () => {
     expect(payloads).not.toMatch(/Wanjiru|PSC\/2019|27451863|MOH|ADM-|reinstated on/);
   }, 150_000);
 
+  it('the obligation cancelled while the salary is stopped: the ladder ends and the salary is still reinstated (resume_salary, -R), the declarant told', async () => {
+    const { stoppage } = await draftedStoppage();
+    api.clock.set(FUTURE);
+    const approved = await approveAction(api, stoppage.id, supervisorS);
+    const reference = approved.json<ActionView>().reference ?? '';
+    await actionOf('salary-stoppage', 'issued');
+
+    api.declarations.setObligationStatus(obligation.obligationId, 'cancelled');
+    await api.enforcement.obligationStatusChanged(
+      obligationStatusChangedEvent('psc', obligation.obligationId, 'overdue', 'cancelled'),
+    );
+
+    const reinstated = await actionOf('salary-stoppage', 'reinstated');
+    expect(reinstated).toMatchObject({
+      payrollResumeReference: `${reference}-R`,
+      payrollResumeAck: { action: 'resume_salary', status: 'accepted' },
+      salaryReinstatedAt: new Date(FUTURE),
+    });
+    expect(api.gateway.instructions.map(({ request }) => request).at(-1)).toMatchObject({
+      instructionReference: `${reference}-R`,
+      action: 'resume_salary',
+      reason: `Administrative action ended (filing obligation cancelled) after salary stoppage ${reference}: salary reinstated`,
+    });
+    const { ladder } = await ladderWhen(
+      api,
+      'obligation',
+      obligation.obligationId,
+      ({ ladder: found }) => found.status === 'ended',
+    );
+    expect(ladder).toMatchObject({ closingCause: 'obligation-cancelled' });
+    await waitFor(() => {
+      expect(
+        api.notifications.sent
+          .filter((message) => message.template.startsWith('salary-reinstated'))
+          .map((message) => message.channel),
+      ).toEqual(['email', 'sms']);
+    });
+    const result: unknown = await temporal().workflow.getHandle(workflowId()).result();
+    expect(result).toEqual({ outcome: 'ended', cause: 'obligation-cancelled' });
+    expect(await outboxOf('action.reinstated.v1')).toMatchObject([{ subject: stoppage.id }]);
+  }, 150_000);
+
   it('S7: filing before the stoppage is approved cancels the draft; nothing goes to payroll', async () => {
     const { stoppage } = await draftedStoppage();
 
