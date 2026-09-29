@@ -1,11 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import type { FormMV1 } from '@adili/forms';
-import { and, eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 
-import { complianceReports } from '../../src/db/schema.js';
-import { openSnapshot, sealSnapshot } from '../../src/compliance-reports/snapshot.js';
 import {
   actionEvent,
   clarificationEvent,
@@ -25,12 +22,18 @@ export const COMMISSION_ADMIN: Caller = {
   sub: 'admin-psc',
   tenant: 'psc',
   roles: ['commission-admin'],
+  name: 'Peter Otieno',
 };
 export const REPORTING_OFFICER: Caller = {
   sub: 'officer-psc',
   tenant: 'psc',
   roles: ['reporting-officer'],
 };
+
+/** `caller` after the step-up re-authentication at `at` (an ISO instant). */
+export function steppedUp(caller: Caller, at: string): Caller {
+  return { ...caller, acr: 'step-up', authTime: at };
+}
 
 /** An officer who did not declare on time, with the details declarations holds. */
 export interface NonFiler {
@@ -232,30 +235,4 @@ export interface ReportBody {
   counts: Record<string, unknown>;
   document: FormMV1 | null;
   [key: string]: unknown;
-}
-
-/**
- * Edits the draft's document as the manual-fields endpoint will (#227): decrypts the snapshot,
- * applies `edit`, encrypts it again.
- */
-export async function editDraft(
-  api: ReportingApi,
-  fy: number,
-  edit: (document: FormMV1) => void,
-): Promise<void> {
-  await api.asPlatform(async (tx) => {
-    const [report] = await tx
-      .select()
-      .from(complianceReports)
-      .where(and(eq(complianceReports.tenant, 'psc'), eq(complianceReports.fy, fy)));
-    if (!report) throw new Error('no report');
-    const document = await openSnapshot(api.cipher, 'psc', report);
-    if (!document) throw new Error('no draft');
-    edit(document);
-    const sealed = await sealSnapshot(api.cipher, 'psc', report.id, document);
-    await tx
-      .update(complianceReports)
-      .set({ snapshotCiphertext: sealed.ciphertext, envelope: sealed.envelope })
-      .where(eq(complianceReports.id, report.id));
-  });
 }

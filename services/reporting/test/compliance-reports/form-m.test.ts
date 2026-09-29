@@ -85,6 +85,7 @@ describe('aggregateFacts', () => {
 });
 
 describe('assemble', () => {
+  const ISSUED = new Date('2027-10-06T09:05:00.000Z');
   const input = (
     actions: ActionFactRow[],
     obligation = fact(1, { status: 'overdue' }),
@@ -110,21 +111,31 @@ describe('assemble', () => {
   const rowOf = (actions: ActionFactRow[], obligation?: ObligationFactRow) =>
     assemble(input(actions, obligation)).partII.initial.nonFilers[0];
 
-  it('takes the furthest step that reached the officer; proposed, approved and declined steps are no action', () => {
+  it('takes the furthest step issued to the officer; steps never issued are no action', () => {
     expect(
       rowOf([
-        { subjectId: id(1), step: 'notice-to-comply', status: 'responded' },
-        { subjectId: id(1), step: 'warning', status: 'issued' },
-        { subjectId: id(1), step: 'salary-stoppage', status: 'proposed' },
-        { subjectId: id(2), step: 'disciplinary-referral', status: 'issued' },
+        { subjectId: id(1), step: 'notice-to-comply', status: 'responded', issuedAt: ISSUED },
+        { subjectId: id(1), step: 'warning', status: 'issued', issuedAt: ISSUED },
+        { subjectId: id(1), step: 'salary-stoppage', status: 'proposed', issuedAt: null },
+        { subjectId: id(2), step: 'disciplinary-referral', status: 'issued', issuedAt: ISSUED },
       ]),
     ).toMatchObject({ actionTaken: 'warning', complied: 'pending', remarks: 'Warning issued' });
     expect(
       rowOf([
-        { subjectId: id(1), step: 'notice-to-comply', status: 'approved' },
-        { subjectId: id(1), step: 'warning', status: 'declined' },
+        { subjectId: id(1), step: 'notice-to-comply', status: 'approved', issuedAt: null },
+        { subjectId: id(1), step: 'warning', status: 'declined', issuedAt: null },
+        { subjectId: id(1), step: 'salary-stoppage', status: 'cancelled', issuedAt: null },
       ]),
     ).toMatchObject({ actionTaken: 'none', complied: 'no' });
+  });
+
+  it('counts a step complied when its ladder closed only if it had been issued (spec 08 closes approved steps too)', () => {
+    expect(
+      rowOf([
+        { subjectId: id(1), step: 'notice-to-comply', status: 'complied', issuedAt: ISSUED },
+        { subjectId: id(1), step: 'warning', status: 'complied', issuedAt: null },
+      ]),
+    ).toMatchObject({ actionTaken: 'notice-to-comply' });
   });
 
   it('marks a late filer complied, with or without an action', () => {
@@ -132,7 +143,10 @@ describe('assemble', () => {
 
     expect(rowOf([], late)).toMatchObject({ actionTaken: 'none', complied: 'yes' });
     expect(
-      rowOf([{ subjectId: id(1), step: 'salary-stoppage', status: 'reinstated' }], late),
+      rowOf(
+        [{ subjectId: id(1), step: 'salary-stoppage', status: 'complied', issuedAt: ISSUED }],
+        late,
+      ),
     ).toMatchObject({ actionTaken: 'salary-stoppage', complied: 'yes', remarks: 'Salary stopped' });
   });
 

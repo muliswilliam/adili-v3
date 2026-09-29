@@ -8,9 +8,12 @@ import { ClockModule } from '../clock.module.js';
 import { config } from '../config.js';
 import { UpstreamModule } from '../upstream.module.js';
 import { ComplianceReportActivities } from './activities.js';
+import { AnnualCompileActivities } from './annual-compile-activities.js';
+import { AnnualCompileSchedule } from './annual-compile-schedule.js';
 import { ComplianceReportsController } from './compliance-reports.controller.js';
 import { ComplianceReportsService } from './compliance-reports.service.js';
-import { ReportWorkflows } from './report-workflows.js';
+import { ReportSignOffService } from './report-sign-off.service.js';
+import { ReportWorkflowsModule } from './report-workflows.js';
 
 /**
  * The workflows module next to this file: `workflows.ts` when running from source (dev server,
@@ -21,25 +24,27 @@ const workflowsPath = fileURLToPath(
 );
 
 /**
- * Compliance reports (spec 09): the Form M workspace endpoints and the reporting worker hosting
- * `ComplianceReportWorkflow` and its activities.
+ * Compliance reports (spec 09): the Form M workspace endpoints, the schedule of the yearly compile
+ * and the reporting worker hosting `ComplianceReportWorkflow`, the yearly compile and their
+ * activities.
  */
 @Module({
   imports: [
     ClockModule,
     CipherModule,
     UpstreamModule,
+    ReportWorkflowsModule,
     TemporalWorkerModule.forRoot({
       address: config.TEMPORAL_ADDRESS,
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
       // One worker per service: every workflow of the reporting service runs on this queue.
-      activities: [ComplianceReportActivities],
-      imports: [ClockModule, CipherModule, UpstreamModule],
+      activities: [ComplianceReportActivities, AnnualCompileActivities],
+      imports: [ClockModule, CipherModule, UpstreamModule, ReportWorkflowsModule],
     }),
   ],
   controllers: [ComplianceReportsController],
-  providers: [ComplianceReportsService, ReportWorkflows],
+  providers: [ComplianceReportsService, ReportSignOffService, AnnualCompileSchedule],
 })
 export class ComplianceReportsModule {}

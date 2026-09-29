@@ -21,6 +21,16 @@ export interface Principal {
    * service refuse tokens issued before a credential was rotated or revoked.
    */
   issuedAt: number | null;
+  /**
+   * The level of authentication the token was issued at (`acr`), e.g. `step-up` after a fresh
+   * re-authentication (ADR-004); absent when the token has none.
+   */
+  acr?: string;
+  /**
+   * When the user last authenticated (`auth_time`), in seconds since the epoch; absent when the
+   * token has none. With `acr`, lets a legal act require a recent step-up.
+   */
+  authTime?: number;
 }
 
 /**

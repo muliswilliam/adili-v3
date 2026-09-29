@@ -30,15 +30,55 @@ export function formMTenant(principal: Principal, slug: string): string {
 }
 
 /**
- * Only the Commission's supervisor compiles a preview or recompiles; the commission-admin and
- * the reporting officer, who can see the draft, get 403.
+ * Only the Commission's supervisor compiles a preview or recompiles, edits remarks and marks the
+ * draft reviewed; the commission-admin and the reporting officer, who can see the draft, get 403.
  */
-export function requireSupervisor(principal: Principal): void {
+export function requireSupervisor(principal: Principal, action = 'compile its Form M'): void {
   if (principal.roles.includes(SUPERVISOR)) return;
   throw new ProblemException({
     type: 'about:blank',
     title: 'Forbidden',
     status: HttpStatus.FORBIDDEN,
-    detail: 'Only a supervisor of the Commission can compile its Form M.',
+    detail: `Only a supervisor of the Commission can ${action}.`,
   });
+}
+
+/**
+ * Only the Commission's commission-admin (standing in for the accounting officer) enters Part I
+ * contact details and Part B, and confirms and submits; the supervisor and the reporting officer
+ * get 403.
+ */
+export function requireCommissionAdmin(principal: Principal, action: string): void {
+  if (principal.roles.includes(COMMISSION_ADMIN)) return;
+  throw new ProblemException({
+    type: 'about:blank',
+    title: 'Forbidden',
+    status: HttpStatus.FORBIDDEN,
+    detail: `Only a commission-admin of the Commission can ${action}.`,
+  });
+}
+
+/** The level of authentication Keycloak's step-up re-authentication issues tokens at (ADR-004). */
+export const STEP_UP_ACR = 'step-up';
+
+/** How recent the step-up re-authentication must be (spec 06): five minutes. */
+export const STEP_UP_MAX_AGE_SECONDS = 5 * 60;
+
+/**
+ * A legal act (confirming Form M) needs a fresh identity check: a token issued by the step-up
+ * flow (`acr`) whose authentication (`auth_time`) is at most five minutes old at `now`. Otherwise
+ * 403 `step-up-required`, and the console sends the officer through the step-up round trip.
+ */
+export function requireStepUp(principal: Principal, now: Date): void {
+  const age = principal.authTime === undefined ? null : now.getTime() / 1000 - principal.authTime;
+  if (principal.acr === STEP_UP_ACR && age !== null && age <= STEP_UP_MAX_AGE_SECONDS) return;
+  throw new ProblemException(
+    {
+      type: 'about:blank',
+      title: 'Forbidden',
+      status: HttpStatus.FORBIDDEN,
+      detail: 'Confirm your identity again to submit the report.',
+    },
+    { code: 'step-up-required' },
+  );
 }

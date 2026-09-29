@@ -6,10 +6,11 @@ import { and, eq, isNotNull } from 'drizzle-orm';
 import { formMTenant, requireSupervisor } from '../access.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
-import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
+import { DirectoryClient } from '../directory/directory-client.js';
 import { FIRST_FINANCIAL_YEAR, financialYearAt, previewFromOf } from '../financial-year.js';
 import { clarificationFacts, obligationFacts } from '../projections/schema.js';
-import { ensureReport, findReport } from './reports.js';
+import { commissionOf } from './commission.js';
+import { findReport, markCompiling } from './reports.js';
 import { ReportWorkflows } from './report-workflows.js';
 import {
   type ComplianceReportSummary,
@@ -87,7 +88,7 @@ export class ComplianceReportsService {
     if (!report) throw notFound();
     const document =
       report.status === 'compiling' ? null : await openSnapshot(this.cipher, tenant, report);
-    return reportView(report, await this.commission(tenant), document);
+    return reportView(report, await commissionOf(this.directory, tenant), document);
   }
 
   /**
@@ -111,8 +112,8 @@ export class ComplianceReportsService {
       );
     }
     await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const report = await ensureReport(tx, tenant, fy, now);
-      if (report.status === 'submitted') {
+      const report = await markCompiling(tx, tenant, fy, now);
+      if (!report) {
         throw new ProblemException(
           {
             type: 'about:blank',
@@ -123,27 +124,8 @@ export class ComplianceReportsService {
           { code: 'report-submitted' },
         );
       }
-      await tx
-        .update(complianceReports)
-        .set({ status: 'compiling', compileRequestedAt: now })
-        .where(eq(complianceReports.id, report.id));
     });
     await this.workflows.compile({ tenant, fy });
-  }
-
-  /** The Commission as Part I names it; 503 while the directory cannot be reached. */
-  private async commission(tenant: string) {
-    try {
-      return await this.directory.getCommission(tenant);
-    } catch (error) {
-      if (!(error instanceof DirectoryUnavailable)) throw error;
-      throw new ProblemException({
-        type: 'directory-unavailable',
-        title: 'Upstream service unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The Commission directory cannot be reached. Try again shortly.',
-      });
-    }
   }
 }
 

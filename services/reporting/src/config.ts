@@ -20,6 +20,13 @@ export const envSchema = baseEnvSchema.extend({
   DIRECTORY_URL: z.url(),
   /** Base URL of the notifications service, which sends the draft-ready emails. */
   NOTIFICATIONS_URL: z.url(),
+  /** Base URL of the documents service, which issues the Form M PDF and the receipt. */
+  DOCUMENTS_URL: z.url(),
+  /**
+   * When the yearly compile runs (cron, Nairobi time): each Commission's draft for the financial
+   * year that just ended, on 1 July. `off` keeps no schedule (tests).
+   */
+  ANNUAL_COMPILE_CRON: z.string().min(1).default('0 6 1 7 *'),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('reporting'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

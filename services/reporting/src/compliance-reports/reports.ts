@@ -25,6 +25,27 @@ export async function findReport(
 }
 
 /**
+ * Asks for a compile of the Commission's report for the financial year: the report (created when
+ * there is none) is `compiling` until the workflow saves the draft. A reviewed draft goes back to
+ * review once recompiled. Undefined for a submitted report, which is never compiled again.
+ */
+export async function markCompiling(
+  tx: ReportingTransaction,
+  tenant: string,
+  fy: number,
+  at: Date,
+): Promise<ReportRow | undefined> {
+  const report = await ensureReport(tx, tenant, fy, at);
+  if (report.status === 'submitted') return undefined;
+  const [marked] = await tx
+    .update(complianceReports)
+    .set({ status: 'compiling', compileRequestedAt: at })
+    .where(eq(complianceReports.id, report.id))
+    .returning();
+  return marked;
+}
+
+/**
  * The Commission's report for the financial year, created `compiling` when there is none: one
  * report per Commission per year (the unique key settles a race).
  */

@@ -12,6 +12,11 @@ import {
   type StaffMember,
 } from '../../src/directory/directory-client.js';
 import {
+  DocumentsClient,
+  type IssuedDocument,
+  type IssueDocumentRequest,
+} from '../../src/documents/documents-client.js';
+import {
   NotificationsClient,
   type SentMessage,
   type StaffEmail,
@@ -156,5 +161,39 @@ export class FakeNotifications extends NotificationsClient {
     this.byKey.set(message.idempotencyKey, sent);
     this.sent.push(structuredClone(message));
     return Promise.resolve(sent);
+  }
+}
+
+/**
+ * The documents issue API with its templates faked: every request is recorded and answered with a
+ * new document, once per idempotency key, as the real service replays a repeated key.
+ */
+export class FakeDocuments extends DocumentsClient {
+  readonly issued: IssueDocumentRequest[] = [];
+  private readonly byKey = new Map<string, IssuedDocument>();
+  private failures = 0;
+
+  /** The next `count` calls fail, as a documents outage would. */
+  failCalls(count: number): void {
+    this.failures = count;
+  }
+
+  reset(): void {
+    this.issued.length = 0;
+    this.byKey.clear();
+    this.failures = 0;
+  }
+
+  issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new Error('The documents service is unreachable'));
+    }
+    const replayed = this.byKey.get(request.idempotencyKey);
+    if (replayed) return Promise.resolve(replayed);
+    const issued = { id: randomUUID(), verificationId: `ADL-${randomUUID().slice(0, 8)}` };
+    this.byKey.set(request.idempotencyKey, issued);
+    this.issued.push(structuredClone(request));
+    return Promise.resolve(issued);
   }
 }

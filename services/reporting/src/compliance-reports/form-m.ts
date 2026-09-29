@@ -106,10 +106,9 @@ export interface ActionFactRow {
   subjectId: string;
   step: ActionStep;
   status: ActionStatus;
+  /** When its letter went to the officer; null for a step never issued. */
+  issuedAt: Date | null;
 }
-
-/** Statuses of an action that reached the officer: issued, answered, or ended by compliance. */
-const TAKEN: readonly ActionStatus[] = ['issued', 'responded', 'complied', 'reinstated'];
 
 /** The default remark of a row: the latest action step taken, in words. */
 export const ACTION_LABELS: Record<NonFilerRow['actionTaken'], string> = {
@@ -151,6 +150,22 @@ export function manualEntriesOf(document: FormMV1 | null): ManualEntries {
     emailAddress: document.partI.emailAddress,
     complaints: document.partII.complaints,
     partIII: document.partIII,
+  };
+}
+
+/**
+ * Part I contact details carried over from the Commission's previous submitted report while the
+ * commission-admin has entered none on this one (all three blank); otherwise the entries as they
+ * are. Without a previous report they stay blank for the commission-admin to enter.
+ */
+export function carriedContacts(manual: ManualEntries, lastReport: FormMV1 | null): ManualEntries {
+  const blank = !manual.contactDetails && !manual.physicalAddress && !manual.emailAddress;
+  if (!blank || !lastReport) return manual;
+  return {
+    ...manual,
+    contactDetails: lastReport.partI.contactDetails,
+    physicalAddress: lastReport.partI.physicalAddress,
+    emailAddress: lastReport.partI.emailAddress,
   };
 }
 
@@ -256,11 +271,15 @@ export function assemble(input: AssembleInput): FormMV1 {
   };
 }
 
-/** The furthest ladder step taken on an obligation, or `none`. */
+/**
+ * The furthest ladder step taken on an obligation, or `none`: a step counts once issued to the
+ * officer, whatever happened after (answered, or complied when the ladder closed). A step proposed,
+ * approved, declined or cancelled before issue was never taken.
+ */
 function latestStep(actions: readonly ActionFactRow[], obligationId: string): ActionStep | 'none' {
   let latest = -1;
   for (const action of actions) {
-    if (action.subjectId !== obligationId || !TAKEN.includes(action.status)) continue;
+    if (action.subjectId !== obligationId || action.issuedAt === null) continue;
     latest = Math.max(latest, ACTION_STEPS.indexOf(action.step));
   }
   return ACTION_STEPS[latest] ?? 'none';

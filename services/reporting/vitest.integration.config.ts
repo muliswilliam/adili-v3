@@ -19,6 +19,8 @@ export default defineConfig({
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),
       LOG_LEVEL: 'fatal',
+      // Suites start the yearly compile themselves; a schedule would fire on the shared Temporal.
+      ANNUAL_COMPILE_CRON: 'off',
       TEMPORAL_ADDRESS: process.env.TEST_TEMPORAL_ADDRESS ?? 'localhost:7233',
       TEMPORAL_NAMESPACE: process.env.TEST_TEMPORAL_NAMESPACE ?? 'adili',
       TEST_DATABASE_URL:

@@ -10,6 +10,8 @@ interface KeycloakClaims extends JWTPayload {
   scope?: string;
   name?: string;
   preferred_username?: string;
+  acr?: string;
+  auth_time?: number;
 }
 
 /** Verifies Keycloak access tokens against the realm's published signing keys. */
@@ -40,6 +42,8 @@ export class TokenVerifier {
       clientId: payload.azp ?? null,
       name: payload.name ?? payload.preferred_username ?? null,
       issuedAt: payload.iat ?? null,
+      ...(typeof payload.acr === 'string' ? { acr: payload.acr } : {}),
+      ...(typeof payload.auth_time === 'number' ? { authTime: payload.auth_time } : {}),
     };
   }
 }

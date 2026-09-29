@@ -10,11 +10,11 @@ import { financialYearAt, financialYearOf } from '../financial-year.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import {
   ACTION_APPROVED,
+  ACTION_CANCELLED,
   ACTION_COMPLIED,
   ACTION_DECLINED,
   ACTION_ISSUED,
   ACTION_PROPOSED,
-  ACTION_REINSTATED,
   ACTION_RESPONDED,
   actionData,
   CLARIFICATION_ISSUED,
@@ -173,9 +173,9 @@ export class ProjectionsConsumer {
     return this.action(event, 'complied');
   }
 
-  @OnEvent(ACTION_REINSTATED)
-  actionReinstated(@Payload() event: EventEnvelope): Promise<boolean> {
-    return this.action(event, 'reinstated');
+  @OnEvent(ACTION_CANCELLED)
+  actionCancelled(@Payload() event: EventEnvelope): Promise<boolean> {
+    return this.action(event, 'cancelled');
   }
 
   @OnEvent(DETERMINATION_APPROVED)
@@ -257,7 +257,16 @@ export class ProjectionsConsumer {
     return this.project(event, (tx, tenant) =>
       tx
         .insert(actionFacts)
-        .values({ ...data, tenant, status, statusAt: at, ...dated })
+        .values({
+          actionId: data.actionId,
+          tenant,
+          subjectKind: data.subjectKind,
+          subjectId: data.subjectId,
+          step: data.step,
+          status,
+          statusAt: at,
+          ...dated,
+        })
         .onConflictDoUpdate({
           target: actionFacts.actionId,
           set: { ...newerStatus(actionFacts.status, actionFacts.statusAt), ...dated },

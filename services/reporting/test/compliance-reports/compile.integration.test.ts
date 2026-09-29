@@ -5,13 +5,12 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
-import { complianceReports, outbox, reportRemarks } from '../../src/db/schema.js';
+import { complianceReports, outbox } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { declarationSubmitted, obligationCreated } from '../support/events.js';
 import {
   COMMISSION_ADMIN,
   compiledReport,
-  editDraft,
   type Fy2027Facts,
   givenFy2027Facts,
   givenPscDirectory,
@@ -251,33 +250,37 @@ describe('Form M compile (S2, S3, S4)', () => {
     await compile(2027);
     const first = await compiledReport(api, 2027);
     const { noticed, recent } = facts.initial;
-    // The supervisor's remark and the commission-admin's entries, as #227's endpoints save them.
-    await api.asPlatform((tx) =>
-      tx.insert(reportRemarks).values({
-        reportId: first.id,
-        tenant: 'psc',
-        obligationId: noticed.obligationId,
-        remark: 'Officer on study leave; notice delivered by hand',
-        updatedBy: 'supervisor-psc',
-      }),
-    );
-    await editDraft(api, 2027, (document) => {
-      document.partI.contactDetails = 'Commission Secretary, 0202223901';
-      document.partI.physicalAddress = 'Commission House, Harambee Avenue, Nairobi';
-      document.partI.emailAddress = 'info@publicservice.go.ke';
-      document.partII.complaints = {
-        registerMaintained: true,
-        items: [
-          {
-            name: 'Complainant Omondi',
-            designation: 'Clerk',
-            identifier: 'PSC/2020/0101',
-            nature: 'Late declaration',
-            status: 'Closed',
-          },
-        ],
-      };
+    // The supervisor's remark and the commission-admin's entries.
+    const remarked = await api.send('PATCH', `${reportPath(2027)}/remarks`, SUPERVISOR, {
+      remarks: [
+        {
+          obligationId: noticed.obligationId,
+          remark: 'Officer on study leave; notice delivered by hand',
+        },
+      ],
     });
+    expect(remarked.statusCode).toBe(200);
+    const entered = await api.send('PATCH', `${reportPath(2027)}/manual`, COMMISSION_ADMIN, {
+      contactDetails: 'Commission Secretary, 0202223901',
+      physicalAddress: 'Commission House, Harambee Avenue, Nairobi',
+      emailAddress: 'info@publicservice.go.ke',
+      complaintsRegisterMaintained: true,
+      complaints: [
+        {
+          name: 'Complainant Omondi',
+          designation: 'Clerk',
+          identifier: 'PSC/2020/0101',
+          nature: 'Late declaration',
+          status: 'Closed',
+        },
+      ],
+    });
+    expect(entered.statusCode).toBe(200);
+    // Reviewed before the late filing arrives: the new numbers are reviewed again.
+    const reviewed = await api.send('POST', `${reportPath(2027)}/reviewed`, SUPERVISOR, {
+      designation: 'Deputy Director, Compliance',
+    });
+    expect(reviewed.json()).toMatchObject({ status: 'reviewed' });
 
     // The June appointee files on time after the first compile.
     await api.deliver(declarationSubmitted('psc', recent.obligationId, '2028-07-05T08:00:00.000Z'));
@@ -288,6 +291,7 @@ describe('Form M compile (S2, S3, S4)', () => {
     if (!document) throw new Error('no document');
 
     expect(second.id).toBe(first.id);
+    expect(second).toMatchObject({ status: 'draft', reviewedBy: null });
     expect(second.counts).toMatchObject({
       initial: { expected: 12, declared: 11, notDeclared: 1 },
     });
@@ -302,7 +306,16 @@ describe('Form M compile (S2, S3, S4)', () => {
       physicalAddress: 'Commission House, Harambee Avenue, Nairobi',
       emailAddress: 'info@publicservice.go.ke',
     });
-    expect(document.partII.complaints.items).toHaveLength(1);
+    expect(document.partII.complaints).toEqual({
+      registerMaintained: true,
+      items: [expect.objectContaining({ name: 'Complainant Omondi', nature: 'Late declaration' })],
+    });
+    // Part III as the supervisor signed it off; review it again for the new numbers.
+    expect(document.partIII.compiledBy).toEqual({
+      name: 'Grace Wanjiru',
+      designation: 'Deputy Director, Compliance',
+      date: '2028-07-01',
+    });
     expect(document.meta?.compiledAt).toBe('2028-07-06T06:00:00.000Z');
     expect(validateFormM(document)).toEqual({ ok: true, value: document });
     // Recompiling tells no one again.

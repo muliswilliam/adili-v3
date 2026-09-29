@@ -14,4 +14,4 @@ export {
   type ReferenceParts,
 } from './reference.js';
 export { numberingCounters, numberingSchema } from './schema.js';
-export { defineScheme, type NumberingScheme, numberingSchemes, OFR } from './schemes.js';
+export { defineScheme, type NumberingScheme, numberingSchemes, OFR, RPT } from './schemes.js';

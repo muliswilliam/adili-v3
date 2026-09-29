@@ -8,6 +8,11 @@ import {
   HttpDeclarationsClient,
 } from './declarations/http-declarations-client.js';
 import { DirectoryClient } from './directory/directory-client.js';
+import { DocumentsClient } from './documents/documents-client.js';
+import {
+  DOCUMENTS_INTERNAL_SCOPE,
+  HttpDocumentsClient,
+} from './documents/http-documents-client.js';
 import {
   DIRECTORY_INTERNAL_SCOPE,
   HttpDirectoryClient,
@@ -32,7 +37,8 @@ const tokens = (scope: string) =>
 /**
  * The other services' internal APIs Form M reads from, called with the reporting service's own
  * token (ADR-013 §8.1): officer details (declarations), clarification details (review), the
- * Commission and its staff (directory), and emails (notifications).
+ * Commission and its staff (directory), emails (notifications), and the submitted report's PDF
+ * and receipt (documents).
  */
 @Module({
   providers: [
@@ -68,7 +74,21 @@ const tokens = (scope: string) =>
           tokens: tokens(MESSAGES_SCOPE),
         }),
     },
+    {
+      provide: DocumentsClient,
+      useFactory: () =>
+        new HttpDocumentsClient({
+          documentsUrl: config.DOCUMENTS_URL,
+          tokens: tokens(DOCUMENTS_INTERNAL_SCOPE),
+        }),
+    },
   ],
-  exports: [DeclarationsClient, ReviewClient, DirectoryClient, NotificationsClient],
+  exports: [
+    DeclarationsClient,
+    ReviewClient,
+    DirectoryClient,
+    NotificationsClient,
+    DocumentsClient,
+  ],
 })
 export class UpstreamModule {}

@@ -196,6 +196,17 @@ describe('CoreModule', () => {
     expect(response.json()).toMatchObject({ issuedAt: 1_790_000_000 });
   });
 
+  it('reads the authentication level and time from the acr and auth_time claims', async () => {
+    const token = await signToken({ acr: 'step-up', auth_time: 1_790_000_100 });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.json()).toMatchObject({ acr: 'step-up', authTime: 1_790_000_100 });
+  });
+
   it('parses scopes from the space-separated scope claim', async () => {
     const token = await signToken({ azp: 'directory', scope: 'profile messages  email' });
     const response = await app.inject({

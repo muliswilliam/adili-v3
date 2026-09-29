@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
-import { CoreModule } from '@adili/api-kit';
-import { DatabaseModule, DatabaseReadinessCheck, OpenBaoReadinessCheck } from '@adili/data-access';
+import { CoreModule, IdempotencyModule } from '@adili/api-kit';
+import {
+  DATABASE,
+  DatabaseModule,
+  DatabaseReadinessCheck,
+  OpenBaoReadinessCheck,
+} from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import {
   TemporalModule,
@@ -32,6 +37,8 @@ import { ProjectionsModule } from './projections/projections.module.js';
       schema,
       applicationName: SERVICE_NAME,
     }),
+    // Confirming a report is safe to retry with the same `Idempotency-Key` (ADR-009).
+    IdempotencyModule.forRoot({ database: DATABASE }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     TemporalModule.forRoot({
       address: config.TEMPORAL_ADDRESS,

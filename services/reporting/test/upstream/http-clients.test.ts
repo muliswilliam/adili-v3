@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { DeclarationsUnavailable } from '../../src/declarations/declarations-client.js';
 import { HttpDeclarationsClient } from '../../src/declarations/http-declarations-client.js';
 import { HttpDirectoryClient } from '../../src/directory/http-directory-client.js';
+import { HttpDocumentsClient } from '../../src/documents/http-documents-client.js';
+import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
 import { HttpNotificationsClient } from '../../src/notifications/http-notifications-client.js';
 import { HttpReviewClient } from '../../src/review/http-review-client.js';
 
@@ -183,5 +185,68 @@ describe('HttpNotificationsClient', () => {
         tenant: 'psc',
       },
     });
+  });
+});
+
+describe('HttpDocumentsClient', () => {
+  const request0 = {
+    type: 'compliance-report-receipt',
+    templateVersion: 1,
+    disclosureLevel: 'restricted',
+    issuerTenant: 'psc',
+    subjectRef: 'compliance-report:0199b000-0000-7000-8000-00000000a001',
+    subjectPersonId: null,
+    payload: { reference: 'RPT-PSC-2027-0000001-4' },
+    publicPayload: {
+      reference: 'RPT-PSC-2027-0000001-4',
+      type: 'compliance-report-receipt',
+      issuer: 'PSC',
+      issuedAt: '2028-07-20T07:00:00.000Z',
+    },
+    idempotencyKey: '5b2d8e61-9c4f-4a07-8e13-6f2a9d4c7b18',
+  } as const;
+
+  it('issues a document for the Commission with the idempotency key', async () => {
+    const fetch = vi.fn<Fetch>(() =>
+      Promise.resolve(
+        Response.json(
+          { id: '0199b000-0000-7000-8000-00000000d001', verificationId: 'ADL-7Q4K' },
+          { status: 201 },
+        ),
+      ),
+    );
+    const client = new HttpDocumentsClient({
+      documentsUrl: 'http://documents.test',
+      tokens,
+      fetch,
+    });
+
+    const issued = await client.issue(request0);
+
+    expect(issued).toEqual({
+      id: '0199b000-0000-7000-8000-00000000d001',
+      verificationId: 'ADL-7Q4K',
+    });
+    const { idempotencyKey, ...body } = request0;
+    expect(request(fetch)).toEqual({
+      url: 'http://documents.test/internal/v1/documents/issue',
+      method: 'POST',
+      headers: expect.objectContaining({
+        'x-acting-tenant': 'psc',
+        'idempotency-key': idempotencyKey,
+      }) as Record<string, string>,
+      body,
+    });
+  });
+
+  it('is rejected when documents refuses the request', async () => {
+    const fetch = vi.fn<Fetch>(() => Promise.resolve(new Response(null, { status: 400 })));
+    const client = new HttpDocumentsClient({
+      documentsUrl: 'http://documents.test',
+      tokens,
+      fetch,
+    });
+
+    await expect(client.issue(request0)).rejects.toBeInstanceOf(InternalApiRejected);
   });
 });

@@ -4,21 +4,37 @@
  */
 import { condition, defineSignal, proxyActivities, setHandler } from '@temporalio/workflow';
 
+import type { AnnualCompileActivities } from './annual-compile-activities.js';
 import type { ComplianceReportActivities } from './activities.js';
 import {
   RECOMPILE_SIGNAL,
+  REMINDER_DAYS,
+  reminderAt,
   type ReportWorkflowInput,
   type ReportWorkflowResult,
   SUBMITTED_SIGNAL,
 } from './contract.js';
 
 /**
- * Reads of the projections and pulls from declarations, review and the directory: retried with
- * backoff until they succeed, so an outage delays a draft, never loses it. The first retry comes
- * after a second, each later one twice as late, at most five minutes apart.
+ * Reads of the projections and pulls from declarations, review, the directory, documents and
+ * notifications: retried with backoff until they succeed, so an outage delays a draft, a reminder
+ * or a receipt, never loses it. The first retry comes after a second, each later one twice as
+ * late, at most five minutes apart.
  */
-const { aggregate, compileDraft, notifyDraftReady } = proxyActivities<ComplianceReportActivities>({
+const {
+  aggregate,
+  compileDraft,
+  notifyDraftReady,
+  remind,
+  issueSubmissionDocuments,
+  notifySubmitted,
+} = proxyActivities<ComplianceReportActivities>({
   startToCloseTimeout: '5 minutes',
+  retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
+});
+
+const { annualCompileTargets, startCompile } = proxyActivities<AnnualCompileActivities>({
+  startToCloseTimeout: '1 minute',
   retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
 });
 
@@ -29,27 +45,49 @@ export const submitted = defineSignal(SUBMITTED_SIGNAL);
  * `ComplianceReportWorkflow(tenant, fy)` (spec 09): compiles the Commission's Form M draft for the
  * financial year from the projections, then waits. A `recompile` signal compiles it again (edited
  * remarks and manual fields are kept by `compileDraft`); a recompile asked for while one runs is
- * compiled once more after it. `submitted` ends the workflow. The supervisor and the
- * commission-admin are told when the first draft is ready.
+ * compiled once more after it. The supervisor and the commission-admin are told when the first
+ * draft is ready, and reminded 14, 7 and 1 days before 31 July while the report is not submitted
+ * (reminders already past when the workflow starts are not sent). `submitted` ends the waiting:
+ * the Form M PDF and the receipt are issued, both officers are told, and the workflow ends.
  *
- * Started, or signalled when already running, by the compile endpoint (`signalWithStart`).
+ * Started, or signalled when already running, by the compile and confirm endpoints and the
+ * yearly compile (`signalWithStart`).
  */
 export async function complianceReport(input: ReportWorkflowInput): Promise<ReportWorkflowResult> {
   let pending = true;
   let done = false;
   let compiles = 0;
+  let reminders = 0;
   setHandler(recompile, () => {
     pending = true;
   });
   setHandler(submitted, () => {
     done = true;
   });
-  // Read through a function: the handlers change these while the workflow awaits.
+  // Read through functions: the handlers change these while the workflow awaits.
   const ended = () => done;
+  const asked = () => pending;
+  const dueAt = REMINDER_DAYS.map((days) => reminderAt(input.fy, days));
+  let next = dueAt.findIndex((at) => at > Date.now());
+  if (next < 0) next = dueAt.length;
 
   for (;;) {
-    await condition(() => pending || done);
+    const due = dueAt[next];
+    if (due === undefined) {
+      await condition(() => pending || done);
+    } else if (due > Date.now()) {
+      await condition(() => pending || done, due - Date.now());
+    }
     if (ended()) break;
+    if (due !== undefined && Date.now() >= due) {
+      const daysBefore = REMINDER_DAYS[next] ?? 0;
+      next += 1;
+      const reminded = await remind({ ...input, daysBefore });
+      if (reminded.outcome === 'submitted') break;
+      reminders += 1;
+      continue;
+    }
+    if (!asked()) continue;
     pending = false;
     const facts = await aggregate(input);
     const draft = await compileDraft({ ...input, aggregate: facts });
@@ -57,5 +95,22 @@ export async function complianceReport(input: ReportWorkflowInput): Promise<Repo
     if (draft.outcome === 'submitted') break;
     if (draft.first) await notifyDraftReady({ ...input, reportId: draft.reportId });
   }
-  return { compiles };
+
+  const documents = await issueSubmissionDocuments(input);
+  await notifySubmitted({ ...input, reportId: documents.reportId });
+  return { compiles, reminders };
+}
+
+/**
+ * The yearly compile (spec 09), started by the service's Temporal schedule on 1 July: starts, or
+ * asks to recompile, `ComplianceReportWorkflow` of each Commission for the financial year that
+ * just ended. A Commission whose report is submitted already is left alone.
+ */
+export async function annualCompile(): Promise<{ fy: number; started: number }> {
+  const plan = await annualCompileTargets();
+  let started = 0;
+  for (const tenant of plan.tenants) {
+    if (await startCompile({ tenant, fy: plan.fy })) started += 1;
+  }
+  return { fy: plan.fy, started };
 }

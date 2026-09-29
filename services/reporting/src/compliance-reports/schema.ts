@@ -105,4 +105,51 @@ export const reportRemarks = pgTable(
   (table) => [primaryKey({ columns: [table.reportId, table.obligationId] })],
 );
 
-export const complianceReportsSchema = { complianceReports, reportRemarks };
+/**
+ * The deadline reminders sent for a report (31 July minus 14, 7 and 1 days), once each: a retried
+ * reminder records and announces nothing twice.
+ */
+export const reportReminders = pgTable(
+  'report_reminders',
+  {
+    reportId: uuid()
+      .notNull()
+      .references(() => complianceReports.id, { onDelete: 'cascade' }),
+    tenant: text().notNull(),
+    /** Days before the due date: 14, 7 or 1. */
+    daysBefore: integer().notNull(),
+    /** How many officers were emailed. */
+    recipients: integer().notNull(),
+    sentAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.reportId, table.daysBefore] })],
+);
+
+/**
+ * EACC's receipt of a submitted report (spec 09 `report_receipts`): what the intake lists per
+ * Commission and year, written when the report is submitted. Identifiers, counts and dates only.
+ * Row-level security: the Commission's own, and EACC and platform read every Commission's.
+ */
+export const reportReceipts = pgTable(
+  'report_receipts',
+  {
+    reportId: uuid()
+      .primaryKey()
+      .references(() => complianceReports.id, { onDelete: 'cascade' }),
+    tenant: text().notNull(),
+    fy: integer().notNull(),
+    reference: text().notNull(),
+    source: text().$type<ReportSource>().notNull(),
+    submittedAt: timestamp({ withTimezone: true }).notNull(),
+    late: boolean().notNull(),
+    counts: jsonb().$type<ReportCounts>().notNull(),
+  },
+  (table) => [uniqueIndex('report_receipts_tenant_fy_key').on(table.tenant, table.fy)],
+);
+
+export const complianceReportsSchema = {
+  complianceReports,
+  reportRemarks,
+  reportReminders,
+  reportReceipts,
+};

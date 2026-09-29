@@ -1754,6 +1754,9 @@ importers:
       '@adili/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../../packages/numbering
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

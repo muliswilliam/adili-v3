@@ -28,11 +28,18 @@ import type { ReportingTransaction } from '../../src/compliance-reports/reports.
 import { type ReportingSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
+import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProjectionsConsumer } from '../../src/projections/projections.consumer.js';
 import { ReviewClient } from '../../src/review/review-client.js';
 import { FakeClock } from './fake-clock.js';
-import { FakeDeclarations, FakeDirectory, FakeNotifications, FakeReview } from './fakes.js';
+import {
+  FakeDeclarations,
+  FakeDirectory,
+  FakeDocuments,
+  FakeNotifications,
+  FakeReview,
+} from './fakes.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -45,6 +52,10 @@ export interface Caller {
   name?: string;
   /** OAuth scopes (`scope`), as service tokens carry them. */
   scopes?: string[];
+  /** Level of authentication (`acr`), e.g. `step-up` after re-authentication. */
+  acr?: string;
+  /** When the user authenticated (`auth_time`), an ISO instant. */
+  authTime?: string;
 }
 
 export interface ReportingApi {
@@ -59,6 +70,7 @@ export interface ReportingApi {
   review: FakeReview;
   directory: FakeDirectory;
   notifications: FakeNotifications;
+  documents: FakeDocuments;
   cipher: FakeCipher;
   clock: FakeClock;
   /** The Temporal client the service starts workflows with. */
@@ -70,12 +82,13 @@ export interface ReportingApi {
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
-  /** A request with a JSON body (when given) as `caller`. */
+  /** A request with a JSON body (when given) and extra headers as `caller`. */
   send(
     method: 'POST' | 'PATCH',
     url: string,
     caller: Caller,
     body?: unknown,
+    headers?: Record<string, string>,
   ): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table and forgets what the fakes were given. */
   reset(): Promise<void>;
@@ -98,7 +111,7 @@ const HANDLERS: Record<string, keyof ProjectionsConsumer> = {
   'action.issued.v1': 'actionIssued',
   'action.responded.v1': 'actionResponded',
   'action.complied.v1': 'actionComplied',
-  'action.reinstated.v1': 'actionReinstated',
+  'action.cancelled.v1': 'actionCancelled',
   'determination.approved.v1': 'determinationApproved',
   'referral.sent.v1': 'referralSent',
 };
@@ -130,6 +143,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
   const review = new FakeReview();
   const directory = new FakeDirectory();
   const notifications = new FakeNotifications();
+  const documents = new FakeDocuments();
   const cipher = new FakeCipher();
   const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -145,6 +159,8 @@ export async function startReportingApi(): Promise<ReportingApi> {
     .useValue(directory)
     .overrideProvider(NotificationsClient)
     .useValue(notifications)
+    .overrideProvider(DocumentsClient)
+    .useValue(documents)
     .overrideProvider(FieldCipher)
     .useValue(cipher)
     .overrideProvider(Clock)
@@ -171,6 +187,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
     review,
     directory,
     notifications,
+    documents,
     cipher,
     clock,
     temporal: app.get<Client>(TEMPORAL_CLIENT),
@@ -189,23 +206,24 @@ export async function startReportingApi(): Promise<ReportingApi> {
         headers: { authorization: `Bearer ${token}` },
       });
     },
-    async send(method, path, caller, body) {
+    async send(method, path, caller, body, headers = {}) {
       const token = await signer(caller);
       return app.inject({
         method,
         url: path,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { ...headers, authorization: `Bearer ${token}` },
         ...(body === undefined ? {} : { payload: body as object }),
       });
     },
     async reset() {
       await db.execute(
-        sql`truncate report_remarks, compliance_reports, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, outbox, inbox`,
+        sql`truncate report_remarks, report_reminders, report_receipts, compliance_reports, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, numbering_counters, idempotency_keys, outbox, inbox`,
       );
       declarations.reset();
       review.reset();
       directory.reset();
       notifications.reset();
+      documents.reset();
       cipher.calls.length = 0;
       clock.reset();
     },
@@ -236,13 +254,23 @@ async function applyMigrations(db: Database<ReportingSchema>): Promise<void> {
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
-  const signer = ({ sub = randomUUID(), tenant = null, roles = [], name, scopes }: Caller) =>
+  const signer = ({
+    sub = randomUUID(),
+    tenant = null,
+    roles = [],
+    name,
+    scopes,
+    acr,
+    authTime,
+  }: Caller) =>
     new SignJWT({
       azp: 'console',
       tenant,
       realm_access: { roles },
       name,
       scope: scopes?.join(' '),
+      acr,
+      auth_time: authTime === undefined ? undefined : Math.floor(Date.parse(authTime) / 1000),
     })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuedAt()

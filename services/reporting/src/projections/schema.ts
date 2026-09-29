@@ -114,7 +114,10 @@ export const ACTION_STEPS = [
 ] as const;
 export type ActionStep = (typeof ACTION_STEPS)[number];
 
-/** An action's status as its `action.*` events tell it (spec 08). */
+/**
+ * An action's status as its `action.*` events tell it (spec 08 #206): `cancelled` when its ladder
+ * ended before it was issued.
+ */
 export const ACTION_STATUSES = [
   'proposed',
   'approved',
@@ -122,7 +125,7 @@ export const ACTION_STATUSES = [
   'issued',
   'responded',
   'complied',
-  'reinstated',
+  'cancelled',
 ] as const;
 export type ActionStatus = (typeof ACTION_STATUSES)[number];
 

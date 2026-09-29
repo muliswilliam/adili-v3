@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
 import type { EventEnvelope } from '@adili/events';
-import { v7 as uuidv7 } from 'uuid';
+import { v5 as uuidv5, v7 as uuidv7 } from 'uuid';
 
 /**
  * The events the reporting service projects, as the RabbitMQ transport delivers them, in the
- * shapes their producers publish (declarations spec 04, review spec 07a and 08) or have drafted
- * (declarations spec 06, review spec 08 actions and referrals).
+ * shapes their producers publish (declarations spec 04, review spec 07a and spec 08 #206 actions)
+ * or have drafted (declarations spec 06; review spec 08 referrals, assumed until #212).
  */
 
 export function envelope(
@@ -123,9 +123,17 @@ export function clarificationEvent(
   );
 }
 
+/** Ladder ids of the fixtures: one ladder per subject. */
+const LADDER_NAMESPACE = '6f0e2a4c-8b1d-4f3e-9a5c-2d7b9e1f4a60';
+
+/**
+ * An `action.*` event as review publishes it (spec 08 #206 `ActionEventData`): a system-proposed
+ * step of the action's ladder (one per subject), approved from `approved` on, with its `ADM`
+ * reference; compliance and cancellation name what closed the ladder.
+ */
 export function actionEvent(
   tenant: string,
-  status: 'proposed' | 'approved' | 'declined' | 'issued' | 'responded' | 'complied' | 'reinstated',
+  status: 'proposed' | 'approved' | 'declined' | 'issued' | 'responded' | 'complied' | 'cancelled',
   action: {
     actionId: string;
     subjectId: string;
@@ -134,11 +142,23 @@ export function actionEvent(
   },
   time: string,
 ): EventEnvelope {
+  const decided = status !== 'proposed';
   return envelope(
     `action.${status}.v1`,
     tenant,
     action.actionId,
-    { subjectKind: 'obligation', ...action },
+    {
+      actionId: action.actionId,
+      ladderId: uuidv5(action.subjectId, LADDER_NAMESPACE),
+      subjectKind: action.subjectKind ?? 'obligation',
+      subjectId: action.subjectId,
+      step: action.step,
+      proposerKind: 'system',
+      approver: decided ? 'reviewer-psc' : null,
+      ...(decided && status !== 'declined' ? { reference: 'ADM-PSC-2027-0000001-4' } : {}),
+      ...(status === 'complied' ? { cause: 'filed' } : {}),
+      ...(status === 'cancelled' ? { cause: 'obligation-cancelled' } : {}),
+    },
     time,
   );
 }

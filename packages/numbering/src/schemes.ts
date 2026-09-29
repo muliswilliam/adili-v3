@@ -30,5 +30,11 @@ export function defineScheme(scheme: NumberingScheme): NumberingScheme {
  */
 export const OFR = defineScheme({ code: 'OFR', issuer: false, period: false, sequenceDigits: 7 });
 
+/**
+ * Compliance report (Form M, Regs r.25(2)): numbered when the Responsible Commission submits it
+ * to EACC, per Commission and financial year (its start year). `RPT-PSC-2027-0000001-4`.
+ */
+export const RPT = defineScheme({ code: 'RPT', issuer: true, period: true, sequenceDigits: 7 });
+
 /** Schemes this package knows; later slices add theirs (DCB, CLR...) the same way. */
-export const numberingSchemes: readonly NumberingScheme[] = [OFR];
+export const numberingSchemes: readonly NumberingScheme[] = [OFR, RPT];

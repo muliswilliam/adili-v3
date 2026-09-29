@@ -25,7 +25,7 @@ export const ACTION_DECLINED = 'action.declined.v1';
 export const ACTION_ISSUED = 'action.issued.v1';
 export const ACTION_RESPONDED = 'action.responded.v1';
 export const ACTION_COMPLIED = 'action.complied.v1';
-export const ACTION_REINSTATED = 'action.reinstated.v1';
+export const ACTION_CANCELLED = 'action.cancelled.v1';
 
 export const DETERMINATION_APPROVED = 'determination.approved.v1';
 export const REFERRAL_SENT = 'referral.sent.v1';
@@ -61,9 +61,14 @@ export const clarificationData = z.object({
   caseId: z.uuid(),
 });
 
-/** Every `action.*` event (review, spec 08): the action, the subject it enforces, the step. */
+/**
+ * Every `action.*` event (review, spec 08 #206 `ActionEventData`): the action, its ladder, the
+ * subject the ladder enforces and the step. The events also carry the proposer kind, the approver,
+ * the `ADM` reference and what closed the ladder, which Form M does not need.
+ */
 export const actionData = z.object({
   actionId: z.uuid(),
+  ladderId: z.uuid(),
   subjectKind: z.enum(['obligation', 'clarification']),
   subjectId: z.uuid(),
   step: z.enum(ACTION_STEPS),
@@ -76,7 +81,7 @@ export const determinationApprovedData = z.object({
   outcome: z.string().min(1),
 });
 
-/** `referral.sent.v1` (review, spec 08). */
+/** `referral.sent.v1` (review, spec 08): the payload as the epic drafts it, until #212 builds it. */
 export const referralSentData = z.object({
   referralId: z.uuid(),
   reference: z.string().min(1),

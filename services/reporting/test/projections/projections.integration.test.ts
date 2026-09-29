@@ -188,6 +188,27 @@ describe('projections (S1)', () => {
     expect(projectedReferral).toMatchObject({ referralId, grounds: 'two-missed-cycles', fy: 2028 });
   });
 
+  it('S1: an action cancelled before issue (spec 08 action.cancelled.v1) was never taken', async () => {
+    const action = {
+      actionId: randomUUID(),
+      subjectId: randomUUID(),
+      step: 'warning',
+    } as const;
+
+    await api.deliver(actionEvent('psc', 'proposed', action, '2027-10-01T09:00:00.000Z'));
+    await api.deliver(actionEvent('psc', 'approved', action, '2027-10-02T09:00:00.000Z'));
+    await api.deliver(actionEvent('psc', 'cancelled', action, '2027-10-03T09:00:00.000Z'));
+
+    const [projected] = await api.asPlatform((tx) => tx.select().from(actionFacts));
+    expect(projected).toMatchObject({
+      actionId: action.actionId,
+      step: 'warning',
+      status: 'cancelled',
+      issuedAt: null,
+      compliedAt: null,
+    });
+  });
+
   it('S1: a redelivered event is projected once', async () => {
     const obligationId = randomUUID();
     const created = obligationCreated('psc', {
