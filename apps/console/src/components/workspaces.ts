@@ -38,6 +38,17 @@ export const OBLIGATIONS_ROLES = [
   'commission-admin',
 ] as const;
 
+/**
+ * Roles that open their own Commission's obligations policy from the Obligations workspace and
+ * change its start date (spec 04 access table). Platform admins use the Commission's page.
+ */
+export const OWN_POLICY_ROLES = ['commission-admin'] as const;
+
+/** Whether the viewer opens the Obligations workspace's policy page. */
+export function opensOwnPolicy(roles: readonly string[]): boolean {
+  return OWN_POLICY_ROLES.some((role) => roles.includes(role));
+}
+
 /** National roles, who see obligation counts per Commission but no officer (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = [
   'platform-admin',

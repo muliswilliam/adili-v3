@@ -25,7 +25,6 @@ export const en = {
     'Declarations of every type are owed on Adili only when their statement date is on or after this date.',
   startDateTipLabel: 'About the obligations start date',
   change: 'Change',
-  readOnlyNote: 'Only your Commission administrator can change the start date.',
   history: 'Version history',
   historyEffective: (when: string) => `Effective ${when}`,
   inForce: 'In force',

@@ -18,7 +18,7 @@ import { notOnboardedRosterLink } from '../../components/obligations/roster-link
 import { ObligationsView } from '../../components/obligations/obligations-view';
 import { messages as policyMessages } from '../../components/policy/messages';
 import { signInRedirect } from '../../components/sign-in-redirect';
-import { ROSTER_WRITE_ROLES, workspaceFor } from '../../components/workspaces';
+import { opensOwnPolicy, ROSTER_WRITE_ROLES, workspaceFor } from '../../components/workspaces';
 import type { DeclarationsResult, ObligationPage } from '../../server/declarations/client';
 import { getObligation, listCommissionObligations } from '../../server/obligations';
 
@@ -95,12 +95,15 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
       search={search}
       onSearchChange={changeSearch}
       actions={
-        <Button asChild variant="secondary" size="sm">
-          <Link to="/obligations/policy">
-            <Icon icon={Settings01Icon} />
-            {policyMessages.openPolicy}
-          </Link>
-        </Button>
+        // The policy is the commission admin's (spec 04 access table).
+        opensOwnPolicy(roles) ? (
+          <Button asChild variant="secondary" size="sm">
+            <Link to="/obligations/policy">
+              <Icon icon={Settings01Icon} />
+              {policyMessages.openPolicy}
+            </Link>
+          </Button>
+        ) : undefined
       }
       loadPage={(cursor) =>
         listCommissionObligations({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { workspaceFor, workspacesFor } from './workspaces';
+import { opensOwnPolicy, workspaceFor, workspacesFor } from './workspaces';
 
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
@@ -117,6 +117,20 @@ describe('Obligations workspace', () => {
     'stays closed for %s, who reach counts through the Commission',
     (role) => {
       expect(workspaceFor([role], 'obligations')).toBeUndefined();
+    },
+  );
+});
+
+describe("the Obligations workspace's policy page (spec 04 access table)", () => {
+  it('opens for commission admins, who change the start date', () => {
+    expect(opensOwnPolicy(['commission-admin'])).toBe(true);
+    expect(opensOwnPolicy(['reviewer', 'commission-admin'])).toBe(true);
+  });
+
+  it.each(['reporting-officer', 'reviewer', 'supervisor', 'platform-admin', 'eacc-analyst'])(
+    'stays closed for %s',
+    (role) => {
+      expect(opensOwnPolicy([role])).toBe(false);
     },
   );
 });

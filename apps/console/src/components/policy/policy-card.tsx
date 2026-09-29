@@ -14,7 +14,6 @@ import {
   InformationCircleIcon,
   PencilEdit02Icon,
   Settings01Icon,
-  SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
@@ -187,15 +186,5 @@ function VersionHistory({ history }: { history: TenantPolicyHistory }) {
         })}
       </ul>
     </section>
-  );
-}
-
-/** Under a read-only card: who may change the start date. */
-export function PolicyReadOnlyNote() {
-  return (
-    <p className="flex items-center gap-2 px-1 text-[13px] text-muted-foreground">
-      <Icon icon={SquareLock02Icon} className="size-3.75 shrink-0" />
-      <span>{m.readOnlyNote}</span>
-    </p>
   );
 }

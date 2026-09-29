@@ -4,8 +4,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { LoadError, NoAccess } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { messages as m } from '../../components/policy/messages';
-import { PolicyCard, PolicyReadOnlyNote } from '../../components/policy/policy-card';
+import { PolicyCard } from '../../components/policy/policy-card';
 import { goToSignIn, signInRedirect } from '../../components/sign-in-redirect';
+import { opensOwnPolicy } from '../../components/workspaces';
 import type { DirectoryResult, TenantPolicyHistory } from '../../server/directory/client';
 import { createTenantPolicyVersion, getTenantPolicy } from '../../server/policy';
 
@@ -15,17 +16,19 @@ const noCommission: DirectoryResult<never> = {
   error: { kind: 'unavailable', detail: null },
 };
 
-/** Commission admins change the start date; the Commission's other staff read the policy. */
-const POLICY_WRITE_ROLES = ['commission-admin'] as const;
+/** Staff of the Commission other than its admin: they do not see the policy (spec 04). */
+const notAdmin = 'not-admin' as const;
 
 /**
- * The obligations policy of the viewer's own Commission (spec 04 FE-4): the policy card, with
- * the start date change for commission admins, in the Obligations workspace.
+ * The obligations policy of the viewer's own Commission (spec 04 FE-4): the policy card with the
+ * start date change, in the Obligations workspace, for commission admins only. The Commission's
+ * other staff are told they have no access, and the policy is not fetched for them.
  */
 export const Route = createFileRoute('/obligations/policy')({
   loader: async ({ context, location }) => {
     // The layout shows no page without the workspace; do not fetch the policy.
     if (!context.workspace) return null;
+    if (!opensOwnPolicy(context.roles)) return notAdmin;
     if (!context.tenant) return noCommission;
     const policy = await getTenantPolicy({ data: { slug: context.tenant } });
     if (!policy.ok && policy.error.kind === 'unauthenticated') throw signInRedirect(location.href);
@@ -47,15 +50,17 @@ function PolicyLoaded() {
   return <PolicyPage policy={policy} />;
 }
 
-function PolicyPage({ policy }: { policy: DirectoryResult<TenantPolicyHistory> | null }) {
-  const { roles, tenant } = Route.useRouteContext();
-  const canChange = POLICY_WRITE_ROLES.some((role) => roles.includes(role));
+function PolicyPage({
+  policy,
+}: {
+  policy: DirectoryResult<TenantPolicyHistory> | typeof notAdmin | null;
+}) {
+  const { tenant } = Route.useRouteContext();
   return (
     <Page narrow>
       <PageHead title={m.pageTitle} />
       <PolicyBody
         policy={policy}
-        canChange={canChange}
         save={({ idempotencyKey, obligationsStartDate }) =>
           createTenantPolicyVersion({
             data: { slug: tenant ?? '', idempotencyKey, obligationsStartDate },
@@ -68,14 +73,13 @@ function PolicyPage({ policy }: { policy: DirectoryResult<TenantPolicyHistory> |
 
 function PolicyBody({
   policy,
-  canChange,
   save,
 }: {
-  policy: DirectoryResult<TenantPolicyHistory> | null;
-  canChange: boolean;
+  policy: DirectoryResult<TenantPolicyHistory> | typeof notAdmin | null;
   save: Parameters<typeof PolicyCard>[0]['save'];
 }) {
   if (policy === null) return <PolicyCardSkeleton />;
+  if (policy === notAdmin) return <NoAccess text={m.noAccess} />;
   if (!policy.ok) {
     const { error } = policy;
     if (
@@ -93,16 +97,13 @@ function PolicyBody({
     );
   }
   return (
-    <div className="grid gap-3">
-      <PolicyCard
-        history={policy.data}
-        save={canChange ? save : undefined}
-        onUnauthenticated={() => {
-          goToSignIn('/obligations/policy');
-        }}
-      />
-      {canChange ? null : <PolicyReadOnlyNote />}
-    </div>
+    <PolicyCard
+      history={policy.data}
+      save={save}
+      onUnauthenticated={() => {
+        goToSignIn('/obligations/policy');
+      }}
+    />
   );
 }
 
