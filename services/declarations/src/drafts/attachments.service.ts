@@ -37,11 +37,11 @@ type AttachmentRow = typeof declarationAttachments.$inferSelect;
 /**
  * Attachments on a draft's statement items (spec 05). The bytes stay in the documents service:
  * linking verifies through its internal API that the upload is the Commission's, clean and
- * uploaded as a declaration attachment, then in one transaction stores the row (name, hash,
- * size), adds the reference to the item inside the encrypted section and bumps the draft version,
- * and only then records the link in documents (so the orphan sweep keeps it). Unlinking removes
- * both; the object is left to documents' orphan sweep. Declarant only, under person row-level
- * security; each change is an event with identifiers only.
+ * uploaded as a declaration attachment, then in one transaction stores the row (hash and size),
+ * adds the reference (with the file name, which stays encrypted) to the item inside the section
+ * and bumps the draft version, and only then records the link in documents (so the orphan sweep
+ * keeps it). Unlinking removes both; the object is left to documents' orphan sweep. Declarant
+ * only, under person row-level security; each change is an event with identifiers only.
  */
 @Injectable()
 export class AttachmentsService {
@@ -86,13 +86,13 @@ export class AttachmentsService {
 
     const upload = await this.verified(tenant, uploadId);
 
+    const fileName = attachmentFileName(upload.fileName);
     const attachment: AttachmentRow = {
       id: uuidv7(),
       declarationId,
       sectionKey,
       itemId,
       uploadId,
-      fileName: attachmentFileName(upload.fileName),
       sha256: upload.sha256,
       size: upload.size,
       linkedAt: new Date(),
@@ -108,7 +108,7 @@ export class AttachmentsService {
         const changed = notFoundIfInvisible(
           withAttachment(stored, itemId, {
             uploadId,
-            fileName: attachment.fileName,
+            fileName,
             sha256: attachment.sha256,
           }),
         );
@@ -152,7 +152,7 @@ export class AttachmentsService {
         sectionKey,
         itemId,
         uploadId,
-        fileName: attachment.fileName,
+        fileName,
         sha256: attachment.sha256,
         size: attachment.size,
         linkedAt: attachment.linkedAt.toISOString(),

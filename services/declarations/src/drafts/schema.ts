@@ -151,7 +151,9 @@ export const declarationSections = pgTable(
 
 /**
  * A clean upload of the documents service linked to an item of a section. The bytes stay in the
- * documents service; this row is for listing and integrity.
+ * documents service; this row is for listing and integrity (hash and size). The file name can say
+ * what the declarant owns, so it is kept only in the item's reference inside the encrypted
+ * section (ADR-006), never here.
  */
 export const declarationAttachments = pgTable(
   'declaration_attachments',
@@ -163,7 +165,6 @@ export const declarationAttachments = pgTable(
     sectionKey: text().notNull(),
     itemId: uuid().notNull(),
     uploadId: uuid().notNull(),
-    fileName: text().notNull(),
     sha256: text().notNull(),
     size: bigint({ mode: 'number' }).notNull(),
     linkedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

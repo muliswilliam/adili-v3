@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -186,15 +186,16 @@ describe('linking an attachment (S10)', () => {
 
     const rows = await attachmentRows(draft.id);
     expect(rows).toEqual([
-      expect.objectContaining({
+      {
         id: attachment.id,
+        declarationId: draft.id,
         sectionKey: STATEMENT,
         itemId: ASSET_ID,
         uploadId: deed.id,
-        fileName: 'title-deed-kisumu.pdf',
         sha256: deed.sha256,
         size: 1_204_551,
-      }),
+        linkedAt: expect.any(Date) as Date,
+      },
     ]);
     const section = await statement(draft.id);
     expect(section.draftVersion).toBe(3);
@@ -428,6 +429,36 @@ describe('linking an attachment (S10)', () => {
     expect(saved.statusCode).toBe(200);
     expect(await attachmentRows(draft.id)).toHaveLength(1);
     expect(await events('declaration.attachment-unlinked.v1')).toEqual([]);
+  });
+});
+
+describe('ciphertext opacity for attachments (S13, ADR-006)', () => {
+  it('keeps the file name out of every clear column: only the encrypted statement holds it', async () => {
+    const draft = await draftWithItems();
+    const deed = upload('psc', { fileName: 'title-deed-kisumu.pdf' });
+    api.documents.givenUploads(deed);
+    expect(
+      (await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id }))
+        .statusCode,
+    ).toBe(201);
+
+    const { rows: attachments } = await api.asPerson(ACHIENG, (tx) =>
+      tx.execute(sql`select * from declaration_attachments where declaration_id = ${draft.id}`),
+    );
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]).toMatchObject({ sha256: deed.sha256 });
+    expect(JSON.stringify(attachments)).not.toContain('title-deed');
+
+    const { rows: sections } = await api.asPerson(ACHIENG, (tx) =>
+      tx.execute(
+        sql`select section_key, metadata::text as metadata, encode(ciphertext, 'escape') as escaped
+              from declaration_sections where declaration_id = ${draft.id}`,
+      ),
+    );
+    expect(JSON.stringify(sections)).not.toContain('title-deed');
+    expect(itemOf(await statement(draft.id), 'assets', ASSET_ID).attachments).toEqual([
+      { uploadId: deed.id, fileName: 'title-deed-kisumu.pdf', sha256: deed.sha256 },
+    ]);
   });
 });
 
