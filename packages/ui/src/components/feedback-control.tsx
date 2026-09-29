@@ -121,6 +121,10 @@ export type FeedbackControlProps = Omit<ComponentProps<'div'>, 'children' | 'onC
 const busyClassName =
   'aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:active:translate-y-0';
 
+// Send is a primary button: while saving it takes the same colours as when it is disabled.
+const sendBusyClassName =
+  'aria-disabled:bg-primary-disabled aria-disabled:bg-none aria-disabled:text-primary-disabled-foreground aria-disabled:opacity-100 aria-disabled:shadow-none';
+
 const rateButtonClassName = cn(
   busyClassName,
   'size-7 text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground [&_svg]:size-[15px]',
@@ -340,7 +344,7 @@ export function FeedbackControl({
               <Button
                 type="submit"
                 size="sm"
-                className={busyClassName}
+                className={cn(busyClassName, sendBusyClassName)}
                 aria-disabled={saving || undefined}
               >
                 {copy.send}

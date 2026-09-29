@@ -12,7 +12,14 @@ const meta = {
     const [value, setValue] = useState<Feedback | null>(args.value);
     return (
       <div className="max-w-[420px]">
-        <FeedbackControl {...args} value={value} onRate={setValue} />
+        <FeedbackControl
+          {...args}
+          value={value}
+          onRate={async (feedback) => {
+            await args.onRate?.(feedback);
+            setValue(feedback);
+          }}
+        />
       </div>
     );
   },
@@ -43,6 +50,22 @@ export const ReasonMissing: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Not helpful' }));
     await userEvent.click(canvas.getByRole('button', { name: 'Send rating' }));
+  },
+};
+
+/** While a rating saves, the buttons look off and ignore presses but keep focus. */
+export const Saving: Story = {
+  args: { onRate: () => new Promise<void>(() => undefined) },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Helpful' }));
+  },
+};
+
+/** A save that fails is announced ("Rating not sent. Try again.") and the rating is not kept. */
+export const Failed: Story = {
+  args: { onRate: () => Promise.reject(new Error('Service unavailable')) },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Helpful' }));
   },
 };
 
