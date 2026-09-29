@@ -1,22 +1,37 @@
 import { Injectable, Module } from '@nestjs/common';
 import { InjectTemporalClient } from '@adili/temporal';
-import { type Client, WorkflowExecutionAlreadyStartedError } from '@temporalio/client';
+import {
+  type Client,
+  WorkflowExecutionAlreadyStartedError,
+  WorkflowNotFoundError,
+} from '@temporalio/client';
 
 import { config } from '../config.js';
+import {
+  NATIONAL_REPORT_APPROVAL_WORKFLOW,
+  type NationalReportApprovalInput,
+  nationalReportApprovalWorkflowId,
+} from '../national-reports/contract.js';
 import {
   COMPLIANCE_REPORT_WORKFLOW,
   complianceReportWorkflowId,
   NATIONAL_CONSOLIDATION_WORKFLOW,
   nationalConsolidationWorkflowId,
+  NCR_APPROVED_SIGNAL,
   RECOMPILE_SIGNAL,
   type ReportWorkflowInput,
   SUBMITTED_SIGNAL,
 } from './contract.js';
-import type { complianceReport, nationalConsolidation } from './workflows.js';
+import type {
+  complianceReport,
+  nationalConsolidation,
+  nationalReportApproval,
+} from './workflows.js';
 
 /**
  * Starts `ComplianceReportWorkflow` on Temporal (ADR-003), one per Commission and financial
- * year, or signals the running one; and EACC's chase, one per financial year.
+ * year, or signals the running one; EACC's chase, one per financial year; and the approval of
+ * the year's national consolidated report.
  */
 @Injectable()
 export class ReportWorkflows {
@@ -52,6 +67,41 @@ export class ReportWorkflows {
       return true;
     } catch (error) {
       if (error instanceof WorkflowExecutionAlreadyStartedError) return false;
+      throw error;
+    }
+  }
+
+  /**
+   * The national consolidated report was approved: starts its approval workflow, which issues the
+   * NCR PDF and ends the year's chase. Already started (a retried approval) is fine.
+   */
+  async nationalReportApproved(input: NationalReportApprovalInput): Promise<void> {
+    try {
+      await this.temporal.workflow.start<typeof nationalReportApproval>(
+        NATIONAL_REPORT_APPROVAL_WORKFLOW,
+        {
+          taskQueue: config.TEMPORAL_TASK_QUEUE,
+          workflowId: nationalReportApprovalWorkflowId(input.nationalReportId),
+          args: [input],
+        },
+      );
+    } catch (error) {
+      if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
+    }
+  }
+
+  /**
+   * Tells the year's chase (`NationalConsolidationWorkflow`) that the national consolidated
+   * report is approved, so it ends. False when no chase runs (not started, or ended already).
+   */
+  async endNationalChase(fy: number): Promise<boolean> {
+    try {
+      await this.temporal.workflow
+        .getHandle(nationalConsolidationWorkflowId(fy))
+        .signal(NCR_APPROVED_SIGNAL);
+      return true;
+    } catch (error) {
+      if (error instanceof WorkflowNotFoundError) return false;
       throw error;
     }
   }

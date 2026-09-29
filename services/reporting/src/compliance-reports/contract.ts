@@ -148,9 +148,13 @@ export interface ChaseWorkflowInput {
   nextAt?: number;
 }
 
-/** The Commissions (slugs) without a submitted report for the year. */
+/**
+ * The Commissions (slugs) without a submitted report for the year; `ncrApproved` when the year's
+ * national consolidated report is approved already (the chase ends even if its signal was missed).
+ */
 export interface ChaseTargets {
   tenants: string[];
+  ncrApproved?: boolean;
 }
 
 export interface ChaseRequest {

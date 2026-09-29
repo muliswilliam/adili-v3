@@ -472,6 +472,14 @@ paths:
       tags: [ncr]
       operationId: getNationalReport
       summary: The national consolidated report for a financial year
+      description: |
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's
+        report is first built. `aggregates` holds counts and rates only, each at a stable dot
+        path (`national.initial.rate`, `byCommission.psc.final.declared`) that narrative
+        paragraphs cite in `aggregateRefs`: `reporting` (Commissions reported on time, late, not
+        reported), `national` (per section expected, declared, not declared and rate, the three
+        together as `all`, clarifications, access requests) and `byCommission` (per Commission
+        slug: name, status, report id and reference, and its numbers once reported).
       responses:
         '200':
           description: NCR
@@ -490,6 +498,12 @@ paths:
       tags: [ncr]
       operationId: buildNationalReport
       summary: Build or rebuild aggregates from submitted reports (analyst); narrative preserved
+      description: |
+        eacc-analyst and eacc-supervisor; anyone else 403. Recomputes the aggregates from the
+        Commissions' submitted reports as filed and every active Commission the directory lists;
+        the narrative is kept. The first build makes the caller the author. Every build and
+        narrative save raises `version` and adds the caller to the report's contributors, who
+        cannot approve it. Emits `ncr.drafted.v1` (ids, year, version, status, reports included).
       responses:
         '200':
           description: Built
@@ -500,7 +514,13 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: Already approved
+          description: 'No Commission has reported for the year (`no-submitted-reports`), or already approved (`ncr-approved`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The Commission directory could not be reached
           content:
             application/problem+json:
               schema:
@@ -512,6 +532,11 @@ paths:
       tags: [ncr]
       operationId: updateNationalReportNarrative
       summary: Save narrative sections (analyst)
+      description: |
+        eacc-analyst and eacc-supervisor; anyone else 403. Every section's full text, paragraphs
+        separated by a blank line; stored as `narrativeParagraphs`. A paragraph whose text is
+        unchanged keeps its id and labels; an edited one keeps its id and loses `aiDraft`; the
+        rest are new. The caller becomes a contributor. 404 before the first build.
       requestBody:
         required: true
         content:
@@ -525,10 +550,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NationalReport'
+        '400':
+          description: Body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Already approved
+          description: Already approved (`ncr-approved`)
           content:
             application/problem+json:
               schema:
@@ -540,6 +573,12 @@ paths:
       tags: [ncr]
       operationId: approveNationalReport
       summary: EACC supervisor (not the author) approves; allocates NCR and issues the PDF
+      description: |
+        eacc-supervisor only; eacc-analyst and anyone else 403. The author, or anyone who built
+        the report or saved its narrative, gets 403 `separation-of-duties`. Allocates
+        `NCR-EACC-<FY>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year,
+        version, reference). The Restricted PDF follows (`documentId`, polled on the report), and
+        the year's chase of non-reporting Commissions ends.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
@@ -557,6 +596,18 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already approved (`ncr-approved`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The workflow engine could not be reached; nothing was approved
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/national-reports/{fy}/candidates:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
@@ -1351,13 +1402,16 @@ components:
         [
           id,
           fy,
+          version,
           status,
           builtAt,
           reportsIncluded,
           aggregates,
           narrative,
+          narrativeParagraphs,
           author,
           approver,
+          approvedAt,
           reference,
           documentId,
         ]
@@ -1367,6 +1421,10 @@ components:
           format: uuid
         fy:
           type: integer
+        version:
+          type: integer
+          minimum: 1
+          description: The report's revision; goes up with every build, narrative save and the approval
         status:
           type: string
           enum: [draft, approved]
@@ -1382,7 +1440,7 @@ components:
           $ref: '#/components/schemas/Narrative'
         narrativeParagraphs:
           type: array
-          description: Structured paragraphs behind the narrative sections (spec 09b); AI drafts labelled until edited
+          description: The paragraphs behind the narrative sections, per section in position order; AI drafts (spec 09b) labelled until edited
           items:
             $ref: '#/components/schemas/NarrativeParagraph'
         author:
@@ -1393,6 +1451,9 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Officer'
             - type: 'null'
+        approvedAt:
+          type: [string, 'null']
+          format: date-time
         reference:
           type: [string, 'null']
           description: 'NCR-EACC-<FY>-<seq>-<check>'

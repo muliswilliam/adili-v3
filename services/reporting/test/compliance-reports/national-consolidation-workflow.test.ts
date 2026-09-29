@@ -144,6 +144,22 @@ describe('NationalConsolidationWorkflow', () => {
     expect(chased.map(({ round }) => round)).toEqual([1, 2]);
   }, 60_000);
 
+  it('S11: ends when the chase finds the national consolidated report approved (its signal missed)', async () => {
+    const { mocks, chased } = activities({ outstanding: () => ['jsc'] });
+    let rounds = 0;
+    mocks.chaseTargets = vi.fn(() => {
+      rounds += 1;
+      return Promise.resolve(
+        rounds === 1 ? { tenants: ['jsc'] } : { tenants: [], ncrApproved: true },
+      );
+    });
+
+    const result = await run(mocks);
+
+    expect(result).toEqual({ rounds: 1, chases: 1, ended: 'ncr-approved' });
+    expect(chased.map(({ round }) => round)).toEqual([1]);
+  }, 60_000);
+
   it('S10: started after 1 August, chases at once and weekly from then', async () => {
     // Last year's first chase is behind the test server's clock.
     const late = fy - 1;

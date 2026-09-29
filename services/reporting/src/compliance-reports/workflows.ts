@@ -11,6 +11,11 @@ import {
   workflowInfo,
 } from '@temporalio/workflow';
 
+import type { NationalReportActivities } from '../national-reports/activities.js';
+import type {
+  NationalReportApprovalInput,
+  NationalReportApprovalResult,
+} from '../national-reports/contract.js';
 import type { AnnualCompileActivities } from './annual-compile-activities.js';
 import type { ComplianceReportActivities } from './activities.js';
 import {
@@ -57,6 +62,17 @@ const { chaseTargets, chaseCommission, startNationalChase } =
     startToCloseTimeout: '1 minute',
     retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
   });
+
+/**
+ * The NCR PDF: rendering and signing takes seconds; retried with backoff while documents is
+ * unreachable. Ending the chase is one signal.
+ */
+const { issueNationalReportDocument, endNationalChase } = proxyActivities<NationalReportActivities>(
+  {
+    startToCloseTimeout: '5 minutes',
+    retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
+  },
+);
 
 export const recompile = defineSignal(RECOMPILE_SIGNAL);
 export const submitted = defineSignal(SUBMITTED_SIGNAL);
@@ -162,7 +178,8 @@ export async function nationalConsolidation(
     if (ended()) return { rounds, chases, ended: 'ncr-approved' };
     const now = Date.now();
     const round = chaseRoundAt(input.fy, now);
-    const { tenants } = await chaseTargets({ fy: input.fy });
+    const { tenants, ncrApproved: approvedAlready = false } = await chaseTargets({ fy: input.fy });
+    if (approvedAlready) return { rounds, chases, ended: 'ncr-approved' };
     if (tenants.length === 0) return { rounds, chases, ended: 'all-reported' };
     for (const tenant of tenants) {
       const chased = await chaseCommission({ fy: input.fy, tenant, round });
@@ -189,4 +206,18 @@ export async function nationalConsolidation(
  */
 export async function nationalChaseStart(): Promise<{ fy: number; started: boolean }> {
   return startNationalChase();
+}
+
+/**
+ * `NationalReportApprovalWorkflow` (spec 09 NCR): once an EACC supervisor approved the year's
+ * national consolidated report, issues its Restricted PDF through documents (kept on the report)
+ * and tells the year's chase to end (`ncr-approved`). Started by the approval, before its commit.
+ * History holds the report id, the year and the document id only.
+ */
+export async function nationalReportApproval(
+  input: NationalReportApprovalInput,
+): Promise<NationalReportApprovalResult> {
+  const { documentId } = await issueNationalReportDocument(input);
+  const chaseEnded = await endNationalChase(input);
+  return { documentId, chaseEnded };
 }

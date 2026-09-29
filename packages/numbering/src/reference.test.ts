@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
 import { format, InvalidReferenceError, parse } from './reference.js';
-import { defineScheme, OFR, RPT } from './schemes.js';
+import { defineScheme, NCR, OFR, RPT } from './schemes.js';
 
 // Test-only scheme with issuer and period, to exercise the full ADR-011 shape.
 const DCB = defineScheme({ code: 'DCB', issuer: true, period: true, sequenceDigits: 7 });
@@ -62,6 +62,17 @@ describe('parse', () => {
     expect(parse(reference)).toMatchObject({
       scheme: 'RPT',
       issuer: 'PSC',
+      period: 2027,
+      sequence: 1,
+    });
+  });
+
+  it('knows NCR by default, issued by EACC per financial year', () => {
+    const reference = format(NCR, { issuer: 'EACC', period: 2027, sequence: 1 });
+    expect(reference).toMatch(/^NCR-EACC-2027-0000001-[0-9A-Z]$/);
+    expect(parse(reference)).toMatchObject({
+      scheme: 'NCR',
+      issuer: 'EACC',
       period: 2027,
       sequence: 1,
     });

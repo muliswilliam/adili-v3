@@ -1,23 +1,27 @@
 import type { FormMV1 } from '@adili/forms';
 
-/** The documents the reporting service issues for a submitted report (documents.yaml `DocumentType`). */
-export type ReportDocumentType = 'form-m' | 'compliance-report-receipt';
+/**
+ * The documents the reporting service issues (documents.yaml `DocumentType`): a submitted report's
+ * Form M and receipt, and EACC's national consolidated report.
+ */
+export type ReportDocumentType = 'form-m' | 'compliance-report-receipt' | 'ncr';
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010): the Restricted Form M as filed, or its signed acknowledgement receipt. The payload
- * travels in the request body only: never in logs, events or workflow history.
+ * ADR-010): the Restricted Form M as filed, its signed acknowledgement receipt, or the Restricted
+ * national consolidated report. The payload travels in the request body only: never in logs,
+ * events or workflow history.
  */
 export interface IssueDocumentRequest {
   type: ReportDocumentType;
   templateVersion: number;
   disclosureLevel: 'restricted';
   issuerTenant: string;
-  /** The owning record: `compliance-report:<uuid>`. */
+  /** The owning record: `compliance-report:<uuid>` or `national-report:<uuid>`. */
   subjectRef: string;
-  /** No person owns a Commission's report. */
+  /** No person owns a Commission's report or the national report. */
   subjectPersonId: null;
-  /** The fields the template renders: the `form-m.v1` document, or the receipt's fields. */
+  /** The fields the template renders: the `form-m.v1` document, the receipt's or the NCR's. */
   payload: FormMV1 | Record<string, unknown>;
   /** Shown on the verify page: reference, type, issuer and issue time. */
   publicPayload: { reference: string; type: ReportDocumentType; issuer: string; issuedAt: string };

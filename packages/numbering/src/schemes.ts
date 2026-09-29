@@ -36,5 +36,11 @@ export const OFR = defineScheme({ code: 'OFR', issuer: false, period: false, seq
  */
 export const RPT = defineScheme({ code: 'RPT', issuer: true, period: true, sequenceDigits: 7 });
 
+/**
+ * National consolidated report (spec 09): numbered when an EACC supervisor approves it, per
+ * financial year (its start year), issued by EACC. `NCR-EACC-2027-0000001-Q`.
+ */
+export const NCR = defineScheme({ code: 'NCR', issuer: true, period: true, sequenceDigits: 7 });
+
 /** Schemes this package knows; later slices add theirs (DCB, CLR...) the same way. */
-export const numberingSchemes: readonly NumberingScheme[] = [OFR, RPT];
+export const numberingSchemes: readonly NumberingScheme[] = [OFR, RPT, NCR];

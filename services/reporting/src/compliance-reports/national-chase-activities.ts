@@ -9,6 +9,7 @@ import { Clock } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { dueDateOf, financialYearAt } from '../financial-year.js';
+import { nationalReports } from '../national-reports/schema.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import type { ChaseOutcome, ChaseRequest, ChaseTargets, ChaseWorkflowInput } from './contract.js';
@@ -40,18 +41,27 @@ export class NationalChaseActivities {
     private readonly clock: Clock,
   ) {}
 
-  /** The active Commissions (slugs) that have not submitted the year's report. */
+  /**
+   * The active Commissions (slugs) that have not submitted the year's report; none, with
+   * `ncrApproved`, once the year's national consolidated report is approved.
+   */
   async chaseTargets({ fy }: ChaseWorkflowInput): Promise<ChaseTargets> {
-    const commissions = await this.directory.listCommissions();
-    const reported = await withTenant(
+    const { reported, approved } = await withTenant(
       this.db,
       { tenant: 'platform', subject: SYSTEM_SUBJECT },
-      (tx) =>
-        tx
+      async (tx) => ({
+        reported: await tx
           .select({ tenant: reportReceipts.tenant })
           .from(reportReceipts)
           .where(eq(reportReceipts.fy, fy)),
+        approved: await tx
+          .select({ id: nationalReports.id })
+          .from(nationalReports)
+          .where(and(eq(nationalReports.fy, fy), eq(nationalReports.status, 'approved'))),
+      }),
     );
+    if (approved.length > 0) return { tenants: [], ncrApproved: true };
+    const commissions = await this.directory.listCommissions();
     const done = new Set(reported.map((row) => row.tenant));
     return {
       tenants: commissions

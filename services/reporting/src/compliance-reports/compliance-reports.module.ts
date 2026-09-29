@@ -6,6 +6,9 @@ import { TemporalWorkerModule } from '@adili/temporal';
 import { CipherModule } from '../cipher.module.js';
 import { ClockModule } from '../clock.module.js';
 import { config } from '../config.js';
+import { NationalReportActivities } from '../national-reports/activities.js';
+import { NationalReportsController } from '../national-reports/national-reports.controller.js';
+import { NationalReportsService } from '../national-reports/national-reports.service.js';
 import { UpstreamModule } from '../upstream.module.js';
 import { ComplianceReportActivities } from './activities.js';
 import { AnnualCompileActivities } from './annual-compile-activities.js';
@@ -30,9 +33,10 @@ const workflowsPath = fileURLToPath(
 
 /**
  * Compliance reports (spec 09): the Form M workspace endpoints, federated submission, EACC's
- * intake and report viewer, the schedules of the yearly compile and of EACC's chase, and the
- * reporting worker hosting `ComplianceReportWorkflow`, the yearly compile,
- * `NationalConsolidationWorkflow` and their activities.
+ * intake and report viewer, EACC's national consolidated report, the schedules of the yearly
+ * compile and of EACC's chase, and the reporting worker hosting `ComplianceReportWorkflow`, the
+ * yearly compile, `NationalConsolidationWorkflow`, `NationalReportApprovalWorkflow` and their
+ * activities.
  */
 @Module({
   imports: [
@@ -46,15 +50,26 @@ const workflowsPath = fileURLToPath(
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
       // One worker per service: every workflow of the reporting service runs on this queue.
-      activities: [ComplianceReportActivities, AnnualCompileActivities, NationalChaseActivities],
+      activities: [
+        ComplianceReportActivities,
+        AnnualCompileActivities,
+        NationalChaseActivities,
+        NationalReportActivities,
+      ],
       imports: [ClockModule, CipherModule, UpstreamModule, ReportWorkflowsModule],
     }),
   ],
-  controllers: [ComplianceReportsController, FederatedReportsController, EaccReportsController],
+  controllers: [
+    ComplianceReportsController,
+    FederatedReportsController,
+    EaccReportsController,
+    NationalReportsController,
+  ],
   providers: [
     ComplianceReportsService,
     ReportSignOffService,
     EaccReportsService,
+    NationalReportsService,
     AnnualCompileSchedule,
     NationalChaseSchedule,
   ],

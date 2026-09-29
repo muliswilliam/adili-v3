@@ -119,13 +119,30 @@ export function isEacc(principal: Principal): boolean {
  * EACC's intake and chase status are for EACC's analysts and supervisors only; anyone else,
  * Commission staff included, gets 403.
  */
-export function requireEacc(principal: Principal): void {
+export function requireEacc(
+  principal: Principal,
+  detail = 'Only EACC analysts and supervisors see the compliance report intake.',
+): void {
   if (isEacc(principal)) return;
   throw new ProblemException({
     type: 'about:blank',
     title: 'Forbidden',
     status: HttpStatus.FORBIDDEN,
-    detail: 'Only EACC analysts and supervisors see the compliance report intake.',
+    detail,
+  });
+}
+
+/**
+ * Only an EACC supervisor approves the national consolidated report (spec 09 authorisation);
+ * EACC analysts and everyone else get 403.
+ */
+export function requireEaccSupervisor(principal: Principal, action: string): void {
+  if (principal.tenant === EACC_TENANT && principal.roles.includes(EACC_SUPERVISOR)) return;
+  throw new ProblemException({
+    type: 'about:blank',
+    title: 'Forbidden',
+    status: HttpStatus.FORBIDDEN,
+    detail: `Only an EACC supervisor can ${action}.`,
   });
 }
 
