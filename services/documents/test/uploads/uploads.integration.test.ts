@@ -496,6 +496,58 @@ describe('internal download', () => {
   });
 });
 
+describe('internal link marker (spec 05)', () => {
+  let clean: UploadReservation;
+
+  beforeAll(async () => {
+    clean = await upload(fixture('roster.csv'));
+    await complete(clean.id);
+  });
+
+  const link = (id: string, tenant = 'psc', caller: Caller = DIRECTORY) =>
+    api.post(`/internal/v1/uploads/${id}/linked`, undefined, caller, {
+      headers: { 'x-acting-tenant': tenant },
+    });
+
+  it('records when the owning service linked a clean upload, keeping the first time on a repeat', async () => {
+    expect((await row(clean.id)).linkedAt).toBeNull();
+
+    const first = await link(clean.id);
+
+    expect(first.statusCode).toBe(204);
+    const linkedAt = (await row(clean.id)).linkedAt;
+    expect(linkedAt).toBeInstanceOf(Date);
+
+    expect((await link(clean.id)).statusCode).toBe(204);
+    expect((await row(clean.id)).linkedAt).toEqual(linkedAt);
+  });
+
+  it("answers 404 for another tenant's upload and an unknown one", async () => {
+    expect((await link(clean.id, 'tsc')).statusCode).toBe(404);
+    expect((await link(randomUUID())).statusCode).toBe(404);
+  });
+
+  it('answers 409 upload-not-clean for an upload that is not clean, and records nothing', async () => {
+    const pending = await reserve(fixture('roster.csv'));
+
+    const response = await link(pending.id);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json<Problem>().type).toBe('upload-not-clean');
+    expect((await row(pending.id)).linkedAt).toBeNull();
+  });
+
+  it('refuses tokens without the documents:internal scope', async () => {
+    expect((await link(clean.id, 'psc', OFFICER)).statusCode).toBe(403);
+  });
+
+  it('is in the implemented contract, not a draft', () => {
+    expect(contractOperation('/internal/v1/uploads/{id}/linked', 'post')).not.toHaveProperty(
+      'x-draft',
+    );
+  });
+});
+
 describe('expiry sweep', () => {
   const expire = (id: string) =>
     withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>

@@ -94,11 +94,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Record that the owning service linked a clean upload (spec 05)
-         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant.
-         *     The owning service calls it when it links a clean upload to its record (declarations: an
-         *     attachment on an item), so the orphan sweep keeps the object; clean uploads with no link
-         *     recorded are deleted after 30 days. Idempotent.
+         * Record that the owning service linked a clean upload
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan. Idempotent: the first link time is kept.
          */
         post: operations["markUploadLinked"];
         delete?: never;
@@ -604,6 +601,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Requires a service token with scope documents:internal */
             403: {
                 headers: {
@@ -613,7 +619,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not the acting tenant's upload */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
                 headers: {
